@@ -1,0 +1,7 @@
+# beads runtime (auto-created by br daemon)
+.beads/
+
+# tool caches
+.cass/
+.bv/
+.gitnexus
