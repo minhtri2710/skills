@@ -1,6 +1,6 @@
 # Knowledge Store Protocol
 
-Shared protocol for reading and writing project learnings. Used by `beo-compounding`, `beo-debugging`, `beo-dream`, `beo-planning`, and `beo-router`.
+Shared protocol for reading and writing project learnings. Used by `beo-compounding`, `beo-debugging`, `beo-dream`, `beo-exploring`, `beo-planning`, and `beo-router`.
 
 ## Tool Detection
 
@@ -68,11 +68,19 @@ qmd search "<keyword>" --json 2>/dev/null
 
 ### Fallback: grep
 
-When QMD is unavailable, fall back to flat-file search:
+When QMD is unavailable, fall back to flat-file search. Check both the Obsidian vault and the flat-file directory (one will typically be empty):
 
 ```bash
 cat .beads/critical-patterns.md 2>/dev/null
+
+# Check flat-file learnings
 grep -ri "<keyword>" .beads/learnings/ 2>/dev/null
+
+# Check Obsidian vault learnings (if vault path is known)
+VAULT_PATH=$(obsidian eval code="app.vault.adapter.basePath" 2>/dev/null)
+if [ -n "$VAULT_PATH" ] && [ -d "$VAULT_PATH/beo-learnings" ]; then
+  grep -ri "<keyword>" "$VAULT_PATH/beo-learnings/" 2>/dev/null
+fi
 ```
 
 ## YAML Frontmatter Schema
@@ -94,12 +102,26 @@ tags:
 
 ## QMD Collection Setup
 
-One-time setup to enable semantic search over learnings:
+One-time setup to enable semantic search over learnings. The collection must point at the same directory where writes go -- the Obsidian vault when available, otherwise `.beads/learnings/`:
 
 ```bash
-qmd collection add .beads/learnings --name beo-learnings
+# Detect write target
+if obsidian help 2>/dev/null; then
+  # Obsidian vault is the write target -- index the vault's beo-learnings folder
+  VAULT_PATH=$(obsidian eval code="app.vault.adapter.basePath" 2>/dev/null)
+  LEARNINGS_PATH="${VAULT_PATH}/beo-learnings"
+  mkdir -p "$LEARNINGS_PATH"
+else
+  # Flat-file fallback
+  LEARNINGS_PATH=".beads/learnings"
+  mkdir -p "$LEARNINGS_PATH"
+fi
+
+qmd collection add "$LEARNINGS_PATH" --name beo-learnings
 qmd embed
 ```
+
+> **Important**: If you switch between Obsidian and flat-file writes, re-run the collection setup pointing at the new path. QMD indexes a single directory per collection -- it won't find files written to a different location.
 
 ## Index Refresh
 

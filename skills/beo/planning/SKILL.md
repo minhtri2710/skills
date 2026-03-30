@@ -44,8 +44,12 @@ If CONTEXT.md does not exist, STOP. Route back to `beo-exploring`.
 **Mandatory.** Before any research, check institutional memory.
 
 ```bash
-# Search knowledge store for relevant learnings
-qmd query "<feature domain keywords>" --json 2>/dev/null || cat .beads/critical-patterns.md 2>/dev/null
+# Search knowledge store for relevant learnings (QMD handles vault-vs-local via collection config)
+qmd query "<feature domain keywords>" --json 2>/dev/null || {
+  cat .beads/critical-patterns.md 2>/dev/null
+  VAULT_PATH=$(obsidian eval code="app.vault.adapter.basePath" 2>/dev/null)
+  [ -n "$VAULT_PATH" ] && cat "$VAULT_PATH/beo-learnings/critical-patterns.md" 2>/dev/null
+}
 ```
 
 If QMD is available, also run a semantic search:
@@ -193,10 +197,11 @@ For each task in the plan:
 br create "<Task Name>" -t task --parent <EPIC_ID> -p <priority> --json
 ```
 
-Priority assignment:
+Priority assignment (0-3 scale, see br-cli-reference):
+- Spike/urgent: priority 0
 - Critical path tasks: priority 1
-- Standard tasks: priority 2-3
-- Nice-to-have / cleanup: priority 4-5
+- Standard tasks: priority 2
+- Nice-to-have / cleanup: priority 3
 
 ### Step 2: Write Task Descriptions
 
@@ -317,8 +322,9 @@ If context usage exceeds 65% during planning:
      "phase": "planning",
      "skill": "beo-planning",
      "feature": "<epic-id>",
+     "feature_name": "<feature-name>",
      "next_action": "Continue from Phase <N>, Step <M>",
-      "in_flight_beads": [],
+     "in_flight_beads": [],
      "timestamp": "<iso8601>"
    }
    ```
@@ -328,16 +334,15 @@ If context usage exceeds 65% during planning:
 
 After plan is written, tasks are created, and dependencies are wired:
 
-Update state:
-```bash
 Write `.beads/STATE.md`:
 ```markdown
 # Beo State
 - Phase: planning → complete
 - Feature: <epic-id> (<feature-name>)
 - Tasks: <count> created
-- Dependencies: <count> edges
 - Next: beo-validating
+
+Dependencies: <count> edges
 ```
 
 Announce:

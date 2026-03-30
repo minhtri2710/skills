@@ -28,9 +28,13 @@ bv --robot-causality <id> --format json       # Causality analysis for a specifi
 
 ## Scoped Queries
 
+`--graph-root <epic-id>` scopes any robot command to the subgraph under a specific epic. Use it to avoid noise from other epics.
+
 ```bash
-bv --robot-triage --graph-root <epic-id> --format json   # Triage scoped to one epic
-bv --robot-plan --label <label> --format json             # Plan scoped to label subgraph
+bv --robot-triage --graph-root <epic-id> --format json     # Triage scoped to one epic
+bv --robot-plan --graph-root <epic-id> --format json       # Plan scoped to one epic
+bv --robot-insights --graph-root <epic-id> --format json   # Insights scoped to one epic
+bv --robot-plan --label <label> --format json              # Plan scoped to label subgraph
 ```
 
 ## Recipes (Pre-Filtered)

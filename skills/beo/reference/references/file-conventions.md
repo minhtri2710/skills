@@ -17,7 +17,7 @@ Canonical locations for all pipeline artifacts and state files. Every skill in t
 {
   "schema_version": 1,
   "phase": "<skill phase name>",
-  "skill": "<skill-name>",
+  "skill": "beo-<skill-name>",
   "feature": "<epic-id>",
   "feature_name": "<feature-name>",
   "next_action": "<what to do next>",
@@ -32,12 +32,14 @@ Canonical locations for all pipeline artifacts and state files. Every skill in t
 
 All feature artifacts live under `.beads/artifacts/<feature-name>/`:
 
+`<feature-name>` is the immutable `feature_slug` created by the router. See `pipeline-contracts.md` → Feature Slug for derivation rules.
+
 | File | Written By | Read By | Purpose |
 |------|-----------|---------|---------|
 | `CONTEXT.md` | beo-exploring | beo-planning, beo-validating, beo-executing, beo-reviewing, beo-compounding | Locked decisions — the source of truth |
 | `discovery.md` | beo-planning | beo-validating, beo-compounding | Research findings from discovery subagents |
 | `plan.md` | beo-planning | beo-validating, beo-executing, beo-compounding | Task decomposition, risk map, approach |
-| `debug-notes.md` | beo-debugging | beo-compounding | Failure patterns discovered during debugging |
+| `debug-notes.md` | beo-debugging | beo-compounding, beo-debugging | Failure patterns discovered during debugging |
 | `compounding-patterns.md` | beo-compounding (Agent 1) | beo-compounding orchestrator | Staging: reusable patterns extracted |
 | `compounding-decisions.md` | beo-compounding (Agent 2) | beo-compounding orchestrator | Staging: decision analysis |
 | `compounding-failures.md` | beo-compounding (Agent 3) | beo-compounding orchestrator | Staging: failure analysis |
@@ -49,6 +51,7 @@ All feature artifacts live under `.beads/artifacts/<feature-name>/`:
 | `.beads/review-findings.md` | beo-reviewing | beo-compounding | P1/P2/P3 severity findings from 5 specialist reviewers |
 | `.beads/learnings/YYYYMMDD-<slug>.md` | beo-compounding | all skills (Phase 0) | Finalized learnings from completed features |
 | `.beads/critical-patterns.md` | beo-compounding | beo-exploring, beo-planning, beo-debugging, beo-dream | Promoted high-value patterns (multi-feature, generalizable) |
+| `.beads/learnings/dream-run-provenance.md` | beo-dream | beo-dream | Dream run markers — tracks when last consolidation ran |
 
 ## Knowledge Store (Optional)
 

@@ -23,6 +23,11 @@ Prerequisites:
 - EPIC_ID is known (from STATE.md or user input)
 - Agent Mail server is reachable
 
+If Agent Mail is unavailable, degrade to single-worker mode:
+- Route to `beo-executing` instead of swarming
+- Log the degradation in STATE.md
+- Do not attempt to orchestrate parallel workers without Agent Mail
+
 ---
 
 ## Phase 1: Confirm Swarm Readiness
@@ -37,6 +42,11 @@ Prerequisites:
    - dependencies are acyclic
    - no unresolved validation blockers remain
 4. Update `.beads/STATE.md` with current swarm intent and epic ID.
+5. Claim the epic if not already in_progress:
+   ```bash
+   br update <EPIC_ID> --claim
+   ```
+   See `pipeline-contracts.md` → Epic Lifecycle. This must happen before any workers are spawned.
 
 ### Scheduling Strategy (4-Tier Cascade)
 
@@ -224,6 +234,8 @@ After each significant event, estimate your own context budget.
 3. Report to user that the orchestrator paused safely and how to resume
 4. Do NOT abandon the swarm without writing `HANDOFF.json`
 
+The swarming HANDOFF.json extends the base schema with additional fields (`session`, `swarm`, `graph_status`, `active_workers`, `open_blockers`, `resume_instructions`, `context_at_pause`). The base fields (`schema_version`, `phase`, `skill`, `feature`, `feature_name`, `next_action`, `in_flight_beads`, `timestamp`) must still be present at the top level for router compatibility. See `references/message-templates.md` → Handoff JSON Template.
+
 ---
 
 ## Phase 5: Swarm Complete
@@ -240,10 +252,13 @@ When no beads remain `in_progress` and the graph shows no remaining executable w
 3. If all beads are closed:
    - run final build/test commands appropriate to the project
    - update `.beads/STATE.md`:
-     ```
-     Active skill: swarming -> COMPLETE
-     Swarm: <EPIC_ID> — all beads closed
-     ```
+      ```markdown
+      # Beo State
+      - Phase: swarming → complete
+      - Feature: <epic-id> (<feature-name>)
+      - Tasks: <total> completed
+      - Next: beo-reviewing
+      ```
    - clear `## Active Workers` from `.beads/STATE.md`
 
 4. Completion announcement via Agent Mail:

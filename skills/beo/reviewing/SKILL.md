@@ -277,7 +277,11 @@ Next: Load beo-compounding to capture learnings and promote critical patterns.
 
 ## Lightweight Mode
 
-For instant/tiny features (1-2 tasks, LOW risk):
+For features meeting ALL of these criteria:
+- ≤2 tasks, all LOW risk
+- No external dependencies
+- No schema changes
+- No auth/security impact
 
 1. Skip Phase 1 specialist subagents — do a quick manual review instead
 2. Skip Phase 2 formal artifact verification — check the obvious stuff
@@ -297,10 +301,11 @@ If context usage exceeds 65%:
    {
      "schema_version": 1,
      "phase": "reviewing",
-      "skill": "beo-reviewing",
+     "skill": "beo-reviewing",
      "feature": "<epic-id>",
+     "feature_name": "<feature-name>",
      "next_action": "Resume from Phase <N>. Specialists complete, UAT at D<N>.",
-      "in_flight_beads": ["<fix-task-ids-if-any>"],
+     "in_flight_beads": ["<fix-task-ids-if-any>"],
      "timestamp": "<iso8601>"
    }
    ```

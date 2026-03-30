@@ -177,7 +177,22 @@ agentskills validate skills/<skill-name>/ 2>/dev/null
 
 ## Context Budget
 
-If context usage exceeds 65%, write HANDOFF.json (see `pipeline-contracts.md` for schema) and STATE.md before pausing. Include the current skill creation phase, which pressure tests have been run, and what remains.
+If context usage exceeds 65%, write HANDOFF.json and STATE.md before pausing:
+
+```json
+{
+  "schema_version": 1,
+  "phase": "writing-skills",
+  "skill": "beo-writing-skills",
+  "feature": "skill-<skill-name>",
+  "feature_name": "skill-<skill-name>",
+  "next_action": "Continue from Phase <N>. Pressure tests run: <list>. Remaining: <list>.",
+  "in_flight_beads": [],
+  "timestamp": "<iso8601>"
+}
+```
+
+Include the current skill creation phase, which pressure tests have been run, and what remains.
 
 ---
 

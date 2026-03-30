@@ -50,7 +50,7 @@ br label remove <id> -l <label>        # Remove a label
 br close <id>                          # Close bead (marks done/completed)
 ```
 
-**Common labels**: `approved`, `blocked`, `failed`, `partial`, `cancelled`, `in_progress`, `dispatch_prepared`, `review`, `review-p1`, `review-p2`, `review-p3`
+**Common labels**: `approved`, `blocked`, `failed`, `partial`, `cancelled`, `debug_attempted`, `in_progress`, `dispatch_prepared`, `review`, `review-p1`, `review-p2`, `review-p3`
 
 ## Dependencies
 

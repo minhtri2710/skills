@@ -71,7 +71,7 @@ You are a self-routing worker.
 
 Normal loop:
 1. Read AGENTS.md, STATE.md, and CONTEXT.md
-2. Run the scheduling cascade: `bv --robot-plan --format json 2>/dev/null || bv --robot-next --format json 2>/dev/null || br ready --json`
+2. Run the scheduling cascade: `bv --robot-plan --graph-root <EPIC_ID> --format json 2>/dev/null || bv --robot-next --format json 2>/dev/null || br ready --json`
 3. Pick the top executable bead that is not blocked by dependencies or file reservations
 4. Reserve files (do not edit files without reserving them first)
 5. Implement the code changes directly, verify, close, and report

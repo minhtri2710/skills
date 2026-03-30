@@ -53,7 +53,8 @@ All paths above are checked; missing files are silently skipped — compounding 
 Run this git command to get the feature's commit history:
 
 ```bash
-git log --oneline feature/<feature-name>..main  # or the merged branch range
+git log --oneline main..feature/<feature-name>  # commits in feature branch not yet in main
+# If already merged, use: git log --oneline --merges --grep="<feature-name>" main
 ```
 
 Build an internal summary: what was built, what risks were flagged, what surprises emerged.
@@ -160,10 +161,12 @@ When QMD is available, search for existing similar learnings before creating new
 qmd query "<learning title>" --json 2>/dev/null
 ```
 
-If a similar learning exists, merge instead of creating new. If no QMD, fall back to:
+If a similar learning exists, merge instead of creating new. If no QMD, fall back to grep (check both locations — see `knowledge-store.md` for path logic):
 
 ```bash
 grep -l "<learning title>" .beads/learnings/ 2>/dev/null
+VAULT_PATH=$(obsidian eval code="app.vault.adapter.basePath" 2>/dev/null)
+[ -n "$VAULT_PATH" ] && grep -l "<learning title>" "$VAULT_PATH/beo-learnings/" 2>/dev/null
 ```
 
 **Step 3.3 — Triage each finding:**
@@ -286,11 +289,14 @@ The file-based learnings are the primary system. CASS/CM are acceleration layers
 Update `.beads/STATE.md` to record that compounding ran:
 
 ```markdown
-## Last Compounding Run
-- Feature: <feature-name>
-- Date: YYYY-MM-DD
-- Learnings file: .beads/learnings/YYYYMMDD-<slug>.md
-- Critical promotions: N (or 0)
+# Beo State
+- Phase: compounding → complete
+- Feature: <epic-id> (<feature-name>)
+- Tasks: N/A (post-execution skill)
+- Next: done (feature pipeline complete)
+
+Learnings file: .beads/learnings/YYYYMMDD-<slug>.md
+Critical promotions: N (or 0)
 ```
 
 ---

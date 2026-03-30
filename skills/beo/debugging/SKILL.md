@@ -43,7 +43,12 @@ Example: `Build failure in packages/sdk: TS2345 type mismatch in auth.ts`
 **Check known patterns first** — before any investigation:
 
 ```bash
-qmd search "<keyword from classification>" --json 2>/dev/null || cat .beads/critical-patterns.md 2>/dev/null | grep -i "<keyword>"
+# QMD handles vault-vs-local path via its collection config (see knowledge-store.md)
+qmd search "<keyword from classification>" --json 2>/dev/null || {
+  cat .beads/critical-patterns.md 2>/dev/null | grep -i "<keyword>"
+  VAULT_PATH=$(obsidian eval code="app.vault.adapter.basePath" 2>/dev/null)
+  [ -n "$VAULT_PATH" ] && cat "$VAULT_PATH/beo-learnings/critical-patterns.md" 2>/dev/null | grep -i "<keyword>"
+}
 ```
 
 If a known pattern matches → jump directly to Step 4 (Fix), using the documented resolution.
@@ -220,12 +225,29 @@ Tell the user: "New failure pattern found. Run `beo-compounding` skill to promot
 Verify the existing advice still works:
 - Did following the documented resolution solve it?
 - If yes: no action needed
-- If the documented resolution failed or is outdated: update the note with a flag
+- If the documented resolution failed or is outdated: note the discrepancy in `debug-notes.md` and flag it for compounding to update:
 
 ```bash
-echo "WARNING: Pattern '<name>' resolution no longer accurate as of <date> — <what changed>" \
-  >> .beads/critical-patterns.md
+cat >> .beads/artifacts/<feature-name>/debug-notes.md << 'EOF'
+## Pattern Update Needed: <date> — <pattern name>
+
+**Existing pattern**: <name from critical-patterns.md>
+**Issue**: Resolution no longer accurate — <what changed>
+**Proposed update**: <corrected resolution>
+EOF
 ```
+
+Tell the user: "Pattern '<name>' needs updating in critical-patterns.md. Run `beo-compounding` to review and update."
+
+### Mark Debug Attempted
+
+After completing debugging (whether the fix succeeded or not), mark the task so the router can distinguish "debugging attempted" from "not yet attempted":
+
+```bash
+br label add <TASK_ID> -l debug_attempted
+```
+
+This label is read by the router (Rows 2-3 of the routing table) to distinguish between tasks that need debugging and tasks that have already been debugged but remain blocked.
 
 ---
 
@@ -277,7 +299,22 @@ Do not spin. One report, then pause and let the orchestrator escalate.
 
 ## Context Budget
 
-If context usage exceeds 65%, write HANDOFF.json (see `pipeline-contracts.md` for schema) and STATE.md before pausing. Include the current debugging phase, root cause hypothesis, and what steps remain.
+If context usage exceeds 65%, write HANDOFF.json before pausing:
+
+```json
+{
+  "schema_version": 1,
+  "phase": "debugging",
+  "skill": "beo-debugging",
+  "feature": "<epic-id>",
+  "feature_name": "<feature-name>",
+  "next_action": "Continue debugging from Step <N>. Root cause hypothesis: <hypothesis>.",
+  "in_flight_beads": ["<task-being-debugged>"],
+  "timestamp": "<iso8601>"
+}
+```
+
+Also update STATE.md with canonical header before pausing.
 
 ---
 

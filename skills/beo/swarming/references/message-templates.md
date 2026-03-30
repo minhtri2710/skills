@@ -266,11 +266,20 @@ Next step: Invoke the beo-reviewing skill.
 
 ## Handoff JSON Template
 
-Write to `.beads/HANDOFF.json` when the swarm coordinator context exceeds 65%:
+Write to `.beads/HANDOFF.json` when the swarm coordinator context exceeds 65%.
+
+The swarming HANDOFF extends the base schema (first 8 fields) with swarm-specific coordination state. The base fields are required for router compatibility.
 
 ```json
 {
   "schema_version": 1,
+  "phase": "swarming",
+  "skill": "beo-swarming",
+  "feature": "<EPIC_ID>",
+  "feature_name": "<feature-name>",
+  "next_action": "Resume swarm: poll epic thread, inspect live graph",
+  "in_flight_beads": ["<bead-ids-in-progress>"],
+  "timestamp": "<ISO-8601 timestamp>",
   "format": "beo-swarm-handoff",
   "session": {
     "id": "beo-swarm-<YYYYMMDD-HHMMSS>",

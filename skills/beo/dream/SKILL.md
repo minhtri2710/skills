@@ -20,6 +20,11 @@ never edit `.beads/critical-patterns.md` without explicit user approval.
 Invoke when the user asks to run a dream pass, consolidate Codex-derived insights, refresh stale
 learnings, or decide whether a new durable lesson should merge into an existing file or create new.
 
+**Staleness threshold** (used by router Row 14): A dream pass is considered due when ANY of these are true:
+- Last dream run was >30 days ago (check `dream-run-provenance.md`)
+- 3 or more new learnings files exist since the last dream run
+- User explicitly requests consolidation
+
 ## Inputs
 
 - Optional recurring override: days and/or sessions
@@ -32,7 +37,7 @@ Run these phases in order.
 
 ### Phase 1: Orient And Detect Run Mode
 
-1. Read existing learnings files under `.beads/learnings/` (excluding `critical-patterns.md` content edits).
+1. Read existing learnings files from the active write target — the Obsidian vault's `beo-learnings/` folder if available, otherwise `.beads/learnings/` (see `knowledge-store.md` for path detection).
 2. Detect dream provenance by checking:
  - Any learnings frontmatter with `last_dream_consolidated_at`, and
  - The run marker file `.beads/learnings/dream-run-provenance.md`.
@@ -130,7 +135,22 @@ Return a concise run summary with:
 
 ## Context Budget
 
-If context usage exceeds 65%, write HANDOFF.json (see `pipeline-contracts.md` for schema) and STATE.md before pausing. Include the current consolidation phase, which learnings files have been processed, and what candidates remain.
+If context usage exceeds 65%, write HANDOFF.json and STATE.md before pausing:
+
+```json
+{
+  "schema_version": 1,
+  "phase": "dream",
+  "skill": "beo-dream",
+  "feature": "dream-consolidation",
+  "feature_name": "dream-consolidation",
+  "next_action": "Continue from Phase <N>. Processed <M> of <total> candidates.",
+  "in_flight_beads": [],
+  "timestamp": "<iso8601>"
+}
+```
+
+Include the current consolidation phase, which learnings files have been processed, and what candidates remain.
 
 ## References
 

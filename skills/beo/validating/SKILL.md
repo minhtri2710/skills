@@ -21,7 +21,7 @@ This skill prevents:
 
 - After `beo-planning` completes (tasks exist in the bead graph)
 - User says "validate", "check the plan", "ready to build"
-- Router detected state = **ready-to-execute** and `approved` label is absent
+- Router detected state = **ready-to-validate** (tasks exist, no `approved` label, plan.md exists)
 
 ## Prerequisites
 
@@ -30,7 +30,8 @@ Verify before starting:
 ```bash
 # Epic exists and has tasks
 br show <EPIC_ID> --json
-br list --type task --json | jq '[.[] | select(.id | startswith("<EPIC_ID>."))]'
+# Canonical task enumeration (see pipeline-contracts.md)
+br dep list <EPIC_ID> --direction up --type parent-child --json
 
 # CONTEXT.md exists
 cat .beads/artifacts/<feature-name>/CONTEXT.md
@@ -82,7 +83,7 @@ Use bv to analyze the bead graph for structural issues.
 bv --robot-suggest --format json 2>/dev/null
 
 # Check for graph health issues
-bv --robot-insights --format json
+bv --robot-insights --graph-root <EPIC_ID> --format json
 
 # Verify priority alignment
 bv --robot-priority --format json 2>/dev/null
@@ -212,7 +213,11 @@ Ask what needs to change. Route to:
 
 ## Lightweight Mode
 
-For features with 1-2 LOW-risk tasks:
+For features meeting ALL of these criteria:
+- ≤2 tasks, all LOW risk
+- No external dependencies
+- No schema changes
+- No auth/security impact
 
 1. Skip Phase 1 formal 8-dimension check — do a quick sanity check instead
 2. Skip Phase 2 bv graph analysis (too small to matter)
@@ -235,8 +240,9 @@ If context usage exceeds 65%:
      "phase": "validating",
      "skill": "beo-validating",
      "feature": "<epic-id>",
+     "feature_name": "<feature-name>",
      "next_action": "Continue from Phase <N>. Dimensions 1-5 PASS, 6-8 pending.",
-      "in_flight_beads": ["<spike-ids-if-any>"],
+     "in_flight_beads": ["<spike-ids-if-any>"],
      "timestamp": "<iso8601>"
    }
    ```
@@ -248,8 +254,9 @@ After user approves:
 
 Determine execution mode:
 ```bash
-# Count independent ready tasks (no unresolved deps among them)
-br ready --json | jq 'length'
+# Count independent ready tasks (intersect with epic children)
+br ready --json
+# Filter results to only include tasks under this epic (cross-reference with br dep list <EPIC_ID> --direction up --type parent-child --json)
 ```
 
 - **≤2 independent tasks** → single-worker mode → route to `beo-executing`
@@ -261,8 +268,9 @@ Update state:
 - Phase: validating → approved
 - Feature: <epic-id> (<feature-name>)
 - Tasks: <count> validated
-- Approval: granted by user
 - Next: beo-executing (single-worker) or beo-swarming (parallel)
+
+Approval: granted by user
 ```
 
 Announce:

@@ -68,7 +68,7 @@ See `pipeline-contracts.md` → Epic Lifecycle.
 ## Phase 1: Select Next Task
 
 ```bash
-bv --robot-plan --format json 2>/dev/null || bv --robot-next --format json 2>/dev/null || br ready --json
+bv --robot-plan --graph-root <EPIC_ID> --format json 2>/dev/null || bv --robot-next --format json 2>/dev/null || br ready --json
 ```
 
 Pick the top executable bead from the first available track. If dispatched by swarming, follow any startup hint but always verify against the live graph.
@@ -270,6 +270,7 @@ br dep list <EPIC_ID> --direction up --type parent-child --json
 
 # Check what's next
 bv --robot-next --format json 2>/dev/null || br ready --json
+# Filter results to tasks under this epic (cross-reference with br dep list <EPIC_ID>)
 ```
 
 ### Decision Table
@@ -380,10 +381,11 @@ If context usage exceeds 65%:
    {
      "schema_version": 1,
      "phase": "executing",
-      "skill": "beo-executing",
+     "skill": "beo-executing",
      "feature": "<epic-id>",
+     "feature_name": "<feature-name>",
      "next_action": "Task <TASK_ID> completed. Resume scheduling from Phase 1.",
-      "in_flight_beads": [],
+     "in_flight_beads": [],
      "timestamp": "<iso8601>"
    }
    ```

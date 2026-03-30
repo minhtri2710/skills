@@ -59,11 +59,8 @@ If HANDOFF.json exists, go to **Phase 3: Resume**.
 ### Step 2: Detect Active Feature
 
 ```bash
-# List all epics (features)
-br list --type epic --json
-
-# Check for in-progress work (search all statuses, not just open)
-br list --type epic --json
+# List all epics including in_progress and closed (filter in application logic)
+br list --type epic -a --json
 ```
 
 Parse the output:
@@ -82,8 +79,8 @@ br show <EPIC_ID> --json
 # List tasks under this epic (canonical enumeration — see pipeline-contracts.md)
 br dep list <EPIC_ID> --direction up --type parent-child --json
 
-# Check graph health
-bv --robot-triage --format json
+# Check graph health (scoped to active epic)
+bv --robot-triage --graph-root <EPIC_ID> --format json
 
 # Check what's actionable
 bv --robot-next --format json
@@ -97,20 +94,22 @@ Use the canonical state routing table from `beo-reference` → `references/pipel
 
 | # | Condition | State | Route To |
 |---|-----------|-------|----------|
-| 1 | Any tasks have `blocked` or `failed` labels, debugging not yet attempted | **needs-debugging** | `beo-debugging` |
-| 2 | Any tasks have `blocked` or `failed` labels, debugging attempted | **blocked** | Report blockers, ask user for decision |
-| 3 | Epic exists, tasks exist, `approved` label on epic, all tasks open, ≤2 independent tasks | **ready-to-execute** | `beo-executing` |
-| 4 | Epic exists, tasks exist, `approved` label on epic, all tasks open, 3+ independent tasks | **ready-to-swarm** | `beo-swarming` |
-| 5 | Epic exists, tasks exist, some in_progress/closed (and no blocked/failed) | **executing** | `beo-executing` |
-| 6 | Epic exists, tasks exist, no `approved` label, plan.md exists | **ready-to-validate** | `beo-validating` |
-| 7 | Epic exists, tasks exist, no `approved` label, no plan.md | **planning** | `beo-planning` |
-| 8 | Epic exists, no tasks, no `approved` label | **exploring** | `beo-exploring` |
-| 9 | Epic exists, all tasks closed, epic still open | **ready-to-review** | `beo-reviewing` |
-| 10 | Any tasks have `partial` or `cancelled` labels, epic still open | **partial-completion** | Report status, ask user for decision |
-| 11 | Epic is closed | **completed** | Report status, ask for next work |
-| 12 | All tasks closed, epic closed, no learnings file | **learnings-pending** | `beo-compounding` |
-| 13 | Learnings stale, user requests consolidation | **consolidation-due** | `beo-dream` |
-| 14 | Skill creation or editing requested | **meta-skill** | `beo-writing-skills` |
+| 1 | Skill creation or editing requested | **meta-skill** | `beo-writing-skills` |
+| 2 | Any tasks have `blocked` or `failed` labels, `debug_attempted` label absent | **needs-debugging** | `beo-debugging` |
+| 3 | Any tasks have `blocked` or `failed` labels, `debug_attempted` label present | **blocked** | Report blockers, ask user for decision |
+| 4 | All tasks closed, epic closed, no learnings file | **learnings-pending** | `beo-compounding` |
+| 5 | Epic is closed | **completed** | Report status, ask for next work |
+| 6 | Any tasks have `partial` or `cancelled` labels, epic still open | **partial-completion** | Report status, ask user for decision |
+| 7 | Epic exists, all tasks closed, epic still open | **ready-to-review** | `beo-reviewing` |
+| 8 | Epic exists, tasks exist, some in_progress/closed (and no blocked/failed) | **executing** | `beo-executing` |
+| 9 | Epic exists, tasks exist, `approved` label on epic, all tasks open, 3+ independent tasks | **ready-to-swarm** | `beo-swarming` |
+| 10 | Epic exists, tasks exist, `approved` label on epic, all tasks open, ≤2 independent tasks | **ready-to-execute** | `beo-executing` |
+| 11 | Epic exists, tasks exist, no `approved` label, plan.md exists | **ready-to-validate** | `beo-validating` |
+| 12 | Epic exists, tasks exist, no `approved` label, no plan.md | **planning** | `beo-planning` |
+| 13 | Epic exists, no tasks, no `approved` label | **exploring** | `beo-exploring` |
+| 14 | Learnings stale (last dream >30 days or 3+ new learnings since last dream), user requests consolidation | **consolidation-due** | `beo-dream` |
+
+**Evaluation order**: Explicit user intent (Row 1) short-circuits feature-state routing. Most-specific closed states (Rows 4-5) before generic. `debug_attempted` label (Rows 2-3) makes routing machine-decidable.
 
 ### Step 5: Report State
 
@@ -136,12 +135,17 @@ br create "<feature-name>" -t epic -p 1 --json
 
 Save the returned epic ID for all downstream operations.
 
+Derive the `feature_slug` from the epic title (see `pipeline-contracts.md` → Feature Slug). Store it in the epic description:
+```bash
+br update <EPIC_ID> --description "slug: <feature_slug>"
+```
+
 ### Step 2: Classify Request Complexity
 
 | Signal | Classification | Path |
 |--------|---------------|------|
 | Single file change, well-scoped, <30 min | **instant** | Create task directly, route to `beo-executing` |
-| 2-3 files, clear scope, <2 hours | **lightweight** | Route to `beo-planning` (abbreviated) |
+| 2-3 files, clear scope, <2 hours | **lightweight** | Route to `beo-exploring` (quick-depth pass, then planning) |
 | Multi-file, needs research, >2 hours | **standard** | Route to `beo-exploring` |
 | Ambiguous, needs clarification | **unclear** | Route to `beo-exploring` |
 | Error, blocker, failure symptoms | **debug** | Route to `beo-debugging` |
@@ -153,6 +157,12 @@ Save the returned epic ID for all downstream operations.
   br create "<task-name>" -t task --parent <EPIC_ID> -p 1 --json
   br update <TASK_ID> --description "<Background + what to do + verify steps>"
   br label add <EPIC_ID> -l approved
+  # Create minimal artifacts for downstream skills
+  mkdir -p .beads/artifacts/<feature-slug>
+  # Write minimal CONTEXT.md stub
+  # (use file editing tools to write: "# Feature: <name>\n\n## Request\n<user request>\n\n## Locked Decisions\nInstant-path: no exploration needed.\n\n## Scope Classification\n- Complexity: instant\n- Domains: <inferred>\n- Estimated blast radius: 1 file")
+  # Write minimal plan.md stub
+  # (use file editing tools to write: "# Plan: <name>\n\n## Approach\nSingle-task instant implementation.\n\n## Tasks\n### 1. <task-name>\nSee bead description for spec.")
   ```
   Then route to `beo-executing`.
 
@@ -207,10 +217,11 @@ Load the skill indicated by `HANDOFF.json.skill` and follow the `next_action`.
 
 ### Step 4: Clean Up
 
-After successfully resuming, delete the handoff file:
+After the resumed skill writes a fresh STATE.md, delete the handoff file:
 ```bash
 rm .beads/HANDOFF.json
 ```
+Do NOT delete HANDOFF.json until the resumed skill has successfully checkpointed.
 
 ## Phase 4: Health Check (Doctor Mode)
 

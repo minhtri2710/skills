@@ -192,14 +192,15 @@ Before handing off, verify the CONTEXT.md quality:
 
 ### Update State
 
-```bash
 Write `.beads/STATE.md`:
 ```markdown
 # Beo State
 - Phase: exploring → complete
 - Feature: <epic-id> (<feature-name>)
-- Decisions: <count> locked
+- Tasks: 0 (exploring does not create tasks)
 - Next: beo-planning
+
+Decisions: <count> locked
 ```
 
 ### Announce
@@ -230,6 +231,7 @@ Write `.beads/HANDOFF.json`:
   "feature": "<epic-id>",
   "feature_name": "<feature-name>",
   "next_action": "Continue decision extraction from D<N+1>",
+  "in_flight_beads": [],
   "decisions_locked": ["D1", "D2", "..."],
   "open_questions": ["..."],
   "timestamp": "<iso8601>"
