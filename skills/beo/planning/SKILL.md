@@ -1,9 +1,9 @@
 ---
-name: beo/planning
+name: beo-planning
 description: Use after exploring completes. Research, synthesize, write plan.md, decompose into task beads with dependencies via br/bv CLI.
 ---
 
-# Warcraft Planning
+# Beo Planning
 
 ## Overview
 
@@ -16,7 +16,7 @@ Planning is the research-and-decompose phase. It takes CONTEXT.md from exploring
 
 ## When to Use
 
-- After `beo/exploring` completes (CONTEXT.md exists)
+- After `beo-exploring` completes (CONTEXT.md exists)
 - User says "plan this", "create tasks", "decompose"
 - Router detected state = **planning** (epic exists, no `approved` label, tasks may or may not exist)
 
@@ -32,11 +32,11 @@ cat .beads/artifacts/<feature-name>/CONTEXT.md
 br show <EPIC_ID> --json
 
 # Check for critical-patterns.md
-cat .beo/critical-patterns.md 2>/dev/null
+cat .beads/critical-patterns.md 2>/dev/null
 ```
 
 <HARD-GATE>
-If CONTEXT.md does not exist, STOP. Route back to `beo/exploring`.
+If CONTEXT.md does not exist, STOP. Route back to `beo-exploring`.
 </HARD-GATE>
 
 ## Phase 0: Learnings Retrieval
@@ -44,8 +44,13 @@ If CONTEXT.md does not exist, STOP. Route back to `beo/exploring`.
 **Mandatory.** Before any research, check institutional memory.
 
 ```bash
-# Read critical patterns if they exist
-cat .beo/critical-patterns.md 2>/dev/null
+# Search knowledge store for relevant learnings
+qmd query "<feature domain keywords>" --json 2>/dev/null || cat .beads/critical-patterns.md 2>/dev/null
+```
+
+If QMD is available, also run a semantic search:
+```bash
+qmd query "<feature description from CONTEXT.md>" --json 2>/dev/null
 ```
 
 If any patterns are relevant to this feature's domain:
@@ -262,7 +267,7 @@ Estimated parallel tracks: <count based on dependency structure>
 
 [Task list with names, risk levels, and dependency chains]
 
-Ready to validate? Load beo/validating for structural verification and approval.
+Ready to validate? Load beo-validating for structural verification and approval.
 ```
 
 ## Lightweight Mode
@@ -282,8 +287,8 @@ When direct/instant tasks grow beyond their envelope:
 ### Step 1: Gather Existing Tasks
 
 ```bash
-# List existing manual tasks
-br list --type task --json | jq '[.[] | select(.id | startswith("<EPIC_ID>."))]'
+# List existing manual tasks (canonical enumeration — see pipeline-contracts.md)
+br dep list <EPIC_ID> --direction up --type parent-child --json
 ```
 
 ### Step 2: Write Plan Around Them
@@ -296,7 +301,7 @@ Only create beads for tasks that don't already exist. Wire dependencies for all 
 
 ### Step 4: Proceed to Validation
 
-Route to `beo/validating` — promoted plans need the same rigor as fresh plans.
+Route to `beo-validating` — promoted plans need the same rigor as fresh plans.
 
 ## Context Budget
 
@@ -310,10 +315,10 @@ If context usage exceeds 65% during planning:
    {
      "schema_version": 1,
      "phase": "planning",
-     "skill": "beo/planning",
+     "skill": "beo-planning",
      "feature": "<epic-id>",
      "next_action": "Continue from Phase <N>, Step <M>",
-     "beads_in_flight": [],
+      "in_flight_beads": [],
      "timestamp": "<iso8601>"
    }
    ```
@@ -325,17 +330,14 @@ After plan is written, tasks are created, and dependencies are wired:
 
 Update state:
 ```bash
-mkdir -p .beo
-```
-
-Write `.beo/STATE.md`:
+Write `.beads/STATE.md`:
 ```markdown
-# Warcraft State
+# Beo State
 - Phase: planning → complete
 - Feature: <epic-id> (<feature-name>)
 - Tasks: <count> created
 - Dependencies: <count> edges
-- Next: beo/validating
+- Next: beo-validating
 ```
 
 Announce:
@@ -345,7 +347,7 @@ Planning complete.
 - <M> dependency edges wired
 - <K> HIGH-risk tasks identified
 
-Ready for validation. Load beo/validating to verify plan quality and get approval.
+Ready for validation. Load beo-validating to verify plan quality and get approval.
 ```
 
 ## Red Flags
@@ -365,7 +367,7 @@ Ready for validation. Load beo/validating to verify plan quality and get approva
 
 | Pattern | Why It's Wrong | Instead |
 |---------|---------------|---------|
-| Planning without CONTEXT.md | Assumptions will bite you | Route back to exploring |
+| Planning without CONTEXT.md | Assumptions will bite you | Route back to beo-exploring |
 | One giant task per feature | No parallelism, no incremental progress | Decompose into 3-8 tasks |
 | Dependencies everywhere | Over-constraining kills parallelism | Only add dependencies that are truly required |
 | Copy-pasting CONTEXT.md into every task | Bloats descriptions, drifts | Reference the decision IDs (D1, D2) |

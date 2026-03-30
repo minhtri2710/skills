@@ -1,9 +1,9 @@
 ---
-name: beo/reviewing
-description: Use after all tasks complete. Runs specialist review subagents, verifies artifacts, conducts human UAT, closes the epic, and captures learnings. The quality gate before feature completion.
+name: beo-reviewing
+description: Use after all tasks complete. Runs specialist review subagents, verifies artifacts, conducts human UAT, closes the epic, and hands off to beo-compounding for learnings. The quality gate before feature completion.
 ---
 
-# Warcraft Reviewing
+# Beo Reviewing
 
 ## Overview
 
@@ -13,16 +13,16 @@ Reviewing is the post-execution quality gate. It verifies that the implementatio
 
 ## When to Use
 
-- After `beo/executing` completes (all tasks closed)
+- After `beo-executing` completes (all tasks closed)
 - Router detected state = **ready-to-review**
 - User says "review", "verify", "check the work"
 
 ## Prerequisites
 
 ```bash
-# All tasks under the epic should be closed
-br list --type task --json | jq '[.[] | select((.id | startswith("<EPIC_ID>.")) and .status != "closed")]'
-# Should return empty array (or only deferred/cancelled tasks)
+# All tasks under the epic should be closed (canonical enumeration — see pipeline-contracts.md)
+br dep list <EPIC_ID> --direction up --type parent-child --json
+# Filter for .status != "closed" — should return empty (or only deferred/cancelled tasks)
 
 # CONTEXT.md exists
 cat .beads/artifacts/<feature-name>/CONTEXT.md
@@ -35,7 +35,8 @@ cat .beads/artifacts/<feature-name>/CONTEXT.md
 ```
 
 <HARD-GATE>
-If tasks are still open or in progress, STOP. Route back to `beo/executing`.
+If tasks are still open or in progress, STOP. Route back to `beo-executing`.
+If any tasks have `blocked`, `failed`, or `partial` labels (status `deferred`), STOP. Report these to the user and get explicit approval to proceed, defer, or re-plan before closing the epic.
 </HARD-GATE>
 
 ## Phase 1: Automated Review
@@ -110,10 +111,12 @@ br create "Fix: <P1 finding summary>" -t task --parent <EPIC_ID> -p 1 --json
 br update <FIX_TASK_ID> --description "<finding details + fix suggestion>"
 
 # Execute the fix immediately
-# Route back to Phase 2 of beo/executing for this task
+# Route back to Phase 2 of beo-executing for this task
 ```
 
 After all P1 fixes are resolved, return to reviewing.
+
+If P1 fixes fail repeatedly (>2 attempts), route to `beo-debugging` for root cause analysis.
 
 ### Creating P2/P3 Follow-Up Beads
 
@@ -194,7 +197,7 @@ If the user changes a decision:
 1. Update CONTEXT.md with the new decision
 2. Assess which tasks are affected
 3. If minor (1-2 files) → create fix bead, execute
-4. If major (architectural change) → STOP reviewing, route to `beo/planning`
+4. If major (architectural change) → STOP reviewing, strip `approved` label (`br label remove <EPIC_ID> -l approved`), route to `beo-planning`
 
 ## Phase 4: Finishing
 
@@ -221,49 +224,21 @@ br comments add <EPIC_ID> --no-daemon --message "Feature complete. All tasks clo
 br sync --flush-only
 ```
 
-### Step 3: Capture Learnings
+### Step 3: Hand Off to Compounding
 
-If the learnings synthesizer (Specialist #5) produced findings:
+The learnings synthesizer (Specialist #5) findings are input for `beo-compounding`.
+Do NOT write learnings directly -- the compounding skill handles synthesis, deduplication,
+and critical-pattern promotion with proper knowledge store integration.
+
+Save the synthesizer's raw findings for compounding to consume:
 
 ```bash
-mkdir -p .beo
+mkdir -p .beads
 ```
 
-Write learnings to `.beo/learnings/<date>-<feature-slug>.md`:
+Write `.beads/review-findings.md` with the raw learnings synthesizer output.
 
-```markdown
-# Learnings: <feature-name>
-
-## Date
-<ISO date>
-
-## Patterns Discovered
-- <pattern 1>
-- <pattern 2>
-
-## Decisions That Worked Well
-- <decision and why>
-
-## Things That Went Wrong
-- <issue and root cause>
-
-## Recommendations for Future Work
-- <recommendation>
-```
-
-If any learnings are critical (would cause significant waste if forgotten), promote to `.beo/critical-patterns.md`:
-
-```markdown
-## <Pattern Name>
-- **Domain**: <affected area>
-- **Pattern**: <what to do>
-- **Rationale**: <why>
-- **Discovered**: <date>, <feature-name>
-```
-
-<HARD-GATE>
-Promotion to critical-patterns.md requires user approval. Ask before writing.
-</HARD-GATE>
+Note: `beo-compounding` will be invoked after reviewing completes.
 
 ### Step 4: AGENTS.md Sync (Optional)
 
@@ -277,8 +252,8 @@ If the feature introduced new patterns, tools, or conventions that should be in 
 ### Step 5: Clean Up State
 
 ```bash
-rm -f .beo/HANDOFF.json
-rm -f .beo/STATE.md
+rm -f .beads/HANDOFF.json
+# Do NOT delete .beads/STATE.md -- beo-compounding needs it
 ```
 
 ## Completion
@@ -295,7 +270,9 @@ Review Summary:
 - UAT: <N>/<total> decisions confirmed
 
 Epic <EPIC_ID> is closed.
-<Learnings captured / no learnings>
+Review findings saved for compounding.
+
+Next: Load beo-compounding to capture learnings and promote critical patterns.
 ```
 
 ## Lightweight Mode
@@ -320,10 +297,10 @@ If context usage exceeds 65%:
    {
      "schema_version": 1,
      "phase": "reviewing",
-     "skill": "beo/reviewing",
+      "skill": "beo-reviewing",
      "feature": "<epic-id>",
      "next_action": "Resume from Phase <N>. Specialists complete, UAT at D<N>.",
-     "beads_in_flight": ["<fix-task-ids-if-any>"],
+      "in_flight_beads": ["<fix-task-ids-if-any>"],
      "timestamp": "<iso8601>"
    }
    ```

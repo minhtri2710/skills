@@ -1,19 +1,26 @@
 ---
-name: beo/executing
-description: Use after validating approves the plan. Schedules tasks, assembles worker prompts, dispatches workers, tracks status, handles blockers. The implementation engine.
+name: beo-executing
+description: Per-worker implementation loop. Dispatched by beo-swarming or used directly for single-worker execution. Implements one task at a time: claim, build prompt, dispatch worker, verify, report, loop.
 ---
 
-# Warcraft Executing
+# Beo Executing
 
 ## Overview
 
-Executing is the implementation engine. It picks the next actionable task from the bead graph, assembles a worker prompt, dispatches a subagent to implement it, and tracks progress until all tasks are complete.
+Executing is the per-worker implementation loop. It picks the next actionable task, assembles a worker prompt, dispatches a subagent to implement it, and reports results back.
 
-**Core principle**: The orchestrator TENDS — it never implements code directly.
+**Two operating modes:**
+- **Worker mode** (dispatched by `beo-swarming`): Receives identity and epic ID from the orchestrator. Reports progress via Agent Mail. Implements code directly. Does NOT spawn sub-subagents.
+- **Standalone mode** (after `beo-validating` for ≤2 tasks): Acts as both dispatcher and executor. Reports progress via STATE.md. Can dispatch worker subagents via `task()` calls for implementation, or implement directly for single-task features.
+
+In both modes the loop is identical — the difference is how results are reported (Agent Mail vs STATE.md) and whether implementation is direct (worker mode) or delegated via `task()` (standalone mode with multiple tasks).
+
+**Core principle**: One task at a time. Implement, verify, report, loop.
 
 ## When to Use
 
-- After `beo/validating` approves the plan (`approved` label on epic)
+- Dispatched by `beo-swarming` as a worker
+- Single-worker mode: after `beo-validating` approves the plan (`approved` label on epic)
 - Router detected state = **ready-to-execute** or **executing**
 - Resuming execution after a context handoff
 
@@ -24,13 +31,23 @@ Executing is the implementation engine. It picks the next actionable task from t
 br show <EPIC_ID> --json
 # Verify: labels array contains "approved"
 
-# Tasks must exist
-br list --type task --json | jq '[.[] | select(.id | startswith("<EPIC_ID>."))]'
+# Tasks must exist (canonical enumeration — see pipeline-contracts.md)
+br dep list <EPIC_ID> --direction up --type parent-child --json
 ```
 
 <HARD-GATE>
-If the epic does not have the `approved` label, STOP. Route to `beo/validating`.
+If the epic does not have the `approved` label, STOP. Route to `beo-validating`.
 </HARD-GATE>
+
+### Epic Claim
+
+On first entry (epic status is still `open`), transition the epic to `in_progress`:
+
+```bash
+br update <EPIC_ID> --claim
+```
+
+See `pipeline-contracts.md` → Epic Lifecycle.
 
 ## The Execution Loop
 
@@ -48,43 +65,13 @@ If the epic does not have the `approved` label, STOP. Route to `beo/validating`.
 └── Loop or Complete
 ```
 
-## Phase 1: Scheduling
+## Phase 1: Select Next Task
 
-### The 4-Tier Scheduling Cascade
-
-Try each tier in order. Use the first that returns a result.
-
-**Tier 1: bv --robot-plan** (authoritative parallel tracks)
 ```bash
-bv --robot-plan --format json
+bv --robot-plan --format json 2>/dev/null || bv --robot-next --format json 2>/dev/null || br ready --json
 ```
-Returns parallel execution tracks with task ordering. If available, follow its recommended order.
 
-**Tier 2: bv --robot-next** (single recommendation)
-```bash
-bv --robot-next --format json
-```
-Returns the single best next task. Use when robot-plan is unavailable.
-
-**Tier 3: br ready** (unblocked tasks)
-```bash
-br ready --json
-```
-Returns all tasks with no unresolved dependencies. Pick the highest-priority one.
-
-**Tier 4: Manual selection** (fallback)
-```bash
-br list --type task -s open --json
-```
-Filter to tasks whose dependencies are all closed. Pick highest priority.
-
-### Task Selection Criteria
-
-When multiple tasks are ready:
-1. **Priority**: Lower number = higher priority
-2. **Critical path**: Tasks on the critical path go first
-3. **Risk**: HIGH-risk tasks early (fail fast)
-4. **Independence**: Tasks with no downstream dependents can wait
+Pick the top executable bead from the first available track. If dispatched by swarming, follow any startup hint but always verify against the live graph.
 
 ## Phase 2: Pre-Dispatch Checks
 
@@ -111,6 +98,8 @@ br label remove <TASK_ID> -l partial 2>/dev/null
 ```
 
 ### Transition to In-Progress
+
+Reserve files before editing (required in worker mode, recommended in standalone mode). Use Agent Mail `file_reservation_paths` or coordinate via the file convention your project uses. Do not edit files without reserving them first.
 
 ```bash
 # 1. Mark dispatch_prepared (pending → dispatch_prepared)
@@ -179,7 +168,7 @@ cat .beads/artifacts/<feature-name>/CONTEXT.md
 br dep list <TASK_ID> --direction down --type blocks --json
 # For each completed dependency:
 br comments list <DEP_ID> --json
-# Extract the latest report artifact (see artifact protocol in beo/reference)
+# Extract the latest report artifact (see artifact protocol in beo-reference)
 ```
 
 ### Budget Truncation
@@ -191,6 +180,8 @@ If the assembled prompt is too large:
 4. Never truncate the task spec itself — that's the core payload
 
 ## Phase 4: Worker Dispatch
+
+**Standalone mode only** — in worker mode, implement the task directly (skip to Phase 5 after implementation).
 
 Launch the worker as a subagent:
 
@@ -227,7 +218,7 @@ After the worker returns, update the bead graph.
 
 ### Status Mapping
 
-See `beo/reference` for the complete status mapping table. Quick reference:
+See `beo-reference` for the complete status mapping table. Quick reference:
 
 | Worker Reports | br Commands |
 |---------------|-------------|
@@ -268,8 +259,8 @@ br sync --flush-only
 After each worker completes:
 
 ```bash
-# Check overall progress
-br list --type task --json | jq '[.[] | select(.id | startswith("<EPIC_ID>."))]'
+# Check overall progress (canonical enumeration)
+br dep list <EPIC_ID> --direction up --type parent-child --json
 
 # Count by status
 # open: not started
@@ -310,9 +301,9 @@ br comments list <TASK_ID> --json
 |-------------|--------|
 | **Missing dependency output** | Check if the dependency task actually completed; if so, the worker may need clearer input |
 | **External service unavailable** | Report to user, cannot resolve automatically |
-| **Scope exceeds task boundary** | The task needs re-planning — route to `beo/planning` |
+| **Scope exceeds task boundary** | The task needs re-planning — strip `approved` label (`br label remove <EPIC_ID> -l approved`) and route to `beo-planning` |
 | **Ambiguous requirement** | Route to user for clarification |
-| **Technical issue** (build failure, test failure) | Attempt to fix or create a fix-task |
+| **Technical issue** (build failure, test failure) | Route to `beo-debugging` if not resolvable in-context |
 
 ### Step 3: Ask User for Decision
 
@@ -339,47 +330,31 @@ br update <TASK_ID> --description "<updated spec with user's decision>"
 
 Then loop back to Phase 1 to re-schedule.
 
-## Parallel Execution (Optional)
-
-When multiple independent tasks are ready simultaneously:
-
-### Check Independence
-
-Two tasks can run in parallel if:
-- They have no dependency relationship (neither blocks the other)
-- They modify different files (no file scope overlap)
-- They don't depend on the same in-progress task
-
-### Dispatch Multiple Workers
-
-```
-# Launch multiple task() calls in the same message
-task(description: "Implement: <task A>", prompt: "<prompt A>", subagent_type: "general")
-task(description: "Implement: <task B>", prompt: "<prompt B>", subagent_type: "general")
-```
-
-Wait for all to return, then update each task's status.
-
 ## Completion
 
 When all tasks under the epic are closed:
 
 ```bash
-# Verify all tasks are closed
-br list --type task --json | jq '[.[] | select((.id | startswith("<EPIC_ID>.")) and .status != "closed")]'
-# Should return empty array
+# Verify all tasks are closed (canonical enumeration)
+br dep list <EPIC_ID> --direction up --type parent-child --json
+# Filter for .status != "closed" — should return empty
 
 # Verify build/tests pass
 # (Run project-specific build and test commands)
 ```
 
 Update state:
+
+**In swarming mode** (dispatched by `beo-swarming`):
+Report completion to the orchestrator via Agent Mail and stop.
+
+**In single-worker mode**:
 ```markdown
-# Warcraft State
+# Beo State
 - Phase: executing → complete
 - Feature: <epic-id> (<feature-name>)
 - Tasks: <total> completed, <blocked> blocked, <failed> failed
-- Next: beo/reviewing
+- Next: beo-reviewing
 ```
 
 Announce:
@@ -389,23 +364,26 @@ Execution complete.
 - Build: <pass/fail>
 - Tests: <pass/fail>
 
-Load beo/reviewing for quality verification and feature completion.
+Load beo-reviewing for quality verification and feature completion.
 ```
 
 ## Context Budget
 
 If context usage exceeds 65%:
 
+**In swarming mode**: Write a final report artifact for the current task and stop gracefully. The orchestrator will re-dispatch remaining work.
+
+**In single-worker mode**:
 1. Finish updating the current task's status
 2. Write HANDOFF.json:
    ```json
    {
      "schema_version": 1,
      "phase": "executing",
-     "skill": "beo/executing",
+      "skill": "beo-executing",
      "feature": "<epic-id>",
      "next_action": "Task <TASK_ID> completed. Resume scheduling from Phase 1.",
-     "beads_in_flight": [],
+      "in_flight_beads": [],
      "timestamp": "<iso8601>"
    }
    ```
@@ -426,11 +404,11 @@ If you detect that context has been compacted (prior conversation is summarized)
    ```
 3. Re-read current task state:
    ```bash
-   br list --type task --json | jq '[.[] | select(.id | startswith("<EPIC_ID>."))]'
+   br dep list <EPIC_ID> --direction up --type parent-child --json
    ```
 4. Check for HANDOFF.json:
    ```bash
-   cat .beo/HANDOFF.json 2>/dev/null
+   cat .beads/HANDOFF.json 2>/dev/null
    ```
 5. Resume from the last known good state
 
@@ -438,7 +416,7 @@ If you detect that context has been compacted (prior conversation is summarized)
 
 | Flag | Description |
 |------|-------------|
-| **Implementing code directly** | The orchestrator dispatches workers; it never writes implementation code |
+| **Implementing code directly in standalone mode** | In standalone mode with multiple tasks, dispatch subagents via `task()` — do not write implementation code directly. In worker mode or standalone with a single task, direct implementation is expected. |
 | **Dispatching without checking dependencies** | Always verify deps are satisfied before dispatch |
 | **Ignoring worker blockers** | Every blocker needs classification and resolution |
 | **Dispatching the same task twice** | Check task status before dispatching |
@@ -449,8 +427,8 @@ If you detect that context has been compacted (prior conversation is summarized)
 
 | Pattern | Why It's Wrong | Instead |
 |---------|---------------|---------|
-| Sequential execution of independent tasks | Wastes time | Dispatch in parallel when safe |
+| Sequential execution of independent tasks | Wastes time; use `beo-swarming` for parallel work | Route to swarming when multiple independent tasks are ready |
 | Re-dispatching a failed task without investigation | Same failure will recur | Understand the failure first |
-| Modifying task specs during execution | Plan integrity violation | If specs need changing, route to planning |
+| Modifying task specs during execution | Plan integrity violation | If specs need changing, strip `approved` label (`br label remove <EPIC_ID> -l approved`) and route to planning |
 | Dispatching all tasks at once | Overwhelms context, loses control | Dispatch 1-3 at a time, track progress |
 | Skipping verification in the worker prompt | Workers will skip verification | Always include verification criteria |

@@ -1,9 +1,9 @@
 ---
-name: beo/exploring
+name: beo-exploring
 description: Use before any feature work, refactor, or behavior modification. Extracts locked decisions from the user through Socratic dialogue before research or planning begins. Output is CONTEXT.md.
 ---
 
-# Warcraft Exploring
+# Beo Exploring
 
 ## Overview
 
@@ -15,14 +15,14 @@ The output is a `CONTEXT.md` file that becomes the single source of truth for al
 
 ## When to Use
 
-- A new feature request arrives (routed from `beo/router`)
+- A new feature request arrives (routed from `beo-router`)
 - The request is classified as **standard** or **unclear** complexity
 - Before any planning or implementation work
 - When the user says "build", "add", "change", "implement", "design"
 
 ## When NOT to Use
 
-- Request is **instant** (single file, well-scoped) — skip to executing
+- Request is **instant** (single file, well-scoped, <30 min per router classification) — router handles this directly, skip to executing
 - Request is purely a bug fix with clear reproduction steps — use debugging workflow
 - You're resuming mid-pipeline (router handles this)
 
@@ -35,7 +35,7 @@ Before asking any questions, check what already exists:
 cat .beads/artifacts/<feature-name>/CONTEXT.md 2>/dev/null
 
 # Check for any prior learnings
-cat .beo/critical-patterns.md 2>/dev/null
+cat .beads/critical-patterns.md 2>/dev/null
 
 # Check the epic bead for existing description
 br show <EPIC_ID> --json
@@ -193,16 +193,13 @@ Before handing off, verify the CONTEXT.md quality:
 ### Update State
 
 ```bash
-mkdir -p .beo
-```
-
-Write `.beo/STATE.md`:
+Write `.beads/STATE.md`:
 ```markdown
-# Warcraft State
+# Beo State
 - Phase: exploring → complete
 - Feature: <epic-id> (<feature-name>)
 - Decisions: <count> locked
-- Next: beo/planning
+- Next: beo-planning
 ```
 
 ### Announce
@@ -214,7 +211,29 @@ Exploring complete.
 - <M> items marked out of scope
 - <K> open questions for planning phase
 
-Ready to plan. Load beo/planning to begin research and decomposition.
+Ready to plan. Load beo-planning to begin research and decomposition.
+```
+
+## Context Budget
+
+If context usage exceeds 65%, write HANDOFF.json before pausing:
+
+```bash
+Write `.beads/HANDOFF.json`:
+```
+
+```json
+{
+  "schema_version": 1,
+  "phase": "exploring",
+  "skill": "beo-exploring",
+  "feature": "<epic-id>",
+  "feature_name": "<feature-name>",
+  "next_action": "Continue decision extraction from D<N+1>",
+  "decisions_locked": ["D1", "D2", "..."],
+  "open_questions": ["..."],
+  "timestamp": "<iso8601>"
+}
 ```
 
 ## Red Flags
@@ -236,4 +255,4 @@ Ready to plan. Load beo/planning to begin research and decomposition.
 | Asking about tech stack choices | That's a planning decision | Ask about behavior and requirements |
 | Copying the user's words verbatim as decisions | Users speak loosely | Restate precisely and confirm |
 | Creating tasks during exploring | No tasks until planning | Only the epic bead should exist |
-| Skipping exploring for "simple" features | Simple features still have gray areas | At minimum, do a Quick-depth pass |
+| Skipping exploring for non-instant features | Even "simple" features (lightweight and above) still have gray areas | At minimum, do a Quick-depth pass. Only **instant** requests (single file, <30 min) skip exploring. |

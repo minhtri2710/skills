@@ -1,10 +1,10 @@
 # Task Status Mapping
 
-Warcraft uses richer task states than br's native model. This table maps each Warcraft state to the exact br CLI commands required.
+Beo uses richer task states than br's native model. This table maps each Beo state to the exact br CLI commands required.
 
-## Warcraft States → br Commands
+## Beo States → br Commands
 
-| Warcraft State | br Status | br Labels | Commands (in order) |
+| Beo State | br Status | br Labels | Commands (in order) |
 |---------------|-----------|-----------|-------------------|
 | `pending` | `open` | (none) | `br update <id> -s open` then remove stale labels: `br label remove <id> -l blocked`, `br label remove <id> -l failed`, `br label remove <id> -l partial`, `br label remove <id> -l cancelled`, `br label remove <id> -l dispatch_prepared`, `br label remove <id> -l in_progress` |
 | `dispatch_prepared` | `open` | `dispatch_prepared` | `br label add <id> -l dispatch_prepared` |
@@ -29,9 +29,9 @@ pending → dispatch_prepared → in_progress → done
 - `done → pending` (same reason)
 - Any skip of `dispatch_prepared` (always goes pending → dispatch_prepared → in_progress)
 
-## Reading Warcraft State from br
+## Reading Beo State from br
 
-To determine the Warcraft state from br output:
+To determine the Beo state from br output:
 
 ```
 if status == "closed" → done

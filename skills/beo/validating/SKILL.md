@@ -1,9 +1,9 @@
 ---
-name: beo/validating
+name: beo-validating
 description: Use after planning completes and before execution begins. Verifies plan soundness, polishes beads with graph analytics, executes spikes for HIGH-risk items, and requires user approval. The gate between planning and coding.
 ---
 
-# Warcraft Validating
+# Beo Validating
 
 ## Overview
 
@@ -19,7 +19,7 @@ This skill prevents:
 
 ## When to Use
 
-- After `beo/planning` completes (tasks exist in the bead graph)
+- After `beo-planning` completes (tasks exist in the bead graph)
 - User says "validate", "check the plan", "ready to build"
 - Router detected state = **ready-to-execute** and `approved` label is absent
 
@@ -40,7 +40,7 @@ cat .beads/artifacts/<feature-name>/plan.md
 ```
 
 <HARD-GATE>
-If tasks don't exist in the bead graph, STOP. Route back to `beo/planning`.
+If tasks don't exist in the bead graph, STOP. Route back to `beo-planning`.
 </HARD-GATE>
 
 ## Phase 1: Structural Verification
@@ -69,8 +69,8 @@ For each dimension:
 
 ### Handling Failures
 
-- **1-2 failures**: Fix them in-place (update task descriptions, add missing dependencies, create missing tasks)
-- **3+ failures**: Route back to `beo/planning` for a rework pass
+- **1-2 failures**: Fix them in-place (update task descriptions, add missing dependencies). For missing tasks, route back to `beo-planning` — do not create implementation tasks during validation (spikes are the exception, see Phase 3).
+- **3+ failures**: Route back to `beo-planning` for a rework pass
 - **After 3 total validation attempts**: Escalate to the user with specific failures
 
 ## Phase 2: Graph Health
@@ -139,7 +139,7 @@ br comments add <SPIKE_ID> --no-daemon --message "FINDING: YES|NO — <explanati
 ### Spike Results
 
 - **YES** (approach is viable) → Continue validation, embed finding in the task description
-- **NO** (approach is not viable) → **FULL STOP** → Route back to `beo/planning` with the finding
+- **NO** (approach is not viable) → **FULL STOP** → Route back to `beo-planning` with the finding
 
 <HARD-GATE>
 A spike NO result means the plan is invalid. Do not proceed to approval.
@@ -200,9 +200,14 @@ br sync --flush-only
 
 ### On Rejection
 
+Strip the `approved` label if it was set during a previous validation pass:
+```bash
+br label remove <EPIC_ID> -l approved 2>/dev/null
+```
+
 Ask what needs to change. Route to:
-- `beo/planning` if the plan needs rework
-- `beo/exploring` if decisions need to change
+- `beo-planning` if the plan needs rework
+- `beo-exploring` if decisions need to change
 - Fix specific issues in-place if the feedback is minor
 
 ## Lightweight Mode
@@ -228,10 +233,10 @@ If context usage exceeds 65%:
    {
      "schema_version": 1,
      "phase": "validating",
-     "skill": "beo/validating",
+     "skill": "beo-validating",
      "feature": "<epic-id>",
      "next_action": "Continue from Phase <N>. Dimensions 1-5 PASS, 6-8 pending.",
-     "beads_in_flight": ["<spike-ids-if-any>"],
+      "in_flight_beads": ["<spike-ids-if-any>"],
      "timestamp": "<iso8601>"
    }
    ```
@@ -241,20 +246,30 @@ If context usage exceeds 65%:
 
 After user approves:
 
+Determine execution mode:
+```bash
+# Count independent ready tasks (no unresolved deps among them)
+br ready --json | jq 'length'
+```
+
+- **≤2 independent tasks** → single-worker mode → route to `beo-executing`
+- **3+ independent tasks** → parallel mode → route to `beo-swarming`
+
 Update state:
 ```markdown
-# Warcraft State
+# Beo State
 - Phase: validating → approved
 - Feature: <epic-id> (<feature-name>)
 - Tasks: <count> validated
 - Approval: granted by user
-- Next: beo/executing
+- Next: beo-executing (single-worker) or beo-swarming (parallel)
 ```
 
 Announce:
 ```
 Plan approved. <N> tasks ready for execution.
-Load beo/executing to begin implementation.
+Execution mode: <single-worker | parallel (swarming)>
+Load <beo-executing | beo-swarming> to begin implementation.
 ```
 
 ## Red Flags
@@ -274,6 +289,6 @@ Load beo/executing to begin implementation.
 |---------|---------------|---------|
 | Rubber-stamping approval | Defeats the purpose of the gate | Every dimension gets a genuine check |
 | Running spikes for LOW-risk tasks | Waste of time | Spikes are for HIGH-risk only |
-| Fixing plan issues during validation | Scope creep | Note issues, route back to planning if >2 failures |
-| Adding tasks during validation | That's planning work | Route back to planning |
+| Fixing plan issues during validation | Scope creep | Note issues, route back to beo-planning if >2 failures |
+| Adding implementation tasks during validation | That's planning work; only spikes are allowed | Route back to beo-planning for missing tasks |
 | Skipping deduplication | Wastes worker time on redundant tasks | Always check for overlap |

@@ -1,9 +1,9 @@
 ---
-name: beo/router
+name: beo-router
 description: Use when starting a new session, resuming after a handoff, or needing to determine current feature state and next action. The bootstrap and routing skill for the beo pipeline.
 ---
 
-# Warcraft Router
+# Beo Router
 
 ## Overview
 
@@ -37,6 +37,11 @@ br --version
 br doctor
 ```
 
+```bash
+# Check knowledge search availability
+qmd status 2>/dev/null
+```
+
 If `br doctor` reports issues, fix them before proceeding.
 
 ## Phase 1: State Detection
@@ -46,7 +51,7 @@ Determine the current state of work by querying the bead graph.
 ### Step 1: Check for HANDOFF.json
 
 ```bash
-cat .beo/HANDOFF.json 2>/dev/null
+cat .beads/HANDOFF.json 2>/dev/null
 ```
 
 If HANDOFF.json exists, go to **Phase 3: Resume**.
@@ -57,8 +62,8 @@ If HANDOFF.json exists, go to **Phase 3: Resume**.
 # List all epics (features)
 br list --type epic --json
 
-# Check for in-progress work
-br list --type epic -s open --json
+# Check for in-progress work (search all statuses, not just open)
+br list --type epic --json
 ```
 
 Parse the output:
@@ -74,8 +79,8 @@ For the active epic, gather full state:
 # Get epic details
 br show <EPIC_ID> --json
 
-# List tasks under this epic
-br list --type task --json | jq '[.[] | select(.id | startswith("<EPIC_ID>."))]'
+# List tasks under this epic (canonical enumeration — see pipeline-contracts.md)
+br dep list <EPIC_ID> --direction up --type parent-child --json
 
 # Check graph health
 bv --robot-triage --format json
@@ -88,18 +93,24 @@ br blocked --json
 
 ### Step 4: Classify Feature State
 
-Use this decision table:
+Use the canonical state routing table from `beo-reference` → `references/pipeline-contracts.md`. Evaluate **top-to-bottom, first match wins**.
 
-| Condition | State | Route To |
-|-----------|-------|----------|
-| Epic exists, no tasks, no `approved` label | **exploring** | `beo/exploring` |
-| Epic exists, no tasks, has `approved` label | **ready-to-decompose** | `beo/planning` (Phase 4 only) |
-| Epic exists, tasks exist, no `approved` label on epic | **planning** | `beo/planning` |
-| Epic exists, tasks exist, `approved` label on epic, all tasks open | **ready-to-execute** | `beo/executing` |
-| Epic exists, tasks exist, some in_progress/closed | **executing** | `beo/executing` |
-| Epic exists, all tasks closed, epic still open | **ready-to-review** | `beo/reviewing` |
-| Epic is closed | **completed** | Report status, ask for next work |
-| Any tasks have `blocked` or `failed` labels | **blocked** | Report blockers, ask user for decision |
+| # | Condition | State | Route To |
+|---|-----------|-------|----------|
+| 1 | Any tasks have `blocked` or `failed` labels, debugging not yet attempted | **needs-debugging** | `beo-debugging` |
+| 2 | Any tasks have `blocked` or `failed` labels, debugging attempted | **blocked** | Report blockers, ask user for decision |
+| 3 | Epic exists, tasks exist, `approved` label on epic, all tasks open, ≤2 independent tasks | **ready-to-execute** | `beo-executing` |
+| 4 | Epic exists, tasks exist, `approved` label on epic, all tasks open, 3+ independent tasks | **ready-to-swarm** | `beo-swarming` |
+| 5 | Epic exists, tasks exist, some in_progress/closed (and no blocked/failed) | **executing** | `beo-executing` |
+| 6 | Epic exists, tasks exist, no `approved` label, plan.md exists | **ready-to-validate** | `beo-validating` |
+| 7 | Epic exists, tasks exist, no `approved` label, no plan.md | **planning** | `beo-planning` |
+| 8 | Epic exists, no tasks, no `approved` label | **exploring** | `beo-exploring` |
+| 9 | Epic exists, all tasks closed, epic still open | **ready-to-review** | `beo-reviewing` |
+| 10 | Any tasks have `partial` or `cancelled` labels, epic still open | **partial-completion** | Report status, ask user for decision |
+| 11 | Epic is closed | **completed** | Report status, ask for next work |
+| 12 | All tasks closed, epic closed, no learnings file | **learnings-pending** | `beo-compounding` |
+| 13 | Learnings stale, user requests consolidation | **consolidation-due** | `beo-dream` |
+| 14 | Skill creation or editing requested | **meta-skill** | `beo-writing-skills` |
 
 ### Step 5: Report State
 
@@ -129,27 +140,31 @@ Save the returned epic ID for all downstream operations.
 
 | Signal | Classification | Path |
 |--------|---------------|------|
-| Single file change, well-scoped, <30 min | **instant** | Create task directly, route to `beo/executing` |
-| 2-3 files, clear scope, <2 hours | **lightweight** | Route to `beo/planning` (abbreviated) |
-| Multi-file, needs research, >2 hours | **standard** | Route to `beo/exploring` |
-| Ambiguous, needs clarification | **unclear** | Route to `beo/exploring` |
+| Single file change, well-scoped, <30 min | **instant** | Create task directly, route to `beo-executing` |
+| 2-3 files, clear scope, <2 hours | **lightweight** | Route to `beo-planning` (abbreviated) |
+| Multi-file, needs research, >2 hours | **standard** | Route to `beo-exploring` |
+| Ambiguous, needs clarification | **unclear** | Route to `beo-exploring` |
+| Error, blocker, failure symptoms | **debug** | Route to `beo-debugging` |
 
 ### Step 3: Route
 
-- **instant**: Create a single task bead immediately:
+- **instant**: Create a single task bead and mark epic approved:
   ```bash
   br create "<task-name>" -t task --parent <EPIC_ID> -p 1 --json
   br update <TASK_ID> --description "<Background + what to do + verify steps>"
+  br label add <EPIC_ID> -l approved
   ```
-  Then route to `beo/executing`.
+  Then route to `beo-executing`.
 
+- **debug**: Route to `beo-debugging` directly.
+- **meta-skill**: Route to `beo-writing-skills` directly.
 - **lightweight/standard/unclear**: Route to the appropriate skill.
 
 ### Promotion Guard
 
 If you classified as **instant** but discover the work is bigger:
 - Stop implementation
-- Route to `beo/exploring` or `beo/planning`
+- Route to `beo-exploring` or `beo-planning`
 - The existing task bead becomes input for the plan
 
 ## Phase 3: Resume from Handoff
@@ -159,19 +174,19 @@ When HANDOFF.json exists:
 ### Step 1: Read Handoff State
 
 ```bash
-cat .beo/HANDOFF.json
+cat .beads/HANDOFF.json
 ```
 
-Expected format:
+Expected format (see `beo-reference` → `pipeline-contracts.md` for canonical schema):
 ```json
 {
   "schema_version": 1,
   "phase": "executing",
-  "skill": "beo/executing",
+  "skill": "beo-executing",
   "feature": "<epic-id>",
-  "context_pct": 72,
+  "feature_name": "<feature-name>",
   "next_action": "Continue executing task <TASK_ID>",
-  "beads_in_flight": ["<TASK_ID_1>", "<TASK_ID_2>"],
+  "in_flight_beads": ["<TASK_ID_1>", "<TASK_ID_2>"],
   "timestamp": "2026-03-29T10:00:00Z"
 }
 ```
@@ -194,7 +209,7 @@ Load the skill indicated by `HANDOFF.json.skill` and follow the `next_action`.
 
 After successfully resuming, delete the handoff file:
 ```bash
-rm .beo/HANDOFF.json
+rm .beads/HANDOFF.json
 ```
 
 ## Phase 4: Health Check (Doctor Mode)
@@ -227,13 +242,24 @@ br blocked --json
 
 ## Context Budget
 
-If context usage exceeds 65%, write HANDOFF.json before pausing:
+If context usage exceeds 65%, write HANDOFF.json (see `pipeline-contracts.md` for schema) before pausing:
 
 ```bash
-mkdir -p .beo
+Write `.beads/HANDOFF.json`:
 ```
 
-Write `.beo/HANDOFF.json` with the current state (phase, skill, feature, next action, in-flight beads).
+```json
+{
+  "schema_version": 1,
+  "phase": "<current phase>",
+  "skill": "beo-router",
+  "feature": "<epic-id>",
+  "feature_name": "<feature-name>",
+  "next_action": "<what to do next>",
+  "in_flight_beads": ["<bead-ids>"],
+  "timestamp": "<iso8601>"
+}
+```
 
 ## Skill Routing Quick Reference
 
@@ -243,9 +269,14 @@ Write `.beo/HANDOFF.json` with the current state (phase, skill, feature, next ac
 | "what's the status?" | Phase 1 → report state |
 | "continue", "resume" | Phase 3 (if HANDOFF.json) or Phase 1 |
 | "check health", "doctor" | Phase 4 |
-| "plan X" | `beo/planning` directly |
-| "review" | `beo/reviewing` directly |
+| "plan X" | `beo-planning` directly |
+| "review" | `beo-reviewing` directly |
 | "what should I work on next?" | Phase 1 → `bv --robot-next` → report recommendation |
+| "debug this", "why is X failing", "fix error" | `beo-debugging` |
+| "what did we learn", "capture learnings" | `beo-compounding` |
+| "swarm", "parallel workers", "launch workers" | `beo-swarming` |
+| "dream", "consolidate learnings" | `beo-dream` |
+| "write a skill", "create a skill", "edit skill" | `beo-writing-skills` |
 
 ## Red Flags
 
@@ -254,6 +285,9 @@ Write `.beo/HANDOFF.json` with the current state (phase, skill, feature, next ac
 - **Skipping HANDOFF.json on resume** — If the file exists, read it
 - **Classifying everything as instant** — If there is any doubt about scope, route to exploring
 - **Routing to executing before planning** — Unless the feature has an `approved` label and tasks exist, do not skip planning
+- **Routing to swarming without validated plan** — Swarming requires the same `approved` label as executing
+- **Skipping compounding after review** — Learnings capture is part of the pipeline, not optional
+- **Debugging without checking critical-patterns.md first** — Always check known patterns before investigating
 
 ## Anti-Patterns
 
@@ -263,3 +297,5 @@ Write `.beo/HANDOFF.json` with the current state (phase, skill, feature, next ac
 | Routing based on user's words alone | User may not know current state | Always query bead graph |
 | Skipping `br doctor` on first session | Silent corruption goes undetected | Run doctor on bootstrap |
 | Hardcoding epic IDs | IDs change between sessions | Always query dynamically |
+| Routing to executing instead of swarming for parallel work | Executing is single-worker; swarming orchestrates multiple | Check task count and independence before choosing |
+| Using dream for one-off fixes | Dream consolidates learnings; debugging fixes issues | Route to `beo-debugging` for errors |

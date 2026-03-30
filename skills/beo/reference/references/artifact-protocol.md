@@ -77,37 +77,6 @@ br comments list <id> --json --no-daemon
 # The latest version wins (v2 supersedes v1)
 ```
 
-## Task State (Comment-Backed)
-
-Machine-readable status snapshot for orchestrator consumption. Same comment format.
-
-### Format
-
-```
----ARTIFACT:task_state:v<version>---
-{
-  "status": "done|blocked|failed|partial",
-  "summary": "One-line summary",
-  "blockerReason": "Why blocked (if blocked)",
-  "learnings": ["What was learned"],
-  "filesChanged": ["path/to/file.ts"]
-}
----END_ARTIFACT---
-```
-
-### Writing Task State
-
-```bash
-br comments add <id> --message '---ARTIFACT:task_state:v1---
-{
-  "status": "done",
-  "summary": "Implemented auth middleware with JWT validation",
-  "learnings": ["JWT library requires explicit algorithm whitelist"],
-  "filesChanged": ["src/middleware/auth.ts", "src/middleware/auth.test.ts"]
-}
----END_ARTIFACT---' --no-daemon
-```
-
 ## Version Semantics
 
 - Versions are monotonically increasing integers: v1, v2, v3...
