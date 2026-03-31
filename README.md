@@ -74,7 +74,7 @@ AI coding agents are powerful but undisciplined. Without structure, they jump st
 
 ### Core Pipeline
 
-The 8 core skills execute in sequence. Each skill has a clear entry condition, produces specific artifacts, and hands off to the next.
+The 8 core skills execute in sequence. Each skill has a clear entry condition, produces specific artifacts, and hands off to the next. See [Skill Reference](#skill-reference) for complete details.
 
 ```
 beo-router --> beo-exploring --> beo-planning --> beo-validating --> beo-swarming --> beo-executing --> beo-reviewing --> beo-compounding
@@ -141,33 +141,6 @@ These are invoked on demand at any pipeline stage.
       └─────────┘
 ```
 
-1. **Router** inspects `br`/`bv` state (beads, labels, statuses) and determines which phase the project is in
-2. **Exploring** runs a Socratic Q&A to extract decisions from the human; produces `CONTEXT.md`
-3. **Planning** reads `CONTEXT.md`, researches the codebase, creates beads with dependencies, writes the plan
-4. **Validating** verifies the plan across 8 dimensions; runs spikes for high-risk items; requires human approval
-5. **Swarming** launches parallel worker agents, monitors via Agent Mail, handles blockers and file conflicts
-6. **Executing** (per worker) claims a task bead, builds a focused prompt, implements, tests, and reports
-7. **Reviewing** runs 5 specialist review sub-agents, triages findings by severity, conducts human UAT
-8. **Compounding** analyzes the completed feature for patterns, decisions, and failures; promotes critical learnings
-
-### What Each Skill Does
-
-**beo-router** reads the `.beads/` directory (created by `br`) and checks labels on beads to determine the current pipeline phase. If no beads exist, it routes to exploring. If beads exist but aren't validated, it routes to validating. If all beads are done, it routes to reviewing. This is the entry point you load first.
-
-**beo-exploring** asks the human targeted questions to surface ambiguity, lock scope, and freeze constraints. It won't proceed until the human confirms the decisions. Output is a `CONTEXT.md` file that becomes the single source of truth for all downstream skills.
-
-**beo-planning** runs discovery (codebase research), synthesis (approach selection), then decomposition (creating beads). It uses `br` to create an epic bead and child task beads with dependency edges. It also writes `phase-contract.md` (scope, success criteria, constraints) and `story-map.md` (user stories mapped to task beads).
-
-**beo-validating** checks the plan across 8 dimensions: completeness, dependency graph validity, scope creep, risk assessment, bead quality, story coverage, contract alignment, and critical-pattern compliance. It uses `bv` for graph analytics (cycle detection, critical path, orphan detection). High-risk items get time-boxed spikes. Human must explicitly approve before any code is written.
-
-**beo-swarming** is the orchestrator -- it never writes code directly. It uses Agent Mail to dispatch workers, monitors for completions and blockers, coordinates file reservations to prevent conflicts, and rescues stuck workers. Hands off to reviewing when all beads are closed.
-
-**beo-executing** is the per-worker skill. A worker claims a bead via `br update <ID> --status in-progress`, builds a focused implementation prompt from the bead description and context, implements the change, runs tests, and reports completion via Agent Mail. Two modes: worker (under swarming) and standalone (for single-task fixes).
-
-**beo-reviewing** launches 5 specialist sub-agents in parallel: correctness, security, performance, maintainability, and test coverage. Each produces findings with P1 (blocker), P2 (should-fix), or P3 (nice-to-have) severity. P1s must be fixed before the feature closes. After fixes, the human runs UAT. Then hands off to compounding.
-
-**beo-compounding** runs 3 parallel analysis sub-agents examining patterns, decisions, and failures from the completed feature. Synthesizes findings into a learnings file at `.beads/learnings/YYYYMMDD-<slug>.md` and promotes critical items to `.beads/critical-patterns.md`. This file is read by every future planning phase -- this is the flywheel that makes the ecosystem smarter over time.
-
 ### Key Artifacts Produced
 
 | Artifact                      | Producer    | Consumer                        | Purpose                              |
@@ -189,7 +162,7 @@ These are invoked on demand at any pipeline stage.
 | [`br`](https://github.com/Dicklesworthstone/beads_rust)   | 0.1.28+ | Yes      | `cargo install beads_rust`                                       | Local-first issue tracker for AI agents |
 | [`bv`](https://github.com/Dicklesworthstone/beads_viewer) | 0.15.2+ | Yes      | See [bv docs](https://github.com/Dicklesworthstone/beads_viewer) | Graph analytics, triage, scheduling     |
 | `obsidian` CLI                                            | any     | No       | [Obsidian CLI](https://github.com/Yakitrak/obsidian-cli)         | Knowledge store write operations        |
-| `qmd`                                                     | any     | No       | See qmd docs                                                     | Knowledge store search/query            |
+| [`qmd`](https://github.com/tobi/qmd)                      | any     | No       | See [qmd docs](https://github.com/tobi/qmd)                       | Knowledge store search/query            |
 
 You also need an AI coding agent that supports skill/instruction loading:
 
