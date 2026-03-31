@@ -1,6 +1,10 @@
 ---
 name: beo-validating
-description: Use after planning completes and before execution begins. Verifies plan soundness, polishes beads with graph analytics, executes spikes for HIGH-risk items, and requires user approval. The gate between planning and coding.
+description: >-
+  Use after planning completes and before execution begins. Verifies the phase
+  contract, story map, and bead graph across 8 structural dimensions, executes
+  spikes for HIGH-risk items, polishes beads with bv graph analytics, and
+  requires user approval. The gate between planning and coding.
 ---
 
 # Beo Validating
@@ -10,6 +14,21 @@ description: Use after planning completes and before execution begins. Verifies 
 Validating is the critical gate between planning and execution. No code is written until this skill completes successfully.
 
 **Core principle**: Catch plan failures before they become implementation failures.
+
+This skill treats a phase as a **small closed loop**:
+
+- clear entry state
+- clear exit state
+- simple demo story
+- stories that explain why the internal order makes sense
+- beads that implement those stories
+
+It is not enough for the bead graph to look tidy. The validator must answer:
+
+- Does this phase close a meaningful loop?
+- If all stories finish, will the exit state be true?
+- If all beads finish, will the stories actually be complete?
+- If the phase fails, will we know whether to debug locally or pivot the larger plan?
 
 This skill prevents:
 - Executing broken plans that waste worker cycles
@@ -21,7 +40,7 @@ This skill prevents:
 
 - After `beo-planning` completes (tasks exist in the bead graph)
 - User says "validate", "check the plan", "ready to build"
-- Router detected state = **ready-to-validate** (tasks exist, no `approved` label, plan.md exists)
+- Router detected state = **ready-to-validate** (tasks exist, no `approved` label, phase-contract.md AND story-map.md exist)
 
 ## Prerequisites
 
@@ -38,11 +57,27 @@ cat .beads/artifacts/<feature-name>/CONTEXT.md
 
 # plan.md exists
 cat .beads/artifacts/<feature-name>/plan.md
+
+# phase-contract.md exists
+cat .beads/artifacts/<feature-name>/phase-contract.md
+
+# story-map.md exists
+cat .beads/artifacts/<feature-name>/story-map.md
 ```
 
 <HARD-GATE>
 If tasks don't exist in the bead graph, STOP. Route back to `beo-planning`.
+If phase-contract.md is missing, STOP. Route back to `beo-planning`.
+If story-map.md is missing, STOP. Route back to `beo-planning`.
 </HARD-GATE>
+
+## Phase 0: Learnings Retrieval
+
+Before validating structure, check institutional memory for relevant failure patterns.
+
+- Read `.beads/critical-patterns.md` if present
+- Search `.beads/learnings/` for domain-relevant prior learnings (if QMD is available, use it as an optional enhancement for semantic search)
+- If a prior learning affects phase closure, story order, or spike design, verify that the plan reflects it
 
 ## Phase 1: Structural Verification
 
@@ -52,27 +87,55 @@ Check the plan across 8 dimensions. For each dimension, assign PASS or FAIL.
 
 | # | Dimension | What to Check | FAIL if... |
 |---|-----------|--------------|------------|
-| 1 | **Requirement coverage** | Every CONTEXT.md decision (D1, D2...) maps to at least one task | Any decision has no corresponding task |
-| 2 | **Dependency correctness** | Dependencies reflect actual implementation order | A task references files produced by a task it doesn't depend on |
-| 3 | **File scope isolation** | Independent tasks don't modify the same files | Two tasks without a dependency edge share a file |
-| 4 | **Context budget** | Each task is completable in one agent session | Any task description + plan context exceeds reasonable prompt limits |
-| 5 | **Verification coverage** | Every task has concrete verification criteria | A task says "verify it works" without specifying how |
-| 6 | **Gap detection** | No obvious implementation steps are missing | The plan has logical jumps (e.g., "create API" without "add route") |
-| 7 | **Risk alignment** | HIGH-risk tasks have mitigations or spike flags | A HIGH-risk task has no rollback or mitigation plan |
-| 8 | **Completeness** | All tasks together deliver the full feature | Completing all tasks would leave the feature partially done |
+| 1 | **Phase contract clarity** | phase-contract.md has clear entry state, exit state, demo story, unlocks, scope | Exit state is vague or aspirational, demo does not prove the phase, phase sounds like a work bucket |
+| 2 | **Story coverage and ordering** | story-map.md stories have purpose, why-now, contributes-to, unlocks, done-looks-like | A story cannot answer "what does this unlock?", order feels arbitrary, a needed story is missing |
+| 3 | **Decision coverage** | Every CONTEXT.md decision (D1, D2...) maps to at least one story and bead | A locked decision appears nowhere in the story map, or a story mentions it but no bead implements it |
+| 4 | **Dependency correctness** | Story order and bead dependencies agree, graph is acyclic | Story order says one thing but bead dependencies say another, cycles exist, implicit undeclared dependencies |
+| 5 | **File scope isolation** | Parallel-ready beads don't silently collide | Two ready beads write the same file, config/schema files have no explicit owner |
+| 6 | **Context budget** | Each bead fits in one worker context window | A bead spans multiple stories, requires reading too many large files, tries to implement an entire subsystem |
+| 7 | **Verification completeness** | Stories and beads both have explicit done/verify criteria | Story "done" is vague, bead verify steps are not runnable, story completion depends on subjective judgment |
+| 8 | **Exit-state completeness and risk alignment** | If all beads complete, the phase reaches its exit state; HIGH-risk items have spike paths | Bead graph could finish while phase is not demoable, exit state depends on missing work, HIGH-risk items lack spikes |
 
 ### Running the Check
 
-For each dimension:
-1. Read the relevant artifacts (CONTEXT.md, plan.md, task descriptions)
-2. Cross-reference against the bead graph
-3. Assign PASS or FAIL with a specific reason
+#### Step 1.1: Spawn Plan-Checker
+
+Load `references/plan-checker-prompt.md`. Spawn an isolated subagent with:
+
+- all task beads for this epic (via `br show <TASK_ID> --json` for each)
+- `.beads/artifacts/<feature-name>/CONTEXT.md`
+- `.beads/artifacts/<feature-name>/discovery.md`
+- `.beads/artifacts/<feature-name>/plan.md`
+- `.beads/artifacts/<feature-name>/phase-contract.md`
+- `.beads/artifacts/<feature-name>/story-map.md`
+
+The plan-checker produces a structured PASS/FAIL report for all 8 dimensions.
+
+#### Step 1.2: Triage Results
+
+**If all 8 dimensions PASS:** proceed to Phase 2.
+
+**If any dimension FAILS:**
+
+1. Fix the specific issue in the relevant artifact
+2. Re-run the checker
+3. Count that as the next iteration
+
+### Repair Routing
+
+| Failed Dimension | Fix In |
+|-----------------|--------|
+| Phase contract unclear | Revise `phase-contract.md` |
+| Story order or scope unclear | Revise `story-map.md` |
+| Decision/gap issue | Revise story map and/or bead descriptions |
+| Dependency/scope/budget issue | Revise beads |
+| Exit state not convincingly reachable | Revise contract, story map, or plan.md |
 
 ### Handling Failures
 
 - **1-2 failures**: Fix them in-place (update task descriptions, add missing dependencies). For missing tasks, route back to `beo-planning` — do not create implementation tasks during validation (spikes are the exception, see Phase 3).
 - **3+ failures**: Route back to `beo-planning` for a rework pass
-- **After 3 total validation attempts**: Escalate to the user with specific failures
+- **After 3 iterations with any FAIL still present**: Stop, escalate to the user, explain which dimension is still failing and why. Do not attempt iteration 4.
 
 ## Phase 2: Graph Health
 
@@ -106,6 +169,27 @@ Manually review task titles and descriptions for overlap:
 - Two tasks that produce the same output → merge
 - Two tasks that modify the same files → sequence or merge
 - Tasks with nearly identical descriptions → one is probably unnecessary
+
+### Story-to-Bead Coherence Check
+
+Before leaving Phase 2, inspect `.beads/artifacts/<feature-name>/story-map.md`:
+
+- every story should map to at least one bead
+- every bead should belong to a story
+- if a story has too many beads (4+), it may be too large
+- if a bead spans multiple unrelated stories, the decomposition is muddy
+
+### Bead Description Verification
+
+For each task bead under the epic, read `br show <TASK_ID> --json` and verify:
+
+- `.description` is non-empty
+- Description contains: story context block, file scope, implementation steps, verification criteria
+- Description provides enough context for a fresh worker
+
+<HARD-GATE>
+FAIL the plan if any bead has an empty or underspecified description. This is a structural verification failure, not an optional quality note. Route back to `beo-planning` to complete the bead specs.
+</HARD-GATE>
 
 ## Phase 3: Spike Execution (HIGH-Risk Only)
 
@@ -150,18 +234,38 @@ A spike NO result means the plan is invalid. Do not proceed to approval.
 
 For **deep** complexity features or features with 5+ tasks:
 
-Launch a subagent with isolated context (no planning history) that reads only:
-- The task beads (via `br show <id>` for each)
-- CONTEXT.md
+Load `references/bead-reviewer-prompt.md`. Spawn an isolated subagent with:
 
-The subagent checks:
-- Can each task be understood without the plan?
-- Are descriptions self-contained enough for a worker?
-- Are there implicit assumptions not captured in the bead?
+- ONLY the current bead descriptions (`br show <TASK_ID> --json` for each)
+- NO planning artifacts — the reviewer must be truly isolated
+
+The reviewer checks that each bead is understandable in isolation and contains enough context for a fresh worker.
+
+After the reviewer returns its report, the orchestrator (not the reviewer) cross-references findings against `phase-contract.md` and `story-map.md` to determine if flagged beads are missing story context or traceability.
 
 If issues found → fix task descriptions before proceeding.
 
-## Phase 5: Approval Gate
+## Phase 5: Exit-State Readiness Review
+
+This is the human-readable readiness check before approval.
+
+Ask these questions explicitly:
+
+1. If all stories reach "Done Looks Like", does the phase exit state hold?
+2. If all beads close successfully, will all stories actually be done?
+3. Is the phase demo story now credible?
+4. Does this phase still make sense in the larger whole plan?
+
+If any answer is "no" or "not sure", do not approve execution. Route back:
+
+| Problem | Route To |
+|---------|----------|
+| Phase meaning / exit state problem | Revise `phase-contract.md` |
+| Story decomposition problem | Revise `story-map.md` |
+| Implementation granularity problem | Revise bead descriptions |
+| Architecture / risk problem | Revise `plan.md` and possibly route to `beo-planning` |
+
+## Phase 6: Approval Gate
 
 <HARD-GATE>
 User approval is required before any code is written. This is non-negotiable.
@@ -172,19 +276,34 @@ User approval is required before any code is written. This is non-negotiable.
 ```
 Validation Summary for: <feature-name>
 
-Structural Check: <N>/8 PASS
+Phase: <phase name from phase-contract.md>
+Stories: <N>
+Beads: <N>
+Demo story: <one-line from phase-contract.md>
+
+Structural Check: <N>/8 PASS (after <N> iterations)
 Graph Health: <clean | N issues found and fixed>
 Spikes: <N run, all YES | N/A>
 Fresh-Eyes: <PASS | N issues fixed | skipped>
 
+Exit-State Readiness:
+- Entry state understood: YES
+- Exit state observable: YES
+- Story sequence coherent: YES
+- Demo credible: YES
+
+Bead Descriptions: all <N> verified non-empty with story context
+
 Tasks (<count>):
-  1. <name> — <risk> — <deps>
-  2. <name> — <risk> — deps: [1]
+  1. <name> — <story> — <risk> — <deps>
+  2. <name> — <story> — <risk> — deps: [1]
   ...
 
 Parallel tracks: <count based on dependency structure>
 Critical path: <task chain>
 Estimated complexity: <LOW/MEDIUM/HIGH>
+
+Unresolved concerns: <none | list>
 
 Approve execution? (yes/no)
 ```
@@ -223,7 +342,7 @@ For features meeting ALL of these criteria:
 2. Skip Phase 2 bv graph analysis (too small to matter)
 3. Skip Phase 3 spikes (LOW risk = no spikes needed)
 4. Skip Phase 4 fresh-eyes review
-5. Still require Phase 5 user approval (always)
+5. Still require Phase 6 user approval (always)
 
 Lightweight validation should take <2 minutes.
 
@@ -285,11 +404,15 @@ Load <beo-executing | beo-swarming> to begin implementation.
 | Flag | Description |
 |------|-------------|
 | **Skipping validation entirely** | "The plan looks fine" is not validation |
-| **Auto-approving without user** | Phase 5 is non-negotiable |
+| **Auto-approving without user** | Phase 6 is non-negotiable |
 | **Ignoring spike NO results** | A failing spike means the plan is broken |
 | **Fixing failures without re-checking** | After fixing, re-run the failed dimension check |
 | **Validating without CONTEXT.md** | Decisions are the source of truth for requirement coverage |
 | **Spending >1 hour on validation** | If it takes that long, the plan probably needs rework |
+| **Validating a bead set that has no phase contract** | Phase contract defines the closed loop |
+| **Validating a story map that cannot explain "why now" for Story 1** | Story 1 must have an obvious reason to exist first |
+| **A phase exit state that is not observable** | "Improve quality" is not an exit state |
+| **A bead's "done" does not connect to any story** | Every bead must trace to a story |
 
 ## Anti-Patterns
 
@@ -300,3 +423,4 @@ Load <beo-executing | beo-swarming> to begin implementation.
 | Fixing plan issues during validation | Scope creep | Note issues, route back to beo-planning if >2 failures |
 | Adding implementation tasks during validation | That's planning work; only spikes are allowed | Route back to beo-planning for missing tasks |
 | Skipping deduplication | Wastes worker time on redundant tasks | Always check for overlap |
+| Approving when bead descriptions are empty | Workers will freelance with no spec | FAIL and route back to planning |

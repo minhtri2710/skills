@@ -1,0 +1,4 @@
+interface:
+  display_name: "Beo Executing"
+  short_description: "Per-worker implementation loop for task beads"
+  default_prompt: "Use $beo-executing to implement assigned task beads."

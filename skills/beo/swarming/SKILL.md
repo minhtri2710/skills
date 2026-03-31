@@ -35,7 +35,7 @@ If Agent Mail is unavailable, degrade to single-worker mode:
 1. Get `EPIC_ID`: read `.beads/STATE.md` or ask the user.
 2. Check live bead status:
    ```bash
-   bv --robot-triage --graph-root <EPIC_ID>
+   bv --robot-triage --graph-root <EPIC_ID> --format json
    ```
 3. Verify there is executable work:
    - open beads exist
@@ -164,7 +164,7 @@ fetch_inbox(
 Use live graph checks for oversight, not assignment:
 
 ```bash
-bv --robot-triage --graph-root <EPIC_ID>
+bv --robot-triage --graph-root <EPIC_ID> --format json
 ```
 
 ### Worker Startup Acknowledgments
@@ -177,7 +177,7 @@ When a worker posts an online message:
 ### Bead Completion Reports
 
 When a worker posts a completion report:
-1. Verify the bead is actually closed: `br status <bead-id>`
+1. Verify the bead is actually closed: `br show <bead-id> --json` → check `.status` = `closed`
 2. Acknowledge receipt on the thread
 3. Update `.beads/STATE.md`
 4. Re-check the graph if needed to see what newly unblocked
@@ -187,7 +187,7 @@ When a worker posts a completion report:
 After each completion, assess overall progress:
 
 ```bash
-bv --robot-triage --graph-root <EPIC_ID>
+bv --robot-triage --graph-root <EPIC_ID> --format json
 ```
 
 | Remaining open | Action |
@@ -244,7 +244,7 @@ When no beads remain `in_progress` and the graph shows no remaining executable w
 
 1. Run final bead verification:
    ```bash
-   bv --robot-triage --graph-root <EPIC_ID>
+   bv --robot-triage --graph-root <EPIC_ID> --format json
    ```
 2. If orphaned or blocked beads remain:
    - report which beads remain and why

@@ -2,6 +2,14 @@
 
 When a plan specifies task dependencies (e.g., "Task 3 depends on Task 1 and Task 2"), you must reconcile the desired dependency graph with the actual bead dependency edges.
 
+## Table of Contents
+
+- [Procedure](#procedure)
+- [Example](#example)
+- [Epic Lookup](#epic-lookup)
+- [Listing Tasks Under an Epic](#listing-tasks-under-an-epic)
+- [Scheduling Cascade](#scheduling-cascade)
+
 ## Procedure
 
 ### 1. Determine Desired Edges

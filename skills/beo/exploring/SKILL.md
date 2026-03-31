@@ -13,13 +13,6 @@ Exploring is the decision-extraction phase. Before any research or planning, you
 
 The output is a `CONTEXT.md` file that becomes the single source of truth for all downstream skills (planning, validating, executing, reviewing).
 
-## When to Use
-
-- A new feature request arrives (routed from `beo-router`)
-- The request is classified as **standard** or **unclear** complexity
-- Before any planning or implementation work
-- When the user says "build", "add", "change", "implement", "design"
-
 ## When NOT to Use
 
 - Request is **instant** (single file, well-scoped, <30 min per router classification) — router handles this directly, skip to executing
@@ -169,10 +162,23 @@ mkdir -p .beads/artifacts/<feature-name>
 # Write CONTEXT.md (use your file editing tools)
 ```
 
+### Slug Preservation
+
+When updating the epic description, always preserve the immutable `slug:` line:
+
+1. Read the current epic description: `br show <EPIC_ID> --json`
+2. Extract the first line (should be `slug: <feature_slug>`)
+3. Prepend the slug line to the new description content
+4. Write via `br update <EPIC_ID> --description "slug: <feature_slug>\n<rest of description>"`
+
+<HARD-GATE>
+Never overwrite an epic description without checking for and preserving the `slug:` first line. If the slug line is missing and the epic already has tasks, STOP — the slug was lost. Check `.beads/artifacts/` for the correct feature directory name and restore the slug.
+</HARD-GATE>
+
 Also update the epic bead description with a summary:
 
 ```bash
-br update <EPIC_ID> --description "Feature: <name>\n\nScope: <summary>\nDecisions: <count> locked\nDomains: <list>"
+br update <EPIC_ID> --description "slug: <feature_slug>\nFeature: <name>\n\nScope: <summary>\nDecisions: <count> locked\nDomains: <list>"
 ```
 
 ## Phase 4: Self-Review

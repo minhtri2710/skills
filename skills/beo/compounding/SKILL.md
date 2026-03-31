@@ -4,11 +4,11 @@ description: >-
   Capture learnings from completed feature work to make future work easier.
   Invoke after reviewing completes and the feature is merged. Runs three parallel
   analysis subagents (patterns/decisions/failures), synthesizes into
-  .beads/learnings/YYYYMMDD-<slug>.md, promotes critical items to
+  .beads/learnings/YYYYMMDD-slug.md, promotes critical items to
   critical-patterns.md. Trigger phrases: what did we learn, capture learnings,
   compound, lessons learned, document what we found.
   Key output: critical-patterns.md is read by every planning and exploring
-  Phase 0 — this is the flywheel that makes the ecosystem smarter over time.
+  Phase 0 -- this is the flywheel that makes the ecosystem smarter over time.
 ---
 
 # Compounding Skill
@@ -41,7 +41,9 @@ Collect all artifacts from the completed feature. Read:
 ```
 .beads/artifacts/<feature-name>/CONTEXT.md      <- locked decisions (what we committed to)
 .beads/artifacts/<feature-name>/discovery.md   <- research findings (what we learned before coding)
-.beads/artifacts/<feature-name>/plan.md        <- decomposition + risk map (how we planned to do it)
+.beads/artifacts/<feature-name>/plan.md        <- high-level approach summary (compatibility artifact)
+.beads/artifacts/<feature-name>/phase-contract.md <- phase definition (entry/exit state, demo, scope)
+.beads/artifacts/<feature-name>/story-map.md     <- story structure (sequence, closure, bead mapping)
 .beads/review-findings.md                      <- P1/P2/P3 findings from beo-reviewing
 .beads/artifacts/<feature-name>/debug-notes.md <- failure patterns from beo-debugging (if any)
 .beads/STATE.md or HANDOFF artifacts           <- runtime coordination state, if retained
@@ -155,19 +157,19 @@ After all three agents complete, the orchestrator:
 
 **Step 3.2 — Dedup check before writing:**
 
-When QMD is available, search for existing similar learnings before creating new entries:
+Search for existing similar learnings before creating new entries:
+
+```bash
+grep -l "<learning title>" .beads/learnings/ 2>/dev/null
+```
+
+If QMD is available (optional enhancement), also run a semantic search:
 
 ```bash
 qmd query "<learning title>" --json 2>/dev/null
 ```
 
-If a similar learning exists, merge instead of creating new. If no QMD, fall back to grep (check both locations — see `knowledge-store.md` for path logic):
-
-```bash
-grep -l "<learning title>" .beads/learnings/ 2>/dev/null
-VAULT_PATH=$(obsidian eval code="app.vault.adapter.basePath" 2>/dev/null)
-[ -n "$VAULT_PATH" ] && grep -l "<learning title>" "$VAULT_PATH/beo-learnings/" 2>/dev/null
-```
+If a similar learning exists, merge instead of creating new.
 
 **Step 3.3 — Triage each finding:**
 
@@ -183,17 +185,16 @@ Create a short, descriptive slug: `<primary-topic>-<secondary-topic>` (e.g., `au
 
 **Step 3.5 — Write the learnings file:**
 
-Use Obsidian CLI when available, flat-file fallback:
-
 ```bash
-# Obsidian CLI (preferred)
-obsidian create "beo-learnings/YYYYMMDD-<slug>.md" --content "<learnings content>" --silent 2>/dev/null
-
-# Flat-file fallback
 mkdir -p .beads/learnings
 cat > .beads/learnings/YYYYMMDD-<slug>.md << 'EOF'
 <learnings content>
 EOF
+```
+
+If Obsidian CLI is available (optional enhancement), also write to the vault:
+```bash
+obsidian create "beo-learnings/YYYYMMDD-<slug>.md" --content "<learnings content>" --silent 2>/dev/null
 ```
 
 Use the format from `references/learnings-template.md`. Include YAML frontmatter.
@@ -201,7 +202,7 @@ Use the format from `references/learnings-template.md`. Include YAML frontmatter
 One learnings file per feature. Group related findings within that file — do NOT create
 separate files per finding.
 
-**Step 3.6 — Refresh QMD index:**
+**Step 3.6 — Refresh QMD index (if available):**
 
 ```bash
 qmd update 2>/dev/null && qmd embed 2>/dev/null
@@ -224,13 +225,7 @@ Present the proposed entry and request explicit approval before writing. Never a
 
 **After user approves, append to `.beads/critical-patterns.md`:**
 
-Use Obsidian CLI when available, flat-file fallback:
-
 ```bash
-# Obsidian CLI (preferred)
-obsidian append "beo-learnings/critical-patterns.md" --content "<promotion entry>" --silent 2>/dev/null
-
-# Flat-file fallback
 cat >> .beads/critical-patterns.md << 'EOF'
 ## [YYYYMMDD] <Learning Title>
 **Category:** pattern | decision | failure
@@ -255,7 +250,7 @@ most to learn and save the most by knowing.
 ---
 ```
 
-**Refresh QMD index after promotion:**
+**Refresh QMD index after promotion (if available):**
 
 ```bash
 qmd update 2>/dev/null && qmd embed 2>/dev/null
@@ -297,6 +292,12 @@ Update `.beads/STATE.md` to record that compounding ran:
 
 Learnings file: .beads/learnings/YYYYMMDD-<slug>.md
 Critical promotions: N (or 0)
+```
+
+Flush bead state to git:
+
+```bash
+br sync --flush-only
 ```
 
 ---

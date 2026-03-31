@@ -21,7 +21,7 @@ extra confirmation and `history.jsonl` is insufficient.
 
 ## Run Modes
 
-## Bootstrap
+### Bootstrap
 
 Use bootstrap when:
 - Neither learnings frontmatter nor `.beads/learnings/dream-run-provenance.md` has `last_dream_consolidated_at`, or
@@ -30,7 +30,7 @@ Use bootstrap when:
 Bootstrap scan scope:
 - Full relevant Codex history needed to establish initial consolidated baseline.
 
-## Recurring
+### Recurring
 
 Use recurring when:
 - Learnings frontmatter or `.beads/learnings/dream-run-provenance.md` has `last_dream_consolidated_at`, and

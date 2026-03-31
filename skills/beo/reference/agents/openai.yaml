@@ -1,0 +1,4 @@
+interface:
+  display_name: "Beo Reference"
+  short_description: "CLI reference hub for br and bv commands"
+  default_prompt: "Use $beo-reference when you need br or bv CLI syntax."

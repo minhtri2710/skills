@@ -1,0 +1,51 @@
+# Execution Guardrails
+
+Red flags, anti-patterns, and recovery procedures for `beo-executing`.
+
+## Post-Compaction Recovery
+
+If you detect that context has been compacted (prior conversation is summarized):
+
+1. Re-read CONTEXT.md:
+   ```bash
+   cat .beads/artifacts/<feature-name>/CONTEXT.md
+   ```
+2. Re-read the plan:
+   ```bash
+   cat .beads/artifacts/<feature-name>/plan.md
+   ```
+3. Re-read phase context:
+   ```bash
+   cat .beads/artifacts/<feature-name>/phase-contract.md
+   cat .beads/artifacts/<feature-name>/story-map.md
+   ```
+4. Re-read current task state:
+   ```bash
+   br dep list <EPIC_ID> --direction up --type parent-child --json
+   ```
+5. Check for HANDOFF.json:
+   ```bash
+   cat .beads/HANDOFF.json 2>/dev/null
+   ```
+6. Resume from the last known good state
+
+## Red Flags
+
+| Flag | Description |
+|------|-------------|
+| **Implementing code directly in standalone mode** | In standalone mode with multiple tasks, dispatch subagents via `task()` — do not write implementation code directly. In worker mode or standalone with a single task, direct implementation is expected. |
+| **Dispatching without checking dependencies** | Always verify deps are satisfied before dispatch |
+| **Ignoring worker blockers** | Every blocker needs classification and resolution |
+| **Dispatching the same task twice** | Check task status before dispatching |
+| **Skipping the report artifact** | Every completed task needs a report for downstream tasks |
+| **Not flushing after updates** | Run `br sync --flush-only` after status changes |
+
+## Anti-Patterns
+
+| Pattern | Why It's Wrong | Instead |
+|---------|---------------|---------|
+| Sequential execution of independent tasks | Wastes time; use `beo-swarming` for parallel work | Route to swarming when multiple independent tasks are ready |
+| Re-dispatching a failed task without investigation | Same failure will recur | Understand the failure first |
+| Modifying task specs during execution | Plan integrity violation | If specs need changing, strip `approved` label (`br label remove <EPIC_ID> -l approved`) and route to planning |
+| Dispatching all tasks at once | Overwhelms context, loses control | Dispatch 1-3 at a time, track progress |
+| Skipping verification in the worker prompt | Workers will skip verification | Always include verification criteria |

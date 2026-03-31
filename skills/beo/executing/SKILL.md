@@ -1,6 +1,10 @@
 ---
 name: beo-executing
-description: Per-worker implementation loop. Dispatched by beo-swarming or used directly for single-worker execution. Implements one task at a time: claim, build prompt, dispatch worker, verify, report, loop.
+description: >-
+  Per-worker implementation loop. Dispatched by beo-swarming or used directly
+  for single-worker execution. Implements one task at a time in a claim, build
+  prompt, dispatch worker, verify, report, loop cycle. Trigger phrases: implement
+  this bead, do the work, execute task, run the worker, start implementing.
 ---
 
 # Beo Executing
@@ -97,6 +101,39 @@ br label remove <TASK_ID> -l failed 2>/dev/null
 br label remove <TASK_ID> -l partial 2>/dev/null
 ```
 
+### Description Verification
+
+```bash
+br show <TASK_ID> --json
+# Extract .description — must be non-empty and structurally complete
+```
+
+Verify the description contains ALL of:
+
+1. Non-empty and substantive (not just a title restatement)
+2. File scope (which files to create/modify)
+3. Concrete verification criteria (runnable checks, not "make sure it works")
+4. Story context block (Story, Purpose, Contributes To, Unlocks) — unless this is a reactive fix bead (see Bead Classes below)
+
+<HARD-GATE>
+If `.description` is empty, or is missing file scope AND verification criteria, STOP. Do not dispatch this task. Report it as invalid for execution:
+
+"Task <TASK_ID> has an empty or underspecified description. Route back to beo-planning or beo-validating to complete the bead spec."
+
+Do not attempt to reconstruct the spec from plan.md or CONTEXT.md — that produces low-quality worker output.
+</HARD-GATE>
+
+### Bead Classes
+
+Two classes of beads may reach execution:
+
+| Class | Created By | Story Context Required | Minimum Description |
+|-------|-----------|----------------------|-------------------|
+| **Planned execution bead** | beo-planning | Yes (full story context block) | Story context + file scope + steps + verification |
+| **Reactive fix bead** | beo-reviewing (P1), beo-debugging, beo-router (instant) | No (exempt) | File scope + what to fix + verification |
+
+Reactive fix beads are exempt from the story context requirement because they are created after planning completes. They still require file scope and verification criteria.
+
 ### Transition to In-Progress
 
 Reserve files before editing (required in worker mode, recommended in standalone mode). Use Agent Mail `file_reservation_paths` or coordinate via the file convention your project uses. Do not edit files without reserving them first.
@@ -118,66 +155,11 @@ br audit record --kind tool_call --issue-id <TASK_ID> --tool-name "dispatch"
 
 ## Phase 3: Worker Prompt Assembly
 
-Build the complete worker prompt for the subagent.
+Build the complete worker prompt for the subagent. The prompt includes phase exit state, story context, plan summary, task spec, relevant CONTEXT.md decisions, previous task results, and verification criteria.
 
-### Prompt Structure
+See `references/worker-prompt-guide.md` for the full prompt template, data gathering commands, and budget truncation rules.
 
-```markdown
-# Task: <task title>
-
-## Context
-You are implementing a task for feature "<feature-name>".
-
-## Plan Summary
-<Abbreviated plan.md — approach section only, not full plan>
-
-## Your Task
-<Full task description from bead — the spec>
-
-## CONTEXT.md Decisions
-<Relevant decisions from CONTEXT.md that affect this task>
-
-## Previous Task Results
-<Summaries from already-completed tasks that this task depends on>
-
-## Verification
-<Verification criteria from the task spec>
-
-## Rules
-- Implement ONLY what is described in the task spec
-- Do NOT modify files outside the listed file scope
-- Run verification before reporting completion
-- If blocked, report the blocker — do not guess or workaround
-- If the task grows beyond scope, report it — do not scope-creep
-```
-
-### Gathering Prompt Data
-
-```bash
-# Get task spec (bead description)
-br show <TASK_ID> --json
-# Extract: .description field
-
-# Get plan summary
-cat .beads/artifacts/<feature-name>/plan.md
-
-# Get CONTEXT.md
-cat .beads/artifacts/<feature-name>/CONTEXT.md
-
-# Get completed dependency task summaries
-br dep list <TASK_ID> --direction down --type blocks --json
-# For each completed dependency:
-br comments list <DEP_ID> --json
-# Extract the latest report artifact (see artifact protocol in beo-reference)
-```
-
-### Budget Truncation
-
-If the assembled prompt is too large:
-1. Truncate plan.md to approach section only (skip task list)
-2. Include only directly relevant CONTEXT.md decisions
-3. Summarize previous task results instead of including full reports
-4. Never truncate the task spec itself — that's the core payload
+**Key rule**: Never truncate the task spec itself — that's the core payload.
 
 ## Phase 4: Worker Dispatch
 
@@ -285,51 +267,7 @@ bv --robot-next --format json 2>/dev/null || br ready --json
 
 ## Blocker Handling
 
-When a task reports blocked:
-
-### Step 1: Understand the Blocker
-
-```bash
-# Read the task's blocker info
-br show <TASK_ID> --json
-br comments list <TASK_ID> --json
-# Look for the blocker description in the latest report
-```
-
-### Step 2: Classify the Blocker
-
-| Blocker Type | Action |
-|-------------|--------|
-| **Missing dependency output** | Check if the dependency task actually completed; if so, the worker may need clearer input |
-| **External service unavailable** | Report to user, cannot resolve automatically |
-| **Scope exceeds task boundary** | The task needs re-planning — strip `approved` label (`br label remove <EPIC_ID> -l approved`) and route to `beo-planning` |
-| **Ambiguous requirement** | Route to user for clarification |
-| **Technical issue** (build failure, test failure) | Route to `beo-debugging` if not resolvable in-context |
-
-### Step 3: Ask User for Decision
-
-Present the blocker to the user with options:
-1. Provide the missing information/decision
-2. Skip the task (mark as cancelled)
-3. Re-plan the task
-4. Unblock manually
-
-### Step 4: Resume
-
-After the user provides a decision:
-
-```bash
-# Remove blocked label
-br label remove <TASK_ID> -l blocked
-
-# Reset to open
-br update <TASK_ID> -s open
-
-# Update description with the new information
-br update <TASK_ID> --description "<updated spec with user's decision>"
-```
-
-Then loop back to Phase 1 to re-schedule.
+When a task reports blocked, follow the classification and resolution protocol in `references/blocker-handling.md`. Key steps: understand the blocker, classify it (missing dependency / external / scope / ambiguous / technical), ask the user for a decision, then resume from Phase 1.
 
 ## Completion
 
@@ -394,43 +332,8 @@ If context usage exceeds 65%:
 
 ## Post-Compaction Recovery
 
-If you detect that context has been compacted (prior conversation is summarized):
+If you detect that context has been compacted (prior conversation is summarized), follow the recovery procedure in `references/execution-guardrails.md` to re-read CONTEXT.md, plan, phase context, and task state before resuming.
 
-1. Re-read CONTEXT.md:
-   ```bash
-   cat .beads/artifacts/<feature-name>/CONTEXT.md
-   ```
-2. Re-read the plan:
-   ```bash
-   cat .beads/artifacts/<feature-name>/plan.md
-   ```
-3. Re-read current task state:
-   ```bash
-   br dep list <EPIC_ID> --direction up --type parent-child --json
-   ```
-4. Check for HANDOFF.json:
-   ```bash
-   cat .beads/HANDOFF.json 2>/dev/null
-   ```
-5. Resume from the last known good state
+## Red Flags & Anti-Patterns
 
-## Red Flags
-
-| Flag | Description |
-|------|-------------|
-| **Implementing code directly in standalone mode** | In standalone mode with multiple tasks, dispatch subagents via `task()` — do not write implementation code directly. In worker mode or standalone with a single task, direct implementation is expected. |
-| **Dispatching without checking dependencies** | Always verify deps are satisfied before dispatch |
-| **Ignoring worker blockers** | Every blocker needs classification and resolution |
-| **Dispatching the same task twice** | Check task status before dispatching |
-| **Skipping the report artifact** | Every completed task needs a report for downstream tasks |
-| **Not flushing after updates** | Run `br sync --flush-only` after status changes |
-
-## Anti-Patterns
-
-| Pattern | Why It's Wrong | Instead |
-|---------|---------------|---------|
-| Sequential execution of independent tasks | Wastes time; use `beo-swarming` for parallel work | Route to swarming when multiple independent tasks are ready |
-| Re-dispatching a failed task without investigation | Same failure will recur | Understand the failure first |
-| Modifying task specs during execution | Plan integrity violation | If specs need changing, strip `approved` label (`br label remove <EPIC_ID> -l approved`) and route to planning |
-| Dispatching all tasks at once | Overwhelms context, loses control | Dispatch 1-3 at a time, track progress |
-| Skipping verification in the worker prompt | Workers will skip verification | Always include verification criteria |
+See `references/execution-guardrails.md` for the complete red flags and anti-patterns tables.

@@ -43,12 +43,12 @@ Example: `Build failure in packages/sdk: TS2345 type mismatch in auth.ts`
 **Check known patterns first** — before any investigation:
 
 ```bash
-# QMD handles vault-vs-local path via its collection config (see knowledge-store.md)
-qmd search "<keyword from classification>" --json 2>/dev/null || {
-  cat .beads/critical-patterns.md 2>/dev/null | grep -i "<keyword>"
-  VAULT_PATH=$(obsidian eval code="app.vault.adapter.basePath" 2>/dev/null)
-  [ -n "$VAULT_PATH" ] && cat "$VAULT_PATH/beo-learnings/critical-patterns.md" 2>/dev/null | grep -i "<keyword>"
-}
+# Primary: search flat-file learnings
+cat .beads/critical-patterns.md 2>/dev/null | grep -i "<keyword>"
+grep -rl "<keyword>" .beads/learnings/ 2>/dev/null
+
+# Optional enhancement: if QMD is available, also run semantic search
+qmd search "<keyword from classification>" --json 2>/dev/null
 ```
 
 If a known pattern matches → jump directly to Step 4 (Fix), using the documented resolution.
@@ -79,57 +79,18 @@ If a known pattern matches → jump directly to Step 4 (Fix), using the document
 
 Work through these checks in order. Stop when you find the cause.
 
-### 3a. Read the relevant source files
+Work through the 6 diagnostic sub-checks in order (3a-3f). Stop when you find the cause.
 
-```bash
-# Find the file mentioned in the error
-grep -rn "<error symbol or function>" src/ --include="*.ts" -l
-# Then read the file
-```
+Load `references/diagnostic-checklist.md` for the full checklist with commands. Summary:
 
-Do not read the entire codebase. Read exactly the files implicated by the error output.
+- **3a.** Read relevant source files (only files implicated by error)
+- **3b.** Check git blame for recent changes
+- **3c.** Check bead context (`br show <bead-id>`)
+- **3d.** Check CONTEXT.md for decision violations
+- **3e.** Check Agent Mail for related blockers
+- **3f.** Narrow to root cause -- write a one-sentence root cause sentence
 
-### 3b. Check git blame for recent changes
-
-```bash
-git log --oneline -20          # What changed recently?
-git blame <file> -L <line>,<line>  # Who changed the failing line?
-git diff HEAD~3 -- <file>      # What did it look like before?
-```
-
-If a recent commit introduced the failure → the fix is likely reverting or adjusting that change.
-
-### 3c. Check bead context
-
-```bash
-br show <bead-id>   # What was this bead supposed to do?
-```
-
-Verify: does the failure indicate the bead was implemented against the wrong spec, or that it was implemented correctly but the spec was wrong?
-
-### 3d. Check CONTEXT.md for decision violations
-
-```bash
-cat .beads/artifacts/<feature-name>/CONTEXT.md
-```
-
-Ask: was a locked decision (D1, D2...) violated by the implementation? Decision violations are a frequent root cause — the code does something "reasonable" that was explicitly excluded.
-
-### 3e. Check Agent Mail for related blockers
-
-```bash
-fetch_inbox(project_key="<project-root-path>", agent_name="<agent-name>")
-```
-
-Another worker may have already reported the same issue or a related conflict. Avoid duplicate debugging.
-
-### 3f. Narrow to root cause
-
-After checks 3a–3e, write a one-sentence root cause:
-
-> Root cause: `<file>:<line>` — `<what is wrong and why>`
-
-If you cannot write this sentence, you do not have the root cause yet. Do not proceed to Fix.
+If you cannot write a root cause sentence after 3a-3f, you do not have the root cause yet. Do not proceed to Fix.
 
 ---
 
@@ -152,6 +113,18 @@ If you cannot write this sentence, you do not have the root cause yet. Do not pr
   ```
 - Implement in the fix bead's scope
 - Run verification: the fix bead's acceptance criteria must pass
+
+### Fix Bead Description Requirements
+
+When creating a fix bead, the description must contain at minimum:
+
+1. **File scope** — exact file paths to modify
+2. **What to fix** — specific problem and root cause
+3. **Verification criteria** — runnable checks that prove the fix works
+
+Fix beads are exempt from the story context block requirement (they are reactive, not planned). But they must still have enough context for `beo-executing` to dispatch without guessing.
+
+If the fix is trivial (single-line change with obvious verification), inline the fix directly instead of creating a bead.
 
 **Decision violation** (CONTEXT.md decision ignored):
 - Do not silently fix — the decision may need to be revisited
@@ -201,13 +174,10 @@ send_message(
 
 ### If this is a new failure pattern
 
-Write a debug note for compounding to capture. Use Obsidian CLI when available, flat-file fallback:
+Write a debug note for compounding to capture:
 
 ```bash
-# Obsidian CLI (preferred)
-obsidian create "beo-learnings/debug-note-$(date +%Y%m%d).md" --content "<debug note content>" --silent 2>/dev/null
-
-# Flat-file fallback — write to the feature's artifact directory
+# Write to the feature's artifact directory
 cat >> .beads/artifacts/<feature-name>/debug-notes.md << 'EOF'
 ## Debug Note: <date> — <classification>
 
@@ -255,7 +225,7 @@ This label is read by the router (Rows 2-3 of the routing table) to distinguish 
 
 When a worker is stuck (cannot make progress, not a code error):
 
-1. Check bead dependencies: `bv --robot-insights 2>/dev/null | jq '.Cycles'`
+1. Check bead dependencies: `bv --robot-insights --format json 2>/dev/null | jq '.Cycles'`
 2. Check file reservations via Agent Mail for conflicts
 3. Determine: is this **waiting for another worker** or **genuinely blocked**?
 
@@ -320,12 +290,4 @@ Also update STATE.md with canonical header before pausing.
 
 ## Quick Reference
 
-| Situation | First action |
-|---|---|
-| Build fails | `git log --oneline -10` — check recent changes |
-| Test fails | Run test verbatim, capture exact assertion output |
-| Flaky test | Run 5x — if intermittent, check shared state/ordering |
-| Runtime crash | Read stack trace top-to-bottom, find first line in your code |
-| Integration error | Check env vars, then API response body (not just status code) |
-| Worker stuck | Check bead deps with `bv`, then Agent Mail for conflicts |
-| Recurring issue | Check `.beads/critical-patterns.md` first |
+See `references/diagnostic-checklist.md` for the full quick reference table mapping situations to first actions.

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Beo Dream"
+  short_description: "Consolidate learnings across completed features"
+  default_prompt: "Use $beo-dream to run a consolidation pass over learnings."

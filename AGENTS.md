@@ -11,8 +11,12 @@ skills/
   beo/
     router/SKILL.md              # Phase detection + skill routing
     exploring/SKILL.md           # Socratic requirements gathering
-    planning/SKILL.md            # Epic/task decomposition + dependency wiring
-    validating/SKILL.md          # 8-dimension plan verification gate
+    planning/                    # Epic/task decomposition + dependency wiring
+      SKILL.md
+      references/phase-contract-template.md, story-map-template.md
+    validating/                  # 8-dimension plan verification gate
+      SKILL.md
+      references/plan-checker-prompt.md, bead-reviewer-prompt.md
     swarming/                    # Parallel worker orchestration
       SKILL.md
       references/message-templates.md, worker-template.md
@@ -30,7 +34,7 @@ skills/
       references/creation-log-template.md, pressure-test-template.md
     reference/                   # CLI reference hub
       SKILL.md                       # Navigation hub
-      references/                    # 6 reference docs (br, bv, deps, status, artifacts, knowledge-store)
+      references/                    # 8 reference docs (br, bv, deps, status, artifacts, file-conventions, pipeline-contracts, knowledge-store)
 ```
 
 ## Skill Workflow (Pipeline)
@@ -43,8 +47,8 @@ Support/meta skills (invoked on demand): `beo-debugging`, `beo-dream`, `beo-writ
 
 1. **beo-router** -- Detects current project state via `br`/`bv` and routes to the correct skill
 2. **beo-exploring** -- Socratic dialogue to lock decisions into `CONTEXT.md` before any planning
-3. **beo-planning** -- Creates epic + task beads with dependencies, writes `plan.md`
-4. **beo-validating** -- 8-dimension verification gate; must pass before any code is written
+3. **beo-planning** -- Creates epic + task beads with dependencies, writes `plan.md`, `phase-contract.md`, `story-map.md`
+4. **beo-validating** -- Phase contract, story map, and bead graph verification gate (8 dimensions); must pass before any code is written
 5. **beo-swarming** -- Orchestrates parallel worker agents for feature execution
 6. **beo-executing** -- Per-worker implementation loop: claim, build prompt, dispatch, verify, report
 7. **beo-reviewing** -- 5 specialist review agents, P1/P2/P3 severity, hands off to compounding

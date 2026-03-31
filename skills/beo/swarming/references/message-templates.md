@@ -3,6 +3,19 @@
 Standard message formats for swarm coordination. All messages post to the epic thread (`thread_id=<EPIC_ID>`) unless noted otherwise.
 Use `<COORDINATOR_AGENT_NAME>` for the coordinator identity, and keep it a valid Agent Mail adjective+noun name.
 
+## Table of Contents
+
+- [1. Spawn Notification](#1-spawn-notification)
+- [2. Worker Spawn Acknowledgment](#2-worker-spawn-acknowledgment)
+- [3. Completion Report](#3-completion-report)
+- [4. Blocker Alert](#4-blocker-alert)
+- [5. File Conflict Request](#5-file-conflict-request)
+- [6. File Conflict Resolution](#6-file-conflict-resolution)
+- [7. Overseer Broadcast](#7-overseer-broadcast)
+- [8. Coordinator Context Warning](#8-coordinator-context-warning)
+- [9. Swarm Completion Announcement](#9-swarm-completion-announcement)
+- [Handoff JSON Template](#handoff-json-template)
+
 ---
 
 ## 1. Spawn Notification

@@ -31,8 +31,8 @@ Evaluate **top-to-bottom, first match wins**. Earlier rows take priority.
 | 8 | Epic exists, tasks exist, some in_progress/closed (and no blocked/failed) | **executing** | `beo-executing` |
 | 9 | Epic exists, tasks exist, `approved` label on epic, all tasks open, 3+ independent tasks | **ready-to-swarm** | `beo-swarming` |
 | 10 | Epic exists, tasks exist, `approved` label on epic, all tasks open, ≤2 independent tasks | **ready-to-execute** | `beo-executing` |
-| 11 | Epic exists, tasks exist, no `approved` label, plan.md exists | **ready-to-validate** | `beo-validating` |
-| 12 | Epic exists, tasks exist, no `approved` label, no plan.md | **planning** | `beo-planning` |
+| 11 | Epic exists, tasks exist, no `approved` label, phase-contract.md AND story-map.md exist | **ready-to-validate** | `beo-validating` |
+| 12 | Epic exists, tasks exist, no `approved` label, phase-contract.md or story-map.md missing | **planning** | `beo-planning` |
 | 13 | Epic exists, no tasks, no `approved` label | **exploring** | `beo-exploring` |
 | 14 | Learnings stale (last dream run >30 days or 3+ new learnings since last dream), user requests consolidation | **consolidation-due** | `beo-dream` |
 
@@ -42,6 +42,20 @@ Key changes from prior versions:
 - Rows 4-5: most-specific closed states evaluated before generic 'epic is closed'
 - Row 7: ready-to-review evaluated before Row 8 (executing) to prevent shadowing
 - Row 14: staleness threshold defined: last dream run >30 days or 3+ new learnings files since last dream
+
+### Planning Artifact Hierarchy
+
+The planning phase produces five artifacts in this order:
+
+| Artifact | Role | Gate-Controlling |
+|----------|------|-----------------|
+| `CONTEXT.md` | Locked decisions — source of truth | Yes (exploring → planning gate) |
+| `discovery.md` | Research findings from parallel subagents | No |
+| `plan.md` | High-level approach summary | No (compatibility artifact) |
+| `phase-contract.md` | Phase as closed loop: entry/exit state, demo, scope | Yes (planning → validating gate) |
+| `story-map.md` | Story sequence, closure check, story-to-bead mapping | Yes (planning → validating gate) |
+
+The validation gate requires `phase-contract.md` AND `story-map.md`. `plan.md` is read by downstream skills but does not control routing.
 
 ---
 
@@ -175,7 +189,7 @@ Every feature gets an immutable `feature_slug` created once by the router and us
 - Derived from the epic title at creation time
 - Lowercase, hyphens only, max 40 chars: `auth-token-refresh`, `bead-scope-isolation`
 - Stored in: epic bead description (first line: `slug: <feature_slug>`), HANDOFF.json (`feature_name` field), STATE.md (`Feature` field)
-- Used for: `.beads/artifacts/<feature_slug>/` path, learnings file slug component
+- Used for: `.beads/artifacts/<feature-name>/` path, learnings file slug component
 
 **Canonical derivation:**
 1. Take the epic title

@@ -2,6 +2,19 @@
 
 All task and feature management uses the `br` CLI. Every command that returns structured data supports `--json` for machine-readable output.
 
+## Table of Contents
+
+- [Workspace Setup](#workspace-setup)
+- [Create](#create)
+- [Read](#read)
+- [Update](#update)
+- [Dependencies](#dependencies)
+- [Scheduling](#scheduling)
+- [Comments](#comments)
+- [Audit](#audit)
+- [Sync (Git Integration)](#sync-git-integration)
+- [Other](#other)
+
 ## Workspace Setup
 
 ```bash
@@ -42,6 +55,7 @@ br list -s <status> --json       # Filter by status (open, in_progress, closed, 
 
 ```bash
 br update <id> --status <s>            # Change status: open, in_progress, closed, deferred
+br update <id> -p <n>                  # Change priority (0=spike/urgent, 1=high, 2=normal, 3=low)
 br update <id> --description <content> # Set description (used for spec storage)
 br update <id> --claim                 # Claim bead (sets assignee + status=in_progress)
 br update <id> --assignee '' -s open   # Unclaim bead (release assignment)

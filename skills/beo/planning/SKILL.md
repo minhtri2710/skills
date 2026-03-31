@@ -1,6 +1,10 @@
 ---
 name: beo-planning
-description: Use after exploring completes. Research, synthesize, write plan.md, decompose into task beads with dependencies via br/bv CLI.
+description: >-
+  Use after exploring completes. Research, synthesize, define the phase contract
+  and story map, then decompose into task beads with dependencies via br/bv CLI.
+  Writes discovery.md, plan.md, phase-contract.md, story-map.md, and creates
+  beads that match the story structure.
 ---
 
 # Beo Planning
@@ -8,11 +12,26 @@ description: Use after exploring completes. Research, synthesize, write plan.md,
 ## Overview
 
 Planning is the research-and-decompose phase. It takes CONTEXT.md from exploring and produces:
-1. A `plan.md` document with the implementation approach
-2. Task beads in the bead graph with dependencies wired
-3. A risk classification for each task
+1. A `plan.md` document with the high-level approach
+2. A `phase-contract.md` defining the phase as a closed loop with entry/exit state
+3. A `story-map.md` breaking the phase into narrative slices
+4. Task beads in the bead graph with dependencies wired and story context embedded
+5. A risk classification for each task
 
 **Core principle**: Plan once, execute many. Every minute spent planning saves 10 minutes of confused implementation.
+
+## Core Planning Model
+
+Planning operates at four levels:
+
+```text
+Whole Plan
+  → Phase (closed loop with entry/exit state)
+    → Stories (narrative slices explaining work order)
+      → Beads (executable worker units)
+```
+
+Do not jump from `plan.md` straight to beads. If the phase cannot be explained in simple terms with a clear exit state and story sequence, it is not ready for execution.
 
 ## When to Use
 
@@ -44,15 +63,12 @@ If CONTEXT.md does not exist, STOP. Route back to `beo-exploring`.
 **Mandatory.** Before any research, check institutional memory.
 
 ```bash
-# Search knowledge store for relevant learnings (QMD handles vault-vs-local via collection config)
-qmd query "<feature domain keywords>" --json 2>/dev/null || {
-  cat .beads/critical-patterns.md 2>/dev/null
-  VAULT_PATH=$(obsidian eval code="app.vault.adapter.basePath" 2>/dev/null)
-  [ -n "$VAULT_PATH" ] && cat "$VAULT_PATH/beo-learnings/critical-patterns.md" 2>/dev/null
-}
+# Primary: read flat-file learnings
+cat .beads/critical-patterns.md 2>/dev/null
+ls .beads/learnings/*.md 2>/dev/null && grep -l "<feature domain keywords>" .beads/learnings/ 2>/dev/null
 ```
 
-If QMD is available, also run a semantic search:
+If QMD is available (optional enhancement), also run a semantic search:
 ```bash
 qmd query "<feature description from CONTEXT.md>" --json 2>/dev/null
 ```
@@ -64,55 +80,9 @@ If any patterns are relevant to this feature's domain:
 
 ## Phase 1: Discovery
 
-Goal-oriented research to understand the implementation landscape.
+Goal-oriented research to understand the implementation landscape. Launch 2-4 parallel research subagents (Architecture, Pattern, Constraint, External) to explore the codebase and external dependencies. Synthesize findings into `.beads/artifacts/<feature-name>/discovery.md`.
 
-### Step 1: Identify Research Questions
-
-From CONTEXT.md, extract:
-- **Architecture questions**: "How is the existing code structured?"
-- **Pattern questions**: "What patterns does this codebase use?"
-- **Constraint questions**: "What limits or requirements exist?"
-- **External questions**: "What do external APIs/libraries require?"
-
-### Step 2: Parallel Exploration
-
-Launch 2-4 parallel research subagents (using `task()` calls) focused on:
-
-1. **Architecture Agent**: Explore codebase structure relevant to the feature
-   - File organization, module boundaries, import patterns
-   - Existing code that will be modified or extended
-   
-2. **Pattern Agent**: Identify patterns to follow
-   - How similar features are implemented
-   - Testing patterns, error handling conventions
-   - Naming conventions, file placement rules
-
-3. **Constraint Agent**: Discover hard limits
-   - Type system constraints, API contracts
-   - Performance requirements, compatibility needs
-   - Dependencies and version constraints
-
-4. **External Agent** (if needed): Research external dependencies
-   - API documentation, SDK usage patterns
-   - Known issues, migration guides
-   - Community best practices
-
-Each agent writes findings to a structured format. Collect all results.
-
-### Step 3: Synthesize Findings
-
-Combine research into a discovery summary:
-- What exists today (architecture)
-- What patterns to follow (conventions)
-- What constraints apply (limits)
-- What external factors matter (dependencies)
-
-Write findings to the artifacts directory:
-
-```bash
-# Save discovery findings alongside CONTEXT.md
-# Write to .beads/artifacts/<feature-name>/discovery.md
-```
+See `references/discovery-guide.md` for detailed agent descriptions and synthesis format.
 
 ## Phase 2: Plan Writing
 
@@ -143,6 +113,8 @@ Break the approach into discrete, executable tasks. Each task must be:
 
 ### Task Format in plan.md
 
+See `references/bead-creation-guide.md` for the full task description template including Story Context Block.
+
 ```markdown
 ## Tasks
 
@@ -152,13 +124,6 @@ Break the approach into discrete, executable tasks. Each task must be:
 **Risk**: LOW | MEDIUM | HIGH
 **Description**: <what to implement>
 **Verification**: <how to verify it works>
-
-### 2. <Task Name>
-**Files**: <list of files>
-**Dependencies**: [1]
-**Risk**: LOW
-**Description**: <what to implement>
-**Verification**: <how to verify>
 ```
 
 ### Risk Classification
@@ -168,7 +133,6 @@ Break the approach into discrete, executable tasks. Each task must be:
 | Following existing pattern, <3 files | **LOW** |
 | New pattern or 3-5 files | **MEDIUM** |
 | External dependency, >5 files, architectural change | **HIGH** |
-| Unknown territory, no prior art in codebase | **HIGH** |
 
 ### Step 3: Write plan.md
 
@@ -180,11 +144,88 @@ Write the complete plan to the feature artifacts:
 
 Also write the plan to the epic bead description:
 
+### Slug Preservation
+
+Before updating the epic description, read the current description first (`br show <EPIC_ID> --json`) and preserve the `slug: <feature_slug>` first line. See `beo-exploring` for the full protocol.
+
 ```bash
-br update <EPIC_ID> --description "<plan content>"
+br update <EPIC_ID> --description "slug: <feature_slug>\n<plan content>"
 ```
 
-## Phase 3: Task Bead Creation
+## Phase 3: Phase Contract
+
+Before creating beads, define the phase as a closed loop.
+
+Write to `.beads/artifacts/<feature-name>/phase-contract.md` using `references/phase-contract-template.md`.
+
+The phase contract must answer, in plain language:
+
+1. Why this phase exists now
+2. What the **entry state** is
+3. What the **exit state** is
+4. What the simplest **demo story** is
+5. What this phase unlocks next
+6. What is explicitly out of scope
+7. What signals would force a pivot
+
+### Rules for a good phase contract
+
+- The exit state must be observable, not aspirational
+- The phase must close a meaningful small loop by itself
+- The demo story must prove the phase is real
+- If the phase fails, the team should know whether to debug locally or rethink the larger plan
+
+If you cannot explain the phase in 3-5 simple sentences, the phase is not ready. Revise plan.md before moving on.
+
+<HARD-GATE>
+If phase-contract.md does not exist, do not create beads. Define the phase first.
+</HARD-GATE>
+
+## Phase 4: Story Mapping
+
+Break the phase into **Stories**, not "plans inside a phase."
+
+Write to `.beads/artifacts/<feature-name>/story-map.md` using `references/story-map-template.md`.
+
+### Story rules
+
+Every story must state:
+
+- **Purpose**
+- **Why now**
+- **Contributes to** (which exit-state statement)
+- **Creates** (code, contract, data, capability)
+- **Unlocks** (what later stories can now do)
+- **Done looks like** (observable finish line)
+
+### Story quality checks
+
+- Story 1 must have an obvious reason to exist first
+- Every story must unlock or de-risk a later story, or directly close part of the exit state
+- If all stories complete, the phase exit state should hold
+- If a story cannot answer "what does this unlock?" it is probably not a real story
+
+### Story count guidance
+
+- **Typical phase**: 2-4 stories
+- **Small phase**: 1-2 stories
+- **Large phase**: split into multiple phases instead of creating 5+ stories
+
+Stories are the human-readable narrative. Beads come after.
+
+<HARD-GATE>
+If story-map.md does not exist, do not create beads. Map the stories first.
+</HARD-GATE>
+
+## Phase 5: Multi-Perspective Check (HIGH-Stakes Only)
+
+**Only for HIGH-stakes features**: multiple HIGH-risk components, core architecture, auth flows, data model changes, or anything with a large blast radius. For standard features, skip to Phase 6.
+
+Spawn a fresh subagent with plan.md, phase-contract.md, and story-map.md. Prompt: "Review this phase design for blind spots: (1) Does the phase contract close a small loop? (2) Do the stories make sense in this order? (3) What is missing from the exit state? (4) Which story is too large or vague? (5) What would the team regret 6 months from now?"
+
+Iterate 1-2 rounds. Stop when changes become incremental.
+
+## Phase 6: Task Bead Creation
 
 Convert plan tasks into bead graph entries.
 
@@ -205,18 +246,13 @@ Priority assignment (0-3 scale, see br-cli-reference):
 
 ### Step 2: Write Task Descriptions
 
-For each task bead, write a complete description using the artifact protocol:
+For each task bead, write a complete description. The description must include Background, Files, Steps, Verification, Rollback (for HIGH risk), and a Story Context Block. See `references/bead-creation-guide.md` for the exact template and story context format.
 
 ```bash
 br update <TASK_ID> --description "<task spec content>"
 ```
 
-The description (spec) must include:
-- **Background**: What this task accomplishes and why
-- **Files**: Exact file paths to create/modify
-- **Steps**: Numbered implementation steps
-- **Verification**: How to verify the task is complete
-- **Rollback**: How to undo if something goes wrong (for HIGH risk tasks)
+If no institutional learnings apply, write: "No prior learnings for this domain."
 
 ### Step 3: Wire Dependencies
 
@@ -226,6 +262,12 @@ For each task that depends on another:
 # Task B depends on Task A (B is blocked by A)
 br dep add <TASK_B_ID> <TASK_A_ID>
 ```
+
+### Step 3.5: Complete the Story Map
+
+After bead creation, fill the `Story-To-Bead Mapping` section in `.beads/artifacts/<feature-name>/story-map.md`.
+
+The validator must be able to trace: `phase exit state → story → bead`
 
 ### Step 4: Validate the Graph
 
@@ -243,23 +285,19 @@ If cycles are detected:
 3. Remove it: `br dep remove <child> <parent>`
 4. Re-validate
 
-## Phase 4: Plan Review
+### Step 5: Bead Completeness Check
 
-Before marking the plan as approved, do a self-review.
+<HARD-GATE>
+After all beads are created, read every bead back and verify. No bead may be handed off without passing this check. See `references/bead-creation-guide.md` for the full checklist.
+</HARD-GATE>
 
-### Completeness Check
+### Story-to-Bead Decomposition Rules
 
-For each CONTEXT.md decision (D1, D2, ...):
-- [ ] Is there at least one task that implements this decision?
-- [ ] Is the verification criteria traceable to the decision?
+See `references/bead-creation-guide.md` for decomposition rules. Key points: one story becomes 1-3 beads, no bead spans multiple stories, 4+ beads means the story may be too large.
 
-### Decomposition Quality Check
+## Phase 7: Plan Review
 
-For each task:
-- [ ] Could a developer start this task with only the task description + plan?
-- [ ] Is the file scope clear (no overlapping files between independent tasks)?
-- [ ] Are verification criteria concrete and testable?
-- [ ] Is the risk assessment honest?
+Before marking the plan as approved, run the self-review checklists in `references/bead-creation-guide.md` (Completeness Check, Decomposition Quality Check, Story Completeness Check).
 
 ### Present to User
 
@@ -272,41 +310,16 @@ Estimated parallel tracks: <count based on dependency structure>
 
 [Task list with names, risk levels, and dependency chains]
 
-Ready to validate? Load beo-validating for structural verification and approval.
+Ready to validate? Load beo-validating for phase closure, story coherence, and bead quality verification.
 ```
 
 ## Lightweight Mode
 
-For features classified as **lightweight** by the router (2-3 files, clear scope):
-
-1. Skip Phase 1 parallel exploration — do a quick single-pass review of affected files
-2. Write abbreviated plan.md (approach + tasks, skip discovery summary)
-3. Create task beads directly
-4. Still wire dependencies and validate the graph
-5. Skip the formal review — present directly to user
+For lightweight features (2-3 files, clear scope), see `references/bead-creation-guide.md` for the abbreviated workflow.
 
 ## Promotion Flow
 
-When direct/instant tasks grow beyond their envelope:
-
-### Step 1: Gather Existing Tasks
-
-```bash
-# List existing manual tasks (canonical enumeration — see pipeline-contracts.md)
-br dep list <EPIC_ID> --direction up --type parent-child --json
-```
-
-### Step 2: Write Plan Around Them
-
-Create plan.md that incorporates existing tasks as entries, plus any new tasks needed.
-
-### Step 3: Create Missing Task Beads
-
-Only create beads for tasks that don't already exist. Wire dependencies for all tasks (existing + new).
-
-### Step 4: Proceed to Validation
-
-Route to `beo-validating` — promoted plans need the same rigor as fresh plans.
+When direct/instant tasks grow beyond their envelope, see `references/bead-creation-guide.md` for the promotion procedure.
 
 ## Context Budget
 
@@ -314,8 +327,10 @@ If context usage exceeds 65% during planning:
 
 1. Write all findings so far to discovery.md
 2. Write partial plan.md if any tasks are decomposed
-3. Create any task beads that are ready
-4. Write HANDOFF.json:
+3. Write phase-contract.md if phase contract is drafted
+4. Write story-map.md if stories are mapped
+5. Create any task beads that are ready
+6. Write HANDOFF.json:
    ```json
    {
      "schema_version": 1,
@@ -323,12 +338,12 @@ If context usage exceeds 65% during planning:
      "skill": "beo-planning",
      "feature": "<epic-id>",
      "feature_name": "<feature-name>",
-     "next_action": "Continue from Phase <N>, Step <M>",
-     "in_flight_beads": [],
-     "timestamp": "<iso8601>"
-   }
-   ```
-5. Report progress and pause
+      "next_action": "Continue from Phase <N>, Step <M>",
+      "in_flight_beads": [],
+      "timestamp": "<iso8601>"
+    }
+    ```
+7. Report progress and pause
 
 ## Handoff
 
@@ -340,6 +355,8 @@ Write `.beads/STATE.md`:
 - Phase: planning → complete
 - Feature: <epic-id> (<feature-name>)
 - Tasks: <count> created
+- Stories: <count> mapped
+- Phase contract: written
 - Next: beo-validating
 
 Dependencies: <count> edges
@@ -348,32 +365,16 @@ Dependencies: <count> edges
 Announce:
 ```
 Planning complete.
-- <N> tasks created with descriptions and verification criteria
+- Phase contract: .beads/artifacts/<feature-name>/phase-contract.md
+- Story map: .beads/artifacts/<feature-name>/story-map.md (<S> stories)
+- <N> tasks created with descriptions, story context, and verification criteria
 - <M> dependency edges wired
 - <K> HIGH-risk tasks identified
+- All beads passed completeness check (non-empty descriptions verified)
 
-Ready for validation. Load beo-validating to verify plan quality and get approval.
+Ready for validation. Load beo-validating to verify phase closure, story coherence, and bead quality.
 ```
 
-## Red Flags
+## Red Flags & Anti-Patterns
 
-| Flag | Description |
-|------|-------------|
-| **Creating tasks without a plan** | Always write plan.md first (except in promotion flow) |
-| **Tasks without verification criteria** | Every task must have concrete "how to verify" |
-| **Overlapping file scopes** | If two independent tasks modify the same file, they must be sequenced |
-| **Skipping dependency validation** | Always run `br dep cycles --json` after wiring |
-| **Risk-inflating everything to HIGH** | Be honest — most tasks in a well-scoped feature are LOW or MEDIUM |
-| **Tasks that are too granular** | "Add import statement" is not a task. Tasks should be 30-90 min of work |
-| **Tasks that are too large** | "Implement the entire feature" is not a task. Break it down. |
-| **Skipping learnings retrieval** | Phase 0 is mandatory, not optional |
-
-## Anti-Patterns
-
-| Pattern | Why It's Wrong | Instead |
-|---------|---------------|---------|
-| Planning without CONTEXT.md | Assumptions will bite you | Route back to beo-exploring |
-| One giant task per feature | No parallelism, no incremental progress | Decompose into 3-8 tasks |
-| Dependencies everywhere | Over-constraining kills parallelism | Only add dependencies that are truly required |
-| Copy-pasting CONTEXT.md into every task | Bloats descriptions, drifts | Reference the decision IDs (D1, D2) |
-| Research without synthesis | Raw findings are not a plan | Always write the approach section |
+See `references/planning-guardrails.md` for the complete red flags and anti-patterns tables.

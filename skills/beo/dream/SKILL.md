@@ -37,7 +37,7 @@ Run these phases in order.
 
 ### Phase 1: Orient And Detect Run Mode
 
-1. Read existing learnings files from the active write target — the Obsidian vault's `beo-learnings/` folder if available, otherwise `.beads/learnings/` (see `knowledge-store.md` for path detection).
+1. Read existing learnings files from `.beads/learnings/` (see `knowledge-store.md` for path detection). If Obsidian CLI is available, also check the vault's `beo-learnings/` folder as an optional enhancement.
 2. Detect dream provenance by checking:
  - Any learnings frontmatter with `last_dream_consolidated_at`, and
  - The run marker file `.beads/learnings/dream-run-provenance.md`.
@@ -76,7 +76,7 @@ Use `references/consolidation-rubric.md` and classify every candidate into exact
 - `no match`: no existing learning file is a good owner
 - `no durable signal`: candidate is not durable enough to retain
 
-When QMD is available, search for existing matches before manual classification:
+If QMD is available (optional enhancement), search for existing matches before manual classification:
 
 ```bash
 qmd query "<candidate summary>" --json 2>/dev/null
@@ -97,9 +97,9 @@ qmd query "<candidate summary>" --json 2>/dev/null
    - `skip`
  - Do not silently choose a target file.
 - `no match`:
- - Create a new dated learnings file under `.beads/learnings/`.
- - Write `last_dream_consolidated_at` in frontmatter.
- - Use Obsidian CLI when available for writes, flat-file fallback (see `beo-reference` → `references/knowledge-store.md`).
+  - Create a new dated learnings file under `.beads/learnings/`.
+  - Write `last_dream_consolidated_at` in frontmatter.
+  - If Obsidian CLI is available, also write to the vault (optional enhancement — see `beo-reference` → `references/knowledge-store.md`).
 - `no durable signal`:
  - Perform no learnings write for that candidate.
 - Run finalization (always, once per completed run):

@@ -2,6 +2,16 @@
 
 Shared protocol for reading and writing project learnings. Used by `beo-compounding`, `beo-debugging`, `beo-dream`, `beo-exploring`, `beo-planning`, and `beo-router`.
 
+## Table of Contents
+
+- [Tool Detection](#tool-detection)
+- [Write Protocol](#write-protocol)
+- [Read Protocol](#read-protocol)
+- [YAML Frontmatter Schema](#yaml-frontmatter-schema)
+- [QMD Collection Setup](#qmd-collection-setup)
+- [Index Refresh](#index-refresh)
+- [Graceful Degradation Summary](#graceful-degradation-summary)
+
 ## Tool Detection
 
 Run at Phase 0 of any skill that uses the knowledge store:
@@ -15,23 +25,9 @@ Both tools are **optional**. All skills degrade gracefully to flat-file operatio
 
 ## Write Protocol
 
-### Primary: Obsidian CLI
+### Primary: Flat Files
 
-When `obsidian` CLI is available, use it for all learnings writes:
-
-```bash
-# Create a new learnings note
-obsidian create "beo-learnings/YYYYMMDD-<slug>.md" --content "<content>" --silent
-
-# Append to an existing note
-obsidian append "beo-learnings/YYYYMMDD-<slug>.md" --content "<content>" --silent
-```
-
-Always use the `--silent` flag to avoid interactive prompts.
-
-### Fallback: Flat Files
-
-When Obsidian CLI is unavailable, write directly to `.beads/learnings/`:
+All learnings writes go to `.beads/learnings/` by default:
 
 ```bash
 mkdir -p .beads/learnings
@@ -40,23 +36,43 @@ cat > .beads/learnings/YYYYMMDD-<slug>.md << 'EOF'
 EOF
 ```
 
+### Optional Enhancement: Obsidian CLI
+
+When `obsidian` CLI is available, also mirror writes to the vault for richer linking and graph navigation:
+
+```bash
+obsidian create "beo-learnings/YYYYMMDD-<slug>.md" --content "<content>" --silent
+obsidian append "beo-learnings/YYYYMMDD-<slug>.md" --content "<content>" --silent
+```
+
+Always use the `--silent` flag to avoid interactive prompts.
+
 ### Critical Patterns
 
 The `.beads/critical-patterns.md` file is the distilled subset of learnings that every planning and exploring Phase 0 reads. Promote patterns here only when they meet severity thresholds (see `beo-compounding`).
 
 ```bash
-# Obsidian CLI (preferred)
-obsidian append "beo-learnings/critical-patterns.md" --content "<pattern>" --silent
-
-# Flat-file fallback
+# Primary: flat-file append
 echo "<pattern>" >> .beads/critical-patterns.md
+
+# Optional enhancement: also write to Obsidian vault if available
+obsidian append "beo-learnings/critical-patterns.md" --content "<pattern>" --silent 2>/dev/null
 ```
 
 ## Read Protocol
 
-### Primary: QMD Semantic Search
+### Primary: grep
 
-When `qmd` is available, use semantic search to find relevant learnings:
+Read learnings directly from flat files:
+
+```bash
+cat .beads/critical-patterns.md 2>/dev/null
+grep -ri "<keyword>" .beads/learnings/ 2>/dev/null
+```
+
+### Optional Enhancement: QMD Semantic Search
+
+When `qmd` is available, use semantic search for richer results:
 
 ```bash
 # Semantic query (returns ranked results)
@@ -66,17 +82,11 @@ qmd query "<feature domain keywords>" --json 2>/dev/null
 qmd search "<keyword>" --json 2>/dev/null
 ```
 
-### Fallback: grep
+### Optional Enhancement: Obsidian Vault Search
 
-When QMD is unavailable, fall back to flat-file search. Check both the Obsidian vault and the flat-file directory (one will typically be empty):
+If the Obsidian vault contains additional learnings not yet in `.beads/learnings/`:
 
 ```bash
-cat .beads/critical-patterns.md 2>/dev/null
-
-# Check flat-file learnings
-grep -ri "<keyword>" .beads/learnings/ 2>/dev/null
-
-# Check Obsidian vault learnings (if vault path is known)
 VAULT_PATH=$(obsidian eval code="app.vault.adapter.basePath" 2>/dev/null)
 if [ -n "$VAULT_PATH" ] && [ -d "$VAULT_PATH/beo-learnings" ]; then
   grep -ri "<keyword>" "$VAULT_PATH/beo-learnings/" 2>/dev/null
@@ -102,30 +112,30 @@ tags:
 
 ## QMD Collection Setup
 
-One-time setup to enable semantic search over learnings. The collection must point at the same directory where writes go -- the Obsidian vault when available, otherwise `.beads/learnings/`:
+One-time setup to enable semantic search over learnings (optional). Point the collection at `.beads/learnings/`:
 
 ```bash
-# Detect write target
-if obsidian help 2>/dev/null; then
-  # Obsidian vault is the write target -- index the vault's beo-learnings folder
-  VAULT_PATH=$(obsidian eval code="app.vault.adapter.basePath" 2>/dev/null)
-  LEARNINGS_PATH="${VAULT_PATH}/beo-learnings"
-  mkdir -p "$LEARNINGS_PATH"
-else
-  # Flat-file fallback
-  LEARNINGS_PATH=".beads/learnings"
-  mkdir -p "$LEARNINGS_PATH"
-fi
-
+LEARNINGS_PATH=".beads/learnings"
+mkdir -p "$LEARNINGS_PATH"
 qmd collection add "$LEARNINGS_PATH" --name beo-learnings
 qmd embed
 ```
 
-> **Important**: If you switch between Obsidian and flat-file writes, re-run the collection setup pointing at the new path. QMD indexes a single directory per collection -- it won't find files written to a different location.
+If you also want to index the Obsidian vault's `beo-learnings/` folder:
+
+```bash
+VAULT_PATH=$(obsidian eval code="app.vault.adapter.basePath" 2>/dev/null)
+if [ -n "$VAULT_PATH" ]; then
+  qmd collection add "${VAULT_PATH}/beo-learnings" --name beo-learnings-vault
+  qmd embed
+fi
+```
+
+> **Note**: QMD indexes a single directory per collection. If you write to both `.beads/learnings/` and the Obsidian vault, create separate collections for each.
 
 ## Index Refresh
 
-After writing new learnings, refresh the QMD index:
+After writing new learnings, refresh the QMD index (if QMD is available):
 
 ```bash
 qmd update 2>/dev/null && qmd embed 2>/dev/null
@@ -135,9 +145,9 @@ This is safe to call even when QMD is unavailable (the `2>/dev/null` suppresses 
 
 ## Graceful Degradation Summary
 
-| Capability | Obsidian CLI available | QMD available | Neither |
-|-----------|----------------------|---------------|---------|
-| **Write learnings** | `obsidian create/append` | N/A | `cat >` / `echo >>` to `.beads/learnings/` |
-| **Read learnings** | N/A | `qmd query/search` | `grep` over `.beads/learnings/` |
-| **Critical patterns** | `obsidian append` | `qmd query` | `cat` / `echo >>` `.beads/critical-patterns.md` |
-| **Dedup check** | N/A | `qmd query "<title>"` | `grep -l "<title>" .beads/learnings/` |
+| Capability | No optional tools | + QMD | + Obsidian CLI | + Both |
+|-----------|-------------------|-------|---------------|--------|
+| **Write learnings** | `cat >` to `.beads/learnings/` | same | also mirrors to vault | also mirrors to vault |
+| **Read learnings** | `grep` over `.beads/learnings/` | `qmd query/search` | also search vault | `qmd query/search` + vault |
+| **Critical patterns** | `cat` / `echo >>` `.beads/critical-patterns.md` | + `qmd query` | also writes to vault | all three |
+| **Dedup check** | `grep -l "<title>" .beads/learnings/` | `qmd query "<title>"` | same as no tools | `qmd query "<title>"` |

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Beo Writing Skills"
+  short_description: "Create and pressure-test new beo skills"
+  default_prompt: "Use $beo-writing-skills to create a new beo skill."

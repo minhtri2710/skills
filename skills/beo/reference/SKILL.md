@@ -1,6 +1,10 @@
 ---
 name: beo-reference
-description: Use when you need the br/bv CLI command reference, task status mapping, artifact protocol, or dependency reconciliation procedures. Load alongside any other beo skill that references lookup tables.
+description: >-
+  Use when you need the br/bv CLI command reference, task status mapping,
+  artifact protocol, or dependency reconciliation procedures. Load alongside
+  any other beo skill that references lookup tables. Trigger phrases: how do I
+  run br, what bv command, status mapping, CLI syntax, look up artifact format.
 ---
 
 # Beo Reference

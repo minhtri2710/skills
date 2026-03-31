@@ -11,13 +11,21 @@ The router is the entry point for every beo session. It bootstraps the workspace
 
 **Core principle**: Always know where you are before deciding where to go.
 
-## When to Use
+## Skill Catalog
 
-- Starting a new coding session
-- User says "build", "add", "change", "implement", "fix", or any feature request
-- Resuming after a context handoff (HANDOFF.json exists)
-- Checking overall project health
-- Unsure which pipeline skill to load next
+| # | Skill | One-line description | Load when... |
+|---|-------|----------------------|--------------|
+| 1 | `beo-router` | This file. Bootstrap, state detection, routing. | Starting any session |
+| 2 | `beo-exploring` | Socratic dialogue → lock decisions → CONTEXT.md | Feature request is vague or new |
+| 3 | `beo-planning` | Research + synthesis → phase-contract.md + story-map.md + beads | Decisions are locked (CONTEXT.md exists) |
+| 4 | `beo-validating` | Verify phase contract, story map, bead graph (8 dimensions) | Stories and beads exist; prove execution-readiness |
+| 5 | `beo-swarming` | Launch + tend worker pool via Agent Mail + bv | Beads validated; execute at scale (3+ independent tasks) |
+| 6 | `beo-executing` | Single worker loop: claim → build prompt → implement → verify → report | Spawned by swarming, or direct for ≤2 tasks |
+| 7 | `beo-reviewing` | 5 parallel review agents (P1/P2/P3) + artifact verification + UAT | Execution complete; quality gate before close |
+| 8 | `beo-compounding` | Capture learnings → critical-patterns.md | Feature shipped; extract patterns/decisions/failures |
+| 9 | `beo-debugging` | Root-cause analysis for blocked beads and execution failures | Agent stuck, bead blocked, unexpected error |
+| 10 | `beo-dream` | Periodic consolidation of learnings across features | Learnings stale (>30 days or 3+ since last) |
+| 11 | `beo-writing-skills` | TDD-for-skills: create and pressure-test beo skills | Improving or creating beo skills |
 
 ## Phase 0: Workspace Bootstrap
 
@@ -38,7 +46,7 @@ br doctor
 ```
 
 ```bash
-# Check knowledge search availability
+# Check knowledge search availability (optional — QMD enhances search but is not required)
 qmd status 2>/dev/null
 ```
 
@@ -75,7 +83,11 @@ For the active epic, gather full state:
 ```bash
 # Get epic details
 br show <EPIC_ID> --json
+```
 
+Extract the immutable `slug: <feature_slug>` line from the epic description. Use that slug for all artifact existence checks below.
+
+```bash
 # List tasks under this epic (canonical enumeration — see pipeline-contracts.md)
 br dep list <EPIC_ID> --direction up --type parent-child --json
 
@@ -86,6 +98,10 @@ bv --robot-triage --graph-root <EPIC_ID> --format json
 bv --robot-next --format json
 br ready --json
 br blocked --json
+
+# Check planning artifacts exist
+cat .beads/artifacts/<feature-name>/phase-contract.md 2>/dev/null
+cat .beads/artifacts/<feature-name>/story-map.md 2>/dev/null
 ```
 
 ### Step 4: Classify Feature State
@@ -104,8 +120,8 @@ Use the canonical state routing table from `beo-reference` → `references/pipel
 | 8 | Epic exists, tasks exist, some in_progress/closed (and no blocked/failed) | **executing** | `beo-executing` |
 | 9 | Epic exists, tasks exist, `approved` label on epic, all tasks open, 3+ independent tasks | **ready-to-swarm** | `beo-swarming` |
 | 10 | Epic exists, tasks exist, `approved` label on epic, all tasks open, ≤2 independent tasks | **ready-to-execute** | `beo-executing` |
-| 11 | Epic exists, tasks exist, no `approved` label, plan.md exists | **ready-to-validate** | `beo-validating` |
-| 12 | Epic exists, tasks exist, no `approved` label, no plan.md | **planning** | `beo-planning` |
+| 11 | Epic exists, tasks exist, no `approved` label, phase-contract.md AND story-map.md exist | **ready-to-validate** | `beo-validating` |
+| 12 | Epic exists, tasks exist, no `approved` label, phase-contract.md or story-map.md missing | **planning** | `beo-planning` |
 | 13 | Epic exists, no tasks, no `approved` label | **exploring** | `beo-exploring` |
 | 14 | Learnings stale (last dream >30 days or 3+ new learnings since last dream), user requests consolidation | **consolidation-due** | `beo-dream` |
 
@@ -158,11 +174,15 @@ br update <EPIC_ID> --description "slug: <feature_slug>"
   br update <TASK_ID> --description "<Background + what to do + verify steps>"
   br label add <EPIC_ID> -l approved
   # Create minimal artifacts for downstream skills
-  mkdir -p .beads/artifacts/<feature-slug>
+  mkdir -p .beads/artifacts/<feature-name>
   # Write minimal CONTEXT.md stub
   # (use file editing tools to write: "# Feature: <name>\n\n## Request\n<user request>\n\n## Locked Decisions\nInstant-path: no exploration needed.\n\n## Scope Classification\n- Complexity: instant\n- Domains: <inferred>\n- Estimated blast radius: 1 file")
-  # Write minimal plan.md stub
-  # (use file editing tools to write: "# Plan: <name>\n\n## Approach\nSingle-task instant implementation.\n\n## Tasks\n### 1. <task-name>\nSee bead description for spec.")
+   # Write minimal plan.md stub
+   # (use file editing tools to write: "# Plan: <name>\n\n## Approach\nSingle-task instant implementation.\n\n## Tasks\n### 1. <task-name>\nSee bead description for spec.")
+   # Write minimal phase-contract.md stub
+   # (use file editing tools to write: "# Phase Contract: <name>\n\n## 4. Exit State\n- Feature works as described in request.\n\n## 5. Demo Story\nInstant-path: single-task feature, no stories needed.")
+   # Write minimal story-map.md stub
+   # (use file editing tools to write: "# Story Map: <name>\n\n## 2. Story Table\n\n| Story | Purpose | Done Looks Like |\n|-------|---------|-----------------|\n| Story 1: Implement | Single-task implementation | Task complete and verified |\n\n## 5. Story-To-Bead Mapping\n\n| Story | Beads |\n|-------|-------|\n| Story 1 | <TASK_ID> |")
   ```
   Then route to `beo-executing`.
 
@@ -288,6 +308,54 @@ Write `.beads/HANDOFF.json`:
 | "swarm", "parallel workers", "launch workers" | `beo-swarming` |
 | "dream", "consolidate learnings" | `beo-dream` |
 | "write a skill", "create a skill", "edit skill" | `beo-writing-skills` |
+| "go", "run the full pipeline", "go mode" | Go Mode (below) |
+
+## Go Mode (Full Pipeline)
+
+Go mode chains all skills end-to-end with exactly **3 human gates**. No phase is skipped.
+
+**Trigger:** User says "go", "run the full pipeline", "go mode", or `/go [feature]`.
+
+**The 3 gates — never skip these:**
+
+```
+GATE 1 (after exploring):
+  Present .beads/artifacts/<feature-name>/CONTEXT.md to user.
+  Ask: "Decisions locked. Approve CONTEXT.md before planning?"
+  HARD-GATE: do not invoke planning until user approves.
+
+GATE 2 (after validating):
+  Present: phase exit state, story count, bead count, risk summary, spike results.
+  Ask: "Phase verified. Approve execution?"
+  HARD-GATE: do not invoke swarming/executing until user approves.
+
+GATE 3 (after reviewing):
+  Present: P1 count, P2 count, P3 count.
+  If P1 > 0: "P1 findings block merge. Fix before proceeding?"
+  If P1 = 0: "Review complete. Approve close?"
+  HARD-GATE: do not close epic until user responds.
+```
+
+**Go mode sequence:**
+```
+exploring → [GATE 1] → planning → validating → [GATE 2]
+         → swarming (+ executing ×N) → reviewing → [GATE 3]
+         → compounding → DONE
+```
+
+**Context budget in go mode:** If context exceeds 65% mid-pipeline, write HANDOFF.json with `"mode": "go"` so the next session resumes in go mode from the current phase.
+
+## Priority Rules
+
+These override all other routing and execution decisions:
+
+1. **P1 review findings always block.** Never merge, never close epic, never proceed to compounding while P1 findings are open.
+2. **Context budget always applies.** If context usage exceeds 65%, write `.beads/HANDOFF.json` and pause. Do not continue burning context.
+3. **CONTEXT.md is the source of truth.** If implementation diverges from a locked decision in CONTEXT.md, stop and surface the conflict before proceeding.
+4. **Gate 2 (post-validating) is the most critical gate.** Execution is irreversible at scale. If there is any doubt about the plan's soundness, do not approve — loop back to validating.
+5. **Spike failures halt the pipeline.** A failed spike means the approach is broken. Do not proceed to swarming; return to planning.
+6. **Never skip validating.** Not for small features. Not for "obvious" plans. Skipping validating is the #1 cause of wasted execution work.
+7. **critical-patterns.md is mandatory context.** If it exists, read it before planning or executing. Ignoring past critical patterns is the #1 source of repeat failures.
 
 ## Red Flags
 

@@ -1,6 +1,11 @@
 ---
 name: beo-reviewing
-description: Use after all tasks complete. Runs specialist review subagents, verifies artifacts, conducts human UAT, closes the epic, and hands off to beo-compounding for learnings. The quality gate before feature completion.
+description: >-
+  Use after all tasks complete. Runs specialist review subagents, verifies
+  artifacts, conducts human UAT, closes the epic, and hands off to
+  beo-compounding for learnings. The quality gate before feature completion.
+  Trigger phrases: review the feature, verify the work, run UAT, quality check,
+  check the implementation.
 ---
 
 # Beo Reviewing
@@ -11,12 +16,6 @@ Reviewing is the post-execution quality gate. It verifies that the implementatio
 
 **Core principle**: Trust but verify. Workers may have drifted, cut corners, or missed edge cases.
 
-## When to Use
-
-- After `beo-executing` completes (all tasks closed)
-- Router detected state = **ready-to-review**
-- User says "review", "verify", "check the work"
-
 ## Prerequisites
 
 ```bash
@@ -26,6 +25,12 @@ br dep list <EPIC_ID> --direction up --type parent-child --json
 
 # CONTEXT.md exists
 cat .beads/artifacts/<feature-name>/CONTEXT.md
+
+# phase-contract.md exists (needed for exit-state verification in UAT)
+cat .beads/artifacts/<feature-name>/phase-contract.md
+
+# story-map.md exists (needed for story completeness verification)
+cat .beads/artifacts/<feature-name>/story-map.md 2>/dev/null
 
 # Build passes
 # (Run project-specific build command)
@@ -43,92 +48,14 @@ If any tasks have `blocked`, `failed`, or `partial` labels (status `deferred`), 
 
 Launch specialist review subagents to examine the implementation from different angles.
 
-### 5 Review Specialists
+Load `references/review-specialist-prompts.md` for the full specialist table, prompt template, dispatch strategy, and P1/P2/P3 bead creation patterns.
 
-| # | Specialist | Focus | Key Questions |
-|---|-----------|-------|---------------|
-| 1 | **Code Quality** | Clean code, patterns, naming, complexity | Does the code follow project conventions? Any dead code? Unnecessary complexity? |
-| 2 | **Architecture** | Module boundaries, coupling, separation of concerns | Does the implementation respect existing architecture? Any new coupling introduced? |
-| 3 | **Security** | Input validation, auth, injection, data exposure | Any security vulnerabilities? Unsanitized inputs? Exposed secrets? |
-| 4 | **Test Coverage** | Tests exist, meaningful assertions, edge cases | Are the verification criteria actually tested? Any missing edge cases? |
-| 5 | **Learnings Synthesis** | Cross-cutting patterns, institutional memory | What patterns emerged? What should be remembered for future work? |
+**Summary**: 5 specialists (Code Quality, Architecture, Security, Test Coverage, Learnings Synthesis) review changed files. Launch first 4 in parallel, learnings synthesizer last. Each reports findings as P1 (blocks merge), P2 (should fix), or P3 (nice to have).
 
-### Dispatch Strategy
-
-- **4 or fewer specialists needed**: Launch all in parallel via `task()` calls
-- **All 5**: Launch first 4 in parallel, then learnings synthesizer last (it cross-references the other findings)
-
-### Specialist Prompt Template
-
-Each specialist receives:
-```markdown
-# Review: <specialist-type> for <feature-name>
-
-## Your Role
-You are reviewing the implementation of "<feature-name>" from a <specialist-type> perspective.
-
-## Scope
-Review ONLY the changes made for this feature. Do NOT review pre-existing code unless it was modified.
-
-## Files Changed
-<list of files modified by all tasks — gathered from task reports>
-
-## CONTEXT.md Decisions
-<relevant decisions that should be reflected in the implementation>
-
-## Instructions
-1. Read each changed file
-2. Evaluate against your specialist criteria
-3. Report findings with severity:
-   - P1 (BLOCKS MERGE): Must fix before the feature can ship
-   - P2 (SHOULD FIX): Important but can be a follow-up task
-   - P3 (NICE TO HAVE): Minor improvements, style nits
-
-## Output Format
-For each finding:
-- File: <path>
-- Line: <number or range>
-- Severity: P1 | P2 | P3
-- Finding: <description>
-- Suggestion: <how to fix>
-```
-
-### Processing Review Results
-
-Collect all findings from all specialists. Categorize:
-
-| Severity | Action |
-|----------|--------|
-| **P1** (blocks merge) | Create a fix task bead, wire to epic, execute immediately |
-| **P2** (should fix) | Create a follow-up bead NOT under the current epic |
-| **P3** (nice to have) | Record but do not create beads unless user requests |
-
-### Creating P1 Fix Beads
-
-```bash
-# P1 finding becomes a blocking task
-br create "Fix: <P1 finding summary>" -t task --parent <EPIC_ID> -p 1 --json
-br update <FIX_TASK_ID> --description "<finding details + fix suggestion>"
-
-# Execute the fix immediately
-# Route back to Phase 2 of beo-executing for this task
-```
-
-After all P1 fixes are resolved, return to reviewing.
-
-If P1 fixes fail repeatedly (>2 attempts), route to `beo-debugging` for root cause analysis.
-
-### Creating P2/P3 Follow-Up Beads
-
-```bash
-# P2 findings become independent follow-up beads (NOT under the epic)
-br create "Follow-up: <P2 finding summary>" -t task -p 3 --json
-br label add <FOLLOWUP_ID> -l review
-br label add <FOLLOWUP_ID> -l review-p2
-br update <FOLLOWUP_ID> --description "External ref: <EPIC_ID>\n\n<finding details>"
-```
-
-P2/P3 beads are intentionally NOT children of the current epic so they don't block feature completion.
+- **P1 findings** become fix beads under the epic, executed immediately
+- **P2 findings** become independent follow-up beads (NOT under epic)
+- **P3 findings** recorded but no beads unless user requests
+- If P1 fixes fail >2 attempts, route to `beo-debugging`
 
 ## Phase 2: Artifact Verification
 
@@ -143,6 +70,10 @@ For each significant artifact (component, module, endpoint, etc.) promised by th
 | **L1: EXISTS** | File/component exists at the expected path | File is missing |
 | **L2: SUBSTANTIVE** | Not a stub, placeholder, or TODO | Contains `return null`, `TODO`, empty handlers, `throw new Error('not implemented')` |
 | **L3: WIRED** | Imported and used by integration code | Component exists but is never imported, endpoint exists but is not registered |
+
+Additionally, check each exit-state line from `phase-contract.md`:
+- Is the exit state actually achieved by the implementation?
+- Can the demo story from phase-contract.md be walked through successfully?
 
 ```bash
 # L1: Check file exists
@@ -181,6 +112,13 @@ For each locked decision from CONTEXT.md (D1, D2, ...):
 3. Ask: "Does this match your intent?"
 
 Walk through ONE decision at a time. Wait for user confirmation before moving to the next.
+
+Additionally, verify against the phase exit state from `phase-contract.md`:
+
+For each exit-state line:
+1. State the exit-state claim
+2. Show how the implementation satisfies it
+3. Ask: "Is this exit state now true?"
 
 ### UAT Outcomes
 

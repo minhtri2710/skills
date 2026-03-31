@@ -6,6 +6,14 @@ One file per feature. Multiple learnings can appear in a single file — separat
 with `---` dividers. Start each file with the YAML frontmatter below, then add
 individual learning entries.
 
+## Table of Contents
+
+- [YAML Frontmatter](#yaml-frontmatter-required-line-1-of-file)
+- [Learning Entry Format](#learning-entry-format)
+- [Complete Example File](#complete-example-file)
+- [Slug Naming Rules](#slug-naming-rules)
+- [critical-patterns.md Entry Format](#critical-patternsmd-entry-format)
+
 ---
 
 ## YAML Frontmatter (required, line 1 of file)
@@ -15,7 +23,7 @@ individual learning entries.
 date: YYYY-MM-DD
 feature: <feature-name>
 categories: [pattern, decision, failure]   # include only categories present
-severity: critical | standard              # use "critical" if ANY entry is critical
+severity: low | medium | high | critical   # use highest severity of ANY entry
 tags: [tag1, tag2, tag3]                   # domains covered (e.g., auth, testing, beads)
 ---
 ```
@@ -30,7 +38,7 @@ Repeat this block for each distinct learning. Separate entries with `---`.
 # Learning: <Concise Title>
 
 **Category:** pattern | decision | failure
-**Severity:** critical | standard
+**Severity:** low | medium | high | critical
 **Tags:** [tag1, tag2]
 **Applicable-when:** <one sentence — under what conditions should future agents use this?>
 

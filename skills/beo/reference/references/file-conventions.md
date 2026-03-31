@@ -38,7 +38,9 @@ All feature artifacts live under `.beads/artifacts/<feature-name>/`:
 |------|-----------|---------|---------|
 | `CONTEXT.md` | beo-exploring | beo-planning, beo-validating, beo-executing, beo-reviewing, beo-compounding | Locked decisions — the source of truth |
 | `discovery.md` | beo-planning | beo-validating, beo-compounding | Research findings from discovery subagents |
-| `plan.md` | beo-planning | beo-validating, beo-executing, beo-compounding | Task decomposition, risk map, approach |
+| `plan.md` | beo-planning | beo-validating, beo-executing, beo-compounding | High-level approach summary (compatibility — not the validation gate) |
+| `phase-contract.md` | beo-planning | beo-router, beo-validating, beo-executing, beo-reviewing, beo-compounding | Phase as closed loop: entry/exit state, demo story, scope, pivot signals |
+| `story-map.md` | beo-planning | beo-router, beo-validating, beo-executing, beo-reviewing, beo-compounding | Story sequence, closure check, story-to-bead mapping |
 | `debug-notes.md` | beo-debugging | beo-compounding, beo-debugging | Failure patterns discovered during debugging |
 | `compounding-patterns.md` | beo-compounding (Agent 1) | beo-compounding orchestrator | Staging: reusable patterns extracted |
 | `compounding-decisions.md` | beo-compounding (Agent 2) | beo-compounding orchestrator | Staging: decision analysis |
@@ -50,16 +52,16 @@ All feature artifacts live under `.beads/artifacts/<feature-name>/`:
 |------|-----------|---------|---------|
 | `.beads/review-findings.md` | beo-reviewing | beo-compounding | P1/P2/P3 severity findings from 5 specialist reviewers |
 | `.beads/learnings/YYYYMMDD-<slug>.md` | beo-compounding | all skills (Phase 0) | Finalized learnings from completed features |
-| `.beads/critical-patterns.md` | beo-compounding | beo-exploring, beo-planning, beo-debugging, beo-dream | Promoted high-value patterns (multi-feature, generalizable) |
+| `.beads/critical-patterns.md` | beo-compounding | beo-exploring, beo-planning, beo-validating, beo-debugging, beo-dream | Promoted high-value patterns (multi-feature, generalizable) |
 | `.beads/learnings/dream-run-provenance.md` | beo-dream | beo-dream | Dream run markers — tracks when last consolidation ran |
 
-## Knowledge Store (Optional)
+## Knowledge Store (Optional Enhancements)
 
-When Obsidian CLI and QMD are available:
+All learnings writes go to `.beads/learnings/` by default. Obsidian CLI and QMD are optional enhancements:
 
-| Operation | Tool | Fallback |
-|-----------|------|----------|
-| Write learnings | `obsidian create` | Flat file to `.beads/learnings/` |
-| Search learnings | `qmd query` | `grep` over `.beads/learnings/` and `.beads/critical-patterns.md` |
+| Operation | Primary | Optional Enhancement |
+|-----------|---------|---------------------|
+| Write learnings | Flat file to `.beads/learnings/` | Also mirror to Obsidian vault via `obsidian create` |
+| Search learnings | `grep` over `.beads/learnings/` and `.beads/critical-patterns.md` | Semantic search via `qmd query` |
 
 See `knowledge-store.md` for full integration details.

@@ -2,6 +2,16 @@
 
 Purpose: define RED-phase failing scenarios for `beo-dream` before writing `SKILL.md`.
 
+## Table of Contents
+
+- [Scenario: Bootstrap Timestamp Missing But Run Continues](#scenario-bootstrap-timestamp-missing-but-run-continues)
+- [Scenario: Multi-Match Rewrite Without Exact-One-Owner Guard](#scenario-multi-match-rewrite-without-exact-one-owner-guard)
+- [Scenario: Ambiguous Match Prompt Lacks Candidate-Specific Options](#scenario-ambiguous-match-prompt-lacks-candidate-specific-options)
+- [Scenario: Critical Pattern File Edited Without Approval](#scenario-critical-pattern-file-edited-without-approval)
+- [Scenario: No-Match Candidate Forced Into Existing File](#scenario-no-match-candidate-forced-into-existing-file)
+- [Scenario: No-Durable-Signal Candidate Written Anyway](#scenario-no-durable-signal-candidate-written-anyway)
+- [Scenario: Combined Pressures Across Timestamp, Rewrite, And Ambiguity](#scenario-combined-pressures-across-timestamp-rewrite-and-ambiguity)
+
 ## Scenario: Bootstrap Timestamp Missing But Run Continues
 
 Setup:

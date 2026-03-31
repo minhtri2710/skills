@@ -1,0 +1,4 @@
+interface:
+  display_name: "Beo Router"
+  short_description: "Bootstrap and route to the correct beo skill"
+  default_prompt: "Use $beo-router to determine current project state and next action."

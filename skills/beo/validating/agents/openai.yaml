@@ -1,0 +1,4 @@
+interface:
+  display_name: "Beo Validating"
+  short_description: "Verify plan soundness before execution begins"
+  default_prompt: "Use $beo-validating to verify the plan is ready for execution."

@@ -2,6 +2,13 @@
 
 Use this template when spawning a worker subagent. Fill in the placeholders from live swarm state.
 
+## Table of Contents
+
+- [Canonical Subagent Spawn](#canonical-subagent-spawn)
+- [Worker Prompt Template](#worker-prompt-template)
+- [Filling In Placeholders](#filling-in-placeholders)
+- [Example: Fully-Filled Worker Prompt](#example-fully-filled-worker-prompt)
+
 ---
 
 ## Canonical Subagent Spawn
@@ -121,14 +128,14 @@ After each bead completion, assess your context budget. If context is high, fini
 You are a worker subagent in the beo swarm.
 
 ## Your Identity
-- Agent name: Worker-BlueLake
+- Agent name: BlueLake
 - Epic ID: br-epic-001
 - Feature: auth-refresh
 
 ## Agent Mail Setup
 1. Project key: /home/user/projects/myapp
 2. On startup:
-   macro_start_session(human_key="/home/user/projects/myapp", model="gpt-5", program="codex-cli", task_description="beo worker execution", agent_name="Worker-BlueLake")
+   macro_start_session(human_key="/home/user/projects/myapp", model="gpt-5", program="codex-cli", task_description="beo worker execution", agent_name="BlueLake")
 3. Post startup acknowledgment with send_message(..., to=["GreenCastle"], thread_id="br-epic-001")
 
 ## Skill To Load
