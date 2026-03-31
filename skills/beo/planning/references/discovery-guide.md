@@ -12,7 +12,7 @@ From CONTEXT.md, extract:
 
 ## Parallel Research Subagents
 
-Launch 2-4 parallel research subagents (using `task()` calls) focused on:
+Launch 2-4 parallel research subagents using the session's normal subagent/task-dispatch mechanism, focused on:
 
 1. **Architecture Agent**: Explore codebase structure relevant to the feature
    - File organization, module boundaries, import patterns

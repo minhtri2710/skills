@@ -6,27 +6,10 @@ Canonical locations for all pipeline artifacts and state files. Every skill in t
 
 | File | Written By | Read By | Purpose |
 |------|-----------|---------|---------|
-| `.beads/STATE.md` | beo-exploring, beo-planning, beo-validating, beo-swarming, beo-executing, beo-reviewing, beo-compounding | Next skill in pipeline | Intra-session skill-to-skill handoff state (see `pipeline-contracts.md` for canonical schema) |
-| `.beads/HANDOFF.json` | Any skill (at 65% context budget) | beo-router (Phase 3) | Cross-session resume; survives context resets (see `pipeline-contracts.md` for canonical schema) |
+| `.beads/STATE.md` | beo-exploring, beo-planning, beo-validating, beo-swarming, beo-executing, beo-reviewing, beo-compounding | Next skill in pipeline | Intra-session skill-to-skill handoff state (see `state-and-handoff-protocol.md` for canonical schema) |
+| `.beads/HANDOFF.json` | Any skill (at 65% context budget) | beo-router (Phase 3) | Cross-session resume; survives context resets (see `state-and-handoff-protocol.md` for canonical schema) |
 
-**Rule**: STATE.md is for the happy-path handoff between adjacent skills. HANDOFF.json is the emergency checkpoint written when context is running out. Router reads HANDOFF.json on resume; all other skills read STATE.md from the predecessor.
-
-### HANDOFF.json Schema
-
-```json
-{
-  "schema_version": 1,
-  "phase": "<skill phase name>",
-  "skill": "beo-<skill-name>",
-  "feature": "<epic-id>",
-  "feature_name": "<feature-name>",
-  "next_action": "<what to do next>",
-  "in_flight_beads": ["<bead-ids>"],
-  "timestamp": "<iso8601>"
-}
-```
-
-`schema_version` is always an integer (currently `1`).
+**Rule**: Use `state-and-handoff-protocol.md` as the canonical source for `STATE.md` and `HANDOFF.json` semantics and schemas.
 
 ## Feature Artifacts
 
@@ -55,13 +38,16 @@ All feature artifacts live under `.beads/artifacts/<feature-name>/`:
 | `.beads/critical-patterns.md` | beo-compounding | beo-exploring, beo-planning, beo-validating, beo-debugging, beo-dream | Promoted high-value patterns (multi-feature, generalizable) |
 | `.beads/learnings/dream-run-provenance.md` | beo-dream | beo-dream | Dream run markers: tracks when last consolidation ran |
 
-## Knowledge Store (Optional Enhancements)
+## Knowledge Store
 
-All learnings writes go to `.beads/learnings/` by default. Obsidian CLI and QMD are optional enhancements:
+Preferred knowledge-store order:
+1. Obsidian CLI writes/reads in the vault
+2. QMD retrieval over indexed learnings
+3. Flat files under `.beads/learnings/` as fallback
 
-| Operation | Primary | Optional Enhancement |
-|-----------|---------|---------------------|
-| Write learnings | Flat file to `.beads/learnings/` | Also mirror to Obsidian vault via `obsidian create` |
-| Search learnings | `grep` over `.beads/learnings/` and `.beads/critical-patterns.md` | Semantic search via `qmd query` |
+| Operation | Preferred | Fallback |
+|-----------|-----------|----------|
+| Write learnings | Obsidian vault via `obsidian create/append` | Flat file to `.beads/learnings/` |
+| Search learnings | QMD query/search plus vault context | `grep` over `.beads/learnings/` and `.beads/critical-patterns.md` |
 
 See `knowledge-store.md` for full integration details.

@@ -40,8 +40,8 @@ br label remove <TASK_ID> -l blocked
 # Reset to open
 br update <TASK_ID> -s open
 
-# Update description with the new information
-br update <TASK_ID> --description "<updated spec with user's decision>"
+# Update the Markdown description with the new information, preserving the shared bead template structure
+br update <TASK_ID> --description "<updated Markdown spec with user's decision>"
 ```
 
 Then loop back to Phase 1 to re-schedule.

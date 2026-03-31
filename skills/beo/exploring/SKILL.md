@@ -1,6 +1,11 @@
 ---
 name: beo-exploring
-description: Use before any feature work, refactor, or behavior modification. Extracts locked decisions from the user through Socratic dialogue before research or planning begins. Output is CONTEXT.md.
+description: >-
+  Use before any non-instant feature work, refactor, behavior change, or
+  requirements-shaping conversation where user intent is not yet locked.
+  Extracts and confirms the decisions that planning will depend on, especially
+  when the user knows what they want but has not fully thought through edge
+  cases, scope boundaries, or expected behavior. Output is CONTEXT.md.
 ---
 
 # Beo Exploring
@@ -27,16 +32,13 @@ Before asking any questions, check what already exists:
 # Check for existing CONTEXT.md
 cat .beads/artifacts/<feature-name>/CONTEXT.md 2>/dev/null
 
-# Check for any prior learnings
-cat .beads/critical-patterns.md 2>/dev/null
-
 # Check the epic bead for existing description
 br show <EPIC_ID> --json
 ```
 
-If CONTEXT.md already exists with locked decisions, skip to Phase 3 (verify, don't re-ask).
+Use `../reference/references/learnings-read-protocol.md` for the canonical prior-learnings read flow.
 
-If `critical-patterns.md` exists, scan it for patterns relevant to this feature's domain. Mention any relevant patterns to the user.
+If CONTEXT.md already exists with locked decisions, skip to Phase 3 (verify, don't re-ask).
 
 ## Phase 1: Scope Assessment
 
@@ -80,11 +82,29 @@ Ask ONE question at a time. Wait for the user's answer before asking the next qu
 Do NOT batch multiple questions in a single message.
 </HARD-GATE>
 
+#### Example: Good vs Bad Exploring Question
+
+**Bad:** "Should we use a queue or a cron job?"
+Why bad: this asks the user to choose implementation rather than behavior.
+
+**Good:** "If this job fails overnight, what should the user see the next morning?"
+Why good: this locks behavior that planning can later implement in different ways.
+
 For each gray area:
 1. State what you currently understand
 2. State the specific ambiguity
 3. Ask a focused, answerable question
 4. If the user says "I don't know" or "whatever you think", propose a concrete default and ask for confirmation
+
+#### Default-Proposal Pattern
+
+When the user does not want to decide directly:
+1. state the uncertainty plainly
+2. propose one concrete default
+3. explain the consequence of that default in behavioral terms
+4. ask for confirmation or correction
+
+Example: "You do not seem to care about retry behavior here. I suggest one automatic retry and then a visible failure state so the user is not left guessing. Should I lock that?"
 
 **Question quality checklist** (apply to every question before asking):
 - Is this answerable in 1-2 sentences?
@@ -164,22 +184,9 @@ mkdir -p .beads/artifacts/<feature-name>
 
 ### Slug Preservation
 
-When updating the epic description, always preserve the immutable `slug:` line:
+Load `../reference/references/slug-protocol.md` and follow the safe-update procedure exactly whenever updating the epic description.
 
-1. Read the current epic description: `br show <EPIC_ID> --json`
-2. Extract the first line (should be `slug: <feature_slug>`)
-3. Prepend the slug line to the new description content
-4. Write via `br update <EPIC_ID> --description "slug: <feature_slug>\n<rest of description>"`
-
-<HARD-GATE>
-Never overwrite an epic description without checking for and preserving the `slug:` first line. If the slug line is missing and the epic already has tasks, STOP; the slug was lost. Check `.beads/artifacts/` for the correct feature directory name and restore the slug.
-</HARD-GATE>
-
-Also update the epic bead description with a summary:
-
-```bash
-br update <EPIC_ID> --description "slug: <feature_slug>\nFeature: <name>\n\nScope: <summary>\nDecisions: <count> locked\nDomains: <list>"
-```
+Also update the epic bead description with a summary using the canonical slug-first shape.
 
 ## Phase 4: Self-Review
 
@@ -223,26 +230,7 @@ Ready to plan. Load beo-planning to begin research and decomposition.
 
 ## Context Budget
 
-If context usage exceeds 65%, write HANDOFF.json before pausing:
-
-```bash
-Write `.beads/HANDOFF.json`:
-```
-
-```json
-{
-  "schema_version": 1,
-  "phase": "exploring",
-  "skill": "beo-exploring",
-  "feature": "<epic-id>",
-  "feature_name": "<feature-name>",
-  "next_action": "Continue decision extraction from D<N+1>",
-  "in_flight_beads": [],
-  "decisions_locked": ["D1", "D2", "..."],
-  "open_questions": ["..."],
-  "timestamp": "<iso8601>"
-}
-```
+If context usage exceeds 65%, use `../reference/references/state-and-handoff-protocol.md` for the canonical base `HANDOFF.json` and `STATE.md` shapes, then add exploring-specific fields such as `decisions_locked` and `open_questions` before pausing.
 
 ## Red Flags
 

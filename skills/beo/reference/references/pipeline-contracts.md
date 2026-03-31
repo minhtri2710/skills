@@ -61,44 +61,7 @@ The validation gate requires `phase-contract.md` AND `story-map.md`. `plan.md` i
 
 ## HANDOFF.json Schema
 
-Canonical schema. All skills must use exactly these field names.
-
-```json
-{
-  "schema_version": 1,
-  "phase": "<skill phase name>",
-  "skill": "beo-<skill-name>",
-  "feature": "<epic-id>",
-  "feature_name": "<feature-name>",
-  "next_action": "<what to do next>",
-  "in_flight_beads": ["<bead-ids>"],
-  "timestamp": "<iso8601>"
-}
-```
-
-**Required fields:** All fields above are required (`schema_version`, `phase`, `skill`, `feature`, `feature_name`, `next_action`, `in_flight_beads`, `timestamp`). Use `[]` for `in_flight_beads` when no beads are active.
-
-**Field name:** `in_flight_beads` (NOT `beads_in_flight`).
-
-**Swarming extension:** Swarming appends additional top-level keys (`session`, `swarm`, `graph_status`, `active_workers`, `open_blockers`, `resume_instructions`, `context_at_pause`) while preserving all base fields above. The base fields must still be present so the router can read them.
-
----
-
-## STATE.md Schema
-
-Canonical fields for `.beads/STATE.md`. All skills write these fields.
-
-The header below is REQUIRED in this exact format:
-
-```markdown
-# Beo State
-- Phase: <skill-name> → <status>
-- Feature: <epic-id> (<feature-name>)
-- Tasks: <summary relevant to current phase>
-- Next: <next skill or action>
-```
-
-Skills may add phase-specific fields below the canonical header (separated by a blank line), but the four fields above must always be present and in this order. Examples of phase-specific fields: `Decisions` (exploring), `Dependencies` (planning), `Approval` (validating), `Active Workers` (swarming).
+Use `state-and-handoff-protocol.md` as the canonical source for the base `HANDOFF.json` schema, resume semantics, cleanup rule, and `STATE.md` header requirements.
 
 ---
 
@@ -135,7 +98,7 @@ Skills may add phase-specific fields below the canonical header (separated by a 
 br dep list <EPIC_ID> --direction up --type parent-child --json
 ```
 
-Do NOT use `jq 'select(.id | startswith(...))'`. The `startswith` pattern assumes dotted IDs and misses fix beads created with `--blocks` instead of `--parent`.
+Do NOT use `jq 'select(.id | startswith(...))'`. The `startswith` pattern assumes dotted IDs and misses fix beads created with dependency edges instead of dotted child IDs.
 
 ---
 
@@ -143,7 +106,7 @@ Do NOT use `jq 'select(.id | startswith(...))'`. The `startswith` pattern assume
 
 | State | br Status | Label | Transition Command |
 |-------|-----------|-------|--------------------|
-| Planning | `open` | (none) | Default after `br create -t epic` |
+| Planning | `open` | (none) | Default immediately after epic creation |
 | Approved | `open` | `approved` | `br label add <EPIC_ID> -l approved` |
 | Executing | `in_progress` | `approved` | `br update <EPIC_ID> --claim` |
 | Completed | `closed` | `approved` | `br close <EPIC_ID>` |
@@ -161,19 +124,19 @@ Do NOT use `jq 'select(.id | startswith(...))'`. The `startswith` pattern assume
 - **Who writes:** Only `beo-compounding` proposes entries.
 - **Approval required:** Compounding must present proposed promotions to the user and receive explicit approval before appending. Never auto-append.
 - **Format:** See compounding's Phase 4 for entry format.
-- **Aligned with:** dream (line 122: "Do not edit critical-patterns.md without explicit approval") and reviewing (red flag: "Promoting learnings without approval").
+- **Aligned with:** dream (hard rule: do not edit `critical-patterns.md` without explicit approval) and reviewing (red flag: "Promoting learnings without approval").
 
 ### Fix Beads (from debugging)
 
-Fix beads must use BOTH `--parent` and `--blocks`:
+Fix beads must use BOTH `--parent` and an explicit blocking dependency:
 
 ```bash
-br create "Fix: <root cause summary>" -t task --parent <EPIC_ID> --blocks <original-bead-id>
+br create "Fix: <root cause summary>" -t task --parent <EPIC_ID> --deps blocks:<original-bead-id>
 ```
 
 This ensures fix beads are:
 1. Visible in epic task enumeration (via `--parent`)
-2. Properly blocking the original bead (via `--blocks`)
+2. Properly blocking the original bead (via `--deps blocks:<original-bead-id>`)
 
 ### Task Creation During Validation
 
@@ -188,8 +151,8 @@ Every feature gets an immutable `feature_slug` created once by the router and us
 **Rules:**
 - Derived from the epic title at creation time
 - Lowercase, hyphens only, max 40 chars: `auth-token-refresh`, `bead-scope-isolation`
-- Stored in: epic bead description (first line: `slug: <feature_slug>`), HANDOFF.json (`feature_name` field), STATE.md (`Feature` field)
-- Used for: `.beads/artifacts/<feature-name>/` path, learnings file slug component
+- Stored in: epic bead description (first line: `slug: <feature_slug>`), HANDOFF.json (`feature_name` field, which carries the slug/path identifier), STATE.md (`Feature` field)
+- Used for: `.beads/artifacts/<feature_slug>/` path, HANDOFF resume context, and learnings file slug component
 
 **Canonical derivation:**
 1. Take the epic title

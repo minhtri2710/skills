@@ -1,15 +1,37 @@
 ---
 name: beo-reference
 description: >-
-  Use when you need the br/bv CLI command reference, task status mapping,
-  artifact protocol, or dependency reconciliation procedures. Load alongside
-  any other beo skill that references lookup tables. Trigger phrases: how do I
-  run br, what bv command, status mapping, CLI syntax, look up artifact format.
+  Use whenever a beo skill needs the canonical br/bv CLI command reference,
+  status mapping, artifact protocol, slug handling, handoff/state format,
+  approval rules, dependency reconciliation, or other shared workflow lookup
+  tables. Load alongside any beo skill that references shared protocols. If a
+  beo skill says "use the canonical rule" or points to a shared reference, use
+  this skill.
 ---
 
 # Beo Reference
 
 Complete reference for the CLI-driven beo workflow. Load this skill when another beo skill says "see beo-reference" or when you need lookup tables for status mapping, artifact protocol, or CLI commands.
+
+This skill is the canonical source for shared beo workflow conventions. When another beo skill and a shared protocol seem to disagree, reconcile against the reference files here rather than inventing a hybrid rule.
+
+## Default Use Rule
+
+Load `beo-reference` whenever another beo skill:
+- says to use the canonical rule
+- points to a shared protocol or lookup table
+- depends on status mapping, slug safety, approval gates, or handoff format
+
+## Quick Routing Guide
+
+- Need exact `br` syntax -> `references/br-cli-reference.md`
+- Need exact `bv` syntax -> `references/bv-cli-reference.md`
+- Need approval behavior -> `references/approval-gates.md`
+- Need `STATE.md` / `HANDOFF.json` shape -> `references/state-and-handoff-protocol.md`
+- Need task or epic status interpretation -> `references/status-mapping.md`
+- Need artifact storage or read/write protocol -> `references/artifact-protocol.md`
+- Need slug preservation or artifact path safety -> `references/slug-protocol.md`
+- Need dependency or scheduling rules -> `references/dependency-and-scheduling.md`
 
 ## Quick Navigation
 
@@ -19,6 +41,11 @@ Complete reference for the CLI-driven beo workflow. Load this skill when another
 | Run a bv command | `references/bv-cli-reference.md` |
 | Map task status to br commands | `references/status-mapping.md` |
 | Read/write task artifacts | `references/artifact-protocol.md` |
+| Use canonical Markdown templates for bead descriptions | `references/bead-description-templates.md` |
+| Preserve and recover feature slugs | `references/slug-protocol.md` |
+| Read/write STATE.md and HANDOFF.json safely | `references/state-and-handoff-protocol.md` |
+| Read prior learnings before planning/debugging/validation | `references/learnings-read-protocol.md` |
+| Apply canonical human approval rules | `references/approval-gates.md` |
 | Sync dependencies or check scheduling | `references/dependency-and-scheduling.md` |
 | Integrate with knowledge store | `references/knowledge-store.md` |
 | Locate pipeline artifacts and state files | `references/file-conventions.md` |

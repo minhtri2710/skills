@@ -50,7 +50,7 @@ if status == "open":
 
 | Feature State | br Epic Status | br Labels | How to Set |
 |--------------|---------------|-----------|-----------|
-| `planning` | `open` | (none) | Default after `br create -t epic` |
+| `planning` | `open` | (none) | Default immediately after epic creation |
 | `approved` | `open` | `approved` | `br label add <epic> -l approved` |
 | `executing` | `in_progress` | `approved` | `br update <epic> --claim` |
 | `completed` | `closed` | `approved` | `br close <epic>` |

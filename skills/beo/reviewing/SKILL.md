@@ -1,11 +1,12 @@
 ---
 name: beo-reviewing
 description: >-
-  Use after all tasks complete. Runs specialist review subagents, verifies
-  artifacts, conducts human UAT, closes the epic, and hands off to
-  beo-compounding for learnings. The quality gate before feature completion.
-  Trigger phrases: review the feature, verify the work, run UAT, quality check,
-  check the implementation.
+  Use after implementation is complete, or when the user asks whether a feature
+  is done, ready to ship, safe to merge, or needs a quality check. Runs the
+  post-execution quality gate: specialist review, artifact verification, and
+  human UAT against locked decisions and exit state. Use for prompts like
+  "review this feature", "is this done?", "can we ship this?", "double-check
+  the implementation", or "run UAT".
 ---
 
 # Beo Reviewing
@@ -18,26 +19,7 @@ Reviewing is the post-execution quality gate. It verifies that the implementatio
 
 ## Prerequisites
 
-```bash
-# All tasks under the epic should be closed (canonical enumeration; see pipeline-contracts.md)
-br dep list <EPIC_ID> --direction up --type parent-child --json
-# Filter for .status != "closed"; should return empty (or only deferred/cancelled tasks)
-
-# CONTEXT.md exists
-cat .beads/artifacts/<feature-name>/CONTEXT.md
-
-# phase-contract.md exists (needed for exit-state verification in UAT)
-cat .beads/artifacts/<feature-name>/phase-contract.md
-
-# story-map.md exists (needed for story completeness verification)
-cat .beads/artifacts/<feature-name>/story-map.md 2>/dev/null
-
-# Build passes
-# (Run project-specific build command)
-
-# Tests pass
-# (Run project-specific test command)
-```
+Load `references/reviewing-operations.md` for the exact prerequisite checks and finishing prerequisites.
 
 <HARD-GATE>
 If tasks are still open or in progress, STOP. Route back to `beo-executing`.
@@ -52,55 +34,29 @@ Load `references/review-specialist-prompts.md` for the full specialist table, pr
 
 **Summary**: 5 specialists (Code Quality, Architecture, Security, Test Coverage, Learnings Synthesis) review changed files. Launch first 4 in parallel, learnings synthesizer last. Each reports findings as P1 (blocks merge), P2 (should fix), or P3 (nice to have).
 
-- **P1 findings** become fix beads under the epic, executed immediately
-- **P2 findings** become independent follow-up beads (NOT under epic)
+- **P1 findings** become fix beads under the epic, executed immediately, using the shared **Reactive Fix Bead Template**
+- **P2 findings** become independent follow-up beads (NOT under epic), using the shared **Follow-Up Bead Template**
 - **P3 findings** recorded but no beads unless user requests
 - If P1 fixes fail >2 attempts, route to `beo-debugging`
+
+### Severity Examples
+
+- **P1**: security hole, broken acceptance path, data-loss risk, or a locked decision from `CONTEXT.md` is not actually met
+- **P2**: maintainability problem, weak edge-case handling, incomplete tests, or a risky design choice that should be corrected soon
+- **P3**: polish, naming, cleanup, readability, or a non-blocking improvement suggestion
+
+When unsure between P1 and P2, ask: "Would I block merge if this remained unfixed?" If yes, it is P1.
 
 ## Phase 2: Artifact Verification
 
 Verify that all implementation artifacts are real, substantive, and wired.
 
-### 3-Level Verification
-
-For each significant artifact (component, module, endpoint, etc.) promised by the plan:
-
-| Level | Check | FAIL if... |
-|-------|-------|------------|
-| **L1: EXISTS** | File/component exists at the expected path | File is missing |
-| **L2: SUBSTANTIVE** | Not a stub, placeholder, or TODO | Contains `return null`, `TODO`, empty handlers, `throw new Error('not implemented')` |
-| **L3: WIRED** | Imported and used by integration code | Component exists but is never imported, endpoint exists but is not registered |
-
-Additionally, check each exit-state line from `phase-contract.md`:
-- Is the exit state actually achieved by the implementation?
-- Can the demo story from phase-contract.md be walked through successfully?
-
-```bash
-# L1: Check file exists
-ls <expected-file-path>
-
-# L2: Check for stubs (search for common placeholder patterns)
-# Use grep or code search for: TODO, FIXME, return null, not implemented
-
-# L3: Check for usage (search for imports of the new module)
-# Use grep or code search for the module's export names
-```
-
-### Verification Summary
-
-```
-Artifact Verification:
-  <component-1>: L1 ✓  L2 ✓  L3 ✓
-  <component-2>: L1 ✓  L2 ✓  L3 ✗ (not imported in router)
-  <component-3>: L1 ✓  L2 ✗ (contains TODO stub)
-```
-
-L2 or L3 failures are P1 findings; create fix beads and resolve before proceeding.
+Load `references/reviewing-operations.md` for the 3-level verification procedure, command shapes, and finishing flow.
 
 ## Phase 3: Human UAT
 
 <HARD-GATE>
-Human review is required. Walk through the feature with the user.
+Human review is required. Use the canonical rule from `../reference/references/approval-gates.md` and walk through the feature with the user.
 </HARD-GATE>
 
 ### UAT Protocol
@@ -122,12 +78,7 @@ For each exit-state line:
 
 ### UAT Outcomes
 
-| User Says | Action |
-|-----------|--------|
-| "Yes, looks good" | Mark decision as verified, continue |
-| "No, this isn't right" | Create P1 fix bead, route to executing |
-| "Close enough, fix later" | Create P2 follow-up bead, continue |
-| "I changed my mind about this" | Update CONTEXT.md, assess impact on implementation |
+Load `references/reviewing-operations.md` for the canonical UAT outcome handling.
 
 ### Scope Change During UAT
 
@@ -139,60 +90,7 @@ If the user changes a decision:
 
 ## Phase 4: Finishing
 
-After all P1 issues are resolved, artifacts are verified, and UAT is complete.
-
-### Step 1: Final Build/Test/Lint
-
-```bash
-# Run full build
-# Run full test suite
-# Run linter
-```
-
-All must pass before proceeding.
-
-### Step 2: Close the Epic
-
-```bash
-# Close the epic bead
-br close <EPIC_ID>
-br comments add <EPIC_ID> --no-daemon --message "Feature complete. All tasks closed. UAT passed."
-
-# Flush
-br sync --flush-only
-```
-
-### Step 3: Hand Off to Compounding
-
-The learnings synthesizer (Specialist #5) findings are input for `beo-compounding`.
-Do NOT write learnings directly -- the compounding skill handles synthesis, deduplication,
-and critical-pattern promotion with proper knowledge store integration.
-
-Save the synthesizer's raw findings for compounding to consume:
-
-```bash
-mkdir -p .beads
-```
-
-Write `.beads/review-findings.md` with the raw learnings synthesizer output.
-
-Note: `beo-compounding` will be invoked after reviewing completes.
-
-### Step 4: AGENTS.md Sync (Optional)
-
-If the feature introduced new patterns, tools, or conventions that should be in the project's AGENTS.md:
-
-1. Read the current AGENTS.md
-2. Propose additions based on the new feature
-3. Ask user for approval
-4. Write the updates
-
-### Step 5: Clean Up State
-
-```bash
-rm -f .beads/HANDOFF.json
-# Do NOT delete .beads/STATE.md -- beo-compounding needs it
-```
+After all P1 issues are resolved, artifacts are verified, and UAT is complete, load `references/reviewing-operations.md` for the exact finishing sequence, review-findings handoff, optional AGENTS.md sync, and cleanup rule.
 
 ## Completion
 
@@ -215,39 +113,11 @@ Next: Load beo-compounding to capture learnings and promote critical patterns.
 
 ## Lightweight Mode
 
-For features meeting ALL of these criteria:
-- ≤2 tasks, all LOW risk
-- No external dependencies
-- No schema changes
-- No auth/security impact
-
-1. Skip Phase 1 specialist subagents; do a quick manual review instead
-2. Skip Phase 2 formal artifact verification; check the obvious stuff
-3. Phase 3 UAT: Quick confirmation ("Does this look right?")
-4. Phase 4: Build/test/lint + close epic
-
-Should take <5 minutes.
+Load `references/reviewing-operations.md` for the lightweight-review shortcut.
 
 ## Context Budget
 
-If context usage exceeds 65%:
-
-1. Save review findings gathered so far
-2. Save UAT progress
-3. Write HANDOFF.json:
-   ```json
-   {
-     "schema_version": 1,
-     "phase": "reviewing",
-     "skill": "beo-reviewing",
-     "feature": "<epic-id>",
-     "feature_name": "<feature-name>",
-     "next_action": "Resume from Phase <N>. Specialists complete, UAT at D<N>.",
-     "in_flight_beads": ["<fix-task-ids-if-any>"],
-     "timestamp": "<iso8601>"
-   }
-   ```
-4. Pause
+If context usage exceeds 65%, use `references/reviewing-operations.md` together with `../reference/references/state-and-handoff-protocol.md` for the canonical checkpoint behavior.
 
 ## Red Flags
 
@@ -258,7 +128,7 @@ If context usage exceeds 65%:
 | **Ignoring P1 findings** | P1 blocks merge; no exceptions |
 | **Closing epic with open P1 fixes** | All P1 beads must be closed first |
 | **Promoting learnings without approval** | critical-patterns.md is shared; ask first |
-| **Skipping build/test/lint** | Phase 4 Step 1 is mandatory |
+| **Skipping build/test/lint** | Full build/test/lint verification is mandatory before closing the epic |
 
 ## Anti-Patterns
 

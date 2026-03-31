@@ -1,12 +1,11 @@
 ---
 name: beo-planning
 description: >-
-  Use after exploring completes. Research, synthesize, define the phase contract
-  and story map, then decompose into task beads with dependencies via br/bv CLI.
-  Writes discovery.md, plan.md, phase-contract.md, story-map.md, and creates
-  beads that match the story structure. Trigger phrases: plan this, create tasks,
-  decompose, plan this phase, map the stories, break this into beads, research
-  and plan.
+  Use after exploring completes or whenever a feature already has locked
+  requirements and now needs research, decomposition, phase definition, story
+  mapping, and executable task beads. Use for prompts like "plan this", "break
+  this into tasks", "decompose this work", "map the stories", "research and
+  plan", or "turn this into beads" before implementation begins.
 ---
 
 # Beo Planning
@@ -35,20 +34,23 @@ Whole Plan
 
 Do not jump from `plan.md` straight to beads. If the phase cannot be explained in simple terms with a clear exit state and story sequence, it is not ready for execution.
 
+## Mini Example
+
+Phase:
+"A user can submit feedback and the team can review it in the admin panel."
+
+Stories:
+1. Capture feedback submissions reliably
+2. Display submitted feedback for review
+
+Beads:
+- Create the feedback persistence model and write path
+- Add submission validation and success/error states
+- Build the admin read view for submitted feedback
+
 ## Prerequisites
 
-Before starting, verify:
-
-```bash
-# CONTEXT.md must exist
-cat .beads/artifacts/<feature-name>/CONTEXT.md
-
-# Epic must exist
-br show <EPIC_ID> --json
-
-# Check for critical-patterns.md
-cat .beads/critical-patterns.md 2>/dev/null
-```
+Load `references/planning-operations.md` for the exact prerequisite checks and learnings-retrieval commands.
 
 <HARD-GATE>
 If CONTEXT.md does not exist, STOP. Route back to `beo-exploring`.
@@ -58,21 +60,10 @@ If CONTEXT.md does not exist, STOP. Route back to `beo-exploring`.
 
 **Mandatory.** Before any research, check institutional memory.
 
-```bash
-# Primary: read flat-file learnings
-cat .beads/critical-patterns.md 2>/dev/null
-ls .beads/learnings/*.md 2>/dev/null && grep -l "<feature domain keywords>" .beads/learnings/ 2>/dev/null
-```
-
-If QMD is available (optional enhancement), also run a semantic search:
-```bash
-qmd query "<feature description from CONTEXT.md>" --json 2>/dev/null
-```
-
-If any patterns are relevant to this feature's domain:
-- Note them explicitly
-- Embed them into the plan and affected task descriptions
-- This prevents re-solving known problems
+If relevant patterns exist:
+- note them explicitly
+- embed them into the plan and affected task descriptions
+- prevent re-solving known problems
 
 ## Phase 1: Discovery
 
@@ -111,6 +102,15 @@ Break the approach into discrete, executable tasks. Each task must be:
 
 See `references/bead-creation-guide.md` for the full task description template including Story Context Block.
 
+### Bead Acceptance Criteria
+
+Before a task becomes a bead, verify all of the following:
+- it names owned files or an explicit file region
+- it includes one concrete verification command or observable check
+- it has a clear done boundary, not just a topic area
+- it belongs to exactly one story
+- it unlocks or completes something real in the phase
+
 ```markdown
 ## Tasks
 
@@ -132,21 +132,7 @@ See `references/bead-creation-guide.md` for the full task description template i
 
 ### Step 3: Write plan.md
 
-Write the complete plan to the feature artifacts:
-
-```bash
-# Write to .beads/artifacts/<feature-name>/plan.md
-```
-
-Also write the plan to the epic bead description:
-
-### Slug Preservation
-
-Before updating the epic description, read the current description first (`br show <EPIC_ID> --json`) and preserve the `slug: <feature_slug>` first line. See `beo-exploring` for the full protocol.
-
-```bash
-br update <EPIC_ID> --description "slug: <feature_slug>\n<plan content>"
-```
+Load `references/planning-operations.md` for the exact artifact-writing operations, including safe epic description updates with slug preservation.
 
 ## Phase 3: Phase Contract
 
@@ -217,74 +203,16 @@ If story-map.md does not exist, do not create beads. Map the stories first.
 
 **Only for HIGH-stakes features**: multiple HIGH-risk components, core architecture, auth flows, data model changes, or anything with a large blast radius. For standard features, skip to Phase 6.
 
-Spawn a fresh subagent with plan.md, phase-contract.md, and story-map.md. Prompt: "Review this phase design for blind spots: (1) Does the phase contract close a small loop? (2) Do the stories make sense in this order? (3) What is missing from the exit state? (4) Which story is too large or vague? (5) What would the team regret 6 months from now?"
-
-Iterate 1-2 rounds. Stop when changes become incremental.
+Load `references/planning-operations.md` for the exact multi-perspective review procedure and prompt.
 
 ## Phase 6: Task Bead Creation
 
 Convert plan tasks into bead graph entries.
 
-### Step 1: Create Task Beads
-
-For each task in the plan:
-
-```bash
-# Create the task bead
-br create "<Task Name>" -t task --parent <EPIC_ID> -p <priority> --json
-```
-
-Priority assignment (0-3 scale, see br-cli-reference):
-- Spike/urgent: priority 0
-- Critical path tasks: priority 1
-- Standard tasks: priority 2
-- Nice-to-have / cleanup: priority 3
-
-### Step 2: Write Task Descriptions
-
-For each task bead, write a complete description. The description must include Background, Files, Steps, Verification, Rollback (for HIGH risk), and a Story Context Block. See `references/bead-creation-guide.md` for the exact template and story context format.
-
-```bash
-br update <TASK_ID> --description "<task spec content>"
-```
-
-If no institutional learnings apply, write: "No prior learnings for this domain."
-
-### Step 3: Wire Dependencies
-
-For each task that depends on another:
-
-```bash
-# Task B depends on Task A (B is blocked by A)
-br dep add <TASK_B_ID> <TASK_A_ID>
-```
-
-### Step 3.5: Complete the Story Map
-
-After bead creation, fill the `Story-To-Bead Mapping` section in `.beads/artifacts/<feature-name>/story-map.md`.
-
-The validator must be able to trace: `phase exit state → story → bead`
-
-### Step 4: Validate the Graph
-
-```bash
-# Check for dependency cycles
-br dep cycles --json
-
-# Verify all tasks are reachable
-bv --robot-insights --format json
-```
-
-If cycles are detected:
-1. Identify the cycle
-2. Determine which dependency is weakest (can be broken)
-3. Remove it: `br dep remove <child> <parent>`
-4. Re-validate
-
-### Step 5: Bead Completeness Check
+Load `references/planning-operations.md` for the exact create/write/wire/validate sequence, priority mapping, and handoff-safe checkpointing rules.
 
 <HARD-GATE>
-After all beads are created, read every bead back and verify. No bead may be handed off without passing this check. See `references/bead-creation-guide.md` for the full checklist.
+After all beads are created, read every bead back and verify. No bead may be handed off without passing the checklist in `references/bead-creation-guide.md`.
 </HARD-GATE>
 
 ### Story-to-Bead Decomposition Rules
@@ -319,44 +247,11 @@ When direct/instant tasks grow beyond their envelope, see `references/bead-creat
 
 ## Context Budget
 
-If context usage exceeds 65% during planning:
-
-1. Write all findings so far to discovery.md
-2. Write partial plan.md if any tasks are decomposed
-3. Write phase-contract.md if phase contract is drafted
-4. Write story-map.md if stories are mapped
-5. Create any task beads that are ready
-6. Write HANDOFF.json:
-   ```json
-   {
-     "schema_version": 1,
-     "phase": "planning",
-     "skill": "beo-planning",
-     "feature": "<epic-id>",
-     "feature_name": "<feature-name>",
-      "next_action": "Continue from Phase <N>, Step <M>",
-      "in_flight_beads": [],
-      "timestamp": "<iso8601>"
-    }
-    ```
-7. Report progress and pause
+If context usage exceeds 65% during planning, load `references/planning-operations.md` and follow the checkpoint procedure exactly.
 
 ## Handoff
 
-After plan is written, tasks are created, and dependencies are wired:
-
-Write `.beads/STATE.md`:
-```markdown
-# Beo State
-- Phase: planning → complete
-- Feature: <epic-id> (<feature-name>)
-- Tasks: <count> created
-- Stories: <count> mapped
-- Phase contract: written
-- Next: beo-validating
-
-Dependencies: <count> edges
-```
+After plan artifacts are written, tasks are created, and dependencies are wired, load `references/planning-operations.md` for the canonical `STATE.md` handoff shape.
 
 Announce:
 ```

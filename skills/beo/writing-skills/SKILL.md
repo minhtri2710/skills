@@ -1,6 +1,11 @@
 ---
 name: beo-writing-skills
-description: Use when creating a new beo skill, editing an existing beo skill, or verifying a skill works under pressure before deploying. Use when you need an agent skill to be bulletproof against rationalization. Do NOT use for project-specific AGENTS.md conventions or one-off solutions.
+description: >-
+  Use when creating a new beo skill, editing an existing beo skill, or
+  pressure-testing a beo skill before deployment. This skill should win whenever
+  the task is to make a beo skill robust against rationalization, misuse, or
+  failure under pressure. Do not use it for project-specific AGENTS.md
+  conventions, one-off solutions, or ordinary feature planning.
 ---
 
 # Writing Skills
@@ -30,14 +35,19 @@ Write skill before testing? Delete it. Start over. No exceptions. Not for "simpl
 
 **HARD-GATE: Do not write any skill content until you complete this phase.**
 
-Teams that skip baseline testing consistently deploy skills with predictable, preventable failures.
+### Minimum Pressure-Test Set
 
-**Steps:**
-1. Define the skill's purpose: what behavior must it enforce? What are failure modes without it?
-2. Create 3-5 pressure scenarios that stress-test critical constraints (see `references/pressure-test-template.md`)
-3. Run scenarios WITHOUT the skill. Give agents the realistic task under pressure
-4. Document exact rationalizations verbatim: "Agent was wrong" is useless. "Agent said 'I already manually tested it, so the spirit of TDD is satisfied'" is target material
-5. Identify patterns: which excuses repeat across scenarios?
+Before calling a skill "tested", run at least 3 pressure scenarios that are realistic enough to tempt failure:
+- a time-pressure scenario
+- an ambiguity scenario
+- a convenience/rationalization scenario
+
+A real RED failure means the agent had a fair chance to choose correctly and still violated the intended rule.
+A real GREEN pass means the agent follows the skill under pressure without needing hidden help from the evaluator.
+
+Load `references/writing-skills-operations.md` for the exact RED/GREEN/REFACTOR execution steps and validation/documentation flow.
+
+Teams that skip baseline testing consistently deploy skills with predictable, preventable failures.
 
 **What to record:**
 ```
@@ -53,6 +63,8 @@ Exact rationalization (verbatim): "[quote]"
 
 Write SKILL.md addressing the **specific rationalizations documented in RED only.**
 Do not add content for hypothetical cases you didn't observe. Hypothetical content bloats the skill and gets skipped.
+
+Use `references/writing-skills-operations.md` for the exact rerun and validation flow.
 
 **SKILL.md checklist:**
 - [ ] YAML frontmatter starts on line 1 (`---`)
@@ -91,38 +103,19 @@ If agent still fails -> skill is unclear or incomplete. Revise and re-test. Do n
 
 ## PHASE 3: REFACTOR: Close Loopholes
 
-When an agent violates a rule despite having the skill, that is a test regression. The skill has a bug. Fix it:
-
-1. Capture the new rationalization verbatim
-2. Add explicit negation in the rule
-3. Add entry to rationalization table in the skill
-4. Add entry to red flags list
-5. Re-run all scenarios. Verify all still pass
+When an agent violates a rule despite having the skill, that is a test regression. The skill has a bug. Fix it using the loop in `references/writing-skills-operations.md`.
 
 Continue until no new rationalizations emerge from pressure testing.
 
-**Meta-testing technique:** After an agent chooses wrong, ask:
-> "You read the skill and chose Option C anyway. How could the skill have been written differently to make Option A the only acceptable answer?"
+### Watch for Overfitting
 
-Three diagnoses:
-- "The skill WAS clear, I chose to ignore it" -> add "Violating the letter IS violating the spirit"
-- "The skill should have said X" -> add their exact suggestion verbatim
-- "I didn't see section Y" -> make key point more prominent, move it earlier
+The skill is overfit if it only passes the exact scenarios you wrote but fails small wording changes, adjacent contexts, or competing pressures. If a revision makes one scenario pass by becoming unnaturally specific, broaden the instruction back to the principle the scenario was testing.
 
 ---
 
 ## PHASE 4: VALIDATE & DOCUMENT
 
-**Run validation (if available):**
-```bash
-agentskills validate skills/<skill-name>/ 2>/dev/null
-```
-
-**Create CREATION-LOG.md** documenting the full TDD process (see `references/creation-log-template.md`):
-- Source material and extraction decisions
-- Pressure scenarios run and results
-- Rationalizations found and fixes applied
-- Iterations required before bulletproof
+Use `references/writing-skills-operations.md` for the validation command and documentation flow. Create `CREATION-LOG.md` with `references/creation-log-template.md`.
 
 **Signs the skill IS bulletproof:**
 - Agent chooses correct option under maximum pressure
@@ -168,22 +161,7 @@ agentskills validate skills/<skill-name>/ 2>/dev/null
 
 ## Context Budget
 
-If context usage exceeds 65%, write HANDOFF.json and STATE.md before pausing:
-
-```json
-{
-  "schema_version": 1,
-  "phase": "writing-skills",
-  "skill": "beo-writing-skills",
-  "feature": "skill-<skill-name>",
-  "feature_name": "skill-<skill-name>",
-  "next_action": "Continue from Phase <N>. Pressure tests run: <list>. Remaining: <list>.",
-  "in_flight_beads": [],
-  "timestamp": "<iso8601>"
-}
-```
-
-Include the current skill creation phase, which pressure tests have been run, and what remains.
+If context usage exceeds 65%, use `references/writing-skills-operations.md` together with `../reference/references/state-and-handoff-protocol.md` for the canonical checkpoint behavior.
 
 ---
 

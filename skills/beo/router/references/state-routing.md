@@ -1,6 +1,6 @@
 # State Routing Table
 
-Canonical state routing table from `beo-reference` → `references/pipeline-contracts.md`. Evaluate **top-to-bottom, first match wins**.
+Canonical state routing table from `beo-reference` → `../../reference/references/pipeline-contracts.md`. Evaluate **top-to-bottom, first match wins**.
 
 | # | Condition | State | Route To |
 |---|-----------|-------|----------|

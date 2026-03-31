@@ -79,7 +79,7 @@ To find the epic bead for a feature by name:
 br list --type epic -a --json
 
 # Parse JSON output and match by title
-# The title field matches the feature name passed to `br create -t epic`
+# The title field matches the feature name used when the epic was created
 ```
 
 ## Listing Tasks Under an Epic

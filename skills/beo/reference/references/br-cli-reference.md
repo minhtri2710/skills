@@ -33,11 +33,11 @@ br create "<Feature Name>" -t epic -p 1 --json
 # Create task under an epic
 br create "<Task Title>" -t task --parent <epic-id> -p <priority> --json
 
-# Create task with blocking dependency
-br create "<Task Title>" -t task --blocks <epic-id> -p <priority> --json
+# Create task with an explicit blocking dependency
+br create "<Task Title>" -t task --deps blocks:<depends-on-id> -p <priority> --json
 ```
 
-**Priority scale**: 0 = spike/urgent, 1 = high, 2 = normal, 3 = low
+**Priority scale**: 0 = critical/spike, 1 = high, 2 = normal, 3 = low, 4 = backlog
 
 ## Read
 
@@ -55,7 +55,7 @@ br list -s <status> --json       # Filter by status (open, in_progress, closed, 
 
 ```bash
 br update <id> --status <s>            # Change status: open, in_progress, closed, deferred
-br update <id> -p <n>                  # Change priority (0=spike/urgent, 1=high, 2=normal, 3=low)
+br update <id> -p <n>                  # Change priority (0=critical/spike, 1=high, 2=normal, 3=low, 4=backlog)
 br update <id> --description <content> # Set description (used for spec storage)
 br update <id> --claim                 # Claim bead (sets assignee + status=in_progress)
 br update <id> --assignee '' -s open   # Unclaim bead (release assignment)
@@ -98,7 +98,7 @@ br audit record --kind <kind> --issue-id <id>   # Record audit event
 br audit log <id> --json                         # View audit log
 ```
 
-**Audit kinds**: `llm_call`, `tool_call`, `label`, `status_change`
+**Audit kinds**: tool-defined strings such as `llm_call`, `tool_call`, or `label`
 
 ## Sync (Git Integration)
 
@@ -117,5 +117,5 @@ br stale --days 7 --json     # Find stale beads
 br stats --json              # Project statistics
 br doctor                    # Run diagnostics
 br lint --json               # Lint issues
-br changelog --robot         # Generate changelog
+br changelog --json          # Generate changelog
 ```

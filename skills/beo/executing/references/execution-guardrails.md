@@ -33,7 +33,7 @@ If you detect that context has been compacted (prior conversation is summarized)
 
 | Flag | Description |
 |------|-------------|
-| **Implementing code directly in standalone mode** | In standalone mode with multiple tasks, dispatch subagents via `task()`. Do not write implementation code directly. In worker mode or standalone with a single task, direct implementation is expected. |
+| **Implementing code directly in standalone mode** | In standalone mode with multiple tasks, use the session's normal subagent/task dispatch mechanism when available. Do not default to direct implementation just because delegation feels optional. In worker mode or standalone with a single task, direct implementation is expected. |
 | **Dispatching without checking dependencies** | Always verify deps are satisfied before dispatch |
 | **Ignoring worker blockers** | Every blocker needs classification and resolution |
 | **Dispatching the same task twice** | Check task status before dispatching |

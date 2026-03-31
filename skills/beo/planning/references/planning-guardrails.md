@@ -30,4 +30,4 @@ Red flags and anti-patterns for `beo-planning`.
 | Copy-pasting CONTEXT.md into every task | Bloats descriptions, drifts | Reference the decision IDs (D1, D2) |
 | Research without synthesis | Raw findings are not a plan | Always write the approach section |
 | Jumping from plan.md to beads | Skips the phase/story layer | Write phase-contract.md and story-map.md first |
-| Creating a bead without immediately writing its description | Empty descriptions break execution | Treat create + update --description as one atomic operation |
+| Creating a bead without immediately writing its Markdown description | Empty or unstructured descriptions break execution | Treat create + update --description as one atomic operation using a Markdown spec |

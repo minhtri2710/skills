@@ -21,56 +21,23 @@ Tasks use three artifact types: **spec** (what to do), **report** (what was done
 
 ## Spec (Bead Description)
 
-The task specification is the bead's description field. Write it once during task creation or planning.
+The task specification is the bead's description field. Write it once during task creation or planning, always in Markdown format.
 
 ### Required Spec Structure
 
-Every planned execution bead description must contain:
+Use `bead-description-templates.md` as the single source of truth for all bead description formats.
 
-1. **Story Context** block: Story name, Purpose, Contributes To, Unlocks
-2. **Planning Context**: relevant decision from plan.md
-3. **Institutional Learnings**: relevant patterns from .beads/learnings/ or .beads/critical-patterns.md
-4. **File scope**: exact file paths to create/modify
-5. **Implementation steps**: numbered steps
-6. **Verification criteria**: runnable checks
+- Planned execution beads → **Planned Task Bead Template**
+- Reactive fix beads → **Reactive Fix Bead Template**
+- Review/debug follow-up beads → **Follow-Up Bead Template**
 
-Reactive fix beads (created by beo-reviewing, beo-debugging, beo-router instant path) are exempt from the Story Context requirement but still require file scope and verification.
+Every bead description must be Markdown-formatted.
+
+Reactive fix beads (created by beo-reviewing, beo-debugging, beo-router instant path) are exempt from the Story Context requirement, but they must still follow the shared reactive template.
 
 ```bash
 # Write spec
-br update <id> --description "## Story Context
-
-Story: Auth Middleware Setup
-Purpose: Enable all endpoints to validate tokens
-Contributes To: API accepts authenticated requests end-to-end
-Unlocks: Story 2 can add role-based access control
-
-## Planning Context
-
-From plan.md: Use JWT RS256 with jose library (Decision D3)
-
-## Institutional Learnings
-
-From .beads/learnings/20260315-auth-patterns.md:
-- jose library requires Node 18+ for WebCrypto API
-
-## Objective
-Implement the authentication middleware.
-
-## Files
-- src/middleware/auth.ts
-- src/middleware/auth.test.ts
-
-## Steps
-1. Create auth middleware using jose JWT validation
-2. Add 401 response for unauthenticated requests
-3. Write unit tests for valid/invalid/expired tokens
-
-## Verification
-- All existing tests pass
-- New middleware rejects unauthenticated requests with 401
-- npm test -- --grep 'auth' runs 5 tests, all green
-"
+br update <id> --description "<Markdown content using the appropriate shared bead template>"
 ```
 
 ## Report (Comment-Backed)

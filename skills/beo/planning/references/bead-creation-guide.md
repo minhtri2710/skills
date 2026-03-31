@@ -15,7 +15,7 @@ Detailed rules, templates, and checklists for Phase 6 (Task Bead Creation) and P
 
 ## Story Context Block
 
-Every bead description must include this block:
+Every bead description must be written in Markdown format using the shared templates from `../../reference/references/bead-description-templates.md` and include this block:
 
 ```markdown
 ## Story Context
@@ -64,6 +64,7 @@ br show <TASK_ID> --json
 Verify that `.description` contains:
 
 - [ ] Non-empty description
+- [ ] Markdown-formatted description using the shared planned bead template
 - [ ] Story context block (Story, Purpose, Contributes To, Unlocks)
 - [ ] File scope (which files to create/modify)
 - [ ] Numbered implementation steps

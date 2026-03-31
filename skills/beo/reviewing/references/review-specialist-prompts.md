@@ -23,7 +23,7 @@
 
 ## Dispatch Strategy
 
-- **4 or fewer specialists needed**: Launch all in parallel via `task()` calls
+- **4 or fewer specialists needed**: Launch all in parallel via the session's normal subagent/task-dispatch mechanism
 - **All 5**: Launch first 4 in parallel, then learnings synthesizer last (it cross-references the other findings)
 
 ## Specialist Prompt Template
@@ -69,32 +69,18 @@ Collect all findings from all specialists. Categorize:
 | Severity | Action |
 |----------|--------|
 | **P1** (blocks merge) | Create a fix task bead, wire to epic, execute immediately |
-| **P2** (should fix) | Create a follow-up bead NOT under the current epic |
+| **P2** (should fix) | Create a follow-up bead NOT under the current epic; its description must use Markdown |
 | **P3** (nice to have) | Record but do not create beads unless user requests |
 
 ## Creating P1 Fix Beads
 
 ```bash
-# P1 finding becomes a blocking task
-br create "Fix: <P1 finding summary>" -t task --parent <EPIC_ID> -p 1 --json
+# P1 finding becomes a blocking task under the epic
+br create "Fix: <P1 finding summary>" -t task --parent <EPIC_ID> --deps blocks:<ORIGINAL_TASK_ID> -p 1 --json
 br update <FIX_TASK_ID> --description "<fix bead description: see below>"
 ```
 
-P1 fix beads are **reactive fix beads** -- exempt from the story context block requirement but must satisfy the minimum execution contract used by `beo-executing`:
-
-```markdown
-## Objective
-<specific defect to fix>
-
-## Files
-- <exact file paths>
-
-## What To Fix
-- <root cause / failing behavior>
-
-## Verification
-- <runnable checks that prove the fix>
-```
+P1 fix beads are **reactive fix beads** -- exempt from the story context block requirement but must satisfy the minimum execution contract used by `beo-executing`. Use the shared **Reactive Fix Bead Template** from `../../reference/references/bead-description-templates.md`.
 
 Execute the fix immediately -- route back to Phase 2 of beo-executing for this task.
 
@@ -109,7 +95,7 @@ If P1 fixes fail repeatedly (>2 attempts), route to `beo-debugging` for root cau
 br create "Follow-up: <P2 finding summary>" -t task -p 3 --json
 br label add <FOLLOWUP_ID> -l review
 br label add <FOLLOWUP_ID> -l review-p2
-br update <FOLLOWUP_ID> --description "External ref: <EPIC_ID>\n\n<finding details>"
+br update <FOLLOWUP_ID> --description "## External Reference\n<EPIC_ID>\n\n## Finding Details\n<finding details>\n\n## Expected Follow-Up\n<what should be addressed later>"
 ```
 
-P2/P3 beads are intentionally NOT children of the current epic so they don't block feature completion.
+P2/P3 beads must use the shared **Follow-Up Bead Template** from `../../reference/references/bead-description-templates.md`. They are intentionally NOT children of the current epic so they don't block feature completion.
