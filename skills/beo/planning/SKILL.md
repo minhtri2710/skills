@@ -4,7 +4,9 @@ description: >-
   Use after exploring completes. Research, synthesize, define the phase contract
   and story map, then decompose into task beads with dependencies via br/bv CLI.
   Writes discovery.md, plan.md, phase-contract.md, story-map.md, and creates
-  beads that match the story structure.
+  beads that match the story structure. Trigger phrases: plan this, create tasks,
+  decompose, plan this phase, map the stories, break this into beads, research
+  and plan.
 ---
 
 # Beo Planning
@@ -32,12 +34,6 @@ Whole Plan
 ```
 
 Do not jump from `plan.md` straight to beads. If the phase cannot be explained in simple terms with a clear exit state and story sequence, it is not ready for execution.
-
-## When to Use
-
-- After `beo-exploring` completes (CONTEXT.md exists)
-- User says "plan this", "create tasks", "decompose"
-- Router detected state = **planning** (epic exists, no `approved` label, tasks may or may not exist)
 
 ## Prerequisites
 

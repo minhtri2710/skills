@@ -38,7 +38,7 @@ Evaluate **top-to-bottom, first match wins**. Earlier rows take priority.
 
 Key changes from prior versions:
 - Row 1: explicit user intent (meta-skill, debug request) short-circuits feature-state routing
-- Rows 2-3: `debug_attempted` label replaces ambiguous 'debugging attempted' — machine-decidable
+- Rows 2-3: `debug_attempted` label replaces ambiguous 'debugging attempted'; machine-decidable
 - Rows 4-5: most-specific closed states evaluated before generic 'epic is closed'
 - Row 7: ready-to-review evaluated before Row 8 (executing) to prevent shadowing
 - Row 14: staleness threshold defined: last dream run >30 days or 3+ new learnings files since last dream
@@ -49,7 +49,7 @@ The planning phase produces five artifacts in this order:
 
 | Artifact | Role | Gate-Controlling |
 |----------|------|-----------------|
-| `CONTEXT.md` | Locked decisions — source of truth | Yes (exploring → planning gate) |
+| `CONTEXT.md` | Locked decisions: source of truth | Yes (exploring → planning gate) |
 | `discovery.md` | Research findings from parallel subagents | No |
 | `plan.md` | High-level approach summary | No (compatibility artifact) |
 | `phase-contract.md` | Phase as closed loop: entry/exit state, demo, scope | Yes (planning → validating gate) |
@@ -122,7 +122,7 @@ Skills may add phase-specific fields below the canonical header (separated by a 
 | `blocked` | executing (blocker handling) | executing (stale label cleanup) |
 | `failed` | executing (blocker handling) | executing (stale label cleanup) |
 | `partial` | executing (partial completion) | executing (stale label cleanup) |
-| `cancelled` | user decision | — |
+| `cancelled` | user decision | - |
 | `debug_attempted` | beo-debugging (Step 5) | beo-executing (on unblock) |
 
 ---
@@ -177,7 +177,7 @@ This ensures fix beads are:
 
 ### Task Creation During Validation
 
-Validation may only create **spike beads** (time-boxed experiments, priority 0). Spikes are not implementation tasks — they are experiments to reduce uncertainty. For actual missing tasks, route back to `beo-planning`.
+Validation may only create **spike beads** (time-boxed experiments, priority 0). Spikes are not implementation tasks; they are experiments to reduce uncertainty. For actual missing tasks, route back to `beo-planning`.
 
 ---
 
@@ -200,4 +200,4 @@ Every feature gets an immutable `feature_slug` created once by the router and us
 6. Truncate to 40 characters
 7. Remove trailing hyphens
 
-Once set, the slug never changes — even if the epic title is updated later.
+Once set, the slug never changes, even if the epic title is updated later.

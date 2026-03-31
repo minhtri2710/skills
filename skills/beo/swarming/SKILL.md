@@ -1,24 +1,25 @@
 ---
 name: beo-swarming
-description: Orchestrates parallel worker agents for feature execution. Use after the beo-validating skill approves execution. Initializes the overseer/orchestrator context, spawns bounded worker subagents, monitors Agent Mail for completions/blockers/file conflicts, coordinates rescues and course corrections, and hands off to beo-reviewing when all beads are closed. The orchestrator TENDS — it never implements beads directly.
+description: Orchestrates parallel worker agents for feature execution. Use after the beo-validating skill approves execution. Initializes the overseer/orchestrator context, spawns bounded worker subagents, monitors Agent Mail for completions/blockers/file conflicts, coordinates rescues and course corrections, and hands off to beo-reviewing when all beads are closed. The orchestrator TENDS; it never implements beads directly.
 ---
 
 # Swarming
 
-## Role Boundary — Read First
+## Role Boundary: Read First
 
-You are the **ORCHESTRATOR**. You launch workers, monitor coordination, handle escalations, and keep the swarm moving. You do NOT implement beads. If you find yourself editing source files, stop immediately — that is the `beo-executing` skill's job.
+You are the **ORCHESTRATOR**. You launch workers, monitor coordination, handle escalations, and keep the swarm moving. You do NOT implement beads. If you find yourself editing source files, stop immediately. That is the `beo-executing` skill's job.
 
 - **beo-swarming** = launches and tends workers (this skill)
 - **beo-executing** = each worker's self-routing implementation loop
 
 The orchestrator launches the swarm, then tends it. Workers decide what to do next by using `bv --robot-plan` against the live bead graph.
 
-## When to Use This Skill
+---
 
-Invoke after the `beo-validating` skill issues: _"Validation complete. All checks pass. Invoke beo-swarming skill."_
+## Phase 1: Confirm Swarm Readiness
 
-Prerequisites:
+### Prerequisites
+
 - Beads are in `open` status and approved for execution
 - EPIC_ID is known (from STATE.md or user input)
 - Agent Mail server is reachable
@@ -28,9 +29,7 @@ If Agent Mail is unavailable, degrade to single-worker mode:
 - Log the degradation in STATE.md
 - Do not attempt to orchestrate parallel workers without Agent Mail
 
----
-
-## Phase 1: Confirm Swarm Readiness
+### Steps
 
 1. Get `EPIC_ID`: read `.beads/STATE.md` or ask the user.
 2. Check live bead status:
@@ -53,7 +52,7 @@ If Agent Mail is unavailable, degrade to single-worker mode:
 Determine which beads to execute first using this cascade:
 
 ```bash
-# Tier 1: Graph-aware execution plan (best — returns parallel tracks)
+# Tier 1: Graph-aware execution plan (best: returns parallel tracks)
 bv --robot-plan --graph-root <EPIC_ID> --format json 2>/dev/null
 
 # Tier 2: Single next-task recommendation
@@ -62,7 +61,7 @@ bv --robot-plan --graph-root <EPIC_ID> --format json 2>/dev/null
 # Tier 3: Ready beads from br
 || br ready --json 2>/dev/null
 
-# Tier 4: Manual fallback — list open beads and sort by dependency count
+# Tier 4: Manual fallback: list open beads and sort by dependency count
 || br list --status open --json
 ```
 
@@ -195,7 +194,7 @@ bv --robot-triage --graph-root <EPIC_ID> --format json
 | >50% beads open | Continue monitoring |
 | <50% beads open | Evaluate if workers should be reduced |
 | All beads closed | Proceed to Phase 5 |
-| Stalled (no progress 3+ cycles) | Diagnose — check mail, reservations, worker health |
+| Stalled (no progress 3+ cycles) | Diagnose: check mail, reservations, worker health |
 
 ### Blocker Alerts
 
@@ -268,7 +267,7 @@ When no beads remain `in_progress` and the graph shows no remaining executable w
      sender_name="<COORDINATOR_AGENT_NAME>",
      to=[<worker-list>],
      thread_id="<EPIC_ID>",
-     subject="[SWARM COMPLETE] <feature-name> — all beads closed",
+     subject="[SWARM COMPLETE] <feature-name>: all beads closed",
      body_md="Swarm complete for epic <EPIC_ID>. Beads: <N>. Workers: <K>. Build: PASS. Test: PASS."
    )
    ```
@@ -282,13 +281,13 @@ When no beads remain `in_progress` and the graph shows no remaining executable w
 
 Stop and diagnose before continuing if you see:
 
-- **Worker implements multiple beads at once** — self-routing does not mean parallelizing within one worker
-- **Orchestrator edits source files** — role violation
-- **Workers are idle but ready beads exist** — check mail, reservations, or startup drift
-- **No Agent Mail activity for >10 poll cycles** — workers may be stuck or context-exhausted
-- **The same file conflict repeats** — bead decomposition may be too coarse; escalate
-- **Workers stop using `bv --robot-plan` and start freelancing** — re-broadcast the execution contract
-- **Build/test failures accumulate without intervention** — create fix beads or stop and escalate
+- **Worker implements multiple beads at once**: self-routing does not mean parallelizing within one worker
+- **Orchestrator edits source files**: role violation
+- **Workers are idle but ready beads exist**: check mail, reservations, or startup drift
+- **No Agent Mail activity for >10 poll cycles**: workers may be stuck or context-exhausted
+- **The same file conflict repeats**: bead decomposition may be too coarse; escalate
+- **Workers stop using `bv --robot-plan` and start freelancing**: re-broadcast the execution contract
+- **Build/test failures accumulate without intervention**: create fix beads or stop and escalate
 
 ---
 

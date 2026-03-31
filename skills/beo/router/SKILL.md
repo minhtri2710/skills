@@ -46,7 +46,7 @@ br doctor
 ```
 
 ```bash
-# Check knowledge search availability (optional — QMD enhances search but is not required)
+# Check knowledge search availability (optional: QMD enhances search but is not required)
 qmd status 2>/dev/null
 ```
 
@@ -88,7 +88,7 @@ br show <EPIC_ID> --json
 Extract the immutable `slug: <feature_slug>` line from the epic description. Use that slug for all artifact existence checks below.
 
 ```bash
-# List tasks under this epic (canonical enumeration — see pipeline-contracts.md)
+# List tasks under this epic (canonical enumeration; see pipeline-contracts.md)
 br dep list <EPIC_ID> --direction up --type parent-child --json
 
 # Check graph health (scoped to active epic)
@@ -106,26 +106,7 @@ cat .beads/artifacts/<feature-name>/story-map.md 2>/dev/null
 
 ### Step 4: Classify Feature State
 
-Use the canonical state routing table from `beo-reference` → `references/pipeline-contracts.md`. Evaluate **top-to-bottom, first match wins**.
-
-| # | Condition | State | Route To |
-|---|-----------|-------|----------|
-| 1 | Skill creation or editing requested | **meta-skill** | `beo-writing-skills` |
-| 2 | Any tasks have `blocked` or `failed` labels, `debug_attempted` label absent | **needs-debugging** | `beo-debugging` |
-| 3 | Any tasks have `blocked` or `failed` labels, `debug_attempted` label present | **blocked** | Report blockers, ask user for decision |
-| 4 | All tasks closed, epic closed, no learnings file | **learnings-pending** | `beo-compounding` |
-| 5 | Epic is closed | **completed** | Report status, ask for next work |
-| 6 | Any tasks have `partial` or `cancelled` labels, epic still open | **partial-completion** | Report status, ask user for decision |
-| 7 | Epic exists, all tasks closed, epic still open | **ready-to-review** | `beo-reviewing` |
-| 8 | Epic exists, tasks exist, some in_progress/closed (and no blocked/failed) | **executing** | `beo-executing` |
-| 9 | Epic exists, tasks exist, `approved` label on epic, all tasks open, 3+ independent tasks | **ready-to-swarm** | `beo-swarming` |
-| 10 | Epic exists, tasks exist, `approved` label on epic, all tasks open, ≤2 independent tasks | **ready-to-execute** | `beo-executing` |
-| 11 | Epic exists, tasks exist, no `approved` label, phase-contract.md AND story-map.md exist | **ready-to-validate** | `beo-validating` |
-| 12 | Epic exists, tasks exist, no `approved` label, phase-contract.md or story-map.md missing | **planning** | `beo-planning` |
-| 13 | Epic exists, no tasks, no `approved` label | **exploring** | `beo-exploring` |
-| 14 | Learnings stale (last dream >30 days or 3+ new learnings since last dream), user requests consolidation | **consolidation-due** | `beo-dream` |
-
-**Evaluation order**: Explicit user intent (Row 1) short-circuits feature-state routing. Most-specific closed states (Rows 4-5) before generic. `debug_attempted` label (Rows 2-3) makes routing machine-decidable.
+See `references/state-routing.md` for the full state routing table (14 conditions, first-match-wins evaluation).
 
 ### Step 5: Report State
 
@@ -267,9 +248,9 @@ br blocked --json
 |---------|----------|--------|
 | Dependency cycles | **HIGH** | Report exact cycle, ask user to break it |
 | Tasks blocked >24h | **MEDIUM** | Report blockers, suggest resolution |
-| Tasks in_progress >4h with no commits | **MEDIUM** | May be abandoned — check with user |
-| Epic with no tasks and no plan | **LOW** | Stale feature — suggest cleanup or activation |
-| Closed tasks with open dependencies | **HIGH** | Inconsistent state — investigate |
+| Tasks in_progress >4h with no commits | **MEDIUM** | May be abandoned; check with user |
+| Epic with no tasks and no plan | **LOW** | Stale feature; suggest cleanup or activation |
+| Closed tasks with open dependencies | **HIGH** | Inconsistent state; investigate |
 
 ## Context Budget
 
@@ -312,38 +293,7 @@ Write `.beads/HANDOFF.json`:
 
 ## Go Mode (Full Pipeline)
 
-Go mode chains all skills end-to-end with exactly **3 human gates**. No phase is skipped.
-
-**Trigger:** User says "go", "run the full pipeline", "go mode", or `/go [feature]`.
-
-**The 3 gates — never skip these:**
-
-```
-GATE 1 (after exploring):
-  Present .beads/artifacts/<feature-name>/CONTEXT.md to user.
-  Ask: "Decisions locked. Approve CONTEXT.md before planning?"
-  HARD-GATE: do not invoke planning until user approves.
-
-GATE 2 (after validating):
-  Present: phase exit state, story count, bead count, risk summary, spike results.
-  Ask: "Phase verified. Approve execution?"
-  HARD-GATE: do not invoke swarming/executing until user approves.
-
-GATE 3 (after reviewing):
-  Present: P1 count, P2 count, P3 count.
-  If P1 > 0: "P1 findings block merge. Fix before proceeding?"
-  If P1 = 0: "Review complete. Approve close?"
-  HARD-GATE: do not close epic until user responds.
-```
-
-**Go mode sequence:**
-```
-exploring → [GATE 1] → planning → validating → [GATE 2]
-         → swarming (+ executing ×N) → reviewing → [GATE 3]
-         → compounding → DONE
-```
-
-**Context budget in go mode:** If context exceeds 65% mid-pipeline, write HANDOFF.json with `"mode": "go"` so the next session resumes in go mode from the current phase.
+See `references/go-mode.md` for the full Go Mode workflow (3 human gates, sequence, context budget).
 
 ## Priority Rules
 
@@ -352,29 +302,11 @@ These override all other routing and execution decisions:
 1. **P1 review findings always block.** Never merge, never close epic, never proceed to compounding while P1 findings are open.
 2. **Context budget always applies.** If context usage exceeds 65%, write `.beads/HANDOFF.json` and pause. Do not continue burning context.
 3. **CONTEXT.md is the source of truth.** If implementation diverges from a locked decision in CONTEXT.md, stop and surface the conflict before proceeding.
-4. **Gate 2 (post-validating) is the most critical gate.** Execution is irreversible at scale. If there is any doubt about the plan's soundness, do not approve — loop back to validating.
+4. **Gate 2 (post-validating) is the most critical gate.** Execution is irreversible at scale. If there is any doubt about the plan's soundness, do not approve; loop back to validating.
 5. **Spike failures halt the pipeline.** A failed spike means the approach is broken. Do not proceed to swarming; return to planning.
 6. **Never skip validating.** Not for small features. Not for "obvious" plans. Skipping validating is the #1 cause of wasted execution work.
 7. **critical-patterns.md is mandatory context.** If it exists, read it before planning or executing. Ignoring past critical patterns is the #1 source of repeat failures.
 
-## Red Flags
+## Red Flags and Anti-Patterns
 
-- **Starting implementation without state detection** — Always run Phase 1 first
-- **Creating a second epic while one is active** — One feature at a time unless user explicitly requests parallel features
-- **Skipping HANDOFF.json on resume** — If the file exists, read it
-- **Classifying everything as instant** — If there is any doubt about scope, route to exploring
-- **Routing to executing before planning** — Unless the feature has an `approved` label and tasks exist, do not skip planning
-- **Routing to swarming without validated plan** — Swarming requires the same `approved` label as executing
-- **Skipping compounding after review** — Learnings capture is part of the pipeline, not optional
-- **Debugging without checking critical-patterns.md first** — Always check known patterns before investigating
-
-## Anti-Patterns
-
-| Pattern | Why It's Wrong | Instead |
-|---------|---------------|---------|
-| `br create` without checking existing epics | Creates duplicate features | Always list epics first |
-| Routing based on user's words alone | User may not know current state | Always query bead graph |
-| Skipping `br doctor` on first session | Silent corruption goes undetected | Run doctor on bootstrap |
-| Hardcoding epic IDs | IDs change between sessions | Always query dynamically |
-| Routing to executing instead of swarming for parallel work | Executing is single-worker; swarming orchestrates multiple | Check task count and independence before choosing |
-| Using dream for one-off fixes | Dream consolidates learnings; debugging fixes issues | Route to `beo-debugging` for errors |
+See `references/guardrails.md` for red flags (8 items) and anti-patterns (6 items).

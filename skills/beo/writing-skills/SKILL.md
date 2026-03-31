@@ -12,16 +12,7 @@ Skills are code. They have bugs. Test them before deploying.
 This is the TDD-for-skills methodology adapted from Superpowers (N=28,000 scale testing confirms persuasion-optimized skills produce 3-4x better agent compliance than plain instructions).
 
 **THE IRON LAW: NO SKILL WITHOUT A FAILING TEST FIRST.**
-Write skill before testing? Delete it. Start over. No exceptions — not for "simple additions," not for "just a section," not for "reference only."
-
-## When to Use
-
-Use this skill when you are about to:
-- Create any new skill for the beo ecosystem
-- Edit an existing skill (even a small section)
-- Deploy a skill and want confidence it works under pressure
-
-When NOT to use: AGENTS.md files, project-specific conventions, one-off prompt instructions.
+Write skill before testing? Delete it. Start over. No exceptions. Not for "simple additions," not for "just a section," not for "reference only."
 
 ## The Core Cycle: RED -> GREEN -> REFACTOR
 
@@ -35,7 +26,7 @@ When NOT to use: AGENTS.md files, project-specific conventions, one-off prompt i
 
 ---
 
-## PHASE 1 — RED: Write the Failing Test
+## PHASE 1: RED: Write the Failing Test
 
 **HARD-GATE: Do not write any skill content until you complete this phase.**
 
@@ -44,7 +35,7 @@ Teams that skip baseline testing consistently deploy skills with predictable, pr
 **Steps:**
 1. Define the skill's purpose: what behavior must it enforce? What are failure modes without it?
 2. Create 3-5 pressure scenarios that stress-test critical constraints (see `references/pressure-test-template.md`)
-3. Run scenarios WITHOUT the skill — give agents the realistic task under pressure
+3. Run scenarios WITHOUT the skill. Give agents the realistic task under pressure
 4. Document exact rationalizations verbatim: "Agent was wrong" is useless. "Agent said 'I already manually tested it, so the spirit of TDD is satisfied'" is target material
 5. Identify patterns: which excuses repeat across scenarios?
 
@@ -58,15 +49,15 @@ Exact rationalization (verbatim): "[quote]"
 
 ---
 
-## PHASE 2 — GREEN: Write the Minimal Skill
+## PHASE 2: GREEN: Write the Minimal Skill
 
 Write SKILL.md addressing the **specific rationalizations documented in RED only.**
-Do not add content for hypothetical cases you didn't observe — hypothetical content bloats the skill and gets skipped.
+Do not add content for hypothetical cases you didn't observe. Hypothetical content bloats the skill and gets skipped.
 
 **SKILL.md checklist:**
 - [ ] YAML frontmatter starts on line 1 (`---`)
 - [ ] `name`: letters/numbers/hyphens/slashes only, matches directory path
-- [ ] `description`: starts with "Use when..." — **triggering conditions ONLY, no workflow summary**
+- [ ] `description`: starts with "Use when...", **triggering conditions ONLY, no workflow summary**
 - [ ] Description is third-person, <=1024 chars
 - [ ] Body < 400 lines (move details to `references/`)
 - [ ] Uses persuasion principles (see table below)
@@ -76,10 +67,10 @@ Do not add content for hypothetical cases you didn't observe — hypothetical co
 **Description trap (most common mistake):**
 Workflow summary in description -> Claude follows description instead of reading skill body. Every time.
 ```yaml
-# BAD — workflow summary
-description: Use when creating skills — run baseline test, write minimal skill, run tests
+# BAD: workflow summary
+description: Use when creating skills -- run baseline test, write minimal skill, run tests
 
-# GOOD — triggering conditions only
+# GOOD: triggering conditions only
 description: Use when creating a new beo skill or editing an existing one
 ```
 
@@ -98,15 +89,15 @@ If agent still fails -> skill is unclear or incomplete. Revise and re-test. Do n
 
 ---
 
-## PHASE 3 — REFACTOR: Close Loopholes
+## PHASE 3: REFACTOR: Close Loopholes
 
-When an agent violates a rule despite having the skill, that is a test regression — the skill has a bug. Fix it:
+When an agent violates a rule despite having the skill, that is a test regression. The skill has a bug. Fix it:
 
 1. Capture the new rationalization verbatim
 2. Add explicit negation in the rule
 3. Add entry to rationalization table in the skill
 4. Add entry to red flags list
-5. Re-run all scenarios — verify all still pass
+5. Re-run all scenarios. Verify all still pass
 
 Continue until no new rationalizations emerge from pressure testing.
 
@@ -120,7 +111,7 @@ Three diagnoses:
 
 ---
 
-## PHASE 4 — VALIDATE & DOCUMENT
+## PHASE 4: VALIDATE & DOCUMENT
 
 **Run validation (if available):**
 ```bash
@@ -152,15 +143,15 @@ agentskills validate skills/<skill-name>/ 2>/dev/null
 |---|---|
 | "I know this technique, testing is unnecessary" | You're testing the SKILL, not your knowledge. Agents differ from you. |
 | "It's so simple it can't have bugs" | Every untested skill has issues. Test takes 30 minutes. |
-| "Academic questions passed — that's sufficient" | Reading a skill != using a skill under pressure. Test application scenarios. |
+| "Academic questions passed, that's sufficient" | Reading a skill != using a skill under pressure. Test application scenarios. |
 | "My description summarizes the workflow so agents know what to do" | Workflow-summary descriptions cause agents to skip the skill body. Remove it. |
-| "This edit is minor — testing isn't needed" | The Iron Law applies to edits. No exceptions. |
+| "This edit is minor, testing isn't needed" | The Iron Law applies to edits. No exceptions. |
 | "I'll test it after a few real uses" | Problems = agents misuse in production. Test BEFORE deploying. |
 | "The baseline is obvious, I know what failures to expect" | You know YOUR failures. Agent failures differ. Run the baseline. |
 
 ---
 
-## Red Flags — STOP and Run Baseline Tests
+## Red Flags: STOP and Run Baseline Tests
 
 - Writing skill content before creating any pressure scenarios
 - "I already know what agents will do"
@@ -199,7 +190,6 @@ Include the current skill creation phase, which pressure tests have been run, an
 ## References
 
 Load when needed:
-- `references/creation-log-template.md` — CREATION-LOG.md template for documenting the TDD process
-- `references/pressure-test-template.md` — Pressure scenario templates and the 7 pressure types
+- `references/creation-log-template.md`: CREATION-LOG.md template for documenting the TDD process
+- `references/pressure-test-template.md`: Pressure scenario templates and the 7 pressure types
 
-**Background:** The TDD-for-skills methodology originates from the Superpowers framework (obra/superpowers). Persuasion research: Meincke et al. (2025), N=28,000 LLM conversations, University of Pennsylvania. Compliance methodology validated by ComplexBench, PromptAgent, and RNR studies (see research/15-tdd-skills-methodology.md for full citations).

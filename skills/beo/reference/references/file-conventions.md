@@ -7,7 +7,7 @@ Canonical locations for all pipeline artifacts and state files. Every skill in t
 | File | Written By | Read By | Purpose |
 |------|-----------|---------|---------|
 | `.beads/STATE.md` | beo-exploring, beo-planning, beo-validating, beo-swarming, beo-executing, beo-reviewing, beo-compounding | Next skill in pipeline | Intra-session skill-to-skill handoff state (see `pipeline-contracts.md` for canonical schema) |
-| `.beads/HANDOFF.json` | Any skill (at 65% context budget) | beo-router (Phase 3) | Cross-session resume — survives context resets (see `pipeline-contracts.md` for canonical schema) |
+| `.beads/HANDOFF.json` | Any skill (at 65% context budget) | beo-router (Phase 3) | Cross-session resume; survives context resets (see `pipeline-contracts.md` for canonical schema) |
 
 **Rule**: STATE.md is for the happy-path handoff between adjacent skills. HANDOFF.json is the emergency checkpoint written when context is running out. Router reads HANDOFF.json on resume; all other skills read STATE.md from the predecessor.
 
@@ -36,9 +36,9 @@ All feature artifacts live under `.beads/artifacts/<feature-name>/`:
 
 | File | Written By | Read By | Purpose |
 |------|-----------|---------|---------|
-| `CONTEXT.md` | beo-exploring | beo-planning, beo-validating, beo-executing, beo-reviewing, beo-compounding | Locked decisions — the source of truth |
+| `CONTEXT.md` | beo-exploring | beo-planning, beo-validating, beo-executing, beo-reviewing, beo-compounding | Locked decisions: the source of truth |
 | `discovery.md` | beo-planning | beo-validating, beo-compounding | Research findings from discovery subagents |
-| `plan.md` | beo-planning | beo-validating, beo-executing, beo-compounding | High-level approach summary (compatibility — not the validation gate) |
+| `plan.md` | beo-planning | beo-validating, beo-executing, beo-compounding | High-level approach summary (compatibility artifact, not the validation gate) |
 | `phase-contract.md` | beo-planning | beo-router, beo-validating, beo-executing, beo-reviewing, beo-compounding | Phase as closed loop: entry/exit state, demo story, scope, pivot signals |
 | `story-map.md` | beo-planning | beo-router, beo-validating, beo-executing, beo-reviewing, beo-compounding | Story sequence, closure check, story-to-bead mapping |
 | `debug-notes.md` | beo-debugging | beo-compounding, beo-debugging | Failure patterns discovered during debugging |
@@ -53,7 +53,7 @@ All feature artifacts live under `.beads/artifacts/<feature-name>/`:
 | `.beads/review-findings.md` | beo-reviewing | beo-compounding | P1/P2/P3 severity findings from 5 specialist reviewers |
 | `.beads/learnings/YYYYMMDD-<slug>.md` | beo-compounding | all skills (Phase 0) | Finalized learnings from completed features |
 | `.beads/critical-patterns.md` | beo-compounding | beo-exploring, beo-planning, beo-validating, beo-debugging, beo-dream | Promoted high-value patterns (multi-feature, generalizable) |
-| `.beads/learnings/dream-run-provenance.md` | beo-dream | beo-dream | Dream run markers — tracks when last consolidation ran |
+| `.beads/learnings/dream-run-provenance.md` | beo-dream | beo-dream | Dream run markers: tracks when last consolidation ran |
 
 ## Knowledge Store (Optional Enhancements)
 

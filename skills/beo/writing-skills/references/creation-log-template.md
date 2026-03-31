@@ -1,7 +1,7 @@
 # Creation Log: [Skill Name]
 
 <!-- Copy this template to your skill directory as CREATION-LOG.md -->
-<!-- Complete every section — this is the evidence that TDD was followed -->
+<!-- Complete every section. This is the evidence that TDD was followed -->
 
 ## Table of Contents
 1. [Source Material](#source-material)
@@ -17,7 +17,7 @@
 
 ## Source Material
 
-**Origin:** [Where the technique/process came from — Flywheel, GSD, Superpowers, internal, etc.]
+**Origin:** [Where the technique/process came from: Flywheel, GSD, Superpowers, internal, etc.]
 
 **What the source does:** [Core behavior of the source framework, 1-3 sentences]
 
@@ -28,19 +28,19 @@
 ## Extraction Decisions
 
 **What to include:**
-- [Item 1] — because [reason: addresses observed failure / enforces critical constraint / etc.]
-- [Item 2] — because [reason]
-- [Item 3] — because [reason]
+- [Item 1]: because [reason: addresses observed failure / enforces critical constraint / etc.]
+- [Item 2]: because [reason]
+- [Item 3]: because [reason]
 
 **What to leave out:**
-- [Item A] — [reason: project-specific, repetitive, Claude already knows this, etc.]
-- [Item B] — [reason]
+- [Item A]: [reason: project-specific, repetitive, Claude already knows this, etc.]
+- [Item B]: [reason]
 
 ---
 
 ## Structure Decisions
 
-1. [Structural decision + rationale] — e.g., "HARD-GATE before Phase 2 because baseline testing is the most commonly skipped step"
+1. [Structural decision + rationale]: e.g., "HARD-GATE before Phase 2 because baseline testing is the most commonly skipped step"
 2. [Structural decision + rationale]
 3. [Structural decision + rationale]
 
@@ -49,12 +49,12 @@
 ## Bulletproofing Elements
 
 ### Language Choices
-- "[Specific phrase used]" — instead of "[softer alternative]" — because [prevents rationalization X]
+- "[Specific phrase used]" instead of "[softer alternative]", because [prevents rationalization X]
 - "MUST" / "NEVER" / "No exceptions" where applicable
 - Implementation intention format: "When X, IMMEDIATELY do Y"
 
 ### Structural Defenses
-- [Defense mechanism + what it prevents] — e.g., "Rationalization table with pre-refuted excuses prevents 'I'm being pragmatic' escape hatch"
+- [Defense mechanism + what it prevents]: e.g., "Rationalization table with pre-refuted excuses prevents 'I'm being pragmatic' escape hatch"
 - [Defense mechanism + what it prevents]
 
 ---
@@ -67,7 +67,7 @@
 
 **Setup:**
 ```
-[Full scenario text — include concrete options A/B/C]
+[Full scenario text: include concrete options A/B/C]
 ```
 
 **Combined pressures:** [List: Time + Authority + Sunk Cost, etc.]
@@ -75,7 +75,7 @@
 **Agent choice:** [Option A / B / C]
 
 **Exact rationalization (verbatim):**
-> "[Agent's exact words — quote it precisely]"
+> "[Agent's exact words: quote it precisely]"
 
 **Verdict:** FAIL / PASS
 
@@ -175,7 +175,7 @@
 
 ---
 
-### Rationalization Table (Final — accumulated across all iterations)
+### Rationalization Table (Final: accumulated across all iterations)
 
 | Excuse | Reality |
 |---|---|
@@ -202,7 +202,7 @@
 
 ## Key Insight
 
-[The most important lesson from this skill's creation — the one thing future skill authors must know]
+[The most important lesson from this skill's creation: the one thing future skill authors must know]
 
 ---
 

@@ -120,6 +120,6 @@ Returns all unblocked, open beads. Pick the one with highest priority (lowest nu
 ## 4. Manual Selection (Last resort)
 
 If all CLI tools fail:
-1. `br list --type task -s open --json` — get all open tasks
-2. For each, check `br dep list <id> --direction down --type blocks --json` — skip if any dependency is not closed
+1. `br list --type task -s open --json`: get all open tasks
+2. For each, check `br dep list <id> --direction down --type blocks --json`: skip if any dependency is not closed
 3. Pick the highest priority unblocked task

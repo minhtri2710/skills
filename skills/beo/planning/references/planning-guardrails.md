@@ -10,7 +10,7 @@ Red flags and anti-patterns for `beo-planning`.
 | **Tasks without verification criteria** | Every task must have concrete "how to verify" |
 | **Overlapping file scopes** | If two independent tasks modify the same file, they must be sequenced |
 | **Skipping dependency validation** | Always run `br dep cycles --json` after wiring |
-| **Risk-inflating everything to HIGH** | Be honest — most tasks in a well-scoped feature are LOW or MEDIUM |
+| **Risk-inflating everything to HIGH** | Be honest. Most tasks in a well-scoped feature are LOW or MEDIUM |
 | **Tasks that are too granular** | "Add import statement" is not a task. Tasks should be 30-90 min of work |
 | **Tasks that are too large** | "Implement the entire feature" is not a task. Break it down. |
 | **Skipping learnings retrieval** | Phase 0 is mandatory, not optional |

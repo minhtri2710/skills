@@ -2,7 +2,7 @@
 
 Use this template when writing `.beads/learnings/YYYYMMDD-<slug>.md`.
 
-One file per feature. Multiple learnings can appear in a single file — separate them
+One file per feature. Multiple learnings can appear in a single file. Separate them
 with `---` dividers. Start each file with the YAML frontmatter below, then add
 individual learning entries.
 
@@ -40,12 +40,12 @@ Repeat this block for each distinct learning. Separate entries with `---`.
 **Category:** pattern | decision | failure
 **Severity:** low | medium | high | critical
 **Tags:** [tag1, tag2]
-**Applicable-when:** <one sentence — under what conditions should future agents use this?>
+**Applicable-when:** <one sentence: under what conditions should future agents use this?>
 
 ## What Happened
 
 <2-4 sentences describing the situation: what was being built, what went wrong or right,
-what surprised the team. Be specific — name files, functions, tools, or commands involved.>
+what surprised the team. Be specific: name files, functions, tools, or commands involved.>
 
 ## Root Cause / Key Insight
 

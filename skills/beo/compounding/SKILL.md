@@ -15,17 +15,6 @@ description: >-
 
 Load `beo-reference` for knowledge-store protocol (`references/knowledge-store.md`).
 
-Research shows that engineering teams who systematically capture and re-inject learnings reduce
-time-to-complete on subsequent features by 30-50% ([Compound Engineering, Every.to](https://every.to/guides/compound-engineering)).
-This skill closes the loop. Each feature that runs through compounding makes the next one cheaper.
-Skip this step and the ecosystem stays flat. Run it and it gets smarter every cycle.
-
-## When to Use This Skill
-
-Invoke after `beo-reviewing` completes and the feature is merged (or abandoned with lessons).
-Also invoke after any debugging session that surfaced a non-obvious root cause.
-Skip only for trivial one-line changes where nothing reusable emerged.
-
 ---
 
 ## Process
@@ -50,7 +39,7 @@ Collect all artifacts from the completed feature. Read:
 .beads/ or `br show` output                    <- the executable work graph we actually ran
 ```
 
-All paths above are checked; missing files are silently skipped — compounding works with partial context.
+All paths above are checked; missing files are silently skipped. Compounding works with partial context.
 
 Run this git command to get the feature's commit history:
 
@@ -69,7 +58,7 @@ recent git diff. Compounding is still valuable even with partial context.
 ### Phase 2: Three-Category Analysis (3 Parallel Subagents)
 
 Launch three subagents simultaneously using the canonical `Subagent(...)` contract. Each writes findings to a staging file under `.beads/artifacts/<feature-name>/`.
-Do NOT have subagents write the final learnings file — only the orchestrator writes that.
+Do NOT have subagents write the final learnings file; only the orchestrator writes that.
 
 ---
 
@@ -148,14 +137,14 @@ Write findings to: .beads/artifacts/<feature-name>/compounding-failures.md
 
 After all three agents complete, the orchestrator:
 
-**Step 3.1 — Read all three staging files:**
+**Step 3.1: Read all three staging files:**
 ```
 .beads/artifacts/<feature-name>/compounding-patterns.md
 .beads/artifacts/<feature-name>/compounding-decisions.md
 .beads/artifacts/<feature-name>/compounding-failures.md
 ```
 
-**Step 3.2 — Dedup check before writing:**
+**Step 3.2: Dedup check before writing:**
 
 Search for existing similar learnings before creating new entries:
 
@@ -171,7 +160,7 @@ qmd query "<learning title>" --json 2>/dev/null
 
 If a similar learning exists, merge instead of creating new.
 
-**Step 3.3 — Triage each finding:**
+**Step 3.3: Triage each finding:**
 
 Tag every learning with:
 - `domain`: which technical or process domain (e.g., `auth`, `database`, `testing`, `bead-decomposition`, `agent-coordination`)
@@ -179,11 +168,11 @@ Tag every learning with:
 - `applicable-when`: concise condition for when future agents should apply this learning
 - `category`: `pattern` | `decision` | `failure`
 
-**Step 3.4 — Determine slug:**
+**Step 3.4: Determine slug:**
 
 Create a short, descriptive slug: `<primary-topic>-<secondary-topic>` (e.g., `auth-token-refresh`, `bead-scope-isolation`, `db-migration-ordering`).
 
-**Step 3.5 — Write the learnings file:**
+**Step 3.5: Write the learnings file:**
 
 ```bash
 mkdir -p .beads/learnings
@@ -199,10 +188,10 @@ obsidian create "beo-learnings/YYYYMMDD-<slug>.md" --content "<learnings content
 
 Use the format from `references/learnings-template.md`. Include YAML frontmatter.
 
-One learnings file per feature. Group related findings within that file — do NOT create
+One learnings file per feature. Group related findings within that file; do NOT create
 separate files per finding.
 
-**Step 3.6 — Refresh QMD index (if available):**
+**Step 3.6: Refresh QMD index (if available):**
 
 ```bash
 qmd update 2>/dev/null && qmd embed 2>/dev/null
@@ -217,11 +206,11 @@ For every finding tagged `severity: critical`:
 **Promotion criteria (only promote if ALL are true):**
 - Affects more than one potential future feature (not just this specific codebase area)
 - Would cause meaningful wasted effort if future agents didn't know it
-- Is generalizable — not so implementation-specific it's useless elsewhere
+- Is generalizable: not so implementation-specific it's useless elsewhere
 
 **If criteria met, propose the promotion to the user:**
 
-Present the proposed entry and request explicit approval before writing. Never auto-append to `critical-patterns.md` — see `pipeline-contracts.md` → Shared Artifact Write Rules.
+Present the proposed entry and request explicit approval before writing. Never auto-append to `critical-patterns.md`; see `pipeline-contracts.md` → Shared Artifact Write Rules.
 
 **After user approves, append to `.beads/critical-patterns.md`:**
 
@@ -345,4 +334,4 @@ If context usage exceeds 65%, write HANDOFF.json (see `pipeline-contracts.md` fo
 
 ## References
 
-- `references/learnings-template.md` — full template for learnings files with YAML frontmatter
+- `references/learnings-template.md`: full template for learnings files with YAML frontmatter

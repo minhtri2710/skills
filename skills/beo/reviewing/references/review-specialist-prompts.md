@@ -40,7 +40,7 @@ You are reviewing the implementation of "<feature-name>" from a <specialist-type
 Review ONLY the changes made for this feature. Do NOT review pre-existing code unless it was modified.
 
 ## Files Changed
-<list of files modified by all tasks — gathered from task reports>
+<list of files modified by all tasks: gathered from task reports>
 
 ## CONTEXT.md Decisions
 <relevant decisions that should be reflected in the implementation>
@@ -77,7 +77,7 @@ Collect all findings from all specialists. Categorize:
 ```bash
 # P1 finding becomes a blocking task
 br create "Fix: <P1 finding summary>" -t task --parent <EPIC_ID> -p 1 --json
-br update <FIX_TASK_ID> --description "<fix bead description — see below>"
+br update <FIX_TASK_ID> --description "<fix bead description: see below>"
 ```
 
 P1 fix beads are **reactive fix beads** -- exempt from the story context block requirement but must satisfy the minimum execution contract used by `beo-executing`:

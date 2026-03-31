@@ -27,12 +27,12 @@ The task specification is the bead's description field. Write it once during tas
 
 Every planned execution bead description must contain:
 
-1. **Story Context** block — Story name, Purpose, Contributes To, Unlocks
-2. **Planning Context** — relevant decision from plan.md
-3. **Institutional Learnings** — relevant patterns from .beads/learnings/ or .beads/critical-patterns.md
-4. **File scope** — exact file paths to create/modify
-5. **Implementation steps** — numbered steps
-6. **Verification criteria** — runnable checks
+1. **Story Context** block: Story name, Purpose, Contributes To, Unlocks
+2. **Planning Context**: relevant decision from plan.md
+3. **Institutional Learnings**: relevant patterns from .beads/learnings/ or .beads/critical-patterns.md
+4. **File scope**: exact file paths to create/modify
+5. **Implementation steps**: numbered steps
+6. **Verification criteria**: runnable checks
 
 Reactive fix beads (created by beo-reviewing, beo-debugging, beo-router instant path) are exempt from the Story Context requirement but still require file scope and verification.
 
@@ -151,14 +151,14 @@ context_pct: 35
 ---END_ARTIFACT---" --no-daemon
 ```
 
-Task state is optional — workers update it when claiming, blocking, or completing beads. The orchestrator reads the latest version to build the swarm status view.
+Task state is optional. Workers update it when claiming, blocking, or completing beads. The orchestrator reads the latest version to build the swarm status view.
 
 ## Version Semantics
 
 - Versions are monotonically increasing integers: v1, v2, v3...
 - When reading, always take the **latest** (highest version number) artifact of each kind
 - When writing, increment the version if updating an existing artifact
-- Multiple versions of the same artifact kind can coexist in comments — only the latest matters
+- Multiple versions of the same artifact kind can coexist in comments. Only the latest matters.
 
 ## Batch Sync Rule
 

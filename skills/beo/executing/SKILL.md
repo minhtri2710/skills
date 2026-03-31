@@ -17,16 +17,9 @@ Executing is the per-worker implementation loop. It picks the next actionable ta
 - **Worker mode** (dispatched by `beo-swarming`): Receives identity and epic ID from the orchestrator. Reports progress via Agent Mail. Implements code directly. Does NOT spawn sub-subagents.
 - **Standalone mode** (after `beo-validating` for ≤2 tasks): Acts as both dispatcher and executor. Reports progress via STATE.md. Can dispatch worker subagents via `task()` calls for implementation, or implement directly for single-task features.
 
-In both modes the loop is identical — the difference is how results are reported (Agent Mail vs STATE.md) and whether implementation is direct (worker mode) or delegated via `task()` (standalone mode with multiple tasks).
+In both modes the loop is identical; the difference is how results are reported (Agent Mail vs STATE.md) and whether implementation is direct (worker mode) or delegated via `task()` (standalone mode with multiple tasks).
 
 **Core principle**: One task at a time. Implement, verify, report, loop.
-
-## When to Use
-
-- Dispatched by `beo-swarming` as a worker
-- Single-worker mode: after `beo-validating` approves the plan (`approved` label on epic)
-- Router detected state = **ready-to-execute** or **executing**
-- Resuming execution after a context handoff
 
 ## Prerequisites
 
@@ -35,7 +28,7 @@ In both modes the loop is identical — the difference is how results are report
 br show <EPIC_ID> --json
 # Verify: labels array contains "approved"
 
-# Tasks must exist (canonical enumeration — see pipeline-contracts.md)
+# Tasks must exist (canonical enumeration; see pipeline-contracts.md)
 br dep list <EPIC_ID> --direction up --type parent-child --json
 ```
 
@@ -105,7 +98,7 @@ br label remove <TASK_ID> -l partial 2>/dev/null
 
 ```bash
 br show <TASK_ID> --json
-# Extract .description — must be non-empty and structurally complete
+# Extract .description; must be non-empty and structurally complete
 ```
 
 Verify the description contains ALL of:
@@ -113,14 +106,14 @@ Verify the description contains ALL of:
 1. Non-empty and substantive (not just a title restatement)
 2. File scope (which files to create/modify)
 3. Concrete verification criteria (runnable checks, not "make sure it works")
-4. Story context block (Story, Purpose, Contributes To, Unlocks) — unless this is a reactive fix bead (see Bead Classes below)
+4. Story context block (Story, Purpose, Contributes To, Unlocks) unless this is a reactive fix bead (see Bead Classes below)
 
 <HARD-GATE>
 If `.description` is empty, or is missing file scope AND verification criteria, STOP. Do not dispatch this task. Report it as invalid for execution:
 
 "Task <TASK_ID> has an empty or underspecified description. Route back to beo-planning or beo-validating to complete the bead spec."
 
-Do not attempt to reconstruct the spec from plan.md or CONTEXT.md — that produces low-quality worker output.
+Do not attempt to reconstruct the spec from plan.md or CONTEXT.md; that produces low-quality worker output.
 </HARD-GATE>
 
 ### Bead Classes
@@ -159,11 +152,11 @@ Build the complete worker prompt for the subagent. The prompt includes phase exi
 
 See `references/worker-prompt-guide.md` for the full prompt template, data gathering commands, and budget truncation rules.
 
-**Key rule**: Never truncate the task spec itself — that's the core payload.
+**Key rule**: Never truncate the task spec itself; that is the core payload.
 
 ## Phase 4: Worker Dispatch
 
-**Standalone mode only** — in worker mode, implement the task directly (skip to Phase 5 after implementation).
+**Standalone mode only**: in worker mode, implement the task directly (skip to Phase 5 after implementation).
 
 Launch the worker as a subagent:
 
@@ -175,7 +168,7 @@ task(
 )
 ```
 
-The `task()` call is **blocking** — when it returns, the worker is done.
+The `task()` call is **blocking**; when it returns, the worker is done.
 
 ### Worker Behavior
 
@@ -276,7 +269,7 @@ When all tasks under the epic are closed:
 ```bash
 # Verify all tasks are closed (canonical enumeration)
 br dep list <EPIC_ID> --direction up --type parent-child --json
-# Filter for .status != "closed" — should return empty
+# Filter for .status != "closed"; should return empty
 
 # Verify build/tests pass
 # (Run project-specific build and test commands)

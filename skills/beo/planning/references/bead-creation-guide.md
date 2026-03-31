@@ -70,7 +70,7 @@ Verify that `.description` contains:
 - [ ] Verification criteria
 - [ ] Enough context for a fresh worker who has never seen the plan
 
-If any bead fails this check, fix it immediately via `br update <TASK_ID> --description`. A bead without a complete description is an invalid intermediate state — it must not survive to handoff.
+If any bead fails this check, fix it immediately via `br update <TASK_ID> --description`. A bead without a complete description is an invalid intermediate state. It must not survive to handoff.
 
 ---
 
@@ -105,11 +105,11 @@ For each story in story-map.md:
 
 For features classified as **lightweight** by the router (2-3 files, clear scope):
 
-1. Skip Phase 1 parallel exploration — do a quick single-pass review of affected files
+1. Skip Phase 1 parallel exploration. Do a quick single-pass review of affected files
 2. Write abbreviated plan.md (approach + tasks, skip discovery summary)
 3. Create task beads directly
 4. Still wire dependencies and validate the graph
-5. Skip the formal review — present directly to user
+5. Skip the formal review. Present directly to user
 6. Write abbreviated phase-contract.md (approach + exit state, skip phase diagram)
 7. Write abbreviated story-map.md (single story, skip dependency diagram)
 
@@ -122,7 +122,7 @@ When direct/instant tasks grow beyond their envelope:
 ### Step 1: Gather Existing Tasks
 
 ```bash
-# List existing manual tasks (canonical enumeration — see pipeline-contracts.md)
+# List existing manual tasks (canonical enumeration; see pipeline-contracts.md)
 br dep list <EPIC_ID> --direction up --type parent-child --json
 ```
 
@@ -136,4 +136,4 @@ Only create beads for tasks that don't already exist. Wire dependencies for all 
 
 ### Step 4: Proceed to Validation
 
-Route to `beo-validating` — promoted plans need the same rigor as fresh plans.
+Route to `beo-validating`. Promoted plans need the same rigor as fresh plans.

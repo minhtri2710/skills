@@ -25,7 +25,7 @@ pending → dispatch_prepared → in_progress → done
 ```
 
 **Forbidden transitions**:
-- `done → in_progress` (NEVER reopen a completed task — create a new one)
+- `done → in_progress` (NEVER reopen a completed task; create a new one)
 - `done → pending` (same reason)
 - Any skip of `dispatch_prepared` (always goes pending → dispatch_prepared → in_progress)
 

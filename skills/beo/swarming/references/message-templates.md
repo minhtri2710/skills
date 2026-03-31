@@ -115,7 +115,7 @@ Runtime call:
 `send_message(project_key=..., sender_name="<AGENT_NAME>", to=["<COORDINATOR_AGENT_NAME>"], thread_id="<EPIC_ID>", ...)`
 
 ```
-Subject: [BLOCKED] <bead-id> — <one-line description>
+Subject: [BLOCKED] <bead-id>: <one-line description>
 Thread: <EPIC_ID>
 Importance: HIGH
 
@@ -180,14 +180,14 @@ Decision on file conflict for <path/to/file>:
 
 [Choose one:]
 
-OPTION A — Wait:
+OPTION A: Wait:
 <AGENT_NAME_requester>: wait for <AGENT_NAME_holder> to release the reservation.
 
-OPTION B — Release requested:
+OPTION B: Release requested:
 <AGENT_NAME_holder>: please release <path/to/file> when you reach a safe checkpoint.
 <AGENT_NAME_requester>: stand by until release is confirmed.
 
-OPTION C — Defer:
+OPTION C: Defer:
 <AGENT_NAME_requester>: defer this change. Create a follow-up bead and continue with the next executable bead.
 ```
 
@@ -258,7 +258,7 @@ Runtime call:
 `send_message(project_key=..., sender_name="<COORDINATOR_AGENT_NAME>", to=[<worker-list>], thread_id="<EPIC_ID>", ...)`
 
 ```
-Subject: [SWARM COMPLETE] <feature-name> — all beads closed
+Subject: [SWARM COMPLETE] <feature-name>: all beads closed
 Thread: <EPIC_ID>
 Importance: NORMAL
 

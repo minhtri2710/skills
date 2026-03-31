@@ -11,16 +11,16 @@ Template, data gathering, and budget rules for Phase 3 (Worker Prompt Assembly) 
 You are implementing a task for feature "<feature-name>".
 
 ## Phase Exit State
-<Exit state from phase-contract.md — what the whole phase must achieve>
+<Exit state from phase-contract.md: what the whole phase must achieve>
 
 ## Story Context
-<Story context block from this bead's description — story name, purpose, contributes to, unlocks>
+<Story context block from this bead's description: story name, purpose, contributes to, unlocks>
 
 ## Plan Summary
-<Abbreviated plan.md — approach section only, not full plan>
+<Abbreviated plan.md: approach section only, not full plan>
 
 ## Your Task
-<Full task description from bead — the spec>
+<Full task description from bead: the spec>
 
 ## CONTEXT.md Decisions
 <Relevant decisions from CONTEXT.md that affect this task>
@@ -35,8 +35,8 @@ You are implementing a task for feature "<feature-name>".
 - Implement ONLY what is described in the task spec
 - Do NOT modify files outside the listed file scope
 - Run verification before reporting completion
-- If blocked, report the blocker — do not guess or workaround
-- If the task grows beyond scope, report it — do not scope-creep
+- If blocked, report the blocker. Do not guess or workaround
+- If the task grows beyond scope, report it. Do not scope-creep
 ```
 
 ## Gathering Prompt Data
@@ -75,4 +75,4 @@ If the assembled prompt is too large:
 3. Truncate story-map.md to the relevant story only (skip other stories)
 4. Include only directly relevant CONTEXT.md decisions
 5. Summarize previous task results instead of including full reports
-6. Never truncate the task spec itself — that's the core payload
+6. Never truncate the task spec itself. That is the core payload

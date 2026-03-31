@@ -96,8 +96,8 @@ needs.
 > If every story reaches its "Done Looks Like" line, should the phase exit state
 > be true?
 
-- [ ] Yes — the story set fully closes the phase loop
-- [ ] No — missing story or exit-state coverage remains
+- [ ] Yes: the story set fully closes the phase loop
+- [ ] No: missing story or exit-state coverage remains
 
 If "No", revise the map before creating beads.
 

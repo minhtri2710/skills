@@ -7,7 +7,7 @@ description: Use before any feature work, refactor, or behavior modification. Ex
 
 ## Overview
 
-Exploring is the decision-extraction phase. Before any research or planning, you must understand what the user actually wants — including the parts they haven't thought about yet.
+Exploring is the decision-extraction phase. Before any research or planning, you must understand what the user actually wants, including the parts they haven't thought about yet.
 
 **Core principle**: Every ambiguity resolved here saves 10x rework downstream.
 
@@ -15,8 +15,8 @@ The output is a `CONTEXT.md` file that becomes the single source of truth for al
 
 ## When NOT to Use
 
-- Request is **instant** (single file, well-scoped, <30 min per router classification) — router handles this directly, skip to executing
-- Request is purely a bug fix with clear reproduction steps — use debugging workflow
+- Request is **instant** (single file, well-scoped, <30 min per router classification): router handles this directly, skip to executing
+- Request is purely a bug fix with clear reproduction steps: use debugging workflow
 - You're resuming mid-pipeline (router handles this)
 
 ## Phase 0: Read Existing Context
@@ -172,7 +172,7 @@ When updating the epic description, always preserve the immutable `slug:` line:
 4. Write via `br update <EPIC_ID> --description "slug: <feature_slug>\n<rest of description>"`
 
 <HARD-GATE>
-Never overwrite an epic description without checking for and preserving the `slug:` first line. If the slug line is missing and the epic already has tasks, STOP — the slug was lost. Check `.beads/artifacts/` for the correct feature directory name and restore the slug.
+Never overwrite an epic description without checking for and preserving the `slug:` first line. If the slug line is missing and the epic already has tasks, STOP; the slug was lost. Check `.beads/artifacts/` for the correct feature directory name and restore the slug.
 </HARD-GATE>
 
 Also update the epic bead description with a summary:
@@ -185,7 +185,7 @@ br update <EPIC_ID> --description "slug: <feature_slug>\nFeature: <name>\n\nScop
 
 Before handing off, verify the CONTEXT.md quality:
 
-**Completeness check** — for each locked decision, ask:
+**Completeness check**: for each locked decision, ask:
 1. Would a developer reading only this file understand the decision?
 2. Is the rationale clear enough to prevent someone from re-opening the discussion?
 3. Are there implicit assumptions that should be explicit?
@@ -248,7 +248,7 @@ Write `.beads/HANDOFF.json`:
 
 | Flag | Description |
 |------|-------------|
-| **Asking implementation questions** | "Should we use a Map or an Object?" — this is planning, not exploring |
+| **Asking implementation questions** | "Should we use a Map or an Object?" is planning, not exploring |
 | **Batching 3+ questions** | One question at a time. Period. |
 | **Accepting "I don't care"** | Propose a concrete default instead |
 | **Skipping gray areas** | Every feature has at least 2 gray areas |
@@ -259,7 +259,7 @@ Write `.beads/HANDOFF.json`:
 
 | Pattern | Why It's Wrong | Instead |
 |---------|---------------|---------|
-| Starting to plan during exploring | Premature commitment | Lock decisions only — planning comes next |
+| Starting to plan during exploring | Premature commitment | Lock decisions only; planning comes next |
 | Asking about tech stack choices | That's a planning decision | Ask about behavior and requirements |
 | Copying the user's words verbatim as decisions | Users speak loosely | Restate precisely and confirm |
 | Creating tasks during exploring | No tasks until planning | Only the epic bead should exist |

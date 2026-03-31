@@ -70,35 +70,35 @@ Stories reviewed: <N>
 Beads reviewed: <N>
 Date: <today>
 
-DIMENSION 1 — Phase Contract Clarity: [PASS | FAIL]
+DIMENSION 1: Phase Contract Clarity: [PASS | FAIL]
 <what you checked and result>
 <if FAIL: quote the unclear or missing part>
 
-DIMENSION 2 — Story Coverage And Ordering: [PASS | FAIL]
+DIMENSION 2: Story Coverage And Ordering: [PASS | FAIL]
 <what you checked and result>
 <if FAIL: list the story names or sequence problem>
 
-DIMENSION 3 — Decision Coverage: [PASS | FAIL]
+DIMENSION 3: Decision Coverage: [PASS | FAIL]
 <what you checked and result>
 <if FAIL: list locked decisions with missing story/bead mapping>
 
-DIMENSION 4 — Dependency Correctness: [PASS | FAIL]
+DIMENSION 4: Dependency Correctness: [PASS | FAIL]
 <what you checked and result>
 <if FAIL: list specific bead IDs or story-order dependency issues>
 
-DIMENSION 5 — File Scope Isolation: [PASS | FAIL]
+DIMENSION 5: File Scope Isolation: [PASS | FAIL]
 <what you checked and result>
 <if FAIL: list overlapping file paths and bead IDs>
 
-DIMENSION 6 — Context Budget: [PASS | FAIL]
+DIMENSION 6: Context Budget: [PASS | FAIL]
 <what you checked and result>
 <if FAIL: list oversized beads and why>
 
-DIMENSION 7 — Verification Completeness: [PASS | FAIL]
+DIMENSION 7: Verification Completeness: [PASS | FAIL]
 <what you checked and result>
 <if FAIL: list stories or beads with weak "done" / "verify">
 
-DIMENSION 8 — Exit-State Completeness And Risk Alignment: [PASS | FAIL]
+DIMENSION 8: Exit-State Completeness And Risk Alignment: [PASS | FAIL]
 <what you checked and result>
 <if FAIL: explain why the phase would still miss its exit state, or which HIGH-risk items lack spike coverage>
 

@@ -104,7 +104,7 @@ After each bead completion, assess your context budget. If context is high, fini
 - Do not edit files without reserving them first
 - Do not assume you own a permanent track or file namespace
 - Do not bypass `bv --robot-plan` with freelanced work
-- Do not escalate directly to the user — route issues through the epic thread first
+- Do not escalate directly to the user. Route issues through the epic thread first
 ```
 
 ---

@@ -19,9 +19,9 @@ Reviewing is the post-execution quality gate. It verifies that the implementatio
 ## Prerequisites
 
 ```bash
-# All tasks under the epic should be closed (canonical enumeration — see pipeline-contracts.md)
+# All tasks under the epic should be closed (canonical enumeration; see pipeline-contracts.md)
 br dep list <EPIC_ID> --direction up --type parent-child --json
-# Filter for .status != "closed" — should return empty (or only deferred/cancelled tasks)
+# Filter for .status != "closed"; should return empty (or only deferred/cancelled tasks)
 
 # CONTEXT.md exists
 cat .beads/artifacts/<feature-name>/CONTEXT.md
@@ -95,7 +95,7 @@ Artifact Verification:
   <component-3>: L1 ✓  L2 ✗ (contains TODO stub)
 ```
 
-L2 or L3 failures are P1 findings — create fix beads and resolve before proceeding.
+L2 or L3 failures are P1 findings; create fix beads and resolve before proceeding.
 
 ## Phase 3: Human UAT
 
@@ -221,8 +221,8 @@ For features meeting ALL of these criteria:
 - No schema changes
 - No auth/security impact
 
-1. Skip Phase 1 specialist subagents — do a quick manual review instead
-2. Skip Phase 2 formal artifact verification — check the obvious stuff
+1. Skip Phase 1 specialist subagents; do a quick manual review instead
+2. Skip Phase 2 formal artifact verification; check the obvious stuff
 3. Phase 3 UAT: Quick confirmation ("Does this look right?")
 4. Phase 4: Build/test/lint + close epic
 
@@ -255,9 +255,9 @@ If context usage exceeds 65%:
 |------|-------------|
 | **Skipping specialist reviews** | "The code looks fine" is not a review |
 | **Auto-passing UAT** | User must confirm each decision |
-| **Ignoring P1 findings** | P1 blocks merge — no exceptions |
+| **Ignoring P1 findings** | P1 blocks merge; no exceptions |
 | **Closing epic with open P1 fixes** | All P1 beads must be closed first |
-| **Promoting learnings without approval** | critical-patterns.md is shared — ask first |
+| **Promoting learnings without approval** | critical-patterns.md is shared; ask first |
 | **Skipping build/test/lint** | Phase 4 Step 1 is mandatory |
 
 ## Anti-Patterns

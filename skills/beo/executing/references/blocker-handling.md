@@ -17,7 +17,7 @@ br comments list <TASK_ID> --json
 |-------------|--------|
 | **Missing dependency output** | Check if the dependency task actually completed; if so, the worker may need clearer input |
 | **External service unavailable** | Report to user, cannot resolve automatically |
-| **Scope exceeds task boundary** | The task needs re-planning — strip `approved` label (`br label remove <EPIC_ID> -l approved`) and route to `beo-planning` |
+| **Scope exceeds task boundary** | The task needs re-planning. Strip `approved` label (`br label remove <EPIC_ID> -l approved`) and route to `beo-planning` |
 | **Ambiguous requirement** | Route to user for clarification |
 | **Technical issue** (build failure, test failure) | Route to `beo-debugging` if not resolvable in-context |
 

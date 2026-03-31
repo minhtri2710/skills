@@ -7,20 +7,11 @@ description: Systematic debugging for blocked workers, test failures, build erro
 
 Load `beo-reference` for knowledge-store protocol (`references/knowledge-store.md`).
 
-Resolve blockers and failures systematically. Do not guess — triage first, then reproduce, then diagnose, then fix.
-
-## When to Use This Skill
-
-- A build fails (compilation, type error, missing dependency)
-- A test fails (assertion mismatch, flaky test, timeout)
-- A runtime crash or exception occurs
-- An integration breaks (API mismatch, env config, auth)
-- A worker is stuck (circular dependency, conflicting changes, unresolvable blocker)
-- Reviewing or executing hands off with a failure that needs root cause analysis
+Resolve blockers and failures systematically. Do not guess. Triage first, then reproduce, then diagnose, then fix.
 
 ---
 
-## Step 1: Triage — Classify the Issue
+## Step 1: Triage: Classify the Issue
 
 Classify before investigating. Misclassifying wastes time.
 
@@ -38,9 +29,9 @@ Example: `Build failure in packages/sdk: TS2345 type mismatch in auth.ts`
 
 ---
 
-## Step 2: Reproduce — Isolate the Failure
+## Step 2: Reproduce: Isolate the Failure
 
-**Check known patterns first** — before any investigation:
+**Check known patterns first**, before any investigation:
 
 ```bash
 # Primary: search flat-file learnings
@@ -55,9 +46,9 @@ If a known pattern matches → jump directly to Step 4 (Fix), using the document
 
 **If not a known pattern, reproduce it:**
 
-1. Run the exact command that failed — do not paraphrase it:
+1. Run the exact command that failed. Do not paraphrase it:
    ```bash
-   # Whatever CI/worker ran — run it verbatim
+   # Whatever CI/worker ran, run it verbatim
    npm run build 2>&1 | tee /tmp/debug-output.txt
    # or: pytest tests/specific_test.py -v 2>&1 | tee /tmp/debug-output.txt
    ```
@@ -75,9 +66,7 @@ If a known pattern matches → jump directly to Step 4 (Fix), using the document
 
 ---
 
-## Step 3: Diagnose — Root Cause Analysis
-
-Work through these checks in order. Stop when you find the cause.
+## Step 3: Diagnose: Root Cause Analysis
 
 Work through the 6 diagnostic sub-checks in order (3a-3f). Stop when you find the cause.
 
@@ -94,7 +83,7 @@ If you cannot write a root cause sentence after 3a-3f, you do not have the root 
 
 ---
 
-## Step 4: Fix — Apply and Verify
+## Step 4: Fix: Apply and Verify
 
 ### Fix size determines approach
 
@@ -118,32 +107,22 @@ If you cannot write a root cause sentence after 3a-3f, you do not have the root 
 
 When creating a fix bead, the description must contain at minimum:
 
-1. **File scope** — exact file paths to modify
-2. **What to fix** — specific problem and root cause
-3. **Verification criteria** — runnable checks that prove the fix works
+1. **File scope**: exact file paths to modify
+2. **What to fix**: specific problem and root cause
+3. **Verification criteria**: runnable checks that prove the fix works
 
 Fix beads are exempt from the story context block requirement (they are reactive, not planned). But they must still have enough context for `beo-executing` to dispatch without guessing.
 
 If the fix is trivial (single-line change with obvious verification), inline the fix directly instead of creating a bead.
 
 **Decision violation** (CONTEXT.md decision ignored):
-- Do not silently fix — the decision may need to be revisited
-- Report via Agent Mail before implementing:
-  ```
-  send_message(
-    project_key: "<project-root-path>",
-    sender_name: "<agent-name>",
-    to: ["<COORDINATOR_AGENT_NAME>"],
-    thread_id: "<epic-thread-id>",
-    subject: "Decision violation found: <decision-id>",
-    body_md: "Bead <id> violated decision <D#>: <what was done vs what was decided>. Proposed fix: <approach>."
-  )
-  ```
+- Do not silently fix. The decision may need to be revisited.
+- Report via Agent Mail before implementing. Send message using the **decision-violation** template from `references/message-templates.md`.
 - Wait for response or implement the conservative fix (honor the locked decision)
 
 ### Verify the fix
 
-Run the exact command that originally failed. It must pass cleanly — not "mostly pass":
+Run the exact command that originally failed. It must pass cleanly, not "mostly pass":
 
 ```bash
 # Rerun original failing command
@@ -157,20 +136,11 @@ If verification fails → do not report success. Return to Step 3 with new infor
 
 ### Report the fix via Agent Mail
 
-```
-send_message(
-  project_key: "<project-root-path>",
-  sender_name: "<agent-name>",
-  to: ["<COORDINATOR_AGENT_NAME>"],
-  thread_id: "<epic-thread-id>",
-  subject: "Fix applied: <classification from Step 1>",
-  body_md: "Root cause: <sentence from 3f>. Fix: <what was changed>. Verification: passed."
-)
-```
+Send message using the **fix-applied** template from `references/message-templates.md`.
 
 ---
 
-## Step 5: Learn — Capture the Pattern
+## Step 5: Learn: Capture the Pattern
 
 ### If this is a new failure pattern
 
@@ -179,7 +149,7 @@ Write a debug note for compounding to capture:
 ```bash
 # Write to the feature's artifact directory
 cat >> .beads/artifacts/<feature-name>/debug-notes.md << 'EOF'
-## Debug Note: <date> — <classification>
+## Debug Note: <date> -- <classification>
 
 **Root cause**: <root cause sentence>
 **Trigger**: <what causes this>
@@ -199,10 +169,10 @@ Verify the existing advice still works:
 
 ```bash
 cat >> .beads/artifacts/<feature-name>/debug-notes.md << 'EOF'
-## Pattern Update Needed: <date> — <pattern name>
+## Pattern Update Needed: <date> -- <pattern name>
 
 **Existing pattern**: <name from critical-patterns.md>
-**Issue**: Resolution no longer accurate — <what changed>
+**Issue**: Resolution no longer accurate: <what changed>
 **Proposed update**: <corrected resolution>
 EOF
 ```
@@ -229,29 +199,9 @@ When a worker is stuck (cannot make progress, not a code error):
 2. Check file reservations via Agent Mail for conflicts
 3. Determine: is this **waiting for another worker** or **genuinely blocked**?
 
-**Waiting for another worker** → report to orchestrator and yield:
-```
-send_message(
-  project_key: "<project-root-path>",
-  sender_name: "<agent-name>",
-  to: ["<COORDINATOR_AGENT_NAME>"],
-  thread_id: "<epic-thread-id>",
-  subject: "Blocked: waiting on <bead-id>",
-  body_md: "<bead-id> cannot proceed until <dependency> completes. Pausing."
-)
-```
+**Waiting for another worker** → send message using the **blocked-waiting** template from `references/message-templates.md`, then yield.
 
-**Genuinely blocked** (circular dep, impossible constraint, conflicting decisions):
-```
-send_message(
-  project_key: "<project-root-path>",
-  sender_name: "<agent-name>",
-  to: ["<COORDINATOR_AGENT_NAME>"],
-  thread_id: "<epic-thread-id>",
-  subject: "Hard blocker: <description>",
-  body_md: "Cannot resolve: <what is impossible and why>. Options: <A> or <B>. Needs human decision."
-)
-```
+**Genuinely blocked** (circular dep, impossible constraint, conflicting decisions) → send message using the **hard-blocker** template from `references/message-templates.md`.
 
 Do not spin. One report, then pause and let the orchestrator escalate.
 
@@ -259,11 +209,11 @@ Do not spin. One report, then pause and let the orchestrator escalate.
 
 ## Red Flags
 
-- **Fixing symptoms, not root cause** — If the same error recurs after the fix, root cause was not found. Return to Step 3.
-- **Skipping reproduction** — Diagnosing from the error message alone leads to wrong fixes. Always reproduce first.
-- **Not checking critical-patterns.md** — Teams report that 30–40% of recurring failures are already documented. Check before investigating.
-- **Committing a fix without running verification** — The fix must be verified with the exact failing command, not a different test.
-- **Decision violation silently patched** — Violating a CONTEXT.md decision to make a test pass propagates the violation downstream. Always report and align first.
+- **Fixing symptoms, not root cause**: If the same error recurs after the fix, root cause was not found. Return to Step 3.
+- **Skipping reproduction**: Diagnosing from the error message alone leads to wrong fixes. Always reproduce first.
+- **Not checking critical-patterns.md**: Teams report that 30-40% of recurring failures are already documented. Check before investigating.
+- **Committing a fix without running verification**: The fix must be verified with the exact failing command, not a different test.
+- **Decision violation silently patched**: Violating a CONTEXT.md decision to make a test pass propagates the violation downstream. Always report and align first.
 
 ---
 
