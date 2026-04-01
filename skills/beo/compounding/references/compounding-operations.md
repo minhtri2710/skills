@@ -16,13 +16,13 @@ Detailed operational playbook for `beo-compounding`. Load this file when you nee
 Collect all available artifacts from the completed feature. Read these if present:
 
 ```text
-.beads/artifacts/<feature-name>/CONTEXT.md
-.beads/artifacts/<feature-name>/discovery.md
-.beads/artifacts/<feature-name>/plan.md
-.beads/artifacts/<feature-name>/phase-contract.md
-.beads/artifacts/<feature-name>/story-map.md
+.beads/artifacts/<feature_slug>/CONTEXT.md
+.beads/artifacts/<feature_slug>/discovery.md
+.beads/artifacts/<feature_slug>/plan.md
+.beads/artifacts/<feature_slug>/phase-contract.md
+.beads/artifacts/<feature_slug>/story-map.md
 .beads/review-findings.md
-.beads/artifacts/<feature-name>/debug-notes.md
+.beads/artifacts/<feature_slug>/debug-notes.md
 .beads/STATE.md or HANDOFF artifacts
 .beads/ or `br show` output
 ```
@@ -32,7 +32,7 @@ Missing files are skipped silently; compounding still works with partial context
 Get feature commit history:
 
 ```bash
-git log --oneline main..feature/<feature-name>
+git log --oneline main..feature/<feature_slug>
 # If already merged, use: git log --oneline --merges --grep="<feature-name>" main
 ```
 
@@ -40,28 +40,28 @@ If no history files exist, fall back to recent git diff and conversation/session
 
 ## 2. Three-Category Analysis
 
-Launch three subagents in parallel. Each writes to a staging file under `.beads/artifacts/<feature-name>/`.
+Launch three subagents in parallel. Each writes to a staging file under `.beads/artifacts/<feature_slug>/`.
 
 ### Agent 1: Pattern Extractor
 
 Task summary:
 - identify reusable code, architecture, process, and integration patterns
 - for each pattern, provide name, why it matters, first location, and `applicable-when`
-- write to `.beads/artifacts/<feature-name>/compounding-patterns.md`
+- write to `.beads/artifacts/<feature_slug>/compounding-patterns.md`
 
 ### Agent 2: Decision Analyst
 
 Task summary:
 - identify significant good calls, bad calls, surprises, and trade-offs
 - for each decision, describe what was chosen, how it played out, tag it, and recommend future handling
-- write to `.beads/artifacts/<feature-name>/compounding-decisions.md`
+- write to `.beads/artifacts/<feature_slug>/compounding-decisions.md`
 
 ### Agent 3: Failure Analyst
 
 Task summary:
 - identify failures, blockers, wasted effort, wrong assumptions, missing prerequisites, and test gaps
 - for each one, describe what went wrong, root cause, cost, and a prevention rule
-- write to `.beads/artifacts/<feature-name>/compounding-failures.md`
+- write to `.beads/artifacts/<feature_slug>/compounding-failures.md`
 
 Do not let subagents write the final learnings file. Only the orchestrator writes durable learnings.
 
@@ -70,9 +70,9 @@ Do not let subagents write the final learnings file. Only the orchestrator write
 ### Read the Staging Files
 
 ```text
-.beads/artifacts/<feature-name>/compounding-patterns.md
-.beads/artifacts/<feature-name>/compounding-decisions.md
-.beads/artifacts/<feature-name>/compounding-failures.md
+.beads/artifacts/<feature_slug>/compounding-patterns.md
+.beads/artifacts/<feature_slug>/compounding-decisions.md
+.beads/artifacts/<feature_slug>/compounding-failures.md
 ```
 
 ### Dedup Before Writing
@@ -183,7 +183,7 @@ Update `.beads/STATE.md`:
 ```markdown
 # Beo State
 - Phase: compounding → complete
-- Feature: <epic-id> (<feature-name>)
+- Feature: <epic-id> (<feature_slug>)
 - Tasks: N/A (post-execution skill)
 - Next: done (feature pipeline complete)
 

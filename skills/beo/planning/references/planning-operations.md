@@ -27,7 +27,7 @@ Before starting, verify:
 
 ```bash
 # CONTEXT.md must exist
-cat .beads/artifacts/<feature-name>/CONTEXT.md
+cat .beads/artifacts/<feature_slug>/CONTEXT.md
 
 # Epic must exist
 br show <EPIC_ID> --json
@@ -122,7 +122,7 @@ Do not use `phase-contract.md` as a whole-feature artifact when the feature is c
 Write `approach.md` to:
 
 ```bash
-# .beads/artifacts/<feature-name>/approach.md
+# .beads/artifacts/<feature_slug>/approach.md
 ```
 
 Use `approach-template.md`.
@@ -162,7 +162,7 @@ If `approach.md` is weak, do not compensate by overloading `plan.md`. Fix `appro
 Write `plan.md` to:
 
 ```bash
-# .beads/artifacts/<feature-name>/plan.md
+# .beads/artifacts/<feature_slug>/plan.md
 ```
 
 `plan.md` is the human-readable planning summary.
@@ -192,7 +192,7 @@ Only write `phase-plan.md` when planning mode is `multi-phase`.
 Write to:
 
 ```bash
-# .beads/artifacts/<feature-name>/phase-plan.md
+# .beads/artifacts/<feature_slug>/phase-plan.md
 ```
 
 Use `phase-plan-template.md`.
@@ -263,7 +263,7 @@ After `approach.md` is complete — and after `phase-plan.md` if multi-phase —
 Use `phase-contract-template.md` and write to:
 
 ```bash
-# .beads/artifacts/<feature-name>/phase-contract.md
+# .beads/artifacts/<feature_slug>/phase-contract.md
 ```
 
 `phase-contract.md` always describes the **current phase only**.
@@ -283,7 +283,7 @@ It must define:
 Use `story-map-template.md` and write to:
 
 ```bash
-# .beads/artifacts/<feature-name>/story-map.md
+# .beads/artifacts/<feature_slug>/story-map.md
 ```
 
 `story-map.md` maps the **current phase only**.
@@ -388,7 +388,7 @@ br dep add <TASK_B_ID> <TASK_A_ID>
 After bead creation, fill the `Story-To-Bead Mapping` section in:
 
 ```bash
-# .beads/artifacts/<feature-name>/story-map.md
+# .beads/artifacts/<feature_slug>/story-map.md
 ```
 
 ### Validate the Graph
@@ -454,7 +454,7 @@ Then append planning-specific fields.
 ### Minimum planning state fields
 
 - Phase: `planning → complete`
-- Feature: `<epic-id> (<feature-name>)`
+- Feature: `<epic-id> (<feature_slug>)`
 - Planning mode: `single-phase | multi-phase`
 - Has phase plan: `true | false`
 - Current phase: `<number or 1>`

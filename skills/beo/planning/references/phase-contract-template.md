@@ -4,9 +4,9 @@
 **Phase Slug**: <phase-slug>
 **Whole Plan Reference**: `<optional path or summary>`
 **Based on**:
-- `.beads/artifacts/<feature-name>/CONTEXT.md`
-- `.beads/artifacts/<feature-name>/discovery.md`
-- `.beads/artifacts/<feature-name>/plan.md`
+- `.beads/artifacts/<feature_slug>/CONTEXT.md`
+- `.beads/artifacts/<feature_slug>/discovery.md`
+- `.beads/artifacts/<feature_slug>/plan.md`
 
 ## Table of Contents
 

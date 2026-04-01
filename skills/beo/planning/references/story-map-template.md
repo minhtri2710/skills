@@ -1,8 +1,8 @@
 # Story Map: <Phase Name>
 
 **Date**: <YYYY-MM-DD>
-**Phase Contract**: `.beads/artifacts/<feature-name>/phase-contract.md`
-**Approach Reference**: `.beads/artifacts/<feature-name>/plan.md`
+**Phase Contract**: `.beads/artifacts/<feature_slug>/phase-contract.md`
+**Approach Reference**: `.beads/artifacts/<feature_slug>/plan.md`
 
 ## Table of Contents
 

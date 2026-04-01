@@ -3,10 +3,9 @@ name: beo-router
 description: >-
   Use whenever a beo session is starting, resuming, recovering from interruption,
   checking status, deciding what to do next, or when the correct beo skill is
-  not obvious. This is the default bootstrap and routing entry point for the beo
-  pipeline. Use first for prompts like "continue", "resume", "what's next?",
-  "status?", "pick this back up", "where are we?", or any new feature request
-  where the current phase is unclear.
+  not obvious. Use first for prompts like "continue", "resume", "what's
+  next?", "status?", "pick this back up", "where are we?", or any new
+  feature request where the current phase is unclear.
 ---
 
 # Beo Router
@@ -41,8 +40,10 @@ Reach for `references/router-operations.md` when you need the exact command sequ
 
 ## Router Default Rule
 
+<HARD-GATE>
 If the current pipeline phase is unclear, use `beo-router` before loading any other beo skill.
 Do not guess the phase from memory, partial artifacts, or the last conversational turn alone.
+</HARD-GATE>
 
 ## Minimal Bootstrap Fallback
 
@@ -68,6 +69,7 @@ If router reference files are unavailable, do the minimum safe sequence manually
 | 9 | `beo-debugging` | Root-cause analysis for blocked beads and execution failures | Agent stuck, bead blocked, unexpected error |
 | 10 | `beo-dream` | Periodic consolidation of learnings across features | Learnings stale (>30 days or 3+ since last) |
 | 11 | `beo-writing-skills` | TDD-for-skills: create and pressure-test beo skills | Improving or creating beo skills |
+| 12 | `beo-reference` | Shared CLI reference, status mapping, approval gates, artifact protocol | Any skill needs canonical lookup tables |
 
 ## Phase 0: Workspace Bootstrap
 
@@ -137,26 +139,35 @@ br ready --json
 br blocked --json
 
 # Check planning artifacts exist
-cat .beads/artifacts/<feature-name>/CONTEXT.md 2>/dev/null
-cat .beads/artifacts/<feature-name>/discovery.md 2>/dev/null
-cat .beads/artifacts/<feature-name>/approach.md 2>/dev/null
-cat .beads/artifacts/<feature-name>/phase-plan.md 2>/dev/null
-cat .beads/artifacts/<feature-name>/phase-contract.md 2>/dev/null
-cat .beads/artifacts/<feature-name>/story-map.md 2>/dev/null
+cat .beads/artifacts/<feature_slug>/CONTEXT.md 2>/dev/null
+cat .beads/artifacts/<feature_slug>/discovery.md 2>/dev/null
+cat .beads/artifacts/<feature_slug>/approach.md 2>/dev/null
+cat .beads/artifacts/<feature_slug>/phase-plan.md 2>/dev/null
+cat .beads/artifacts/<feature_slug>/phase-contract.md 2>/dev/null
+cat .beads/artifacts/<feature_slug>/story-map.md 2>/dev/null
 ```
 
 ### Step 4: Classify Feature State
 
-See `references/state-routing.md` for the full routing table. At minimum, distinguish these practical states:
+See `references/state-routing.md` for the canonical routing table sourced from `../reference/references/pipeline-contracts.md`. Use those canonical state names when reporting or checkpointing state; do not invent ad-hoc labels.
 
-- `context_locked_needs_planning`
-- `approach_ready_needs_phase_decision`
-- `phase_plan_ready_needs_current_phase_validation`
-- `current_phase_planned`
-- `current_phase_in_execution`
-- `current_phase_complete_more_phases_remain`
-- `final_phase_complete_ready_for_review`
-- `feature_complete`
+In normal feature flow, the most common canonical states are:
+
+- `meta-skill`
+- `needs-debugging`
+- `blocked`
+- `exploring`
+- `planning-needs-approach`
+- `planning-current-phase`
+- `ready-to-validate`
+- `ready-to-execute`
+- `ready-to-swarm`
+- `executing`
+- `ready-to-review`
+- `partial-completion`
+- `learnings-pending`
+- `completed`
+- `consolidation-due`
 
 If `phase-plan.md` exists, treat `phase-contract.md` and `story-map.md` as **current-phase** artifacts, not whole-feature artifacts.
 
@@ -242,7 +253,10 @@ Load `references/router-operations.md` for the exact doctor-mode commands and di
 
 ## Context Budget
 
+<HARD-GATE>
 If context usage exceeds 65%, use `../reference/references/state-and-handoff-protocol.md` for the canonical `HANDOFF.json` shape, then add any router-specific resume detail you need before pausing.
+Do not continue burning context once the checkpoint threshold is crossed.
+</HARD-GATE>
 
 ## Skill Routing Quick Reference
 
@@ -275,7 +289,9 @@ These override all other routing and execution decisions:
 3. **CONTEXT.md is the source of truth.** If implementation diverges from a locked decision in CONTEXT.md, stop and surface the conflict before proceeding.
 4. **Gate 2 (post-validating) is the most critical gate.** Execution is irreversible at scale. If there is any doubt about the plan's soundness, do not approve; loop back to validating.
 5. **Spike failures halt the pipeline.** A failed spike means the approach is broken. Do not proceed to swarming; return to planning.
+<HARD-GATE>
 6. **Never skip validating.** Not for small features. Not for "obvious" plans. Skipping validating is the #1 cause of wasted execution work.
+</HARD-GATE>
 7. **critical-patterns.md is mandatory context.** If it exists, read it before planning or executing. Ignoring past critical patterns is the #1 source of repeat failures.
 8. **Current-phase completion is not whole-feature completion for multi-phase work.** If `phase-plan.md` exists and later phases remain, route back to `beo-planning` instead of jumping to final review.
 

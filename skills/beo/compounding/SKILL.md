@@ -1,10 +1,8 @@
 ---
 name: beo-compounding
 description: >-
-  Use after reviewing completes and a feature is effectively finished. Extracts
-  reusable patterns, decisions, surprises, and failures from the completed work,
-  writes a learnings entry, and proposes critical promotions when warranted. Use
-  for prompts like "what did we learn?", "capture learnings", "document what we
+  Use after reviewing completes and a feature is effectively finished. Use for
+  prompts like "what did we learn?", "capture learnings", "document what we
   found", "compound this work", or whenever a finished feature should improve
   future work instead of ending as isolated effort.
 ---
@@ -31,7 +29,9 @@ Load `references/compounding-operations.md` for the exact artifact collection se
 
 Load `references/compounding-operations.md` for the exact three-agent analysis split, staging-file targets, and subagent task summaries.
 
+<HARD-GATE>
 Do NOT have subagents write the final learnings file; only the orchestrator writes that.
+</HARD-GATE>
 
 ---
 
@@ -55,7 +55,9 @@ One learnings file per feature. Group related findings within that file; do NOT 
 
 For every `severity: critical` learning, load `references/compounding-operations.md` for the exact promotion criteria, approval gate, append format, and post-promotion refresh flow.
 
+<HARD-GATE>
 Never auto-append to `critical-patterns.md`; use the canonical approval rule from `../reference/references/approval-gates.md`.
+</HARD-GATE>
 
 ---
 
@@ -111,6 +113,13 @@ file with 2 genuine entries is better than a long file with invented ones.
 ## Context Budget
 
 If context usage exceeds 65%, load `references/compounding-operations.md` and follow the checkpoint procedure exactly.
+
+## Anti-Patterns
+
+- Letting subagents author the final learnings file instead of using them as staging-only analyzers
+- Promoting local, feature-specific notes to `critical-patterns.md` without proving broad reuse value
+- Splitting one feature's learnings across multiple files instead of keeping one coherent feature record
+- Rewriting history to sound more insightful than the actual evidence supports
 
 ---
 

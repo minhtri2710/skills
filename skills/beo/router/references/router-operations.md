@@ -71,7 +71,7 @@ br label add <EPIC_ID> -l approved
 ### Create Minimal Artifacts
 
 ```bash
-mkdir -p .beads/artifacts/<feature-name>
+mkdir -p .beads/artifacts/<feature_slug>
 ```
 
 Write these minimal stubs with file editing tools:
@@ -82,7 +82,7 @@ Write these minimal stubs with file editing tools:
 # Feature: <name>
 
 ## Request
-<user request>
+<Sanitized summary of the request in your own words. Redact or omit secrets, credentials, tokens, cookies, connection strings, private URLs, and long pasted payloads/logs. Use placeholders such as [REDACTED_SECRET] when needed.>
 
 ## Locked Decisions
 Instant-path: no exploration needed.

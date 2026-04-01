@@ -43,4 +43,4 @@ Combine research into a discovery summary:
 - What constraints apply (limits)
 - What external factors matter (dependencies)
 
-Write findings to `.beads/artifacts/<feature-name>/discovery.md`.
+Write findings to `.beads/artifacts/<feature_slug>/discovery.md`.

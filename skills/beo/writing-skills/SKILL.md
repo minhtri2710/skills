@@ -14,10 +14,13 @@ description: >-
 
 Skills are code. They have bugs. Test them before deploying.
 
-This is the TDD-for-skills methodology adapted from Superpowers (N=28,000 scale testing confirms persuasion-optimized skills produce 3-4x better agent compliance than plain instructions).
+This skill teaches a strict test-first workflow for beo skills. Keep the language firm where skipping tests reliably causes failures, but avoid unsupported claims or manipulative framing.
 
-**THE IRON LAW: NO SKILL WITHOUT A FAILING TEST FIRST.**
-Write skill before testing? Delete it. Start over. No exceptions. Not for "simple additions," not for "just a section," not for "reference only."
+<HARD-GATE>
+Do not ship or substantially revise a beo skill without a failing pressure test first.
+</HARD-GATE>
+
+If you catch yourself writing skill content before pressure testing, stop, define the failure case, and restart from the RED phase.
 
 ## The Core Cycle: RED -> GREEN -> REFACTOR
 
@@ -33,7 +36,9 @@ Write skill before testing? Delete it. Start over. No exceptions. Not for "simpl
 
 ## PHASE 1: RED: Write the Failing Test
 
-**HARD-GATE: Do not write any skill content until you complete this phase.**
+<HARD-GATE>
+Do not write any skill content until you complete this phase.
+</HARD-GATE>
 
 ### Minimum Pressure-Test Set
 
@@ -68,10 +73,10 @@ Use `references/writing-skills-operations.md` for the exact rerun and validation
 
 **SKILL.md checklist:**
 - [ ] YAML frontmatter starts on line 1 (`---`)
-- [ ] `name`: letters/numbers/hyphens/slashes only, matches directory path
+- [ ] `name`: letters, numbers, and hyphens only; matches directory path
 - [ ] `description`: starts with "Use when...", **triggering conditions ONLY, no workflow summary**
 - [ ] Description is third-person, <=1024 chars
-- [ ] Body < 400 lines (move details to `references/`)
+- [ ] Body preferably <400 lines and always keep repo guidance in mind (<500 absolute ceiling); move details to `references/` before the skill becomes bloated
 - [ ] Uses persuasion principles (see table below)
 - [ ] HARD-GATE markers on critical stops
 - [ ] `references/` files never nested more than one level deep
@@ -140,7 +145,7 @@ Use `references/writing-skills-operations.md` for the validation command and doc
 | "It's so simple it can't have bugs" | Every untested skill has issues. Test takes 30 minutes. |
 | "Academic questions passed, that's sufficient" | Reading a skill != using a skill under pressure. Test application scenarios. |
 | "My description summarizes the workflow so agents know what to do" | Workflow-summary descriptions cause agents to skip the skill body. Remove it. |
-| "This edit is minor, testing isn't needed" | The Iron Law applies to edits. No exceptions. |
+| "This edit is minor, testing isn't needed" | The test-first rule still applies to edits; run the failing scenario first. |
 | "I'll test it after a few real uses" | Problems = agents misuse in production. Test BEFORE deploying. |
 | "The baseline is obvious, I know what failures to expect" | You know YOUR failures. Agent failures differ. Run the baseline. |
 

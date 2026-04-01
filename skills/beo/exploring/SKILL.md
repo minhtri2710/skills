@@ -2,10 +2,9 @@
 name: beo-exploring
 description: >-
   Use before any non-instant feature work, refactor, behavior change, or
-  requirements-shaping conversation where user intent is not yet locked.
-  Extracts and confirms the decisions that planning will depend on, especially
-  when the user knows what they want but has not fully thought through edge
-  cases, scope boundaries, or expected behavior. Output is CONTEXT.md.
+  requirements-shaping conversation where user intent is not yet locked,
+  especially when the user knows what they want but has not fully thought
+  through edge cases, scope boundaries, or expected behavior.
 ---
 
 # Beo Exploring
@@ -47,7 +46,7 @@ Before asking any questions, check what already exists:
 
 ```bash
 # Check for existing CONTEXT.md
-cat .beads/artifacts/<feature-name>/CONTEXT.md 2>/dev/null
+cat .beads/artifacts/<feature_slug>/CONTEXT.md 2>/dev/null
 
 # Check the epic bead for existing description
 br show <EPIC_ID> --json
@@ -157,13 +156,20 @@ If you cannot check all three boxes, keep asking. Do not proceed to Phase 3.
 
 Write the CONTEXT.md file with all locked decisions.
 
+<HARD-GATE>
+Never copy the user's request verbatim into `CONTEXT.md` or any other artifact.
+The `## Request` section must be a sanitized paraphrase in your own words.
+Redact or omit secrets, credentials, API keys, tokens, cookies, connection strings, private URLs, and long pasted payloads/logs.
+If a sensitive literal matters for implementation, replace it with a stable placeholder such as `[REDACTED_API_KEY]` and note that sensitive material was removed.
+</HARD-GATE>
+
 ### CONTEXT.md Structure
 
 ```markdown
 # Feature: <feature-name>
 
 ## Request
-<Original user request, quoted verbatim>
+<Sanitized summary of the user's request in your own words. Redact or omit secrets, credentials, tokens, cookies, connection strings, private URLs, and long pasted payloads/logs. If sensitive values matter, replace them with placeholders such as [REDACTED_API_KEY].>
 
 ## Scope Classification
 - Complexity: <quick/standard/deep>
@@ -194,7 +200,7 @@ Write the CONTEXT.md file with all locked decisions.
 
 ```bash
 # Create the artifacts directory
-mkdir -p .beads/artifacts/<feature-name>
+mkdir -p .beads/artifacts/<feature_slug>
 
 # Write CONTEXT.md (use your file editing tools)
 ```
@@ -226,7 +232,7 @@ Write `.beads/STATE.md`:
 ```markdown
 # Beo State
 - Phase: exploring → complete
-- Feature: <epic-id> (<feature-name>)
+- Feature: <epic-id> (<feature_slug>)
 - Tasks: 0 (exploring does not create tasks)
 - Next: beo-planning
 
@@ -258,6 +264,7 @@ If context usage exceeds 65%, use `../reference/references/state-and-handoff-pro
 | **Accepting "I don't care"** | Propose a concrete default instead |
 | **Skipping gray areas** | Every feature has at least 2 gray areas |
 | **Writing CONTEXT.md before decisions are locked** | Decisions first, document second |
+| **Copying raw user input into artifacts** | Can reproduce secrets or other sensitive data | Summarize in your own words and redact sensitive literals |
 | **Spending >15 min on one question** | If it's that complex, lock what you can and mark the rest as an open question for planning |
 
 ## Anti-Patterns

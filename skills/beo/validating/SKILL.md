@@ -46,12 +46,12 @@ Default checks:
 ```bash
 br show <EPIC_ID> --json
 br dep list <EPIC_ID> --direction up --type parent-child --json
-cat .beads/artifacts/<feature-name>/CONTEXT.md 2>/dev/null
-cat .beads/artifacts/<feature-name>/approach.md 2>/dev/null
-cat .beads/artifacts/<feature-name>/plan.md 2>/dev/null
-cat .beads/artifacts/<feature-name>/phase-plan.md 2>/dev/null
-cat .beads/artifacts/<feature-name>/phase-contract.md 2>/dev/null
-cat .beads/artifacts/<feature-name>/story-map.md 2>/dev/null
+cat .beads/artifacts/<feature_slug>/CONTEXT.md 2>/dev/null
+cat .beads/artifacts/<feature_slug>/approach.md 2>/dev/null
+cat .beads/artifacts/<feature_slug>/plan.md 2>/dev/null
+cat .beads/artifacts/<feature_slug>/phase-plan.md 2>/dev/null
+cat .beads/artifacts/<feature_slug>/phase-contract.md 2>/dev/null
+cat .beads/artifacts/<feature_slug>/story-map.md 2>/dev/null
 ```
 
 <HARD-GATE>

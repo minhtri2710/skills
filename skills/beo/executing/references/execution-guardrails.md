@@ -8,16 +8,16 @@ If you detect that context has been compacted (prior conversation is summarized)
 
 1. Re-read CONTEXT.md:
    ```bash
-   cat .beads/artifacts/<feature-name>/CONTEXT.md
+   cat .beads/artifacts/<feature_slug>/CONTEXT.md
    ```
 2. Re-read the plan:
    ```bash
-   cat .beads/artifacts/<feature-name>/plan.md
+   cat .beads/artifacts/<feature_slug>/plan.md
    ```
 3. Re-read phase context:
    ```bash
-   cat .beads/artifacts/<feature-name>/phase-contract.md
-   cat .beads/artifacts/<feature-name>/story-map.md
+   cat .beads/artifacts/<feature_slug>/phase-contract.md
+   cat .beads/artifacts/<feature_slug>/story-map.md
    ```
 4. Re-read current task state:
    ```bash

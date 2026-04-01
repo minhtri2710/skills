@@ -3,10 +3,8 @@ name: beo-reviewing
 description: >-
   Use after the final approved execution scope is complete, or when the user asks
   whether a feature is done, ready to ship, safe to merge, or needs a quality
-  check. Runs the post-execution quality gate: specialist review, artifact
-  verification, and human UAT against locked decisions and the final exit state.
-  Use for prompts like "review this feature", "is this done?", "can we ship
-  this?", "double-check the implementation", or "run UAT".
+  check. Use for prompts like "review this feature", "is this done?", "can we
+  ship this?", "double-check the implementation", or "run UAT".
 ---
 
 # Beo Reviewing
@@ -43,11 +41,11 @@ Default checks:
 
 ```bash
 br dep list <EPIC_ID> --direction up --type parent-child --json
-cat .beads/artifacts/<feature-name>/CONTEXT.md 2>/dev/null
-cat .beads/artifacts/<feature-name>/approach.md 2>/dev/null
-cat .beads/artifacts/<feature-name>/phase-plan.md 2>/dev/null
-cat .beads/artifacts/<feature-name>/phase-contract.md 2>/dev/null
-cat .beads/artifacts/<feature-name>/story-map.md 2>/dev/null
+cat .beads/artifacts/<feature_slug>/CONTEXT.md 2>/dev/null
+cat .beads/artifacts/<feature_slug>/approach.md 2>/dev/null
+cat .beads/artifacts/<feature_slug>/phase-plan.md 2>/dev/null
+cat .beads/artifacts/<feature_slug>/phase-contract.md 2>/dev/null
+cat .beads/artifacts/<feature_slug>/story-map.md 2>/dev/null
 ```
 
 Load `references/reviewing-operations.md` for the exact prerequisite checks, isolated review inputs, and finishing prerequisites.

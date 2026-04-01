@@ -18,10 +18,10 @@ Every skill in the beo pipeline reads from or writes to these paths.
 All feature artifacts live under:
 
 ```text
-.beads/artifacts/<feature-name>/
+.beads/artifacts/<feature_slug>/
 ```
 
-`<feature-name>` is the immutable `feature_slug` created by the router.
+`<feature_slug>` is the immutable slug created by the router.
 
 See `pipeline-contracts.md` → Feature Slug for derivation rules.
 

@@ -2,9 +2,8 @@
 name: beo-planning
 description: >-
   Use after exploring completes or whenever a feature already has locked
-  requirements and now needs research, synthesis, phase definition, story
-  mapping, and executable task beads. Use for prompts like "plan this",
-  "break this into tasks", "decompose this work", "map the stories",
+  requirements and needs implementation planning. Use for prompts like "plan
+  this", "break this into tasks", "decompose this work", "map the stories",
   "research and plan", or "turn this into beads" before implementation
   begins.
 ---
@@ -128,7 +127,7 @@ Current phase contract and story map describe only Phase 1 until that phase is c
 Default checks:
 
 ```bash
-cat .beads/artifacts/<feature-name>/CONTEXT.md 2>/dev/null
+cat .beads/artifacts/<feature_slug>/CONTEXT.md 2>/dev/null
 br show <EPIC_ID> --json
 cat .beads/critical-patterns.md 2>/dev/null
 ```
@@ -160,7 +159,7 @@ Relevant learnings must influence both the chosen implementation approach and an
 
 ## Phase 1: Discovery
 
-Goal-oriented research to understand the implementation landscape. Launch 2-4 parallel research subagents (Architecture, Pattern, Constraint, External) when the feature is broad enough to benefit from parallel discovery; otherwise research inline. Synthesize findings into `.beads/artifacts/<feature-name>/discovery.md`.
+Goal-oriented research to understand the implementation landscape. Launch 2-4 parallel research subagents (Architecture, Pattern, Constraint, External) when the feature is broad enough to benefit from parallel discovery; otherwise research inline. Synthesize findings into `.beads/artifacts/<feature_slug>/discovery.md`.
 
 See `references/discovery-guide.md` for detailed agent descriptions and synthesis format.
 
@@ -168,7 +167,7 @@ Discovery findings are inputs to `approach.md`; they are not the final plan by t
 
 ## Phase 2: Approach Synthesis
 
-Write `.beads/artifacts/<feature-name>/approach.md`.
+Write `.beads/artifacts/<feature_slug>/approach.md`.
 
 This artifact explains:
 
@@ -187,7 +186,7 @@ Use `references/approach-template.md`.
 
 ## Phase 3: Whole-Feature Phase Planning (Optional but Required for Multi-Phase Work)
 
-If the feature is multi-phase, write `.beads/artifacts/<feature-name>/phase-plan.md`.
+If the feature is multi-phase, write `.beads/artifacts/<feature_slug>/phase-plan.md`.
 
 The phase plan must explain:
 
@@ -230,7 +229,7 @@ If the user is confused or hesitant, tighten the phase framing first: revise `ph
 
 Before creating beads, define the current phase as a closed loop.
 
-Write to `.beads/artifacts/<feature-name>/phase-contract.md` using `references/phase-contract-template.md`.
+Write to `.beads/artifacts/<feature_slug>/phase-contract.md` using `references/phase-contract-template.md`.
 
 `phase-contract.md` always describes the current phase being prepared now, not the whole feature.
 
@@ -262,7 +261,7 @@ If a draft exists but the exit state is vague, fix the contract instead of pushi
 
 Break the current phase into **Stories**, not "plans inside a phase."
 
-Write to `.beads/artifacts/<feature-name>/story-map.md` using `references/story-map-template.md`.
+Write to `.beads/artifacts/<feature_slug>/story-map.md` using `references/story-map-template.md`.
 
 `story-map.md` maps the internal narrative of the current phase only.
 If later phases exist, they remain deferred in `phase-plan.md`.
@@ -320,3 +319,11 @@ See `references/bead-creation-guide.md` for decomposition rules. Key points: one
 
 For multi-phase work, create beads for the current phase only.
 Do not pre-create execution beads for future phases in this planning model.
+
+## Context Budget
+
+If context usage exceeds 65%, use `../reference/references/state-and-handoff-protocol.md` for the canonical `STATE.md` and `HANDOFF.json` shapes, then checkpoint the planning mode, current-phase selection, and artifact completeness before pausing.
+
+## Red Flags & Anti-Patterns
+
+See `references/planning-guardrails.md` for the full red-flags and anti-patterns tables.

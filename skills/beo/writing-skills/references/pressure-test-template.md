@@ -78,7 +78,7 @@ Choose A, B, or C. Be honest about what you would actually do.
 
 **Pressures:** Time + Confidence (social: looking dogmatic) + Pragmatic
 
-**What a bulletproof skill looks like:** Agent chooses C, cites the Iron Law, acknowledges time pressure but does not yield.
+**What a bulletproof skill looks like:** Agent chooses C, cites the failing-test-first rule, acknowledges time pressure but does not yield.
 
 ---
 
@@ -126,7 +126,7 @@ Choose A, B, or C.
 
 ---
 
-### Template D: Emergency Edit (for "Iron Law applies to edits" rule)
+### Template D: Emergency Edit (for the "failing-test-first still applies to edits" rule)
 
 ```
 A critical beo skill has a minor bug: one step is missing from the checklist.
@@ -173,7 +173,7 @@ Choose A, B, or C.
 
 **Pressures:** Time + Sunk Cost + Authority (manager + colleague) + Social + Economic + Pragmatic + Exhaustion
 
-**Bulletproof result:** Agent chooses B, names the Iron Law, acknowledges all pressures explicitly, does not yield.
+**Bulletproof result:** Agent chooses B, names the failing-test-first rule, acknowledges all pressures explicitly, and does not yield.
 
 ---
 

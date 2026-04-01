@@ -6,23 +6,23 @@ Go mode chains all skills end-to-end with exactly **3 human gates**. No phase is
 
 **The 3 gates (never skip these):**
 
-```
+<HARD-GATE>
 GATE 1 (after exploring):
-  Present .beads/artifacts/<feature-name>/CONTEXT.md to user.
+  Present .beads/artifacts/<feature_slug>/CONTEXT.md to user.
   Ask: "Decisions locked. Approve CONTEXT.md before planning?"
-  HARD-GATE: do not invoke planning until user approves.
+  Do not invoke planning until user approves.
 
 GATE 2 (after validating):
   Present: phase exit state, story count, bead count, risk summary, spike results.
   Ask: "Phase verified. Approve execution?"
-  HARD-GATE: do not invoke swarming/executing until user approves.
+  Do not invoke swarming/executing until user approves.
 
 GATE 3 (after reviewing):
   Present: P1 count, P2 count, P3 count.
   If P1 > 0: "P1 findings block merge. Fix before proceeding?"
   If P1 = 0: "Review complete. Approve close?"
-  HARD-GATE: do not close epic until user responds.
-```
+  Do not close epic until user responds.
+</HARD-GATE>
 
 **Go mode sequence:**
 ```

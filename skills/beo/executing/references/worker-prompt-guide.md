@@ -58,23 +58,23 @@ br show <TASK_ID> --json
 # Extract: .description field
 
 # Get strategy context
-cat .beads/artifacts/<feature-name>/approach.md 2>/dev/null
+cat .beads/artifacts/<feature_slug>/approach.md 2>/dev/null
 # Extract: recommended approach, planning mode, relevant constraints/risks
 
 # Get plan summary
-cat .beads/artifacts/<feature-name>/plan.md
+cat .beads/artifacts/<feature_slug>/plan.md
 # Extract: only the summary relevant to this task's place in the current phase
 
 # Get phase exit state
-cat .beads/artifacts/<feature-name>/phase-contract.md
+cat .beads/artifacts/<feature_slug>/phase-contract.md
 # Extract: Exit State section
 
 # Get story context
-cat .beads/artifacts/<feature-name>/story-map.md
+cat .beads/artifacts/<feature_slug>/story-map.md
 # Extract: story details for the story this bead belongs to
 
 # Get CONTEXT.md
-cat .beads/artifacts/<feature-name>/CONTEXT.md
+cat .beads/artifacts/<feature_slug>/CONTEXT.md
 
 # Get completed dependency task summaries
 br dep list <TASK_ID> --direction down --type blocks --json

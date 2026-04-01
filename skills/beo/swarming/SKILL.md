@@ -2,11 +2,9 @@
 name: beo-swarming
 description: >-
   Use when an approved current phase has 3 or more independent ready tasks and
-  parallel execution will materially reduce cycle time. Orchestrates bounded
-  workers, monitors blockers and file conflicts, coordinates rescues, and hands
-  off to planning or reviewing when the current execution scope is complete.
-  Use for prompts about swarming, parallel workers, launching multiple agents,
-  coordinating a worker pool, or running approved current-phase work at scale.
+  parallel execution will materially reduce cycle time. Use for prompts about
+  swarming, parallel workers, launching multiple agents, coordinating a worker
+  pool, or running approved current-phase work at scale.
 ---
 
 # Swarming
@@ -14,6 +12,10 @@ description: >-
 ## Role Boundary: Read First
 
 You are the **ORCHESTRATOR**. You launch workers, monitor coordination, handle escalations, and keep the swarm moving. You do NOT implement beads. If you find yourself editing source files, stop immediately. That is the `beo-executing` skill's job.
+
+<HARD-GATE>
+If you are editing source code, stop immediately and route that work to `beo-executing`.
+</HARD-GATE>
 
 - **beo-swarming** = launches and tends workers (this skill)
 - **beo-executing** = each worker's self-routing implementation loop
@@ -92,6 +94,12 @@ Load `references/swarming-operations.md` for the exact completion checks, planni
 
 ---
 
+## Context Budget
+
+If context usage exceeds 65%, use `../reference/references/state-and-handoff-protocol.md` for the canonical `STATE.md` and `HANDOFF.json` shapes, then checkpoint active workers, reservations, blockers, and the current planning-aware route state.
+
+---
+
 ## Red Flags
 
 Stop and diagnose before continuing if you see:
@@ -104,6 +112,13 @@ Stop and diagnose before continuing if you see:
 - **Workers stop using the live graph and start freelancing**: re-broadcast the execution contract
 - **Build/test failures accumulate without intervention**: create fix beads or stop and escalate
 - **Current phase completes but later phases remain** and you route directly to final review: planning-aware routing failure
+
+## Anti-Patterns
+
+- Treating the orchestrator like an extra implementation worker instead of a coordination role
+- Spawning more workers than independent ready tracks can safely support
+- Letting file-conflict hotspots persist instead of reducing concurrency or clarifying ownership
+- Assuming quiet workers are healthy without checking Agent Mail and the live bead graph
 
 ---
 

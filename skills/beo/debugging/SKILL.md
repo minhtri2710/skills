@@ -4,8 +4,7 @@ description: >-
   Use when a bead is blocked or when a build, test, runtime, integration, or
   worker-execution failure needs root-cause analysis. Also use when the user
   asks why something is failing, stuck, flaky, blocked, or repeatedly
-  regressing. Reproduces the issue, diagnoses the cause, applies a direct fix or
-  fix bead, and records reusable debug notes instead of guessing.
+  regressing.
 ---
 
 # Debugging
@@ -83,6 +82,15 @@ Load `references/debugging-operations.md` for the exact blocker protocol and mes
 ## Context Budget
 
 If context usage exceeds 65%, use `references/debugging-operations.md` together with `../reference/references/state-and-handoff-protocol.md` for the canonical checkpoint behavior.
+
+---
+
+## Anti-Patterns
+
+- Jumping straight from symptoms to a fix without reproducing the failure
+- Calling something the root cause when it is only the first visible error in the chain
+- Applying a local patch that violates `CONTEXT.md` decisions just to get green output
+- Treating blocked work as "someone else's problem" without classifying and reporting it cleanly
 
 ---
 

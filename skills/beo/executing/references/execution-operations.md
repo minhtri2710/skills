@@ -231,7 +231,7 @@ Update `.beads/STATE.md`:
 ```markdown
 # Beo State
 - Phase: executing → complete
-- Feature: <epic-id> (<feature-name>)
+- Feature: <epic-id> (<feature_slug>)
 - Tasks: <total> completed, <blocked> blocked, <failed> failed
 - Next: <beo-reviewing | beo-planning>
 

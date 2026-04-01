@@ -25,7 +25,7 @@ Every skill must write this header in this exact order:
 ```markdown
 # Beo State
 - Phase: <skill-name> → <status>
-- Feature: <epic-id> (<feature-name>)
+- Feature: <epic-id> (<feature_slug>)
 - Tasks: <summary relevant to current phase>
 - Next: <next skill or action>
 ```

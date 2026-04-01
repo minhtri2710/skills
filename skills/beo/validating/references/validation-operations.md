@@ -24,23 +24,23 @@ br show <EPIC_ID> --json
 br dep list <EPIC_ID> --direction up --type parent-child --json
 
 # CONTEXT.md exists
-cat .beads/artifacts/<feature-name>/CONTEXT.md
+cat .beads/artifacts/<feature_slug>/CONTEXT.md
 
 # discovery.md exists
-cat .beads/artifacts/<feature-name>/discovery.md 2>/dev/null
+cat .beads/artifacts/<feature_slug>/discovery.md 2>/dev/null
 
 # approach.md exists
-cat .beads/artifacts/<feature-name>/approach.md
+cat .beads/artifacts/<feature_slug>/approach.md
 
 # plan.md exists
-cat .beads/artifacts/<feature-name>/plan.md
+cat .beads/artifacts/<feature_slug>/plan.md
 
 # phase-plan.md is optional
-cat .beads/artifacts/<feature-name>/phase-plan.md 2>/dev/null
+cat .beads/artifacts/<feature_slug>/phase-plan.md 2>/dev/null
 
 # current-phase artifacts exist
-cat .beads/artifacts/<feature-name>/phase-contract.md
-cat .beads/artifacts/<feature-name>/story-map.md
+cat .beads/artifacts/<feature_slug>/phase-contract.md
+cat .beads/artifacts/<feature_slug>/story-map.md
 ```
 
 Stop and route back to `beo-planning` if tasks, `approach.md`, `phase-contract.md`, or `story-map.md` are missing.

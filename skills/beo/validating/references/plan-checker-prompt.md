@@ -28,11 +28,11 @@ You do not implement anything. You do not praise the plan. You verify structural
 You receive:
 
 - all task bead descriptions for this epic (via `br show <TASK_ID> --json` for each task under the epic)
-- `.beads/artifacts/<feature-name>/CONTEXT.md`
-- `.beads/artifacts/<feature-name>/discovery.md`
-- `.beads/artifacts/<feature-name>/plan.md`
-- `.beads/artifacts/<feature-name>/phase-contract.md`
-- `.beads/artifacts/<feature-name>/story-map.md`
+- `.beads/artifacts/<feature_slug>/CONTEXT.md`
+- `.beads/artifacts/<feature_slug>/discovery.md`
+- `.beads/artifacts/<feature_slug>/plan.md`
+- `.beads/artifacts/<feature_slug>/phase-contract.md`
+- `.beads/artifacts/<feature_slug>/story-map.md`
 
 Read all inputs in full before verifying.
 

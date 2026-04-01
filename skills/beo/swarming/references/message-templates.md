@@ -289,7 +289,7 @@ The swarming HANDOFF extends the base schema (first 8 fields) with swarm-specifi
   "phase": "swarming",
   "skill": "beo-swarming",
   "feature": "<EPIC_ID>",
-  "feature_name": "<feature-name>",
+  "feature_name": "<feature_slug>",
   "next_action": "Resume swarm: poll epic thread, inspect live graph",
   "in_flight_beads": ["<bead-ids-in-progress>"],
   "timestamp": "<ISO-8601 timestamp>",
@@ -302,7 +302,7 @@ The swarming HANDOFF extends the base schema (first 8 fields) with swarm-specifi
   },
   "swarm": {
     "epic_id": "<EPIC_ID>",
-    "feature_name": "<feature-name>",
+    "feature_name": "<feature_slug>",
     "project_key": "<project-root-path>"
   },
   "graph_status": {

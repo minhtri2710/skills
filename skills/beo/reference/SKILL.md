@@ -69,3 +69,11 @@ When a feature is multi-phase, use the shared references to avoid treating curre
 | Integrate with knowledge store | `references/knowledge-store.md` |
 | Locate pipeline artifacts and state files | `references/file-conventions.md` |
 | State routing, HANDOFF schema, label lifecycle, task enumeration | `references/pipeline-contracts.md` |
+
+## Context Budget
+
+This hub skill is low-overhead, but if context usage exceeds 65%, read only the specific reference file you need, then checkpoint using `references/state-and-handoff-protocol.md` instead of loading broad summaries.
+
+## Anti-Patterns
+
+- Do not fork shared rules into skill bodies; summarize and link back here.

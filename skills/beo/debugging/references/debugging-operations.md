@@ -65,7 +65,7 @@ If the issue is a locked-decision violation, coordinate before silently changing
 If this is a new failure pattern, append a debug note to:
 
 ```text
-.beads/artifacts/<feature-name>/debug-notes.md
+.beads/artifacts/<feature_slug>/debug-notes.md
 ```
 
 If this reveals an outdated critical pattern, write a pattern-update note there as well.

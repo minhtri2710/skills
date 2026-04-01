@@ -43,7 +43,7 @@ Verify: does the failure indicate the bead was implemented against the wrong spe
 ## 3d. Check CONTEXT.md for Decision Violations
 
 ```bash
-cat .beads/artifacts/<feature-name>/CONTEXT.md
+cat .beads/artifacts/<feature_slug>/CONTEXT.md
 ```
 
 Ask: was a locked decision (D1, D2...) violated by the implementation? Decision violations are a frequent root cause -- the code does something "reasonable" that was explicitly excluded.
