@@ -2,39 +2,78 @@
 name: beo-planning
 description: >-
   Use after exploring completes or whenever a feature already has locked
-  requirements and now needs research, decomposition, phase definition, story
-  mapping, and executable task beads. Use for prompts like "plan this", "break
-  this into tasks", "decompose this work", "map the stories", "research and
-  plan", or "turn this into beads" before implementation begins.
+  requirements and now needs research, synthesis, phase definition, story
+  mapping, and executable task beads. Use for prompts like "plan this",
+  "break this into tasks", "decompose this work", "map the stories",
+  "research and plan", or "turn this into beads" before implementation
+  begins.
 ---
 
 # Beo Planning
 
 ## Overview
 
-Planning is the research-and-decompose phase. It takes CONTEXT.md from exploring and produces:
-1. A `plan.md` document with the high-level approach
-2. A `phase-contract.md` defining the phase as a closed loop with entry/exit state
-3. A `story-map.md` breaking the phase into narrative slices
-4. Task beads in the bead graph with dependencies wired and story context embedded
-5. A risk classification for each task
+Planning is the research-and-decompose phase. It takes `CONTEXT.md` from exploring and turns locked decisions into a credible implementation strategy and an execution-ready current phase.
 
-**Core principle**: Plan once, execute many. Every minute spent planning saves 10 minutes of confused implementation.
+Outputs:
+
+1. A `discovery.md` document with the implementation landscape
+2. An `approach.md` document with the chosen strategy, alternatives, and risk map
+3. A `plan.md` summary that explains the plan in human-readable form
+4. An optional `phase-plan.md` when the feature should unfold across multiple phases
+5. A `phase-contract.md` defining the current phase as a closed loop with entry/exit state
+6. A `story-map.md` breaking the current phase into narrative slices
+7. Task beads in the bead graph with dependencies wired and story context embedded
+8. A risk classification for each task
+
+**Core principle**: Plan once, execute many. Every minute spent shaping the feature and the current phase saves confused implementation later.
 
 ## Core Planning Model
 
-Planning operates at four levels:
+Planning operates at these levels:
 
 ```text
-Whole Plan
-  → Phase (closed loop with entry/exit state)
-    → Stories (narrative slices explaining work order)
-      → Beads (executable worker units)
+Whole Feature
+  → Discovery
+  → Approach
+  → Plan Summary
+  → Optional Phase Plan
+  → Current Phase
+  → Stories
+  → Beads
 ```
 
-Do not jump from `plan.md` straight to beads. If the phase cannot be explained in simple terms with a clear exit state and story sequence, it is not ready for execution.
+Do not jump from research straight to beads.
+
+If one believable closed loop is enough, stay single-phase and prepare that phase directly.
+
+If the full feature is too large, too vague, or too sequential to fit one safe loop, create a `phase-plan.md` and prepare only the current phase for execution.
+
+## Planning Modes
+
+Planning supports two modes:
+
+- **single-phase**: one believable closed loop can deliver the feature safely
+- **multi-phase**: the feature unfolds across 2-4 meaningful capability slices, and only the current phase should be prepared now
+
+Use the simplest mode that keeps the work understandable and execution-safe.
+
+## When a Phase Plan Is Required
+
+Create `phase-plan.md` when any of these are true:
+
+- a single phase would become a vague work bucket
+- the feature naturally unfolds across multiple capability slices
+- story count would exceed 4 if forced into one phase
+- the work has a clear unlock sequence where one slice must become true before later slices matter
+- the team should prepare only the next slice while intentionally deferring later work
+
+Do **not** create `phase-plan.md` just because the feature is moderately sized.
+If one clear closed loop can still explain the work, stay single-phase.
 
 ## Mini Example
+
+Single-phase example:
 
 Phase:
 "A user can submit feedback and the team can review it in the admin panel."
@@ -48,9 +87,21 @@ Beads:
 - Add submission validation and success/error states
 - Build the admin read view for submitted feedback
 
+Multi-phase example:
+
+Whole feature:
+"Inbound messages are received safely, normalized, routed, and made operationally visible."
+
+Phase plan:
+1. Accept inbound payloads safely
+2. Normalize and persist them consistently
+3. Route them into the right workflow and add operational visibility
+
+Current phase contract and story map describe only Phase 1 until that phase is complete.
+
 ## Prerequisites
 
-Load `references/planning-operations.md` for the exact prerequisite checks and learnings-retrieval commands.
+Load `references/planning-operations.md` for the exact prerequisite checks, planning-mode selection, artifact order, and handoff rules.
 
 <HARD-GATE>
 If CONTEXT.md does not exist, STOP. Route back to `beo-exploring`.
@@ -62,8 +113,11 @@ If CONTEXT.md does not exist, STOP. Route back to `beo-exploring`.
 
 If relevant patterns exist:
 - note them explicitly
-- embed them into the plan and affected task descriptions
+- embed them into the approach and plan
+- carry them into affected task descriptions
 - prevent re-solving known problems
+
+Relevant learnings must influence both the chosen implementation approach and any decision about whether the work stays single-phase or becomes multi-phase.
 
 ## Phase 1: Discovery
 
@@ -71,76 +125,76 @@ Goal-oriented research to understand the implementation landscape. Launch 2-4 pa
 
 See `references/discovery-guide.md` for detailed agent descriptions and synthesis format.
 
-## Phase 2: Plan Writing
+Discovery findings are inputs to `approach.md`; they are not the final plan by themselves.
 
-### Step 1: Draft the Approach
+## Phase 2: Approach Synthesis
 
-Based on CONTEXT.md decisions and discovery findings, write the implementation approach:
+Write `.beads/artifacts/<feature-name>/approach.md`.
 
-```markdown
-# Plan: <feature-name>
+This artifact explains:
 
-## Approach
-<High-level implementation strategy in 2-3 paragraphs>
+- what the feature needs to make true
+- what the codebase already provides
+- what is missing or risky
+- the recommended implementation strategy
+- alternatives considered
+- the risk map
+- whether the work should stay single-phase or become multi-phase
 
-## Discovery Summary
-<Key findings from research phase>
+Use `references/approach-template.md`.
 
-## Risk Assessment
-<Known risks and mitigations>
-```
+`approach.md` is the strategy artifact.
+`plan.md` remains the human-readable planning summary.
 
-### Step 2: Decompose into Tasks
+## Phase 3: Whole-Feature Phase Planning (Optional but Required for Multi-Phase Work)
 
-Break the approach into discrete, executable tasks. Each task must be:
-- **One agent, one context window**: Completable by a single worker in one session
-- **30-90 minutes of work**: Not too small (overhead), not too large (context exhaustion)
-- **Clear boundaries**: Obvious when it starts and when it's done
-- **Independently verifiable**: Has its own test/verification criteria
+If the feature is multi-phase, write `.beads/artifacts/<feature-name>/phase-plan.md`.
 
-### Task Format in plan.md
+The phase plan must explain:
 
-See `references/bead-creation-guide.md` for the full task description template including Story Context Block.
+1. the whole-feature goal
+2. why one phase is not enough
+3. the 2-4 meaningful phases
+4. what becomes true after each phase
+5. why the order makes sense
+6. which phase should be prepared now
 
-### Bead Acceptance Criteria
+Use `references/phase-plan-template.md`.
 
-Before a task becomes a bead, verify all of the following:
-- it names owned files or an explicit file region
-- it includes one concrete verification command or observable check
-- it has a clear done boundary, not just a topic area
-- it belongs to exactly one story
-- it unlocks or completes something real in the phase
+<HARD-GATE>
+If the work is clearly multi-phase, do not skip `phase-plan.md`.
+Do not prepare the current phase as if it were the whole feature.
+</HARD-GATE>
 
-```markdown
-## Tasks
+## Phase 3.5: Multi-Phase Planning Approval
 
-### 1. <Task Name>
-**Files**: <list of files to create/modify>
-**Dependencies**: none | [task numbers]
-**Risk**: LOW | MEDIUM | HIGH
-**Description**: <what to implement>
-**Verification**: <how to verify it works>
-```
+If `planning_mode = multi-phase`, get explicit user approval for the whole-feature phase sequence and the selected current phase **before** handing off to validation.
 
-### Risk Classification
+This approval is about planning shape, not execution readiness.
 
-| Signal | Risk Level |
-|--------|-----------|
-| Following existing pattern, <3 files | **LOW** |
-| New pattern or 3-5 files | **MEDIUM** |
-| External dependency, >5 files, architectural change | **HIGH** |
+It confirms:
+- the feature should be treated as multi-phase
+- the phase order is believable
+- the selected current phase is the right first / next slice
+- later phases are intentionally deferred
 
-### Step 3: Write plan.md
+This does **not** replace validation approval.
+Validation approval still happens later and applies only to execution readiness for the current phase.
 
-Load `references/planning-operations.md` for the exact artifact-writing operations, including safe epic description updates with slug preservation.
+<HARD-GATE>
+If the user has not explicitly approved the multi-phase sequence and current-phase selection, do not hand off to `beo-validating`.
+Revise `phase-plan.md`, `approach.md`, or current-phase framing first.
+</HARD-GATE>
 
-## Phase 3: Phase Contract
+## Phase 4: Current Phase Contract
 
-Before creating beads, define the phase as a closed loop.
+Before creating beads, define the current phase as a closed loop.
 
 Write to `.beads/artifacts/<feature-name>/phase-contract.md` using `references/phase-contract-template.md`.
 
-The phase contract must answer, in plain language:
+`phase-contract.md` always describes the current phase being prepared now, not the whole feature.
+
+The current phase contract must answer, in plain language:
 
 1. Why this phase exists now
 2. What the **entry state** is
@@ -150,24 +204,27 @@ The phase contract must answer, in plain language:
 6. What is explicitly out of scope
 7. What signals would force a pivot
 
-### Rules for a good phase contract
+### Rules for a good current phase contract
 
 - The exit state must be observable, not aspirational
 - The phase must close a meaningful small loop by itself
 - The demo story must prove the phase is real
 - If the phase fails, the team should know whether to debug locally or rethink the larger plan
 
-If you cannot explain the phase in 3-5 simple sentences, the phase is not ready. Revise plan.md before moving on.
+If you cannot explain the current phase in 3-5 simple sentences, the phase is not ready. Revise `approach.md`, `plan.md`, or `phase-plan.md` before moving on.
 
 <HARD-GATE>
-If phase-contract.md does not exist, do not create beads. Define the phase first.
+If `phase-contract.md` does not exist, do not create beads. Define the current phase first.
 </HARD-GATE>
 
-## Phase 4: Story Mapping
+## Phase 5: Current Phase Story Mapping
 
-Break the phase into **Stories**, not "plans inside a phase."
+Break the current phase into **Stories**, not "plans inside a phase."
 
 Write to `.beads/artifacts/<feature-name>/story-map.md` using `references/story-map-template.md`.
+
+`story-map.md` maps the internal narrative of the current phase only.
+If later phases exist, they remain deferred in `phase-plan.md`.
 
 ### Story rules
 
@@ -189,25 +246,25 @@ Every story must state:
 
 ### Story count guidance
 
-- **Typical phase**: 2-4 stories
-- **Small phase**: 1-2 stories
-- **Large phase**: split into multiple phases instead of creating 5+ stories
+- **Typical current phase**: 2-4 stories
+- **Small current phase**: 1-2 stories
+- **Large current phase**: revise the phase shape instead of creating 5+ stories
 
 Stories are the human-readable narrative. Beads come after.
 
 <HARD-GATE>
-If story-map.md does not exist, do not create beads. Map the stories first.
+If `story-map.md` does not exist, do not create beads. Map the current phase stories first.
 </HARD-GATE>
 
-## Phase 5: Multi-Perspective Check (HIGH-Stakes Only)
+## Phase 6: Multi-Perspective Check (HIGH-Stakes Only)
 
-**Only for HIGH-stakes features**: multiple HIGH-risk components, core architecture, auth flows, data model changes, or anything with a large blast radius. For standard features, skip to Phase 6.
+**Only for HIGH-stakes features**: multiple HIGH-risk components, core architecture, auth flows, data model changes, or anything with a large blast radius. For standard features, skip to Phase 7.
 
 Load `references/planning-operations.md` for the exact multi-perspective review procedure and prompt.
 
-## Phase 6: Task Bead Creation
+## Phase 7: Task Bead Creation
 
-Convert plan tasks into bead graph entries.
+Convert current-phase plan tasks into bead graph entries.
 
 Load `references/planning-operations.md` for the exact create/write/wire/validate sequence, priority mapping, and handoff-safe checkpointing rules.
 
@@ -219,53 +276,5 @@ After all beads are created, read every bead back and verify. No bead may be han
 
 See `references/bead-creation-guide.md` for decomposition rules. Key points: one story becomes 1-3 beads, no bead spans multiple stories, 4+ beads means the story may be too large.
 
-## Phase 7: Plan Review
-
-Before marking the plan as approved, run the self-review checklists in `references/bead-creation-guide.md` (Completeness Check, Decomposition Quality Check, Story Completeness Check).
-
-### Present to User
-
-Show the plan summary:
-```
-Plan: <feature-name>
-Tasks: <count> (<HIGH risk>, <MEDIUM risk>, <LOW risk>)
-Dependencies: <count> edges
-Estimated parallel tracks: <count based on dependency structure>
-
-[Task list with names, risk levels, and dependency chains]
-
-Ready to validate? Load beo-validating for phase closure, story coherence, and bead quality verification.
-```
-
-## Lightweight Mode
-
-For lightweight features (2-3 files, clear scope), see `references/bead-creation-guide.md` for the abbreviated workflow.
-
-## Promotion Flow
-
-When direct/instant tasks grow beyond their envelope, see `references/bead-creation-guide.md` for the promotion procedure.
-
-## Context Budget
-
-If context usage exceeds 65% during planning, load `references/planning-operations.md` and follow the checkpoint procedure exactly.
-
-## Handoff
-
-After plan artifacts are written, tasks are created, and dependencies are wired, load `references/planning-operations.md` for the canonical `STATE.md` handoff shape.
-
-Announce:
-```
-Planning complete.
-- Phase contract: .beads/artifacts/<feature-name>/phase-contract.md
-- Story map: .beads/artifacts/<feature-name>/story-map.md (<S> stories)
-- <N> tasks created with descriptions, story context, and verification criteria
-- <M> dependency edges wired
-- <K> HIGH-risk tasks identified
-- All beads passed completeness check (non-empty descriptions verified)
-
-Ready for validation. Load beo-validating to verify phase closure, story coherence, and bead quality.
-```
-
-## Red Flags & Anti-Patterns
-
-See `references/planning-guardrails.md` for the complete red flags and anti-patterns tables.
+For multi-phase work, create beads for the current phase only.
+Do not pre-create execution beads for future phases in this planning model.
