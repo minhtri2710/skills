@@ -25,10 +25,18 @@ Also verify planning-aware scope:
 - read `phase-plan.md` when present
 - confirm the swarm will execute the **current phase** only
 
+Default readiness loop:
+1. confirm current-phase execution is approved
+2. confirm 3+ independent ready tracks exist
+3. confirm Agent Mail is healthy enough to coordinate
+4. claim the epic if needed
+5. only then spawn workers
+
 ### Readiness Steps
 
 1. get `EPIC_ID` from `.beads/STATE.md` or user input
-2. inspect the live graph:
+2. read `.beads/STATE.md` and current-phase artifacts if scope is unclear
+3. inspect the live graph:
 
 ```bash
 bv --robot-triage --graph-root <EPIC_ID> --format json
@@ -52,6 +60,7 @@ bv --robot-plan --graph-root <EPIC_ID> --format json 2>/dev/null
 ```
 
 Use the highest-available tier. Do not invent separate runtime planning artifacts.
+If the graph and Agent Mail disagree about what is ready, pause spawning and reconcile before adding more workers.
 
 ## 2. Initialize Agent Mail
 
@@ -136,6 +145,8 @@ After each completion:
 - <50% beads open → consider reducing workers
 - all current-phase beads closed → complete swarm
 - no progress for 3+ cycles → diagnose mail, reservations, or worker health
+
+If coordination overhead starts exceeding useful progress, stop expanding the swarm and degrade the remainder to `beo-executing`.
 
 ## 5. Swarm Completion
 

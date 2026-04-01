@@ -50,8 +50,9 @@
 
 ### Language Choices
 - "[Specific phrase used]" instead of "[softer alternative]", because [prevents rationalization X]
-- "MUST" / "NEVER" / "No exceptions" where applicable
-- Implementation intention format: "When X, IMMEDIATELY do Y"
+- hard prohibitions only where failure is costly or irreversible
+- explanation-first guidance where judgment is required
+- implementation intention format: "When X, IMMEDIATELY do Y"
 
 ### Structural Defenses
 - [Defense mechanism + what it prevents]: e.g., "Rationalization table with pre-refuted excuses prevents 'I'm being pragmatic' escape hatch"

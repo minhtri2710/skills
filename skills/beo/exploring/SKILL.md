@@ -18,6 +18,23 @@ Exploring is the decision-extraction phase. Before any research or planning, you
 
 The output is a `CONTEXT.md` file that becomes the single source of truth for all downstream skills (planning, validating, executing, reviewing).
 
+## Key Terms
+
+- **instant**: single-file or similarly tiny work, well-scoped, typically under 30 minutes, with no meaningful planning ambiguity
+- **locked decision**: a behavioral choice the user has explicitly confirmed or accepted as a default
+- **gray area**: a requirement that would materially change planning or execution if answered differently
+
+## Default Exploring Loop
+
+1. read any existing context and prior learnings
+2. classify the scope and likely gray areas
+3. ask one focused behavioral question at a time
+4. lock decisions explicitly as they emerge
+5. write `CONTEXT.md`
+6. self-review for completeness, then hand off to planning
+
+Use the reference docs when you need the exact learnings-read protocol or slug-safe update procedure; the default loop above should cover normal use.
+
 ## When NOT to Use
 
 - Request is **instant** (single file, well-scoped, <30 min per router classification): router handles this directly, skip to executing

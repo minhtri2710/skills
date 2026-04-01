@@ -17,6 +17,28 @@ The router is the entry point for every beo session. It bootstraps the workspace
 
 **Core principle**: Always know where you are before deciding where to go.
 
+## Key Terms
+
+- **instant**: single-file or similarly tiny work, well-scoped, typically under 30 minutes, with no meaningful planning ambiguity
+- **current phase**: the slice being prepared or executed now; in multi-phase work this is narrower than the whole feature
+- **single-phase**: one closed loop can safely deliver the feature
+- **multi-phase**: the feature needs 2-4 intentional slices, and only one slice should be prepared now
+- **feature complete**: no later phases remain and the final execution scope has passed review
+
+## Default Router Loop
+
+Use this happy-path loop before loading deeper reference material:
+
+1. confirm the workspace is initialized and healthy
+2. check for `HANDOFF.json`
+3. identify the active epic, if any
+4. inspect the core artifacts for that feature
+5. classify the current state
+6. report the state in human terms
+7. load exactly one next skill
+
+Reach for `references/router-operations.md` when you need the exact command sequence, instant-path scaffolding details, or doctor-mode mechanics.
+
 ## Router Default Rule
 
 If the current pipeline phase is unclear, use `beo-router` before loading any other beo skill.
@@ -51,7 +73,21 @@ If router reference files are unavailable, do the minimum safe sequence manually
 
 Run once per session. Skip if `.beads/` already exists and is healthy.
 
-Load `references/router-operations.md` when you need the exact bootstrap commands or doctor-mode commands.
+Default bootstrap sequence:
+
+```bash
+# Inspect the workspace
+ls .beads/ 2>/dev/null
+
+# Initialize only when missing
+br init
+
+# Verify the CLI and workspace health
+br --version
+br doctor
+```
+
+If `.beads/` exists and `br doctor` is clean, continue. If health is unclear or bootstrap behaves unexpectedly, then load `references/router-operations.md` for the full recovery and doctor-mode playbook.
 
 ## Phase 1: State Detection
 
@@ -144,9 +180,15 @@ When no active feature exists and the user has a request:
 
 ### Step 1: Create the Epic
 
-Load `references/router-operations.md` for the exact epic-creation and slug-storage commands.
+Default sequence:
 
-Save the returned epic ID for all downstream operations.
+```bash
+br create "<feature-name>" -t epic -p 1 --json
+```
+
+Save the returned epic ID for all downstream operations, then preserve the immutable slug using `../reference/references/slug-protocol.md`.
+
+Load `references/router-operations.md` when you need the exact slug-storage procedure or instant-path scaffolding details.
 
 ### Step 2: Classify Request Complexity
 
@@ -160,7 +202,7 @@ Save the returned epic ID for all downstream operations.
 
 ### Step 3: Route
 
-- **instant**: Load `references/router-operations.md` and follow the **Instant Path Scaffold** exactly. Create one task bead, write a Markdown description using the shared bead templates, scaffold minimal artifacts, mark the epic approved, then route to `beo-executing`.
+- **instant**: create one task bead, write a concise Markdown description using the shared bead templates, scaffold the minimal artifacts, mark the epic approved, then route to `beo-executing`. Load `references/router-operations.md` for the exact instant-path scaffold.
 
 - **debug**: Route to `beo-debugging` directly.
 - **meta-skill**: Route to `beo-writing-skills` directly.
@@ -168,17 +210,35 @@ Save the returned epic ID for all downstream operations.
 
 ### Promotion Guard
 
-If you classified as **instant** but discover the work is bigger, load `references/router-operations.md` and follow the promotion guard exactly.
+If you classified as **instant** but discover the work is bigger:
+1. stop treating it as instant work
+2. preserve the existing task bead as planning input
+3. route to `beo-exploring` or `beo-planning`
+4. use `references/router-operations.md` for the exact promotion guard details
 
 ## Phase 3: Resume from Handoff
 
 When HANDOFF.json exists:
 
-Load `references/router-operations.md` for the exact resume-from-handoff procedure, validation checks, and cleanup rule. Then load the skill indicated by `HANDOFF.json.skill` and follow `next_action`.
+1. read `.beads/HANDOFF.json`
+2. verify the epic, task graph, and current artifacts still match the handoff
+3. trust the stored `skill` and `next_action` unless live state clearly contradicts them
+4. resume the named skill
+5. remove or refresh `HANDOFF.json` only after a fresh `STATE.md` checkpoint exists
+
+Load `references/router-operations.md` when you need the exact resume validation procedure or cleanup rule.
 
 ## Phase 4: Health Check (Doctor Mode)
 
-When asked to check project health or diagnose issues, load `references/router-operations.md` and follow the doctor-mode commands and diagnostic table.
+When asked to check project health or diagnose issues, do this minimum sequence first:
+
+1. inspect graph health
+2. inspect blocked work
+3. inspect stale work
+4. report the planning shape (single-phase vs multi-phase, current-phase artifacts present or missing)
+5. recommend one next corrective action
+
+Load `references/router-operations.md` for the exact doctor-mode commands and diagnostic table.
 
 ## Context Budget
 

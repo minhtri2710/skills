@@ -15,6 +15,26 @@ description: >-
 
 Executing is the per-worker implementation loop. It picks the next actionable task, assembles a worker prompt, dispatches a subagent to implement it, and reports results back.
 
+## Key Terms
+
+- **current phase**: the approved slice being implemented now
+- **worker mode**: this skill is being used by a worker inside a swarm, so it should implement directly
+- **standalone mode**: this skill is driving execution outside a swarm and may dispatch or implement directly depending on scope
+- **reactive fix bead**: a post-planning fix bead created by review, debugging, or instant routing rather than initial planning
+
+## Default Execution Loop
+
+1. pick the next truly ready bead
+2. verify the bead spec is complete enough to execute
+3. reserve files and transition the bead cleanly
+4. assemble only the context needed for this bead
+5. dispatch if appropriate, otherwise implement directly
+6. run verification
+7. write the report artifact and update bead state
+8. loop, or hand off when the current phase is complete
+
+Use `references/execution-operations.md` for the exact scheduling cascade, transition protocol, dispatch contract, and completion bookkeeping.
+
 **Two operating modes:**
 - **Worker mode** (dispatched by `beo-swarming`): Receives identity and epic ID from the orchestrator. Reports progress via Agent Mail. Implements code directly. Does NOT spawn sub-subagents.
 - **Standalone mode** (after `beo-validating` for ≤2 tasks): Acts as both dispatcher and executor. Reports progress via `STATE.md`. Can delegate implementation through the session's normal subagent/task mechanism, or implement directly for single-task features.
@@ -38,10 +58,21 @@ Never block execution on finding a perfect dispatcher. Prefer direct execution o
 
 ## Prerequisites
 
+Default checks:
+
+```bash
+br show <EPIC_ID> --json
+br dep list <EPIC_ID> --direction up --type parent-child --json
+cat .beads/artifacts/<feature-name>/CONTEXT.md 2>/dev/null
+cat .beads/artifacts/<feature-name>/plan.md 2>/dev/null
+cat .beads/artifacts/<feature-name>/phase-contract.md 2>/dev/null
+cat .beads/artifacts/<feature-name>/story-map.md 2>/dev/null
+```
+
 Load `references/execution-operations.md` for the exact prerequisite checks, current-phase scope verification, and epic-claim procedure.
 
 <HARD-GATE>
-If the epic does not have the `approved` label, STOP. Route to `beo-validating`.
+If the epic does not have the `approved` label, do not treat planning artifacts as implicit approval. First verify the label was not accidentally removed or the wrong epic was selected. If approval is genuinely missing, route to `beo-validating`.
 </HARD-GATE>
 
 ## The Execution Loop
@@ -69,11 +100,11 @@ Load `references/execution-operations.md` for the scheduling cascade and task-se
 Load `references/execution-operations.md` for the exact pre-dispatch checks, stale-label cleanup, task-transition protocol, and current-phase scope check.
 
 <HARD-GATE>
-If `.description` is empty, or is missing file scope AND verification criteria, STOP. Do not dispatch this task. Report it as invalid for execution:
+If `.description` is empty, or is missing file scope AND verification criteria, stop and treat the bead as invalid for execution.
 
 "Task <TASK_ID> has an empty or underspecified description. Route back to beo-planning or beo-validating to complete the bead spec."
 
-Do not attempt to reconstruct the spec from `plan.md` or `CONTEXT.md`; that produces low-quality worker output.
+Do not reconstruct the full spec from `plan.md` or `CONTEXT.md`; that produces low-quality worker output. If the gap is purely clerical and the intended spec already exists verbatim elsewhere in the bead package, restore it faithfully. Otherwise route back.
 </HARD-GATE>
 
 ### Bead Classes
@@ -96,6 +127,14 @@ Follow the canonical transition sequence in `references/execution-operations.md`
 ## Phase 3: Worker Prompt Assembly
 
 Build the complete worker prompt for the subagent. The prompt includes current-phase exit state, story context, plan summary, task spec, relevant `CONTEXT.md` decisions, previous task results, and verification criteria.
+
+Minimum prompt payload:
+- the full bead spec
+- the current-phase exit state
+- only the relevant story context
+- only the relevant `CONTEXT.md` decisions
+- only the prior task results this bead actually depends on
+- the verification criteria
 
 See `references/worker-prompt-guide.md` for the full prompt template, data gathering commands, and budget truncation rules.
 
@@ -123,7 +162,7 @@ When a task reports blocked, follow the classification and resolution protocol i
 
 ## Completion
 
-When all current-phase tasks under the epic are closed, load `references/execution-operations.md` for the final verification steps and canonical completion behavior for swarming mode vs single-worker mode.
+When all current-phase tasks under the epic are closed, first verify that the phase exit state now appears true in practice, then load `references/execution-operations.md` for the final verification steps and canonical completion behavior for swarming mode vs single-worker mode.
 
 Announce:
 ```text

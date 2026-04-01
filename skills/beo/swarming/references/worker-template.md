@@ -98,7 +98,7 @@ It is not a fixed assignment. The live bead graph and Agent Mail state still win
 - Do not wait silently if blocked
 
 ## Context Budget
-After each bead completion, assess your context budget. If context is high, finish safely, write HANDOFF.json, report the handoff, and stop gracefully.
+After each bead completion, assess your context budget. If context is high, finish safely, write HANDOFF.json using the canonical protocol, report the handoff, and stop gracefully.
 
 ## What You Must NOT Do
 - Do not edit files without reserving them first

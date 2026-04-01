@@ -15,6 +15,15 @@ Complete reference for the CLI-driven beo workflow. Load this skill when another
 
 This skill is the canonical source for shared beo workflow conventions. When another beo skill and a shared protocol seem to disagree, reconcile against the reference files here rather than inventing a hybrid rule.
 
+## Source of Truth Rule
+
+Use this reference layer as the maintenance anchor for shared beo behavior.
+
+- update shared protocol docs here before or alongside dependent skill summaries
+- when a skill body and a shared protocol disagree, the shared protocol wins
+- keep high-risk shared concepts centralized here: approval rules, status mapping, state/handoff shape, slug safety, artifact semantics, dependency conventions
+- dependent skills should summarize these rules, not fork them
+
 ## Default Use Rule
 
 Load `beo-reference` whenever another beo skill:

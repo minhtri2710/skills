@@ -1,5 +1,42 @@
 # CHANGELOG
 
+## 2026-04-01
+
+### Polished beo skill and reference consistency
+
+Refined the `skills/beo` docs after the architecture refactor to make the core skills more self-sufficient, align references with repo conventions, and reduce brittle operational wording.
+
+#### Main improvements
+- Added inline **Key Terms** and **Default Loop** sections to the core pipeline skills:
+  - `beo-router`
+  - `beo-exploring`
+  - `beo-planning`
+  - `beo-validating`
+  - `beo-executing`
+  - `beo-reviewing`
+- Reduced harmful indirection by restoring happy-path guidance directly into `SKILL.md` files while keeping detailed operational references.
+- Softened hard gates with better recovery guidance, especially around missing artifacts, missing approval state, and underspecified beads.
+- Standardized planning-aware terminology across the repo:
+  - `instant`
+  - `current phase`
+  - `single-phase`
+  - `multi-phase`
+  - `final execution scope`
+- Clarified `beo-reference` as the source of truth for shared workflow protocols.
+- Updated `beo-writing-skills` and its supporting templates to prefer explanation-first guidance, using hard prohibitions only where failure is costly or irreversible.
+
+#### Tooling and reference cleanup
+- Kept beo docs tool-agnostic so skills can use the tools available in their runtime instead of prescribing a single reading tool.
+- Updated router, planning, validation, execution, review, swarming, compounding, dream, debugging, and shared reference docs for tone and protocol consistency.
+- Removed the remaining `cat .beads...` and `cat > ...` style examples from the beo docs.
+- Tightened validation prompt docs (`plan-checker-prompt.md`, `bead-reviewer-prompt.md`) so fresh-eyes review behavior is clearer.
+
+#### Result
+The beo skill suite now has a cleaner balance between:
+- `SKILL.md` files that explain the default loop directly
+- reference docs that hold exact procedures and canonical details
+- shared protocols that remain centralized instead of being redefined ad hoc
+
 ## 2026-03-31
 
 ### Refactored beo skill architecture

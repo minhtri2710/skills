@@ -84,7 +84,7 @@ br comments add <id> --file /tmp/report.md --no-daemon
 ```bash
 # List all comments, find the latest report artifact
 br comments list <id> --json --no-daemon
-# Scan backwards for the last comment containing "---ARTIFACT:report:"
+# Inspect the returned comments and scan backwards for the last report artifact header
 # The latest version wins (v2 supersedes v1)
 ```
 

@@ -15,6 +15,30 @@ description: >-
 
 Planning is the research-and-decompose phase. It takes `CONTEXT.md` from exploring and turns locked decisions into a credible implementation strategy and an execution-ready current phase.
 
+## Key Terms
+
+- **current phase**: the slice being prepared now for validation and execution
+- **single-phase**: one closed loop is enough to deliver the feature safely
+- **multi-phase**: the feature needs 2-4 intentional slices, and only the current one should be prepared now
+- **phase plan**: the whole-feature sequence for multi-phase work; it is not the same thing as the current-phase contract
+
+## Default Planning Loop
+
+Use this happy-path loop before diving into the deeper operations file:
+
+1. confirm `CONTEXT.md` exists and decisions are truly locked
+2. retrieve prior learnings and critical patterns
+3. run focused discovery
+4. write `approach.md`
+5. decide `single-phase` vs `multi-phase`
+6. write `plan.md`, and `phase-plan.md` if needed
+7. define the current phase with `phase-contract.md`
+8. map the current phase into stories
+9. create only the beads needed for the current phase
+10. hand off to validation
+
+Reach for `references/planning-operations.md` when you need the exact artifact order, approval wording, dependency wiring, or high-stakes review procedure.
+
 Outputs:
 
 1. A `discovery.md` document with the implementation landscape
@@ -101,15 +125,30 @@ Current phase contract and story map describe only Phase 1 until that phase is c
 
 ## Prerequisites
 
-Load `references/planning-operations.md` for the exact prerequisite checks, planning-mode selection, artifact order, and handoff rules.
+Default checks:
+
+```bash
+cat .beads/artifacts/<feature-name>/CONTEXT.md 2>/dev/null
+br show <EPIC_ID> --json
+cat .beads/critical-patterns.md 2>/dev/null
+```
+
+Load `references/planning-operations.md` when you need the exact planning-mode selection rules, artifact order, or handoff details.
 
 <HARD-GATE>
-If CONTEXT.md does not exist, STOP. Route back to `beo-exploring`.
+If `CONTEXT.md` does not exist, do not invent requirements here. First verify whether the feature was explored under a different slug or path. If no trustworthy context exists, route back to `beo-exploring`.
 </HARD-GATE>
 
 ## Phase 0: Learnings Retrieval
 
 **Mandatory.** Before any research, check institutional memory.
+
+Default retrieval sequence:
+
+1. query indexed learnings if QMD is available
+2. read `.beads/critical-patterns.md` if it exists
+3. fall back to flat-file learnings search only when richer retrieval is unavailable or insufficient
+4. write down what actually matters for this plan
 
 If relevant patterns exist:
 - note them explicitly
@@ -121,7 +160,7 @@ Relevant learnings must influence both the chosen implementation approach and an
 
 ## Phase 1: Discovery
 
-Goal-oriented research to understand the implementation landscape. Launch 2-4 parallel research subagents (Architecture, Pattern, Constraint, External) to explore the codebase and external dependencies. Synthesize findings into `.beads/artifacts/<feature-name>/discovery.md`.
+Goal-oriented research to understand the implementation landscape. Launch 2-4 parallel research subagents (Architecture, Pattern, Constraint, External) when the feature is broad enough to benefit from parallel discovery; otherwise research inline. Synthesize findings into `.beads/artifacts/<feature-name>/discovery.md`.
 
 See `references/discovery-guide.md` for detailed agent descriptions and synthesis format.
 
@@ -164,6 +203,7 @@ Use `references/phase-plan-template.md`.
 <HARD-GATE>
 If the work is clearly multi-phase, do not skip `phase-plan.md`.
 Do not prepare the current phase as if it were the whole feature.
+If you are unsure whether it is truly multi-phase, resolve that uncertainty in `approach.md` before creating current-phase beads.
 </HARD-GATE>
 
 ## Phase 3.5: Multi-Phase Planning Approval
@@ -183,7 +223,7 @@ Validation approval still happens later and applies only to execution readiness 
 
 <HARD-GATE>
 If the user has not explicitly approved the multi-phase sequence and current-phase selection, do not hand off to `beo-validating`.
-Revise `phase-plan.md`, `approach.md`, or current-phase framing first.
+If the user is confused or hesitant, tighten the phase framing first: revise `phase-plan.md`, `approach.md`, or current-phase naming before asking again.
 </HARD-GATE>
 
 ## Phase 4: Current Phase Contract
@@ -215,6 +255,7 @@ If you cannot explain the current phase in 3-5 simple sentences, the phase is no
 
 <HARD-GATE>
 If `phase-contract.md` does not exist, do not create beads. Define the current phase first.
+If a draft exists but the exit state is vague, fix the contract instead of pushing uncertainty into bead descriptions.
 </HARD-GATE>
 
 ## Phase 5: Current Phase Story Mapping
@@ -254,6 +295,7 @@ Stories are the human-readable narrative. Beads come after.
 
 <HARD-GATE>
 If `story-map.md` does not exist, do not create beads. Map the current phase stories first.
+If stories exist informally in `plan.md` but not as a real map, promote them into `story-map.md` before decomposition.
 </HARD-GATE>
 
 ## Phase 6: Multi-Perspective Check (HIGH-Stakes Only)

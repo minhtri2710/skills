@@ -19,14 +19,43 @@ Reviewing is the post-execution quality gate. It verifies that the implementatio
 
 Reviewing is for the **final execution scope**. If planning mode is `multi-phase` and later phases remain, route back to planning rather than reviewing the feature as if it were complete.
 
+## Key Terms
+
+- **final execution scope**: the last approved slice that should now be shippable and reviewable
+- **P1**: merge-blocking issue
+- **P2**: important follow-up that should not block closing the feature
+- **P3**: non-blocking improvement suggestion
+
+## Default Review Loop
+
+1. confirm the final execution scope is actually complete
+2. run specialist review
+3. verify promised artifacts are real and wired
+4. walk the user through decisions and exit-state claims one at a time
+5. route any changes back through execution or planning as needed
+6. finish only after P1 issues are resolved and human UAT is complete
+
+Load `references/reviewing-operations.md` for the exact specialist prompts, finishing steps, and checkpoint mechanics.
+
 ## Prerequisites
+
+Default checks:
+
+```bash
+br dep list <EPIC_ID> --direction up --type parent-child --json
+cat .beads/artifacts/<feature-name>/CONTEXT.md 2>/dev/null
+cat .beads/artifacts/<feature-name>/approach.md 2>/dev/null
+cat .beads/artifacts/<feature-name>/phase-plan.md 2>/dev/null
+cat .beads/artifacts/<feature-name>/phase-contract.md 2>/dev/null
+cat .beads/artifacts/<feature-name>/story-map.md 2>/dev/null
+```
 
 Load `references/reviewing-operations.md` for the exact prerequisite checks, isolated review inputs, and finishing prerequisites.
 
 <HARD-GATE>
-If tasks from the final execution scope are still open or in progress, STOP. Route back to `beo-executing`.
-If any tasks have `blocked`, `failed`, or `partial` labels (status `deferred`), STOP. Report these to the user and get explicit approval to proceed, defer, or re-plan before closing the epic.
-If `planning_mode = multi-phase` and later phases remain, STOP. Route back to `beo-planning` instead of reviewing the feature as complete.
+If tasks from the final execution scope are still open or in progress, route back to `beo-executing`.
+If any tasks have `blocked`, `failed`, or `partial` labels (status `deferred`), stop and get explicit user direction to proceed, defer, or re-plan before closing the epic.
+If `planning_mode = multi-phase` and later phases remain, do not treat the feature as complete; route back to `beo-planning`.
 </HARD-GATE>
 
 ## Phase 1: Automated Review
@@ -55,6 +84,11 @@ When unsure between P1 and P2, ask: "Would I block merge if this remained unfixe
 ## Phase 2: Artifact Verification
 
 Verify that all implementation artifacts promised by the final execution scope are real, substantive, and wired.
+
+Default artifact-verification questions:
+- does the artifact exist?
+- is it substantive rather than placeholder content?
+- is it wired into the actual feature path?
 
 Load `references/reviewing-operations.md` for the 3-level verification procedure, command shapes, and finishing flow.
 
@@ -91,7 +125,7 @@ If the user changes a decision:
 1. Update `CONTEXT.md` with the new decision
 2. Assess which tasks are affected
 3. If minor (1-2 files) → create fix bead, execute
-4. If major (architectural change or changes to feature sequencing) → STOP reviewing, strip `approved` label (`br label remove <EPIC_ID> -l approved`), route to `beo-planning`
+4. If major (architectural change or changes to feature sequencing) → stop reviewing, strip `approved` label (`br label remove <EPIC_ID> -l approved`), route to `beo-planning`
 
 ## Phase 4: Finishing
 

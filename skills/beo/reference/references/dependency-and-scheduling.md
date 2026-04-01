@@ -78,7 +78,7 @@ To find the epic bead for a feature by name:
 # List all epics (including closed)
 br list --type epic -a --json
 
-# Parse JSON output and match by title
+# Inspect the returned JSON and match by title
 # The title field matches the feature name used when the epic was created
 ```
 

@@ -35,15 +35,17 @@ Then rerun the same pressure scenarios with the skill present.
 
 When an agent still violates a rule:
 1. capture the new rationalization verbatim
-2. add explicit negation
-3. add a rationalization-table entry
-4. add a red-flag entry
-5. rerun all scenarios
+2. tighten the skill where the failure actually happened
+3. add explicit negation only if explanation-first guidance still leaves a real loophole
+4. add a rationalization-table entry
+5. add a red-flag entry
+6. rerun all scenarios
 
 Use the meta-test question from the main skill to distinguish:
 - clear-but-ignored rules
 - missing wording
 - buried sections
+- over-rigid wording that needs better explanation rather than louder prohibitions
 
 ## 4. Validate and Document
 

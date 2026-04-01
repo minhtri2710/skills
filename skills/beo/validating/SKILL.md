@@ -21,14 +21,41 @@ This skill treats the **current phase** as a small closed loop -- clear entry st
 
 If `phase-plan.md` exists, validating still focuses on the **current phase only**. Whole-feature sequencing informs the validator, but current-phase approval does not approve later phases.
 
+## Key Terms
+
+- **current phase**: the slice being approved for execution now
+- **whole-feature sequence**: the broader multi-phase plan, if one exists
+- **approval**: permission to execute the current phase only, not to expand scope freely
+
+## Default Validation Loop
+
+1. confirm the current-phase artifacts and bead graph exist
+2. retrieve prior learnings and orient to the current phase
+3. run the 8-dimension structural check
+4. inspect graph health and bead quality
+5. run spikes only where hope is doing the work
+6. summarize readiness in human terms
+7. get explicit user approval before any code is written
+
+Load `references/validation-operations.md` when you need the exact checker invocation, graph commands, spike mechanics, or handoff format.
+
 ## Prerequisites
 
-Load `references/validation-operations.md` for the exact prerequisite checks, planning-aware orientation flow, and learnings-retrieval procedure.
+Default checks:
+
+```bash
+br show <EPIC_ID> --json
+br dep list <EPIC_ID> --direction up --type parent-child --json
+cat .beads/artifacts/<feature-name>/CONTEXT.md 2>/dev/null
+cat .beads/artifacts/<feature-name>/approach.md 2>/dev/null
+cat .beads/artifacts/<feature-name>/plan.md 2>/dev/null
+cat .beads/artifacts/<feature-name>/phase-plan.md 2>/dev/null
+cat .beads/artifacts/<feature-name>/phase-contract.md 2>/dev/null
+cat .beads/artifacts/<feature-name>/story-map.md 2>/dev/null
+```
 
 <HARD-GATE>
-If tasks don't exist in the bead graph, STOP. Route back to `beo-planning`.
-If `phase-contract.md` is missing, STOP. Route back to `beo-planning`.
-If `story-map.md` is missing, STOP. Route back to `beo-planning`.
+If tasks do not exist in the bead graph, or `phase-contract.md` / `story-map.md` are truly missing, do not guess the plan into existence here. First verify the files were not misplaced, stale, or left partially written. If the planning package is genuinely incomplete, route back to `beo-planning`.
 </HARD-GATE>
 
 ## Phase 0: Learnings Retrieval + Current-Phase Orientation
@@ -39,7 +66,7 @@ Before validating structure:
 - orient yourself to the current phase
 - if `phase-plan.md` exists, confirm how the current phase fits the larger whole plan
 
-Load `references/validation-operations.md` for the exact orientation sequence and summary format.
+Load `references/validation-operations.md` for the exact orientation sequence and summary format when the default loop is not enough.
 
 ## Phase 1: Structural Verification
 
@@ -62,6 +89,8 @@ Check the current phase across 8 dimensions. For each dimension, assign PASS or 
 
 Load `references/validation-operations.md` for the exact plan-checker invocation, repair routing, and failure-handling loop.
 
+Default repair rule: fix 1-2 structural failures in place, but if failures keep cascading or the current phase stops making sense as a closed loop, stop patching and route back to planning.
+
 ### Repair Routing by Failure Type
 
 | Failure Type | Route Back To |
@@ -82,8 +111,15 @@ Use `bv` to analyze the bead graph for structural issues.
 
 Load `references/validation-operations.md` for the exact commands, interpretation table, deduplication check, story-to-bead coherence check, and bead-description verification procedure.
 
+Minimum graph-health pass:
+- inspect suggestions and cycles with `bv`
+- verify every story maps to at least one bead
+- verify every bead belongs to this current phase
+- verify every bead description is specific enough for a fresh worker
+
 <HARD-GATE>
-FAIL the plan if any bead has an empty or underspecified description. This is a structural verification failure, not an optional quality note. Route back to `beo-planning` to complete the bead specs.
+FAIL the plan if any bead has an empty or underspecified description. This is a structural verification failure, not an optional quality note.
+If only one or two beads are thin but the phase shape is sound, tighten those specs directly or send them back for planning repair. If the thin specs expose a larger decomposition problem, route back to `beo-planning`.
 </HARD-GATE>
 
 ## Phase 3: Spike Execution (HIGH-Risk Only)
@@ -93,6 +129,8 @@ For each HIGH-risk task, evaluate whether a spike is needed.
 A spike is needed when the approach is unproven, depends on external systems, has hard performance requirements, or otherwise relies on hope.
 
 Load `references/validation-operations.md` for the exact create/record/result-handling sequence.
+
+Default spike rule: only spike when a yes/no proof would change whether this phase should proceed. Do not create ceremonial spikes for already-understood work.
 
 <HARD-GATE>
 A spike NO result means the current phase plan is invalid. Do not proceed to approval.

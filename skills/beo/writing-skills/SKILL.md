@@ -86,15 +86,17 @@ description: Use when creating skills -- run baseline test, write minimal skill,
 description: Use when creating a new beo skill or editing an existing one
 ```
 
-**Apply persuasion principles:**
+**Apply persuasion principles with restraint:**
 
 | Principle | Implementation | Use For |
 |---|---|---|
-| **Authority** | "YOU MUST", "Never", "No exceptions" | Discipline-enforcing rules |
-| **Commitment** | Ordered checklists, announce skill usage | Multi-step processes |
-| **Scarcity** | "Before proceeding", "IMMEDIATELY after X" | Verification requirements |
-| **Social Proof** | "Teams report...", "X without Y = failure. Every time." | Common failure patterns |
-| **Unity** | "our skills", collaborative framing | Techniques, guidance |
+| **Authority** | crisp prohibitions only where failure is genuinely costly or irreversible | hard safety rails and invariant-preserving rules |
+| **Commitment** | ordered checklists, announce skill usage | multi-step processes |
+| **Scarcity** | "before proceeding", "immediately after X" | verification requirements |
+| **Social Proof** | "teams report...", evidence-backed failure patterns | repeated, observed mistakes |
+| **Unity** | "our skills", collaborative framing | techniques, guidance |
+
+Prefer explanation-first guidance when the model needs judgment. Reserve hard-edged wording for places where ambiguity reliably causes failure. Overusing absolutist language makes skills louder, not better.
 
 After writing: re-run the same pressure scenarios WITH the skill. Agent must now comply.
 If agent still fails -> skill is unclear or incomplete. Revise and re-test. Do not proceed.

@@ -20,6 +20,7 @@ You are not here to redesign the plan. You are not here to judge architectural c
 ## Your Inputs
 
 You receive the full content of all task bead descriptions for this epic (via `br show <TASK_ID> --json` for each task under the epic).
+Read those bead descriptions exactly as returned; do not assume missing context can be recovered elsewhere.
 
 You do NOT receive:
 - Planning session history

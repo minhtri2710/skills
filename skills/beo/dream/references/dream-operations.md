@@ -20,6 +20,8 @@ Detailed operational playbook for `beo-dream`. Load this file when you need exac
    - `recurring` otherwise
 4. if provenance signals conflict, ask one short clarification question before scanning
 
+Default orientation rule: establish mode and provenance confidence before scanning broad source material.
+
 ## 2. Select Sources
 
 Use `codex-source-policy.md` for source priority and recurring-window defaults.
