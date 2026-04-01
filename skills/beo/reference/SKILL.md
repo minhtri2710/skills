@@ -20,7 +20,7 @@ This skill is the canonical source for shared beo workflow conventions. When ano
 Load `beo-reference` whenever another beo skill:
 - says to use the canonical rule
 - points to a shared protocol or lookup table
-- depends on status mapping, slug safety, approval gates, or handoff format
+- depends on status mapping, slug safety, approval gates, handoff format, or artifact semantics
 
 ## Quick Routing Guide
 
@@ -32,6 +32,16 @@ Load `beo-reference` whenever another beo skill:
 - Need artifact storage or read/write protocol -> `references/artifact-protocol.md`
 - Need slug preservation or artifact path safety -> `references/slug-protocol.md`
 - Need dependency or scheduling rules -> `references/dependency-and-scheduling.md`
+
+## Planning-Aware Notes
+
+The shared references now distinguish between:
+
+- `approach.md` as the strategy artifact
+- `phase-plan.md` as the optional whole-feature sequencing artifact for multi-phase work
+- `phase-contract.md` and `story-map.md` as **current-phase** artifacts
+
+When a feature is multi-phase, use the shared references to avoid treating current-phase artifacts as whole-feature artifacts.
 
 ## Quick Navigation
 

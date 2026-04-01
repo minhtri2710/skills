@@ -27,35 +27,39 @@ Evaluate **top-to-bottom, first match wins**. Earlier rows take priority.
 | 4 | All tasks closed, epic closed, no learnings file | **learnings-pending** | `beo-compounding` |
 | 5 | Epic is closed | **completed** | Report status, ask for next work |
 | 6 | Any tasks have `partial` or `cancelled` labels, epic still open | **partial-completion** | Report status, ask user for decision |
-| 7 | Epic exists, all tasks closed, epic still open | **ready-to-review** | `beo-reviewing` |
-| 8 | Epic exists, tasks exist, some in_progress/closed (and no blocked/failed) | **executing** | `beo-executing` |
-| 9 | Epic exists, tasks exist, `approved` label on epic, all tasks open, 3+ independent tasks | **ready-to-swarm** | `beo-swarming` |
-| 10 | Epic exists, tasks exist, `approved` label on epic, all tasks open, ≤2 independent tasks | **ready-to-execute** | `beo-executing` |
-| 11 | Epic exists, tasks exist, no `approved` label, phase-contract.md AND story-map.md exist | **ready-to-validate** | `beo-validating` |
-| 12 | Epic exists, tasks exist, no `approved` label, phase-contract.md or story-map.md missing | **planning** | `beo-planning` |
-| 13 | Epic exists, no tasks, no `approved` label | **exploring** | `beo-exploring` |
-| 14 | Learnings stale (last dream run >30 days or 3+ new learnings since last dream), user requests consolidation | **consolidation-due** | `beo-dream` |
+| 7 | Epic exists, all tasks for the final execution scope are closed, epic still open, and no later phases remain | **ready-to-review** | `beo-reviewing` |
+| 8 | Epic exists, current-phase tasks exist, some in_progress/closed (and no blocked/failed) | **executing** | `beo-executing` |
+| 9 | Epic exists, current-phase tasks exist, `approved` label on epic, all tasks open, 3+ independent tasks | **ready-to-swarm** | `beo-swarming` |
+| 10 | Epic exists, current-phase tasks exist, `approved` label on epic, all tasks open, ≤2 independent tasks | **ready-to-execute** | `beo-executing` |
+| 11 | Epic exists, current-phase tasks exist, no `approved` label, `phase-contract.md` AND `story-map.md` exist | **ready-to-validate** | `beo-validating` |
+| 12 | Epic exists, `approach.md` exists, no `approved` label, current-phase artifacts missing or incomplete | **planning-current-phase** | `beo-planning` |
+| 13 | Epic exists, `CONTEXT.md` exists, no `approach.md` | **planning-needs-approach** | `beo-planning` |
+| 14 | Epic exists, no tasks, no `approved` label | **exploring** | `beo-exploring` |
+| 15 | Learnings stale (last dream run >30 days or 3+ new learnings since last dream), user requests consolidation | **consolidation-due** | `beo-dream` |
 
 Key changes from prior versions:
-- Row 1: explicit user intent (meta-skill, debug request) short-circuits feature-state routing
-- Rows 2-3: `debug_attempted` label replaces ambiguous 'debugging attempted'; machine-decidable
-- Rows 4-5: most-specific closed states evaluated before generic 'epic is closed'
-- Row 7: ready-to-review evaluated before Row 8 (executing) to prevent shadowing
-- Row 14: staleness threshold defined: last dream run >30 days or 3+ new learnings files since last dream
+- explicit distinction between approach-level planning and current-phase planning
+- routing now recognizes that `phase-contract.md` and `story-map.md` are current-phase artifacts
+- final review is only valid when later phases do not remain
+- current-phase completion is not whole-feature completion for multi-phase work
 
 ### Planning Artifact Hierarchy
 
-The planning phase produces five artifacts in this order:
+The planning phase now produces up to seven artifacts in this order:
 
 | Artifact | Role | Gate-Controlling |
 |----------|------|-----------------|
 | `CONTEXT.md` | Locked decisions: source of truth | Yes (exploring → planning gate) |
-| `discovery.md` | Research findings from parallel subagents | No |
-| `plan.md` | High-level approach summary | No (compatibility artifact) |
-| `phase-contract.md` | Phase as closed loop: entry/exit state, demo, scope | Yes (planning → validating gate) |
-| `story-map.md` | Story sequence, closure check, story-to-bead mapping | Yes (planning → validating gate) |
+| `discovery.md` | Research findings from discovery work | No |
+| `approach.md` | Chosen implementation strategy, alternatives, and risk map | Yes for strategy quality; informs validation and downstream routing |
+| `plan.md` | Human-readable planning summary | No |
+| `phase-plan.md` | Optional whole-feature sequencing for multi-phase work | Yes when present (planning approval for multi-phase sequencing) |
+| `phase-contract.md` | Current phase as closed loop: entry/exit state, demo, scope | Yes (planning → validating gate) |
+| `story-map.md` | Current-phase story sequence, closure check, story-to-bead mapping | Yes (planning → validating gate) |
 
-The validation gate requires `phase-contract.md` AND `story-map.md`. `plan.md` is read by downstream skills but does not control routing.
+The validation gate requires `phase-contract.md` AND `story-map.md` for the **current phase**.
+
+`phase-plan.md` is optional and only exists when the feature is multi-phase.
 
 ---
 
@@ -71,7 +75,7 @@ Use `state-and-handoff-protocol.md` as the canonical source for the base `HANDOF
 
 | Event | Action | Skill |
 |-------|--------|-------|
-| User approves plan | `br label add <EPIC_ID> -l approved` | validating |
+| User approves current phase for execution | `br label add <EPIC_ID> -l approved` | validating |
 | Back-edge to planning | `br label remove <EPIC_ID> -l approved` | executing, reviewing |
 | Back-edge to exploring | `br label remove <EPIC_ID> -l approved` | validating, reviewing |
 
@@ -100,6 +104,10 @@ br dep list <EPIC_ID> --direction up --type parent-child --json
 
 Do NOT use `jq 'select(.id | startswith(...))'`. The `startswith` pattern assumes dotted IDs and misses fix beads created with dependency edges instead of dotted child IDs.
 
+Interpret task enumeration against the active planning mode:
+- for single-phase work, the epic task set is the current execution scope
+- for multi-phase work, only the current-phase subset is executable now; later phases remain deferred in `phase-plan.md`
+
 ---
 
 ## Epic Lifecycle
@@ -107,9 +115,9 @@ Do NOT use `jq 'select(.id | startswith(...))'`. The `startswith` pattern assume
 | State | br Status | Label | Transition Command |
 |-------|-----------|-------|--------------------|
 | Planning | `open` | (none) | Default immediately after epic creation |
-| Approved | `open` | `approved` | `br label add <EPIC_ID> -l approved` |
-| Executing | `in_progress` | `approved` | `br update <EPIC_ID> --claim` |
-| Completed | `closed` | `approved` | `br close <EPIC_ID>` |
+| Approved current phase | `open` | `approved` | `br label add <EPIC_ID> -l approved` |
+| Executing current phase | `in_progress` | `approved` | `br update <EPIC_ID> --claim` |
+| Completed feature | `closed` | `approved` | `br close <EPIC_ID>` |
 
 **Who transitions to executing:** The first skill that starts execution (executing or swarming) must run `br update <EPIC_ID> --claim` before dispatching any workers.
 
