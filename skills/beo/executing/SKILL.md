@@ -1,11 +1,12 @@
 ---
 name: beo-executing
 description: >-
-  Use when an approved epic is ready for implementation and the next bead should
-  be executed directly in single-worker mode or by a single worker inside a
-  swarm. Use for prompts like "implement this bead", "do the work", "run the
-  worker", "start implementing", "execute the next task", or whenever approved
-  work needs to move from plan into verified implementation one task at a time.
+  Use when an approved epic is ready for implementation and the next current-phase
+  bead should be executed directly in single-worker mode or by a single worker
+  inside a swarm. Use for prompts like "implement this bead", "do the work",
+  "run the worker", "start implementing", "execute the next task", or
+  whenever approved current-phase work needs to move from plan into verified
+  implementation one task at a time.
 ---
 
 # Beo Executing
@@ -16,11 +17,13 @@ Executing is the per-worker implementation loop. It picks the next actionable ta
 
 **Two operating modes:**
 - **Worker mode** (dispatched by `beo-swarming`): Receives identity and epic ID from the orchestrator. Reports progress via Agent Mail. Implements code directly. Does NOT spawn sub-subagents.
-- **Standalone mode** (after `beo-validating` for ≤2 tasks): Acts as both dispatcher and executor. Reports progress via STATE.md. Can delegate implementation through the session's normal subagent/task mechanism, or implement directly for single-task features.
+- **Standalone mode** (after `beo-validating` for ≤2 tasks): Acts as both dispatcher and executor. Reports progress via `STATE.md`. Can delegate implementation through the session's normal subagent/task mechanism, or implement directly for single-task features.
 
-In both modes the loop is identical; the difference is how results are reported (Agent Mail vs STATE.md) and whether implementation is direct (worker mode) or delegated (standalone mode with multiple tasks).
+In both modes the loop is identical; the difference is how results are reported (Agent Mail vs `STATE.md`) and whether implementation is direct (worker mode) or delegated (standalone mode with multiple tasks).
 
 **Core principle**: One task at a time. Implement, verify, report, loop.
+
+Execution scope is always the **currently approved phase**. If planning mode is `multi-phase`, execution must not silently expand into later phases.
 
 ## Dispatch Modes and Fallbacks
 
@@ -35,7 +38,7 @@ Never block execution on finding a perfect dispatcher. Prefer direct execution o
 
 ## Prerequisites
 
-Load `references/execution-operations.md` for the exact prerequisite checks and epic-claim procedure.
+Load `references/execution-operations.md` for the exact prerequisite checks, current-phase scope verification, and epic-claim procedure.
 
 <HARD-GATE>
 If the epic does not have the `approved` label, STOP. Route to `beo-validating`.
@@ -63,14 +66,14 @@ Load `references/execution-operations.md` for the scheduling cascade and task-se
 
 ## Phase 2: Pre-Dispatch Checks
 
-Load `references/execution-operations.md` for the exact pre-dispatch checks, stale-label cleanup, and task-transition protocol.
+Load `references/execution-operations.md` for the exact pre-dispatch checks, stale-label cleanup, task-transition protocol, and current-phase scope check.
 
 <HARD-GATE>
 If `.description` is empty, or is missing file scope AND verification criteria, STOP. Do not dispatch this task. Report it as invalid for execution:
 
 "Task <TASK_ID> has an empty or underspecified description. Route back to beo-planning or beo-validating to complete the bead spec."
 
-Do not attempt to reconstruct the spec from plan.md or CONTEXT.md; that produces low-quality worker output.
+Do not attempt to reconstruct the spec from `plan.md` or `CONTEXT.md`; that produces low-quality worker output.
 </HARD-GATE>
 
 ### Bead Classes
@@ -92,7 +95,7 @@ Follow the canonical transition sequence in `references/execution-operations.md`
 
 ## Phase 3: Worker Prompt Assembly
 
-Build the complete worker prompt for the subagent. The prompt includes phase exit state, story context, plan summary, task spec, relevant CONTEXT.md decisions, previous task results, and verification criteria.
+Build the complete worker prompt for the subagent. The prompt includes current-phase exit state, story context, plan summary, task spec, relevant `CONTEXT.md` decisions, previous task results, and verification criteria.
 
 See `references/worker-prompt-guide.md` for the full prompt template, data gathering commands, and budget truncation rules.
 
@@ -120,17 +123,19 @@ When a task reports blocked, follow the classification and resolution protocol i
 
 ## Completion
 
-When all tasks under the epic are closed, load `references/execution-operations.md` for the final verification steps and canonical completion behavior for swarming mode vs single-worker mode.
+When all current-phase tasks under the epic are closed, load `references/execution-operations.md` for the final verification steps and canonical completion behavior for swarming mode vs single-worker mode.
 
 Announce:
-```
-Execution complete.
+```text
+Current-phase execution complete.
 - <N>/<total> tasks completed successfully
 - Build: <pass/fail>
 - Tests: <pass/fail>
-
-Load beo-reviewing for quality verification and feature completion.
 ```
+
+If `planning_mode = single-phase` and no later phases remain, load `beo-reviewing` for quality verification and feature completion.
+
+If `planning_mode = multi-phase` and later phases remain, route back through the planning-aware flow instead of claiming the whole feature is complete.
 
 ## Context Budget
 
@@ -138,7 +143,7 @@ If context usage exceeds 65%, load `references/execution-operations.md` and foll
 
 ## Post-Compaction Recovery
 
-If you detect that context has been compacted (prior conversation is summarized), follow the recovery procedure in `references/execution-guardrails.md` to re-read CONTEXT.md, plan, phase context, and task state before resuming.
+If you detect that context has been compacted (prior conversation is summarized), follow the recovery procedure in `references/execution-guardrails.md` to re-read `CONTEXT.md`, `approach.md`, current-phase context, and task state before resuming.
 
 ## Red Flags & Anti-Patterns
 

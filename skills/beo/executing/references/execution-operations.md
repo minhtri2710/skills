@@ -27,6 +27,13 @@ br dep list <EPIC_ID> --direction up --type parent-child --json
 
 If the epic does not have the `approved` label, stop and route to `beo-validating`.
 
+Also confirm planning-aware scope when relevant:
+
+- read `.beads/STATE.md` if present
+- read `phase-plan.md` if present
+- treat `phase-contract.md` and `story-map.md` as the **current phase** artifacts
+- do not assume current-phase execution implies whole-feature completion when `planning_mode = multi-phase`
+
 ## 2. Epic Claim
 
 On first entry, if the epic is still `open`, transition it to `in_progress`:
@@ -46,6 +53,8 @@ bv --robot-plan --graph-root <EPIC_ID> --format json 2>/dev/null || bv --robot-n
 ```
 
 Pick the top executable bead from the first available track. If dispatched by swarming, respect any startup hint but always verify against the live graph.
+
+For multi-phase work, select only beads that belong to the **current phase**.
 
 ## 4. Pre-Dispatch Checks
 
@@ -79,6 +88,15 @@ Read `br show <TASK_ID> --json` and verify `.description` is:
 
 If empty or underspecified, do not dispatch. Route back to `beo-planning` or `beo-validating`.
 
+### Current-Phase Scope Check
+
+Before execution, confirm the bead belongs to the currently approved phase.
+
+If `phase-plan.md` exists and the bead clearly belongs to a later phase:
+- do not execute it
+- route back to planning-aware flow
+- keep later-phase work deferred until the next planning cycle
+
 ## 5. Task Transition Protocol
 
 Reserve files before editing. Then transition:
@@ -103,6 +121,13 @@ br audit record --kind tool_call --issue-id <TASK_ID> --tool-name "dispatch"
 ### Worker Prompt Assembly
 
 Use `worker-prompt-guide.md` for the full prompt template and budget-truncation rules.
+
+The worker prompt should include, when relevant:
+- planning mode
+- current phase name / number
+- current-phase exit state
+- current story context
+- a note that later phases remain deferred if the feature is multi-phase
 
 ### Standalone Dispatch
 
@@ -178,19 +203,19 @@ bv --robot-next --format json 2>/dev/null || br ready --json
 ```
 
 Decision table:
-- more ready tasks → loop
+- more ready current-phase tasks → loop
 - all remaining tasks blocked → report blockers
-- all tasks closed → complete
+- all current-phase tasks closed → complete current phase
 - a task failed → report and ask user
 - context budget >65% → checkpoint and pause
 
 ### Completion
 
-When all tasks under the epic are closed:
+When all current-phase tasks under the epic are closed:
 
 ```bash
 br dep list <EPIC_ID> --direction up --type parent-child --json
-# Filter for .status != "closed"; should return empty
+# Filter for .status != "closed"; should return empty for current-phase execution scope
 ```
 
 Then run project-specific build/tests.
@@ -208,8 +233,19 @@ Update `.beads/STATE.md`:
 - Phase: executing → complete
 - Feature: <epic-id> (<feature-name>)
 - Tasks: <total> completed, <blocked> blocked, <failed> failed
-- Next: beo-reviewing
+- Next: <beo-reviewing | beo-planning>
+
+- Planning mode: <single-phase | multi-phase>
+- Has phase plan: <true | false>
+- Current phase: <number>
+- Total phases: <number | unknown>
+- Phase name: <name>
 ```
+
+Routing rule:
+- if `planning_mode = single-phase` and execution scope is complete → `beo-reviewing`
+- if `planning_mode = multi-phase` and later phases remain → `beo-planning`
+- if `planning_mode = multi-phase` and this was the final phase → `beo-reviewing`
 
 ## 9. Context-Budget Checkpoint
 
@@ -225,3 +261,11 @@ Write a final report artifact for the current task and stop gracefully. The orch
 4. pause
 
 Use the canonical base schema from `../../reference/references/state-and-handoff-protocol.md`, then add any executing-specific resume detail you need.
+
+When relevant, include:
+- `planning_mode`
+- `has_phase_plan`
+- `current_phase`
+- `total_phases`
+- `phase_name`
+- whether current-phase execution is complete or partially complete

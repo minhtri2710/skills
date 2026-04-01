@@ -19,22 +19,33 @@ Verify before review:
 ```bash
 br dep list <EPIC_ID> --direction up --type parent-child --json
 cat .beads/artifacts/<feature-name>/CONTEXT.md
+cat .beads/artifacts/<feature-name>/approach.md 2>/dev/null
+cat .beads/artifacts/<feature-name>/phase-plan.md 2>/dev/null
 cat .beads/artifacts/<feature-name>/phase-contract.md
 cat .beads/artifacts/<feature-name>/story-map.md 2>/dev/null
 ```
 
 Also run project-specific build/tests before review.
 
-If tasks are still open/in progress, route back to `beo-executing`.
+If tasks from the final execution scope are still open/in progress, route back to `beo-executing`.
 If any tasks remain blocked/failed/partial, use the approval rules in `../../reference/references/approval-gates.md` before deciding whether to proceed, defer, or re-plan.
+If `planning_mode = multi-phase` and later phases remain, route back to `beo-planning` instead of reviewing the feature as complete.
 
 ## 2. Automated Review Setup
 
 Use `review-specialist-prompts.md` for the specialist table, dispatch strategy, and P1/P2/P3 bead-creation patterns.
 
+Prefer isolated review inputs:
+- changed files or diff
+- `CONTEXT.md`
+- `approach.md` if it exists
+- final current-phase artifacts
+
+If multiple specialists produce the same finding, deduplicate before creating follow-up work.
+
 ## 3. Artifact Verification
 
-For each significant artifact promised by the plan, run the 3-level verification:
+For each significant artifact promised by the final execution scope, run the 3-level verification:
 - L1 exists
 - L2 substantive
 - L3 wired
@@ -74,17 +85,22 @@ Then do the same for each exit-state line.
 After all P1 issues are resolved and UAT is complete:
 
 1. run full build/test/lint
-2. close the epic:
+2. present the merge-path options to the user:
+   - create PR
+   - merge directly
+   - keep branch for more work
+   - discard branch
+3. close the epic:
 
 ```bash
 br close <EPIC_ID>
-br comments add <EPIC_ID> --no-daemon --message "Feature complete. All tasks closed. UAT passed."
+br comments add <EPIC_ID> --no-daemon --message "Feature complete. All tasks in the final execution scope closed. UAT passed."
 br sync --flush-only
 ```
 
-3. write `.beads/review-findings.md` for compounding
-4. optionally sync AGENTS.md changes with user approval
-5. remove `.beads/HANDOFF.json` but keep `.beads/STATE.md`
+4. write `.beads/review-findings.md` for compounding
+5. optionally sync `AGENTS.md` changes with user approval
+6. remove `.beads/HANDOFF.json` but keep `.beads/STATE.md`
 
 ## 6. Lightweight Mode
 
@@ -101,3 +117,4 @@ If context usage exceeds 65%, use the canonical `STATE.md` and `HANDOFF.json` sh
 - gathered findings so far
 - UAT progress
 - any in-flight fix beads
+- planning-aware fields when relevant (`planning_mode`, `has_phase_plan`, `current_phase`, `total_phases`, `phase_name`)

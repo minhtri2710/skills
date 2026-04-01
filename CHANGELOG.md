@@ -103,6 +103,44 @@ Applied this change in:
 
 This means the repo now treats Obsidian/QMD as the preferred knowledge-store path, with flat files used when the richer toolchain is unavailable or cannot be used safely.
 
+### Added planning foundation for single-phase and multi-phase work
+
+Expanded the beo planning model to distinguish whole-feature strategy from current-phase execution preparation.
+
+#### New planning artifacts
+- Added `approach.md` as the canonical strategy artifact for:
+  - gap analysis
+  - recommended approach
+  - alternatives considered
+  - risk map
+- Added optional `phase-plan.md` for multi-phase features to describe:
+  - whole-feature sequencing
+  - current-phase selection
+  - intentionally deferred later phases
+
+#### New current-phase semantics
+- `phase-contract.md` now explicitly means **current phase only**
+- `story-map.md` now explicitly means **current phase only**
+- Multi-phase work keeps whole-feature sequencing in `phase-plan.md` instead of overloading current-phase artifacts
+
+#### Shared protocol updates
+- Extended `state-and-handoff-protocol.md` with planning-aware fields:
+  - `planning_mode`
+  - `has_phase_plan`
+  - `current_phase`
+  - `total_phases`
+  - `phase_name`
+- Extended `approval-gates.md` with multi-phase planning approval semantics
+- Updated `file-conventions.md` and `pipeline-contracts.md` to reflect the new artifact hierarchy
+
+#### Router and downstream skill updates
+- Updated `beo-router` to distinguish:
+  - approach-level planning state
+  - current-phase planning state
+  - current-phase completion vs whole-feature completion
+- Updated `beo-validating`, `beo-executing`, `beo-swarming`, and `beo-reviewing` to respect planning-aware routing and current-phase scope
+- Added current-phase-aware handoff rules so multi-phase work routes back to planning instead of jumping directly to final review
+
 ### Final consistency pass
 
 Completed a repo-wide final pass to:
@@ -116,6 +154,7 @@ Notable improvements included:
 - stronger trigger wording for `beo-router`, `beo-executing`, `beo-swarming`, `beo-debugging`, `beo-compounding`, `beo-dream`, and `beo-writing-skills`
 - explicit hard gate for `beo-swarming` when Agent Mail is unavailable
 - explicit hard gate for `beo-debugging` before proceeding without a one-sentence root cause
+- planning-aware routing consistency across router, validation, execution, swarming, and review
 
 ### Reference navigation improvements
 
@@ -127,6 +166,7 @@ Updated `skills/beo/reference/SKILL.md` so it now serves as a stronger entry poi
 - state/handoff protocol
 - learnings read protocol
 - approval gates
+- planning-aware artifact semantics
 
 ### Result
 
@@ -135,3 +175,8 @@ The `skills/beo` system now follows a clearer architecture:
 - `SKILL.md` = trigger + policy + gates + core workflow
 - skill-local `references/` = detailed operational playbooks
 - shared `reference/references/` = canonical cross-skill protocols
+
+And the planning pipeline now distinguishes:
+- whole-feature strategy (`approach.md`)
+- optional whole-feature sequencing (`phase-plan.md`)
+- current-phase execution preparation (`phase-contract.md`, `story-map.md`, current-phase beads)

@@ -1,12 +1,12 @@
 ---
 name: beo-swarming
 description: >-
-  Use when an approved epic has 3 or more independent ready tasks and parallel
-  execution will materially reduce cycle time. Orchestrates bounded workers,
-  monitors blockers and file conflicts, coordinates rescues, and hands off to
-  reviewing when all execution beads are closed. Use for prompts about
-  swarming, parallel workers, launching multiple agents, coordinating a worker
-  pool, or running approved work at scale.
+  Use when an approved current phase has 3 or more independent ready tasks and
+  parallel execution will materially reduce cycle time. Orchestrates bounded
+  workers, monitors blockers and file conflicts, coordinates rescues, and hands
+  off to planning or reviewing when the current execution scope is complete.
+  Use for prompts about swarming, parallel workers, launching multiple agents,
+  coordinating a worker pool, or running approved current-phase work at scale.
 ---
 
 # Swarming
@@ -18,7 +18,7 @@ You are the **ORCHESTRATOR**. You launch workers, monitor coordination, handle e
 - **beo-swarming** = launches and tends workers (this skill)
 - **beo-executing** = each worker's self-routing implementation loop
 
-The orchestrator launches the swarm, then tends it. Workers decide what to do next by using `bv --robot-plan` against the live bead graph.
+The orchestrator launches the swarm, then tends it. Workers decide what to do next by using the live bead graph against the approved **current phase**.
 
 <HARD-GATE>
 If Agent Mail is unavailable, do NOT attempt swarming. Degrade to `beo-executing`.
@@ -26,15 +26,21 @@ If Agent Mail is unavailable, do NOT attempt swarming. Degrade to `beo-executing
 
 If Agent Mail becomes unavailable mid-run, stop launching new workers, let active workers finish if possible, and degrade remaining work to `beo-executing`.
 
+## Active Swarm Never Idles
+
+If workers are spawned, online, busy, blocked, or expected to report, you are not in a waiting phase. You are in a tending phase.
+
+While the swarm is active, keep looping through Agent Mail and the live bead graph. Do not stop and wait for user direction just because the thread is quiet. Silence is work for the orchestrator.
+
 ## Minimal Swarm Checklist
 
-1. Confirm the epic is approved and at least 3 independent ready tasks exist
+1. Confirm the epic is approved and at least 3 independent ready current-phase tasks exist
 2. Confirm Agent Mail is working before spawning any workers
 3. Register the coordinator and announce the swarm
-4. Spawn bounded workers with explicit bead scope
+4. Spawn bounded workers with explicit current-phase scope
 5. Monitor completions, blockers, idle workers, and file conflicts
 6. Reassign, rescue, or degrade when workers stall
-7. Hand off to `beo-reviewing` only after all execution beads are closed
+7. Hand off to `beo-planning` or `beo-reviewing` only after the approved current execution scope is complete
 
 ## Worker Count Heuristic
 
@@ -58,7 +64,7 @@ If unsure, start smaller and expand only after the first monitor loop is healthy
 
 ## Phase 1: Confirm Swarm Readiness
 
-Load `references/swarming-operations.md` for the exact readiness checks, epic-claim step, and scheduling cascade.
+Load `references/swarming-operations.md` for the exact readiness checks, planning-aware scope verification, epic-claim step, and scheduling cascade.
 
 ---
 
@@ -70,7 +76,7 @@ Load `references/swarming-operations.md` for the exact Agent Mail setup sequence
 
 ## Phase 3: Spawn Workers
 
-Load `references/swarming-operations.md` for the exact worker-spawn contract, worker input shape, and `STATE.md` tracking expectations. Use `references/worker-template.md` when building worker context.
+Load `references/swarming-operations.md` for the exact worker-spawn contract, worker input shape, worker startup acknowledgment expectations, and `STATE.md` tracking expectations. Use `references/worker-template.md` when building worker context.
 
 ---
 
@@ -82,7 +88,7 @@ Load `references/swarming-operations.md` for the exact monitor/tend loop, event 
 
 ## Phase 5: Swarm Complete
 
-Load `references/swarming-operations.md` for the exact completion checks, `STATE.md` update, and Agent Mail completion announcement.
+Load `references/swarming-operations.md` for the exact completion checks, planning-aware route decision, `STATE.md` update, and Agent Mail completion announcement.
 
 ---
 
@@ -92,11 +98,12 @@ Stop and diagnose before continuing if you see:
 
 - **Worker implements multiple beads at once**: self-routing does not mean parallelizing within one worker
 - **Orchestrator edits source files**: role violation
-- **Workers are idle but ready beads exist**: check mail, reservations, or startup drift
+- **Workers are idle but ready current-phase beads exist**: check mail, reservations, or startup drift
 - **No Agent Mail activity for >10 poll cycles**: workers may be stuck or context-exhausted
 - **The same file conflict repeats**: bead decomposition may be too coarse; escalate
-- **Workers stop using `bv --robot-plan` and start freelancing**: re-broadcast the execution contract
+- **Workers stop using the live graph and start freelancing**: re-broadcast the execution contract
 - **Build/test failures accumulate without intervention**: create fix beads or stop and escalate
+- **Current phase completes but later phases remain** and you route directly to final review: planning-aware routing failure
 
 ---
 

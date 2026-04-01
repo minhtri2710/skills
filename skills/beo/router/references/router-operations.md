@@ -1,14 +1,18 @@
 # Router Operations
 
-Detailed operational playbook for `beo-router`. Load this file when you need exact bootstrap steps, new-feature creation details, instant-path scaffolding, resume validation, or doctor-mode commands.
+Detailed operational playbook for `beo-router`.
+
+Load this file when you need exact bootstrap steps, new-feature creation details, instant-path scaffolding, resume validation, planning-aware routing, or doctor-mode commands.
 
 ## Table of Contents
 
 - [1. Workspace Bootstrap](#1-workspace-bootstrap)
 - [2. New Feature Creation](#2-new-feature-creation)
 - [3. Instant Path Scaffold](#3-instant-path-scaffold)
-- [4. Resume From Handoff](#4-resume-from-handoff)
-- [5. Doctor Mode](#5-doctor-mode)
+- [4. Artifact Inspection Order](#4-artifact-inspection-order)
+- [5. Planning-Aware Routing Rules](#5-planning-aware-routing-rules)
+- [6. Resume From Handoff](#6-resume-from-handoff)
+- [7. Doctor Mode](#7-doctor-mode)
 
 ## 1. Workspace Bootstrap
 
@@ -89,6 +93,21 @@ Instant-path: no exploration needed.
 - Estimated blast radius: 1 file
 ```
 
+#### approach.md
+
+```markdown
+# Approach: <name>
+
+## Problem Shape
+Instant-path: single bounded change.
+
+## Recommended Approach
+Implement the smallest change that satisfies the request while preserving existing patterns.
+
+## Planning Mode Decision
+- Mode: single-phase
+```
+
 #### plan.md
 
 ```markdown
@@ -107,11 +126,11 @@ See bead description for spec.
 ```markdown
 # Phase Contract: <name>
 
-## 4. Exit State
+## Exit State
 - Feature works as described in request.
 
-## 5. Demo Story
-Instant-path: single-task feature, no stories needed.
+## Demo Story
+Instant-path: single-task feature, no deeper phase structure needed.
 ```
 
 #### story-map.md
@@ -119,13 +138,13 @@ Instant-path: single-task feature, no stories needed.
 ```markdown
 # Story Map: <name>
 
-## 2. Story Table
+## Story Table
 
 | Story | Purpose | Done Looks Like |
 |-------|---------|-----------------|
 | Story 1: Implement | Single-task implementation | Task complete and verified |
 
-## 5. Story-To-Bead Mapping
+## Story-To-Bead Mapping
 
 | Story | Beads |
 |-------|-------|
@@ -139,7 +158,64 @@ If the work grows beyond instant scope:
 - route to `beo-exploring` or `beo-planning`
 - treat the existing instant task bead as planning input
 
-## 4. Resume From Handoff
+## 4. Artifact Inspection Order
+
+When assessing an active feature, inspect artifacts in this order:
+
+1. `CONTEXT.md`
+2. `discovery.md`
+3. `approach.md`
+4. `phase-plan.md` *(if present)*
+5. `phase-contract.md`
+6. `story-map.md`
+
+Interpretation rules:
+
+- if `phase-plan.md` exists, the feature is potentially multi-phase
+- if `phase-plan.md` does not exist, the feature is usually single-phase unless other evidence contradicts that assumption
+- `phase-contract.md` and `story-map.md` always describe the **current phase** only
+
+## 5. Planning-Aware Routing Rules
+
+Use these rules when the planning model is relevant.
+
+### Rule A — Context exists but planning artifacts do not
+
+If `CONTEXT.md` exists but `approach.md` does not:
+- route to `beo-planning`
+
+### Rule B — Approach exists but current-phase artifacts are missing
+
+If `approach.md` exists and either `phase-contract.md` or `story-map.md` is missing:
+- route to `beo-planning`
+
+### Rule C — Multi-phase sequencing exists
+
+If `phase-plan.md` exists:
+- treat the feature as multi-phase unless the file is clearly obsolete or contradicted by current state
+- do not assume current-phase completion means whole-feature completion
+
+### Rule D — Current phase complete, later phases remain
+
+If all current-phase beads are closed, `phase-plan.md` exists, and later phases remain:
+- route to `beo-planning`
+- next action = prepare the next phase
+
+Pseudo-logic:
+
+```text
+if phase_plan exists and current phase complete and later phases remain:
+  route = beo-planning
+else if no later phases remain and implementation complete:
+  route = beo-reviewing
+```
+
+### Rule E — Final execution scope complete
+
+If execution is complete and no later phases remain:
+- route to `beo-reviewing`
+
+## 6. Resume From Handoff
 
 ### Read the Handoff
 
@@ -148,6 +224,17 @@ cat .beads/HANDOFF.json
 ```
 
 Use the canonical schema from `../../reference/references/state-and-handoff-protocol.md`.
+
+### Read planning-aware fields when present
+
+If present, read and trust these fields unless live artifacts clearly contradict them:
+
+- `planning_mode`
+- `has_phase_plan`
+- `current_phase`
+- `total_phases`
+- `phase_name`
+- `artifacts`
 
 ### Verify It Is Still Valid
 
@@ -159,11 +246,15 @@ br show <feature_epic_id> --json
 br list --type task --json
 ```
 
+Also re-check the artifact set in the canonical inspection order.
+
+If `has_phase_plan = true`, verify that `phase-plan.md` still exists.
+
 ### Clean Up Only After Fresh Checkpoint
 
 After the resumed skill writes a fresh `STATE.md`, clean up `HANDOFF.json` according to `../../reference/references/state-and-handoff-protocol.md`.
 
-## 5. Doctor Mode
+## 7. Doctor Mode
 
 Use when asked to inspect project health or diagnose workflow issues.
 
@@ -181,6 +272,13 @@ br dep cycles --json
 br blocked --json
 ```
 
+In addition to graph health, report planning shape when relevant:
+
+- whether `approach.md` exists
+- whether `phase-plan.md` exists
+- whether current-phase artifacts exist
+- whether the feature appears single-phase or multi-phase
+
 ### Diagnostic Table
 
 | Finding | Severity | Action |
@@ -190,3 +288,5 @@ br blocked --json
 | Tasks in_progress >4h with no commits | **MEDIUM** | May be abandoned; check with user |
 | Epic with no tasks and no plan | **LOW** | Stale feature; suggest cleanup or activation |
 | Closed tasks with open dependencies | **HIGH** | Inconsistent state; investigate |
+| `phase-plan.md` exists but no current-phase artifacts | **MEDIUM** | Route back to planning |
+| Current phase complete but later phases remain | **MEDIUM** | Route back to planning for next phase prep |

@@ -1,29 +1,32 @@
 ---
 name: beo-reviewing
 description: >-
-  Use after implementation is complete, or when the user asks whether a feature
-  is done, ready to ship, safe to merge, or needs a quality check. Runs the
-  post-execution quality gate: specialist review, artifact verification, and
-  human UAT against locked decisions and exit state. Use for prompts like
-  "review this feature", "is this done?", "can we ship this?", "double-check
-  the implementation", or "run UAT".
+  Use after the final approved execution scope is complete, or when the user asks
+  whether a feature is done, ready to ship, safe to merge, or needs a quality
+  check. Runs the post-execution quality gate: specialist review, artifact
+  verification, and human UAT against locked decisions and the final exit state.
+  Use for prompts like "review this feature", "is this done?", "can we ship
+  this?", "double-check the implementation", or "run UAT".
 ---
 
 # Beo Reviewing
 
 ## Overview
 
-Reviewing is the post-execution quality gate. It verifies that the implementation actually delivers what CONTEXT.md specified, catches issues the workers missed, and formally closes the feature.
+Reviewing is the post-execution quality gate. It verifies that the implementation actually delivers what `CONTEXT.md` specified, catches issues the workers missed, and formally closes the feature.
 
 **Core principle**: Trust but verify. Workers may have drifted, cut corners, or missed edge cases.
 
+Reviewing is for the **final execution scope**. If planning mode is `multi-phase` and later phases remain, route back to planning rather than reviewing the feature as if it were complete.
+
 ## Prerequisites
 
-Load `references/reviewing-operations.md` for the exact prerequisite checks and finishing prerequisites.
+Load `references/reviewing-operations.md` for the exact prerequisite checks, isolated review inputs, and finishing prerequisites.
 
 <HARD-GATE>
-If tasks are still open or in progress, STOP. Route back to `beo-executing`.
+If tasks from the final execution scope are still open or in progress, STOP. Route back to `beo-executing`.
 If any tasks have `blocked`, `failed`, or `partial` labels (status `deferred`), STOP. Report these to the user and get explicit approval to proceed, defer, or re-plan before closing the epic.
+If `planning_mode = multi-phase` and later phases remain, STOP. Route back to `beo-planning` instead of reviewing the feature as complete.
 </HARD-GATE>
 
 ## Phase 1: Automated Review
@@ -39,6 +42,8 @@ Load `references/review-specialist-prompts.md` for the full specialist table, pr
 - **P3 findings** recorded but no beads unless user requests
 - If P1 fixes fail >2 attempts, route to `beo-debugging`
 
+Use isolated review context whenever possible: changed files / diff, `CONTEXT.md`, `approach.md`, and final current-phase artifacts.
+
 ### Severity Examples
 
 - **P1**: security hole, broken acceptance path, data-loss risk, or a locked decision from `CONTEXT.md` is not actually met
@@ -49,7 +54,7 @@ When unsure between P1 and P2, ask: "Would I block merge if this remained unfixe
 
 ## Phase 2: Artifact Verification
 
-Verify that all implementation artifacts are real, substantive, and wired.
+Verify that all implementation artifacts promised by the final execution scope are real, substantive, and wired.
 
 Load `references/reviewing-operations.md` for the 3-level verification procedure, command shapes, and finishing flow.
 
@@ -61,7 +66,7 @@ Human review is required. Use the canonical rule from `../reference/references/a
 
 ### UAT Protocol
 
-For each locked decision from CONTEXT.md (D1, D2, ...):
+For each locked decision from `CONTEXT.md` (D1, D2, ...):
 
 1. State the decision
 2. Show how the implementation fulfills it
@@ -69,7 +74,7 @@ For each locked decision from CONTEXT.md (D1, D2, ...):
 
 Walk through ONE decision at a time. Wait for user confirmation before moving to the next.
 
-Additionally, verify against the phase exit state from `phase-contract.md`:
+Additionally, verify against the relevant exit state from `phase-contract.md`:
 
 For each exit-state line:
 1. State the exit-state claim
@@ -83,19 +88,19 @@ Load `references/reviewing-operations.md` for the canonical UAT outcome handling
 ### Scope Change During UAT
 
 If the user changes a decision:
-1. Update CONTEXT.md with the new decision
+1. Update `CONTEXT.md` with the new decision
 2. Assess which tasks are affected
 3. If minor (1-2 files) → create fix bead, execute
-4. If major (architectural change) → STOP reviewing, strip `approved` label (`br label remove <EPIC_ID> -l approved`), route to `beo-planning`
+4. If major (architectural change or changes to feature sequencing) → STOP reviewing, strip `approved` label (`br label remove <EPIC_ID> -l approved`), route to `beo-planning`
 
 ## Phase 4: Finishing
 
-After all P1 issues are resolved, artifacts are verified, and UAT is complete, load `references/reviewing-operations.md` for the exact finishing sequence, review-findings handoff, optional AGENTS.md sync, and cleanup rule.
+After all P1 issues are resolved, artifacts are verified, and UAT is complete, load `references/reviewing-operations.md` for the exact finishing sequence, review-findings handoff, merge-path presentation, optional AGENTS.md sync, and cleanup rule.
 
 ## Completion
 
 Announce:
-```
+```text
 Feature "<feature-name>" is complete.
 
 Review Summary:
@@ -129,6 +134,7 @@ If context usage exceeds 65%, use `references/reviewing-operations.md` together 
 | **Closing epic with open P1 fixes** | All P1 beads must be closed first |
 | **Promoting learnings without approval** | critical-patterns.md is shared; ask first |
 | **Skipping build/test/lint** | Full build/test/lint verification is mandatory before closing the epic |
+| **Reviewing before later phases are planned/executed** | Multi-phase feature is not done just because the current phase is done |
 
 ## Anti-Patterns
 

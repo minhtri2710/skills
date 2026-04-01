@@ -9,15 +9,24 @@ Template, data gathering, and budget rules for Phase 3 (Worker Prompt Assembly) 
 
 ## Context
 You are implementing a task for feature "<feature-name>".
+This task belongs to the currently approved phase.
+If the feature is multi-phase, later phases remain deferred and are out of scope.
+
+## Planning Mode
+- Mode: <single-phase | multi-phase>
+- Current phase: <number>/<total or unknown> - <phase name>
+
+## Strategy Context
+<Relevant summary from approach.md: chosen approach, important constraints, major risks, and why this task exists in that strategy>
 
 ## Phase Exit State
-<Exit state from phase-contract.md: what the whole phase must achieve>
+<Exit state from phase-contract.md: what the current phase must achieve>
 
 ## Story Context
 <Story context block from this bead's description: story name, purpose, contributes to, unlocks>
 
 ## Plan Summary
-<Abbreviated plan.md: approach section only, not full plan>
+<Abbreviated plan.md summary for this task's place in the current phase>
 
 ## Your Task
 <Full task description from bead: the spec>
@@ -33,7 +42,9 @@ You are implementing a task for feature "<feature-name>".
 
 ## Rules
 - Implement ONLY what is described in the task spec
+- Respect the chosen strategy unless the task spec explicitly says otherwise
 - Do NOT modify files outside the listed file scope
+- Do NOT pull future-phase work into the current task
 - Run verification before reporting completion
 - If blocked, report the blocker. Do not guess or workaround
 - If the task grows beyond scope, report it. Do not scope-creep
@@ -46,8 +57,13 @@ You are implementing a task for feature "<feature-name>".
 br show <TASK_ID> --json
 # Extract: .description field
 
+# Get strategy context
+cat .beads/artifacts/<feature-name>/approach.md 2>/dev/null
+# Extract: recommended approach, planning mode, relevant constraints/risks
+
 # Get plan summary
 cat .beads/artifacts/<feature-name>/plan.md
+# Extract: only the summary relevant to this task's place in the current phase
 
 # Get phase exit state
 cat .beads/artifacts/<feature-name>/phase-contract.md
@@ -70,9 +86,10 @@ br comments list <DEP_ID> --json
 ## Budget Truncation
 
 If the assembled prompt is too large:
-1. Truncate plan.md to approach section only (skip task list)
-2. Truncate phase-contract.md to exit state only (skip diagram, scope, signals)
-3. Truncate story-map.md to the relevant story only (skip other stories)
-4. Include only directly relevant CONTEXT.md decisions
-5. Summarize previous task results instead of including full reports
-6. Never truncate the task spec itself. That is the core payload
+1. Reduce `approach.md` to the relevant strategy choice, constraints, and risks only
+2. Reduce `plan.md` to the short summary that explains this task's role in the current phase
+3. Truncate `phase-contract.md` to exit state only (skip diagram, scope, signals)
+4. Truncate `story-map.md` to the relevant story only (skip other stories)
+5. Include only directly relevant `CONTEXT.md` decisions
+6. Summarize previous task results instead of including full reports
+7. Never truncate the task spec itself. That is the core payload

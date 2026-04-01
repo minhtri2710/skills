@@ -28,7 +28,7 @@ If router reference files are unavailable, do the minimum safe sequence manually
 1. Check `.beads/HANDOFF.json`
 2. List open epics
 3. Inspect the active epic and its task graph
-4. Check whether `CONTEXT.md`, `phase-contract.md`, and `story-map.md` exist
+4. Check whether `CONTEXT.md`, `approach.md`, `phase-contract.md`, and `story-map.md` exist
 5. Report the current state, then route to the next matching skill
 
 ## Skill Catalog
@@ -37,11 +37,11 @@ If router reference files are unavailable, do the minimum safe sequence manually
 |---|-------|----------------------|--------------|
 | 1 | `beo-router` | This file. Bootstrap, state detection, routing. | Starting any session |
 | 2 | `beo-exploring` | Socratic dialogue → lock decisions → CONTEXT.md | Feature request is vague or new |
-| 3 | `beo-planning` | Research + synthesis → phase-contract.md + story-map.md + beads | Decisions are locked (CONTEXT.md exists) |
-| 4 | `beo-validating` | Verify phase contract, story map, bead graph (8 dimensions) | Stories and beads exist; prove execution-readiness |
+| 3 | `beo-planning` | Research + synthesis → `discovery.md` + `approach.md` + optional `phase-plan.md` + current-phase contract/story/beads | Decisions are locked (CONTEXT.md exists) |
+| 4 | `beo-validating` | Verify current phase contract, story map, and bead graph (8 dimensions) | Stories and beads exist; prove execution-readiness |
 | 5 | `beo-swarming` | Launch + tend worker pool via Agent Mail + bv | Beads validated; execute at scale (3+ independent tasks) |
 | 6 | `beo-executing` | Single worker loop: claim → build prompt → implement → verify → report | Spawned by swarming, or direct for ≤2 tasks |
-| 7 | `beo-reviewing` | 5 parallel review agents (P1/P2/P3) + artifact verification + UAT | Execution complete; quality gate before close |
+| 7 | `beo-reviewing` | 5 parallel review agents (P1/P2/P3) + artifact verification + UAT | Final execution scope complete; quality gate before close |
 | 8 | `beo-compounding` | Capture learnings → critical-patterns.md | Feature shipped; extract patterns/decisions/failures |
 | 9 | `beo-debugging` | Root-cause analysis for blocked beads and execution failures | Agent stuck, bead blocked, unexpected error |
 | 10 | `beo-dream` | Periodic consolidation of learnings across features | Learnings stale (>30 days or 3+ since last) |
@@ -101,20 +101,37 @@ br ready --json
 br blocked --json
 
 # Check planning artifacts exist
+cat .beads/artifacts/<feature-name>/CONTEXT.md 2>/dev/null
+cat .beads/artifacts/<feature-name>/discovery.md 2>/dev/null
+cat .beads/artifacts/<feature-name>/approach.md 2>/dev/null
+cat .beads/artifacts/<feature-name>/phase-plan.md 2>/dev/null
 cat .beads/artifacts/<feature-name>/phase-contract.md 2>/dev/null
 cat .beads/artifacts/<feature-name>/story-map.md 2>/dev/null
 ```
 
 ### Step 4: Classify Feature State
 
-See `references/state-routing.md` for the full state routing table (14 conditions, first-match-wins evaluation).
+See `references/state-routing.md` for the full routing table. At minimum, distinguish these practical states:
+
+- `context_locked_needs_planning`
+- `approach_ready_needs_phase_decision`
+- `phase_plan_ready_needs_current_phase_validation`
+- `current_phase_planned`
+- `current_phase_in_execution`
+- `current_phase_complete_more_phases_remain`
+- `final_phase_complete_ready_for_review`
+- `feature_complete`
+
+If `phase-plan.md` exists, treat `phase-contract.md` and `story-map.md` as **current-phase** artifacts, not whole-feature artifacts.
 
 ### Step 5: Report State
 
 Before routing, always report the current state to the user:
 
-```
+```text
 Feature: <epic title>
+Mode: <single-phase | multi-phase | unknown>
+Current phase: <n>/<total or unknown> - <phase name if known>
 State: <state from table>
 Progress: <closed>/<total> tasks (<in_progress> in progress)
 Blockers: <count> (<details if any>)
@@ -200,6 +217,7 @@ These override all other routing and execution decisions:
 5. **Spike failures halt the pipeline.** A failed spike means the approach is broken. Do not proceed to swarming; return to planning.
 6. **Never skip validating.** Not for small features. Not for "obvious" plans. Skipping validating is the #1 cause of wasted execution work.
 7. **critical-patterns.md is mandatory context.** If it exists, read it before planning or executing. Ignoring past critical patterns is the #1 source of repeat failures.
+8. **Current-phase completion is not whole-feature completion for multi-phase work.** If `phase-plan.md` exists and later phases remain, route back to `beo-planning` instead of jumping to final review.
 
 ## Red Flags and Anti-Patterns
 

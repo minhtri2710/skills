@@ -20,6 +20,11 @@ Prerequisites:
 
 If Agent Mail is unavailable, degrade to single-worker mode and route to `beo-executing`.
 
+Also verify planning-aware scope:
+- read `.beads/STATE.md` when present
+- read `phase-plan.md` when present
+- confirm the swarm will execute the **current phase** only
+
 ### Readiness Steps
 
 1. get `EPIC_ID` from `.beads/STATE.md` or user input
@@ -80,11 +85,20 @@ Spawn a pool of worker subagents in parallel using the canonical worker contract
 Each worker must receive:
 - Agent Mail identity
 - epic ID / feature name
+- planning mode and current phase context when known
 - instruction to load `beo-executing`
 - optional startup hint (clearly marked as a hint)
 - scoped task context by default
 
 Do not assign fixed tracks or fixed bead lists in the normal case. Workers should self-route from the live graph.
+
+### Worker startup acknowledgment
+
+A worker startup acknowledgment should confirm:
+- the worker is online
+- it joined the correct epic thread
+- it loaded `beo-executing`
+- it understands the current execution scope is the current phase only
 
 Mark active workers in `.beads/STATE.md`.
 
@@ -120,12 +134,12 @@ bv --robot-triage --graph-root <EPIC_ID> --format json
 After each completion:
 - >50% beads open → continue normally
 - <50% beads open → consider reducing workers
-- all beads closed → complete swarm
+- all current-phase beads closed → complete swarm
 - no progress for 3+ cycles → diagnose mail, reservations, or worker health
 
 ## 5. Swarm Completion
 
-When no beads remain `in_progress` and no executable work remains:
+When no beads remain `in_progress` and no executable current-phase work remains:
 
 1. verify the graph:
 
@@ -134,9 +148,12 @@ bv --robot-triage --graph-root <EPIC_ID> --format json
 ```
 
 2. if orphaned/blocked beads remain, report them and get user direction
-3. if all beads are closed:
+3. if all current-phase beads are closed:
    - run final build/test commands
-   - update `.beads/STATE.md` with phase complete and next `beo-reviewing`
+   - choose the next route:
+     - `beo-reviewing` if this was the final execution scope
+     - `beo-planning` if `planning_mode = multi-phase` and later phases remain
+   - update `.beads/STATE.md` with phase complete and next skill
    - clear active workers
 4. send the completion message on Agent Mail using `message-templates.md`
 
@@ -145,5 +162,6 @@ bv --robot-triage --graph-root <EPIC_ID> --format json
 If context usage exceeds 65%:
 - write `.beads/HANDOFF.json` using the canonical base fields from `../../reference/references/state-and-handoff-protocol.md`
 - include swarming-specific extension fields (`session`, `swarm`, `graph_status`, `active_workers`, `open_blockers`, `resume_instructions`, `context_at_pause`)
+- include planning-aware fields when relevant (`planning_mode`, `has_phase_plan`, `current_phase`, `total_phases`, `phase_name`)
 - broadcast a pause notification on the epic thread
 - report to the user how to resume

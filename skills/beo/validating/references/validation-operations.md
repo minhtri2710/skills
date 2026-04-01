@@ -1,11 +1,11 @@
 # Validation Operations
 
-Detailed operational playbook for `beo-validating`. Load this file when you need exact prerequisite checks, graph-health commands, spike handling, approval messaging, or handoff details.
+Detailed operational playbook for `beo-validating`. Load this file when you need exact prerequisite checks, planning-aware orientation, graph-health commands, spike handling, approval messaging, or handoff details.
 
 ## Table of Contents
 
 - [1. Prerequisites](#1-prerequisites)
-- [2. Learnings Retrieval](#2-learnings-retrieval)
+- [2. Learnings Retrieval + Current-Phase Orientation](#2-learnings-retrieval--current-phase-orientation)
 - [3. Structural Verification Flow](#3-structural-verification-flow)
 - [4. Graph Health Operations](#4-graph-health-operations)
 - [5. Spike Execution](#5-spike-execution)
@@ -26,31 +26,80 @@ br dep list <EPIC_ID> --direction up --type parent-child --json
 # CONTEXT.md exists
 cat .beads/artifacts/<feature-name>/CONTEXT.md
 
+# discovery.md exists
+cat .beads/artifacts/<feature-name>/discovery.md 2>/dev/null
+
+# approach.md exists
+cat .beads/artifacts/<feature-name>/approach.md
+
 # plan.md exists
 cat .beads/artifacts/<feature-name>/plan.md
 
-# phase-contract.md exists
-cat .beads/artifacts/<feature-name>/phase-contract.md
+# phase-plan.md is optional
+cat .beads/artifacts/<feature-name>/phase-plan.md 2>/dev/null
 
-# story-map.md exists
+# current-phase artifacts exist
+cat .beads/artifacts/<feature-name>/phase-contract.md
 cat .beads/artifacts/<feature-name>/story-map.md
 ```
 
-Stop and route back to `beo-planning` if tasks, `phase-contract.md`, or `story-map.md` are missing.
+Stop and route back to `beo-planning` if tasks, `approach.md`, `phase-contract.md`, or `story-map.md` are missing.
 
-## 2. Learnings Retrieval
+Interpretation rules:
 
-Before validating structure, use `../../reference/references/learnings-read-protocol.md` as the canonical read-side workflow. If a prior learning affects phase closure, story order, or spike design, verify that the plan reflects it.
+- if `phase-plan.md` exists, treat the feature as multi-phase unless current artifacts clearly contradict that model
+- `phase-contract.md` and `story-map.md` always describe the **current phase**
+
+## 2. Learnings Retrieval + Current-Phase Orientation
+
+Before validating structure, use `../../reference/references/learnings-read-protocol.md` as the canonical read-side workflow.
+
+If a prior learning affects phase closure, story order, spike design, or sequencing, verify that the current phase plan reflects it.
+
+### Current-phase orientation
+
+Before running the structural check, orient the validator.
+
+Read, when available:
+
+- `.beads/STATE.md`
+- `approach.md`
+- `phase-plan.md`
+- `phase-contract.md`
+- `story-map.md`
+
+Summarize:
+
+```text
+Validating current phase: <phase number>/<total or unknown> - <phase name>
+Planning mode: <single-phase | multi-phase>
+
+Stories:
+- Story 1: <name>
+- Story 2: <name>
+- Story 3: <name>
+
+Goal of this phase:
+- <one-line practical outcome>
+```
+
+If `phase-plan.md` exists, also verify:
+
+- this current phase still makes sense in the larger sequence
+- the selected current phase matches the plan summary and state metadata
+- later phases remain intentionally deferred
 
 ## 3. Structural Verification Flow
 
 ### Run the Plan Checker
 
 Load `plan-checker-prompt.md`. Spawn an isolated subagent with:
-- all task beads for the epic (`br show <TASK_ID> --json` for each)
+- all current-phase task beads for the epic (`br show <TASK_ID> --json` for each)
 - `CONTEXT.md`
-- `discovery.md`
+- `discovery.md` if it exists
+- `approach.md`
 - `plan.md`
+- `phase-plan.md` if it exists
 - `phase-contract.md`
 - `story-map.md`
 
@@ -70,15 +119,18 @@ The checker returns a structured PASS/FAIL report for all 8 dimensions.
 |-----------------|--------|
 | Phase contract unclear | Revise `phase-contract.md` |
 | Story order or scope unclear | Revise `story-map.md` |
-| Decision/gap issue | Revise story map and/or bead descriptions |
+| Decision/gap issue | Revise `approach.md`, story map, and/or bead descriptions |
 | Dependency/scope/budget issue | Revise beads |
-| Exit state not convincingly reachable | Revise contract, story map, or `plan.md` |
+| Exit state not convincingly reachable | Revise `phase-contract.md`, `story-map.md`, `approach.md`, or `plan.md` |
+| Current phase no longer fits the whole-feature sequence | Revise `phase-plan.md` and current-phase artifacts |
 
 ### Failure Handling
 
 - **1-2 failures**: fix in place
 - **3+ failures**: route back to `beo-planning`
 - **After 3 iterations with any FAIL still present**: stop and escalate to the user
+
+Do not attempt iteration 4.
 
 ## 4. Graph Health Operations
 
@@ -121,6 +173,10 @@ Inspect `story-map.md` and verify:
 - stories with 4+ beads may be too large
 - no bead spans unrelated stories
 
+If `phase-plan.md` exists, also verify:
+- every bead belongs to the **current phase**
+- no future-phase work is smuggled into the current execution set
+
 ### Bead Description Verification
 
 For each task bead under the epic, read `br show <TASK_ID> --json` and verify:
@@ -160,7 +216,8 @@ br comments add <SPIKE_ID> --no-daemon --message "FINDING: YES|NO: <explanation>
 
 For deep-complexity features or features with 5+ tasks, load `bead-reviewer-prompt.md` and spawn an isolated subagent with:
 - only the current bead descriptions
-- no planning artifacts
+- no implementation history
+- no broad conversation context
 
 If issues are found, fix bead descriptions before proceeding.
 
@@ -171,7 +228,8 @@ If issues are found, fix bead descriptions before proceeding.
 ```text
 Validation Summary for: <feature-name>
 
-Phase: <phase name from phase-contract.md>
+Planning mode: <single-phase | multi-phase>
+Current phase: <phase number>/<total or unknown> - <phase name>
 Stories: <N>
 Beads: <N>
 Demo story: <one-line from phase-contract.md>
@@ -198,9 +256,10 @@ Parallel tracks: <count based on dependency structure>
 Critical path: <task chain>
 Estimated complexity: <LOW/MEDIUM/HIGH>
 
+Whole-feature note: <N/A for single-phase | later phases remain deferred in phase-plan.md>
 Unresolved concerns: <none | list>
 
-Approve execution? (yes/no)
+Approve execution for this current phase? (yes/no)
 ```
 
 ### On Approval
@@ -243,6 +302,14 @@ If context usage exceeds 65%:
 
 Use the canonical base schema from `../../reference/references/state-and-handoff-protocol.md`, then add any validating-specific resume detail you need.
 
+When relevant, include:
+- `planning_mode`
+- `has_phase_plan`
+- `current_phase`
+- `total_phases`
+- `phase_name`
+- artifact completeness
+
 ### Normal Handoff
 
 After user approval, decide execution mode:
@@ -255,4 +322,10 @@ br ready --json
 - ≤2 independent tasks → `beo-executing`
 - 3+ independent tasks → `beo-swarming`
 
-Update `.beads/STATE.md` with validated task count and next skill.
+Update `.beads/STATE.md` with:
+- validated task count
+- planning mode
+- current phase
+- next skill
+
+If `planning_mode = multi-phase`, note explicitly that later phases remain deferred until routed back through `beo-planning`.
