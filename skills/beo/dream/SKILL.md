@@ -10,7 +10,28 @@ description: >-
 
 # Beo Dream
 
+## Overview
+
 Load `beo-reference` for knowledge-store protocol (`../reference/references/knowledge-store.md`).
+
+Dream performs one manual consolidation pass across accumulated learnings.
+It updates durable learnings in place, keeps the write surface narrow, and promotes only the patterns that still deserve long-term attention.
+
+**Core principle:** consolidate carefully; do not confuse repeated mention with durable signal.
+
+## Hard Gates
+
+<HARD-GATE>
+If ownership is ambiguous, ask the user instead of silently choosing a merge target.
+</HARD-GATE>
+
+<HARD-GATE>
+Do not edit `critical-patterns.md` without explicit approval.
+</HARD-GATE>
+
+<HARD-GATE>
+Secret/PII redaction is mandatory before summary output and before writing to `.beads/learnings/*.md`.
+</HARD-GATE>
 
 This skill performs one manual consolidation pass. It updates durable learnings in place and keeps
 the write surface narrow: `.beads/learnings/*.md` (the canonical durable surface; see knowledge-store protocol). It may propose critical promotions, but it must
@@ -41,19 +62,7 @@ Run these phases in order.
 
 Load `references/dream-operations.md` for the exact provenance checks, mode-selection logic, candidate classification mechanics, apply-outcome behavior, and finalization steps.
 
-## Hard Rules
-
-<HARD-GATE>
-If ownership is ambiguous, ask the user instead of silently choosing a merge target.
-</HARD-GATE>
-
-<HARD-GATE>
-Do not edit `critical-patterns.md` without explicit approval.
-</HARD-GATE>
-
-<HARD-GATE>
-Secret/PII redaction is mandatory before summary output and before writing to `.beads/learnings/*.md`.
-</HARD-GATE>
+## Process Rules
 
 - Rewrite is the narrow path: only when exactly one owner is clear.
 - Ambiguous matching requires candidate-specific options with explicit target file naming.
@@ -83,6 +92,13 @@ If context usage exceeds 65%, use `../reference/references/state-and-handoff-pro
 - You are about to summarize or write material that still contains secrets, tokens, or user-identifying details
 - A weak signal is being promoted just because a dream pass is already in progress
 - The consolidation run is drifting into new planning or implementation work instead of learnings maintenance
+
+## Handoff
+
+After the consolidation pass:
+- persist the updated learnings state
+- record `last_dream_consolidated_at` in `dream-run-provenance.md`
+- report what was merged, skipped, or proposed for promotion
 
 ## References
 

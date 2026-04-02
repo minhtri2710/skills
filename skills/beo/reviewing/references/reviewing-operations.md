@@ -23,14 +23,16 @@ br dep list <EPIC_ID> --direction up --type parent-child --json
 Read these artifacts with your file reading tool:
 
 - `.beads/artifacts/<feature_slug>/CONTEXT.md` (required)
-- `.beads/artifacts/<feature_slug>/approach.md` (optional)
+- `.beads/artifacts/<feature_slug>/plan.md` (required)
+- `.beads/artifacts/<feature_slug>/approach.md` (optional but strongly recommended when it exists)
 - `.beads/artifacts/<feature_slug>/phase-plan.md` (optional)
 - `.beads/artifacts/<feature_slug>/phase-contract.md` (required)
-- `.beads/artifacts/<feature_slug>/story-map.md` (optional)
+- `.beads/artifacts/<feature_slug>/story-map.md` (required)
 
 Also run project-specific build/tests before review.
 
 If tasks from the final execution scope are still open/in progress, route back to `beo-executing`.
+If required current-scope artifacts such as `plan.md`, `phase-contract.md`, or `story-map.md` are missing, stop and route back to the planning-aware layer before continuing review.
 If any tasks remain blocked/failed/partial, use the approval rules in `../../reference/references/approval-gates.md` before deciding whether to proceed, defer, or re-plan.
 If `planning_mode = multi-phase` and later phases remain, remove the `approved` label first, then route back to `beo-planning` instead of reviewing the feature as complete:
 
@@ -45,8 +47,9 @@ Use `review-specialist-prompts.md` for the specialist table, dispatch strategy, 
 Prefer isolated review inputs:
 - changed files or diff
 - `CONTEXT.md`
+- `plan.md`
 - `approach.md` if it exists
-- final current-phase artifacts
+- final current-phase artifacts (`phase-contract.md`, `story-map.md`, and `phase-plan.md` when present)
 
 If multiple specialists produce the same finding, deduplicate before creating follow-up work.
 

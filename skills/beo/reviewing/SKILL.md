@@ -1,206 +1,162 @@
 ---
 name: beo-reviewing
 description: >-
-  Use after the final approved execution scope is complete, or when the user asks
-  whether a feature is done, ready to ship, safe to merge, or needs a quality
-  check. Use for prompts like "review this feature", "is this done?", "can we
-  ship this?", "double-check the implementation", or "run UAT".
+  Use after the final approved execution scope is complete, or when the user
+  asks whether a feature is done, ready to ship, safe to merge, or needs a
+  quality check. Use for prompts like "review this feature", "is this done?",
+  "can we ship this?", "double-check the implementation", or "run UAT".
 ---
 
 # Beo Reviewing
 
 ## Overview
 
-Reviewing is the post-execution quality gate. It verifies that the implementation actually delivers what `CONTEXT.md` specified, catches issues the workers missed, and formally closes the feature.
+Reviewing is the final quality gate after execution.
+Its job is to verify that the implemented current scope is safe, aligned with locked decisions, and actually acceptable to the user before the feature is finished.
 
-**Core principle**: Trust but verify. Workers may have drifted, cut corners, or missed edge cases.
-
-Reviewing is for the **final execution scope**. If planning mode is `multi-phase` and later phases remain, route back to planning rather than reviewing the feature as if it were complete.
-
-## Key Terms
-
-- **final execution scope**: the last approved slice that should now be shippable and reviewable
-- **P1**: merge-blocking issue
-- **P2**: important follow-up that should not block closing the feature
-- **P3**: non-blocking improvement suggestion
+**Core principle:** review finds truth, not excuses.
 
 ## Default Review Loop
 
-1. confirm the final execution scope is actually complete
-2. run specialist review
-3. verify promised artifacts are real and wired
-4. walk the user through decisions and exit-state claims one at a time
-5. route any changes back through execution or planning as needed
-6. finish only after P1 issues are resolved and human UAT is complete
+1. confirm review is allowed for the current scope
+2. run automated specialist review
+3. classify findings by severity and create follow-up work when needed
+4. run human UAT against locked decisions and exit-state claims
+5. decide whether to finish, loop through reactive fixes, or route back
+6. hand off to compounding only when review is truly complete
 
-Load `references/reviewing-operations.md` for the exact specialist prompts, finishing steps, and checkpoint mechanics.
+Use `references/reviewing-operations.md` for the exact prerequisite checks, artifact verification, UAT handling, and finishing sequence.
+Use `references/review-specialist-prompts.md` for the five-specialist review structure and severity rules.
 
-## Prerequisites
-
-Default checks:
-
-```bash
-br dep list <EPIC_ID> --direction up --type parent-child --json
-Read .beads/artifacts/<feature_slug>/CONTEXT.md
-Read .beads/artifacts/<feature_slug>/approach.md
-Read .beads/artifacts/<feature_slug>/phase-plan.md
-Read .beads/artifacts/<feature_slug>/phase-contract.md
-Read .beads/artifacts/<feature_slug>/story-map.md
-```
-
-Load `references/reviewing-operations.md` for the exact prerequisite checks, isolated review inputs, and finishing prerequisites.
+## Hard Gates
 
 <HARD-GATE>
-If tasks from the final execution scope are still open or in progress, route back to `beo-executing`.
-If any tasks have `blocked`, `failed`, or `partial` labels (status `deferred`), stop and get explicit user direction to proceed, defer, or re-plan before closing the epic.
-If `planning_mode = multi-phase` and later phases remain, do not treat the feature as complete; remove the `approved` label (`br label remove <EPIC_ID> -l approved`) and route back to `beo-planning`.
+If `planning_mode = multi-phase` and later phases remain, do not treat the feature as complete.
+Remove `approved` if needed and route back to `beo-planning`.
 </HARD-GATE>
-
-## Phase 1: Automated Review
-
-Launch specialist review subagents to examine the implementation from different angles.
-
-Load `references/review-specialist-prompts.md` for the full specialist table, prompt template, dispatch strategy, and P1/P2/P3 bead creation patterns.
-
-**Summary**: 5 specialists (Code Quality, Architecture, Security, Test Coverage, Learnings Synthesis) review changed files. Launch first 4 in parallel, learnings synthesizer last. Each reports findings as P1 (blocks merge), P2 (should fix), or P3 (nice to have).
-
-**Learnings Synthesis scope**: The reviewing learnings synthesizer **identifies candidate learnings only** — patterns, surprises, and reusable insights observed in the implementation. It does NOT write the final learnings file or promote to critical-patterns.md. Formal learnings capture, triage, and promotion happen in `beo-compounding`.
-
-- **P1 findings** become fix beads under the epic, executed immediately, using the shared **Reactive Fix Bead Template**
-- **P2 findings** become independent follow-up beads (NOT under epic), using the shared **Follow-Up Bead Template**
-- **P3 findings** recorded but no beads unless user requests
-- If P1 fixes fail >2 attempts, route to `beo-debugging`
-
-Use isolated review context whenever possible: changed files / diff, `CONTEXT.md`, `approach.md`, and final current-phase artifacts.
-
-### Severity Examples
-
-- **P1**: security hole, broken acceptance path, data-loss risk, or a locked decision from `CONTEXT.md` is not actually met
-- **P2**: maintainability problem, weak edge-case handling, incomplete tests, or a risky design choice that should be corrected soon
-- **P3**: polish, naming, cleanup, readability, or a non-blocking improvement suggestion
-
-When unsure between P1 and P2, ask: "Would I block merge if this remained unfixed?" If yes, it is P1.
-
-## Phase 2: Artifact Verification
-
-Verify that all implementation artifacts promised by the final execution scope are real, substantive, and wired.
-
-Default artifact-verification questions:
-- does the artifact exist?
-- is it substantive rather than placeholder content?
-- is it wired into the actual feature path?
-
-Load `references/reviewing-operations.md` for the 3-level verification procedure, command shapes, and finishing flow.
-
-## Phase 3: Human UAT
 
 <HARD-GATE>
-Human review is required. Use the canonical rule from `../reference/references/approval-gates.md` and walk through the feature with the user.
+Do not finish the feature while any P1 issue remains unresolved.
+P1 findings become reactive fix beads under the current epic and must be executed before review can finish.
 </HARD-GATE>
 
-### UAT Protocol
+<HARD-GATE>
+Human UAT is required.
+Do not auto-pass UAT from automated review, tone, or silence.
+Walk through locked decisions and exit-state claims one at a time, waiting for explicit user confirmation.
+</HARD-GATE>
 
-For each locked decision from `CONTEXT.md` (D1, D2, ...):
+<HARD-GATE>
+If the user changes intent in a way that affects architecture, sequencing, or other locked decisions, stop review.
+Update `CONTEXT.md`, strip `approved` if needed, and route back to `beo-planning`.
+</HARD-GATE>
 
-1. State the decision
-2. Show how the implementation fulfills it
-3. Ask: "Does this match your intent?"
+<HARD-GATE>
+Do not write novel implementation code inside review.
+Create fix beads and send execution work back through the proper path.
+</HARD-GATE>
 
-Walk through ONE decision at a time. Wait for user confirmation before moving to the next.
+## Review Prerequisites
 
-Additionally, verify against the relevant exit state from `phase-contract.md`:
+Before review, confirm:
+- the just-approved execution scope is actually complete
+- the correct epic is selected
+- `CONTEXT.md`, `plan.md`, `phase-contract.md`, and `story-map.md` are available
+- `phase-plan.md` is read when present
+- build / lint / test evidence exists or can be produced
 
-For each exit-state line:
-1. State the exit-state claim
-2. Show how the implementation satisfies it
-3. Ask: "Is this exit state now true?"
+Use `references/reviewing-operations.md` for the exact checks.
 
-### UAT Outcomes
+## Scope Rule
 
-Load `references/reviewing-operations.md` for the canonical UAT outcome handling.
+Review the executed scope only.
+For multi-phase work, that means the final approved scope for the feature **only when no later phases remain**.
+If later phases still exist, do not finish the feature in review; route back to planning-aware flow instead.
 
-### Scope Change During UAT
+## Automated Specialist Review
 
-If the user changes a decision:
-1. Update `CONTEXT.md` with the new decision
-2. Assess which tasks are affected
-3. If minor (1-2 files) → create fix bead, execute
-4. If major (architectural change or changes to feature sequencing) → stop reviewing, strip `approved` label (`br label remove <EPIC_ID> -l approved`), route to `beo-planning`
+Run the canonical five-specialist review defined in `references/review-specialist-prompts.md`.
+The review must cover, at minimum:
+- implementation correctness
+- contract / interface safety
+- test and verification adequacy
+- architecture / maintainability risk
+- user-facing or workflow regression risk
 
-## Phase 4: Finishing
+Use the reference file for the exact prompts and dispatch structure.
 
-After all P1 issues are resolved, artifacts are verified, and UAT is complete, load `references/reviewing-operations.md` for the exact finishing sequence, review-findings handoff, merge-path presentation, optional AGENTS.md sync, and cleanup rule.
+## Severity Semantics
 
-### Update State
+Keep these severity rules explicit:
 
-Before announcing completion, write a fresh `.beads/STATE.md` using the canonical shape from `../reference/references/state-and-handoff-protocol.md`.
+- **P1** -> blocking issue; create a reactive fix bead **under the current epic** and execute it before review can finish
+- **P2** -> non-blocking follow-up bead **not under the current epic**
+- **P3** -> record only unless the user asks for follow-up work
 
-Minimum expected state:
+Do not collapse these categories. Their placement and blocking behavior matter.
 
-```markdown
-# Beo State
-- Phase: reviewing → complete
-- Feature: <epic-id> (<feature_slug>)
-- Tasks: <review summary>
-- Next: beo-compounding
+## Reactive Fix Loop
 
-- Planning mode: <single-phase | multi-phase>
-- Has phase plan: <true | false>
-- Current phase: <number>
-- Total phases: <number | unknown>
-- Phase name: <name>
-```
+When P1 findings exist:
+1. create reactive fix beads under the current epic
+2. route them through execution
+3. re-run review on the affected scope
+4. finish only after all P1 beads are closed and review is clean enough to proceed
 
-If planning-aware fields are not known with confidence, omit only the unknown ones rather than inventing values.
+Reactive fixes are part of finishing the current feature.
+P2 and P3 work are not.
 
-## Completion
+## Human UAT
 
-Announce:
-```text
-Feature "<feature-name>" is complete.
+Human UAT is not optional.
+Review automated findings first, then walk the user through the implemented outcome against locked decisions and exit-state claims.
 
-Review Summary:
-- Specialist reviews: <N> findings (<P1 count> P1, <P2 count> P2, <P3 count> P3)
-- P1 fixes: <N> resolved
-- P2 follow-ups: <N> beads created
-- Artifact verification: <N>/<total> L3 verified
-- UAT: <N>/<total> decisions confirmed
+Use this loop:
+1. present one decision or exit-state claim
+2. ask whether it is satisfied
+3. wait for an explicit user response
+4. classify the result
+5. continue only when the current item is resolved
 
-Epic <EPIC_ID> is closed.
-Review findings saved for compounding.
-Fresh state written to .beads/STATE.md.
-Remove .beads/HANDOFF.json after writing fresh state.
+Use `references/reviewing-operations.md` for the exact UAT outcome handling.
 
-Next: Load beo-compounding to capture learnings and promote critical patterns.
-```
+## Intent Changes During UAT
 
-## Lightweight Mode
+If the user says the implementation is wrong because the desired behavior changed:
+- update `CONTEXT.md` to reflect the new decision
+- if the change is minor and does not alter architecture or sequencing, create follow-up work using the proper severity path
+- if the change is major, stop review, strip `approved`, and route back to `beo-planning`
 
-Load `references/reviewing-operations.md` for the lightweight-review shortcut.
+Do not patch over a changed feature definition inside review.
+
+## Finishing Rules
+
+Finish only when all of the following are true:
+- no unresolved P1 findings remain
+- required build / lint / test checks are acceptable
+- human UAT is complete
+- the reviewed scope still matches locked decisions
+- no later phases remain for the feature
+
+Use `references/reviewing-operations.md` for the exact finish sequence, artifact verification, and final reporting.
+
+## Handoff to Compounding
+
+Only after review genuinely passes:
+1. write fresh state using `../reference/references/state-and-handoff-protocol.md`
+2. announce the feature is ready to finish
+3. load `beo-compounding`
+
+Do not hand off to compounding while P1 fixes, unresolved UAT, or planning-level intent changes remain.
 
 ## Context Budget
 
-If context usage exceeds 65%, write `.beads/HANDOFF.json` using `../reference/references/state-and-handoff-protocol.md`, then use `references/reviewing-operations.md` for the review-specific checkpoint details.
+If context usage exceeds 65%, write `.beads/HANDOFF.json` using `../reference/references/state-and-handoff-protocol.md` and include:
+- review progress
+- open findings by severity
+- UAT status
+- whether review is waiting on execution, planning, or user confirmation
 
-## Red Flags
+## Red Flags & Anti-Patterns
 
-| Flag | Description |
-|------|-------------|
-| **Skipping specialist reviews** | "The code looks fine" is not a review |
-| **Auto-passing UAT** | User must confirm each decision |
-| **Ignoring P1 findings** | P1 blocks merge; no exceptions |
-| **Closing epic with open P1 fixes** | All P1 beads must be closed first |
-| **Promoting learnings without approval** | critical-patterns.md is shared; ask first |
-| **Skipping build/test/lint** | Full build/test/lint verification is mandatory before closing the epic |
-| **Reviewing before later phases are planned/executed** | Multi-phase feature is not done just because the current phase is done |
-
-## Anti-Patterns
-
-| Pattern | Why It's Wrong | Instead |
-|---------|---------------|---------|
-| Reviewing your own code (same agent that implemented) | Blind spots | Use fresh subagents with isolated context |
-| Creating P1 beads under a different epic | Breaks the dependency chain | P1 beads go under the current epic |
-| Creating P2/P3 beads under the current epic | Blocks feature completion | P2/P3 are independent follow-up beads |
-| Closing the epic before UAT | User hasn't confirmed | Always complete Phase 3 first |
-| Skipping learnings capture | Wastes institutional memory | At minimum, run the learnings synthesizer |
-| Writing novel code during review | That's execution, not review | Create beads for any needed changes |
+See `references/reviewing-guardrails.md` for the full tables.

@@ -13,181 +13,173 @@ description: >-
 
 ## Overview
 
-Validating is the critical gate between planning and execution. No code is written until this skill completes successfully.
+Validating is the gate between planning and execution.
+Its job is to prove that the **current phase** is structurally sound before any code is written.
 
-**Core principle**: Catch plan failures before they become implementation failures.
+**Core principle:** catch plan failures before they become implementation failures.
 
-This skill treats the **current phase** as a small closed loop -- clear entry state, clear exit state, simple demo story, stories that explain the internal order, and beads that implement those stories. The 8-dimension check (Phase 1) verifies this loop is sound.
-
-If `phase-plan.md` exists, validating still focuses on the **current phase only**. Whole-feature sequencing informs the validator, but current-phase approval does not approve later phases.
-
-## Key Terms
-
-- **current phase**: the slice being approved for execution now
-- **whole-feature sequence**: the broader multi-phase plan, if one exists
-- **approval**: permission to execute the current phase only, not to expand scope freely
+If `phase-plan.md` exists, validation still applies to the **current phase only**. Whole-feature sequencing matters for context, but approval never expands into later phases.
 
 ## Default Validation Loop
 
-1. confirm the current-phase artifacts and bead graph exist
+1. confirm current-phase artifacts and task beads exist
 2. retrieve prior learnings and orient to the current phase
 3. run the 8-dimension structural check
 4. inspect graph health and bead quality
-5. run spikes only where hope is doing the work
+5. run spikes only where yes/no proof would change go / no-go
 6. summarize readiness in human terms
-7. get explicit user approval before any code is written
+7. get explicit user approval before execution
 
-Load `references/validation-operations.md` when you need the exact checker invocation, graph commands, spike mechanics, or handoff format.
+Load `references/validation-operations.md` when you need the exact checker flow, graph commands, spike mechanics, approval summary, lightweight mode, or handoff procedure.
+
+## Hard Gates
+
+<HARD-GATE>
+No code is written until validation succeeds and the user explicitly approves execution.
+Do not infer approval from silence, tone, or partial agreement.
+</HARD-GATE>
+
+<HARD-GATE>
+If tasks do not exist, or `phase-contract.md` / `story-map.md` are genuinely missing, do not guess the plan into existence here. Route back to `beo-planning`.
+</HARD-GATE>
+
+<HARD-GATE>
+If any bead description is empty or underspecified, fail validation. This is a structural failure, not an optional quality note.
+If only 1-2 beads are thin and the phase shape is otherwise sound, you may tighten those specs and re-run validation. If the thin specs expose a larger decomposition problem, route back to `beo-planning`.
+</HARD-GATE>
+
+<HARD-GATE>
+Validation approves the current phase only. If planning mode is `multi-phase`, current-phase approval does not approve later phases or the whole feature.
+</HARD-GATE>
+
+<HARD-GATE>
+After approval, do not stop at "the current phase is approved." Validation is not complete until you also choose and announce the next execution mode (`beo-executing` or `beo-swarming`) for the approved current-phase work.
+</HARD-GATE>
+
+<HARD-GATE>
+A spike NO result invalidates the current phase plan. Do not proceed to approval.
+</HARD-GATE>
 
 ## Prerequisites
 
-Default checks:
+Before validating, confirm:
+- the epic exists
+- task beads exist
+- `CONTEXT.md` exists
+- `approach.md` exists
+- `plan.md` exists
+- `phase-contract.md` exists
+- `story-map.md` exists
+- `phase-plan.md` is read when present
 
-```bash
-br show <EPIC_ID> --json
-br dep list <EPIC_ID> --direction up --type parent-child --json
-Read .beads/artifacts/<feature_slug>/CONTEXT.md
-Read .beads/artifacts/<feature_slug>/approach.md
-Read .beads/artifacts/<feature_slug>/plan.md
-Read .beads/artifacts/<feature_slug>/phase-plan.md
-Read .beads/artifacts/<feature_slug>/phase-contract.md
-Read .beads/artifacts/<feature_slug>/story-map.md
-```
+Use `references/validation-operations.md` for the exact checks and read order.
 
-<HARD-GATE>
-If tasks do not exist in the bead graph, or `phase-contract.md` / `story-map.md` are truly missing, do not guess the plan into existence here. First verify the files were not misplaced, stale, or left partially written. If the planning package is genuinely incomplete, route back to `beo-planning`.
-</HARD-GATE>
+## Current-Phase Orientation
 
-## Phase 0: Learnings Retrieval + Current-Phase Orientation
+Before running the structural gate:
+- orient to the current phase
+- understand how it fits the larger whole-feature plan when `phase-plan.md` exists
+- verify that current-phase artifacts, state metadata, and task graph all describe the same phase
 
-Before validating structure:
+Use the orientation summary format in `references/validation-operations.md` when needed.
 
-- check institutional memory for relevant failure patterns
-- orient yourself to the current phase
-- if `phase-plan.md` exists, confirm how the current phase fits the larger whole plan
+## The 8-Dimension Structural Check
 
-Load `references/validation-operations.md` for the exact orientation sequence and summary format when the default loop is not enough.
+Run validation across these 8 dimensions:
 
-## Phase 1: Structural Verification
+1. **Phase contract clarity**
+2. **Story coverage and ordering**
+3. **Decision coverage**
+4. **Dependency correctness**
+5. **File scope isolation**
+6. **Context budget**
+7. **Verification completeness**
+8. **Exit-state completeness and risk alignment**
 
-Check the current phase across 8 dimensions. For each dimension, assign PASS or FAIL.
+Use `references/validation-operations.md` and `references/plan-checker-prompt.md` for the exact checker procedure and full PASS / FAIL detail.
 
-### The 8 Dimensions
+### Repair Rule
 
-| # | Dimension | What to Check | FAIL if... |
-|---|-----------|--------------|------------|
-| 1 | **Phase contract clarity** | `phase-contract.md` has clear entry state, exit state, demo story, unlocks, and scope | Exit state is vague or aspirational, demo does not prove the phase, phase sounds like a work bucket |
-| 2 | **Story coverage and ordering** | `story-map.md` stories have purpose, why-now, contributes-to, unlocks, done-looks-like | A story cannot answer "what does this unlock?", order feels arbitrary, a needed story is missing |
-| 3 | **Decision coverage** | Every `CONTEXT.md` decision (D1, D2...) maps to at least one story and bead | A locked decision appears nowhere in the story map, or a story mentions it but no bead implements it |
-| 4 | **Dependency correctness** | Story order and bead dependencies agree, graph is acyclic | Story order says one thing but bead dependencies say another, cycles exist, implicit undeclared dependencies |
-| 5 | **File scope isolation** | Parallel-ready beads don't silently collide | Two ready beads write the same file, config/schema files have no explicit owner |
-| 6 | **Context budget** | Each bead fits in one worker context window | A bead spans multiple stories, requires reading too many large files, tries to implement an entire subsystem |
-| 7 | **Verification completeness** | Stories and beads both have explicit done/verify criteria | Story "done" is vague, bead verify steps are not runnable, story completion depends on subjective judgment |
-| 8 | **Exit-state completeness and risk alignment** | If all beads complete, the current phase reaches its exit state; HIGH-risk items have spike paths | Bead graph could finish while phase is not demoable, exit state depends on missing work, HIGH-risk items lack spikes |
+- 1-2 structural failures -> repair in place, then re-run validation
+- 3+ failures -> route back to `beo-planning`
+- after 3 validation iterations with any FAIL still present -> stop and escalate to the user
 
-### Running the Check
+Do not keep patching a plan whose current phase no longer makes sense as a closed loop.
 
-Load `references/validation-operations.md` for the exact plan-checker invocation, repair routing, and failure-handling loop.
+## Graph Health and Bead Quality
 
-Default repair rule: fix 1-2 structural failures in place, but if failures keep cascading or the current phase stops making sense as a closed loop, stop patching and route back to planning.
+Validation must also confirm:
+- story order and bead dependencies agree
+- every story maps to at least one bead
+- every bead belongs to the current phase
+- no future-phase work is smuggled into the current execution set
+- every bead is specific enough for a fresh worker
 
-### Repair Routing by Failure Type
+Use `references/validation-operations.md` for the exact graph-health procedure and `references/bead-reviewer-prompt.md` for fresh-eyes bead review when complexity is high.
 
-| Failure Type | Route Back To |
-|---|---|
-| Exit state is vague or current-phase meaning is weak | `phase-contract.md` |
-| Story order or story coverage is weak | `story-map.md` |
-| Locked decisions are not mapped into implementation | `approach.md`, `plan.md`, stories, and bead descriptions |
-| Dependency graph is inconsistent or cyclic | bead dependency wiring |
-| Parallel beads silently collide on files | bead ownership, bead split, or story decomposition |
-| Bead scope exceeds one worker context | bead decomposition |
-| Verification is vague or subjective | story and bead verification criteria |
-| HIGH-risk work has no proof path | spike design or broader planning revision |
-| Current phase no longer fits the larger feature sequence | `phase-plan.md`, `approach.md`, and current-phase artifacts |
+## Spikes for HIGH-Risk Work
 
-## Phase 2: Graph Health
+Use spikes only when the approach is unproven, depends on external systems, has hard performance requirements, or otherwise relies on hope.
 
-Use `bv` to analyze the bead graph for structural issues.
+A spike is appropriate only when a yes/no proof would change whether this phase should proceed.
+Do not create ceremonial spikes for already-understood work.
 
-Load `references/validation-operations.md` for the exact commands, interpretation table, deduplication check, story-to-bead coherence check, and bead-description verification procedure.
+Use `references/validation-operations.md` for the exact create / record / result-handling sequence.
 
-Minimum graph-health pass:
-- inspect suggestions and cycles with `bv`
-- verify every story maps to at least one bead
-- verify every bead belongs to this current phase
-- verify every bead description is specific enough for a fresh worker
+## Exit-State Readiness Review
 
-<HARD-GATE>
-FAIL the plan if any bead has an empty or underspecified description. This is a structural verification failure, not an optional quality note.
-If only one or two beads are thin but the phase shape is sound, tighten those specs directly or send them back for planning repair. If the thin specs expose a larger decomposition problem, route back to `beo-planning`.
-</HARD-GATE>
+Before approval, ask these questions explicitly:
 
-## Phase 3: Spike Execution (HIGH-Risk Only)
+1. if all stories reach done, does the phase exit state hold?
+2. if all beads close successfully, will the stories actually be done?
+3. is the demo story now credible?
+4. if `phase-plan.md` exists, does this current phase still make sense inside the larger sequence?
 
-For each HIGH-risk task, evaluate whether a spike is needed.
+If any answer is no or not sure, do not approve execution. Route back to the layer that must change.
 
-A spike is needed when the approach is unproven, depends on external systems, has hard performance requirements, or otherwise relies on hope.
+## Approval Gate
 
-Load `references/validation-operations.md` for the exact create/record/result-handling sequence.
+Use the canonical approval rule from `../reference/references/approval-gates.md`.
+Approval must be explicit and must apply to the **current phase** only.
 
-Default spike rule: only spike when a yes/no proof would change whether this phase should proceed. Do not create ceremonial spikes for already-understood work.
+When approval is granted:
+- mark the epic approved
+- choose and explicitly state the next execution mode (`beo-executing` or `beo-swarming`)
+- inspect ready current-phase work immediately if the mode is not already obvious
+- if exact parallelism is still unknown, default to `beo-executing` unless there is clear evidence of 3+ independent ready tracks
+- write fresh state with the chosen next skill
 
-<HARD-GATE>
-A spike NO result means the current phase plan is invalid. Do not proceed to approval.
-</HARD-GATE>
+When approval is rejected or withheld:
+- do not proceed
+- remove implicit approval assumptions
+- route back to planning or exploring as needed
 
-## Phase 4: Fresh-Eyes Review (Optional)
-
-For **deep** complexity features or features with 5+ tasks, load `references/validation-operations.md` for the exact fresh-eyes review procedure.
-
-## Phase 5: Exit-State Readiness Review
-
-This is the human-readable readiness check before approval.
-
-Ask these questions explicitly:
-
-1. If all stories reach "Done Looks Like", does the current phase exit state hold?
-2. If all beads close successfully, will all stories actually be done?
-3. Is the current phase demo story now credible?
-4. If `phase-plan.md` exists, does this current phase still make sense inside the larger whole plan?
-
-If any answer is "no" or "not sure", do not approve execution. Route back:
-
-| Problem | Route To |
-|---------|----------|
-| Current-phase meaning / exit state problem | Revise `phase-contract.md` |
-| Story decomposition problem | Revise `story-map.md` |
-| Implementation granularity problem | Revise bead descriptions |
-| Architecture / risk problem | Revise `approach.md`, `plan.md`, and possibly route to `beo-planning` |
-| Whole-feature sequencing problem | Revise `phase-plan.md` and current-phase artifacts |
-
-## Phase 6: Approval Gate
-
-<HARD-GATE>
-Use the canonical validation approval rule from `../reference/references/approval-gates.md`: user approval is required before any code is written. This is non-negotiable.
-</HARD-GATE>
-
-Load `references/validation-operations.md` for the exact approval summary, approval commands, rejection handling, and route-back rules.
+Use `references/validation-operations.md` for the exact approval summary and handoff procedure.
 
 ## Lightweight Mode
 
-Load `references/validation-operations.md` for the lightweight-validation shortcut, context-budget checkpoint procedure, and canonical handoff flow.
-
-## Context Budget
-
-If context usage exceeds 65%, write `.beads/HANDOFF.json` using `../reference/references/state-and-handoff-protocol.md`, then follow the checkpoint procedure in `references/validation-operations.md`.
+For very small, low-risk work, use the lightweight-validation shortcut in `references/validation-operations.md`.
+Even in lightweight mode, user approval is still required before any code is written.
 
 ## Handoff
 
-After user approves, use `references/validation-operations.md` to determine execution mode and write the canonical `STATE.md` handoff.
+After approval:
+1. choose and explicitly announce execution mode from the ready current-phase work
+2. if independence/count is unclear, inspect it now; if it is still unknown, choose `beo-executing` by default unless clear evidence supports `beo-swarming`
+3. write `.beads/STATE.md` using `../reference/references/state-and-handoff-protocol.md`
+4. include planning-aware fields when known
+5. announce the next skill
 
-Announce:
-```text
-Current phase approved. <N> tasks ready for execution.
-Execution mode: <single-worker | parallel (swarming)>
-Load <beo-executing | beo-swarming> to begin implementation.
-```
+If later phases remain, say so explicitly. Validation approval for the current phase never means the whole feature is approved.
 
-If `planning_mode = multi-phase`, current-phase approval does not imply feature completion. Later phases remain deferred until routed back through `beo-planning`.
+## Context Budget
 
-See `references/validating-guardrails.md` for red flags and anti-patterns.
+If context usage exceeds 65%, write `.beads/HANDOFF.json` using `../reference/references/state-and-handoff-protocol.md`, then checkpoint:
+- validation progress
+- planning-aware fields
+- artifact completeness
+- any spike status or unresolved failures
+
+## Red Flags & Anti-Patterns
+
+See `references/validating-guardrails.md` for the full tables.

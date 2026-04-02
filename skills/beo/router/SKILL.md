@@ -12,288 +12,194 @@ description: >-
 
 ## Overview
 
-The router is the entry point for every beo session. It bootstraps the workspace, detects current state, and routes to the correct pipeline skill.
+`beo-router` is the entry point for beo sessions.
+Its job is simple:
 
-**Core principle**: Always know where you are before deciding where to go.
+1. determine the real workflow state from artifacts and the live graph
+2. explain that state in human terms
+3. load exactly one next skill
 
-## Key Terms
-
-- **instant**: single-file or similarly tiny work, well-scoped, typically under 30 minutes, with no meaningful planning ambiguity
-- **current phase**: the slice being prepared or executed now; in multi-phase work this is narrower than the whole feature
-- **single-phase**: one closed loop can safely deliver the feature
-- **multi-phase**: the feature needs 2-4 intentional slices, and only one slice should be prepared now
-- **feature complete**: no later phases remain and the final execution scope has passed review
+**Core principle:** always know where you are before deciding where to go.
 
 ## Default Router Loop
 
-Use this happy-path loop before loading deeper reference material:
-
 1. confirm the workspace is initialized and healthy
-2. check for `HANDOFF.json`
+2. check for `.beads/HANDOFF.json`
 3. identify the active epic, if any
-4. inspect the core artifacts for that feature
-5. classify the current state
+4. inspect the active feature's core artifacts and task graph
+5. classify the current state using the canonical routing table
 6. report the state in human terms
 7. load exactly one next skill
 
-Reach for `references/router-operations.md` when you need the exact command sequence, instant-path scaffolding details, or doctor-mode mechanics.
+Use `references/router-operations.md` when you need the exact bootstrap steps, instant-path scaffold, resume validation procedure, planning-aware routing rules, or doctor-mode commands.
+Use `references/state-routing.md` for the canonical state table.
 
-## Router Default Rule
+## Hard Gates
 
 <HARD-GATE>
 If the current pipeline phase is unclear, use `beo-router` before loading any other beo skill.
 Do not guess the phase from memory, partial artifacts, or the last conversational turn alone.
 </HARD-GATE>
 
-## Minimal Bootstrap Fallback
-
-If router reference files are unavailable, do the minimum safe sequence manually:
-1. Check `.beads/HANDOFF.json`
-2. List open epics
-3. Inspect the active epic and its task graph
-4. Check whether `CONTEXT.md`, `approach.md`, `phase-contract.md`, and `story-map.md` exist
-5. Report the current state, then route to the next matching skill
-
-## Skill Catalog
-
-| # | Skill | One-line description | Load when... |
-|---|-------|----------------------|--------------|
-| 1 | `beo-router` | This file. Bootstrap, state detection, routing. | Starting any session |
-| 2 | `beo-exploring` | Socratic dialogue → lock decisions → CONTEXT.md | Feature request is vague or new |
-| 3 | `beo-planning` | Research + synthesis → `discovery.md` + `approach.md` + `plan.md` + optional `phase-plan.md` + current-phase contract/story/beads | Decisions are locked (CONTEXT.md exists) |
-| 4 | `beo-validating` | Verify current phase contract, story map, and bead graph (8 dimensions) | Stories and beads exist; prove execution-readiness |
-| 5 | `beo-swarming` | Launch + tend worker pool via Agent Mail + bv | Beads validated; execute at scale (3+ independent tasks) |
-| 6 | `beo-executing` | Single worker loop: claim → build prompt → implement → verify → report | Spawned by swarming, or direct for ≤2 tasks |
-| 7 | `beo-reviewing` | 5 parallel review agents (P1/P2/P3) + artifact verification + UAT | Final execution scope complete; quality gate before close |
-| 8 | `beo-compounding` | Capture learnings → critical-patterns.md | Feature shipped; extract patterns/decisions/failures |
-| 9 | `beo-debugging` | Root-cause analysis for blocked beads and execution failures | Agent stuck, bead blocked, unexpected error |
-| 10 | `beo-dream` | Periodic consolidation of learnings across features | Learnings stale (>30 days or 3+ since last) |
-| 11 | `beo-writing-skills` | TDD-for-skills: create and pressure-test beo skills | Improving or creating beo skills |
-| 12 | `beo-reference` | Shared CLI reference, status mapping, approval gates, artifact protocol | Any skill needs canonical lookup tables |
-
-## Phase 0: Workspace Bootstrap
-
-Run once per session. Skip if `.beads/` already exists and is healthy.
-
-Default bootstrap sequence:
-
-```bash
-# Check if beads workspace exists (use your file reading tool to read .beads/ directory)
-
-# Initialize only when missing
-br init
-
-# Verify the CLI and workspace health
-br --version
-br doctor
-```
-
-If `.beads/` exists and `br doctor` is clean, continue. If health is unclear or bootstrap behaves unexpectedly, then load `references/router-operations.md` for the full recovery and doctor-mode playbook.
-
-## Phase 1: State Detection
-
-Determine the current state of work by querying the bead graph.
-
-### Step 1: Check for HANDOFF.json
-
-```bash
-Read .beads/HANDOFF.json
-```
-
-If HANDOFF.json exists, go to **Phase 3: Resume**.
-
-### Step 2: Detect Active Feature
-
-```bash
-# List all epics including in_progress and closed (filter in application logic)
-br list --type epic -a --json
-```
-
-Parse the output:
-- **No epics** → New feature request → go to Phase 2
-- **One open epic** → Active feature → go to Step 3
-- **Multiple open epics** → Ask user which feature to work on
-
-### Step 3: Assess Feature Progress
-
-For the active epic, gather full state:
-
-```bash
-# Get epic details
-br show <EPIC_ID> --json
-```
-
-Extract the immutable `slug: <feature_slug>` line from the epic description. Use that slug for all artifact existence checks below.
-
-```bash
-# List tasks under this epic (canonical enumeration; see pipeline-contracts.md)
-br dep list <EPIC_ID> --direction up --type parent-child --json
-
-# Check graph health (scoped to active epic)
-bv --robot-triage --graph-root <EPIC_ID> --format json
-
-# Check what's actionable
-bv --robot-next --format json
-br ready --json
-br blocked --json
-
-# Check planning artifacts exist
-Read .beads/artifacts/<feature_slug>/CONTEXT.md
-Read .beads/artifacts/<feature_slug>/discovery.md
-Read .beads/artifacts/<feature_slug>/approach.md
-Read .beads/artifacts/<feature_slug>/phase-plan.md
-Read .beads/artifacts/<feature_slug>/phase-contract.md
-Read .beads/artifacts/<feature_slug>/story-map.md
-```
-
-### Step 4: Classify Feature State
-
-See `references/state-routing.md` for the canonical routing table sourced from `../reference/references/pipeline-contracts.md`. Use those canonical state names when reporting or checkpointing state; do not invent ad-hoc labels.
-
-In normal feature flow, the most common canonical states are:
-
-- `meta-skill`
-- `needs-debugging`
-- `blocked`
-- `exploring`
-- `planning-needs-approach`
-- `planning-current-phase`
-- `ready-to-validate`
-- `ready-to-execute`
-- `ready-to-swarm`
-- `executing`
-- `ready-to-review`
-- `partial-completion`
-- `learnings-pending`
-- `completed`
-- `consolidation-due`
-
-If `phase-plan.md` exists, treat `phase-contract.md` and `story-map.md` as **current-phase** artifacts, not whole-feature artifacts.
-
-### Step 5: Report State
-
-Before routing, always report the current state to the user:
-
-```text
-Feature: <epic title>
-Mode: <single-phase | multi-phase | unknown>
-Current phase: <n>/<total or unknown> - <phase name if known>
-State: <state from table>
-Progress: <closed>/<total> tasks (<in_progress> in progress)
-Blockers: <count> (<details if any>)
-Next action: Loading <skill name>...
-```
-
-## Phase 2: New Feature
-
-When no active feature exists and the user has a request:
-
-### Step 1: Create the Epic
-
-Default sequence:
-
-```bash
-br create "<feature-name>" -t epic -p 1 --json
-```
-
-Save the returned epic ID for all downstream operations, then preserve the immutable slug using `../reference/references/slug-protocol.md`.
-
-Load `references/router-operations.md` when you need the exact slug-storage procedure or instant-path scaffolding details.
-
-### Step 2: Classify Request Complexity
-
-| Signal | Classification | Path |
-|--------|---------------|------|
-| Single file change, well-scoped, <30 min | **instant** | Create task directly, scaffold minimal artifacts, route to `beo-validating` |
-| 2-3 files, clear scope, <2 hours | **lightweight** | Route to `beo-exploring` (quick-depth pass, then planning) |
-| Multi-file, needs research, >2 hours | **standard** | Route to `beo-exploring` |
-| Ambiguous, needs clarification | **unclear** | Route to `beo-exploring` |
-| Error, blocker, failure symptoms | **debug** | Route to `beo-debugging` |
-
-### Step 3: Route
-
-- **instant**: create one task bead, write a concise Markdown description using the shared bead templates, scaffold the minimal artifacts, then route to `beo-validating`. Load `references/router-operations.md` for the exact instant-path scaffold.
-
-- **debug**: Route to `beo-debugging` directly.
-- **meta-skill**: Route to `beo-writing-skills` directly.
-- **lightweight/standard/unclear**: Route to the appropriate skill.
-
-### Promotion Guard
-
-If you classified as **instant** but discover the work is bigger:
-1. stop treating it as instant work
-2. preserve the existing task bead as planning input
-3. route to `beo-exploring` or `beo-planning`
-4. use `references/router-operations.md` for the exact promotion guard details
-
-## Phase 3: Resume from Handoff
-
-When HANDOFF.json exists:
-
-1. read `.beads/HANDOFF.json`
-2. verify the epic, task graph, and current artifacts still match the handoff
-3. trust the stored `skill` and `next_action` unless live state clearly contradicts them
-4. resume the named skill
-5. remove or refresh `HANDOFF.json` only after a fresh `STATE.md` checkpoint exists
-
-Load `references/router-operations.md` when you need the exact resume validation procedure or cleanup rule.
-
-## Phase 4: Health Check (Doctor Mode)
-
-When asked to check project health or diagnose issues, do this minimum sequence first:
-
-1. inspect graph health
-2. inspect blocked work
-3. inspect stale work
-4. report the planning shape (single-phase vs multi-phase, current-phase artifacts present or missing)
-5. recommend one next corrective action
-
-Load `references/router-operations.md` for the exact doctor-mode commands and diagnostic table.
-
-## Context Budget
-
 <HARD-GATE>
-If context usage exceeds 65%, use `../reference/references/state-and-handoff-protocol.md` for the canonical `HANDOFF.json` shape, then add any router-specific resume detail you need before pausing.
-Do not continue burning context once the checkpoint threshold is crossed.
+If `.beads/HANDOFF.json` exists, read it before normal routing.
+Do not skip the handoff path.
 </HARD-GATE>
 
-## Skill Routing Quick Reference
+<HARD-GATE>
+When resuming from handoff, trust the stored `skill` and `next_action` unless live graph state or current artifacts clearly contradict them.
+Do not blindly trust stale checkpoints, but do not recompute from scratch when the handoff is still valid.
+</HARD-GATE>
 
-| User Says | Route To |
-|-----------|----------|
-| "build X", "add X", "implement X" | Phase 2 → complexity classification → appropriate skill |
-| "what's the status?" | Phase 1 → report state |
-| "continue", "resume" | Phase 3 (if HANDOFF.json) or Phase 1 |
-| "check health", "doctor" | Phase 4 |
-| "plan X" | `beo-planning` directly **only if** `CONTEXT.md` exists for the feature; otherwise route through Phase 2 state detection (which will route to `beo-exploring` first) |
-| "review" | `beo-reviewing` directly |
-| "what should I work on next?" | Phase 1 → `bv --robot-next` → report recommendation |
-| "debug this", "why is X failing", "fix error" | `beo-debugging` |
-| "what did we learn", "capture learnings" | `beo-compounding` |
-| "swarm", "parallel workers", "launch workers" | `beo-swarming` |
-| "dream", "consolidate learnings" | `beo-dream` |
-| "write a skill", "create a skill", "edit skill" | `beo-writing-skills` |
-| "go", "run the full pipeline", "go mode" | Go Mode (below) |
+<HARD-GATE>
+If `phase-plan.md` exists, treat `phase-contract.md` and `story-map.md` as current-phase artifacts, not whole-feature artifacts.
+</HARD-GATE>
 
-## Go Mode (Full Pipeline)
+<HARD-GATE>
+If current-phase work is complete but later phases remain, do not treat the feature as complete. Route back to `beo-planning`.
+</HARD-GATE>
 
-See `references/go-mode.md` for the full Go Mode workflow (3 human gates, sequence, context budget).
+<HARD-GATE>
+If instant-scoped work expands during inspection, stop treating it as instant work and promote it into the normal pipeline.
+</HARD-GATE>
+
+## Minimal Bootstrap
+
+Run once per session when `.beads/` is missing or health is unclear.
+
+Minimum safe sequence:
+1. verify `.beads/` exists or initialize it
+2. verify `br` works
+3. run workspace health checks
+
+If bootstrap or health recovery gets messy, load `references/router-operations.md`.
+
+## State Detection
+
+### 1. Check for handoff first
+If `.beads/HANDOFF.json` exists, go to resume flow before normal classification.
+
+### 2. Find the active feature
+Inspect epics and identify the active one, if any.
+If multiple open epics exist, ask the user which feature to work on.
+If no epic exists, treat the request as new feature intake.
+
+### 3. Inspect the active feature
+Inspect, at minimum:
+- epic details
+- task graph
+- actionable / blocked work
+- `CONTEXT.md`
+- `approach.md`
+- `phase-plan.md`
+- `phase-contract.md`
+- `story-map.md`
+
+Use the canonical artifact inspection order in `references/router-operations.md`.
+
+### 4. Classify with the canonical routing table
+Use `references/state-routing.md` for the canonical state names and first-match-wins routing order.
+Do not invent ad-hoc state labels.
+
+## Report State Before Routing
+
+Always report the state in human terms before loading the next skill.
+At minimum include:
+- feature
+- mode (`single-phase`, `multi-phase`, or unknown)
+- current phase if known
+- canonical state
+- progress / blockers
+- next action
+
+## New Feature Intake
+
+When no active feature exists:
+
+1. create the epic
+2. preserve the immutable feature slug using `../reference/references/slug-protocol.md`
+3. classify the request as one of:
+   - `instant`
+   - `lightweight`
+   - `standard`
+   - `unclear`
+   - `debug`
+   - `meta-skill`
+4. route accordingly
+
+### Default routing for new work
+- `instant` -> scaffold minimal artifacts, then route to `beo-validating`
+- `debug` -> `beo-debugging`
+- `meta-skill` -> `beo-writing-skills`
+- `lightweight` / `standard` / `unclear` -> usually `beo-exploring`
+
+Use `references/router-operations.md` for the exact instant-path scaffold and slug-storage procedure.
+
+## Instant Promotion Guard
+
+If a request first looks instant but inspection shows it is larger, ambiguous, or phase-shaped:
+
+1. stop treating it as instant work
+2. preserve any existing instant task bead as planning input
+3. route to `beo-exploring` or `beo-planning`, depending on what is already known
+
+Use `references/router-operations.md` for the exact promotion procedure.
+
+## Resume From Handoff
+
+When `.beads/HANDOFF.json` exists:
+
+1. read it first
+2. verify the epic, task graph, and current artifacts still match the saved state
+3. if planning-aware fields exist, treat them as the source of truth unless live state clearly contradicts them
+4. resume the saved `skill` and `next_action`
+5. remove or refresh `HANDOFF.json` only after a fresh `STATE.md` or equivalent checkpoint exists
+
+Use `../reference/references/state-and-handoff-protocol.md` for the canonical schema and cleanup rule.
+If `mode = "go"`, resume inside go-mode rather than normal feature routing.
+
+## Planning-Aware Routing Rules
+
+Keep these rules explicit:
+- if `CONTEXT.md` exists but `approach.md` does not, route to `beo-planning`
+- if `approach.md` exists but current-phase artifacts are missing, route to `beo-planning`
+- if `phase-plan.md` exists, do not assume current-phase completion means feature completion
+- if current-phase work is complete and later phases remain, route to `beo-planning`
+- if execution scope is complete and no later phases remain, route to `beo-reviewing`
+
+Use `references/router-operations.md` and `references/state-routing.md` for the exact routing conditions.
+
+## Doctor Mode
+
+When asked to check project health, inspect:
+- graph health
+- blocked work
+- stale work
+- planning shape and artifact presence
+- one next corrective action
+
+Use `references/router-operations.md` for the exact commands and interpretation table.
 
 ## Priority Rules
 
-These override all other routing and execution decisions:
+These override normal routing:
 
-1. **P1 review findings always block.** Never merge, never close epic, never proceed to compounding while P1 findings are open.
-2. **Context budget always applies.** If context usage exceeds 65%, write `.beads/HANDOFF.json` and pause. Do not continue burning context.
-3. **CONTEXT.md is the source of truth.** If implementation diverges from a locked decision in CONTEXT.md, stop and surface the conflict before proceeding.
-4. **Gate 2 (post-validating) is the most critical gate.** Execution is irreversible at scale. If there is any doubt about the plan's soundness, do not approve; loop back to validating.
-5. **Spike failures halt the pipeline.** A failed spike means the approach is broken. Do not proceed to swarming; return to planning.
-<HARD-GATE>
-6. **Never skip validating.** Not for small features. Not for "obvious" plans. Skipping validating is the #1 cause of wasted execution work.
-</HARD-GATE>
-7. **critical-patterns.md is mandatory context.** If it exists, read it before planning or executing. Ignoring past critical patterns is the #1 source of repeat failures.
-8. **Current-phase completion is not whole-feature completion for multi-phase work.** If `phase-plan.md` exists and later phases remain, route back to `beo-planning` instead of jumping to final review.
+1. P1 review findings block progress.
+2. `CONTEXT.md` is the source of truth for locked decisions.
+3. Never skip `beo-validating`.
+4. Spike failures halt the pipeline and send work back to planning.
+5. Current-phase completion is not whole-feature completion when later phases remain.
+
+## Handoff
+
+After classification, report the current state in human terms and load exactly one next skill.
+If a checkpoint or resume artifact exists, preserve the planning-aware state while handing off.
+
+## Context Budget
+
+If context usage exceeds 65%, checkpoint using `../reference/references/state-and-handoff-protocol.md`.
+Include the current state, selected route, planning-aware fields when known, and any resume detail needed to continue safely.
 
 ## Red Flags and Anti-Patterns
 
-See `references/guardrails.md` for red flags (8 items) and anti-patterns (6 items).
+See `references/guardrails.md` for the full tables.

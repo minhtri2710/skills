@@ -13,122 +13,116 @@ description: >-
 
 ## Overview
 
-Executing is the per-worker implementation loop. It picks the next actionable task, assembles a worker prompt, dispatches a subagent to implement it, and reports results back.
+Executing is the per-worker implementation loop for approved current-phase work.
+Its job is to pick one truly ready bead, execute it safely, verify the result, report it, and repeat.
 
-## Key Terms
+**Core principle:** one task at a time — implement, verify, report, loop.
 
-- **current phase**: the approved slice being implemented now
-- **worker mode**: this skill is being used by a worker inside a swarm, so it should implement directly
-- **standalone mode**: this skill is driving execution outside a swarm and may dispatch or implement directly depending on scope
-- **reactive fix bead**: a post-planning fix bead created by review, debugging, or instant routing rather than initial planning
+Execution scope is always the **currently approved phase**. If planning mode is `multi-phase`, do not silently expand into later phases.
+
+## Operating Modes
+
+- **Worker mode**: dispatched by `beo-swarming`; implement directly, report to the orchestrator, and do **not** spawn sub-subagents.
+- **Standalone mode**: entered after `beo-validating`; may delegate through the session's normal subagent/task mechanism or implement directly, depending on scope and overhead.
+
+The loop is the same in both modes. The main differences are how results are reported and whether delegated dispatch is available.
 
 ## Default Execution Loop
 
-1. pick the next truly ready bead
-2. verify the bead spec is complete enough to execute
-3. reserve files and transition the bead cleanly
-4. assemble only the context needed for this bead
-5. dispatch if appropriate, otherwise implement directly
-6. run verification
-7. write the report artifact and update bead state
+1. verify approval and current-phase scope
+2. pick the next truly ready bead
+3. verify the bead spec is executable
+4. reserve files and transition the bead cleanly
+5. assemble only the context needed for this bead
+6. dispatch if appropriate, otherwise implement directly
+7. run verification, write the report, and update bead state
 8. loop, or hand off when the current phase is complete
 
-Use `references/execution-operations.md` for the exact scheduling cascade, transition protocol, dispatch contract, and completion bookkeeping.
+Use `references/execution-operations.md` for the exact scheduling cascade, transition protocol, dispatch contract, status mapping, completion bookkeeping, and checkpoint procedure.
+Use `references/worker-prompt-guide.md` for the full worker prompt template.
+Use `references/execution-guardrails.md` for recovery steps and anti-patterns.
 
-**Two operating modes:**
-- **Worker mode** (dispatched by `beo-swarming`): Receives identity and epic ID from the orchestrator. Reports progress via Agent Mail. Implements code directly. Does NOT spawn sub-subagents.
-- **Standalone mode** (after `beo-validating` for ≤2 tasks): Acts as both dispatcher and executor. Reports progress via `STATE.md`. Can delegate implementation through the session's normal subagent/task mechanism, or implement directly for single-task features.
+## Hard Gates
 
-In both modes the loop is identical; the difference is how results are reported (Agent Mail vs `STATE.md`) and whether implementation is direct (worker mode) or delegated (standalone mode with multiple tasks).
+<HARD-GATE>
+If the epic does not have the `approved` label, do not treat planning artifacts as implicit approval.
+First verify the label was not accidentally removed or the wrong epic was selected.
+If approval is genuinely missing, route to `beo-validating`.
+</HARD-GATE>
 
-**Core principle**: One task at a time. Implement, verify, report, loop.
+<HARD-GATE>
+If a bead description is empty or still lacks execution-critical detail, stop and treat it as invalid for execution.
+At minimum, execution requires concrete file scope and verification criteria.
+Do not reconstruct the full spec from `plan.md` or `CONTEXT.md`.
+If the gap is purely clerical and the intended spec already exists verbatim elsewhere in the bead package, restore it faithfully; otherwise route back to `beo-planning` or `beo-validating`.
+</HARD-GATE>
 
-Execution scope is always the **currently approved phase**. If planning mode is `multi-phase`, execution must not silently expand into later phases.
+<HARD-GATE>
+Reactive fix beads are exempt only from the story-context requirement.
+They still require file scope, a clear fix target, and verification criteria.
+</HARD-GATE>
 
-## Dispatch Modes and Fallbacks
+<HARD-GATE>
+Execute only current-phase work.
+If `phase-plan.md` exists and the selected bead belongs to a later phase, do not execute it.
+Route back through the planning-aware flow instead.
+</HARD-GATE>
 
-When this skill says "dispatch a worker", use the session's normal subagent or task-execution mechanism. The exact tool name can vary by environment; the intent does not.
-
-- **Worker mode**: do not dispatch again; implement the claimed bead directly.
-- **Standalone delegated mode**: use when 2 or more ready beads exist and a worker-dispatch mechanism is available.
-- **Standalone direct mode**: use when only one bead is ready, or delegation overhead would exceed the benefit.
-- **Fallback rule**: if no subagent or task-dispatch mechanism is available, execute directly in standalone mode instead of inventing a pseudo-dispatch workflow.
-
-Never block execution on finding a perfect dispatcher. Prefer direct execution over a vague or unreliable delegation path.
+<HARD-GATE>
+If specs must change materially during execution, stop treating the phase as execution-ready.
+Strip `approved` and route back to planning-aware repair instead of silently rewriting the plan in execution.
+</HARD-GATE>
 
 ## Prerequisites
 
-Default checks:
+Before execution, confirm:
+- the epic exists and is the correct one
+- the epic is `approved`
+- task beads exist
+- current-phase scope is understood
+- `CONTEXT.md`, `plan.md`, `phase-contract.md`, and `story-map.md` are available
+- `phase-plan.md` and `.beads/STATE.md` are read when present
 
-```bash
-br show <EPIC_ID> --json
-br dep list <EPIC_ID> --direction up --type parent-child --json
-Read .beads/artifacts/<feature_slug>/CONTEXT.md
-Read .beads/artifacts/<feature_slug>/plan.md
-Read .beads/artifacts/<feature_slug>/phase-contract.md
-Read .beads/artifacts/<feature_slug>/story-map.md
-```
+Use `references/execution-operations.md` for the exact checks and commands.
 
-Load `references/execution-operations.md` for the exact prerequisite checks, current-phase scope verification, and epic-claim procedure.
+## Select the Next Ready Bead
 
-<HARD-GATE>
-If the epic does not have the `approved` label, do not treat planning artifacts as implicit approval. First verify the label was not accidentally removed or the wrong epic was selected. If approval is genuinely missing, route to `beo-validating`.
-</HARD-GATE>
+Use the canonical scheduling cascade from `references/execution-operations.md`.
+If `beo-swarming` supplied a startup hint, still verify it against the live graph before acting.
 
-## The Execution Loop
+For multi-phase work, select only beads that belong to the **currently approved phase**.
 
-```
-┌─→ Schedule (pick next task)
-│        ↓
-│   Dispatch (build prompt, launch worker)
-│        ↓
-│   Monitor (worker runs, returns result)
-│        ↓
-│   Update (record outcome, update bead)
-│        ↓
-│   Check (more tasks? blockers? done?)
-│        ↓
-└── Loop or Complete
-```
+## Pre-Dispatch Checks
 
-## Phase 0: Select Next Task
-
-Load `references/execution-operations.md` for the scheduling cascade and task-selection procedure.
-
-## Phase 1: Pre-Dispatch Checks
-
-Load `references/execution-operations.md` for the exact pre-dispatch checks, stale-label cleanup, task-transition protocol, and current-phase scope check.
-
-<HARD-GATE>
-If `.description` is empty, or is missing file scope AND verification criteria, stop and treat the bead as invalid for execution.
-
-"Task <TASK_ID> has an empty or underspecified description. Route back to beo-planning or beo-validating to complete the bead spec."
-
-Do not reconstruct the full spec from `plan.md` or `CONTEXT.md`; that produces low-quality worker output. If the gap is purely clerical and the intended spec already exists verbatim elsewhere in the bead package, restore it faithfully. Otherwise route back.
-</HARD-GATE>
+Before implementation:
+- verify the task is still open
+- verify all blocking dependencies are closed
+- clear stale `blocked` / `failed` / `partial` labels when appropriate
+- verify the bead description is executable
+- confirm the bead belongs to the current phase
 
 ### Bead Classes
 
-Two classes of beads may reach execution:
+Two bead classes may reach execution:
 
-| Class | Created By | Story Context Required | Minimum Description |
-|-------|-----------|----------------------|-------------------|
-| **Planned execution bead** | beo-planning | Yes (full story context block) | Story context + file scope + steps + verification |
-| **Reactive fix bead** | beo-reviewing (P1), beo-debugging, beo-router (instant) | No (exempt) | File scope + what to fix + verification |
+- **Planned execution bead** — created by `beo-planning`; requires story context, file scope, execution steps, and verification.
+- **Reactive fix bead** — created after planning by review, debugging, or instant routing; does **not** require story context, but still requires file scope, what to fix, and verification.
 
-Reactive fix beads are exempt from the story context requirement because they are created after planning completes. They still require file scope and verification criteria.
+## Transition to In Progress
 
-### Transition to In-Progress
+Reserve files before editing.
+This is required in worker mode and strongly recommended in standalone mode.
 
-Reserve files before editing (required in worker mode, recommended in standalone mode). Use Agent Mail `file_reservation_paths` or coordinate via the file convention your project uses. Do not edit files without reserving them first.
+Use the canonical coordination rule from `references/execution-operations.md`:
+- in worker mode, use the swarm's reservation / conflict protocol before editing shared files
+- in standalone mode, either reserve files explicitly when the environment supports it, or establish equivalent coordination by confirming no other worker / agent is actively editing the same file set
 
-Follow the canonical transition sequence in `references/execution-operations.md`.
+Do not edit files when another active worker already owns the same files or when ownership is unclear.
+Then follow the canonical transition sequence in `references/execution-operations.md`.
 
-## Phase 2: Worker Prompt Assembly
+## Worker Prompt Assembly
 
-Build the complete worker prompt for the subagent. The prompt includes current-phase exit state, story context, plan summary, task spec, relevant `CONTEXT.md` decisions, previous task results, and verification criteria.
-
-Minimum prompt payload:
+Every worker prompt must include:
 - the full bead spec
 - the current-phase exit state
 - only the relevant story context
@@ -136,79 +130,73 @@ Minimum prompt payload:
 - only the prior task results this bead actually depends on
 - the verification criteria
 
-See `references/worker-prompt-guide.md` for the full prompt template, data gathering commands, and budget truncation rules.
+Use `references/worker-prompt-guide.md` for the full template and budget rules.
 
-**Key rule**: Never truncate the task spec itself; that is the core payload.
+**Never truncate the bead spec itself.**
+That is the core execution payload.
 
-## Phase 3: Worker Dispatch
+## Dispatch and Direct Implementation
 
-**Standalone mode only**: in worker mode, implement the task directly (skip to Phase 4 after implementation).
+- **Worker mode**: implement directly after the pre-dispatch checks.
+- **Standalone delegated mode**: use when multiple ready beads exist and a reliable dispatch mechanism is available.
+- **Standalone direct mode**: use when only one bead is ready or delegation overhead would exceed the benefit.
+- **Fallback rule**: if no dispatch mechanism is available, execute directly instead of inventing a pseudo-dispatch workflow.
 
-Load `references/execution-operations.md` for the canonical dispatch contract and worker-report expectations.
+Never block execution on finding a perfect dispatcher.
+Prefer direct execution over vague or unreliable delegation.
 
-## Phase 4: Post-Worker Update
+## Post-Execution Update
 
-After the worker returns, update the bead graph.
+After implementation or worker return:
+- map the result to bead state using `references/execution-operations.md`
+- write the report artifact
+- flush state updates
+- continue looping only after the graph is current again
 
-Load `references/execution-operations.md` for the status-mapping quick table, report-artifact write pattern, and flush sequence.
+Expected result classes remain:
+- `done`
+- `blocked`
+- `failed`
+- `partial`
 
-## Phase 5: Progress Check
+If a task is blocked, use `references/blocker-handling.md` to classify the blocker, ask the user for a decision when needed, and then resume from task selection.
 
-After each worker completes, load `references/execution-operations.md` for the canonical progress-check commands and decision table.
+## Handoff
 
-## Blocker Handling
-
-When a task reports blocked, follow the classification and resolution protocol in `references/blocker-handling.md`. Key steps: understand the blocker, classify it (missing dependency / external / scope / ambiguous / technical), ask the user for a decision, then resume from Phase 0.
+When the current phase closes successfully:
+- route to `beo-reviewing` if this completes the final execution scope
+- remove `approved` and route to `beo-planning` if later phases remain
+- never describe current-phase completion as full feature completion when multi-phase work remains
 
 ## Completion
 
-When all current-phase tasks under the epic are closed, first verify that the phase exit state now appears true in practice, then load `references/execution-operations.md` for the final verification steps and canonical completion behavior for swarming mode vs single-worker mode.
+When all current-phase tasks under the epic are closed:
+1. verify the current-phase exit state appears true in practice
+2. run project-specific verification
+3. write fresh `.beads/STATE.md` using `../reference/references/state-and-handoff-protocol.md`
+4. announce the next skill
 
-Before routing onward, write `.beads/STATE.md` using `../reference/references/state-and-handoff-protocol.md`.
+Routing rules:
+- if `planning_mode = single-phase` and no later phases remain -> `beo-reviewing`
+- if `planning_mode = multi-phase` and later phases remain -> remove `approved`, then route to `beo-planning`
+- if `planning_mode = multi-phase` and this was the final phase -> `beo-reviewing`
 
-Minimum completion state:
-
-```markdown
-# Beo State
-- Phase: executing → complete
-- Feature: <epic-id> (<feature_slug>)
-- Tasks: <N>/<total> current-phase tasks completed
-- Next: <beo-reviewing | beo-planning>
-
-- Planning mode: <single-phase | multi-phase>
-- Has phase plan: <true | false>
-- Current phase: <number>
-- Total phases: <number | unknown>
-- Phase name: <name>
-```
-
-Announce:
-```text
-Current-phase execution complete.
-- <N>/<total> tasks completed successfully
-- Build: <pass/fail>
-- Tests: <pass/fail>
-Fresh state written to .beads/STATE.md.
-```
-
-If `planning_mode = single-phase` and no later phases remain, load `beo-reviewing` for quality verification and feature completion.
-
-If `planning_mode = multi-phase` and later phases remain, remove the `approved` label before routing back through the planning-aware flow:
+When later phases remain, do **not** claim the whole feature is complete.
+Before routing back, remove the approval label:
 
 ```bash
 br label remove <EPIC_ID> -l approved
 ```
 
-Route to `beo-planning` to prepare the next phase. Do not claim the whole feature is complete.
-
 ## Context Budget
 
-If context usage exceeds 65%, write `.beads/HANDOFF.json` using `../reference/references/state-and-handoff-protocol.md`, then load `references/execution-operations.md` and follow the checkpoint procedure for the current operating mode.
+If context usage exceeds 65%, write `.beads/HANDOFF.json` using `../reference/references/state-and-handoff-protocol.md`, then checkpoint the current execution state using the procedure in `references/execution-operations.md`.
+Include planning-aware fields when known.
 
 ## Post-Compaction Recovery
 
-If you detect that context has been compacted (prior conversation is summarized), follow the recovery procedure in `references/execution-guardrails.md` to re-read `CONTEXT.md`, `approach.md`, current-phase context, and task state before resuming.
+If context has been compacted, use `references/execution-guardrails.md` to re-read the core artifacts, current task graph, and any existing `STATE.md` / `HANDOFF.json` before resuming.
 
 ## Red Flags & Anti-Patterns
 
-See `references/execution-guardrails.md` for the complete red flags and anti-patterns tables.
+See `references/execution-guardrails.md` for the full tables.

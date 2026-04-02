@@ -99,7 +99,29 @@ If `phase-plan.md` exists and the bead clearly belongs to a later phase:
 
 ## 5. Task Transition Protocol
 
-Reserve files before editing. Then transition:
+### File Coordination Rule
+
+Before editing, establish file ownership clearly enough that two workers do not edit the same file set blindly.
+
+#### Worker mode
+
+Use the swarm reservation / conflict protocol:
+- check Agent Mail and current thread state for existing reservations or open file-conflict traffic
+- if another worker already holds a needed file, do not edit through the conflict
+- post a File Conflict Request using `../swarming/references/message-templates.md` and wait for the coordinator decision
+- only begin editing after ownership is clearly granted or the conflicting worker has released the file
+
+#### Standalone mode
+
+If the environment provides an explicit reservation mechanism, use it.
+If it does not, equivalent coordination is acceptable, but only when you have verified that no other active worker / agent is concurrently editing the same files.
+
+Equivalent coordination means, at minimum:
+- confirm you are not inside an active swarm touching the same file set
+- confirm there is no in-flight delegated worker for this bead or overlapping file scope
+- if ownership is unclear, stop and resolve that ambiguity before editing
+
+Once file coordination is clear, transition the task:
 
 ```bash
 # 1. Mark dispatch_prepared

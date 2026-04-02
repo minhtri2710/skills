@@ -9,7 +9,30 @@ description: >-
 
 # Beo Debugging
 
+## Overview
+
 Load `beo-reference` for knowledge-store protocol (`../reference/references/knowledge-store.md`).
+
+Debugging resolves blockers and failures systematically.
+Use it to classify the problem, reproduce it, isolate root cause, apply the right fix path, and capture the pattern.
+
+**Core principle:** do not guess. Triage first, then reproduce, then diagnose, then fix.
+
+## Hard Gates
+
+<HARD-GATE>
+If you cannot write a one-sentence root cause, you do not have the root cause yet. Do not proceed to Fix.
+</HARD-GATE>
+
+<HARD-GATE>
+Do not skip reproduction just because the error message looks obvious.
+If the failure cannot be reproduced directly, say so explicitly and treat that as part of diagnosis.
+</HARD-GATE>
+
+<HARD-GATE>
+Substantial fixes belong in a fix bead that follows the shared reactive-fix template and normal execution path.
+Do not smuggle major repair work through ad-hoc debugging edits.
+</HARD-GATE>
 
 Resolve blockers and failures systematically. Do not guess. Triage first, then reproduce, then diagnose, then fix.
 
@@ -50,12 +73,6 @@ Load `references/debugging-operations.md` for the exact known-pattern check, rep
 
 Work through the diagnostic sequence from `references/debugging-operations.md` and `references/diagnostic-checklist.md` in order.
 
-<HARD-GATE>
-If you cannot write a one-sentence root cause, you do not have the root cause yet. Do not proceed to Fix.
-</HARD-GATE>
-
----
-
 ## Step 4: Fix: Apply and Verify
 
 Load `references/debugging-operations.md` for the exact small-fix vs substantial-fix split, fix-bead creation rule, verification sequence, and blocker reporting expectations.
@@ -73,6 +90,13 @@ Load `references/debugging-operations.md` for the exact debug-note write pattern
 - If you have spent more than 3 diagnostic cycles (reproduce → diagnose → attempt) without isolating the root cause, **stop and ask the user** for guidance. Do not keep spinning.
 - If the failure involves infrastructure, permissions, or external services you cannot inspect, report what you know and escalate immediately rather than guessing.
 - If a blocker remains unresolved after one rescue attempt, classify it as `needs_human` and pause the bead. Do not silently retry indefinitely.
+
+## Handoff
+
+After the fix is verified:
+- if debugging was entered from `beo-executing`, route back to `beo-executing`
+- if debugging was entered from `beo-reviewing`, route back to `beo-reviewing`
+- if the issue remains ambiguous, report the blocker clearly and pause for user direction
 
 ## After Fix
 

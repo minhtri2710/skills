@@ -9,22 +9,31 @@ description: >-
 
 # Beo Swarming
 
-## Role Boundary: Read First
+## Overview
 
-You are the **ORCHESTRATOR**. You launch workers, monitor coordination, handle escalations, and keep the swarm moving. You do NOT implement beads. If you find yourself editing source files, stop immediately. That is the `beo-executing` skill's job.
+Swarming is the orchestration layer for parallel current-phase execution.
+Its job is to launch workers, coordinate them through the live graph and Agent Mail, resolve conflicts, and keep the approved current phase moving.
+
+**Core principle:** the orchestrator coordinates; workers execute.
+
+## Hard Gates
 
 <HARD-GATE>
 If you are editing source code, stop immediately and route that work to `beo-executing`.
 </HARD-GATE>
 
+<HARD-GATE>
+If Agent Mail is unavailable, do NOT attempt swarming. Degrade to `beo-executing`.
+</HARD-GATE>
+
+## Role Boundary: Read First
+
+You are the **ORCHESTRATOR**. You launch workers, monitor coordination, handle escalations, and keep the swarm moving. You do NOT implement beads. If you find yourself editing source files, stop immediately. That is the `beo-executing` skill's job.
+
 - **beo-swarming** = launches and tends workers (this skill)
 - **beo-executing** = each worker's self-routing implementation loop
 
 The orchestrator launches the swarm, then tends it. Workers decide what to do next by using the live bead graph against the approved **current phase**.
-
-<HARD-GATE>
-If Agent Mail is unavailable, do NOT attempt swarming. Degrade to `beo-executing`.
-</HARD-GATE>
 
 If Agent Mail becomes unavailable mid-run, stop launching new workers, let active workers finish if possible, and degrade remaining work to `beo-executing`.
 
@@ -93,6 +102,13 @@ Load `references/swarming-operations.md` for the exact monitor/tend loop, event 
 Load `references/swarming-operations.md` for the exact completion checks, planning-aware route decision, `STATE.md` update, and Agent Mail completion announcement.
 
 ---
+
+## Handoff
+
+When the approved current execution scope is complete:
+- route to `beo-reviewing` if this was the final execution scope
+- remove `approved` first and route to `beo-planning` if later phases remain
+- update `STATE.md` and announce completion on Agent Mail
 
 ## Context Budget
 

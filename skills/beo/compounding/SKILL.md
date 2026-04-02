@@ -9,7 +9,28 @@ description: >-
 
 # Beo Compounding
 
+## Overview
+
 Load `beo-reference` for knowledge-store protocol (`../reference/references/knowledge-store.md`).
+
+Compounding is the per-feature learnings capture phase after review truly finishes.
+Its job is to turn completed feature work into durable, reusable knowledge without inflating weak observations into institutional rules.
+
+**Core principle:** preserve what future work should remember, not just what happened.
+
+## Hard Gates
+
+<HARD-GATE>
+Do NOT have subagents write the final learnings file; only the orchestrator writes that.
+</HARD-GATE>
+
+<HARD-GATE>
+Never auto-append to `critical-patterns.md`; use the canonical approval rule from `../reference/references/approval-gates.md`.
+</HARD-GATE>
+
+<HARD-GATE>
+One learnings file per feature. Group related findings within that file instead of scattering them across multiple files.
+</HARD-GATE>
 
 ---
 
@@ -33,12 +54,6 @@ Load `references/compounding-operations.md` for the exact artifact collection se
 
 Load `references/compounding-operations.md` for the exact three-agent analysis split, staging-file targets, and subagent task summaries.
 
-<HARD-GATE>
-Do NOT have subagents write the final learnings file; only the orchestrator writes that.
-</HARD-GATE>
-
----
-
 ### Phase 3: Synthesis & Triage
 
 After all three agents complete, load `references/compounding-operations.md` for the exact staging-file read order, dedup procedure, triage tags, slugging rule, learnings-file write flow, and QMD refresh step.
@@ -58,12 +73,6 @@ One learnings file per feature. Group related findings within that file; do NOT 
 ### Phase 4: Promote Critical Learnings
 
 For every `severity: critical` learning, load `references/compounding-operations.md` for the exact promotion criteria, approval gate, append format, and post-promotion refresh flow.
-
-<HARD-GATE>
-Never auto-append to `critical-patterns.md`; use the canonical approval rule from `../reference/references/approval-gates.md`.
-</HARD-GATE>
-
----
 
 ### Phase 5: Optional CASS / CM Integration
 

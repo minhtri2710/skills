@@ -6,4 +6,6 @@
 .bv/
 .gitnexus
 .env
-.claude/settings.local.json
+
+benchmarks/
+

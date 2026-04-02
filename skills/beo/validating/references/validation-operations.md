@@ -262,6 +262,9 @@ br label add <EPIC_ID> -l approved
 br sync --flush-only
 ```
 
+Approval is not fully summarized until you also name the next execution mode for the approved current phase.
+Do not stop at "approved for execution" without saying whether the next skill is `beo-executing` or `beo-swarming`.
+
 ### On Rejection
 
 ```bash
@@ -303,15 +306,34 @@ When relevant, include:
 
 ### Normal Handoff
 
-After user approval, decide execution mode:
+After user approval, decide execution mode immediately:
 
 ```bash
 br ready --json
 # Filter to tasks under this epic by cross-referencing br dep list <EPIC_ID> --direction up --type parent-child --json
 ```
 
-- ≤2 independent tasks → `beo-executing`
-- 3+ independent tasks → `beo-swarming`
+Decision rule:
+- ≤2 independent ready tasks → `beo-executing`
+- 3+ independent ready tasks → `beo-swarming`
+- if the exact independent-track count is not available from the current context, inspect it now
+- if it is still ambiguous after a reasonable inspection, default to `beo-executing` unless there is clear evidence that swarming is warranted
+
+Your approval summary should therefore end in a concrete next-skill statement, for example:
+
+```text
+Execution approved for the current phase only.
+Later phases remain deferred.
+Next skill: beo-executing
+```
+
+or
+
+```text
+Execution approved for the current phase only.
+Later phases remain deferred.
+Next skill: beo-swarming
+```
 
 Update `.beads/STATE.md` with:
 - validated task count

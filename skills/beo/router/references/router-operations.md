@@ -4,6 +4,16 @@ Detailed operational playbook for `beo-router`.
 
 Load this file when you need exact bootstrap steps, new-feature creation details, instant-path scaffolding, resume validation, planning-aware routing, or doctor-mode commands.
 
+## Intent Short-Circuit Rule
+
+Before doing full feature-state routing, check whether the user's explicit request already selects a meta-path.
+Examples:
+- creating or editing a beo skill -> `beo-writing-skills`
+- root-cause analysis of blocked/failing work -> `beo-debugging`
+- explicit learnings consolidation request -> `beo-dream`
+
+If explicit user intent clearly selects one of these paths, honor it unless live state proves the request is impossible, stale, or aimed at the wrong feature.
+
 ## Table of Contents
 
 - [1. Workspace Bootstrap](#1-workspace-bootstrap)
