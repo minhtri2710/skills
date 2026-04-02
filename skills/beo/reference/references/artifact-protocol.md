@@ -69,13 +69,8 @@ Implemented auth middleware with JWT validation.
 - Manual test: unauthenticated request returns 401
 ---END_ARTIFACT---" --no-daemon
 
-# For large reports, write to a temp file first
-cat > /tmp/report.md << 'EOF'
----ARTIFACT:report:v1---
-## Summary
-...
----END_ARTIFACT---
-EOF
+# For large reports, write to a temp file first using your file writing tool,
+# then attach it:
 br comments add <id> --file /tmp/report.md --no-daemon
 ```
 

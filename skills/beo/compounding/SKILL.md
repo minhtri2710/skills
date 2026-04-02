@@ -7,11 +7,15 @@ description: >-
   future work instead of ending as isolated effort.
 ---
 
-# Compounding Skill
+# Beo Compounding
 
 Load `beo-reference` for knowledge-store protocol (`../reference/references/knowledge-store.md`).
 
 ---
+
+## Boundary with Reviewing
+
+The reviewing skill's Learnings Synthesis specialist **identifies candidate learnings** — patterns, surprises, and reusable insights — but does not write the final learnings file or promote anything. Compounding is where formal capture, triage, dedup, and promotion happen. If the reviewing specialist produced staging notes, use them as input to Phase 2 below rather than re-analyzing from scratch.
 
 ## Process
 

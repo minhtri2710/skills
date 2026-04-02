@@ -163,7 +163,7 @@ bv --robot-triage --graph-root <EPIC_ID> --format json
    - run final build/test commands
    - choose the next route:
      - `beo-reviewing` if this was the final execution scope
-     - `beo-planning` if `planning_mode = multi-phase` and later phases remain
+     - remove `approved` label first (`br label remove <EPIC_ID> -l approved`), then `beo-planning` if `planning_mode = multi-phase` and later phases remain
    - update `.beads/STATE.md` with phase complete and next skill
    - clear active workers
 4. send the completion message on Agent Mail using `message-templates.md`

@@ -9,32 +9,105 @@ A collection of 12 AI agent skills for structured feature development using `br`
 ```
 skills/
   beo/
-    router/SKILL.md              # Phase detection + skill routing
-    exploring/SKILL.md           # Socratic requirements gathering
+    router/                      # Phase detection + skill routing
+      SKILL.md
+      agents/openai.yaml
+      references/
+        router-operations.md
+        state-routing.md
+        go-mode.md
+        guardrails.md
+    exploring/                   # Socratic requirements gathering
+      SKILL.md
+      agents/openai.yaml
+      references/
+        exploring-guardrails.md
     planning/                    # Epic/task decomposition + dependency wiring
       SKILL.md
-      references/phase-contract-template.md, story-map-template.md
+      agents/openai.yaml
+      references/
+        planning-operations.md
+        planning-guardrails.md
+        discovery-guide.md
+        approach-template.md
+        phase-plan-template.md
+        phase-contract-template.md
+        story-map-template.md
+        bead-creation-guide.md
     validating/                  # 8-dimension plan verification gate
       SKILL.md
-      references/plan-checker-prompt.md, bead-reviewer-prompt.md
+      agents/openai.yaml
+      references/
+        validation-operations.md
+        validating-guardrails.md
+        plan-checker-prompt.md
+        bead-reviewer-prompt.md
     swarming/                    # Parallel worker orchestration
       SKILL.md
-      references/message-templates.md, worker-template.md
-    executing/SKILL.md           # Per-worker implementation loop
-    reviewing/SKILL.md           # 5-specialist review + compounding handoff
+      agents/openai.yaml
+      references/
+        swarming-operations.md
+        message-templates.md
+        worker-template.md
+    executing/                   # Per-worker implementation loop
+      SKILL.md
+      agents/openai.yaml
+      references/
+        execution-operations.md
+        execution-guardrails.md
+        worker-prompt-guide.md
+        blocker-handling.md
+    reviewing/                   # 5-specialist review + compounding handoff
+      SKILL.md
+      agents/openai.yaml
+      references/
+        reviewing-operations.md
+        review-specialist-prompts.md
     compounding/                 # Learnings capture + critical-pattern promotion
       SKILL.md
-      references/learnings-template.md
-    debugging/SKILL.md           # Systematic debugging for blockers/failures
+      agents/openai.yaml
+      references/
+        compounding-operations.md
+        learnings-template.md
+    debugging/                   # Systematic debugging for blockers/failures
+      SKILL.md
+      agents/openai.yaml
+      references/
+        debugging-operations.md
+        diagnostic-checklist.md
+        message-templates.md
     dream/                       # Periodic learnings consolidation
       SKILL.md
-      references/codex-source-policy.md, consolidation-rubric.md, pressure-scenarios.md
+      agents/openai.yaml
+      references/
+        dream-operations.md
+        consolidation-rubric.md
+        codex-source-policy.md
+        pressure-scenarios.md
     writing-skills/              # Skill creation and pressure-testing
       SKILL.md
-      references/creation-log-template.md, pressure-test-template.md
-    reference/                   # CLI reference hub
+      agents/openai.yaml
+      references/
+        writing-skills-operations.md
+        creation-log-template.md
+        pressure-test-template.md
+    reference/                   # Shared CLI reference hub
       SKILL.md                       # Navigation hub
-      references/                    # 8 reference docs (br, bv, deps, status, artifacts, file-conventions, pipeline-contracts, knowledge-store)
+      agents/openai.yaml
+      references/                    # 13 reference docs
+        br-cli-reference.md
+        bv-cli-reference.md
+        status-mapping.md
+        artifact-protocol.md
+        slug-protocol.md
+        state-and-handoff-protocol.md
+        approval-gates.md
+        dependency-and-scheduling.md
+        file-conventions.md
+        pipeline-contracts.md
+        knowledge-store.md
+        bead-description-templates.md
+        learnings-read-protocol.md
 ```
 
 ## Skill Workflow (Pipeline)
@@ -47,7 +120,7 @@ Support/meta skills (invoked on demand): `beo-debugging`, `beo-dream`, `beo-writ
 
 1. **beo-router** -- Detects current project state via `br`/`bv` and routes to the correct skill
 2. **beo-exploring** -- Socratic dialogue to lock decisions into `CONTEXT.md` before any planning
-3. **beo-planning** -- Creates epic + task beads with dependencies, writes `plan.md`, `phase-contract.md`, `story-map.md`
+3. **beo-planning** -- Runs discovery, writes `discovery.md`, `approach.md`, `plan.md`, optional `phase-plan.md`, then creates current-phase `phase-contract.md`, `story-map.md`, and beads for the current phase only
 4. **beo-validating** -- Phase contract, story map, and bead graph verification gate (8 dimensions); must pass before any code is written
 5. **beo-swarming** -- Orchestrates parallel worker agents for feature execution
 6. **beo-executing** -- Per-worker implementation loop: claim, build prompt, dispatch, verify, report
@@ -67,6 +140,8 @@ Support/meta skills (invoked on demand): `beo-debugging`, `beo-dream`, `beo-writ
 | `bv` | 0.15.2+ | Beads Viewer -- graph analytics, triage, scheduling -- [docs](https://github.com/Dicklesworthstone/beads_viewer) |
 | `obsidian` CLI | *(optional)* | Knowledge store write operations |
 | `qmd` | *(optional)* | Knowledge store search/query operations |
+| `cass` | *(optional)* | Session and learnings indexing for compounding acceleration |
+| `cm` | *(optional)* | Cognitive-memory storage for critical learnings |
 
 ## Editing Skills
 

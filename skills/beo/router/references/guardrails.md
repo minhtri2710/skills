@@ -7,6 +7,7 @@
 - **Skipping HANDOFF.json on resume**: If the file exists, read it
 - **Classifying everything as instant**: If there is any doubt about scope, route to exploring
 - **Routing to executing before planning**: Unless the feature has an `approved` label and tasks exist, do not skip planning
+- **Bypassing validation for instant work**: Instant-path work must still go through `beo-validating`. Do not set `approved` in the router or route directly to executing
 - **Routing to swarming without validated plan**: Swarming requires the same `approved` label as executing
 - **Skipping compounding after review**: Learnings capture is part of the pipeline, not optional
 - **Debugging without checking critical-patterns.md first**: Always check known patterns before investigating

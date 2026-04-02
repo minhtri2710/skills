@@ -12,31 +12,27 @@ Many beo skills need the same behavior:
 
 This file centralizes that read-side behavior.
 
+`beo-compounding` is the primary write-side producer for the learnings files and critical patterns this protocol reads.
+
 ## Mandatory Read-Side Workflow
 
-### 1. Query Indexed Learnings With QMD
+### 1. Read Critical Patterns
 
-If QMD is available, start here:
+Read `.beads/critical-patterns.md` with your file reading tool (skip if absent).
+
+If present, treat relevant entries as mandatory context.
+
+### 2. Search Flat-File Learnings
+
+Use your content search tool to search `.beads/learnings/` for `<keyword or domain phrase>`.
+
+### 3. Optional Enhancement: Query Indexed Learnings With QMD
+
+If QMD is available, supplement flat-file results with semantic search:
 
 ```bash
 qmd query "<feature description or learning topic>" --json 2>/dev/null
 qmd search "<keyword>" --json 2>/dev/null
-```
-
-### 2. Read Critical Patterns
-
-```bash
-cat .beads/critical-patterns.md 2>/dev/null
-```
-
-If present, treat relevant entries as mandatory context.
-
-### 3. Search Flat-File Learnings As Fallback
-
-If QMD is unavailable or insufficient, use keyword search over `.beads/learnings/`:
-
-```bash
-grep -ri "<keyword or domain phrase>" .beads/learnings/ 2>/dev/null
 ```
 
 ### 4. Apply What Matters
@@ -52,8 +48,9 @@ If you need to detect optional tooling first, see `knowledge-store.md`.
 
 ## Hard Rules
 
-- Start with QMD and Obsidian-backed learnings when available.
+- `.beads/learnings/` and `.beads/critical-patterns.md` are the authoritative read surfaces.
+- QMD and Obsidian-backed learnings are optional enhancements, not requirements.
 - Critical patterns must always be checked, even when QMD returns results.
-- Use flat-file reads as fallback, not as the preferred path.
+- Use QMD/Obsidian reads as supplementary context, not as the primary path.
 - If a learning is relevant, incorporate it explicitly rather than silently noting it.
 - Do not skip prior learnings for "obvious" work; that is how repeat failures happen.

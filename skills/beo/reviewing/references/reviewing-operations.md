@@ -18,18 +18,25 @@ Verify before review:
 
 ```bash
 br dep list <EPIC_ID> --direction up --type parent-child --json
-cat .beads/artifacts/<feature_slug>/CONTEXT.md
-cat .beads/artifacts/<feature_slug>/approach.md 2>/dev/null
-cat .beads/artifacts/<feature_slug>/phase-plan.md 2>/dev/null
-cat .beads/artifacts/<feature_slug>/phase-contract.md
-cat .beads/artifacts/<feature_slug>/story-map.md 2>/dev/null
 ```
+
+Read these artifacts with your file reading tool:
+
+- `.beads/artifacts/<feature_slug>/CONTEXT.md` (required)
+- `.beads/artifacts/<feature_slug>/approach.md` (optional)
+- `.beads/artifacts/<feature_slug>/phase-plan.md` (optional)
+- `.beads/artifacts/<feature_slug>/phase-contract.md` (required)
+- `.beads/artifacts/<feature_slug>/story-map.md` (optional)
 
 Also run project-specific build/tests before review.
 
 If tasks from the final execution scope are still open/in progress, route back to `beo-executing`.
 If any tasks remain blocked/failed/partial, use the approval rules in `../../reference/references/approval-gates.md` before deciding whether to proceed, defer, or re-plan.
-If `planning_mode = multi-phase` and later phases remain, route back to `beo-planning` instead of reviewing the feature as complete.
+If `planning_mode = multi-phase` and later phases remain, remove the `approved` label first, then route back to `beo-planning` instead of reviewing the feature as complete:
+
+```bash
+br label remove <EPIC_ID> -l approved
+```
 
 ## 2. Automated Review Setup
 
@@ -99,8 +106,9 @@ br sync --flush-only
 ```
 
 4. write `.beads/review-findings.md` for compounding
-5. optionally sync `AGENTS.md` changes with user approval
-6. remove `.beads/HANDOFF.json` but keep `.beads/STATE.md`
+5. write a fresh `.beads/STATE.md` using `../../reference/references/state-and-handoff-protocol.md`; include `Next: beo-compounding` and planning-aware fields when known
+6. optionally sync `AGENTS.md` changes with user approval
+7. remove `.beads/HANDOFF.json` only after the fresh state write succeeds
 
 ## 6. Lightweight Mode
 

@@ -46,12 +46,12 @@ Default checks:
 ```bash
 br show <EPIC_ID> --json
 br dep list <EPIC_ID> --direction up --type parent-child --json
-cat .beads/artifacts/<feature_slug>/CONTEXT.md 2>/dev/null
-cat .beads/artifacts/<feature_slug>/approach.md 2>/dev/null
-cat .beads/artifacts/<feature_slug>/plan.md 2>/dev/null
-cat .beads/artifacts/<feature_slug>/phase-plan.md 2>/dev/null
-cat .beads/artifacts/<feature_slug>/phase-contract.md 2>/dev/null
-cat .beads/artifacts/<feature_slug>/story-map.md 2>/dev/null
+Read .beads/artifacts/<feature_slug>/CONTEXT.md
+Read .beads/artifacts/<feature_slug>/approach.md
+Read .beads/artifacts/<feature_slug>/plan.md
+Read .beads/artifacts/<feature_slug>/phase-plan.md
+Read .beads/artifacts/<feature_slug>/phase-contract.md
+Read .beads/artifacts/<feature_slug>/story-map.md
 ```
 
 <HARD-GATE>
@@ -175,7 +175,7 @@ Load `references/validation-operations.md` for the lightweight-validation shortc
 
 ## Context Budget
 
-If context usage exceeds 65%, use the checkpoint procedure from `references/validation-operations.md`.
+If context usage exceeds 65%, write `.beads/HANDOFF.json` using `../reference/references/state-and-handoff-protocol.md`, then follow the checkpoint procedure in `references/validation-operations.md`.
 
 ## Handoff
 

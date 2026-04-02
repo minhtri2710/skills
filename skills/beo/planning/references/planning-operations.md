@@ -19,22 +19,22 @@ Load this file when you need exact prerequisite checks, planning-mode selection,
 - [11. Task Bead Creation Operations](#11-task-bead-creation-operations)
 - [12. Epic Description Update](#12-epic-description-update)
 - [13. State Update and Handoff Rules](#13-state-update-and-handoff-rules)
-- [14. Context-Budget Checkpointing](#14-context-budget-checkpointing)
+- [14. Phase-Plan Invalidation and Replanning Cleanup](#14-phase-plan-invalidation-and-replanning-cleanup)
+- [15. Context-Budget Checkpointing](#15-context-budget-checkpointing)
 
 ## 1. Prerequisites
 
 Before starting, verify:
 
 ```bash
-# CONTEXT.md must exist
-cat .beads/artifacts/<feature_slug>/CONTEXT.md
-
 # Epic must exist
 br show <EPIC_ID> --json
-
-# Check for critical-patterns.md
-cat .beads/critical-patterns.md 2>/dev/null
 ```
+
+Read these artifacts with your file reading tool:
+
+- `.beads/artifacts/<feature_slug>/CONTEXT.md` (required -- if absent, stop and route back to `beo-exploring`)
+- `.beads/critical-patterns.md` (optional)
 
 If `CONTEXT.md` does not exist, stop and route back to `beo-exploring`.
 
@@ -508,7 +508,65 @@ Mode: multi-phase
 Approve this phase sequence and current phase selection before validation?
 ```
 
-## 14. Context-Budget Checkpointing
+## 14. Phase-Plan Invalidation and Replanning Cleanup
+
+When planning re-enters (multi-phase back-edge, scope revision, or user-initiated replan), stale artifacts and state fields must be cleaned up before new planning proceeds.
+
+### Trigger conditions
+
+Replanning cleanup is required when any of these are true:
+
+- the current phase completed and the back-edge returns to planning for the next phase
+- the user or reviewer requests a scope revision that changes the phase structure
+- the planning mode changes (e.g., multi-phase to single-phase or vice versa)
+- the phase sequence changes within multi-phase work
+
+### If replanning results in single-phase work
+
+```bash
+# 1. Delete stale phase-plan.md
+rm .beads/artifacts/<feature_slug>/phase-plan.md
+
+# 2. Delete stale current-phase artifacts if they reference the old phase identity
+rm .beads/artifacts/<feature_slug>/phase-contract.md
+rm .beads/artifacts/<feature_slug>/story-map.md
+```
+
+Then rewrite planning-aware state fields in `STATE.md` and `HANDOFF.json`:
+
+- `planning_mode: single-phase`
+- `has_phase_plan: false`
+- `current_phase: 1`
+- `total_phases: 1`
+- `phase_name:` set to the feature summary (clear the stale value)
+
+Regenerate `phase-contract.md` and `story-map.md` for the new single-phase scope.
+
+### If replanning remains multi-phase but changes sequencing
+
+1. Rewrite `phase-plan.md` to reflect the new sequence
+2. Delete stale `phase-contract.md` and `story-map.md` if they reference an old phase identity
+3. Refresh all planning-aware fields including `phase_name`
+4. Regenerate current-phase artifacts for the newly selected phase
+5. Prior approval is invalidated — route back through `beo-validating`
+
+### If the current phase completed and the next phase starts
+
+1. Update `phase-plan.md` to mark the completed phase
+2. Delete old `phase-contract.md` and `story-map.md`
+3. Increment `current_phase`
+4. Update `phase_name` to the new current phase name
+5. Create fresh `phase-contract.md` and `story-map.md` for the new current phase
+6. Prior approval is invalidated — route back through `beo-validating`
+
+### Hard rules
+
+- **Delete, do not invalidate.** Stale `phase-plan.md` must be deleted, not marked invalid.
+- **`phase_name` must be refreshed.** Do not leave a stale phase name from a prior cycle.
+- **Prior approval is always invalidated** when the phase structure or execution scope changes.
+- **`STATE.md` and `HANDOFF.json` must be refreshed** before any handoff after replanning.
+
+## 15. Context-Budget Checkpointing
 
 If context usage exceeds 65% during planning:
 

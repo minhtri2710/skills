@@ -8,12 +8,12 @@ description: >-
   "consolidate learnings", "merge repeated learnings", or "do a learnings pass".
 ---
 
-# Dream Skill
+# Beo Dream
 
 Load `beo-reference` for knowledge-store protocol (`../reference/references/knowledge-store.md`).
 
 This skill performs one manual consolidation pass. It updates durable learnings in place and keeps
-the write surface narrow: `.beads/learnings/*.md`. It may propose critical promotions, but it must
+the write surface narrow: `.beads/learnings/*.md` (the canonical durable surface; see knowledge-store protocol). It may propose critical promotions, but it must
 never edit `.beads/critical-patterns.md` without explicit user approval.
 
 ## Use Dream vs Compounding

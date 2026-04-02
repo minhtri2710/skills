@@ -21,3 +21,7 @@ Canonical state routing table from `beo-reference` → `../../reference/referenc
 | 15 | Learnings stale (last dream run >30 days or 3+ new learnings since last dream), user requests consolidation | **consolidation-due** | `beo-dream` |
 
 **Evaluation order**: explicit user intent short-circuits feature-state routing. Most-specific closed states come before generic execution states. Current-phase completion is not whole-feature completion when later phases remain.
+
+Ordering notes:
+1. Keep `learnings-pending` above `completed` so closed epics route to compounding first.
+2. Treat `exploring` as the fallback when the context and planning-artifact states do not match.

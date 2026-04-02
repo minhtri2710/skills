@@ -46,7 +46,7 @@ Before asking any questions, check what already exists:
 
 ```bash
 # Check for existing CONTEXT.md
-cat .beads/artifacts/<feature_slug>/CONTEXT.md 2>/dev/null
+Read .beads/artifacts/<feature_slug>/CONTEXT.md
 
 # Check the epic bead for existing description
 br show <EPIC_ID> --json
@@ -201,9 +201,9 @@ If a sensitive literal matters for implementation, replace it with a stable plac
 ```bash
 # Create the artifacts directory
 mkdir -p .beads/artifacts/<feature_slug>
-
-# Write CONTEXT.md (use your file editing tools)
 ```
+
+Write `CONTEXT.md` using your file writing tool.
 
 ### Slug Preservation
 
@@ -255,24 +255,6 @@ Ready to plan. Load beo-planning to begin research and decomposition.
 
 If context usage exceeds 65%, use `../reference/references/state-and-handoff-protocol.md` for the canonical base `HANDOFF.json` and `STATE.md` shapes, then add exploring-specific fields such as `decisions_locked` and `open_questions` before pausing.
 
-## Red Flags
+## Red Flags & Anti-Patterns
 
-| Flag | Description |
-|------|-------------|
-| **Asking implementation questions** | "Should we use a Map or an Object?" is planning, not exploring |
-| **Batching 3+ questions** | One question at a time. Period. |
-| **Accepting "I don't care"** | Propose a concrete default instead |
-| **Skipping gray areas** | Every feature has at least 2 gray areas |
-| **Writing CONTEXT.md before decisions are locked** | Decisions first, document second |
-| **Copying raw user input into artifacts** | Can reproduce secrets or other sensitive data | Summarize in your own words and redact sensitive literals |
-| **Spending >15 min on one question** | If it's that complex, lock what you can and mark the rest as an open question for planning |
-
-## Anti-Patterns
-
-| Pattern | Why It's Wrong | Instead |
-|---------|---------------|---------|
-| Starting to plan during exploring | Premature commitment | Lock decisions only; planning comes next |
-| Asking about tech stack choices | That's a planning decision | Ask about behavior and requirements |
-| Copying the user's words verbatim as decisions | Users speak loosely | Restate precisely and confirm |
-| Creating tasks during exploring | No tasks until planning | Only the epic bead should exist |
-| Skipping exploring for non-instant features | Even "simple" features (lightweight and above) still have gray areas | At minimum, do a Quick-depth pass. Only **instant** requests (single file, <30 min) skip exploring. |
+See `references/exploring-guardrails.md` for the full red-flags and anti-patterns tables.

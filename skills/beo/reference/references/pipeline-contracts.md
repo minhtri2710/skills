@@ -1,6 +1,6 @@
 # Pipeline Contracts
 
-Canonical definitions for cross-cutting pipeline protocols. All skills reference this file instead of embedding their own copies.
+Canonical definitions for cross-cutting pipeline protocols. All skills reference this file for pipeline-level rules (back-edge responsibilities, artifact write rules, slug protocol). For task-state transitions and label semantics, see `status-mapping.md` as the canonical source. For approval grant rules, see `approval-gates.md`.
 
 ## Table of Contents
 
@@ -43,6 +43,10 @@ Key changes from prior versions:
 - final review is only valid when later phases do not remain
 - current-phase completion is not whole-feature completion for multi-phase work
 
+Ordering notes:
+1. Row 4 (`learnings-pending`) must stay above Row 5 (`completed`) so closed epics route to compounding before they are treated as fully complete.
+2. Row 14 (`exploring`) is the fallback after the context and planning-artifact rows fail. Read it as "epic exists, but planning has not actually started yet."
+
 ### Planning Artifact Hierarchy
 
 The planning phase now produces up to seven artifacts in this order:
@@ -76,7 +80,7 @@ Use `state-and-handoff-protocol.md` as the canonical source for the base `HANDOF
 | Event | Action | Skill |
 |-------|--------|-------|
 | User approves current phase for execution | `br label add <EPIC_ID> -l approved` | validating |
-| Back-edge to planning | `br label remove <EPIC_ID> -l approved` | executing, reviewing |
+| Back-edge to planning | `br label remove <EPIC_ID> -l approved` | executing, swarming, reviewing |
 | Back-edge to exploring | `br label remove <EPIC_ID> -l approved` | validating, reviewing |
 
 **Invariant:** The `approved` label must be removed whenever routing back to planning or exploring. This forces re-validation before execution resumes.
@@ -112,12 +116,9 @@ Interpret task enumeration against the active planning mode:
 
 ## Epic Lifecycle
 
-| State | br Status | Label | Transition Command |
-|-------|-----------|-------|--------------------|
-| Planning | `open` | (none) | Default immediately after epic creation |
-| Approved current phase | `open` | `approved` | `br label add <EPIC_ID> -l approved` |
-| Executing current phase | `in_progress` | `approved` | `br update <EPIC_ID> --claim` |
-| Completed feature | `closed` | `approved` | `br close <EPIC_ID>` |
+The canonical Feature States table (planning → approved → executing → completed) lives in `status-mapping.md` → Feature States.
+
+**Summary:** Epics start as `open` with no labels (planning), gain `approved` via validation, transition to `in_progress` when execution claims them, and close when the feature completes. See `status-mapping.md` for the full state table and exact commands.
 
 **Who transitions to executing:** The first skill that starts execution (executing or swarming) must run `br update <EPIC_ID> --claim` before dispatching any workers.
 

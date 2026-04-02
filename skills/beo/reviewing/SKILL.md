@@ -41,11 +41,11 @@ Default checks:
 
 ```bash
 br dep list <EPIC_ID> --direction up --type parent-child --json
-cat .beads/artifacts/<feature_slug>/CONTEXT.md 2>/dev/null
-cat .beads/artifacts/<feature_slug>/approach.md 2>/dev/null
-cat .beads/artifacts/<feature_slug>/phase-plan.md 2>/dev/null
-cat .beads/artifacts/<feature_slug>/phase-contract.md 2>/dev/null
-cat .beads/artifacts/<feature_slug>/story-map.md 2>/dev/null
+Read .beads/artifacts/<feature_slug>/CONTEXT.md
+Read .beads/artifacts/<feature_slug>/approach.md
+Read .beads/artifacts/<feature_slug>/phase-plan.md
+Read .beads/artifacts/<feature_slug>/phase-contract.md
+Read .beads/artifacts/<feature_slug>/story-map.md
 ```
 
 Load `references/reviewing-operations.md` for the exact prerequisite checks, isolated review inputs, and finishing prerequisites.
@@ -53,7 +53,7 @@ Load `references/reviewing-operations.md` for the exact prerequisite checks, iso
 <HARD-GATE>
 If tasks from the final execution scope are still open or in progress, route back to `beo-executing`.
 If any tasks have `blocked`, `failed`, or `partial` labels (status `deferred`), stop and get explicit user direction to proceed, defer, or re-plan before closing the epic.
-If `planning_mode = multi-phase` and later phases remain, do not treat the feature as complete; route back to `beo-planning`.
+If `planning_mode = multi-phase` and later phases remain, do not treat the feature as complete; remove the `approved` label (`br label remove <EPIC_ID> -l approved`) and route back to `beo-planning`.
 </HARD-GATE>
 
 ## Phase 1: Automated Review
@@ -63,6 +63,8 @@ Launch specialist review subagents to examine the implementation from different 
 Load `references/review-specialist-prompts.md` for the full specialist table, prompt template, dispatch strategy, and P1/P2/P3 bead creation patterns.
 
 **Summary**: 5 specialists (Code Quality, Architecture, Security, Test Coverage, Learnings Synthesis) review changed files. Launch first 4 in parallel, learnings synthesizer last. Each reports findings as P1 (blocks merge), P2 (should fix), or P3 (nice to have).
+
+**Learnings Synthesis scope**: The reviewing learnings synthesizer **identifies candidate learnings only** — patterns, surprises, and reusable insights observed in the implementation. It does NOT write the final learnings file or promote to critical-patterns.md. Formal learnings capture, triage, and promotion happen in `beo-compounding`.
 
 - **P1 findings** become fix beads under the epic, executed immediately, using the shared **Reactive Fix Bead Template**
 - **P2 findings** become independent follow-up beads (NOT under epic), using the shared **Follow-Up Bead Template**
@@ -129,6 +131,28 @@ If the user changes a decision:
 
 After all P1 issues are resolved, artifacts are verified, and UAT is complete, load `references/reviewing-operations.md` for the exact finishing sequence, review-findings handoff, merge-path presentation, optional AGENTS.md sync, and cleanup rule.
 
+### Update State
+
+Before announcing completion, write a fresh `.beads/STATE.md` using the canonical shape from `../reference/references/state-and-handoff-protocol.md`.
+
+Minimum expected state:
+
+```markdown
+# Beo State
+- Phase: reviewing → complete
+- Feature: <epic-id> (<feature_slug>)
+- Tasks: <review summary>
+- Next: beo-compounding
+
+- Planning mode: <single-phase | multi-phase>
+- Has phase plan: <true | false>
+- Current phase: <number>
+- Total phases: <number | unknown>
+- Phase name: <name>
+```
+
+If planning-aware fields are not known with confidence, omit only the unknown ones rather than inventing values.
+
 ## Completion
 
 Announce:
@@ -144,6 +168,8 @@ Review Summary:
 
 Epic <EPIC_ID> is closed.
 Review findings saved for compounding.
+Fresh state written to .beads/STATE.md.
+Remove .beads/HANDOFF.json after writing fresh state.
 
 Next: Load beo-compounding to capture learnings and promote critical patterns.
 ```
@@ -154,7 +180,7 @@ Load `references/reviewing-operations.md` for the lightweight-review shortcut.
 
 ## Context Budget
 
-If context usage exceeds 65%, use `references/reviewing-operations.md` together with `../reference/references/state-and-handoff-protocol.md` for the canonical checkpoint behavior.
+If context usage exceeds 65%, write `.beads/HANDOFF.json` using `../reference/references/state-and-handoff-protocol.md`, then use `references/reviewing-operations.md` for the review-specific checkpoint details.
 
 ## Red Flags
 

@@ -14,11 +14,7 @@
 
 ## 3a. Read Relevant Source Files
 
-```bash
-# Find the file mentioned in the error
-grep -rn "<error symbol or function>" src/ --include="*.ts" -l
-# Then read the file
-```
+Use your content search tool to find files containing `<error symbol or function>` in `src/` (e.g., `*.ts` files). Then read the implicated files.
 
 Do not read the entire codebase. Read exactly the files implicated by the error output.
 
@@ -42,9 +38,7 @@ Verify: does the failure indicate the bead was implemented against the wrong spe
 
 ## 3d. Check CONTEXT.md for Decision Violations
 
-```bash
-cat .beads/artifacts/<feature_slug>/CONTEXT.md
-```
+Read `.beads/artifacts/<feature_slug>/CONTEXT.md` with your file reading tool.
 
 Ask: was a locked decision (D1, D2...) violated by the implementation? Decision violations are a frequent root cause -- the code does something "reasonable" that was explicitly excluded.
 

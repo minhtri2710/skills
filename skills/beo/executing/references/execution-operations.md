@@ -244,7 +244,7 @@ Update `.beads/STATE.md`:
 
 Routing rule:
 - if `planning_mode = single-phase` and execution scope is complete → `beo-reviewing`
-- if `planning_mode = multi-phase` and later phases remain → `beo-planning`
+- if `planning_mode = multi-phase` and later phases remain → remove `approved` label first (`br label remove <EPIC_ID> -l approved`), then route to `beo-planning`
 - if `planning_mode = multi-phase` and this was the final phase → `beo-reviewing`
 
 ## 9. Context-Budget Checkpoint

@@ -161,6 +161,32 @@ When `phase-plan.md` is absent:
 
 - router and validating may treat the work as single-phase unless other evidence contradicts that assumption
 
+## Artifact Cleanup on Replanning
+
+When replanning changes the planning mode or phase structure, stale artifacts must be cleaned up. See `state-and-handoff-protocol.md` for the canonical field transition rules.
+
+### Replanning to single-phase
+
+- **Delete** `phase-plan.md` — do not leave a stale artifact
+- Delete or regenerate `phase-contract.md` and `story-map.md` if they reference a prior phase identity
+- Refresh `STATE.md` and `HANDOFF.json` planning-aware fields
+
+### Replanning within multi-phase (changed sequencing)
+
+- Rewrite `phase-plan.md`
+- Delete and regenerate `phase-contract.md` and `story-map.md` for the new current phase
+- Refresh all planning-aware state fields including `phase_name`
+
+### Phase advancement
+
+- Delete old `phase-contract.md` and `story-map.md`
+- Regenerate for the new current phase
+- Update `phase-plan.md` to mark the completed phase
+
+### Hard rule
+
+Stale `phase-plan.md` must be deleted, not marked invalid. Current-phase artifacts (`phase-contract.md`, `story-map.md`) must always reflect the actual current phase.
+
 ## Pipeline-Level Files
 
 | File | Written By | Read By | Purpose |
@@ -172,15 +198,15 @@ When `phase-plan.md` is absent:
 
 ## Knowledge Store
 
-Preferred knowledge-store order:
+Canonical knowledge-store order:
 
-1. Obsidian CLI writes/reads in the vault
-2. QMD retrieval over indexed learnings
-3. Flat files under `.beads/learnings/` as fallback
+1. Flat files under `.beads/learnings/` and `.beads/critical-patterns.md` (authoritative)
+2. QMD retrieval over indexed learnings (optional enhancement)
+3. Obsidian CLI reads/writes in the vault (optional mirror)
 
-| Operation | Preferred | Fallback |
-|-----------|-----------|----------|
-| Write learnings | Obsidian vault via `obsidian create/append` | Flat file to `.beads/learnings/` |
-| Search learnings | QMD query/search plus vault context | `grep` over `.beads/learnings/` and `.beads/critical-patterns.md` |
+| Operation | Canonical | Optional enhancement |
+|-----------|-----------|----------------------|
+| Write learnings | Flat file to `.beads/learnings/` | Mirror to Obsidian vault via `obsidian create/append` |
+| Search learnings | `grep` over `.beads/learnings/` and `.beads/critical-patterns.md` | QMD query/search plus vault context |
 
 See `knowledge-store.md` for full integration details.

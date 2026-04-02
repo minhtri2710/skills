@@ -31,10 +31,11 @@ Use this happy-path loop before diving into the deeper operations file:
 4. write `approach.md`
 5. decide `single-phase` vs `multi-phase`
 6. write `plan.md`, and `phase-plan.md` if needed
-7. define the current phase with `phase-contract.md`
-8. map the current phase into stories
-9. create only the beads needed for the current phase
-10. hand off to validation
+7. if multi-phase, get user approval for the phase sequence
+8. define the current phase with `phase-contract.md`
+9. map the current phase into stories
+10. create only the beads needed for the current phase
+11. hand off to validation
 
 Reach for `references/planning-operations.md` when you need the exact artifact order, approval wording, dependency wiring, or high-stakes review procedure.
 
@@ -83,16 +84,7 @@ Use the simplest mode that keeps the work understandable and execution-safe.
 
 ## When a Phase Plan Is Required
 
-Create `phase-plan.md` when any of these are true:
-
-- a single phase would become a vague work bucket
-- the feature naturally unfolds across multiple capability slices
-- story count would exceed 4 if forced into one phase
-- the work has a clear unlock sequence where one slice must become true before later slices matter
-- the team should prepare only the next slice while intentionally deferring later work
-
-Do **not** create `phase-plan.md` just because the feature is moderately sized.
-If one clear closed loop can still explain the work, stay single-phase.
+Create `phase-plan.md` when the feature naturally needs 2-4 capability slices, one phase would become a vague bucket, or story count would exceed 4. Do **not** create it just because the feature is moderately sized. See `references/planning-operations.md` section 7 for the full criteria.
 
 ## Mini Example
 
@@ -127,9 +119,9 @@ Current phase contract and story map describe only Phase 1 until that phase is c
 Default checks:
 
 ```bash
-cat .beads/artifacts/<feature_slug>/CONTEXT.md 2>/dev/null
+Read .beads/artifacts/<feature_slug>/CONTEXT.md
 br show <EPIC_ID> --json
-cat .beads/critical-patterns.md 2>/dev/null
+Read .beads/critical-patterns.md
 ```
 
 Load `references/planning-operations.md` when you need the exact planning-mode selection rules, artifact order, or handoff details.
@@ -205,7 +197,7 @@ Do not prepare the current phase as if it were the whole feature.
 If you are unsure whether it is truly multi-phase, resolve that uncertainty in `approach.md` before creating current-phase beads.
 </HARD-GATE>
 
-## Phase 3.5: Multi-Phase Planning Approval
+## Phase 4: Multi-Phase Planning Approval
 
 If `planning_mode = multi-phase`, get explicit user approval for the whole-feature phase sequence and the selected current phase **before** handing off to validation.
 
@@ -225,7 +217,7 @@ If the user has not explicitly approved the multi-phase sequence and current-pha
 If the user is confused or hesitant, tighten the phase framing first: revise `phase-plan.md`, `approach.md`, or current-phase naming before asking again.
 </HARD-GATE>
 
-## Phase 4: Current Phase Contract
+## Phase 5: Current Phase Contract
 
 Before creating beads, define the current phase as a closed loop.
 
@@ -257,7 +249,7 @@ If `phase-contract.md` does not exist, do not create beads. Define the current p
 If a draft exists but the exit state is vague, fix the contract instead of pushing uncertainty into bead descriptions.
 </HARD-GATE>
 
-## Phase 5: Current Phase Story Mapping
+## Phase 6: Current Phase Story Mapping
 
 Break the current phase into **Stories**, not "plans inside a phase."
 
@@ -277,18 +269,9 @@ Every story must state:
 - **Unlocks** (what later stories can now do)
 - **Done looks like** (observable finish line)
 
-### Story quality checks
+### Story quality and count
 
-- Story 1 must have an obvious reason to exist first
-- Every story must unlock or de-risk a later story, or directly close part of the exit state
-- If all stories complete, the phase exit state should hold
-- If a story cannot answer "what does this unlock?" it is probably not a real story
-
-### Story count guidance
-
-- **Typical current phase**: 2-4 stories
-- **Small current phase**: 1-2 stories
-- **Large current phase**: revise the phase shape instead of creating 5+ stories
+Typical current phase: 2-4 stories (1-2 for small, never 5+). Use the Closure Check in `references/story-map-template.md` to verify that story completion covers the phase exit state. If a story cannot answer "what does this unlock?" it is probably not a real story.
 
 Stories are the human-readable narrative. Beads come after.
 
@@ -297,13 +280,13 @@ If `story-map.md` does not exist, do not create beads. Map the current phase sto
 If stories exist informally in `plan.md` but not as a real map, promote them into `story-map.md` before decomposition.
 </HARD-GATE>
 
-## Phase 6: Multi-Perspective Check (HIGH-Stakes Only)
+## Phase 7: Multi-Perspective Check (HIGH-Stakes Only)
 
-**Only for HIGH-stakes features**: multiple HIGH-risk components, core architecture, auth flows, data model changes, or anything with a large blast radius. For standard features, skip to Phase 7.
+**Only for HIGH-stakes features**: multiple HIGH-risk components, core architecture, auth flows, data model changes, or anything with a large blast radius. For standard features, skip to Phase 8.
 
 Load `references/planning-operations.md` for the exact multi-perspective review procedure and prompt.
 
-## Phase 7: Task Bead Creation
+## Phase 8: Task Bead Creation
 
 Convert current-phase plan tasks into bead graph entries.
 
@@ -319,6 +302,39 @@ See `references/bead-creation-guide.md` for decomposition rules. Key points: one
 
 For multi-phase work, create beads for the current phase only.
 Do not pre-create execution beads for future phases in this planning model.
+
+## Phase 9: Handoff to Validation
+
+After the current-phase beads are created and verified, write `.beads/STATE.md` using the canonical shape from `../reference/references/state-and-handoff-protocol.md`.
+
+Minimum handoff state:
+
+```markdown
+# Beo State
+- Phase: planning → complete
+- Feature: <epic-id> (<feature_slug>)
+- Tasks: <N> planned for current phase
+- Next: beo-validating
+
+- Planning mode: <single-phase | multi-phase>
+- Has phase plan: <true | false>
+- Current phase: <number>
+- Total phases: <number | unknown>
+- Phase name: <name>
+```
+
+Then announce the handoff to `beo-validating`.
+
+Write `.beads/HANDOFF.json` only when the context budget requires checkpointing or the session must pause before validation starts.
+
+## Replanning Cleanup Rules
+
+When planning re-enters after a phase completes or after a scope revision, load `references/planning-operations.md` section 14 for the exact cleanup procedure, including artifact deletion, state-field refresh, and invalidation rules.
+
+<HARD-GATE>
+If phase structure or execution scope changes during replanning, prior approval is invalidated. The replanned work must route through `beo-validating` before execution can begin.
+Do not carry forward stale `phase-plan.md`, `phase_name`, or planning-aware state fields from a prior planning cycle.
+</HARD-GATE>
 
 ## Context Budget
 

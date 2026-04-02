@@ -113,6 +113,23 @@ For planning-aware or downstream skills, include these additional top-level fiel
 
 These fields extend the base schema without replacing it.
 
+## Go-Mode Extension
+
+Go-mode checkpoints may add an optional top-level `mode` field:
+
+```json
+{
+  "mode": "go"
+}
+```
+
+Rules:
+
+- allowed values: `"go"` or field absent
+- `"go"` means resume the saved `skill` and `next_action` inside go-mode rather than normal feature routing
+- planning-aware fields keep their normal meaning when `mode = "go"`
+- do not invent additional mode values without updating this canonical protocol first
+
 ### Canonical meanings
 
 - `planning_mode`
@@ -303,6 +320,60 @@ rm .beads/HANDOFF.json
 }
 ```
 
+### Example E — HANDOFF.json for go-mode resume
+
+```json
+{
+  "schema_version": 1,
+  "phase": "executing",
+  "skill": "beo-executing",
+  "feature": "pe-ghi",
+  "feature_name": "router-remediation",
+  "next_action": "Resume the current execution loop, then continue go-mode routing at the next gate.",
+  "in_flight_beads": ["pe-ghi.2"],
+  "timestamp": "2026-03-31T13:00:00Z",
+  "mode": "go",
+  "planning_mode": "single-phase",
+  "has_phase_plan": false,
+  "current_phase": 1,
+  "total_phases": 1,
+  "phase_name": "Router remediation"
+}
+```
+
+## Planning-Aware Field Transition Cleanup
+
+When replanning changes the planning mode, phase structure, or execution scope, all planning-aware fields must be refreshed in both `STATE.md` and `HANDOFF.json` before any handoff.
+
+### Replanning to single-phase
+
+Set:
+
+- `planning_mode: single-phase`
+- `has_phase_plan: false`
+- `current_phase: 1`
+- `total_phases: 1`
+- `phase_name:` feature summary or cleared value — do not leave a stale phase name
+
+Delete `phase-plan.md` from the artifact directory. Do not leave it as a stale artifact.
+
+### Replanning within multi-phase (changed sequencing)
+
+Set all fields to reflect the new sequence:
+
+- `has_phase_plan: true` (rewrite the plan)
+- `current_phase:` new selected phase number
+- `total_phases:` updated count
+- `phase_name:` new current phase name — must not carry the old phase name
+
+### Phase advancement (current phase completed, next phase starts)
+
+Increment `current_phase`, update `phase_name` to the new phase, and keep `total_phases` current. Delete old `phase-contract.md` and `story-map.md` before regenerating for the new phase.
+
+### Hard rule
+
+Never leave stale `phase_name`, `current_phase`, or `has_phase_plan` values after replanning or phase advancement. Every planning-aware field must reflect the actual state of the work.
+
 ## Hard Rules
 
 - Never skip `HANDOFF.json` if it exists.
@@ -312,3 +383,4 @@ rm .beads/HANDOFF.json
 - Never write a `STATE.md` missing the four canonical header fields.
 - Never treat `phase-contract.md` or `story-map.md` as whole-feature artifacts when `planning_mode = multi-phase`.
 - Never assume `phase_plan: false` means an error; it is valid for single-phase work.
+- Never write a non-canonical `mode` value; `"go"` is the only documented extension.

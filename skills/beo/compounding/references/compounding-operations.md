@@ -18,6 +18,7 @@ Collect all available artifacts from the completed feature. Read these if presen
 ```text
 .beads/artifacts/<feature_slug>/CONTEXT.md
 .beads/artifacts/<feature_slug>/discovery.md
+.beads/artifacts/<feature_slug>/approach.md
 .beads/artifacts/<feature_slug>/plan.md
 .beads/artifacts/<feature_slug>/phase-contract.md
 .beads/artifacts/<feature_slug>/story-map.md
@@ -78,7 +79,7 @@ Do not let subagents write the final learnings file. Only the orchestrator write
 ### Dedup Before Writing
 
 ```bash
-grep -l "<learning title>" .beads/learnings/ 2>/dev/null
+# Use your content search tool to search .beads/learnings/ for "<learning title>"
 ```
 
 Optional semantic search if QMD is available:
@@ -99,28 +100,27 @@ For every learning, assign:
 
 ### Determine the Slug
 
-Use `<primary-topic>-<secondary-topic>`.
+Use `<feature_slug>` (the immutable feature slug from the epic, not a topic-based name).
 
 ### Write the Learnings File
 
 Use `learnings-template.md` and write one learnings file per feature.
 
-Preferred path: write to the Obsidian vault first:
+Canonical path: write to `.beads/learnings/`:
+
+```bash
+mkdir -p .beads/learnings
+```
+
+Use your file writing tool to create `.beads/learnings/YYYYMMDD-<slug>.md` with the learnings content.
+
+Optional mirror: if Obsidian CLI is available and mirroring is desired, copy to the vault:
 
 ```bash
 obsidian create "beo-learnings/YYYYMMDD-<slug>.md" --content "<learnings content>" --silent 2>/dev/null
 ```
 
-Fallback path: if Obsidian CLI is unavailable or the vault write cannot be completed safely, write to `.beads/learnings/`:
-
-```bash
-mkdir -p .beads/learnings
-cat > .beads/learnings/YYYYMMDD-<slug>.md << 'EOF'
-<learnings content>
-EOF
-```
-
-If both write surfaces are available and it is useful to keep a local copy, mirror the final content into `.beads/learnings/` as well.
+If both write surfaces are available and it is useful to keep a vault copy, mirror the final content into the Obsidian vault as well.
 
 ### Refresh QMD Index
 
@@ -143,8 +143,9 @@ Propose the promotion to the user first. Never auto-append to `.beads/critical-p
 
 Use the canonical approval rule from `../../reference/references/approval-gates.md`, then append to `.beads/critical-patterns.md`:
 
-```bash
-cat >> .beads/critical-patterns.md << 'EOF'
+Use your file editing tool to append the following to `.beads/critical-patterns.md`:
+
+```markdown
 ## [YYYYMMDD] <Learning Title>
 **Category:** pattern | decision | failure
 **Feature:** <feature-name>
@@ -153,7 +154,6 @@ cat >> .beads/critical-patterns.md << 'EOF'
 <2-4 sentence summary of the learning and what to do differently>
 
 **Full entry:** .beads/learnings/YYYYMMDD-<slug>.md
-EOF
 ```
 
 If the file does not exist, create it first with the canonical header from the main skill.

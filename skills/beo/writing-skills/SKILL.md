@@ -8,7 +8,7 @@ description: >-
   conventions, one-off solutions, or ordinary feature planning.
 ---
 
-# Writing Skills
+# Beo Writing Skills
 
 ## Overview
 
@@ -177,4 +177,3 @@ If context usage exceeds 65%, use `references/writing-skills-operations.md` toge
 Load when needed:
 - `references/creation-log-template.md`: CREATION-LOG.md template for documenting the TDD process
 - `references/pressure-test-template.md`: Pressure scenario templates and the 7 pressure types
-

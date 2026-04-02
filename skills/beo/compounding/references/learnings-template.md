@@ -132,10 +132,9 @@ rather than writing parallel logic.
 
 ## Slug Naming Rules
 
-- Format: `YYYYMMDD-<primary-topic>-<secondary-topic>`
+- Format: `YYYYMMDD-<feature_slug>.md`
+- Use the immutable feature slug from the epic (not a topic-based name)
 - Use lowercase, hyphens only
-- Primary topic = most important domain (`auth`, `database`, `beads`, `api`, `testing`)
-- Secondary topic = specific problem or pattern (`token-refresh`, `migration-ordering`, `scope-isolation`)
 - Examples:
   - `20260315-auth-token-refresh.md`
   - `20260320-bead-scope-isolation.md`

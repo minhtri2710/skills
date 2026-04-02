@@ -19,8 +19,7 @@ Load this file when you need exact bootstrap steps, new-feature creation details
 Run once per session when `.beads/` is missing or unhealthy.
 
 ```bash
-# Check if beads workspace exists
-ls .beads/ 2>/dev/null
+# Check if beads workspace exists (use your file reading tool to read .beads/ directory)
 
 # If missing, initialize
 br init
@@ -65,8 +64,9 @@ Use the shared Markdown bead templates from `../../reference/references/bead-des
 ```bash
 br create "<task-name>" -t task --parent <EPIC_ID> -p 1 --json
 br update <TASK_ID> --description "<markdown task spec: background + what to do + verify steps>"
-br label add <EPIC_ID> -l approved
 ```
+
+After scaffolding the minimal artifacts, route to `beo-validating`. Do not set the `approved` label here; only `beo-validating` grants approval.
 
 ### Create Minimal Artifacts
 
@@ -219,9 +219,7 @@ If execution is complete and no later phases remain:
 
 ### Read the Handoff
 
-```bash
-cat .beads/HANDOFF.json
-```
+Read `.beads/HANDOFF.json` with your file reading tool.
 
 Use the canonical schema from `../../reference/references/state-and-handoff-protocol.md`.
 
@@ -235,6 +233,7 @@ If present, read and trust these fields unless live artifacts clearly contradict
 - `total_phases`
 - `phase_name`
 - `artifacts`
+- `mode`
 
 ### Verify It Is Still Valid
 
@@ -249,6 +248,8 @@ br list --type task --json
 Also re-check the artifact set in the canonical inspection order.
 
 If `has_phase_plan = true`, verify that `phase-plan.md` still exists.
+
+If `mode = "go"`, resume within go-mode rather than normal routing. Preserve the saved `skill` and `next_action`, and continue using go-mode semantics at the next human gate unless live state clearly invalidates the checkpoint.
 
 ### Clean Up Only After Fresh Checkpoint
 

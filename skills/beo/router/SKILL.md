@@ -60,7 +60,7 @@ If router reference files are unavailable, do the minimum safe sequence manually
 |---|-------|----------------------|--------------|
 | 1 | `beo-router` | This file. Bootstrap, state detection, routing. | Starting any session |
 | 2 | `beo-exploring` | Socratic dialogue → lock decisions → CONTEXT.md | Feature request is vague or new |
-| 3 | `beo-planning` | Research + synthesis → `discovery.md` + `approach.md` + optional `phase-plan.md` + current-phase contract/story/beads | Decisions are locked (CONTEXT.md exists) |
+| 3 | `beo-planning` | Research + synthesis → `discovery.md` + `approach.md` + `plan.md` + optional `phase-plan.md` + current-phase contract/story/beads | Decisions are locked (CONTEXT.md exists) |
 | 4 | `beo-validating` | Verify current phase contract, story map, and bead graph (8 dimensions) | Stories and beads exist; prove execution-readiness |
 | 5 | `beo-swarming` | Launch + tend worker pool via Agent Mail + bv | Beads validated; execute at scale (3+ independent tasks) |
 | 6 | `beo-executing` | Single worker loop: claim → build prompt → implement → verify → report | Spawned by swarming, or direct for ≤2 tasks |
@@ -78,8 +78,7 @@ Run once per session. Skip if `.beads/` already exists and is healthy.
 Default bootstrap sequence:
 
 ```bash
-# Inspect the workspace
-ls .beads/ 2>/dev/null
+# Check if beads workspace exists (use your file reading tool to read .beads/ directory)
 
 # Initialize only when missing
 br init
@@ -98,7 +97,7 @@ Determine the current state of work by querying the bead graph.
 ### Step 1: Check for HANDOFF.json
 
 ```bash
-cat .beads/HANDOFF.json 2>/dev/null
+Read .beads/HANDOFF.json
 ```
 
 If HANDOFF.json exists, go to **Phase 3: Resume**.
@@ -139,12 +138,12 @@ br ready --json
 br blocked --json
 
 # Check planning artifacts exist
-cat .beads/artifacts/<feature_slug>/CONTEXT.md 2>/dev/null
-cat .beads/artifacts/<feature_slug>/discovery.md 2>/dev/null
-cat .beads/artifacts/<feature_slug>/approach.md 2>/dev/null
-cat .beads/artifacts/<feature_slug>/phase-plan.md 2>/dev/null
-cat .beads/artifacts/<feature_slug>/phase-contract.md 2>/dev/null
-cat .beads/artifacts/<feature_slug>/story-map.md 2>/dev/null
+Read .beads/artifacts/<feature_slug>/CONTEXT.md
+Read .beads/artifacts/<feature_slug>/discovery.md
+Read .beads/artifacts/<feature_slug>/approach.md
+Read .beads/artifacts/<feature_slug>/phase-plan.md
+Read .beads/artifacts/<feature_slug>/phase-contract.md
+Read .beads/artifacts/<feature_slug>/story-map.md
 ```
 
 ### Step 4: Classify Feature State
@@ -205,7 +204,7 @@ Load `references/router-operations.md` when you need the exact slug-storage proc
 
 | Signal | Classification | Path |
 |--------|---------------|------|
-| Single file change, well-scoped, <30 min | **instant** | Create task directly, route to `beo-executing` |
+| Single file change, well-scoped, <30 min | **instant** | Create task directly, scaffold minimal artifacts, route to `beo-validating` |
 | 2-3 files, clear scope, <2 hours | **lightweight** | Route to `beo-exploring` (quick-depth pass, then planning) |
 | Multi-file, needs research, >2 hours | **standard** | Route to `beo-exploring` |
 | Ambiguous, needs clarification | **unclear** | Route to `beo-exploring` |
@@ -213,7 +212,7 @@ Load `references/router-operations.md` when you need the exact slug-storage proc
 
 ### Step 3: Route
 
-- **instant**: create one task bead, write a concise Markdown description using the shared bead templates, scaffold the minimal artifacts, mark the epic approved, then route to `beo-executing`. Load `references/router-operations.md` for the exact instant-path scaffold.
+- **instant**: create one task bead, write a concise Markdown description using the shared bead templates, scaffold the minimal artifacts, then route to `beo-validating`. Load `references/router-operations.md` for the exact instant-path scaffold.
 
 - **debug**: Route to `beo-debugging` directly.
 - **meta-skill**: Route to `beo-writing-skills` directly.
@@ -266,7 +265,7 @@ Do not continue burning context once the checkpoint threshold is crossed.
 | "what's the status?" | Phase 1 → report state |
 | "continue", "resume" | Phase 3 (if HANDOFF.json) or Phase 1 |
 | "check health", "doctor" | Phase 4 |
-| "plan X" | `beo-planning` directly |
+| "plan X" | `beo-planning` directly **only if** `CONTEXT.md` exists for the feature; otherwise route through Phase 2 state detection (which will route to `beo-exploring` first) |
 | "review" | `beo-reviewing` directly |
 | "what should I work on next?" | Phase 1 → `bv --robot-next` → report recommendation |
 | "debug this", "why is X failing", "fix error" | `beo-debugging` |

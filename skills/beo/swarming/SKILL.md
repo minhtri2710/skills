@@ -7,7 +7,7 @@ description: >-
   pool, or running approved current-phase work at scale.
 ---
 
-# Swarming
+# Beo Swarming
 
 ## Role Boundary: Read First
 
@@ -42,7 +42,7 @@ While the swarm is active, keep looping through Agent Mail and the live bead gra
 4. Spawn bounded workers with explicit current-phase scope
 5. Monitor completions, blockers, idle workers, and file conflicts
 6. Reassign, rescue, or degrade when workers stall
-7. Hand off to `beo-planning` or `beo-reviewing` only after the approved current execution scope is complete
+7. Hand off to `beo-reviewing` (final scope) or remove `approved` label (`br label remove <EPIC_ID> -l approved`) and hand off to `beo-planning` (later phases remain) only after the approved current execution scope is complete
 
 ## Worker Count Heuristic
 
@@ -64,31 +64,31 @@ If unsure, start smaller and expand only after the first monitor loop is healthy
 
 ---
 
-## Phase 1: Confirm Swarm Readiness
+## Phase 0: Confirm Swarm Readiness
 
 Load `references/swarming-operations.md` for the exact readiness checks, planning-aware scope verification, epic-claim step, and scheduling cascade.
 
 ---
 
-## Phase 2: Initialize Agent Mail
+## Phase 1: Initialize Agent Mail
 
 Load `references/swarming-operations.md` for the exact Agent Mail setup sequence, coordinator registration, and thread bootstrap pattern. Use `references/message-templates.md` for message bodies.
 
 ---
 
-## Phase 3: Spawn Workers
+## Phase 2: Spawn Workers
 
 Load `references/swarming-operations.md` for the exact worker-spawn contract, worker input shape, worker startup acknowledgment expectations, and `STATE.md` tracking expectations. Use `references/worker-template.md` when building worker context.
 
 ---
 
-## Phase 4: Monitor + Tend
+## Phase 3: Monitor + Tend
 
 Load `references/swarming-operations.md` for the exact monitor/tend loop, event types, progress heuristics, and checkpoint mechanics. Use `references/message-templates.md` for mail content.
 
 ---
 
-## Phase 5: Swarm Complete
+## Phase 4: Swarm Complete
 
 Load `references/swarming-operations.md` for the exact completion checks, planning-aware route decision, `STATE.md` update, and Agent Mail completion announcement.
 

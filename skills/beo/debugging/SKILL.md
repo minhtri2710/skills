@@ -7,11 +7,18 @@ description: >-
   regressing.
 ---
 
-# Debugging
+# Beo Debugging
 
 Load `beo-reference` for knowledge-store protocol (`../reference/references/knowledge-store.md`).
 
 Resolve blockers and failures systematically. Do not guess. Triage first, then reproduce, then diagnose, then fix.
+
+## When NOT to Use
+
+- Planning ambiguity or scope-shaping questions: use `beo-exploring`
+- Work is not failing, just not decomposed or routed clearly: use `beo-router`
+- Post-implementation quality verification: use `beo-reviewing`
+- Cross-feature learnings consolidation: use `beo-dream`
 
 ---
 
@@ -60,6 +67,17 @@ Fix beads must still use the shared **Reactive Fix Bead Template** from `../refe
 ## Step 5: Learn: Capture the Pattern
 
 Load `references/debugging-operations.md` for the exact debug-note write pattern, pattern-update flow, and `debug_attempted` labeling rule.
+
+## Escalation and Timeout
+
+- If you have spent more than 3 diagnostic cycles (reproduce → diagnose → attempt) without isolating the root cause, **stop and ask the user** for guidance. Do not keep spinning.
+- If the failure involves infrastructure, permissions, or external services you cannot inspect, report what you know and escalate immediately rather than guessing.
+- If a blocker remains unresolved after one rescue attempt, classify it as `needs_human` and pause the bead. Do not silently retry indefinitely.
+
+## After Fix
+
+- If debugging was entered from `beo-executing`, route back to `beo-executing` after the fix is verified.
+- If debugging was entered from `beo-reviewing`, route back to `beo-reviewing` after the fix is verified.
 
 ---
 

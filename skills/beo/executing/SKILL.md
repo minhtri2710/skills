@@ -63,10 +63,10 @@ Default checks:
 ```bash
 br show <EPIC_ID> --json
 br dep list <EPIC_ID> --direction up --type parent-child --json
-cat .beads/artifacts/<feature_slug>/CONTEXT.md 2>/dev/null
-cat .beads/artifacts/<feature_slug>/plan.md 2>/dev/null
-cat .beads/artifacts/<feature_slug>/phase-contract.md 2>/dev/null
-cat .beads/artifacts/<feature_slug>/story-map.md 2>/dev/null
+Read .beads/artifacts/<feature_slug>/CONTEXT.md
+Read .beads/artifacts/<feature_slug>/plan.md
+Read .beads/artifacts/<feature_slug>/phase-contract.md
+Read .beads/artifacts/<feature_slug>/story-map.md
 ```
 
 Load `references/execution-operations.md` for the exact prerequisite checks, current-phase scope verification, and epic-claim procedure.
@@ -91,11 +91,11 @@ If the epic does not have the `approved` label, do not treat planning artifacts 
 └── Loop or Complete
 ```
 
-## Phase 1: Select Next Task
+## Phase 0: Select Next Task
 
 Load `references/execution-operations.md` for the scheduling cascade and task-selection procedure.
 
-## Phase 2: Pre-Dispatch Checks
+## Phase 1: Pre-Dispatch Checks
 
 Load `references/execution-operations.md` for the exact pre-dispatch checks, stale-label cleanup, task-transition protocol, and current-phase scope check.
 
@@ -124,7 +124,7 @@ Reserve files before editing (required in worker mode, recommended in standalone
 
 Follow the canonical transition sequence in `references/execution-operations.md`.
 
-## Phase 3: Worker Prompt Assembly
+## Phase 2: Worker Prompt Assembly
 
 Build the complete worker prompt for the subagent. The prompt includes current-phase exit state, story context, plan summary, task spec, relevant `CONTEXT.md` decisions, previous task results, and verification criteria.
 
@@ -140,29 +140,47 @@ See `references/worker-prompt-guide.md` for the full prompt template, data gathe
 
 **Key rule**: Never truncate the task spec itself; that is the core payload.
 
-## Phase 4: Worker Dispatch
+## Phase 3: Worker Dispatch
 
-**Standalone mode only**: in worker mode, implement the task directly (skip to Phase 5 after implementation).
+**Standalone mode only**: in worker mode, implement the task directly (skip to Phase 4 after implementation).
 
 Load `references/execution-operations.md` for the canonical dispatch contract and worker-report expectations.
 
-## Phase 5: Post-Worker Update
+## Phase 4: Post-Worker Update
 
 After the worker returns, update the bead graph.
 
 Load `references/execution-operations.md` for the status-mapping quick table, report-artifact write pattern, and flush sequence.
 
-## Phase 6: Progress Check
+## Phase 5: Progress Check
 
 After each worker completes, load `references/execution-operations.md` for the canonical progress-check commands and decision table.
 
 ## Blocker Handling
 
-When a task reports blocked, follow the classification and resolution protocol in `references/blocker-handling.md`. Key steps: understand the blocker, classify it (missing dependency / external / scope / ambiguous / technical), ask the user for a decision, then resume from Phase 1.
+When a task reports blocked, follow the classification and resolution protocol in `references/blocker-handling.md`. Key steps: understand the blocker, classify it (missing dependency / external / scope / ambiguous / technical), ask the user for a decision, then resume from Phase 0.
 
 ## Completion
 
 When all current-phase tasks under the epic are closed, first verify that the phase exit state now appears true in practice, then load `references/execution-operations.md` for the final verification steps and canonical completion behavior for swarming mode vs single-worker mode.
+
+Before routing onward, write `.beads/STATE.md` using `../reference/references/state-and-handoff-protocol.md`.
+
+Minimum completion state:
+
+```markdown
+# Beo State
+- Phase: executing → complete
+- Feature: <epic-id> (<feature_slug>)
+- Tasks: <N>/<total> current-phase tasks completed
+- Next: <beo-reviewing | beo-planning>
+
+- Planning mode: <single-phase | multi-phase>
+- Has phase plan: <true | false>
+- Current phase: <number>
+- Total phases: <number | unknown>
+- Phase name: <name>
+```
 
 Announce:
 ```text
@@ -170,15 +188,22 @@ Current-phase execution complete.
 - <N>/<total> tasks completed successfully
 - Build: <pass/fail>
 - Tests: <pass/fail>
+Fresh state written to .beads/STATE.md.
 ```
 
 If `planning_mode = single-phase` and no later phases remain, load `beo-reviewing` for quality verification and feature completion.
 
-If `planning_mode = multi-phase` and later phases remain, route back through the planning-aware flow instead of claiming the whole feature is complete.
+If `planning_mode = multi-phase` and later phases remain, remove the `approved` label before routing back through the planning-aware flow:
+
+```bash
+br label remove <EPIC_ID> -l approved
+```
+
+Route to `beo-planning` to prepare the next phase. Do not claim the whole feature is complete.
 
 ## Context Budget
 
-If context usage exceeds 65%, load `references/execution-operations.md` and follow the checkpoint procedure for the current operating mode.
+If context usage exceeds 65%, write `.beads/HANDOFF.json` using `../reference/references/state-and-handoff-protocol.md`, then load `references/execution-operations.md` and follow the checkpoint procedure for the current operating mode.
 
 ## Post-Compaction Recovery
 

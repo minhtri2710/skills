@@ -6,28 +6,18 @@ Red flags, anti-patterns, and recovery procedures for `beo-executing`.
 
 If you detect that context has been compacted (prior conversation is summarized):
 
-1. Re-read CONTEXT.md:
-   ```bash
-   cat .beads/artifacts/<feature_slug>/CONTEXT.md
-   ```
-2. Re-read the plan:
-   ```bash
-   cat .beads/artifacts/<feature_slug>/plan.md
-   ```
-3. Re-read phase context:
-   ```bash
-   cat .beads/artifacts/<feature_slug>/phase-contract.md
-   cat .beads/artifacts/<feature_slug>/story-map.md
-   ```
-4. Re-read current task state:
+1. Re-read these artifacts with your file reading tool:
+   - `.beads/artifacts/<feature_slug>/CONTEXT.md`
+   - `.beads/artifacts/<feature_slug>/plan.md`
+   - `.beads/artifacts/<feature_slug>/phase-contract.md`
+   - `.beads/artifacts/<feature_slug>/story-map.md`
+   - `.beads/STATE.md` (if present)
+   - `.beads/HANDOFF.json` (if present)
+2. Re-read current task state:
    ```bash
    br dep list <EPIC_ID> --direction up --type parent-child --json
    ```
-5. Check for HANDOFF.json:
-   ```bash
-   cat .beads/HANDOFF.json 2>/dev/null
-   ```
-6. Resume from the last known good state
+3. Resume from the last known good state
 
 ## Red Flags
 

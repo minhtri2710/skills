@@ -22,26 +22,17 @@ Verify before starting:
 br show <EPIC_ID> --json
 # Canonical task enumeration (see pipeline-contracts.md)
 br dep list <EPIC_ID> --direction up --type parent-child --json
-
-# CONTEXT.md exists
-cat .beads/artifacts/<feature_slug>/CONTEXT.md
-
-# discovery.md exists
-cat .beads/artifacts/<feature_slug>/discovery.md 2>/dev/null
-
-# approach.md exists
-cat .beads/artifacts/<feature_slug>/approach.md
-
-# plan.md exists
-cat .beads/artifacts/<feature_slug>/plan.md
-
-# phase-plan.md is optional
-cat .beads/artifacts/<feature_slug>/phase-plan.md 2>/dev/null
-
-# current-phase artifacts exist
-cat .beads/artifacts/<feature_slug>/phase-contract.md
-cat .beads/artifacts/<feature_slug>/story-map.md
 ```
+
+Read these artifacts with your file reading tool:
+
+- `.beads/artifacts/<feature_slug>/CONTEXT.md` (required)
+- `.beads/artifacts/<feature_slug>/discovery.md` (optional)
+- `.beads/artifacts/<feature_slug>/approach.md` (required)
+- `.beads/artifacts/<feature_slug>/plan.md` (required)
+- `.beads/artifacts/<feature_slug>/phase-plan.md` (optional)
+- `.beads/artifacts/<feature_slug>/phase-contract.md` (required)
+- `.beads/artifacts/<feature_slug>/story-map.md` (required)
 
 Stop and route back to `beo-planning` if tasks, `approach.md`, `phase-contract.md`, or `story-map.md` are missing.
 
