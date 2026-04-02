@@ -246,6 +246,7 @@ Tasks (<count>):
 Parallel tracks: <count based on dependency structure>
 Critical path: <task chain>
 Estimated complexity: <LOW/MEDIUM/HIGH>
+Recommended next execution mode if approved: <beo-executing | beo-swarming>
 
 Whole-feature note: <N/A for single-phase | later phases remain deferred in phase-plan.md>
 Unresolved concerns: <none | list>
@@ -264,6 +265,7 @@ br sync --flush-only
 
 Approval is not fully summarized until you also name the next execution mode for the approved current phase.
 Do not stop at "approved for execution" without saying whether the next skill is `beo-executing` or `beo-swarming`.
+If the next mode is not obvious, inspect the ready current-phase work immediately and resolve it before ending the approval summary.
 
 ### On Rejection
 
@@ -319,7 +321,7 @@ Decision rule:
 - if the exact independent-track count is not available from the current context, inspect it now
 - if it is still ambiguous after a reasonable inspection, default to `beo-executing` unless there is clear evidence that swarming is warranted
 
-Your approval summary should therefore end in a concrete next-skill statement, for example:
+Your approval summary should therefore end in a concrete next-skill statement, not just approval language. For example:
 
 ```text
 Execution approved for the current phase only.
@@ -334,6 +336,8 @@ Execution approved for the current phase only.
 Later phases remain deferred.
 Next skill: beo-swarming
 ```
+
+If the user approved but the summary still lacks `Next skill: ...`, validation handoff is incomplete and must be corrected before stopping.
 
 Update `.beads/STATE.md` with:
 - validated task count

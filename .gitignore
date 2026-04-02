@@ -8,4 +8,6 @@
 .env
 
 benchmarks/
+evals/
+*-workspace/
 

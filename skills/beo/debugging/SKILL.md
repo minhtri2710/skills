@@ -16,7 +16,8 @@ Load `beo-reference` for knowledge-store protocol (`../reference/references/know
 Debugging resolves blockers and failures systematically.
 Use it to classify the problem, reproduce it, isolate root cause, apply the right fix path, and capture the pattern.
 
-**Core principle:** do not guess. Triage first, then reproduce, then diagnose, then fix.
+**Core principle:** triage -> reproduce -> diagnose -> fix -> learn.
+Do not guess.
 
 ## Hard Gates
 
@@ -34,7 +35,16 @@ Substantial fixes belong in a fix bead that follows the shared reactive-fix temp
 Do not smuggle major repair work through ad-hoc debugging edits.
 </HARD-GATE>
 
-Resolve blockers and failures systematically. Do not guess. Triage first, then reproduce, then diagnose, then fix.
+## Default Debugging Loop
+
+1. classify the issue clearly
+2. reproduce it or state why reproduction is not yet possible
+3. diagnose until the root cause fits in one sentence
+4. apply the right fix path
+5. capture the pattern and route back cleanly
+
+Use `references/debugging-operations.md` for the exact known-pattern check, reproduction flow, fix split, blocker handling, and checkpoint behavior.
+Use `references/diagnostic-checklist.md` for the ordered sub-checks.
 
 ## When NOT to Use
 
@@ -45,45 +55,22 @@ Resolve blockers and failures systematically. Do not guess. Triage first, then r
 
 ---
 
-## Step 1: Triage: Classify the Issue
+## Triage and Diagnosis
 
-Classify before investigating. Misclassifying wastes time.
+Classify before investigating. Misclassification wastes time.
+The output of triage should be a one-line classification such as `[TYPE] in [component]: [symptom]`.
 
-| Type | Signals |
-|---|---|
-| **Build failure** | Compilation error, type error, missing module, bundler failure |
-| **Test failure** | Assertion mismatch, snapshot diff, timeout, flaky intermittent pass |
-| **Runtime error** | Crash, uncaught exception, segfault, undefined behavior |
-| **Integration failure** | HTTP 4xx/5xx, env variable missing, API schema mismatch, auth error |
-| **Blocker** | Stuck agent, circular bead dependency, conflicting file reservations |
+Then work through reproduction and diagnosis in order.
+Do not proceed until the root cause is specific enough to explain in one sentence.
 
-**Output of triage:** A one-line classification: `[TYPE] in [component]: [symptom]`
+## Fix Path
 
-Example: `Build failure in packages/sdk: TS2345 type mismatch in auth.ts`
-
----
-
-## Step 2: Reproduce: Isolate the Failure
-
-Load `references/debugging-operations.md` for the exact known-pattern check, reproduction flow, and blocker-vs-failure mechanics.
-
----
-
-## Step 3: Diagnose: Root Cause Analysis
-
-Work through the diagnostic sequence from `references/debugging-operations.md` and `references/diagnostic-checklist.md` in order.
-
-## Step 4: Fix: Apply and Verify
-
-Load `references/debugging-operations.md` for the exact small-fix vs substantial-fix split, fix-bead creation rule, verification sequence, and blocker reporting expectations.
-
+Use `references/debugging-operations.md` for the exact small-fix vs substantial-fix split, verification sequence, and blocker reporting expectations.
 Fix beads must still use the shared **Reactive Fix Bead Template** from `../reference/references/bead-description-templates.md`.
 
----
+## Learn
 
-## Step 5: Learn: Capture the Pattern
-
-Load `references/debugging-operations.md` for the exact debug-note write pattern, pattern-update flow, and `debug_attempted` labeling rule.
+After the fix path is clear or a blocker is confirmed, capture the pattern using the debug-note flow in `references/debugging-operations.md`, including the `debug_attempted` labeling rule.
 
 ## Escalation and Timeout
 
@@ -98,16 +85,7 @@ After the fix is verified:
 - if debugging was entered from `beo-reviewing`, route back to `beo-reviewing`
 - if the issue remains ambiguous, report the blocker clearly and pause for user direction
 
-## After Fix
-
-- If debugging was entered from `beo-executing`, route back to `beo-executing` after the fix is verified.
-- If debugging was entered from `beo-reviewing`, route back to `beo-reviewing` after the fix is verified.
-
----
-
-## Blocker-Specific Protocol
-
-Load `references/debugging-operations.md` for the exact blocker protocol and message-template usage. Do not spin; report once, then pause.
+For blocker-specific handling, use `references/debugging-operations.md`. Do not spin; report once, then pause.
 
 ---
 
@@ -136,6 +114,3 @@ If context usage exceeds 65%, use `references/debugging-operations.md` together 
 
 ---
 
-## Quick Reference
-
-See `references/diagnostic-checklist.md` for the full quick reference table mapping situations to first actions.

@@ -144,10 +144,11 @@ Approval must be explicit and must apply to the **current phase** only.
 
 When approval is granted:
 - mark the epic approved
-- choose and explicitly state the next execution mode (`beo-executing` or `beo-swarming`)
 - inspect ready current-phase work immediately if the mode is not already obvious
-- if exact parallelism is still unknown, default to `beo-executing` unless there is clear evidence of 3+ independent ready tracks
+- choose and explicitly state the next execution mode (`beo-executing` or `beo-swarming`)
+- if exact parallelism is still unknown after inspection, default to `beo-executing` unless there is clear evidence of 3+ independent ready tracks
 - write fresh state with the chosen next skill
+- do not end the approval summary without a concrete next-skill statement
 
 When approval is rejected or withheld:
 - do not proceed
@@ -166,9 +167,10 @@ Even in lightweight mode, user approval is still required before any code is wri
 After approval:
 1. choose and explicitly announce execution mode from the ready current-phase work
 2. if independence/count is unclear, inspect it now; if it is still unknown, choose `beo-executing` by default unless clear evidence supports `beo-swarming`
-3. write `.beads/STATE.md` using `../reference/references/state-and-handoff-protocol.md`
-4. include planning-aware fields when known
-5. announce the next skill
+3. state the concrete next skill in the approval summary itself, not only in later state-writing
+4. write `.beads/STATE.md` using `../reference/references/state-and-handoff-protocol.md`
+5. include planning-aware fields when known
+6. announce the next skill
 
 If later phases remain, say so explicitly. Validation approval for the current phase never means the whole feature is approved.
 

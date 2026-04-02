@@ -12,13 +12,13 @@ description: >-
 ## Overview
 
 Reviewing is the final quality gate after execution.
-Its job is to verify that the implemented current scope is safe, aligned with locked decisions, and actually acceptable to the user before the feature is finished.
+Its job is to verify that the implemented final execution scope is safe, aligned with locked decisions, and actually acceptable to the user before the feature is finished.
 
 **Core principle:** review finds truth, not excuses.
 
 ## Default Review Loop
 
-1. confirm review is allowed for the current scope
+1. confirm review is allowed for the final execution scope
 2. run automated specialist review
 3. classify findings by severity and create follow-up work when needed
 4. run human UAT against locked decisions and exit-state claims
@@ -59,7 +59,7 @@ Create fix beads and send execution work back through the proper path.
 ## Review Prerequisites
 
 Before review, confirm:
-- the just-approved execution scope is actually complete
+- the final execution scope is actually complete
 - the correct epic is selected
 - `CONTEXT.md`, `plan.md`, `phase-contract.md`, and `story-map.md` are available
 - `phase-plan.md` is read when present

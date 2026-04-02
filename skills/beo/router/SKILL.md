@@ -63,42 +63,28 @@ If current-phase work is complete but later phases remain, do not treat the feat
 If instant-scoped work expands during inspection, stop treating it as instant work and promote it into the normal pipeline.
 </HARD-GATE>
 
-## Minimal Bootstrap
+## Routing Notes
 
-Run once per session when `.beads/` is missing or health is unclear.
+Load `references/router-operations.md` when you need exact bootstrap steps, artifact inspection order, instant-path scaffold, resume validation, planning-aware routing, or doctor-mode commands.
 
-Minimum safe sequence:
-1. verify `.beads/` exists or initialize it
-2. verify `br` works
-3. run workspace health checks
+### Bootstrap and resume
+- If `.beads/` is missing or unhealthy, repair bootstrap before routing.
+- If `.beads/HANDOFF.json` exists, read it first, verify it against the live graph and current artifacts, then resume the saved `skill` and `next_action`.
+- If planning-aware fields exist in the handoff, trust them unless live state clearly contradicts them.
+- Clean up `HANDOFF.json` only after a fresh `STATE.md` or equivalent checkpoint exists.
+- If `mode = "go"`, resume inside go-mode rather than normal feature routing.
 
-If bootstrap or health recovery gets messy, load `references/router-operations.md`.
-
-## State Detection
-
-### 1. Check for handoff first
-If `.beads/HANDOFF.json` exists, go to resume flow before normal classification.
-
-### 2. Find the active feature
-Inspect epics and identify the active one, if any.
-If multiple open epics exist, ask the user which feature to work on.
-If no epic exists, treat the request as new feature intake.
-
-### 3. Inspect the active feature
-Inspect, at minimum:
-- epic details
-- task graph
-- actionable / blocked work
+### Active-feature inspection
+Inspect the active epic, task graph, actionable / blocked work, and the current artifact set.
+At minimum orient on:
 - `CONTEXT.md`
 - `approach.md`
 - `phase-plan.md`
 - `phase-contract.md`
 - `story-map.md`
 
-Use the canonical artifact inspection order in `references/router-operations.md`.
-
-### 4. Classify with the canonical routing table
-Use `references/state-routing.md` for the canonical state names and first-match-wins routing order.
+Use the canonical inspection order in `references/router-operations.md`.
+Use `references/state-routing.md` for the canonical state names and first-match-wins order.
 Do not invent ad-hoc state labels.
 
 ## Report State Before Routing
@@ -112,52 +98,6 @@ At minimum include:
 - progress / blockers
 - next action
 
-## New Feature Intake
-
-When no active feature exists:
-
-1. create the epic
-2. preserve the immutable feature slug using `../reference/references/slug-protocol.md`
-3. classify the request as one of:
-   - `instant`
-   - `lightweight`
-   - `standard`
-   - `unclear`
-   - `debug`
-   - `meta-skill`
-4. route accordingly
-
-### Default routing for new work
-- `instant` -> scaffold minimal artifacts, then route to `beo-validating`
-- `debug` -> `beo-debugging`
-- `meta-skill` -> `beo-writing-skills`
-- `lightweight` / `standard` / `unclear` -> usually `beo-exploring`
-
-Use `references/router-operations.md` for the exact instant-path scaffold and slug-storage procedure.
-
-## Instant Promotion Guard
-
-If a request first looks instant but inspection shows it is larger, ambiguous, or phase-shaped:
-
-1. stop treating it as instant work
-2. preserve any existing instant task bead as planning input
-3. route to `beo-exploring` or `beo-planning`, depending on what is already known
-
-Use `references/router-operations.md` for the exact promotion procedure.
-
-## Resume From Handoff
-
-When `.beads/HANDOFF.json` exists:
-
-1. read it first
-2. verify the epic, task graph, and current artifacts still match the saved state
-3. if planning-aware fields exist, treat them as the source of truth unless live state clearly contradicts them
-4. resume the saved `skill` and `next_action`
-5. remove or refresh `HANDOFF.json` only after a fresh `STATE.md` or equivalent checkpoint exists
-
-Use `../reference/references/state-and-handoff-protocol.md` for the canonical schema and cleanup rule.
-If `mode = "go"`, resume inside go-mode rather than normal feature routing.
-
 ## Planning-Aware Routing Rules
 
 Keep these rules explicit:
@@ -165,20 +105,22 @@ Keep these rules explicit:
 - if `approach.md` exists but current-phase artifacts are missing, route to `beo-planning`
 - if `phase-plan.md` exists, do not assume current-phase completion means feature completion
 - if current-phase work is complete and later phases remain, route to `beo-planning`
+- if current-phase tasks already advanced but `approved` is now missing, treat approval as invalidated and route to `beo-planning`
 - if execution scope is complete and no later phases remain, route to `beo-reviewing`
 
-Use `references/router-operations.md` and `references/state-routing.md` for the exact routing conditions.
+## New Feature Intake
 
+When no active feature exists, still use the canonical routing model.
+The intake-specific states are:
+- `new-instant-intake` -> create the epic, preserve the immutable slug using `../reference/references/slug-protocol.md`, scaffold minimal artifacts, then route to `beo-validating`
+- `new-debug-intake` -> `beo-debugging`
+- `meta-skill` -> `beo-writing-skills`
+- otherwise -> create the epic and route to `beo-exploring`
+
+If a request first looks instant but inspection shows it is larger, ambiguous, or phase-shaped, preserve any existing instant task bead as planning input and promote the work into the normal pipeline.
 ## Doctor Mode
 
-When asked to check project health, inspect:
-- graph health
-- blocked work
-- stale work
-- planning shape and artifact presence
-- one next corrective action
-
-Use `references/router-operations.md` for the exact commands and interpretation table.
+When asked to check project health, inspect graph health, blocked work, stale work, planning shape, artifact presence, and one next corrective action.
 
 ## Priority Rules
 

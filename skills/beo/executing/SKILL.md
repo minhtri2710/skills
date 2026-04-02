@@ -47,7 +47,9 @@ Use `references/execution-guardrails.md` for recovery steps and anti-patterns.
 <HARD-GATE>
 If the epic does not have the `approved` label, do not treat planning artifacts as implicit approval.
 First verify the label was not accidentally removed or the wrong epic was selected.
-If approval is genuinely missing, route to `beo-validating`.
+If approval is genuinely missing, do not execute:
+- if current-phase tasks have already advanced, treat approval as invalidated and route to `beo-planning`
+- otherwise route to `beo-validating`
 </HARD-GATE>
 
 <HARD-GATE>
@@ -73,54 +75,28 @@ If specs must change materially during execution, stop treating the phase as exe
 Strip `approved` and route back to planning-aware repair instead of silently rewriting the plan in execution.
 </HARD-GATE>
 
-## Prerequisites
+## Execution Notes
 
-Before execution, confirm:
-- the epic exists and is the correct one
-- the epic is `approved`
-- task beads exist
+Use `references/execution-operations.md` for the exact prereq checks, task-selection cascade, transition protocol, state mapping, completion bookkeeping, and checkpoint procedure.
+
+### Before implementation
+Confirm:
+- the epic is the correct one and still `approved`
 - current-phase scope is understood
-- `CONTEXT.md`, `plan.md`, `phase-contract.md`, and `story-map.md` are available
-- `phase-plan.md` and `.beads/STATE.md` are read when present
+- the selected bead is still open, executable, and belongs to the current phase
+- blocking dependencies are closed
+- stale `blocked` / `failed` / `partial` labels are cleared when appropriate
 
-Use `references/execution-operations.md` for the exact checks and commands.
-
-## Select the Next Ready Bead
-
-Use the canonical scheduling cascade from `references/execution-operations.md`.
 If `beo-swarming` supplied a startup hint, still verify it against the live graph before acting.
 
-For multi-phase work, select only beads that belong to the **currently approved phase**.
-
-## Pre-Dispatch Checks
-
-Before implementation:
-- verify the task is still open
-- verify all blocking dependencies are closed
-- clear stale `blocked` / `failed` / `partial` labels when appropriate
-- verify the bead description is executable
-- confirm the bead belongs to the current phase
-
-### Bead Classes
-
+### Bead classes
 Two bead classes may reach execution:
-
 - **Planned execution bead** — created by `beo-planning`; requires story context, file scope, execution steps, and verification.
-- **Reactive fix bead** — created after planning by review, debugging, or instant routing; does **not** require story context, but still requires file scope, what to fix, and verification.
+- **Reactive fix bead** — created after planning by review, debugging, or instant routing; does not require story context, but still requires file scope, what to fix, and verification.
 
-## Transition to In Progress
-
-Reserve files before editing.
-This is required in worker mode and strongly recommended in standalone mode.
-
-Use the canonical coordination rule from `references/execution-operations.md`:
-- in worker mode, use the swarm's reservation / conflict protocol before editing shared files
-- in standalone mode, either reserve files explicitly when the environment supports it, or establish equivalent coordination by confirming no other worker / agent is actively editing the same file set
-
-Do not edit files when another active worker already owns the same files or when ownership is unclear.
-Then follow the canonical transition sequence in `references/execution-operations.md`.
-
-## Worker Prompt Assembly
+### File coordination and prompt assembly
+Reserve files before editing. In worker mode this is required; in standalone mode use an explicit reservation mechanism when available or equivalent coordination when it is not.
+Do not edit files when ownership is unclear.
 
 Every worker prompt must include:
 - the full bead spec
@@ -131,35 +107,18 @@ Every worker prompt must include:
 - the verification criteria
 
 Use `references/worker-prompt-guide.md` for the full template and budget rules.
+Never truncate the bead spec itself.
 
-**Never truncate the bead spec itself.**
-That is the core execution payload.
-
-## Dispatch and Direct Implementation
-
+### Dispatch and result handling
 - **Worker mode**: implement directly after the pre-dispatch checks.
 - **Standalone delegated mode**: use when multiple ready beads exist and a reliable dispatch mechanism is available.
 - **Standalone direct mode**: use when only one bead is ready or delegation overhead would exceed the benefit.
-- **Fallback rule**: if no dispatch mechanism is available, execute directly instead of inventing a pseudo-dispatch workflow.
+- **Fallback rule**: if no dispatch mechanism is available, execute directly instead of inventing pseudo-dispatch.
 
-Never block execution on finding a perfect dispatcher.
-Prefer direct execution over vague or unreliable delegation.
+After implementation or worker return, map the result to bead state using `references/execution-operations.md`, write the report artifact, flush state updates, and continue only after the graph is current again.
 
-## Post-Execution Update
-
-After implementation or worker return:
-- map the result to bead state using `references/execution-operations.md`
-- write the report artifact
-- flush state updates
-- continue looping only after the graph is current again
-
-Expected result classes remain:
-- `done`
-- `blocked`
-- `failed`
-- `partial`
-
-If a task is blocked, use `references/blocker-handling.md` to classify the blocker, ask the user for a decision when needed, and then resume from task selection.
+Expected result classes remain `done`, `blocked`, `failed`, or `partial`.
+If a task is blocked, use `references/blocker-handling.md` and then resume from task selection.
 
 ## Handoff
 
@@ -182,6 +141,7 @@ Routing rules:
 - if `planning_mode = multi-phase` and this was the final phase -> `beo-reviewing`
 
 When later phases remain, do **not** claim the whole feature is complete.
+This is a phase-advance back-edge, not a successful final review path.
 Before routing back, remove the approval label:
 
 ```bash
