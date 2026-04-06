@@ -70,6 +70,8 @@ Verify that `.description` contains:
 - [ ] Numbered implementation steps
 - [ ] Verification criteria
 - [ ] Enough context for a fresh worker who has never seen the plan
+- [ ] Error contract for I/O beads (what happens on failure?)
+- [ ] Secret handling requirements when decisions mention API keys/tokens
 
 If any bead fails this check, fix it immediately via `br update <TASK_ID> --description`. A bead without a complete description is an invalid intermediate state. It must not survive to handoff.
 

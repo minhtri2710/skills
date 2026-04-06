@@ -42,10 +42,10 @@ Then use your file writing tool to create `.beads/learnings/YYYYMMDD-<slug>.md` 
 When `obsidian` CLI is available and mirroring is desired, copy the learning to the vault for richer linking and graph navigation:
 
 ```bash
-obsidian create "beo-learnings/YYYYMMDD-<slug>.md" --content "<content>" --silent 2>/dev/null
+obsidian create path="beo-learnings/YYYYMMDD-<slug>.md" content="<content>" silent 2>/dev/null
 ```
 
-Always use the `--silent` flag to avoid interactive prompts. The vault copy is a convenience mirror; `.beads/learnings/` remains authoritative.
+Always use the `silent` flag to avoid interactive prompts. The vault copy is a convenience mirror; `.beads/learnings/` remains authoritative.
 
 ### Critical Patterns
 

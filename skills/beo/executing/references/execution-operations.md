@@ -76,6 +76,9 @@ All blocking tasks must be closed.
 br label remove <TASK_ID> -l blocked 2>/dev/null
 br label remove <TASK_ID> -l failed 2>/dev/null
 br label remove <TASK_ID> -l partial 2>/dev/null
+br label remove <TASK_ID> -l cancelled 2>/dev/null
+br label remove <TASK_ID> -l dispatch_prepared 2>/dev/null
+br label remove <TASK_ID> -l debug_attempted 2>/dev/null
 ```
 
 ### Description Verification

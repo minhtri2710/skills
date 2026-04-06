@@ -117,7 +117,7 @@ Use your file writing tool to create `.beads/learnings/YYYYMMDD-<slug>.md` with 
 Optional mirror: if Obsidian CLI is available and mirroring is desired, copy to the vault:
 
 ```bash
-obsidian create "beo-learnings/YYYYMMDD-<slug>.md" --content "<learnings content>" --silent 2>/dev/null
+obsidian create path="beo-learnings/YYYYMMDD-<slug>.md" content="<learnings content>" silent 2>/dev/null
 ```
 
 If both write surfaces are available and it is useful to keep a vault copy, mirror the final content into the Obsidian vault as well.
@@ -175,6 +175,17 @@ If `cm_enabled`, store each critical learning as a cognitive-memory entry using 
 File-based learnings remain the primary system. CASS/CM are acceleration layers.
 
 ## 6. State Update and Checkpointing
+
+### Graph Verification
+
+Before writing the final state, verify that the bead graph reflects completion — all executed beads and the epic must be `closed` in `br`, not just tracked in conversation:
+
+```bash
+br dep list <EPIC_ID> --direction up --type parent-child --json
+# Check: every bead should have status "closed"; epic should be "closed"
+```
+
+If any bead is still open, close it before writing STATE.md. Do not write `compounding → complete` while the graph still shows open work.
 
 ### Normal Completion
 

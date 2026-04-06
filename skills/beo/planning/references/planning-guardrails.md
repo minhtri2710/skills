@@ -18,7 +18,11 @@ Red flags and anti-patterns for `beo-planning`.
 | **Creating beads before stories are clear** | Stories explain why the work order exists |
 | **Stories with no clear unlock or contribution** | Every story must advance the exit state |
 | **Exit states that are vague or non-observable** | "Improve performance" is not an exit state |
+| **Hardcoded counts in refactoring exit criteria** | "All 168 tests pass" breaks when moving code legitimately changes test counts. Use invariants: "all tests pass," "moved code has equivalent coverage" |
 | **Handing off beads with empty descriptions** | Every bead must have a complete spec before handoff |
+| **Forward-declaring future-phase code** | Unused deps waste build time, dead stubs suppress useful warnings. Only add dependencies and types for the current phase |
+| **I/O beads without error contracts** | "Translate text" without specifying failure behavior leads to silent error swallowing. Every I/O bead must state what happens on failure |
+| **Trusting LLM-reported dependency versions** | Agent-reported versions are frequently wrong. Verify every version against the package registry before committing to artifacts |
 
 ## Anti-Patterns
 

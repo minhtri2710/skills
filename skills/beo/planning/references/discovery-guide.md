@@ -35,6 +35,20 @@ Launch 2-4 parallel research subagents using the session's normal subagent/task-
 
 Each agent writes findings to a structured format. Collect all results.
 
+For refactoring work touching 3+ module boundaries, use multi-agent audit with narrow, non-overlapping mandates (e.g., structural/module, architecture/UX, domain/backend). Different architectural lenses reveal different issues that a single-perspective audit would miss.
+
+## Annotation Verification
+
+When discovery inventories items by annotation (`#[allow(dead_code)]`, `// TODO`, `@deprecated`, `@SuppressWarnings`), treat annotations as human claims, not compiler guarantees. For each annotated item, verify the claim independently before including it in the plan:
+
+| Annotation | Verification |
+|-----------|-------------|
+| `#[allow(dead_code)]` | Remove annotation, compile, check for warnings |
+| `@deprecated` | Grep for callers |
+| `// TODO: remove` | Verify the removal condition is met |
+
+Discovery artifacts should list annotated items as "annotated — verify before removing" not "confirmed dead code."
+
 ## Synthesis
 
 Combine research into a discovery summary:

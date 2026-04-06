@@ -178,6 +178,17 @@ For each task bead under the epic, read `br show <TASK_ID> --json` and verify:
 
 Fail validation if any bead is empty or underspecified.
 
+### Semantic Cross-Checks
+
+Beyond structural completeness, verify that bead specs are semantically compatible with locked decisions:
+
+1. **Interface compatibility**: For every trait, interface, or abstract type in bead specs, ask: "Does any locked decision require dynamic dispatch (`dyn Trait`, plugin system, registry)?" If yes, verify the design supports it.
+2. **Secret handling**: For every decision mentioning API keys, tokens, secrets, or credentials, verify bead specs include file permission requirements, redaction in logs, and secure transport.
+3. **Error contracts**: For every bead involving I/O (network, subprocess, filesystem), verify the spec states what happens on failure — propagated, logged, or shown to the user.
+4. **Test plan adequacy**: For user-facing entry points, verify the test plan distinguishes unit tests from integration/end-to-end tests. New environment paths (clipboard, terminal multiplexer, etc.) require at least one end-to-end workflow test.
+
+Semantic gaps are structural failures, not optional quality notes.
+
 ## 5. Spike Execution
 
 Use for HIGH-risk tasks when the approach is unproven, depends on external systems, has hard performance requirements, or otherwise relies on hope.

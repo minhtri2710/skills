@@ -22,6 +22,16 @@ Load this file when you need exact prerequisite checks, planning-mode selection,
 - [14. Phase-Plan Invalidation and Replanning Cleanup](#14-phase-plan-invalidation-and-replanning-cleanup)
 - [15. Context-Budget Checkpointing](#15-context-budget-checkpointing)
 
+## 0. Refactoring Sequencing Rule
+
+When planning structural refactoring, always sequence steps in this order:
+
+1. **Fix** dependency violations (wrong-direction imports, DAG breaks)
+2. **Remove** dead artifacts (unused code, stale modules)
+3. **Restrict** access control (tighten visibility, lock down APIs)
+
+This is the only rework-free order. Fixing the DAG first means dead-code analysis isn't confused by items kept alive through wrong-direction imports. Removing dead code before visibility tightening means the visibility pass operates on the minimal item set.
+
 ## 1. Prerequisites
 
 Before starting, verify:

@@ -29,6 +29,7 @@ If you detect that context has been compacted (prior conversation is summarized)
 | **Dispatching the same task twice** | Check task status before dispatching |
 | **Skipping the report artifact** | Every completed task needs a report for downstream tasks |
 | **Not flushing after updates** | Run `br sync --flush-only` after status changes |
+| **Tracking completion in conversation but not in graph** | `br close <bead>` must run immediately after verification passes. Conversation-level tracking is ephemeral; the graph is the source of truth |
 
 ## Anti-Patterns
 

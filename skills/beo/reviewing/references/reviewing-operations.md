@@ -31,6 +31,13 @@ Read these artifacts with your file reading tool:
 
 Also run project-specific build/tests before review.
 
+Verify graph state matches conversation state — all executed beads must be `closed` in `br`, not just reported as done in conversation. If any bead that was implemented and verified is still open in `br`, close it before proceeding:
+
+```bash
+br dep list <EPIC_ID> --direction up --type parent-child --json
+# Check: every bead that was executed should have status "closed"
+```
+
 If tasks from the final execution scope are still open/in progress, route back to `beo-executing`.
 If required current-scope artifacts such as `plan.md`, `phase-contract.md`, or `story-map.md` are missing, stop and route back to the planning-aware layer before continuing review.
 If any tasks remain blocked/failed/partial, use the approval rules in `../../reference/references/approval-gates.md` before deciding whether to proceed, defer, or re-plan.
@@ -71,6 +78,22 @@ Suggested verification actions:
 Also verify each exit-state line from `phase-contract.md` against the actual implementation.
 
 L2 or L3 failures are P1 findings and must be fixed before proceeding.
+
+## 3b. Reactive Fix Bead Creation
+
+When a P1 finding requires a fix, create a reactive fix bead under the current epic using both `--parent` and an explicit blocking dependency:
+
+```bash
+br create "Fix: <root cause summary>" -t task --parent <EPIC_ID> --deps blocks:<affected-bead-id>
+```
+
+This ensures the fix bead is:
+1. Visible in epic task enumeration (via `--parent`)
+2. Properly linked to the affected bead (via `--deps blocks:<affected-bead-id>`)
+
+Write the bead description using the **Reactive Fix Bead Template** from `../../reference/references/bead-description-templates.md`.
+
+Then route the fix bead through `beo-executing`. Do not implement fix code inside review.
 
 ## 4. Human UAT
 

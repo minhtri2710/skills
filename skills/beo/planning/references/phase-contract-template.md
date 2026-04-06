@@ -67,6 +67,8 @@
 
 **Rule:** every exit-state line must be testable or demonstrable.
 
+**Rule:** use invariant-based criteria, not hardcoded counts. For refactoring, prefer "all tests pass" over "all N tests pass" — moving code legitimately changes counts.
+
 ---
 
 ## 5. Demo Story

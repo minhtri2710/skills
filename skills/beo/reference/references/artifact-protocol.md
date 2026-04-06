@@ -113,7 +113,9 @@ context_pct: 35
 ---END_ARTIFACT---" --no-daemon
 ```
 
-Task state is optional. Workers update it when claiming, blocking, or completing beads. The orchestrator reads the latest version to build the swarm status view.
+Task state is optional and **informational only**. The authoritative bead status is always the `br` status (see `status-mapping.md` → Reading Beo State from br). Workers update `task_state` when claiming, blocking, or completing beads. The orchestrator reads the latest version to build the swarm status view.
+
+**Important:** A `task_state` comment with `beo_status: done` does **not** close the bead. The actual closure requires `br close <id>` per `status-mapping.md`. Always write `task_state: done` only **after** `br close` succeeds.
 
 ## Version Semantics
 
