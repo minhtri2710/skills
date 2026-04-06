@@ -2,6 +2,7 @@
 
 ## Red Flags
 
+- **Treating conversational phrasing as non-pipeline work**: "Can you research X with me", "let's explore X", or "help me think through X" are feature intake signals, not freeform chat. Always route through the state table
 - **Starting implementation without state detection**: Always run Phase 1 first
 - **Creating a second epic while one is active**: One feature at a time unless user explicitly requests parallel features
 - **Skipping HANDOFF.json on resume**: If the file exists, read it
@@ -18,6 +19,7 @@
 |---------|---------------|---------|
 | `br create` without checking existing epics | Creates duplicate features | Always list epics first |
 | Routing based on user's words alone | User may not know current state | Always query bead graph |
+| Bypassing pipeline for casual-sounding prompts | "Research with me" is still a feature intake | Route through state table regardless of phrasing |
 | Skipping `br doctor` on first session | Silent corruption goes undetected | Run doctor on bootstrap |
 | Hardcoding epic IDs | IDs change between sessions | Always query dynamically |
 | Routing to executing instead of swarming for parallel work | Executing is single-worker; swarming orchestrates multiple | Check task count and independence before choosing |

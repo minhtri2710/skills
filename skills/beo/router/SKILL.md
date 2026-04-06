@@ -5,7 +5,11 @@ description: >-
   checking status, deciding what to do next, or when the correct beo skill is
   not obvious. Use first for prompts like "continue", "resume", "what's
   next?", "status?", "pick this back up", "where are we?", or any new
-  feature request where the current phase is unclear.
+  feature request where the current phase is unclear. Also use when the user
+  asks to research, explore, discuss, or think through a topic that could
+  become a feature — phrases like "can you research X with me", "let's
+  explore X", "I want to build X", "help me think through X", or any
+  request implying non-trivial work, even if phrased conversationally.
 ---
 
 # Beo Router
@@ -40,6 +44,13 @@ Use `references/go-mode.md` when the user says "go", "run the full pipeline", or
 <HARD-GATE>
 If the current pipeline phase is unclear, use `beo-router` before loading any other beo skill.
 Do not guess the phase from memory, partial artifacts, or the last conversational turn alone.
+</HARD-GATE>
+
+<HARD-GATE>
+Conversational phrasing does not bypass the pipeline.
+If the user asks to "research", "explore", "discuss", "think through", or "look into" a topic that implies non-trivial work, treat it as a new feature intake or exploration request — not as a freeform conversation outside beo.
+Route through the state table normally; do not answer directly just because the prompt sounds casual.
+Exception: simple lookup questions about existing code, quick explanations, syntax questions, or single-fact answers are not feature intake — answer those directly.
 </HARD-GATE>
 
 <HARD-GATE>

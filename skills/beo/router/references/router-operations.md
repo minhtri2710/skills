@@ -14,6 +14,8 @@ Examples:
 
 If explicit user intent clearly selects one of these paths, honor it unless live state proves the request is impossible, stale, or aimed at the wrong feature.
 
+Conversational phrasing is **not** a valid short-circuit. Requests like "research X with me", "let's explore X", or "help me think through X" imply non-trivial work and must route through the state table normally — they are feature intake, not freeform chat. Only simple lookups, quick explanations, and single-fact questions may be answered directly.
+
 ## Table of Contents
 
 - [1. Workspace Bootstrap](#1-workspace-bootstrap)
