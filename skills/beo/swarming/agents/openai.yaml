@@ -1,4 +1,4 @@
 interface:
   display_name: "Beo Swarming"
   short_description: "Orchestrate parallel worker agents for execution"
-  default_prompt: "Use $beo-swarming to coordinate parallel worker agents."
+  default_prompt: "Orchestrate parallel worker agents for the approved current phase, coordinating via Agent Mail until all tasks complete."

@@ -1,4 +1,4 @@
 interface:
   display_name: "Beo Reference"
-  short_description: "CLI reference hub for br and bv commands"
-  default_prompt: "Use $beo-reference when you need br or bv CLI syntax."
+  short_description: "Shared canonical reference hub for br/bv CLI, status mapping, artifact protocol, and pipeline rules"
+  default_prompt: "Look up the exact br or bv CLI syntax, status mapping, artifact protocol, or pipeline rule needed by the calling skill."

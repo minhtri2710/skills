@@ -89,11 +89,11 @@ br list --type epic -a --json
 br dep list <epic-id> --direction up --type parent-child --json
 ```
 
-# Scheduling Cascade
+## Scheduling Cascade
 
 When selecting the next task to execute, follow this priority cascade:
 
-## 1. bv --robot-plan (Primary)
+### 1. bv --robot-plan (Primary)
 
 ```bash
 bv --robot-plan --format json
@@ -101,7 +101,7 @@ bv --robot-plan --format json
 
 Returns parallel execution tracks. Pick the first unstarted bead from the first track that has no in-progress beads. This gives optimal parallelism.
 
-## 2. bv --robot-next (Fallback if plan unavailable)
+### 2. bv --robot-next (Fallback if plan unavailable)
 
 ```bash
 bv --robot-next --format json
@@ -109,7 +109,7 @@ bv --robot-next --format json
 
 Returns a single recommendation with reasoning. Use when robot-plan data is missing or stale.
 
-## 3. br ready (Fallback if bv unavailable)
+### 3. br ready (Fallback if bv unavailable)
 
 ```bash
 br ready --json
@@ -117,7 +117,7 @@ br ready --json
 
 Returns all unblocked, open beads. Pick the one with highest priority (lowest number). Break ties by creation order.
 
-## 4. Manual Selection (Last resort)
+### 4. Manual Selection (Last resort)
 
 If all CLI tools fail:
 1. `br list --type task -s open --json`: get all open tasks

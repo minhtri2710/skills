@@ -35,6 +35,7 @@ It should answer two questions in order:
 11. hand off to `beo-validating`
 
 Load `references/planning-operations.md` when you need the exact artifact-writing sequence, approval wording, dependency wiring, bead-creation commands, high-stakes review flow, or replanning cleanup procedure.
+Load `references/discovery-guide.md` when running focused discovery (step 3) for guidance on research subagent patterns and codebase investigation.
 
 ## Hard Gates
 
@@ -79,34 +80,15 @@ Use when the feature naturally unfolds across 2-4 meaningful capability slices, 
 
 ## Required Artifacts and Their Roles
 
-Write artifacts in this order:
+Artifacts: `discovery.md`, `approach.md`, `plan.md`, `phase-plan.md` (multi-phase only), `phase-contract.md`, `story-map.md`, task beads.
 
-1. `discovery.md` — implementation landscape and findings
-2. `approach.md` — chosen strategy, alternatives, risks, planning-mode decision
-3. `plan.md` — short human-readable plan summary
-4. `phase-plan.md` — whole-feature sequencing, only when work is truly multi-phase
-5. `phase-contract.md` — current phase entry state, exit state, demo story, unlocks, out of scope, pivot signals
-6. `story-map.md` — current phase stories, order, closure, and story-to-bead logic
-7. task beads — executable tasks for the current phase only
-
-Use these templates and guides when writing artifacts:
-- `references/approach-template.md`
-- `references/phase-plan-template.md`
-- `references/phase-contract-template.md`
-- `references/story-map-template.md`
-- `references/bead-creation-guide.md`
+See `references/planning-operations.md` sections 4-7 for write order, artifact roles, and required fields. Use the corresponding templates: `references/approach-template.md`, `references/phase-plan-template.md`, `references/phase-contract-template.md`, `references/story-map-template.md`, `references/bead-creation-guide.md`.
 
 ## Learnings Retrieval
 
 This step is mandatory before discovery.
 
-Use `../reference/references/learnings-read-protocol.md` for the canonical read flow.
-If relevant patterns exist, they must influence:
-
-- the chosen approach
-- the planning-mode decision
-- the current-phase shape
-- any affected bead descriptions
+Use `../reference/references/learnings-read-protocol.md` for the canonical read flow. See `references/planning-operations.md` section 2 for how learnings must influence planning artifacts.
 
 If no relevant learnings exist, record that explicitly rather than implying the step was skipped.
 
@@ -115,68 +97,30 @@ If no relevant learnings exist, record that explicitly rather than implying the 
 `discovery.md` gathers evidence.
 `approach.md` turns that evidence into a decision.
 
-`approach.md` must make these things explicit:
-- what the feature needs to make true
-- what the codebase already provides
-- what is missing or risky
-- the recommended implementation strategy
-- meaningful alternatives considered
-- the risk map
-- the planning-mode decision and why it is justified
+`approach.md` must exist before any current-phase artifacts are written. See `references/planning-operations.md` section 5 for the required fields and self-check.
 
 If `approach.md` is weak, do not compensate by stuffing extra detail into `plan.md`. Fix `approach.md` first.
 
 ## Multi-Phase Approval
 
-If planning mode is `multi-phase`, get explicit user approval before validation handoff.
-That approval confirms:
+If planning mode is `multi-phase`, the user must explicitly approve the phase sequence and current-phase selection before validation handoff.
 
-- the feature should be treated as multi-phase
-- the phase order is believable
-- the selected current phase is the right first / next slice
-- later phases are intentionally deferred
-
-Use the canonical approval rule from `../reference/references/approval-gates.md` and the exact prompt shape in `references/planning-operations.md`.
+Use the canonical approval rule from `../reference/references/approval-gates.md` and the exact prompt shape and approval/rejection flow in `references/planning-operations.md` section 8.
 
 ## Current-Phase Definition
 
-Before bead creation, define the current phase as a closed loop.
+Before bead creation, define the current phase as a closed loop. Both `phase-contract.md` and `story-map.md` are required, and both describe the **current phase only**.
 
-### `phase-contract.md`
-This file must explain:
-- why this phase exists now
-- the entry state
-- the exit state
-- the simplest demo story
-- what this phase unlocks next
-- what is explicitly out of scope
-- what signals would force a pivot
+See `references/planning-operations.md` section 9 for required fields, and use `references/phase-contract-template.md` and `references/story-map-template.md` for structure.
 
-If the exit state is vague, fix the contract instead of pushing uncertainty into bead descriptions.
-
-### `story-map.md`
-This file must explain the internal narrative of the current phase only.
-Each story should make clear:
-- why it exists
-- why it is now
-- what it creates
-- what it unlocks
-- what done looks like
-
-If stories do not clearly support the phase exit state, fix the story map before creating beads.
+If the exit state in `phase-contract.md` is vague, fix the contract instead of pushing uncertainty into bead descriptions. If stories in `story-map.md` do not clearly support the phase exit state, fix the story map before creating beads.
 
 ## Bead Creation Rules
 
 Only create beads after `phase-contract.md` and `story-map.md` are real and coherent.
 
-Use `references/planning-operations.md` for the exact create / write / wire / validate sequence.
-Use `references/bead-creation-guide.md` as the bead quality checklist.
-
-Key rules:
-- one story typically becomes 1-3 beads
-- no bead should span unrelated stories
-- 4+ beads for one story usually means the story is too large or poorly shaped
-- for multi-phase work, every bead must belong to the selected current phase
+Use `references/planning-operations.md` section 11 for the exact create / write / wire / validate sequence.
+Use `references/bead-creation-guide.md` for decomposition rules and the bead quality checklist.
 
 After creation, read every bead back and verify it is specific enough for a fresh worker.
 
@@ -199,15 +143,9 @@ Write `.beads/HANDOFF.json` only when the context budget requires a checkpoint o
 
 ## Replanning and Phase Advancement
 
-When planning re-enters after a scope change or completed phase:
+When planning re-enters after a scope change or completed phase, stale artifacts and state fields must be cleaned up before new planning proceeds. Prior approval is always invalidated when the phase structure or execution scope changes.
 
-- delete or replace stale `phase-plan.md`, `phase-contract.md`, and `story-map.md` as needed
-- refresh `planning_mode`, `has_phase_plan`, `current_phase`, `total_phases`, and `phase_name` in `STATE.md` / `HANDOFF.json`
-- regenerate current-phase artifacts for the newly selected phase
-- treat prior approval as invalid
-- route back through `beo-validating` before execution resumes
-
-Use `references/planning-operations.md` section 14 for the exact cleanup sequence.
+Use `references/planning-operations.md` section 14 for the exact cleanup sequence, trigger conditions, and hard rules.
 
 ## Context Budget
 

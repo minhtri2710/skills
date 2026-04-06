@@ -22,12 +22,12 @@ Detailed operational playbook for `beo-writing-skills`. Load this file when you 
 
 Write the smallest skill that addresses observed rationalizations only.
 
-Use the checklist in the main skill for:
-- frontmatter correctness
-- trigger-only description
-- persuasion principles
-- hard-gates
-- reference structure
+Verify before proceeding:
+- frontmatter has correct `name` and trigger-only `description`
+- description contains triggering conditions only, not workflow steps
+- persuasion principles (why the rule matters) are included where judgment is needed
+- hard-gates use `<HARD-GATE>` markers where ambiguity is dangerous
+- bulky detail is moved into `references/`, not inlined in the skill body
 
 Then rerun the same pressure scenarios with the skill present.
 
@@ -41,7 +41,7 @@ When an agent still violates a rule:
 5. add a red-flag entry
 6. rerun all scenarios
 
-Use the meta-test question from the main skill to distinguish:
+Use the meta-test from `pressure-test-template.md` § The Meta-Test to distinguish:
 - clear-but-ignored rules
 - missing wording
 - buried sections

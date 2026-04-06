@@ -20,8 +20,10 @@ Load it when another beo skill points to canonical rules, lookup tables, or shar
 
 ## Source of Truth Rule
 
+<HARD-GATE>
 When a local skill summary and a shared protocol appear to disagree, the shared reference wins.
 Do not invent a hybrid rule.
+</HARD-GATE>
 
 Keep high-risk shared concepts centralized here:
 - approval behavior
@@ -51,6 +53,10 @@ Load this skill whenever another beo skill:
 - slug preservation and artifact path safety -> `references/slug-protocol.md`
 - dependency and scheduling rules -> `references/dependency-and-scheduling.md`
 - current-phase artifact and pipeline semantics -> `references/pipeline-contracts.md`
+- artifact locations, directory layout, file paths -> `references/file-conventions.md`
+- Obsidian/QMD knowledge store integration -> `references/knowledge-store.md`
+- bead description format and templates -> `references/bead-description-templates.md`
+- learnings search and retrieval workflow -> `references/learnings-read-protocol.md`
 
 ## Planning-Aware Note
 

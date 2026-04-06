@@ -33,8 +33,6 @@ You are the **ORCHESTRATOR**. Launch workers, monitor coordination, handle escal
 - **beo-swarming** = launch and tend workers
 - **beo-executing** = each worker's implementation loop
 
-If Agent Mail becomes unavailable mid-run, stop launching new workers, let active workers finish if possible, and degrade remaining work to `beo-executing`.
-
 ## Default Swarm Loop
 
 1. confirm current-phase execution is approved and swarm-worthy
@@ -58,10 +56,7 @@ Keep looping through Agent Mail and the live bead graph. Do not treat a quiet th
 
 ## Handoff
 
-When the approved current execution scope is complete:
-- route to `beo-reviewing` if this was the final execution scope
-- remove `approved` first and route to `beo-planning` if later phases remain
-- update `STATE.md` and announce completion on Agent Mail
+See `references/swarming-operations.md` § Swarm Completion for the full completion checklist, graph verification, and routing logic.
 
 ## Context Budget
 

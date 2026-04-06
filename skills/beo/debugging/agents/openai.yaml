@@ -1,4 +1,4 @@
 interface:
   display_name: "Beo Debugging"
   short_description: "Systematic debugging for blockers and failures"
-  default_prompt: "Use $beo-debugging to diagnose and fix this error."
+  default_prompt: "Diagnose the root cause of this failure, check known patterns first, reproduce, then apply a verified fix."

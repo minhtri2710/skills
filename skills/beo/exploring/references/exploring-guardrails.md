@@ -5,7 +5,6 @@
 | Flag | Description |
 |------|-------------|
 | **Asking implementation questions** | "Should we use a Map or an Object?" is planning, not exploring |
-| **Batching 3+ questions** | One question at a time. Period. |
 | **Accepting "I don't care"** | Propose a concrete default instead |
 | **Skipping gray areas** | Every feature has at least 2 gray areas |
 | **Writing CONTEXT.md before decisions are locked** | Decisions first, document second |

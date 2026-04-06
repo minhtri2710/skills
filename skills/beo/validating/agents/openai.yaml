@@ -1,4 +1,4 @@
 interface:
   display_name: "Beo Validating"
   short_description: "Verify plan soundness before execution begins"
-  default_prompt: "Use $beo-validating to verify the plan is ready for execution."
+  default_prompt: "Validate that the current phase plan is structurally sound, all beads are well-specified, and the execution scope is ready to build."

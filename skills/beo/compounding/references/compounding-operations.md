@@ -64,7 +64,7 @@ Task summary:
 - for each one, describe what went wrong, root cause, cost, and a prevention rule
 - write to `.beads/artifacts/<feature_slug>/compounding-failures.md`
 
-Do not let subagents write the final learnings file. Only the orchestrator writes durable learnings.
+Subagent output is staging only — see the HARD-GATE in SKILL.md for the orchestrator-writes rule.
 
 ## 3. Synthesis and Triage
 
@@ -94,7 +94,10 @@ If a similar learning exists, merge instead of creating a new one.
 
 For every learning, assign:
 - `domain`
-- `severity` (`critical` or `standard`)
+- `severity` (`routine | useful | critical`)
+  - **routine**: standard operational learning, no special action; kept in the feature learnings file only
+  - **useful**: influences future planning or execution approach; highlight clearly in the learnings file
+  - **critical**: would save 30+ minutes or prevent a recurring failure; candidate for `critical-patterns.md` after approval
 - `applicable-when`
 - `category` (`pattern | decision | failure`)
 
@@ -104,7 +107,7 @@ Use `<feature_slug>` (the immutable feature slug from the epic, not a topic-base
 
 ### Write the Learnings File
 
-Use `learnings-template.md` and write one learnings file per feature.
+Use `learnings-template.md` and write the learnings file (see HARD-GATE in SKILL.md for the one-file-per-feature rule).
 
 Canonical path: write to `.beads/learnings/`:
 
@@ -137,26 +140,13 @@ For every `severity: critical` learning, promote only if all are true:
 
 ### Proposal Rule
 
-Propose the promotion to the user first. Never auto-append to `.beads/critical-patterns.md`.
+Propose the promotion to the user first (see HARD-GATE in SKILL.md for the no-auto-append rule).
 
 ### After Approval
 
 Use the canonical approval rule from `../../reference/references/approval-gates.md`, then append to `.beads/critical-patterns.md`:
 
-Use your file editing tool to append the following to `.beads/critical-patterns.md`:
-
-```markdown
-## [YYYYMMDD] <Learning Title>
-**Category:** pattern | decision | failure
-**Feature:** <feature-name>
-**Tags:** [tag1, tag2]
-
-<2-4 sentence summary of the learning and what to do differently>
-
-**Full entry:** .beads/learnings/YYYYMMDD-<slug>.md
-```
-
-If the file does not exist, create it first with the canonical header from the main skill.
+Use your file editing tool to append to `.beads/critical-patterns.md` using the entry format from `learnings-template.md` § critical-patterns.md Entry Format.
 
 Refresh QMD after promotion if available.
 

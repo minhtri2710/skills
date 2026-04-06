@@ -23,7 +23,7 @@ individual learning entries.
 date: YYYY-MM-DD
 feature: <feature-name>
 categories: [pattern, decision, failure]   # include only categories present
-severity: low | medium | high | critical   # use highest severity of ANY entry
+severity: routine | useful | critical       # use highest severity of ANY entry
 tags: [tag1, tag2, tag3]                   # domains covered (e.g., auth, testing, beads)
 ---
 ```
@@ -38,7 +38,7 @@ Repeat this block for each distinct learning. Separate entries with `---`.
 # Learning: <Concise Title>
 
 **Category:** pattern | decision | failure
-**Severity:** low | medium | high | critical
+**Severity:** routine | useful | critical
 **Tags:** [tag1, tag2]
 **Applicable-when:** <one sentence: under what conditions should future agents use this?>
 
@@ -105,7 +105,7 @@ requests and asserts only one succeeds.
 # Learning: useAuthToken Composable Pattern
 
 **Category:** pattern
-**Severity:** standard
+**Severity:** useful
 **Tags:** [auth, frontend]
 **Applicable-when:** Any component that needs to access or refresh authentication state
 

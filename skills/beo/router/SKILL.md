@@ -33,6 +33,7 @@ Its job is simple:
 
 Use `references/router-operations.md` when you need the exact bootstrap steps, instant-path scaffold, resume validation procedure, planning-aware routing rules, or doctor-mode commands.
 Use `references/state-routing.md` for the canonical state table.
+Use `references/go-mode.md` when the user says "go", "run the full pipeline", or "go mode" and you need the 3-gate end-to-end sequence.
 
 ## Hard Gates
 
@@ -63,30 +64,6 @@ If current-phase work is complete but later phases remain, do not treat the feat
 If instant-scoped work expands during inspection, stop treating it as instant work and promote it into the normal pipeline.
 </HARD-GATE>
 
-## Routing Notes
-
-Load `references/router-operations.md` when you need exact bootstrap steps, artifact inspection order, instant-path scaffold, resume validation, planning-aware routing, or doctor-mode commands.
-
-### Bootstrap and resume
-- If `.beads/` is missing or unhealthy, repair bootstrap before routing.
-- If `.beads/HANDOFF.json` exists, read it first, verify it against the live graph and current artifacts, then resume the saved `skill` and `next_action`.
-- If planning-aware fields exist in the handoff, trust them unless live state clearly contradicts them.
-- Clean up `HANDOFF.json` only after a fresh `STATE.md` or equivalent checkpoint exists.
-- If `mode = "go"`, resume inside go-mode rather than normal feature routing.
-
-### Active-feature inspection
-Inspect the active epic, task graph, actionable / blocked work, and the current artifact set.
-At minimum orient on:
-- `CONTEXT.md`
-- `approach.md`
-- `phase-plan.md`
-- `phase-contract.md`
-- `story-map.md`
-
-Use the canonical inspection order in `references/router-operations.md`.
-Use `references/state-routing.md` for the canonical state names and first-match-wins order.
-Do not invent ad-hoc state labels.
-
 ## Report State Before Routing
 
 Always report the state in human terms before loading the next skill.
@@ -98,16 +75,6 @@ At minimum include:
 - progress / blockers
 - next action
 
-## Planning-Aware Routing Rules
-
-Keep these rules explicit:
-- if `CONTEXT.md` exists but `approach.md` does not, route to `beo-planning`
-- if `approach.md` exists but current-phase artifacts are missing, route to `beo-planning`
-- if `phase-plan.md` exists, do not assume current-phase completion means feature completion
-- if current-phase work is complete and later phases remain, route to `beo-planning`
-- if current-phase tasks already advanced but `approved` is now missing, treat approval as invalidated and route to `beo-planning`
-- if execution scope is complete and no later phases remain, route to `beo-reviewing`
-
 ## New Feature Intake
 
 When no active feature exists, still use the canonical routing model.
@@ -118,6 +85,7 @@ The intake-specific states are:
 - otherwise -> create the epic and route to `beo-exploring`
 
 If a request first looks instant but inspection shows it is larger, ambiguous, or phase-shaped, preserve any existing instant task bead as planning input and promote the work into the normal pipeline.
+
 ## Doctor Mode
 
 When asked to check project health, inspect graph health, blocked work, stale work, planning shape, artifact presence, and one next corrective action.

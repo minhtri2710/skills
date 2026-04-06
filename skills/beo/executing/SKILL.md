@@ -77,48 +77,19 @@ Strip `approved` and route back to planning-aware repair instead of silently rew
 
 ## Execution Notes
 
-Use `references/execution-operations.md` for the exact prereq checks, task-selection cascade, transition protocol, state mapping, completion bookkeeping, and checkpoint procedure.
-
 ### Before implementation
-Confirm:
-- the epic is the correct one and still `approved`
-- current-phase scope is understood
-- the selected bead is still open, executable, and belongs to the current phase
-- blocking dependencies are closed
-- stale `blocked` / `failed` / `partial` labels are cleared when appropriate
 
-If `beo-swarming` supplied a startup hint, still verify it against the live graph before acting.
-
-### Bead classes
-Two bead classes may reach execution:
-- **Planned execution bead** — created by `beo-planning`; requires story context, file scope, execution steps, and verification.
-- **Reactive fix bead** — created after planning by review, debugging, or instant routing; does not require story context, but still requires file scope, what to fix, and verification.
+Verify prerequisites, task selection, stale-label cleanup, and description checks per `references/execution-operations.md` sections 1-4. If `beo-swarming` supplied a startup hint, still verify it against the live graph before acting.
 
 ### File coordination and prompt assembly
-Reserve files before editing. In worker mode this is required; in standalone mode use an explicit reservation mechanism when available or equivalent coordination when it is not.
-Do not edit files when ownership is unclear.
 
-Every worker prompt must include:
-- the full bead spec
-- the current-phase exit state
-- only the relevant story context
-- only the relevant `CONTEXT.md` decisions
-- only the prior task results this bead actually depends on
-- the verification criteria
-
-Use `references/worker-prompt-guide.md` for the full template and budget rules.
-Never truncate the bead spec itself.
+Reserve files before editing; do not edit files when ownership is unclear. See `references/execution-operations.md` section 5 for the full file-coordination protocol and `references/worker-prompt-guide.md` for the prompt template. Never truncate the bead spec itself.
 
 ### Dispatch and result handling
-- **Worker mode**: implement directly after the pre-dispatch checks.
-- **Standalone delegated mode**: use when multiple ready beads exist and a reliable dispatch mechanism is available.
-- **Standalone direct mode**: use when only one bead is ready or delegation overhead would exceed the benefit.
-- **Fallback rule**: if no dispatch mechanism is available, execute directly instead of inventing pseudo-dispatch.
 
-After implementation or worker return, map the result to bead state using `references/execution-operations.md`, write the report artifact, flush state updates, and continue only after the graph is current again.
+Choose the dispatch mode that fits the situation: implement directly in worker mode, delegate in standalone mode when multiple beads are ready and a reliable mechanism exists, or execute directly when delegation overhead would exceed the benefit. Never invent pseudo-dispatch.
 
-Expected result classes remain `done`, `blocked`, `failed`, or `partial`.
-If a task is blocked, use `references/blocker-handling.md` and then resume from task selection.
+See `references/execution-operations.md` section 6 for dispatch contract details and section 7 for result-to-state mapping. If a task is blocked, use `references/blocker-handling.md` and resume from task selection.
 
 ## Handoff
 
@@ -129,24 +100,7 @@ When the current phase closes successfully:
 
 ## Completion
 
-When all current-phase tasks under the epic are closed:
-1. verify the current-phase exit state appears true in practice
-2. run project-specific verification
-3. write fresh `.beads/STATE.md` using `../reference/references/state-and-handoff-protocol.md`
-4. announce the next skill
-
-Routing rules:
-- if `planning_mode = single-phase` and no later phases remain -> `beo-reviewing`
-- if `planning_mode = multi-phase` and later phases remain -> remove `approved`, then route to `beo-planning`
-- if `planning_mode = multi-phase` and this was the final phase -> `beo-reviewing`
-
-When later phases remain, do **not** claim the whole feature is complete.
-This is a phase-advance back-edge, not a successful final review path.
-Before routing back, remove the approval label:
-
-```bash
-br label remove <EPIC_ID> -l approved
-```
+When all current-phase tasks are closed, run the completion and routing procedure in `references/execution-operations.md` section 8. When later phases remain, do **not** claim the whole feature is complete.
 
 ## Context Budget
 
@@ -155,7 +109,7 @@ Include planning-aware fields when known.
 
 ## Post-Compaction Recovery
 
-If context has been compacted, use `references/execution-guardrails.md` to re-read the core artifacts, current task graph, and any existing `STATE.md` / `HANDOFF.json` before resuming.
+See `references/execution-guardrails.md` for the recovery procedure.
 
 ## Red Flags & Anti-Patterns
 

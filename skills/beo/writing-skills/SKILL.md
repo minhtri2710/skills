@@ -49,61 +49,9 @@ Do not bloat the skill with hypothetical failures you did not see.
 
 Use `references/writing-skills-operations.md` for the exact RED/GREEN/REFACTOR execution flow and documentation steps.
 
-## RED: Create the Failing Test First
+Each phase in brief: **RED** confirms failure without the skill using realistic multi-pressure scenarios. **GREEN** writes the minimal skill and reruns those same scenarios. **REFACTOR** closes loopholes without overfitting to specific wording.
 
-Before calling a skill tested, run realistic pressure scenarios that tempt failure.
-The minimum set should include:
-- time pressure
-- ambiguity
-- convenience or rationalization pressure
-
-A real RED failure means the agent had a fair chance to choose correctly and still violated the intended rule.
-
-Record:
-- scenario name
-- combined pressures
-- exact violation
-- exact rationalization, ideally verbatim
-
-## GREEN: Write the Minimal Skill
-
-Write only enough skill content to address the observed failures.
-
-Keep these rules explicit:
-- the description is trigger-only
-- the body stays lean and moves bulky detail into `references/`
-- hard safety rails use HARD-GATE markers where ambiguity is dangerous
-- wording should explain why the rule matters whenever judgment is needed
-
-If the same scenarios still fail with the skill present, the skill is not ready.
-Revise and rerun.
-
-## REFACTOR: Close Loopholes Without Overfitting
-
-A regression means the skill still has a bug.
-Refactor until new rationalizations stop appearing.
-
-Watch for overfitting:
-- passing only the exact scenario wording
-- adding narrow warnings tied to one example
-- making the skill louder instead of clearer
-
-If a revision fixes only one phrasing, step back and restate the underlying principle.
-
-## Description Rule
-
-The description field is the trigger surface.
-It should say **when to use the skill**, not how the workflow runs.
-
-If a description summarizes the workflow, agents often skip the body and follow the summary instead.
-Treat that as a bug.
-
-## Handoff
-
-After the skill survives RED/GREEN/REFACTOR, hand off to validation/documentation rather than treating the draft as done.
-The next step is to preserve the evidence for why the skill now works under pressure.
-
-## Validation and Documentation
+## Handoff and Documentation
 
 After the skill survives RED/GREEN/REFACTOR:
 - run the validation flow from `references/writing-skills-operations.md`

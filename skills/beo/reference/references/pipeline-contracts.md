@@ -86,27 +86,9 @@ Use `state-and-handoff-protocol.md` as the canonical source for the base `HANDOF
 
 ## Label Lifecycle
 
-### `approved` Label
+See `status-mapping.md` as the canonical source for all label semantics, status-to-label mappings, and stale label cleanup rules.
 
-| Event | Action | Skill |
-|-------|--------|-------|
-| User approves current phase for execution | `br label add <EPIC_ID> -l approved` | validating |
-| Back-edge to planning | `br label remove <EPIC_ID> -l approved` | executing, swarming, reviewing |
-| Back-edge to exploring | `br label remove <EPIC_ID> -l approved` | validating, reviewing |
-| Normal feature completion | Leave `approved` on the closed epic as the historical record that execution readiness was granted and carried through completion | reviewing |
-
-**Invariant:** The `approved` label must be removed whenever routing back to planning or exploring. On normal feature completion, it remains on the closed epic as historical state rather than being stripped during cleanup.
-
-### Status Labels
-
-| Label | Set By | Removed By |
-|-------|--------|------------|
-| `dispatch_prepared` | executing (Phase 2) | executing (Phase 2, after claim) |
-| `blocked` | executing (blocker handling) | executing (stale label cleanup) |
-| `failed` | executing (blocker handling) | executing (stale label cleanup) |
-| `partial` | executing (partial completion) | executing (stale label cleanup) |
-| `cancelled` | user decision | executing (stale label cleanup on requeue) |
-| `debug_attempted` | beo-debugging (Step 5) | executing (stale label cleanup on requeue) |
+The `approved` label back-edge removal rule is documented in `status-mapping.md` → Feature States. The invariant: `approved` must be removed whenever routing back to planning or exploring; on normal completion it remains on the closed epic as historical state.
 
 ---
 

@@ -58,14 +58,8 @@ Create fix beads and send execution work back through the proper path.
 
 ## Review Prerequisites
 
-Before review, confirm:
-- the final execution scope is actually complete
-- the correct epic is selected
-- `CONTEXT.md`, `plan.md`, `phase-contract.md`, and `story-map.md` are available
-- `phase-plan.md` is read when present
-- build / lint / test evidence exists or can be produced
-
-Use `references/reviewing-operations.md` for the exact checks.
+Confirm the final execution scope is actually complete and all required artifacts are available before starting review.
+See `references/reviewing-operations.md` Section 1 for the exact prerequisite checks.
 
 ## Scope Rule
 
@@ -87,38 +81,20 @@ Use the reference file for the exact prompts and dispatch structure.
 
 ## Severity Semantics
 
-Keep these severity rules explicit:
-
-- **P1** -> blocking issue; create a reactive fix bead **under the current epic** and execute it before review can finish
-- **P2** -> non-blocking follow-up bead **not under the current epic**
-- **P3** -> record only unless the user asks for follow-up work
-
-Do not collapse these categories. Their placement and blocking behavior matter.
+Do not collapse the P1/P2/P3 categories. Their placement and blocking behavior matter.
+See `references/review-specialist-prompts.md` for the severity table and rules.
 
 ## Reactive Fix Loop
 
-When P1 findings exist:
-1. create reactive fix beads under the current epic
-2. route them through execution
-3. re-run review on the affected scope
-4. finish only after all P1 beads are closed and review is clean enough to proceed
-
-Reactive fixes are part of finishing the current feature.
-P2 and P3 work are not.
+Reactive fixes are part of finishing the current feature. P2 and P3 work are not.
+See `references/reviewing-operations.md` and `references/review-specialist-prompts.md` for the exact P1 fix-and-re-review cycle.
 
 ## Human UAT
 
 Human UAT is not optional.
 Review automated findings first, then walk the user through the implemented outcome against locked decisions and exit-state claims.
 
-Use this loop:
-1. present one decision or exit-state claim
-2. ask whether it is satisfied
-3. wait for an explicit user response
-4. classify the result
-5. continue only when the current item is resolved
-
-Use `references/reviewing-operations.md` for the exact UAT outcome handling.
+Use `references/reviewing-operations.md` Section 4 for the exact UAT loop and outcome handling.
 
 ## Intent Changes During UAT
 
@@ -131,14 +107,7 @@ Do not patch over a changed feature definition inside review.
 
 ## Finishing Rules
 
-Finish only when all of the following are true:
-- no unresolved P1 findings remain
-- required build / lint / test checks are acceptable
-- human UAT is complete
-- the reviewed scope still matches locked decisions
-- no later phases remain for the feature
-
-Use `references/reviewing-operations.md` for the exact finish sequence, artifact verification, and final reporting.
+Use `references/reviewing-operations.md` Section 5 for the exact conditions, finish sequence, artifact verification, and final reporting.
 
 ## Handoff to Compounding
 

@@ -60,13 +60,9 @@ After all three agents complete, load `references/compounding-operations.md` for
 
 Use the format from `references/learnings-template.md`. Include YAML frontmatter.
 
-One learnings file per feature. Group related findings within that file; do NOT create separate files per finding.
-
 #### Learning Triage
 
-- **Routine**: useful local note; keep it in the feature learnings file only
-- **Useful**: reusable across similar work; highlight it clearly in the learnings file
-- **Critical**: likely saves 30+ minutes or prevents a recurring failure; candidate for `critical-patterns.md` after approval
+See `references/compounding-operations.md` § Triage Tags for the severity scale and triage procedure.
 
 ---
 

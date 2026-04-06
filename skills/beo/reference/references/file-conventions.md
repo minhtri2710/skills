@@ -122,70 +122,19 @@ If future phases exist, they remain deferred in `phase-plan.md`.
 
 ## Planning Mode Interpretation
 
-The artifact model supports two planning modes:
+See `pipeline-contracts.md` → Planning Artifact Hierarchy for the canonical artifact table, gate-controlling designations, and planning mode rules (single-phase vs. multi-phase artifact shapes).
 
-### Single-phase
-Expected artifact shape:
+Key reading rules are summarized here for convenience:
 
-- `CONTEXT.md`
-- `discovery.md`
-- `approach.md`
-- `plan.md`
-- `phase-contract.md`
-- `story-map.md`
-
-`phase-plan.md` is normally absent.
-
-### Multi-phase
-Expected artifact shape:
-
-- `CONTEXT.md`
-- `discovery.md`
-- `approach.md`
-- `plan.md`
-- `phase-plan.md`
-- `phase-contract.md` *(current phase only)*
-- `story-map.md` *(current phase only)*
-
-The presence of `phase-plan.md` indicates that the feature has later phases beyond the currently prepared one.
-
-## Router / Validation Reading Rules
-
-When `phase-plan.md` exists:
-
-- router should treat the feature as potentially multi-phase
-- validating should treat `phase-contract.md` and `story-map.md` as current-phase artifacts
-- current-phase completion must not automatically imply whole-feature completion
-
-When `phase-plan.md` is absent:
-
-- router and validating may treat the work as single-phase unless other evidence contradicts that assumption
+- When `phase-plan.md` exists, the feature is multi-phase; `phase-contract.md` and `story-map.md` describe only the current phase
+- When `phase-plan.md` is absent, the work is single-phase unless other evidence contradicts that assumption
+- Current-phase completion must not automatically imply whole-feature completion when `phase-plan.md` exists
 
 ## Artifact Cleanup on Replanning
 
-When replanning changes the planning mode or phase structure, stale artifacts must be cleaned up. See `state-and-handoff-protocol.md` for the canonical field transition rules.
+See `state-and-handoff-protocol.md` → Planning-Aware Field Transition Cleanup for the canonical replanning cleanup rules, including single-phase conversion, multi-phase re-sequencing, and phase advancement procedures.
 
-### Replanning to single-phase
-
-- **Delete** `phase-plan.md` — do not leave a stale artifact
-- Delete or regenerate `phase-contract.md` and `story-map.md` if they reference a prior phase identity
-- Refresh `STATE.md` and `HANDOFF.json` planning-aware fields
-
-### Replanning within multi-phase (changed sequencing)
-
-- Rewrite `phase-plan.md`
-- Delete and regenerate `phase-contract.md` and `story-map.md` for the new current phase
-- Refresh all planning-aware state fields including `phase_name`
-
-### Phase advancement
-
-- Delete old `phase-contract.md` and `story-map.md`
-- Regenerate for the new current phase
-- Update `phase-plan.md` to mark the completed phase
-
-### Hard rule
-
-Stale `phase-plan.md` must be deleted, not marked invalid. Current-phase artifacts (`phase-contract.md`, `story-map.md`) must always reflect the actual current phase.
+**Hard rule:** Stale `phase-plan.md` must be deleted, not marked invalid. Current-phase artifacts (`phase-contract.md`, `story-map.md`) must always reflect the actual current phase.
 
 ## Pipeline-Level Files
 

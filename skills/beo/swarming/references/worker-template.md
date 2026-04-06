@@ -42,8 +42,8 @@ You are a worker subagent in the beo swarm.
    ```
    macro_start_session(
      human_key="<PROJECT_KEY>",
-     model="gpt-5",
-     program="codex-cli",
+      model="<MODEL>",
+      program="codex-cli",
      task_description="beo worker execution",
      agent_name="<AGENT_NAME>"
    )
@@ -117,6 +117,7 @@ After each bead completion, assess your context budget. If context is high, fini
 | `<EPIC_ID>` | Epic bead ID / coordination thread ID |
 | `<FEATURE_NAME>` | Current feature slug or display name |
 | `<PROJECT_KEY>` | Absolute path to project root |
+| `<MODEL>` | Model identifier for the current runtime (e.g., `o3-pro`, `claude-opus-4`) |
 | `<COORDINATOR_AGENT_NAME>` | Swarm coordinator Agent Mail identity (must be adjective+noun) |
 | `<STARTUP_HINT>` | Optional: current ready bead or urgency note from live `bv --robot-triage` |
 
@@ -135,7 +136,7 @@ You are a worker subagent in the beo swarm.
 ## Agent Mail Setup
 1. Project key: /home/user/projects/myapp
 2. On startup:
-   macro_start_session(human_key="/home/user/projects/myapp", model="gpt-5", program="codex-cli", task_description="beo worker execution", agent_name="BlueLake")
+    macro_start_session(human_key="/home/user/projects/myapp", model="<MODEL>", program="codex-cli", task_description="beo worker execution", agent_name="BlueLake")
 3. Post startup acknowledgment with send_message(..., to=["GreenCastle"], thread_id="br-epic-001")
 
 ## Skill To Load

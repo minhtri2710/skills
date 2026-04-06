@@ -42,7 +42,7 @@ On first entry, if the epic is still `open`, transition it to `in_progress`:
 br update <EPIC_ID> --claim
 ```
 
-See `pipeline-contracts.md` → Epic Lifecycle.
+See `../../reference/references/pipeline-contracts.md` → Epic Lifecycle.
 
 ## 3. Task Selection
 

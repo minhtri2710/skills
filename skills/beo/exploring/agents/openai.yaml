@@ -1,4 +1,4 @@
 interface:
   display_name: "Beo Exploring"
   short_description: "Socratic dialogue to lock decisions before planning"
-  default_prompt: "Use $beo-exploring to gather requirements for a new feature."
+  default_prompt: "Gather requirements for a new feature through focused questions, locking behavioral decisions before planning begins."

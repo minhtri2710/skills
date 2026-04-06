@@ -45,6 +45,7 @@ Do not smuggle major repair work through ad-hoc debugging edits.
 
 Use `references/debugging-operations.md` for the exact known-pattern check, reproduction flow, fix split, blocker handling, and checkpoint behavior.
 Use `references/diagnostic-checklist.md` for the ordered sub-checks.
+Use `references/message-templates.md` when reporting blockers or results to the orchestrator via Agent Mail.
 
 ## When NOT to Use
 
@@ -57,15 +58,11 @@ Use `references/diagnostic-checklist.md` for the ordered sub-checks.
 
 ## Triage and Diagnosis
 
-Classify before investigating. Misclassification wastes time.
 The output of triage should be a one-line classification such as `[TYPE] in [component]: [symptom]`.
-
 Then work through reproduction and diagnosis in order.
-Do not proceed until the root cause is specific enough to explain in one sentence.
 
 ## Fix Path
 
-Use `references/debugging-operations.md` for the exact small-fix vs substantial-fix split, verification sequence, and blocker reporting expectations.
 Fix beads must still use the shared **Reactive Fix Bead Template** from `../reference/references/bead-description-templates.md`.
 
 ## Learn
@@ -89,28 +86,23 @@ For blocker-specific handling, use `references/debugging-operations.md`. Do not 
 
 ---
 
-## Red Flags
+## Red Flags and Anti-Patterns
 
 - **Fixing symptoms, not root cause**: If the same error recurs after the fix, root cause was not found. Return to Step 3.
 - **Skipping reproduction**: Diagnosing from the error message alone leads to wrong fixes. Always reproduce first.
-- **Not checking critical-patterns.md**: Teams report that 30-40% of recurring failures are already documented. Check before investigating.
+- **Not checking critical-patterns.md**: 30-40% of recurring failures are already documented. Check before investigating.
 - **Committing a fix without running verification**: The fix must be verified with the exact failing command, not a different test.
-- **Decision violation silently patched**: Violating a CONTEXT.md decision to make a test pass propagates the violation downstream. Always report and align first.
+- **Decision violation silently patched**: Violating a `CONTEXT.md` decision to make a test pass propagates the violation downstream. Report and align first.
+- **Calling the first visible error the root cause**: Walk the error chain; the first error you see is often a symptom of a deeper cause.
+- **Treating blocked work as "someone else's problem"**: Classify and report blockers cleanly instead of ignoring them.
+
+See `references/debugging-operations.md` for the full diagnostic checklist and fix-path details.
 
 ---
 
 ## Context Budget
 
-If context usage exceeds 65%, use `references/debugging-operations.md` together with `../reference/references/state-and-handoff-protocol.md` for the canonical checkpoint behavior.
-
----
-
-## Anti-Patterns
-
-- Jumping straight from symptoms to a fix without reproducing the failure
-- Calling something the root cause when it is only the first visible error in the chain
-- Applying a local patch that violates `CONTEXT.md` decisions just to get green output
-- Treating blocked work as "someone else's problem" without classifying and reporting it cleanly
+Use `references/debugging-operations.md` and `../reference/references/state-and-handoff-protocol.md` for canonical checkpoint behavior when context exceeds 65%.
 
 ---
 

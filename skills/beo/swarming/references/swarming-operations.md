@@ -25,13 +25,6 @@ Also verify planning-aware scope:
 - read `phase-plan.md` when present
 - confirm the swarm will execute the **current phase** only
 
-Default readiness loop:
-1. confirm current-phase execution is approved
-2. confirm 3+ independent ready tracks exist
-3. confirm Agent Mail is healthy enough to coordinate
-4. claim the epic if needed
-5. only then spawn workers
-
 ### Readiness Steps
 
 1. get `EPIC_ID` from `.beads/STATE.md` or user input
@@ -42,9 +35,9 @@ Default readiness loop:
 bv --robot-triage --graph-root <EPIC_ID> --format json
 ```
 
-3. verify executable work exists, dependencies are acyclic, and no unresolved validation blockers remain
-4. update `.beads/STATE.md` with current swarm intent and epic ID
-5. claim the epic if not already in progress:
+4. verify executable work exists, dependencies are acyclic, and no unresolved validation blockers remain
+5. update `.beads/STATE.md` with current swarm intent and epic ID
+6. claim the epic if not already in progress:
 
 ```bash
 br update <EPIC_ID> --claim
@@ -74,7 +67,7 @@ register_agent(
   project_key="<project-root-path>",
   name="<COORDINATOR_AGENT_NAME>",
   program="codex-cli",
-  model="gpt-5",
+  model="<MODEL>",
   task_description="swarm-coordinator"
 )
 ```
