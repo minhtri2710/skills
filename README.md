@@ -54,8 +54,7 @@ flowchart LR
 | [`bv`](https://github.com/Dicklesworthstone/beads_viewer) 0.15.2+ | Yes | See [bv docs](https://github.com/Dicklesworthstone/beads_viewer) |
 | [`obsidian` CLI](https://github.com/Yakitrak/obsidian-cli) | No | Optional knowledge store mirror |
 | [`qmd`](https://github.com/tobi/qmd) | No | Optional search enhancement |
-| [`cass`](https://github.com/Dicklesworthstone/cass) | No | Session/learnings indexing |
-| [`cm`](https://github.com/Dicklesworthstone/cm) | No | Cognitive-memory storage |
+
 
 The host environment needs shell execution, filesystem access, and skill/instruction loading. Subagent dispatch is recommended for planning and reviewing. Swarming requires Agent Mail; without it, falls back to sequential `beo-executing`.
 

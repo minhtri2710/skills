@@ -150,21 +150,7 @@ Use your file editing tool to append to `.beads/critical-patterns.md` using the 
 
 Refresh QMD after promotion if available.
 
-## 5. Optional Integrations
-
-These depend on `.beads/config.json` flags.
-
-### CASS
-
-If `cass_enabled`, index the session or learnings path for future semantic retrieval.
-
-### CM
-
-If `cm_enabled`, store each critical learning as a cognitive-memory entry using the learning title as the key.
-
-File-based learnings remain the primary system. CASS/CM are acceleration layers.
-
-## 6. State Update and Checkpointing
+## 5. State Update and Checkpointing
 
 ### Graph Verification
 

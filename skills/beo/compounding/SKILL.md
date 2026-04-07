@@ -70,15 +70,7 @@ See `references/compounding-operations.md` § Triage Tags for the severity scale
 
 For every `severity: critical` learning, load `references/compounding-operations.md` for the exact promotion criteria, approval gate, append format, and post-promotion refresh flow.
 
-### Phase 5: Optional CASS / CM Integration
-
-If `.beads/config.json` enables optional integrations, load `references/compounding-operations.md` for the CASS/CM integration behavior.
-
-The file-based learnings are the primary system. CASS/CM are acceleration layers.
-
----
-
-### Phase 6: Update STATE.md
+### Phase 5: Update STATE.md
 
 Load `references/compounding-operations.md` for the canonical `STATE.md` completion shape, flush step, and checkpoint rules.
 

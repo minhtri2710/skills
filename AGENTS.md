@@ -140,8 +140,7 @@ Support/meta skills (invoked on demand): `beo-debugging`, `beo-dream`, `beo-writ
 | `bv` | 0.15.2+ | Beads Viewer -- graph analytics, triage, scheduling -- [docs](https://github.com/Dicklesworthstone/beads_viewer) |
 | `obsidian` CLI | *(optional)* | Knowledge store write operations |
 | `qmd` | *(optional)* | Knowledge store search/query operations |
-| `cass` | *(optional)* | Session and learnings indexing for compounding acceleration |
-| `cm` | *(optional)* | Cognitive-memory storage for critical learnings |
+
 
 ## Editing Skills
 
