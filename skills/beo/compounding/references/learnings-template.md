@@ -22,7 +22,7 @@ individual learning entries.
 ---
 date: YYYY-MM-DD
 feature: <feature-name>
-categories: [pattern, decision, failure]   # include only categories present
+categories: [pattern, decision, failure, anti-pattern]   # include only categories present
 severity: routine | useful | critical       # use highest severity of ANY entry
 tags: [tag1, tag2, tag3]                   # domains covered (e.g., auth, testing, beads)
 ---
@@ -37,7 +37,7 @@ Repeat this block for each distinct learning. Separate entries with `---`.
 ```markdown
 # Learning: <Concise Title>
 
-**Category:** pattern | decision | failure
+**Category:** pattern | decision | failure | anti-pattern
 **Severity:** routine | useful | critical
 **Tags:** [tag1, tag2]
 **Applicable-when:** <one sentence: under what conditions should future agents use this?>

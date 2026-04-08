@@ -7,6 +7,8 @@ description: >-
   through edge cases, scope boundaries, or expected behavior.
 ---
 
+> **Onboarding gate:** If `.beads/onboarding.json` is missing or stale, stop and load `beo-using-beo` before continuing.
+
 # Beo Exploring
 
 ## Overview
@@ -45,10 +47,13 @@ Sanitize the request summary, redact or omit secrets, and use stable placeholder
 
 1. read any existing context and prior learnings
 2. classify the scope and likely gray areas
-3. ask one focused behavioral question at a time
-4. lock decisions explicitly as they emerge
-5. write a sanitized `CONTEXT.md`
-6. self-check for planning readiness, then hand off to `beo-planning`
+3. classify the feature domain (`SEE`, `CALL`, `RUN`, `READ`, or `ORGANIZE`)
+4. run a codebase scout: use that domain classification to identify likely artifacts, protocols, templates, or entry points, then read 2-3 relevant files to ground gray areas in existing repo patterns
+5. ask one focused behavioral question at a time
+6. annotate gray areas with existing context when available
+7. lock decisions explicitly as they emerge
+8. write a sanitized `CONTEXT.md`
+9. self-check for planning readiness, then hand off to `beo-planning`
 
 Use `../reference/references/learnings-read-protocol.md` when you need the canonical prior-learnings read flow.
 Use `../reference/references/slug-protocol.md` when updating the epic description safely.
@@ -58,6 +63,16 @@ Use `../reference/references/slug-protocol.md` when updating the epic descriptio
 - truly instant work already routed by `beo-router`
 - clear bug-fix root-cause work -> `beo-debugging`
 - mid-pipeline resume -> `beo-router`
+
+## Scope Classification
+
+Classify the feature as **Quick**, **Standard**, or **Deep** and record that classification in the exploring output.
+
+- **Quick** uses the canonical definition in `../reference/references/pipeline-contracts.md`.
+- **Standard** is the default path for normal feature work.
+- **Deep** applies when the work spans multiple systems or needs extra discovery depth.
+
+Quick work still needs gray-area discovery, but it must still satisfy the canonical Quick definition from `../reference/references/pipeline-contracts.md` and it skips self-review.
 
 ## Read Existing Context First
 
@@ -82,6 +97,8 @@ Look for uncertainties that would materially change planning or execution, such 
 Keep the exploration concrete and answerable.
 A good exploration question should be answerable in 1-2 sentences and should change downstream decisions.
 
+Classify the feature domain (`SEE`, `CALL`, `RUN`, `READ`, or `ORGANIZE`) and select probes from `references/gray-area-probes.md` using the matching category.
+
 ## Default-Proposal Pattern
 
 If the user says "I don't know" or "whatever you think":
@@ -103,14 +120,8 @@ Do not treat an answer as locked until it has been explicitly confirmed or accep
 
 ## `CONTEXT.md` Requirements
 
-`CONTEXT.md` must be planning-usable.
-At minimum it should contain:
-- a sanitized request summary
-- scope classification
-- locked decisions
-- out-of-scope items
-- open questions that need research rather than more user decisions
-- relevant patterns when they materially affect planning
+Write `CONTEXT.md` using `references/context-template.md`.
+All 8 sections are required. If a section is empty, write `N/A`.
 
 The goal is not to preserve the original conversation.
 The goal is to preserve the decisions that planning must trust.
@@ -123,6 +134,20 @@ Before handoff, confirm all of these are true:
 - no unanswered question would change the high-level plan
 
 If any of these fail, keep exploring.
+
+## Self-Review
+
+For **Standard** and **Deep** work, run one fresh-eyes self-review pass on the `CONTEXT.md` draft before handoff.
+
+The reviewer checks:
+- all material gray areas are resolved or explicitly scoped out
+- no locked decisions contradict each other
+- D-IDs are assigned consistently
+- outstanding questions are split correctly between "Resolve Before Planning" and "Deferred to Planning"
+
+Allow at most one retry iteration. If the draft still fails after that retry, flag the unresolved gray areas to the user and ask whether to proceed or keep exploring. Do not auto-proceed.
+
+**Quick** work is exempt from this self-review step.
 
 ## Handoff
 

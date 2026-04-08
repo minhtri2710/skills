@@ -61,3 +61,11 @@ send_message(
   body_md: "Cannot resolve: <what is impossible and why>. Options: <A> or <B>. Needs human decision."
 )
 ```
+
+## solo-debug-mode
+
+Use when no swarm coordinator or Agent Mail session is active.
+
+```bash
+br comments add <TASK_ID> --no-daemon --message "Debug report: <root cause or current blocker>. Verification: <command/result>. Next step: <fix applied | needs decision>."
+```

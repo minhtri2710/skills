@@ -54,7 +54,7 @@ br list -s <status> --json       # Filter by status (open, in_progress, closed, 
 ## Update
 
 ```bash
-br update <id> --status <s>            # Change status: open, in_progress, closed, deferred
+br update <id> --status|-s <s>         # Change status: open, in_progress, closed, deferred
 br update <id> -p <n>                  # Change priority (0=critical/spike, 1=high, 2=normal, 3=low, 4=backlog)
 br update <id> --description <content> # Set description (used for spec storage)
 br update <id> --claim                 # Claim bead (sets assignee + status=in_progress)
@@ -94,7 +94,7 @@ br comments list <id> --json --no-daemon                # List comments on a bea
 ## Audit
 
 ```bash
-br audit record --kind <kind> --issue-id <id>   # Record audit event
+br audit record --kind <kind> --issue-id <id> [--tool-name <name>]   # Record audit event
 br audit log <id> --json                         # View audit log
 ```
 

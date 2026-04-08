@@ -33,7 +33,9 @@ Use `bead-description-templates.md` as the single source of truth for all bead d
 
 Every bead description must be Markdown-formatted.
 
-Reactive fix beads (created by beo-reviewing, beo-debugging, beo-router instant path) are exempt from the Story Context requirement, but they must still follow the shared reactive template.
+Reactive fix beads (created by `beo-reviewing` or `beo-debugging`) are exempt from the Story Context requirement, but they must still follow the shared reactive template.
+
+Instant-path beads created by `beo-router` still use the Planned Task Bead Template, but may use abbreviated Story Context.
 
 ```bash
 # Write spec
@@ -83,6 +85,14 @@ br comments list <id> --json --no-daemon
 # The latest version wins (v2 supersedes v1)
 ```
 
+### Completion Report Minimum Fields
+
+When execution policy requires close-time validation, every completion report must include:
+- bead ID
+- files changed
+- tests added or modified
+- verification result
+
 ## Task State (Comment-Backed)
 
 The task_state artifact is a machine-readable status snapshot used by the orchestrator and monitoring tools. It follows the same comment-backed format as reports.
@@ -116,6 +126,8 @@ context_pct: 35
 Task state is optional and **informational only**. The authoritative bead status is always the `br` status (see `status-mapping.md` → Reading Beo State from br). Workers update `task_state` when claiming, blocking, or completing beads. The orchestrator reads the latest version to build the swarm status view.
 
 **Important:** A `task_state` comment with `beo_status: done` does **not** close the bead. The actual closure requires `br close <id>` per `status-mapping.md`. Always write `task_state: done` only **after** `br close` succeeds.
+
+Reservation release and swarm coordination stay in execution flow and Agent Mail protocols, not in new artifact kinds. If workers record `beo_status: done`, they do so only after `br close` succeeds and after the completion report is written.
 
 ## Version Semantics
 

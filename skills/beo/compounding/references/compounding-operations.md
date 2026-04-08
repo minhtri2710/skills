@@ -33,7 +33,7 @@ Missing files are skipped silently; compounding still works with partial context
 Get feature commit history:
 
 ```bash
-git log --oneline main..feature/<feature_slug>
+git log --oneline main..HEAD
 # If already merged, use: git log --oneline --merges --grep="<feature-name>" main
 ```
 
@@ -99,7 +99,7 @@ For every learning, assign:
   - **useful**: influences future planning or execution approach; highlight clearly in the learnings file
   - **critical**: would save 30+ minutes or prevent a recurring failure; candidate for `critical-patterns.md` after approval
 - `applicable-when`
-- `category` (`pattern | decision | failure`)
+- `category` (`pattern | decision | failure | anti-pattern`)
 
 ### Determine the Slug
 
@@ -161,7 +161,7 @@ br dep list <EPIC_ID> --direction up --type parent-child --json
 # Check: every bead should have status "closed"; epic should be "closed"
 ```
 
-If any bead is still open, close it before writing STATE.md. Do not write `compounding → complete` while the graph still shows open work.
+If any bead is still open, stop and report the inconsistency to the user. Do not auto-close. Route back to `beo-reviewing` if the open beads represent unfinished work.
 
 ### Normal Completion
 

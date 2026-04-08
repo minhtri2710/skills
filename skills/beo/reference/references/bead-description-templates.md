@@ -29,6 +29,14 @@ Unlocks: <what the next story or phase can now do>
 
 From plan.md: <specific approach decision that applies here>
 
+## Decisions
+
+Locked decisions from CONTEXT.md that constrain this bead:
+- D<N>: <decision summary>
+
+If none apply:
+- No locked decisions constrain this bead.
+
 ## Institutional Learnings
 
 From .beads/learnings/<file> or .beads/critical-patterns.md:
@@ -66,6 +74,7 @@ If none apply:
 ### Notes
 
 - `## Rollback` is required only for HIGH-risk planned beads.
+- Include `## Decisions` with relevant D-IDs when `CONTEXT.md` has a Locked Decisions table.
 - Do not copy all of `CONTEXT.md` into the bead. Reference the relevant decision(s).
 - A fresh worker should understand what to build from this bead alone.
 

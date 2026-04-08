@@ -46,6 +46,8 @@ Do not proceed until you can state the root cause in one sentence.
 
 ## 4. Fix Application
 
+A fix is **small** if it touches `<=2` files, takes less than 15 minutes, and does not change user-facing behavior. Everything else is **substantial** and requires a fix bead.
+
 ### Small Fix
 
 Implement directly, then verify with the original failing command plus broader regression checks.

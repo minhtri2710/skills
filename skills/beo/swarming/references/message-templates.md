@@ -1,7 +1,7 @@
 # Agent Mail Message Templates
 
 Standard message formats for swarm coordination. All messages post to the epic thread (`thread_id=<EPIC_ID>`) unless noted otherwise.
-Use `<COORDINATOR_AGENT_NAME>` for the coordinator identity, and keep it a valid Agent Mail adjective+noun name.
+Use `<COORDINATOR_AGENT_NAME>` for the coordinator identity. Workers use `<AGENT_MAIL_NAME>` (the canonical Agent Mail name returned by `macro_start_session`) for all `sender_name` parameters.
 
 ## Table of Contents
 
@@ -14,6 +14,8 @@ Use `<COORDINATOR_AGENT_NAME>` for the coordinator identity, and keep it a valid
 - [7. Overseer Broadcast](#7-overseer-broadcast)
 - [8. Coordinator Context Warning](#8-coordinator-context-warning)
 - [9. Swarm Completion Announcement](#9-swarm-completion-announcement)
+- [10. Startup Reminder](#10-startup-reminder)
+- [11. Silent Worker Reminder](#11-silent-worker-reminder)
 - [Handoff JSON Template](#handoff-json-template)
 
 ---
@@ -56,7 +58,7 @@ All workers: join this thread, post startup acknowledgment, then load the beo-ex
 **Purpose:** Confirms the worker is live and following the expected loop
 
 Runtime call:
-`send_message(project_key=..., sender_name="<AGENT_NAME>", to=["<COORDINATOR_AGENT_NAME>"], thread_id="<EPIC_ID>", ...)`
+`send_message(project_key=..., sender_name="<AGENT_MAIL_NAME>", to=["<COORDINATOR_AGENT_NAME>"], thread_id="<EPIC_ID>", ...)`
 
 ```
 Subject: [ONLINE] <AGENT_NAME> ready
@@ -64,6 +66,7 @@ Thread: <EPIC_ID>
 Importance: NORMAL
 
 <AGENT_NAME> online.
+Nickname: <NICKNAME> | Agent Mail: <NAME>
 Status: Loading beo-executing skill.
 Next step: read context, run `bv --robot-plan`, claim the top executable bead.
 ```
@@ -77,7 +80,7 @@ Next step: read context, run `bv --robot-plan`, claim the top executable bead.
 **Purpose:** Notifies orchestrator of progress
 
 Runtime call:
-`send_message(project_key=..., sender_name="<AGENT_NAME>", to=["<COORDINATOR_AGENT_NAME>"], thread_id="<EPIC_ID>", ...)`
+`send_message(project_key=..., sender_name="<AGENT_MAIL_NAME>", to=["<COORDINATOR_AGENT_NAME>"], thread_id="<EPIC_ID>", ...)`
 
 ```
 Subject: [DONE] <bead-id>: <bead-title>
@@ -112,7 +115,7 @@ Next action: return to `bv --robot-plan`
 **Purpose:** Requests orchestrator intervention
 
 Runtime call:
-`send_message(project_key=..., sender_name="<AGENT_NAME>", to=["<COORDINATOR_AGENT_NAME>"], thread_id="<EPIC_ID>", ...)`
+`send_message(project_key=..., sender_name="<AGENT_MAIL_NAME>", to=["<COORDINATOR_AGENT_NAME>"], thread_id="<EPIC_ID>", ...)`
 
 ```
 Subject: [BLOCKED] <bead-id>: <one-line description>
@@ -141,7 +144,7 @@ I am paused on this bead and waiting for a reply on this thread.
 **Purpose:** Coordinates file access without preassigned worker scopes
 
 Runtime call:
-`send_message(project_key=..., sender_name="<AGENT_NAME>", to=["<COORDINATOR_AGENT_NAME>"], thread_id="<EPIC_ID>", ...)`
+`send_message(project_key=..., sender_name="<AGENT_MAIL_NAME>", to=["<COORDINATOR_AGENT_NAME>"], thread_id="<EPIC_ID>", ...)`
 
 ```
 Subject: [FILE CONFLICT] <path/to/file>
@@ -152,6 +155,8 @@ File conflict: <AGENT_NAME> needs a file that is currently reserved.
 
 Requested file: <path/to/file>
 Currently reserved by: <AGENT_NAME_holder or "unknown">
+Reservation reason: <reason from reservation holder>
+Conflict details: <structured conflict payload from `file_reservation_paths(...)`>
 My bead: <bead-id>
 Reason needed: <Why this file is required for this bead>
 
@@ -185,7 +190,9 @@ OPTION A: Wait:
 
 OPTION B: Release requested:
 <AGENT_NAME_holder>: please release <path/to/file> when you reach a safe checkpoint.
+Call `release_file_reservations(project_key, agent_name, paths=["<path/to/file>"])` when safe.
 <AGENT_NAME_requester>: stand by until release is confirmed.
+After release, call `file_reservation_paths(project_key, agent_name, paths=["<path/to/file>"], ttl_seconds=3600, exclusive=true, reason="Working bead <BEAD_ID>")` to acquire it.
 
 OPTION C: Defer:
 <AGENT_NAME_requester>: defer this change. Create a follow-up bead and continue with the next executable bead.
@@ -272,7 +279,48 @@ Summary:
 
 All workers: your work is complete.
 
-Next step: Invoke the beo-reviewing skill.
+Next step:
+- If this is the final execution scope: invoke beo-reviewing.
+- If later phases remain: remove `approved`, then invoke beo-planning for the next phase.
+```
+
+---
+
+## 10. Startup Reminder
+
+**Posted by:** Swarm coordinator (`<COORDINATOR_AGENT_NAME>`)
+**When:** A spawned worker has not posted `[ONLINE]` after 2 cycles
+
+```
+Subject: [STARTUP REMINDER] <WORKER_NAME>
+Thread: <EPIC_ID>
+Importance: HIGH
+
+You were spawned N cycles ago but have not posted `[ONLINE]`.
+
+Please either:
+- post `[ONLINE]` with your nickname and Agent Mail identities, or
+- report a blocker if you cannot start.
+```
+
+---
+
+## 11. Silent Worker Reminder
+
+**Posted by:** Swarm coordinator (`<COORDINATOR_AGENT_NAME>`)
+**When:** A worker has not posted updates for multiple cycles after startup
+
+```
+Subject: [STATUS CHECK] <WORKER_NAME>
+Thread: <EPIC_ID>
+Importance: HIGH
+
+No messages received for N cycles.
+
+Reply with:
+- current bead and status
+- any blockers
+- estimated time to completion
 ```
 
 ---
@@ -310,12 +358,13 @@ The swarming HANDOFF extends the base schema (first 8 fields) with swarm-specifi
     "in_progress_beads": ["<bead-id-3>"],
     "blocked_beads": ["<bead-id-4>"]
   },
-  "active_workers": [
-    {
-      "agent_name": "<AGENT_NAME>",
-      "current_bead": "<bead-id-3>",
-      "status": "in_progress"
-    }
+    "active_workers": [
+      {
+        "agent_nickname": "<NICKNAME>",
+        "agent_mail_name": "<NAME>",
+        "current_bead": "<bead-id-3>",
+        "status": "in_progress"
+      }
   ],
   "open_blockers": [
     {

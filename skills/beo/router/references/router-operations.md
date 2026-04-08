@@ -28,20 +28,13 @@ Conversational phrasing is **not** a valid short-circuit. Requests like "researc
 
 ## 1. Workspace Bootstrap
 
-Run once per session when `.beads/` is missing or unhealthy.
+Run once per session when onboarding is missing or stale, or when `.beads/` is missing or unhealthy.
 
-```bash
-# Check if beads workspace exists (use your file reading tool to read .beads/ directory)
+Before normal bootstrap, check `.beads/onboarding.json`.
+If it is missing, unreadable, or stale, stop and route to `beo-using-beo`.
+Only continue deeper workspace interpretation after onboarding is current.
 
-# If missing, initialize
-br init
-
-# Verify br is working
-br --version
-
-# Check workspace health
-br doctor
-```
+If `.beads/beo_status.mjs` exists, run `node .beads/beo_status.mjs --json` as a read-only quick scout before reading deeper state files individually.
 
 Optional knowledge-search availability check:
 
@@ -49,7 +42,7 @@ Optional knowledge-search availability check:
 qmd status 2>/dev/null
 ```
 
-If `br doctor` reports issues, fix them before proceeding.
+If workspace repair is needed, use the doctor-mode commands in section 7 rather than treating bootstrap repair as normal routing work.
 
 ## 2. New Feature Creation
 
@@ -60,6 +53,17 @@ br create "<feature-name>" -t epic -p 1 --json
 ```
 
 Save the returned epic ID for all downstream operations.
+
+### Debug Intake Bootstrap
+
+If the request matches the `new-debug-intake` route from the state table, create a minimal debug epic and one debug task bead before routing to `beo-debugging`.
+
+```bash
+br create "Debug: <issue summary>" -t epic -p 1 --json
+br create "Investigate: <issue summary>" -t task --parent <EPIC_ID> -p 1 --json
+```
+
+This gives `beo-debugging` the epic/task context it needs for fix beads, debug labels, and comments.
 
 ### Store the Immutable Slug
 
@@ -91,18 +95,57 @@ Write these minimal stubs with file editing tools:
 #### CONTEXT.md
 
 ```markdown
-# Feature: <name>
+# CONTEXT Template: <name>
 
-## Request
-<Sanitized summary of the request in your own words. Redact or omit secrets, credentials, tokens, cookies, connection strings, private URLs, and long pasted payloads/logs. Use placeholders such as [REDACTED_SECRET] when needed.>
+## Feature Boundary
+
+- Scope: <one-sentence statement of what this feature changes>
+- Domain Type: <SEE | CALL | RUN | READ | ORGANIZE>
 
 ## Locked Decisions
-Instant-path: no exploration needed.
 
-## Scope Classification
-- Complexity: instant
-- Domains: <inferred>
-- Estimated blast radius: 1 file
+| D-ID | Decision | Rationale | Source |
+|------|----------|-----------|--------|
+| D1 | Instant-path: no exploration needed | Single bounded change, ≤1 file | agent default |
+
+### Agent's Discretion
+
+- Implementation details follow existing codebase patterns
+
+## Specific Ideas & References
+
+- N/A
+
+## Existing Code Context
+
+- Reusable assets: <inferred from request>
+- Established patterns: <inferred from request>
+- Integration points: <inferred from request>
+
+## Canonical References
+
+- N/A
+
+## Outstanding Questions
+
+### Resolve Before Planning
+
+- N/A
+
+### Deferred to Planning
+
+- N/A
+
+## Deferred Ideas
+
+- N/A
+
+## Handoff Note
+
+- `beo-planning` reads: Feature Boundary, Locked Decisions
+- `beo-validating` reads: Locked Decisions
+- `beo-executing` reads: Locked Decisions, Existing Code Context
+- `beo-reviewing` reads: Feature Boundary
 ```
 
 #### approach.md
@@ -235,6 +278,9 @@ Read `.beads/HANDOFF.json` with your file reading tool.
 
 Use the canonical schema from `../../reference/references/state-and-handoff-protocol.md`.
 
+Before trusting the handoff, confirm `.beads/onboarding.json` still exists and is current.
+If onboarding is missing or stale, route to `beo-using-beo` before resuming the saved skill.
+
 ### Read planning-aware fields when present
 
 If present, read and trust these fields unless live artifacts clearly contradict them:
@@ -254,7 +300,7 @@ If present, read and trust these fields unless live artifacts clearly contradict
 br show <feature_epic_id> --json
 
 # Check task states haven't changed externally
-br list --type task --json
+br dep list <feature_epic_id> --direction up --type parent-child --json
 ```
 
 Also re-check the artifact set in the canonical inspection order.

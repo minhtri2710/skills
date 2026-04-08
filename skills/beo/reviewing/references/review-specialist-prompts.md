@@ -95,7 +95,7 @@ If P1 fixes fail repeatedly (>2 attempts), route to `beo-debugging` for root cau
 br create "Follow-up: <P2 finding summary>" -t task -p 3 --json
 br label add <FOLLOWUP_ID> -l review
 br label add <FOLLOWUP_ID> -l review-p2
-br update <FOLLOWUP_ID> --description "## External Reference\n<EPIC_ID>\n\n## Finding Details\n<finding details>\n\n## Expected Follow-Up\n<what should be addressed later>"
+br update <FOLLOWUP_ID> --description "## External Reference\n- Epic: <EPIC_ID>\n- Source: review finding\n\n## Issue\n<what was found or deferred>\n\n## Why Follow-Up\n<why this should not block the current epic, and why it still matters>\n\n## Expected Outcome\n<what should be true after this follow-up is completed>\n\n## Files\n- <exact file path, if known>\n- <or write: To be determined during execution>\n\n## Suggested Next Steps\n1. <first action>\n2. <second action>\n3. <verification or handoff action>\n\n## Verification\n- <runnable or observable check>\n- <success condition>"
 ```
 
 P2/P3 beads must use the shared **Follow-Up Bead Template** from `../../reference/references/bead-description-templates.md`. They are intentionally NOT children of the current epic so they don't block feature completion.

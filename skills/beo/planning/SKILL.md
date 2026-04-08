@@ -8,6 +8,8 @@ description: >-
   begins.
 ---
 
+> **Onboarding gate:** If `.beads/onboarding.json` is missing or stale, stop and load `beo-using-beo` before continuing.
+
 # Beo Planning
 
 ## Overview
@@ -82,7 +84,7 @@ Use when the feature naturally unfolds across 2-4 meaningful capability slices, 
 
 Artifacts: `discovery.md`, `approach.md`, `plan.md`, `phase-plan.md` (multi-phase only), `phase-contract.md`, `story-map.md`, task beads.
 
-See `references/planning-operations.md` sections 4-7 for write order, artifact roles, and required fields. Use the corresponding templates: `references/approach-template.md`, `references/phase-plan-template.md`, `references/phase-contract-template.md`, `references/story-map-template.md`, `references/bead-creation-guide.md`.
+See `references/planning-operations.md` sections 4-7 for write order, artifact roles, and required fields. Use the corresponding templates: `references/approach-template.md`, `references/plan-template.md`, `references/phase-plan-template.md`, `references/phase-contract-template.md`, `references/story-map-template.md`, `references/bead-creation-guide.md`.
 
 ## Learnings Retrieval
 

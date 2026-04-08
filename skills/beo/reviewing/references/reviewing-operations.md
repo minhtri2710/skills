@@ -1,6 +1,6 @@
 # Reviewing Operations
 
-Detailed operational playbook for `beo-reviewing`. Load this file when you need exact prerequisite checks, artifact-verification procedure, finishing commands, lightweight-review flow, or checkpoint mechanics.
+Detailed operational playbook for `beo-reviewing`. Load this file when you need exact prerequisite checks, artifact-verification procedure, finishing commands, Quick-review flow, or checkpoint mechanics.
 
 ## Table of Contents
 
@@ -9,7 +9,7 @@ Detailed operational playbook for `beo-reviewing`. Load this file when you need 
 - [3. Artifact Verification](#3-artifact-verification)
 - [4. Human UAT](#4-human-uat)
 - [5. Finishing Steps](#5-finishing-steps)
-- [6. Lightweight Mode](#6-lightweight-mode)
+- [6. Quick Mode](#6-quick-mode)
 - [7. Context-Budget Checkpoint](#7-context-budget-checkpoint)
 
 ## 1. Prerequisites
@@ -136,9 +136,9 @@ br sync --flush-only
 6. optionally sync `AGENTS.md` changes with user approval
 7. remove `.beads/HANDOFF.json` only after the fresh state write succeeds
 
-## 6. Lightweight Mode
+## 6. Quick Mode
 
-For ≤2 low-risk tasks with no external deps, schema changes, or auth/security impact:
+For Quick-scope work, see `../../reference/references/pipeline-contracts.md` for the canonical definition. When the feature qualifies as Quick:
 - skip specialist subagents
 - do a quick manual artifact check
 - do a quick user confirmation

@@ -175,6 +175,8 @@ Write `plan.md` to:
 # .beads/artifacts/<feature_slug>/plan.md
 ```
 
+Use `plan-template.md` as the starting structure.
+
 `plan.md` is the human-readable planning summary.
 
 It should remain readable even when `approach.md` and `phase-plan.md` hold more structured detail.

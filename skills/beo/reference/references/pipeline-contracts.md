@@ -19,29 +19,39 @@ Canonical definitions for cross-cutting pipeline protocols. All skills reference
 
 Evaluate **top-to-bottom, first match wins**. Earlier rows take priority.
 
+### Quick-Scope Definition
+
+Quick applies only when ALL of these are true:
+- the work touches `<=2` files
+- there is no new public API
+- there are no schema changes
+- there is no user-facing behavior change
+- there is no auth/security impact
+
 | # | Condition | State | Route To |
 |---|-----------|-------|----------|
-| 1 | Skill creation or editing requested | **meta-skill** | `beo-writing-skills` |
-| 2 | User explicitly requests learnings consolidation / dream work and the request is not impossible or stale | **consolidation-requested** | `beo-dream` |
-| 3 | No active epic exists and the new request is clearly debug work | **new-debug-intake** | `beo-debugging` |
-| 4 | No active epic exists and the new request is clearly instant-scoped work | **new-instant-intake** | create epic + instant scaffold, then `beo-validating` |
-| 5 | No active epic exists and the request is normal feature intake | **new-feature-intake** | create epic, then `beo-exploring` |
-| 6 | Any tasks have `blocked` or `failed` labels, `debug_attempted` label absent | **needs-debugging** | `beo-debugging` |
-| 7 | Any tasks have `blocked` or `failed` labels, `debug_attempted` label present | **blocked** | Report blockers, ask user for decision |
-| 8 | Epic is closed, any child task NOT closed | **invalid-epic-closure** | Report inconsistency, route to `beo-executing` or `beo-reviewing` to resolve open tasks |
-| 9 | All tasks closed, epic closed, no learnings file | **learnings-pending** | `beo-compounding` |
-| 10 | Epic is closed | **completed** | Report status, ask for next work |
-| 11 | Any tasks have `partial` or `cancelled` labels, epic still open | **partial-completion** | Report status, ask user for decision |
-| 12 | Epic exists, all tasks for the current phase are closed, epic still open, and later phases remain | **phase-complete-needs-replan** | `beo-planning` |
-| 13 | Epic exists, all tasks for the final execution scope are closed, epic still open, and no later phases remain | **ready-to-review** | `beo-reviewing` |
-| 14 | Epic exists, current-phase tasks exist, no `approved` label, and some current-phase tasks are already `in_progress` or `closed` | **approval-invalidated** | `beo-planning` |
-| 15 | Epic exists, current-phase tasks exist, `approved` label on epic, and some current-phase tasks are `in_progress` or `closed` (and no blocked/failed) | **executing** | `beo-executing` |
-| 16 | Epic exists, current-phase tasks exist, `approved` label on epic, all tasks open, 3+ independent tasks | **ready-to-swarm** | `beo-swarming` |
-| 17 | Epic exists, current-phase tasks exist, `approved` label on epic, all tasks open, ≤2 independent tasks | **ready-to-execute** | `beo-executing` |
-| 18 | Epic exists, current-phase tasks exist, no `approved` label, `phase-contract.md` AND `story-map.md` exist, and execution approval has not yet been granted or was removed on a back-edge | **ready-to-validate** | `beo-validating` |
-| 19 | Epic exists, `approach.md` exists, no `approved` label, current-phase artifacts missing or incomplete | **planning-current-phase** | `beo-planning` |
-| 20 | Epic exists, `CONTEXT.md` exists, no `approach.md` | **planning-needs-approach** | `beo-planning` |
-| 21 | Epic exists, no tasks, no `approved` label | **exploring** | `beo-exploring` |
+| 1 | `.beads/onboarding.json` is missing, unreadable, or stale | **needs-onboarding** | `beo-using-beo` |
+| 2 | Skill creation or editing requested | **meta-skill** | `beo-writing-skills` |
+| 3 | User explicitly requests learnings consolidation / dream work and the request is not impossible or stale | **consolidation-requested** | `beo-dream` |
+| 4 | No active epic exists and the new request is clearly debug work | **new-debug-intake** | `beo-debugging` |
+| 5 | No active epic exists and the new request is clearly instant-scoped work | **new-instant-intake** | create epic + instant scaffold, then `beo-validating` |
+| 6 | No active epic exists and the request is normal feature intake | **new-feature-intake** | create epic, then `beo-exploring` |
+| 7 | Any tasks have `blocked` or `failed` labels, `debug_attempted` label absent | **needs-debugging** | `beo-debugging` |
+| 8 | Any tasks have `blocked` or `failed` labels, `debug_attempted` label present | **blocked** | Report blockers, ask user for decision |
+| 9 | Epic is closed, any child task NOT closed | **invalid-epic-closure** | Report inconsistency, route to `beo-executing` or `beo-reviewing` to resolve open tasks |
+| 10 | All tasks closed, epic closed, no learnings file | **learnings-pending** | `beo-compounding` |
+| 11 | Epic is closed | **completed** | Report status, ask for next work |
+| 12 | Any tasks have `partial` or `cancelled` labels, epic still open | **partial-completion** | Report status, ask user for decision |
+| 13 | Epic exists, all tasks for the current phase are closed, epic still open, and later phases remain | **phase-complete-needs-replan** | `beo-planning` |
+| 14 | Epic exists, all tasks for the final execution scope are closed, epic still open, and no later phases remain | **ready-to-review** | `beo-reviewing` |
+| 15 | Epic exists, current-phase tasks exist, no `approved` label, and some current-phase tasks are already `in_progress` or `closed` | **approval-invalidated** | `beo-planning` |
+| 16 | Epic exists, current-phase tasks exist, `approved` label on epic, and some current-phase tasks are `in_progress` or `closed` (and no blocked/failed) | **executing** | `beo-executing` |
+| 17 | Epic exists, current-phase tasks exist, `approved` label on epic, all tasks open, 3+ independent tasks | **ready-to-swarm** | `beo-swarming` |
+| 18 | Epic exists, current-phase tasks exist, `approved` label on epic, all tasks open, ≤2 independent tasks | **ready-to-execute** | `beo-executing` |
+| 19 | Epic exists, current-phase tasks exist, no `approved` label, `phase-contract.md` AND `story-map.md` exist, and execution approval has not yet been granted or was removed on a back-edge | **ready-to-validate** | `beo-validating` |
+| 20 | Epic exists, `approach.md` exists, no `approved` label, current-phase artifacts missing or incomplete | **planning-current-phase** | `beo-planning` |
+| 21 | Epic exists, `CONTEXT.md` exists, no `approach.md` | **planning-needs-approach** | `beo-planning` |
+| 22 | Epic exists, no tasks, no `approved` label | **exploring** | `beo-exploring` |
 
 Key changes from prior versions:
 - explicit distinction between approach-level planning and current-phase planning
@@ -51,12 +61,13 @@ Key changes from prior versions:
 - final review is only valid when later phases do not remain
 
 Ordering notes:
-1. Explicit user-intent rows stay at the top so meta-skill work and explicit dream requests short-circuit feature-state routing when they are actually actionable.
-2. New-feature intake rows stay above active-feature rows so clearly instant/debug/normal feature requests can bootstrap correctly before normal state routing applies.
-3. `invalid-epic-closure` (row 8) must stay above `learnings-pending` and `completed` so a prematurely closed epic with open child tasks is caught before being treated as finished.
-4. `learnings-pending` must stay above `completed` so closed epics route to compounding before they are treated as fully complete.
-5. `phase-complete-needs-replan` must stay above review and execution rows so multi-phase advancement does not get misclassified as generic execution.
-6. `exploring` is the fallback after the context and planning-artifact rows fail. Read it as "epic exists, but planning has not actually started yet."
+1. The onboarding row must stay first so stale or missing onboarding blocks all deeper routing.
+2. Explicit user-intent rows stay near the top so meta-skill work and explicit dream requests short-circuit feature-state routing when they are actually actionable.
+3. New-feature intake rows stay above active-feature rows so clearly instant/debug/normal feature requests can bootstrap correctly before normal state routing applies.
+4. `invalid-epic-closure` (row 9) must stay above `learnings-pending` and `completed` so a prematurely closed epic with open child tasks is caught before being treated as finished.
+5. `learnings-pending` must stay above `completed` so closed epics route to compounding before they are treated as fully complete.
+6. `phase-complete-needs-replan` must stay above review and execution rows so multi-phase advancement does not get misclassified as generic execution.
+7. `exploring` is the fallback after the context and planning-artifact rows fail. Read it as "epic exists, but planning has not actually started yet."
 
 ### Planning Artifact Hierarchy
 
@@ -124,8 +135,8 @@ The canonical Feature States table (planning → approved → executing → comp
 
 ### critical-patterns.md
 
-- **Who writes:** Only `beo-compounding` proposes entries.
-- **Approval required:** Compounding must present proposed promotions to the user and receive explicit approval before appending. Never auto-append.
+- **Who writes:** `beo-compounding` and `beo-dream` propose entries.
+- **Approval required:** Both skills must present proposed promotions to the user and receive explicit approval before appending. Never auto-append.
 - **Format:** See compounding's Phase 4 for entry format.
 - **Aligned with:** dream (hard rule: do not edit `critical-patterns.md` without explicit approval) and reviewing (red flag: "Promoting learnings without approval").
 

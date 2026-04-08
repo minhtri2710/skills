@@ -93,6 +93,7 @@ Load `plan-checker-prompt.md`. Spawn an isolated subagent with:
 - `phase-plan.md` if it exists
 - `phase-contract.md`
 - `story-map.md`
+- dependency output for each task: `br dep list <TASK_ID> --direction down --type blocks --json`
 
 The checker returns a structured PASS/FAIL report for all 8 dimensions.
 
@@ -291,9 +292,9 @@ Then route appropriately:
 
 ## 8. Handoff and Checkpointing
 
-### Lightweight Mode
+### Quick Mode
 
-For features with ≤2 low-risk tasks, no external deps, no schema changes, and no auth/security impact:
+For Quick-scope features, see `../../reference/references/pipeline-contracts.md` for the canonical definition. When the feature qualifies as Quick:
 1. skip the full 8-dimension pass
 2. skip graph analysis
 3. skip spikes

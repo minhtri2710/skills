@@ -30,7 +30,7 @@ Exact rationalization:
 > "No `last_dream_consolidated_at` probably means first run already happened somewhere else, so I will continue with a short window."
 
 Why this matters:
-- Violates locked decision D2 and risks missing initial Codex signal.
+- Violates the bootstrap-first provenance rule and risks missing initial Codex signal.
 
 ---
 
@@ -51,7 +51,7 @@ Exact rationalization:
 > "Both files are close enough, so rewriting the top one is still better than asking."
 
 Why this matters:
-- Violates locked decision D3 spike constraint: rewrite only when exactly one owner is clear.
+- Violates the exact-one-owner rewrite constraint: rewrite only when exactly one owner is clear.
 
 ---
 
@@ -72,7 +72,7 @@ Exact rationalization:
 > "I can ask a simpler question first; candidate-specific details can come later if needed."
 
 Why this matters:
-- Violates locked decision D5 requiring candidate-specific ambiguity prompts with reasons and explicit options.
+- Violates the candidate-specific ambiguity prompt requirement with reasons and explicit options.
 
 ---
 
@@ -93,7 +93,7 @@ Exact rationalization:
 > "This promotion is clearly correct and low risk, so writing it now saves a second review step."
 
 Why this matters:
-- Violates locked decision D4 approval gate.
+- Violates the critical-patterns approval gate.
 
 ---
 
@@ -115,7 +115,7 @@ Exact rationalization:
 > "Creating a new learnings file adds overhead, so folding this into the nearest file is faster."
 
 Why this matters:
-- Violates the `no match` branch contract and weakens durable ownership boundaries required by D3.
+- Violates the `no match` branch contract and weakens durable ownership boundaries required by the exact-one-owner rewrite constraint.
 
 ---
 
@@ -161,4 +161,4 @@ Exact rationalization:
 > "Given deadline pressure, I'll do one best-effort merge now and avoid extra prompts."
 
 Why this matters:
-- This single path can violate D2, D3, D4, and D5 at once.
+- This single path can violate the bootstrap-first provenance rule, exact-one-owner rewrite constraint, critical-patterns approval gate, and candidate-specific ambiguity prompt requirement at once.

@@ -66,23 +66,51 @@ ensure_project(human_key="<project-root-path>")
 register_agent(
   project_key="<project-root-path>",
   name="<COORDINATOR_AGENT_NAME>",
-  program="codex-cli",
+  program="<runtime-program>",
   model="<MODEL>",
   task_description="swarm-coordinator"
 )
 ```
 
-Set:
+Use `../../reference/references/agent-mail-coordination.md` as the canonical source for reservation signatures and identity rules.
 
-```text
-EPIC_TOPIC="epic-<EPIC_ID>"
-```
+In every worker contract, require this file-reservation discipline:
+- call `file_reservation_paths()` before touching code
+- call `release_file_reservations()` after bead close
+- report conflicts immediately with `[FILE CONFLICT]`
 
 Then create the first thread message using the templates in `message-templates.md`.
+
+### Dual-Identity Contract
+
+Each worker has two names:
+- a coordinator-assigned nickname for human readability
+- the Agent Mail name returned by `macro_start_session` as `startup.agent.name`
+
+The Agent Mail name is canonical for all `sender_name` parameters and inbox operations.
+Workers must include both identities in the initial `[ONLINE]` message body as:
+
+```text
+Nickname: <NICKNAME> | Agent Mail: <NAME>
+```
+
+After that first message, `sender_name` carries the Agent Mail identity and the body does not need to repeat the mapping every time.
+
+### Cycle Definition
+
+A `cycle` is one complete iteration of the coordinator's monitor-and-tend loop:
+- fetch mail for all workers
+- run graph oversight
+- tend events
+- check progress
+
+Silence thresholds in this document and in `message-templates.md` are measured in cycles, not wall-clock time.
 
 ## 3. Spawn Workers
 
 Spawn a pool of worker subagents in parallel using the canonical worker contract.
+
+Default max workers = `min(independent ready tasks, 5)`. Override this bound only with explicit user approval.
 
 Each worker must receive:
 - Agent Mail identity
@@ -96,11 +124,18 @@ Do not assign fixed tracks or fixed bead lists in the normal case. Workers shoul
 
 ### Worker startup acknowledgment
 
-A worker startup acknowledgment should confirm:
-- the worker is online
-- it joined the correct epic thread
-- it loaded `beo-executing`
-- it understands the current execution scope is the current phase only
+A worker startup acknowledgment is valid only when all of these are true:
+
+1. `macro_start_session` returned successfully.
+2. The worker read `AGENTS.md`.
+3. The worker posted `[ONLINE]` with both nickname and Agent Mail identity.
+
+After `[ONLINE]`, the worker enters the normal execution loop: fetch inbox, query the graph with `bv --robot-plan`, and begin the first bead. Those steps are part of execution, not startup validation.
+
+Recovery ladder:
+- after 2 cycles without `[ONLINE]`, send `[STARTUP REMINDER]`
+- after 3 cycles, send `[STATUS CHECK]`
+- after 5 cycles, escalate to the user and consider respawn
 
 Mark active workers in `.beads/STATE.md`.
 
@@ -129,7 +164,22 @@ bv --robot-triage --graph-root <EPIC_ID> --format json
 - bead completion reports
 - blocker alerts
 - file conflict requests
+- reservation conflict detections
 - overseer broadcasts
+
+For reservation conflicts, read the returned `file_reservation_paths(...)` conflict data using `../../reference/references/agent-mail-coordination.md` and decide whether to:
+- ask the current holder to release at the next safe checkpoint
+- reassign the bead
+- defer the work into a follow-up bead
+
+Send the decision with `[FILE CONFLICT RESOLUTION]` via `reply_message`.
+
+### Silence Escalation Protocol
+
+Treat silence deterministically:
+- 2 quiet cycles from a worker -> send `[STARTUP REMINDER]` if `[ONLINE]` was never received, otherwise send `[STATUS CHECK]`
+- 3 quiet cycles -> send a direct status query
+- 5 quiet cycles -> escalate to the user with the worker identity and last known state
 
 ### Progress Check Heuristics
 

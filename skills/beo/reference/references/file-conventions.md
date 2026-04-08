@@ -10,6 +10,7 @@ Every skill in the beo pipeline reads from or writes to these paths.
 |------|-----------|---------|---------|
 | `.beads/STATE.md` | beo-exploring, beo-planning, beo-validating, beo-swarming, beo-executing, beo-reviewing, beo-compounding | Next skill in pipeline | Intra-session skill-to-skill handoff state (see `state-and-handoff-protocol.md` for canonical schema) |
 | `.beads/HANDOFF.json` | Any skill (at 65% context budget) | beo-router (Phase 3) | Cross-session resume; survives context resets (see `state-and-handoff-protocol.md` for canonical schema) |
+| `.beads/beo_status.mjs` | beo-using-beo | Humans and agents | Read-only scout command summarizing onboarding, state, and optional handoff status |
 
 **Rule**: Use `state-and-handoff-protocol.md` as the canonical source for `STATE.md` and `HANDOFF.json` semantics and schemas.
 
@@ -32,7 +33,7 @@ See `pipeline-contracts.md` → Feature Slug for derivation rules.
 | `CONTEXT.md` | beo-exploring | beo-planning, beo-validating, beo-executing, beo-reviewing, beo-compounding | Locked decisions: the source of truth |
 | `discovery.md` | beo-planning | beo-validating, beo-compounding | Research findings from discovery work |
 | `approach.md` | beo-planning | beo-validating, beo-executing, beo-reviewing, beo-compounding, future planning cycles | Chosen implementation strategy, alternatives, and risk map |
-| `plan.md` | beo-planning | beo-validating, beo-executing, beo-compounding | Human-readable planning summary |
+| `plan.md` | beo-planning | beo-validating, beo-executing, beo-reviewing, beo-compounding | Human-readable planning summary |
 | `phase-plan.md` | beo-planning | beo-router, beo-validating, future planning cycles | Optional whole-feature sequencing artifact for multi-phase work |
 | `phase-contract.md` | beo-planning | beo-router, beo-validating, beo-executing, beo-reviewing, beo-compounding | Current phase as a closed loop: entry/exit state, demo story, scope, pivot signals |
 | `story-map.md` | beo-planning | beo-router, beo-validating, beo-executing, beo-reviewing, beo-compounding | Current phase story sequence, closure check, story-to-bead mapping |

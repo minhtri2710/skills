@@ -84,7 +84,7 @@ date: YYYY-MM-DD
 feature: <feature-name>
 categories:
   - pattern | decision | failure | anti-pattern
-severity: low | medium | high | critical
+severity: routine | useful | critical
 tags:
   - <domain-tag>
   - <technology-tag>

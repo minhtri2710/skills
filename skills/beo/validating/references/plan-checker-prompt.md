@@ -30,9 +30,12 @@ You receive:
 - all task bead descriptions for this epic (via `br show <TASK_ID> --json` for each task under the epic)
 - `.beads/artifacts/<feature_slug>/CONTEXT.md`
 - `.beads/artifacts/<feature_slug>/discovery.md`
+- `.beads/artifacts/<feature_slug>/approach.md`
 - `.beads/artifacts/<feature_slug>/plan.md`
+- `.beads/artifacts/<feature_slug>/phase-plan.md` when it exists
 - `.beads/artifacts/<feature_slug>/phase-contract.md`
 - `.beads/artifacts/<feature_slug>/story-map.md`
+- dependency output for each task: `br dep list <TASK_ID> --direction down --type blocks --json`
 
 Read all inputs in full before verifying.
 

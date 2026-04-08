@@ -8,7 +8,7 @@ Detailed rules, templates, and checklists for Phase 6 (Task Bead Creation) and P
 - [Story-to-Bead Decomposition Rules](#story-to-bead-decomposition-rules)
 - [Bead Completeness Check](#bead-completeness-check)
 - [Plan Review Checklists](#plan-review-checklists)
-- [Lightweight Mode](#lightweight-mode)
+- [Quick Mode](#quick-mode)
 - [Promotion Flow](#promotion-flow)
 
 ---
@@ -33,6 +33,18 @@ From plan.md: <specific approach decision that applies here>
 
 From .beads/learnings/<file> or .beads/critical-patterns.md:
 - <key gotcha or pattern>
+
+## Locked Decision References
+
+If `CONTEXT.md` contains a Locked Decisions table with D-IDs, every bead whose implementation is governed by a locked decision must include a `Decisions:` line listing the relevant D-IDs.
+
+Example:
+
+```markdown
+Decisions: D1, D3
+```
+
+This allows execution to cross-check bead behavior against locked decisions in `executing/references/execution-operations.md`.
 ```
 
 If no institutional learnings apply, write: "No prior learnings for this domain."
@@ -72,6 +84,7 @@ Verify that `.description` contains:
 - [ ] Enough context for a fresh worker who has never seen the plan
 - [ ] Error contract for I/O beads (what happens on failure?)
 - [ ] Secret handling requirements when decisions mention API keys/tokens
+- [ ] Locked decision references (D-IDs) are present when `CONTEXT.md` has a Locked Decisions table
 
 If any bead fails this check, fix it immediately via `br update <TASK_ID> --description`. A bead without a complete description is an invalid intermediate state. It must not survive to handoff.
 
@@ -104,9 +117,9 @@ For each story in story-map.md:
 
 ---
 
-## Lightweight Mode
+## Quick Mode
 
-For features classified as **lightweight** by the router (2-3 files, clear scope):
+For features classified as **Quick**, see `../../reference/references/pipeline-contracts.md` for the canonical definition.
 
 1. Skip Phase 1 parallel exploration. Do a quick single-pass review of affected files
 2. Write abbreviated plan.md (approach + tasks, skip discovery summary)
