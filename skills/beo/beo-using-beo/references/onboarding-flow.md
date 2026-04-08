@@ -1,0 +1,89 @@
+# Onboarding Flow
+
+Use this file when the short onboarding summary in `SKILL.md` is not enough.
+
+## Prerequisites
+
+Agents must verify `node --version` is `>=18` before running `scripts/onboard_beo.mjs`.
+If Node.js is unavailable, stop and ask the user to install it or perform manual setup.
+
+## Decision Matrix
+
+- `status: "up_to_date"` -> report that onboarding is current and hand back to `beo-router`
+- `status: "needs_onboarding"` -> summarize the actions, ask the user for approval, then apply when approved
+
+## What Onboarding Installs
+
+Onboarding manages:
+- `AGENTS.md` merge with the `<!-- BEO:START -->` / `<!-- BEO:END -->` block
+- `.beads/`
+- `.beads/artifacts/`
+- `.beads/learnings/`
+- `.beads/beo_status.mjs`
+- `.beads/STATE.md`
+- `.beads/critical-patterns.md`
+- `.beads/onboarding.json`
+
+## `checkRepo` JSON Schema
+
+```json
+{
+  "status": "up_to_date" | "needs_onboarding",
+  "actions": [
+    "create_AGENTS.md",
+    "append_beo_managed_block",
+    "update_beo_managed_block",
+    "create_.beads/onboarding.json",
+    "create_.beads/beo_status.mjs",
+    "create_.beads/STATE.md",
+    "create_.beads/critical-patterns.md",
+    "create_.beads/artifacts/",
+    "create_.beads/learnings/"
+  ],
+  "details": {
+    "agents_md_exists": true,
+    "has_beo_managed_block": false,
+    "onboarding_json_exists": false,
+    "onboarding_version_match": false,
+    "status_script_exists": false,
+    "state_md_exists": false,
+    "critical_patterns_exists": false,
+    "artifacts_dir_exists": false,
+    "learnings_dir_exists": false
+  }
+}
+```
+
+## `applyRepo` Behavior
+
+When onboarding is needed, apply in this order:
+
+1. Merge `AGENTS.md` using one of three strategies:
+   - create from template when no `AGENTS.md` exists
+   - replace the existing managed block when sentinels already exist
+   - append the managed block when `AGENTS.md` exists but has no sentinels
+2. Create `.beads/` if missing
+3. Create `.beads/artifacts/` if missing
+4. Create `.beads/learnings/` if missing
+5. Write `.beads/beo_status.mjs`
+6. Write `.beads/STATE.md` defaults if missing
+7. Write `.beads/critical-patterns.md` defaults if missing
+8. Write `.beads/onboarding.json`
+
+## `onboarding.json` Schema
+
+```json
+{
+  "schema_version": "1.0",
+  "plugin": "beo",
+  "plugin_version": "<version>",
+  "installed_at": "<ISO-8601>",
+  "status": "complete",
+  "managed_assets": {
+    "agents_mode": "created_from_template" | "updated_managed_block" | "appended_managed_block",
+    "status_script": ".beads/beo_status.mjs",
+    "state_md": ".beads/STATE.md",
+    "critical_patterns": ".beads/critical-patterns.md"
+  }
+}
+```

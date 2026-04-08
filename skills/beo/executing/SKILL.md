@@ -9,6 +9,8 @@ description: >-
   implementation one task at a time.
 ---
 
+> **Onboarding gate:** If `.beads/onboarding.json` is missing or stale, stop and load `beo-using-beo` before continuing.
+
 # Beo Executing
 
 ## Overview

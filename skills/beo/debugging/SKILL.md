@@ -7,6 +7,8 @@ description: >-
   regressing.
 ---
 
+> **Onboarding gate:** If `.beads/onboarding.json` is missing or stale, stop and load `beo-using-beo` before continuing.
+
 # Beo Debugging
 
 ## Overview
@@ -105,4 +107,3 @@ See `references/debugging-operations.md` for the full diagnostic checklist and f
 Use `references/debugging-operations.md` and `../reference/references/state-and-handoff-protocol.md` for canonical checkpoint behavior when context exceeds 65%.
 
 ---
-

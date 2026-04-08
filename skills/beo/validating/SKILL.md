@@ -9,6 +9,8 @@ description: >-
   current phase is safe to execute.
 ---
 
+> **Onboarding gate:** If `.beads/onboarding.json` is missing or stale, stop and load `beo-using-beo` before continuing.
+
 # Beo Validating
 
 ## Overview
@@ -20,6 +22,10 @@ Its job is to prove that the **current phase** is structurally sound before any 
 
 If `phase-plan.md` exists, validation still applies to the **current phase only**. Whole-feature sequencing matters for context, but approval never expands into later phases.
 
+## Communication Standard
+
+Validation outputs must follow `../reference/references/communication-standard.md`.
+
 ## Default Validation Loop
 
 1. confirm current-phase artifacts and task beads exist
@@ -30,7 +36,7 @@ If `phase-plan.md` exists, validation still applies to the **current phase only*
 6. summarize readiness in human terms
 7. get explicit user approval before execution
 
-Load `references/validation-operations.md` when you need the exact checker flow, graph commands, spike mechanics, approval summary, lightweight mode, or handoff procedure.
+Load `references/validation-operations.md` when you need the exact checker flow, graph commands, spike mechanics, approval summary, Quick mode, or handoff procedure.
 
 ## Hard Gates
 
@@ -113,10 +119,10 @@ When approval is rejected or withheld:
 
 See `references/validation-operations.md` Section 7 for the full approval summary format, execution-mode decision rule, rejection procedure, and handoff steps.
 
-## Lightweight Mode
+## Quick Mode
 
-For very small, low-risk work, use the lightweight-validation shortcut in `references/validation-operations.md` Section 8.
-Even in lightweight mode, user approval is still required before any code is written.
+For very small, low-risk work (Quick scope), use the Quick-validation shortcut in `references/validation-operations.md` Section 8.
+Even in Quick mode, user approval is still required before any code is written.
 
 ## Handoff
 

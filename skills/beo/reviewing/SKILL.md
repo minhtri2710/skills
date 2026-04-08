@@ -7,6 +7,8 @@ description: >-
   "can we ship this?", "double-check the implementation", or "run UAT".
 ---
 
+> **Onboarding gate:** If `.beads/onboarding.json` is missing or stale, stop and load `beo-using-beo` before continuing.
+
 # Beo Reviewing
 
 ## Overview
@@ -15,6 +17,10 @@ Reviewing is the final quality gate after execution.
 Its job is to verify that the implemented final execution scope is safe, aligned with locked decisions, and actually acceptable to the user before the feature is finished.
 
 **Core principle:** review finds truth, not excuses.
+
+## Communication Standard
+
+Review outputs must follow `../reference/references/communication-standard.md`.
 
 ## Default Review Loop
 

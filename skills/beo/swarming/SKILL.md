@@ -7,6 +7,8 @@ description: >-
   pool, or running approved current-phase work at scale.
 ---
 
+> **Onboarding gate:** If `.beads/onboarding.json` is missing or stale, stop and load `beo-using-beo` before continuing.
+
 # Beo Swarming
 
 ## Overview
@@ -67,4 +69,5 @@ If context usage exceeds 65%, use `../reference/references/state-and-handoff-pro
 ## Red Flags & Anti-Patterns
 
 See `references/swarming-operations.md` for monitoring heuristics and completion checks.
+Verify coordinator behavior against `references/pressure-scenarios.md` when debugging swarm coordination failures.
 Stop and diagnose before continuing if the orchestrator starts editing code, workers go idle while ready current-phase beads still exist, Agent Mail falls quiet for too long, file conflicts repeat, or current-phase completion is being mistaken for final review while later phases remain.

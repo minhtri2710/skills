@@ -1,0 +1,4 @@
+interface:
+  display_name: "Beo Using Beo"
+  short_description: "Bootstrap and onboard repositories for the beo workflow"
+  default_prompt: "Check beo onboarding status for this repository, apply onboarding if needed, then hand back to beo-router."

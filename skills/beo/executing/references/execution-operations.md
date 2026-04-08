@@ -91,6 +91,19 @@ Read `br show <TASK_ID> --json` and verify `.description` is:
 
 If empty or underspecified, do not dispatch. Route back to `beo-planning` or `beo-validating`.
 
+### Decision-ID Cross-Reference
+
+Scan the bead description for D-ID markers (`D1`, `D2`, ...) and verify each one exists in the Locked Decisions table in `.beads/artifacts/<feature_slug>/CONTEXT.md`.
+
+Flag any of these mismatches:
+- a D-ID is referenced in the bead but missing from `CONTEXT.md`
+- the bead's requested behavior contradicts a locked decision in `CONTEXT.md`
+
+If a mismatch is found, stop execution and route to `beo-exploring` to resolve the decision conflict before dispatch.
+
+Fallback for legacy features:
+- if `CONTEXT.md` has no Locked Decisions table, skip D-ID verification and log the warning `No Locked Decisions table found — D-ID verification skipped.`
+
 ### Current-Phase Scope Check
 
 Before execution, confirm the bead belongs to the currently approved phase.
@@ -104,25 +117,37 @@ If `phase-plan.md` exists and the bead clearly belongs to a later phase:
 
 ### File Coordination Rule
 
-Before editing, establish file ownership clearly enough that two workers do not edit the same file set blindly.
+Use the canonical reservation signatures and identity rules from `../../reference/references/agent-mail-coordination.md`.
 
-#### Worker mode
+Before implementation, reserve the files the bead will touch:
 
-Use the swarm reservation / conflict protocol:
-- check Agent Mail and current thread state for existing reservations or open file-conflict traffic
-- if another worker already holds a needed file, do not edit through the conflict
-- post a File Conflict Request using `../swarming/references/message-templates.md` and wait for the coordinator decision
-- only begin editing after ownership is clearly granted or the conflicting worker has released the file
+```text
+file_reservation_paths(
+  project_key="<project-root-path>",
+  agent_name="<agent-mail-name>",
+  paths=["<path-1>", "<path-2>"],
+  ttl_seconds=3600,
+  exclusive=true,
+  reason="Working bead <BEAD_ID>"
+)
+```
 
-#### Standalone mode
+If `conflicts` are returned:
+- do not edit through the conflict
+- send a `[FILE CONFLICT]` message to the coordinator using `../swarming/references/message-templates.md`
+- poll inbox until the coordinator resolves the conflict
 
-If the environment provides an explicit reservation mechanism, use it.
-If it does not, equivalent coordination is acceptable, but only when you have verified that no other active worker / agent is concurrently editing the same files.
+After bead close, release any held paths:
 
-Equivalent coordination means, at minimum:
-- confirm you are not inside an active swarm touching the same file set
-- confirm there is no in-flight delegated worker for this bead or overlapping file scope
-- if ownership is unclear, stop and resolve that ambiguity before editing
+```text
+release_file_reservations(
+  project_key="<project-root-path>",
+  agent_name="<agent-mail-name>",
+  paths=["<path-1>", "<path-2>"]
+)
+```
+
+`[FILE CONFLICT]` and `[FILE CONFLICT RESOLUTION]` messages remain the coordination layer above the reservation API.
 
 Once file coordination is clear, transition the task:
 
@@ -194,15 +219,47 @@ The worker should return:
 | `failed` | `br label remove <ID> -l in_progress && br update <ID> -s deferred && br label add <ID> -l failed` |
 | `partial` | `br label remove <ID> -l in_progress && br update <ID> -s deferred && br label add <ID> -l partial` |
 
+### Git Commit Format
+
+Recommended commit format:
+
+```text
+<type>(<bead-id>): <one-line summary>
+```
+
+Use the type that best matches the bead work:
+- `feat` for new functionality
+- `fix` for bug fixes
+- `refactor` for restructuring
+- `docs` for documentation
+- `test` for test-only changes
+- `chore` for config or tooling work
+
+Use one logical commit per bead at close time. Multi-file beads should still produce a single atomic commit.
+
+Example:
+
+```text
+feat(pe-jju.3): add retry logic to webhook handler
+```
+
+This format is a strong recommendation, not a hard gate.
+
 ### Write the Report Artifact
 
 ```bash
 br comments add <TASK_ID> --no-daemon --message "---ARTIFACT:report:v1---
+## Bead
+<TASK_ID>
+
 ## Summary
 <worker summary>
 
 ## Changes Made
 <list of files modified>
+
+## Tests
+<tests added or modified, or 'No test changes' if none>
 
 ## Verification
 <verification results>
@@ -217,6 +274,21 @@ br comments add <TASK_ID> --no-daemon --message "---ARTIFACT:report:v1---
 ```bash
 br sync --flush-only
 ```
+
+### Bead Completion Validation
+
+After every bead close, run this validation sequence:
+
+1. Verify `br show <BEAD_ID> --json` reports status `closed`.
+2. Verify the completion report includes bead ID, files changed, tests added or modified, and verification result.
+3. Release all held file reservations with `release_file_reservations(project_key, agent_name, paths=[...])`.
+4. Send the `[DONE]` Agent Mail report with the full completion summary.
+5. Re-check the graph with `bv --robot-plan --graph-root <EPIC_ID> --format json` to confirm no orphaned dependencies.
+
+Frequency rules:
+- Steps 1-4 run after every bead close.
+- Step 5 runs after every 5 beads per worker in swarm mode.
+- In solo mode, step 5 runs after every bead close.
 
 ## 8. Progress Check and Completion
 

@@ -66,6 +66,9 @@ BR-<id>, BR-<id>, BR-<id>...
 
 SUMMARY
 <2-3 sentences: overall quality assessment and most urgent fix pattern>
+
+RECOMMENDED FIXES (<N> total)
+[FIX] BR-<id>: <specific change recommended and why>
 ```
 
 ---
@@ -168,6 +171,8 @@ The bead makes a choice where alternative approaches are plausible. Without a no
 ---
 
 ## Behaviors to Avoid
+
+The bead-reviewer is a read-only checker. It reports problems and recommends fixes; it does not revise beads directly.
 
 **Do not flag:**
 - Simple, brief beads (brevity is a virtue when the scope is truly narrow)

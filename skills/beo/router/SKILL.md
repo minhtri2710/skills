@@ -12,6 +12,8 @@ description: >-
   request implying non-trivial work, even if phrased conversationally.
 ---
 
+> **Onboarding gate:** If `.beads/onboarding.json` is missing or stale, stop and load `beo-using-beo` before continuing.
+
 # Beo Router
 
 ## Overview
@@ -27,13 +29,14 @@ Its job is simple:
 
 ## Default Router Loop
 
-1. confirm the workspace is initialized and healthy
-2. check for `.beads/HANDOFF.json`
-3. identify the active epic, if any
-4. inspect the active feature's core artifacts and task graph
-5. classify the current state using the canonical routing table
-6. report the state in human terms
-7. load exactly one next skill
+1. confirm the repository is onboarded and the workspace is healthy
+2. if `.beads/beo_status.mjs` exists, run `node .beads/beo_status.mjs --json` as a quick scout
+3. check for `.beads/HANDOFF.json`
+4. identify the active epic, if any
+5. inspect the active feature's core artifacts and task graph
+6. classify the current state using the canonical routing table
+7. report the state in human terms
+8. load exactly one next skill
 
 Use `references/router-operations.md` when you need the exact bootstrap steps, instant-path scaffold, resume validation procedure, planning-aware routing rules, or doctor-mode commands.
 Use `references/state-routing.md` for the canonical state table.

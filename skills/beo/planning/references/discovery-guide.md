@@ -34,6 +34,7 @@ Launch 2-4 parallel research subagents using the session's normal subagent/task-
    - Community best practices
 
 Each agent writes findings to a structured format. Collect all results.
+Write the discovery report using `references/discovery-template.md` as the output format.
 
 For refactoring work touching 3+ module boundaries, use multi-agent audit with narrow, non-overlapping mandates (e.g., structural/module, architecture/UX, domain/backend). Different architectural lenses reveal different issues that a single-perspective audit would miss.
 
@@ -48,6 +49,7 @@ When discovery inventories items by annotation (`#[allow(dead_code)]`, `// TODO`
 | `// TODO: remove` | Verify the removal condition is met |
 
 Discovery artifacts should list annotated items as "annotated — verify before removing" not "confirmed dead code."
+When annotation-verification findings exist, record them under `## Verified Annotations / Deletion Candidates` in `references/discovery-template.md`.
 
 ## Synthesis
 
@@ -58,3 +60,4 @@ Combine research into a discovery summary:
 - What external factors matter (dependencies)
 
 Write findings to `.beads/artifacts/<feature_slug>/discovery.md`.
+Use `references/discovery-template.md` to preserve the architecture, pattern, constraint, external research, and verified-annotation sections consistently.
