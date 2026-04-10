@@ -4,8 +4,8 @@ description: >-
   Use after exploring completes or whenever a feature already has locked
   requirements and needs implementation planning. Use for prompts like "plan
   this", "break this into tasks", "decompose this work", "map the stories",
-  "research and plan", or "turn this into beads" before implementation
-  begins.
+  or "turn this into beads" before implementation begins. Do not use when
+  requirements are still unlocked or ambiguous (use beo-exploring first).
 ---
 
 > **Onboarding gate:** If `.beads/onboarding.json` is missing or stale, stop and load `beo-using-beo` before continuing.
@@ -21,23 +21,6 @@ It should answer two questions in order:
 2. what is the smallest current phase we should validate next?
 
 **Core principle:** do not jump from research straight to beads. First shape the feature, then define the current phase, then decompose that phase only.
-
-## Default Planning Loop
-
-1. confirm `CONTEXT.md` exists and decisions are truly locked
-2. retrieve prior learnings and critical patterns
-3. run focused discovery and write `discovery.md`
-4. write `approach.md`
-5. decide `single-phase` vs `multi-phase`
-6. write `plan.md`
-7. if multi-phase, write `phase-plan.md` and get explicit user approval for the phase sequence and selected current phase
-8. define the current phase in `phase-contract.md`
-9. map the current phase in `story-map.md`
-10. create and verify beads for the current phase only
-11. hand off to `beo-validating`
-
-Load `references/planning-operations.md` when you need the exact artifact-writing sequence, approval wording, dependency wiring, bead-creation commands, high-stakes review flow, or replanning cleanup procedure.
-Load `references/discovery-guide.md` when running focused discovery (step 3) for guidance on research subagent patterns and codebase investigation.
 
 ## Hard Gates
 
@@ -66,6 +49,23 @@ Create beads for the current phase only. Do not pre-create execution beads for f
 <HARD-GATE>
 If phase structure or execution scope changes during replanning, prior approval is invalidated. Refresh planning-aware state and route back through `beo-validating` before execution resumes.
 </HARD-GATE>
+
+## Default Planning Loop
+
+1. confirm `CONTEXT.md` exists and decisions are truly locked
+2. retrieve prior learnings and critical patterns
+3. run focused discovery and write `discovery.md`
+4. write `approach.md`
+5. decide `single-phase` vs `multi-phase`
+6. write `plan.md`
+7. if multi-phase, write `phase-plan.md` and get explicit user approval for the phase sequence and selected current phase
+8. define the current phase in `phase-contract.md`
+9. map the current phase in `story-map.md`
+10. create and verify beads for the current phase only
+11. hand off to `beo-validating`
+
+Load `references/planning-operations.md` when you need the exact artifact-writing sequence, approval wording, dependency wiring, bead-creation commands, high-stakes review flow, or replanning cleanup procedure.
+Load `references/discovery-guide.md` when running focused discovery (step 3) for guidance on research subagent patterns and codebase investigation.
 
 ## Planning Modes
 
@@ -130,7 +130,7 @@ After creation, read every bead back and verify it is specific enough for a fres
 
 For HIGH-stakes work — core architecture, auth, data model changes, large blast radius, or multiple HIGH-risk components — use `references/planning-operations.md` for the multi-perspective review before handoff.
 
-## Handoff to Validation
+## Handoff
 
 After current-phase artifacts are written and beads are verified:
 

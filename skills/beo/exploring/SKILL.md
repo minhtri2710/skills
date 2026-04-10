@@ -4,7 +4,9 @@ description: >-
   Use before any non-instant feature work, refactor, behavior change, or
   requirements-shaping conversation where user intent is not yet locked,
   especially when the user knows what they want but has not fully thought
-  through edge cases, scope boundaries, or expected behavior.
+  through edge cases, scope boundaries, or expected behavior. Do not use for
+  instant work already routed by beo-router, clear bug-fix root-cause work
+  (use beo-debugging), or mid-pipeline resume (use beo-router).
 ---
 
 > **Onboarding gate:** If `.beads/onboarding.json` is missing or stale, stop and load `beo-using-beo` before continuing.
@@ -57,12 +59,6 @@ Sanitize the request summary, redact or omit secrets, and use stable placeholder
 
 Use `../reference/references/learnings-read-protocol.md` when you need the canonical prior-learnings read flow.
 Use `../reference/references/slug-protocol.md` when updating the epic description safely.
-
-## When Not to Use
-
-- truly instant work already routed by `beo-router`
-- clear bug-fix root-cause work -> `beo-debugging`
-- mid-pipeline resume -> `beo-router`
 
 ## Scope Classification
 

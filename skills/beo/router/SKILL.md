@@ -27,21 +27,6 @@ Its job is simple:
 
 **Core principle:** always know where you are before deciding where to go.
 
-## Default Router Loop
-
-1. confirm the repository is onboarded and the workspace is healthy
-2. if `.beads/beo_status.mjs` exists, run `node .beads/beo_status.mjs --json` as a quick scout
-3. check for `.beads/HANDOFF.json`
-4. identify the active epic, if any
-5. inspect the active feature's core artifacts and task graph
-6. classify the current state using the canonical routing table
-7. report the state in human terms
-8. load exactly one next skill
-
-Use `references/router-operations.md` when you need the exact bootstrap steps, instant-path scaffold, resume validation procedure, planning-aware routing rules, or doctor-mode commands.
-Use `references/state-routing.md` for the canonical state table.
-Use `references/go-mode.md` when the user says "go", "run the full pipeline", or "go mode" and you need the 3-gate end-to-end sequence.
-
 ## Hard Gates
 
 <HARD-GATE>
@@ -77,6 +62,21 @@ If current-phase work is complete but later phases remain, do not treat the feat
 <HARD-GATE>
 If instant-scoped work expands during inspection, stop treating it as instant work and promote it into the normal pipeline.
 </HARD-GATE>
+
+## Default Router Loop
+
+1. confirm the repository is onboarded and the workspace is healthy
+2. if `.beads/beo_status.mjs` exists, run `node .beads/beo_status.mjs --json` as a quick scout
+3. check for `.beads/HANDOFF.json`
+4. identify the active epic, if any
+5. inspect the active feature's core artifacts and task graph
+6. classify the current state using the canonical routing table
+7. report the state in human terms
+8. load exactly one next skill
+
+Use `references/router-operations.md` when you need the exact bootstrap steps, instant-path scaffold, resume validation procedure, planning-aware routing rules, or doctor-mode commands.
+Use `references/state-routing.md` for the canonical state table.
+Use `references/go-mode.md` when the user says "go", "run the full pipeline", or "go mode" and you need the 3-gate end-to-end sequence.
 
 ## Report State Before Routing
 
@@ -124,6 +124,6 @@ If a checkpoint or resume artifact exists, preserve the planning-aware state whi
 If context usage exceeds 65%, checkpoint using `../reference/references/state-and-handoff-protocol.md`.
 Include the current state, selected route, planning-aware fields when known, and any resume detail needed to continue safely.
 
-## Red Flags and Anti-Patterns
+## Red Flags & Anti-Patterns
 
 See `references/guardrails.md` for the full tables.

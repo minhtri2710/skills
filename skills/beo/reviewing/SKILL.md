@@ -22,18 +22,6 @@ Its job is to verify that the implemented final execution scope is safe, aligned
 
 Review outputs must follow `../reference/references/communication-standard.md`.
 
-## Default Review Loop
-
-1. confirm review is allowed for the final execution scope
-2. run automated specialist review
-3. classify findings by severity and create follow-up work when needed
-4. run human UAT against locked decisions and exit-state claims
-5. decide whether to finish, loop through reactive fixes, or route back
-6. hand off to compounding only when review is truly complete
-
-Use `references/reviewing-operations.md` for the exact prerequisite checks, artifact verification, UAT handling, and finishing sequence.
-Use `references/review-specialist-prompts.md` for the five-specialist review structure and severity rules.
-
 ## Hard Gates
 
 <HARD-GATE>
@@ -61,6 +49,18 @@ Update `CONTEXT.md`, strip `approved` if needed, and route back to `beo-planning
 Do not write novel implementation code inside review.
 Create fix beads and send execution work back through the proper path.
 </HARD-GATE>
+
+## Default Review Loop
+
+1. confirm review is allowed for the final execution scope
+2. run automated specialist review
+3. classify findings by severity and create follow-up work when needed
+4. run human UAT against locked decisions and exit-state claims
+5. decide whether to finish, loop through reactive fixes, or route back
+6. hand off to compounding only when review is truly complete
+
+Use `references/reviewing-operations.md` for the exact prerequisite checks, artifact verification, UAT handling, and finishing sequence.
+Use `references/review-specialist-prompts.md` for the five-specialist review structure and severity rules.
 
 ## Review Prerequisites
 
@@ -115,7 +115,7 @@ Do not patch over a changed feature definition inside review.
 
 Use `references/reviewing-operations.md` Section 5 for the exact conditions, finish sequence, artifact verification, and final reporting.
 
-## Handoff to Compounding
+## Handoff
 
 Only after review genuinely passes:
 1. write fresh state using `../reference/references/state-and-handoff-protocol.md`

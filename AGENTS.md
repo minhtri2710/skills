@@ -2,13 +2,14 @@
 
 ## What This Repo Is
 
-A collection of 12 AI agent skills for structured feature development using `br` (beads_rust) and `bv` (Beads Viewer) as the execution backbone, with optional knowledge store integration via Obsidian CLI and QMD. No application code -- only skill definitions (Markdown).
+A collection of 13 AI agent skills for structured feature development using `br` (beads_rust) and `bv` (Beads Viewer) as the execution backbone, with optional knowledge store integration via Obsidian CLI and QMD. No application code -- only skill definitions (Markdown).
 
 ## Repository Structure
 
 ```
 skills/
   beo/
+    REVIEW-PLAN.md               # Repo-wide audit and cleanup tracker
     router/                      # Phase detection + skill routing
       SKILL.md
       agents/openai.yaml
@@ -22,6 +23,8 @@ skills/
       agents/openai.yaml
       references/
         exploring-guardrails.md
+        context-template.md
+        gray-area-probes.md
     planning/                    # Epic/task decomposition + dependency wiring
       SKILL.md
       agents/openai.yaml
@@ -29,7 +32,9 @@ skills/
         planning-operations.md
         planning-guardrails.md
         discovery-guide.md
+        discovery-template.md
         approach-template.md
+        plan-template.md
         phase-plan-template.md
         phase-contract-template.md
         story-map-template.md
@@ -49,6 +54,7 @@ skills/
         swarming-operations.md
         message-templates.md
         worker-template.md
+        pressure-scenarios.md
     executing/                   # Per-worker implementation loop
       SKILL.md
       agents/openai.yaml
@@ -63,6 +69,7 @@ skills/
       references/
         reviewing-operations.md
         review-specialist-prompts.md
+        reviewing-guardrails.md
     compounding/                 # Learnings capture + critical-pattern promotion
       SKILL.md
       agents/openai.yaml
@@ -91,10 +98,17 @@ skills/
         writing-skills-operations.md
         creation-log-template.md
         pressure-test-template.md
+    beo-using-beo/               # Onboarding bootstrap gate
+      SKILL.md
+      agents/openai.yaml
+      assets/
+      scripts/
+      references/
+        onboarding-flow.md
     reference/                   # Shared CLI reference hub
       SKILL.md                       # Navigation hub
       agents/openai.yaml
-      references/                    # 13 reference docs
+      references/                    # 15 reference docs
         br-cli-reference.md
         bv-cli-reference.md
         status-mapping.md
@@ -108,7 +122,13 @@ skills/
         knowledge-store.md
         bead-description-templates.md
         learnings-read-protocol.md
+        agent-mail-coordination.md
+        communication-standard.md
 ```
+
+Every skill directory also contains an `evals/` subdirectory for evaluation data.
+The `*-workspace/` directories under `skills/beo/` are generated audit artifacts, not skill source.
+The `beo-using-beo/` directory retains the full skill name (unlike other skill directories that use short names) because its name without the prefix (`using-beo`) would be ambiguous.
 
 ## Skill Workflow (Pipeline)
 
@@ -129,6 +149,7 @@ Support/meta skills (invoked on demand): `beo-debugging`, `beo-dream`, `beo-writ
 9. **beo-debugging** -- Systematic debugging for blocked workers, test failures, build errors
 10. **beo-dream** -- Periodic consolidation of learnings across features
 11. **beo-writing-skills** -- Guide for creating and pressure-testing new beo skills
+12. **beo-using-beo** -- Onboarding bootstrap and version gate for new repositories
 
 **beo-reference** is the shared CLI reference loaded by all other skills.
 

@@ -1,4 +1,4 @@
 interface:
   display_name: "Beo Reference"
-  short_description: "Shared canonical reference hub for br/bv CLI, status mapping, artifact protocol, pipeline rules, and onboarding-aware workflow references"
-  default_prompt: "Look up the exact br or bv CLI syntax, status mapping, artifact protocol, pipeline rule, or onboarding-related workflow reference needed by the calling skill."
+  short_description: "Shared beo protocol and CLI lookup hub"
+  default_prompt: "Use $beo-reference to look up the canonical br/bv CLI syntax, status mapping, artifact protocol, or pipeline rule needed by the calling skill."

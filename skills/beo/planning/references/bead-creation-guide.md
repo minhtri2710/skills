@@ -133,7 +133,7 @@ For features classified as **Quick**, see `../../reference/references/pipeline-c
 
 ## Promotion Flow
 
-When direct/instant tasks grow beyond their envelope:
+When instant-path tasks grow beyond their envelope:
 
 ### Step 1: Gather Existing Tasks
 

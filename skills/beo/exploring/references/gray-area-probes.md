@@ -1,5 +1,14 @@
 # Gray-Area Probes
 
+## Contents
+
+- [SEE (UI / Display)](#see-ui--display)
+- [CALL (API / Service)](#call-api--service)
+- [RUN (CLI / Pipeline)](#run-cli--pipeline)
+- [READ (Docs / Content)](#read-docs--content)
+- [ORGANIZE (Config / Structure)](#organize-config--structure)
+- [Cross-Cutting](#cross-cutting)
+
 Select the feature domain first, then use the matching probe set.
 Skip categories that do not apply.
 

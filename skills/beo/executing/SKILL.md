@@ -29,21 +29,6 @@ Execution scope is always the **currently approved phase**. If planning mode is 
 
 The loop is the same in both modes. The main differences are how results are reported and whether delegated dispatch is available.
 
-## Default Execution Loop
-
-1. verify approval and current-phase scope
-2. pick the next truly ready bead
-3. verify the bead spec is executable
-4. reserve files and transition the bead cleanly
-5. assemble only the context needed for this bead
-6. dispatch if appropriate, otherwise implement directly
-7. run verification, write the report, and update bead state
-8. loop, or hand off when the current phase is complete
-
-Use `references/execution-operations.md` for the exact scheduling cascade, transition protocol, dispatch contract, status mapping, completion bookkeeping, and checkpoint procedure.
-Use `references/worker-prompt-guide.md` for the full worker prompt template.
-Use `references/execution-guardrails.md` for recovery steps and anti-patterns.
-
 ## Hard Gates
 
 <HARD-GATE>
@@ -77,6 +62,21 @@ If specs must change materially during execution, stop treating the phase as exe
 Strip `approved` and route back to planning-aware repair instead of silently rewriting the plan in execution.
 </HARD-GATE>
 
+## Default Execution Loop
+
+1. verify approval and current-phase scope
+2. pick the next truly ready bead
+3. verify the bead spec is executable
+4. reserve files and transition the bead cleanly
+5. assemble only the context needed for this bead
+6. dispatch if appropriate, otherwise implement directly
+7. run verification, write the report, and update bead state
+8. loop, or hand off when the current phase is complete
+
+Use `references/execution-operations.md` for the exact scheduling cascade, transition protocol, dispatch contract, status mapping, completion bookkeeping, and checkpoint procedure.
+Use `references/worker-prompt-guide.md` for the full worker prompt template.
+Use `references/execution-guardrails.md` for recovery steps and anti-patterns.
+
 ## Execution Notes
 
 ### Before implementation
@@ -93,16 +93,16 @@ Choose the dispatch mode that fits the situation: implement directly in worker m
 
 See `references/execution-operations.md` section 6 for dispatch contract details and section 7 for result-to-state mapping. If a task is blocked, use `references/blocker-handling.md` and resume from task selection.
 
+## Completion
+
+When all current-phase tasks are closed, run the completion and routing procedure in `references/execution-operations.md` section 8. When later phases remain, do **not** claim the whole feature is complete.
+
 ## Handoff
 
 When the current phase closes successfully:
 - route to `beo-reviewing` if this completes the final execution scope
 - remove `approved` and route to `beo-planning` if later phases remain
 - never describe current-phase completion as full feature completion when multi-phase work remains
-
-## Completion
-
-When all current-phase tasks are closed, run the completion and routing procedure in `references/execution-operations.md` section 8. When later phases remain, do **not** claim the whole feature is complete.
 
 ## Context Budget
 

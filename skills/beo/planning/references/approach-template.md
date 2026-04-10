@@ -1,5 +1,18 @@
 # Approach: <feature-name>
 
+## Contents
+
+- [Problem Shape](#problem-shape)
+- [Current Codebase Reality](#current-codebase-reality)
+- [Gap Analysis](#gap-analysis)
+- [Recommended Approach](#recommended-approach)
+- [Alternatives Considered](#alternatives-considered)
+- [Risk Map](#risk-map)
+- [Relevant Learnings Applied](#relevant-learnings-applied)
+- [Planning Mode Decision](#planning-mode-decision)
+- [Current Phase Strategy](#current-phase-strategy)
+- [Summary For plan.md](#summary-for-planmd)
+
 ## Problem Shape
 
 What this feature needs to make true in practical terms.

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Prompt Leverage"
+  short_description: "Upgrade raw prompts for execution"
+  default_prompt: "$prompt-leverage"

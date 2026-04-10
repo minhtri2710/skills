@@ -1,5 +1,14 @@
 # Approval Gates
 
+## Contents
+
+- [Why This Exists](#why-this-exists)
+- [Approval-Requiring Moments](#approval-requiring-moments)
+- [Approval Presentation Guidance](#approval-presentation-guidance)
+- [Planning-Specific Guidance](#planning-specific-guidance)
+- [Rejection / Withheld Approval Handling](#rejection--withheld-approval-handling)
+- [Hard Rules](#hard-rules)
+
 Canonical wording and protocol for human approval requirements in the beo pipeline.
 
 ## Why This Exists

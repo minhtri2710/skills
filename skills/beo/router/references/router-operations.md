@@ -25,6 +25,7 @@ Conversational phrasing is **not** a valid short-circuit. Requests like "researc
 - [5. Planning-Aware Routing Rules](#5-planning-aware-routing-rules)
 - [6. Resume From Handoff](#6-resume-from-handoff)
 - [7. Doctor Mode](#7-doctor-mode)
+- [8. STATE.md on Handoff](#8-statemd-on-handoff)
 
 ## 1. Workspace Bootstrap
 
@@ -72,6 +73,8 @@ Derive the `feature_slug` from the epic title using `../../reference/references/
 ## 3. Instant Path Scaffold
 
 Use for **instant** work only: single file change, well-scoped, <30 minutes.
+
+> **Ownership exception:** The instant path creates minimal stubs for artifacts that normally belong to `beo-exploring` (CONTEXT.md) and `beo-planning` (approach.md, plan.md, phase-contract.md, story-map.md). This is an intentional shortcut — these stubs are not full-depth artifacts but placeholder scaffolds that let instant work skip directly to validation. If the work outgrows instant scope, the promotion guard below routes to the normal pipeline owners.
 
 ### Create the Task
 
@@ -349,3 +352,16 @@ In addition to graph health, report planning shape when relevant:
 | Closed tasks with open dependencies | **HIGH** | Inconsistent state; investigate |
 | `phase-plan.md` exists but no current-phase artifacts | **MEDIUM** | Route back to planning |
 | Current phase complete but later phases remain | **MEDIUM** | Route back to planning for next phase prep |
+
+## 8. STATE.md on Handoff
+
+After classifying the state and before loading the next skill, write `.beads/STATE.md` using the canonical format from `../../reference/references/state-and-handoff-protocol.md`.
+
+At minimum include:
+- `feature`: epic ID and name
+- `phase`: current skill being routed to
+- `state`: canonical state from the routing table
+- `planning_mode`: `single-phase`, `multi-phase`, or `unknown`
+- `next_action`: the action the next skill should take
+
+This ensures every skill transition has a readable state record, not just handoff-from-checkpoint scenarios.

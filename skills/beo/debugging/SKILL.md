@@ -4,7 +4,10 @@ description: >-
   Use when a bead is blocked or when a build, test, runtime, integration, or
   worker-execution failure needs root-cause analysis. Also use when the user
   asks why something is failing, stuck, flaky, blocked, or repeatedly
-  regressing.
+  regressing. Do not use for planning ambiguity or scope-shaping (use
+  beo-exploring), unrouted or undecomposed work (use beo-router),
+  post-implementation quality checks (use beo-reviewing), or cross-feature
+  learnings consolidation (use beo-dream).
 ---
 
 > **Onboarding gate:** If `.beads/onboarding.json` is missing or stale, stop and load `beo-using-beo` before continuing.
@@ -12,8 +15,6 @@ description: >-
 # Beo Debugging
 
 ## Overview
-
-Load `beo-reference` for knowledge-store protocol (`../reference/references/knowledge-store.md`).
 
 Debugging resolves blockers and failures systematically.
 Use it to classify the problem, reproduce it, isolate root cause, apply the right fix path, and capture the pattern.
@@ -49,15 +50,6 @@ Use `references/debugging-operations.md` for the exact known-pattern check, repr
 Use `references/diagnostic-checklist.md` for the ordered sub-checks.
 Use `references/message-templates.md` when reporting blockers or results to the orchestrator via Agent Mail.
 
-## When NOT to Use
-
-- Planning ambiguity or scope-shaping questions: use `beo-exploring`
-- Work is not failing, just not decomposed or routed clearly: use `beo-router`
-- Post-implementation quality verification: use `beo-reviewing`
-- Cross-feature learnings consolidation: use `beo-dream`
-
----
-
 ## Triage and Diagnosis
 
 The output of triage should be a one-line classification such as `[TYPE] in [component]: [symptom]`.
@@ -88,7 +80,13 @@ For blocker-specific handling, use `references/debugging-operations.md`. Do not 
 
 ---
 
-## Red Flags and Anti-Patterns
+## Context Budget
+
+Use `references/debugging-operations.md` and `../reference/references/state-and-handoff-protocol.md` for canonical checkpoint behavior when context exceeds 65%.
+
+---
+
+## Red Flags & Anti-Patterns
 
 - **Fixing symptoms, not root cause**: If the same error recurs after the fix, root cause was not found. Return to Step 3.
 - **Skipping reproduction**: Diagnosing from the error message alone leads to wrong fixes. Always reproduce first.
@@ -99,11 +97,5 @@ For blocker-specific handling, use `references/debugging-operations.md`. Do not 
 - **Treating blocked work as "someone else's problem"**: Classify and report blockers cleanly instead of ignoring them.
 
 See `references/debugging-operations.md` for the full diagnostic checklist and fix-path details.
-
----
-
-## Context Budget
-
-Use `references/debugging-operations.md` and `../reference/references/state-and-handoff-protocol.md` for canonical checkpoint behavior when context exceeds 65%.
 
 ---

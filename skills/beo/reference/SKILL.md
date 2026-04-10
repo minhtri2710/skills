@@ -37,13 +37,6 @@ Keep high-risk shared concepts centralized here:
 
 Dependent skills should summarize these rules, not fork them.
 
-## When to Load `beo-reference`
-
-Load this skill whenever another beo skill:
-- says to use the canonical rule
-- points to a shared protocol or lookup table
-- needs approval gates, slug safety, handoff format, artifact semantics, or status interpretation
-
 ## Quick Routing Guide
 
 - exact `br` syntax -> `references/br-cli-reference.md`
@@ -59,6 +52,8 @@ Load this skill whenever another beo skill:
 - Obsidian/QMD knowledge store integration -> `references/knowledge-store.md`
 - bead description format and templates -> `references/bead-description-templates.md`
 - learnings search and retrieval workflow -> `references/learnings-read-protocol.md`
+- multi-agent coordination and Agent Mail -> `references/agent-mail-coordination.md`
+- shared communication conventions -> `references/communication-standard.md`
 
 ## Planning-Aware Note
 

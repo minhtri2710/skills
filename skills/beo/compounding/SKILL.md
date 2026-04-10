@@ -13,8 +13,6 @@ description: >-
 
 ## Overview
 
-Load `beo-reference` for knowledge-store protocol (`../reference/references/knowledge-store.md`).
-
 Compounding is the per-feature learnings capture phase after review truly finishes.
 Its job is to turn completed feature work into durable, reusable knowledge without inflating weak observations into institutional rules.
 
@@ -40,7 +38,7 @@ One learnings file per feature. Group related findings within that file instead 
 
 The reviewing skill's Learnings Synthesis specialist **identifies candidate learnings** — patterns, surprises, and reusable insights — but does not write the final learnings file or promote anything. Compounding is where formal capture, triage, dedup, and promotion happen. If the reviewing specialist produced staging notes, use them as input to Phase 2 below rather than re-analyzing from scratch.
 
-## Process
+## Default Compounding Loop
 
 Complete these phases in order. The three-agent analysis (Phase 2) runs in parallel.
 
@@ -91,7 +89,11 @@ Next feature starts with this knowledge available.
 
 ---
 
-## Red Flags
+## Context Budget
+
+If context usage exceeds 65%, load `references/compounding-operations.md` and follow the checkpoint procedure exactly.
+
+## Red Flags & Anti-Patterns
 
 **Do NOT skip compounding because "we're in a hurry."**
 The compound loop only works if it runs every cycle. One skip is fine;
@@ -110,14 +112,6 @@ will fail in production with zero rows affected" is valuable.
 **Do NOT fabricate findings.**
 If the feature ran smoothly with no surprises, write that. A short learnings
 file with 2 genuine entries is better than a long file with invented ones.
-
----
-
-## Context Budget
-
-If context usage exceeds 65%, load `references/compounding-operations.md` and follow the checkpoint procedure exactly.
-
-## Anti-Patterns
 
 - Letting subagents author the final learnings file instead of using them as staging-only analyzers
 - Promoting local, feature-specific notes to `critical-patterns.md` without proving broad reuse value

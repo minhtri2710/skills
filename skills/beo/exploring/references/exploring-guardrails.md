@@ -20,5 +20,5 @@
 | Copying the user's words verbatim as decisions | Users speak loosely | Restate precisely and confirm |
 | Creating tasks during exploring | No tasks until planning | Only the epic bead should exist |
 | Summarizing requests without redaction | Can leak secrets or noisy payloads into durable artifacts | Summarize in your own words and redact sensitive literals |
-| Skipping exploring for non-instant features | Even "simple" features (Quick and above) still have gray areas | At minimum, do a Quick-depth pass. Only **instant** requests (single file, <30 min) skip exploring. |
+| Skipping exploring for non-instant features | Even "simple" features at Quick scope still have gray areas | At minimum, do a Quick-depth pass. Only work classified as **instant-path** by `beo-router` (single file, <30 min) skips exploring. |
 | Running full Standard/Deep exploration on Quick-scope work (`<=2` files, all decisions obvious) | Burns time and context without adding decision clarity | Run the Quick path, resolve the gray areas, then move on |

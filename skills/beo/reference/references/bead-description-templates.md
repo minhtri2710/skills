@@ -1,5 +1,32 @@
 # Bead Description Templates
 
+## Contents
+
+- [Rules](#rules)
+- [Planned Task Bead Template](#planned-task-bead-template)
+- [Story Context](#story-context)
+- [Planning Context](#planning-context)
+- [Decisions](#decisions)
+- [Institutional Learnings](#institutional-learnings)
+- [Objective](#objective)
+- [Files](#files)
+- [Steps](#steps)
+- [Verification](#verification)
+- [Rollback](#rollback)
+- [Reactive Fix Bead Template](#reactive-fix-bead-template)
+- [Objective](#objective-1)
+- [Files](#files-1)
+- [What To Fix](#what-to-fix)
+- [Verification](#verification-1)
+- [Follow-Up Bead Template](#follow-up-bead-template)
+- [External Reference](#external-reference)
+- [Issue](#issue)
+- [Why Follow-Up](#why-follow-up)
+- [Expected Outcome](#expected-outcome)
+- [Files](#files-2)
+- [Suggested Next Steps](#suggested-next-steps)
+- [Verification](#verification-2)
+
 Shared Markdown templates for all bead description types in the Beo workflow. Use these templates as the single source of truth whenever a skill creates or updates bead descriptions.
 
 ## Rules
@@ -82,7 +109,7 @@ If none apply:
 
 ## Reactive Fix Bead Template
 
-Use for beads created by `beo-reviewing`, `beo-debugging`, or instant/reactive repair flows. These beads are exempt from Story Context but still need a complete Markdown spec.
+Use for beads created by `beo-reviewing`, `beo-debugging`, or reactive repair flows (including router instant-path fixes). These beads are exempt from Story Context but still need a complete Markdown spec.
 
 ```markdown
 ## Objective

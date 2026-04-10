@@ -26,18 +26,6 @@ If `phase-plan.md` exists, validation still applies to the **current phase only*
 
 Validation outputs must follow `../reference/references/communication-standard.md`.
 
-## Default Validation Loop
-
-1. confirm current-phase artifacts and task beads exist
-2. retrieve prior learnings and orient to the current phase
-3. run the 8-dimension structural check
-4. inspect graph health and bead quality
-5. run spikes only where yes/no proof would change go / no-go
-6. summarize readiness in human terms
-7. get explicit user approval before execution
-
-Load `references/validation-operations.md` when you need the exact checker flow, graph commands, spike mechanics, approval summary, Quick mode, or handoff procedure.
-
 ## Hard Gates
 
 <HARD-GATE>
@@ -65,6 +53,18 @@ After approval, do not stop at "the current phase is approved." Validation is no
 <HARD-GATE>
 A spike NO result invalidates the current phase plan. Do not proceed to approval.
 </HARD-GATE>
+
+## Default Validation Loop
+
+1. confirm current-phase artifacts and task beads exist
+2. retrieve prior learnings and orient to the current phase
+3. run the 8-dimension structural check
+4. inspect graph health and bead quality
+5. run spikes only where yes/no proof would change go / no-go
+6. summarize readiness in human terms
+7. get explicit user approval before execution
+
+Load `references/validation-operations.md` when you need the exact checker flow, graph commands, spike mechanics, approval summary, Quick mode, or handoff procedure.
 
 ## Prerequisites
 

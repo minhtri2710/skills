@@ -1,4 +1,4 @@
 interface:
   display_name: "Beo Planning"
   short_description: "Research, plan, and decompose into task beads"
-  default_prompt: "Research the codebase, write discovery and approach artifacts, then create the current-phase contract, story map, and task beads."
+  default_prompt: "Use $beo-planning to research the codebase, write discovery and approach artifacts, then create the current-phase contract, story map, and task beads."

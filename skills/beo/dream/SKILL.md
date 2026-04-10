@@ -14,8 +14,6 @@ description: >-
 
 ## Overview
 
-Load `beo-reference` for knowledge-store protocol (`../reference/references/knowledge-store.md`).
-
 Dream performs one manual consolidation pass across accumulated learnings.
 It updates durable learnings in place, keeps the write surface narrow, and promotes only the patterns that still deserve long-term attention.
 
@@ -58,11 +56,18 @@ Load `references/dream-operations.md` for the exact provenance checks, source se
 
 Load `references/dream-operations.md` for process rules and `references/codex-source-policy.md` for source safety constraints.
 
+## Handoff
+
+After the consolidation pass:
+- persist the updated learnings state
+- record `last_dream_consolidated_at` in `dream-run-provenance.md`
+- report what was merged, skipped, or proposed for promotion
+
 ## Context Budget
 
 If context usage exceeds 65%, use `../reference/references/state-and-handoff-protocol.md` for the canonical `HANDOFF.json` and `STATE.md` shapes, then include the current consolidation phase, which learnings files have been processed, and what candidates remain.
 
-## Red Flags
+## Red Flags & Anti-Patterns
 
 - Multiple plausible owners exist but you are about to merge anyway
 - You are about to summarize or write material that still contains secrets, tokens, or user-identifying details
@@ -70,13 +75,6 @@ If context usage exceeds 65%, use `../reference/references/state-and-handoff-pro
 - The consolidation run is drifting into new planning or implementation work instead of learnings maintenance
 
 See `references/consolidation-rubric.md`, `references/codex-source-policy.md`, and `references/pressure-scenarios.md` when classification or source safety is unclear.
-
-## Handoff
-
-After the consolidation pass:
-- persist the updated learnings state
-- record `last_dream_consolidated_at` in `dream-run-provenance.md`
-- report what was merged, skipped, or proposed for promotion
 
 ## References
 

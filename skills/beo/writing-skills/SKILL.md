@@ -53,7 +53,7 @@ Use `references/writing-skills-operations.md` for the exact RED/GREEN/REFACTOR e
 
 Each phase in brief: **RED** confirms failure without the skill using realistic multi-pressure scenarios. **GREEN** writes the minimal skill and reruns those same scenarios. **REFACTOR** closes loopholes without overfitting to specific wording.
 
-## Handoff and Documentation
+## Handoff
 
 After the skill survives RED/GREEN/REFACTOR:
 - run the validation flow from `references/writing-skills-operations.md`

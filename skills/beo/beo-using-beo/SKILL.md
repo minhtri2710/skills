@@ -59,6 +59,7 @@ Do not route directly to downstream beo skills from here.
 
 `beo-using-beo` should stay small and procedural.
 If context usage exceeds 30% during onboarding, stop and check whether the script should be doing more of the work.
+The 30% threshold (vs. the standard 65%) is intentional: this is a bootstrap skill that delegates heavy work to `onboard_beo.mjs`, so high context consumption signals logic leaking out of the script.
 
 ## Red Flags & Anti-Patterns
 

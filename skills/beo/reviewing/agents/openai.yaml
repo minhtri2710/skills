@@ -1,4 +1,4 @@
 interface:
   display_name: "Beo Reviewing"
   short_description: "Multi-specialist review and quality gate"
-  default_prompt: "Run multi-specialist review on the completed feature, classify findings by P1/P2/P3 severity, then run human UAT against locked decisions."
+  default_prompt: "Use $beo-reviewing to run multi-specialist review on the completed feature, classify findings by severity, then run human UAT against locked decisions."

@@ -1,5 +1,23 @@
 # State and Handoff Protocol
 
+## Contents
+
+- [Why This Exists](#why-this-exists)
+- [Core Rule](#core-rule)
+- [Canonical STATE.md Header](#canonical-statemd-header)
+- [Planning-Aware STATE.md Fields](#planning-aware-statemd-fields)
+- [Canonical HANDOFF.json Base Schema](#canonical-handoffjson-base-schema)
+- [Planning-Aware HANDOFF.json Extension Fields](#planning-aware-handoffjson-extension-fields)
+- [Go-Mode Extension](#go-mode-extension)
+- [Optional Artifact Presence Map](#optional-artifact-presence-map)
+- [When To Write HANDOFF.json](#when-to-write-handoffjson)
+- [What To Include In A Checkpoint](#what-to-include-in-a-checkpoint)
+- [Resume Protocol](#resume-protocol)
+- [Cleanup Rule](#cleanup-rule)
+- [Examples](#examples)
+- [Planning-Aware Field Transition Cleanup](#planning-aware-field-transition-cleanup)
+- [Hard Rules](#hard-rules)
+
 Canonical protocol for writing, reading, and cleaning up `.beads/STATE.md` and `.beads/HANDOFF.json`.
 
 ## Why This Exists

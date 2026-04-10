@@ -7,7 +7,7 @@ import {
   writeFile,
 } from 'node:fs/promises'
 
-const VERSION = '1.0.0'
+const VERSION = '1.1.0'
 const MANAGED_START = '<!-- BEO:START -->'
 const MANAGED_END = '<!-- BEO:END -->'
 

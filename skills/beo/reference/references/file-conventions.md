@@ -1,5 +1,16 @@
 # File Conventions
 
+## Contents
+
+- [State Files](#state-files)
+- [Feature Artifact Root](#feature-artifact-root)
+- [Feature Artifacts](#feature-artifacts)
+- [Artifact Semantics](#artifact-semantics)
+- [Planning Mode Interpretation](#planning-mode-interpretation)
+- [Artifact Cleanup on Replanning](#artifact-cleanup-on-replanning)
+- [Pipeline-Level Files](#pipeline-level-files)
+- [Knowledge Store](#knowledge-store)
+
 Canonical locations for all pipeline artifacts and state files.
 
 Every skill in the beo pipeline reads from or writes to these paths.
