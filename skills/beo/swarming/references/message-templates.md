@@ -250,7 +250,7 @@ Workers: continue current bead safely, then report status to this thread.
 
 Resume artifacts:
 - .beads/HANDOFF.json
-- .beads/STATE.md
+- .beads/STATE.json
 - bv --robot-triage --graph-root <EPIC_ID>
 ```
 
@@ -376,7 +376,7 @@ The swarming HANDOFF extends the base schema (first 8 fields) with swarm-specifi
   ],
   "resume_instructions": {
     "priority_next": "Poll epic thread, then inspect the live graph",
-    "read_first": [".beads/STATE.md", ".beads/HANDOFF.json"],
+    "read_first": [".beads/STATE.json", ".beads/HANDOFF.json"],
     "check_mail": true,
     "bead_check": "bv --robot-triage --graph-root <EPIC_ID>",
     "restore_confirmation": "Confirm open/in-progress/blocked counts still match before resuming"

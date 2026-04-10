@@ -7,7 +7,7 @@ Canonical protocol for creating, reading, preserving, and recovering the immutab
 The `feature_slug` is the stable identifier that ties together:
 - the epic bead description
 - `.beads/artifacts/<feature-slug>/`
-- `STATE.md`
+- `STATE.json`
 - `HANDOFF.json`
 - learnings file naming
 
@@ -49,7 +49,7 @@ slug: <feature_slug>
 Use that slug for:
 - `.beads/artifacts/<feature_slug>/...`
 - `feature_name` in `HANDOFF.json` (historical field name; value is still the slug)
-- the `Feature:` field in `STATE.md`
+- the `feature_slug` field in `STATE.json`
 - learnings file slug components where applicable
 
 ## Safe Update Procedure

@@ -62,7 +62,7 @@ See `references/swarming-operations.md` § Swarm Completion for the full complet
 
 ## Context Budget
 
-If context usage exceeds 65%, use `../reference/references/state-and-handoff-protocol.md` for the canonical `STATE.md` and `HANDOFF.json` shapes, then checkpoint active workers, reservations, blockers, and the current planning-aware route state.
+If context usage exceeds 65%, use `../reference/references/state-and-handoff-protocol.md` for the canonical `STATE.json` and `HANDOFF.json` shapes, then checkpoint active workers, reservations, blockers, and the current planning-aware route state.
 
 ---
 

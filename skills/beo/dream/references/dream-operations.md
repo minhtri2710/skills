@@ -62,4 +62,4 @@ Use the approval rules from `../../reference/references/approval-gates.md` for a
 
 ## 6. Context-Budget Checkpoint
 
-If context usage exceeds 65%, use the canonical `STATE.md` and `HANDOFF.json` shapes from `../../reference/references/state-and-handoff-protocol.md`, then include the current consolidation phase, processed files, and remaining candidates.
+If context usage exceeds 65%, use the canonical `STATE.json` and `HANDOFF.json` shapes from `../../reference/references/state-and-handoff-protocol.md`, then include the current consolidation phase, processed files, and remaining candidates.

@@ -6,7 +6,7 @@ Canonical definitions for cross-cutting pipeline protocols. All skills reference
 
 1. [State Routing Table](#state-routing-table)
 2. [HANDOFF.json Schema](#handoffjson-schema)
-3. [STATE.md Schema](#statemd-schema)
+3. [STATE.json Schema](#statejson-schema)
 4. [Label Lifecycle](#label-lifecycle)
 5. [Task Enumeration](#task-enumeration)
 6. [Epic Lifecycle](#epic-lifecycle)
@@ -91,7 +91,13 @@ The validation gate requires `phase-contract.md` AND `story-map.md` for the **cu
 
 ## HANDOFF.json Schema
 
-Use `state-and-handoff-protocol.md` as the canonical source for the base `HANDOFF.json` schema, resume semantics, cleanup rule, and `STATE.md` header requirements.
+Use `state-and-handoff-protocol.md` as the canonical source for the base `HANDOFF.json` schema, resume semantics, cleanup rule, and `STATE.json` header requirements.
+
+---
+
+## STATE.json Schema
+
+Use `state-and-handoff-protocol.md` as the canonical source for the `STATE.json` schema, field definitions, and write semantics.
 
 ---
 
@@ -165,7 +171,7 @@ Every feature gets an immutable `feature_slug` created once by the router and us
 **Rules:**
 - Derived from the epic title at creation time
 - Lowercase, hyphens only, max 40 chars: `auth-token-refresh`, `bead-scope-isolation`
-- Stored in: epic bead description (first line: `slug: <feature_slug>`), HANDOFF.json (`feature_name` field, which carries the slug/path identifier), STATE.md (`Feature` field)
+- Stored in: epic bead description (first line: `slug: <feature_slug>`), HANDOFF.json (`feature_name` field, which carries the slug/path identifier), STATE.json (`feature_slug` field)
 - Used for: `.beads/artifacts/<feature_slug>/` path, HANDOFF resume context, and learnings file slug component
 
 **Canonical derivation:**

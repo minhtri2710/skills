@@ -126,7 +126,7 @@ Even in Quick mode, user approval is still required before any code is written.
 
 ## Handoff
 
-After approval, choose and announce the execution mode, then write `.beads/STATE.md`. See `references/validation-operations.md` Section 8 (Normal Handoff) for the decision rule and state fields.
+After approval, choose and announce the execution mode, then write `.beads/STATE.json`. See `references/validation-operations.md` Section 8 (Normal Handoff) for the decision rule and state fields.
 
 If later phases remain, say so explicitly. Validation approval for the current phase never means the whole feature is approved.
 

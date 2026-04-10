@@ -25,7 +25,7 @@ Conversational phrasing is **not** a valid short-circuit. Requests like "researc
 - [5. Planning-Aware Routing Rules](#5-planning-aware-routing-rules)
 - [6. Resume From Handoff](#6-resume-from-handoff)
 - [7. Doctor Mode](#7-doctor-mode)
-- [8. STATE.md on Handoff](#8-statemd-on-handoff)
+- [8. STATE.json on Handoff](#8-statejson-on-handoff)
 
 ## 1. Workspace Bootstrap
 
@@ -314,7 +314,7 @@ If `mode = "go"`, resume within go-mode rather than normal routing. Preserve the
 
 ### Clean Up Only After Fresh Checkpoint
 
-After the resumed skill writes a fresh `STATE.md`, clean up `HANDOFF.json` according to `../../reference/references/state-and-handoff-protocol.md`.
+After the resumed skill writes a fresh `STATE.json`, clean up `HANDOFF.json` according to `../../reference/references/state-and-handoff-protocol.md`.
 
 ## 7. Doctor Mode
 
@@ -353,15 +353,22 @@ In addition to graph health, report planning shape when relevant:
 | `phase-plan.md` exists but no current-phase artifacts | **MEDIUM** | Route back to planning |
 | Current phase complete but later phases remain | **MEDIUM** | Route back to planning for next phase prep |
 
-## 8. STATE.md on Handoff
+## 8. STATE.json on Handoff
 
-After classifying the state and before loading the next skill, write `.beads/STATE.md` using the canonical format from `../../reference/references/state-and-handoff-protocol.md`.
+After classifying the state and before loading the next skill, write `.beads/STATE.json` using the canonical format from `../../reference/references/state-and-handoff-protocol.md`.
 
-At minimum include:
-- `feature`: epic ID and name
+Include all 12 canonical fields:
+- `schema_version`: always `1`
+- `feature`: epic ID
+- `feature_slug`: the immutable feature slug
 - `phase`: current skill being routed to
-- `state`: canonical state from the routing table
+- `status`: canonical state from the routing table
+- `tasks`: summary of current task status
+- `next`: the next skill to load
 - `planning_mode`: `single-phase`, `multi-phase`, or `unknown`
-- `next_action`: the action the next skill should take
+- `has_phase_plan`: `true` if `phase-plan.md` exists, otherwise `false`
+- `current_phase`: current phase number (use `1` for single-phase)
+- `total_phases`: total phase count (use `1` for single-phase)
+- `phase_name`: human-readable current phase name
 
 This ensures every skill transition has a readable state record, not just handoff-from-checkpoint scenarios.

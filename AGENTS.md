@@ -98,7 +98,7 @@ skills/
         writing-skills-operations.md
         creation-log-template.md
         pressure-test-template.md
-    beo-using-beo/               # Onboarding bootstrap gate
+    using-beo/                   # Onboarding bootstrap gate
       SKILL.md
       agents/openai.yaml
       assets/
@@ -128,7 +128,6 @@ skills/
 
 Every skill directory also contains an `evals/` subdirectory for evaluation data.
 The `*-workspace/` directories under `skills/beo/` are generated audit artifacts, not skill source.
-The `beo-using-beo/` directory retains the full skill name (unlike other skill directories that use short names) because its name without the prefix (`using-beo`) would be ambiguous.
 
 ## Skill Workflow (Pipeline)
 

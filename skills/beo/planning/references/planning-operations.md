@@ -455,24 +455,32 @@ Keep the description concise. Do not paste full artifact contents into the epic 
 
 ## 13. State Update and Handoff Rules
 
-After planning artifacts are written, tasks are created, and dependencies are wired, write `.beads/STATE.md` using the canonical header from:
+After planning artifacts are written, tasks are created, and dependencies are wired, write `.beads/STATE.json` using the canonical schema from:
 
 ```text
 ../../reference/references/state-and-handoff-protocol.md
 ```
 
-Then append planning-specific fields.
+Include these planning-specific fields.
 
 ### Minimum planning state fields
 
-- Phase: `planning → complete`
-- Feature: `<epic-id> (<feature_slug>)`
-- Planning mode: `single-phase | multi-phase`
-- Has phase plan: `true | false`
-- Current phase: `<number or 1>`
-- Total phases: `<number or unknown>`
-- Phase name: `<name or feature summary>`
-- Next: `beo-validating`
+```json
+{
+  "schema_version": 1,
+  "phase": "planning",
+  "status": "complete",
+  "feature": "<epic-id>",
+  "feature_slug": "<feature_slug>",
+  "tasks": "<summary>",
+  "next": "beo-validating",
+  "planning_mode": "single-phase | multi-phase",
+  "has_phase_plan": false,
+  "current_phase": 1,
+  "total_phases": 1,
+  "phase_name": "<name or feature summary>"
+}
+```
 
 ### Handoff rules
 
@@ -544,7 +552,7 @@ rm .beads/artifacts/<feature_slug>/phase-contract.md
 rm .beads/artifacts/<feature_slug>/story-map.md
 ```
 
-Then rewrite planning-aware state fields in `STATE.md` and `HANDOFF.json`:
+Then rewrite planning-aware state fields in `STATE.json` and `HANDOFF.json`:
 
 - `planning_mode: single-phase`
 - `has_phase_plan: false`
@@ -576,7 +584,7 @@ Regenerate `phase-contract.md` and `story-map.md` for the new single-phase scope
 - **Delete, do not invalidate.** Stale `phase-plan.md` must be deleted, not marked invalid.
 - **`phase_name` must be refreshed.** Do not leave a stale phase name from a prior cycle.
 - **Prior approval is always invalidated** when the phase structure or execution scope changes.
-- **`STATE.md` and `HANDOFF.json` must be refreshed** before any handoff after replanning.
+- **`STATE.json` and `HANDOFF.json` must be refreshed** before any handoff after replanning.
 
 ## 15. Context-Budget Checkpointing
 

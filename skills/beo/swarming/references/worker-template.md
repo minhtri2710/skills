@@ -82,7 +82,7 @@ Load the `beo-executing` skill immediately. It defines your worker loop.
 You are a self-routing worker.
 
 Normal loop:
-1. Read AGENTS.md, STATE.md, and CONTEXT.md
+1. Read AGENTS.md, STATE.json, and CONTEXT.md
 2. Run the scheduling cascade: `bv --robot-plan --graph-root <EPIC_ID> --format json 2>/dev/null || bv --robot-next --format json 2>/dev/null || br ready --json`
 3. Pick the top executable bead that is not blocked by dependencies or file reservations
 4. Reserve files with `file_reservation_paths(project_key, agent_name, paths=[...], ttl_seconds=3600, exclusive=true, reason="Working bead <BEAD_ID>")`

@@ -29,7 +29,7 @@ If the epic does not have the `approved` label, stop and route to `beo-validatin
 
 Also confirm planning-aware scope when relevant:
 
-- read `.beads/STATE.md` if present
+- read `.beads/STATE.json` if present
 - read `phase-plan.md` if present
 - treat `phase-contract.md` and `story-map.md` as the **current phase** artifacts
 - do not assume current-phase execution implies whole-feature completion when `planning_mode = multi-phase`
@@ -323,20 +323,23 @@ Report completion to the orchestrator via Agent Mail and stop.
 
 #### Single-Worker Mode
 
-Update `.beads/STATE.md`:
+Update `.beads/STATE.json`:
 
-```markdown
-# Beo State
-- Phase: executing → complete
-- Feature: <epic-id> (<feature_slug>)
-- Tasks: <total> completed, <blocked> blocked, <failed> failed
-- Next: <beo-reviewing | beo-planning>
-
-- Planning mode: <single-phase | multi-phase>
-- Has phase plan: <true | false>
-- Current phase: <number>
-- Total phases: <number | unknown>
-- Phase name: <name>
+```json
+{
+  "schema_version": 1,
+  "phase": "executing",
+  "status": "complete",
+  "feature": "<epic-id>",
+  "feature_slug": "<feature_slug>",
+  "tasks": "<total> completed, <blocked> blocked, <failed> failed",
+  "next": "<beo-reviewing | beo-planning>",
+  "planning_mode": "<single-phase | multi-phase>",
+  "has_phase_plan": false,
+  "current_phase": 1,
+  "total_phases": 1,
+  "phase_name": "<name>"
+}
 ```
 
 Routing rule:

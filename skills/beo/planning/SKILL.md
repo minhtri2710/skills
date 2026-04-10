@@ -134,7 +134,7 @@ For HIGH-stakes work — core architecture, auth, data model changes, large blas
 
 After current-phase artifacts are written and beads are verified:
 
-1. write `.beads/STATE.md` using `../reference/references/state-and-handoff-protocol.md`
+1. write `.beads/STATE.json` using `../reference/references/state-and-handoff-protocol.md`
 2. include planning-aware fields (`planning_mode`, `has_phase_plan`, `current_phase`, `total_phases`, `phase_name`) when known
 3. announce handoff to `beo-validating`
 
@@ -151,7 +151,7 @@ Use `references/planning-operations.md` section 14 for the exact cleanup sequenc
 
 ## Context Budget
 
-If context usage exceeds 65%, use `../reference/references/state-and-handoff-protocol.md` for the canonical `STATE.md` / `HANDOFF.json` shapes, then checkpoint:
+If context usage exceeds 65%, use `../reference/references/state-and-handoff-protocol.md` for the canonical `STATE.json` / `HANDOFF.json` shapes, then checkpoint:
 - planning mode
 - current-phase selection
 - artifact completeness

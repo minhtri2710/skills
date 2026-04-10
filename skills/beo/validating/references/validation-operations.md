@@ -53,7 +53,7 @@ Before running the structural check, orient the validator.
 
 Read, when available:
 
-- `.beads/STATE.md`
+- `.beads/STATE.json`
 - `approach.md`
 - `phase-plan.md`
 - `phase-contract.md`
@@ -351,7 +351,7 @@ Next skill: beo-swarming
 
 If the user approved but the summary still lacks `Next skill: ...`, validation handoff is incomplete and must be corrected before stopping.
 
-Update `.beads/STATE.md` with:
+Update `.beads/STATE.json` with:
 - validated task count
 - planning mode
 - current phase

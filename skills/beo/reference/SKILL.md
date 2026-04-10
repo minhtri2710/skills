@@ -42,7 +42,7 @@ Dependent skills should summarize these rules, not fork them.
 - exact `br` syntax -> `references/br-cli-reference.md`
 - exact `bv` syntax -> `references/bv-cli-reference.md`
 - approval behavior -> `references/approval-gates.md`
-- `STATE.md` / `HANDOFF.json` shape -> `references/state-and-handoff-protocol.md`
+- `STATE.json` / `HANDOFF.json` shape -> `references/state-and-handoff-protocol.md`
 - task or epic status interpretation -> `references/status-mapping.md`
 - artifact storage or read/write protocol -> `references/artifact-protocol.md`
 - slug preservation and artifact path safety -> `references/slug-protocol.md`

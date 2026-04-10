@@ -1,6 +1,6 @@
 # beo
 
-Twelve AI agent skills for structured, plan-first feature development. Uses [`br`](https://github.com/Dicklesworthstone/beads_rust) (beads_rust) for issue tracking and [`bv`](https://github.com/Dicklesworthstone/beads_viewer) (Beads Viewer) for graph analytics. Pure Markdown skill definitions -- no application code.
+Thirteen AI agent skills for structured, plan-first feature development. Uses [`br`](https://github.com/Dicklesworthstone/beads_rust) (beads_rust) for issue tracking and [`bv`](https://github.com/Dicklesworthstone/beads_viewer) (Beads Viewer) for graph analytics. Pure Markdown skill definitions -- no application code.
 
 ---
 
@@ -8,12 +8,13 @@ Twelve AI agent skills for structured, plan-first feature development. Uses [`br
 
 ```mermaid
 flowchart LR
-    router[beo-router] --> exploring[beo-exploring]
+    bootstrap[beo-using-beo] -.->|onboarding gate| router[beo-router]
+    router --> exploring[beo-exploring]
     exploring --> planning[beo-planning]
     planning --> validating[beo-validating]
 
     validating -->|approve current phase| swarming[beo-swarming]
-    validating -->|small / direct execution| executing[beo-executing]
+    validating -->|single worker| executing[beo-executing]
     swarming --> executing
 
     executing -->|final execution scope complete| reviewing[beo-reviewing]
@@ -42,6 +43,8 @@ flowchart LR
 
 **Support skills** (invoked on demand): `beo-debugging` (root-cause analysis), `beo-dream` (periodic learnings consolidation), `beo-writing-skills` (TDD for new skills).
 
+**Bootstrap**: `beo-using-beo` -- onboarding gate that ensures `.beads/` structure and managed `AGENTS.md` block exist before any other skill proceeds.
+
 **Shared reference**: `beo-reference` -- canonical CLI refs, status mapping, approval gates, artifact protocol.
 
 ---
@@ -63,7 +66,7 @@ The host environment needs shell execution, filesystem access, and skill/instruc
 ## Installation
 
 ```bash
-npx skills add https://github.com/minhtri2710/skills
+npx skills add https://github.com/minhtri2710/skills/tree/main/skills/beo
 ```
 
 Verify: `br --version` (0.1.28+), `bv --version` (0.15.2+).

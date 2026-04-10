@@ -11,7 +11,7 @@ If you detect that context has been compacted (prior conversation is summarized)
    - `.beads/artifacts/<feature_slug>/plan.md`
    - `.beads/artifacts/<feature_slug>/phase-contract.md`
    - `.beads/artifacts/<feature_slug>/story-map.md`
-   - `.beads/STATE.md` (if present)
+   - `.beads/STATE.json` (if present)
    - `.beads/HANDOFF.json` (if present)
 2. Re-read current task state:
    ```bash

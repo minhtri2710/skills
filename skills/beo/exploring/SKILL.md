@@ -149,7 +149,7 @@ Allow at most one retry iteration. If the draft still fails after that retry, fl
 
 When exploring is complete:
 1. write `CONTEXT.md`
-2. update `.beads/STATE.md`
+2. update `.beads/STATE.json`
 3. report how many decisions were locked and what remains out of scope
 4. hand off to `beo-planning`
 
@@ -158,7 +158,7 @@ Its deliverable is decision clarity.
 
 ## Context Budget
 
-If context usage exceeds 65%, use `../reference/references/state-and-handoff-protocol.md` for canonical `STATE.md` and `HANDOFF.json`, then include exploring-specific fields such as locked decisions and open questions before pausing.
+If context usage exceeds 65%, use `../reference/references/state-and-handoff-protocol.md` for canonical `STATE.json` and `HANDOFF.json`, then include exploring-specific fields such as locked decisions and open questions before pausing.
 
 ## Red Flags & Anti-Patterns
 

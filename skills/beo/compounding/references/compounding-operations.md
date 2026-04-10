@@ -24,7 +24,7 @@ Collect all available artifacts from the completed feature. Read these if presen
 .beads/artifacts/<feature_slug>/story-map.md
 .beads/review-findings.md
 .beads/artifacts/<feature_slug>/debug-notes.md
-.beads/STATE.md or HANDOFF artifacts
+.beads/STATE.json or HANDOFF artifacts
 .beads/ or `br show` output
 ```
 
@@ -165,18 +165,28 @@ If any bead is still open, stop and report the inconsistency to the user. Do not
 
 ### Normal Completion
 
-Update `.beads/STATE.md`:
+Update `.beads/STATE.json`:
 
-```markdown
-# Beo State
-- Phase: compounding → complete
-- Feature: <epic-id> (<feature_slug>)
-- Tasks: N/A (post-execution skill)
-- Next: done (feature pipeline complete)
-
-Learnings file: .beads/learnings/YYYYMMDD-<slug>.md
-Critical promotions: N (or 0)
+```json
+{
+  "schema_version": 1,
+  "phase": "compounding",
+  "status": "complete",
+  "feature": "<epic-id>",
+  "feature_slug": "<feature_slug>",
+  "tasks": "N/A (post-execution skill)",
+  "next": "done",
+  "planning_mode": "single-phase",
+  "has_phase_plan": false,
+  "current_phase": 1,
+  "total_phases": 1,
+  "phase_name": "<current phase name>"
+}
 ```
+
+Also record alongside the state file:
+- Learnings file: `.beads/learnings/YYYYMMDD-<slug>.md`
+- Critical promotions: N (or 0)
 
 Then flush bead state:
 
@@ -186,7 +196,7 @@ br sync --flush-only
 
 ### Context-Budget Checkpoint
 
-If context usage exceeds 65%, use the canonical shapes from `../../reference/references/state-and-handoff-protocol.md` for `HANDOFF.json` and `STATE.md`, then include:
+If context usage exceeds 65%, use the canonical shapes from `../../reference/references/state-and-handoff-protocol.md` for `HANDOFF.json` and `STATE.json`, then include:
 - current phase
 - which analysis agents have completed
 - what remains to synthesize or promote

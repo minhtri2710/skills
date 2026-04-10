@@ -21,14 +21,14 @@ Prerequisites:
 If Agent Mail is unavailable, degrade to single-worker mode and route to `beo-executing`.
 
 Also verify planning-aware scope:
-- read `.beads/STATE.md` when present
+- read `.beads/STATE.json` when present
 - read `phase-plan.md` when present
 - confirm the swarm will execute the **current phase** only
 
 ### Readiness Steps
 
-1. get `EPIC_ID` from `.beads/STATE.md` or user input
-2. read `.beads/STATE.md` and current-phase artifacts if scope is unclear
+1. get `EPIC_ID` from `.beads/STATE.json` or user input
+2. read `.beads/STATE.json` and current-phase artifacts if scope is unclear
 3. inspect the live graph:
 
 ```bash
@@ -36,7 +36,7 @@ bv --robot-triage --graph-root <EPIC_ID> --format json
 ```
 
 4. verify executable work exists, dependencies are acyclic, and no unresolved validation blockers remain
-5. update `.beads/STATE.md` with current swarm intent and epic ID
+5. update `.beads/STATE.json` with current swarm intent and epic ID
 6. claim the epic if not already in progress:
 
 ```bash
@@ -137,7 +137,7 @@ Recovery ladder:
 - after 3 cycles, send `[STATUS CHECK]`
 - after 5 cycles, escalate to the user and consider respawn
 
-Mark active workers in `.beads/STATE.md`.
+Mark active workers in `.beads/STATE.json`.
 
 ## 4. Monitor and Tend
 
@@ -207,7 +207,7 @@ bv --robot-triage --graph-root <EPIC_ID> --format json
    - choose the next route:
      - `beo-reviewing` if this was the final execution scope
      - remove `approved` label first (`br label remove <EPIC_ID> -l approved`), then `beo-planning` if `planning_mode = multi-phase` and later phases remain
-   - update `.beads/STATE.md` with phase complete and next skill
+   - update `.beads/STATE.json` with phase complete and next skill
    - clear active workers
 4. send the completion message on Agent Mail using `message-templates.md`
 

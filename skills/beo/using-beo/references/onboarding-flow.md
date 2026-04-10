@@ -20,7 +20,7 @@ Onboarding manages:
 - `.beads/artifacts/`
 - `.beads/learnings/`
 - `.beads/beo_status.mjs`
-- `.beads/STATE.md`
+- `.beads/STATE.json`
 - `.beads/critical-patterns.md`
 - `.beads/onboarding.json`
 
@@ -35,7 +35,7 @@ Onboarding manages:
     "update_beo_managed_block",
     "create_.beads/onboarding.json",
     "create_.beads/beo_status.mjs",
-    "create_.beads/STATE.md",
+    "create_.beads/STATE.json",
     "create_.beads/critical-patterns.md",
     "create_.beads/artifacts/",
     "create_.beads/learnings/"
@@ -46,7 +46,7 @@ Onboarding manages:
     "onboarding_json_exists": false,
     "onboarding_version_match": false,
     "status_script_exists": false,
-    "state_md_exists": false,
+    "state_json_exists": false,
     "critical_patterns_exists": false,
     "artifacts_dir_exists": false,
     "learnings_dir_exists": false
@@ -66,7 +66,7 @@ When onboarding is needed, apply in this order:
 3. Create `.beads/artifacts/` if missing
 4. Create `.beads/learnings/` if missing
 5. Write `.beads/beo_status.mjs`
-6. Write `.beads/STATE.md` defaults if missing
+6. Write `.beads/STATE.json` defaults if missing
 7. Write `.beads/critical-patterns.md` defaults if missing
 8. Write `.beads/onboarding.json`
 
@@ -82,7 +82,7 @@ When onboarding is needed, apply in this order:
   "managed_assets": {
     "agents_mode": "created_from_template" | "updated_managed_block" | "appended_managed_block",
     "status_script": ".beads/beo_status.mjs",
-    "state_md": ".beads/STATE.md",
+    "state_json": ".beads/STATE.json",
     "critical_patterns": ".beads/critical-patterns.md"
   }
 }

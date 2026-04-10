@@ -88,4 +88,4 @@ For non-code blockers:
 
 ## 7. Context-Budget Checkpoint
 
-If context usage exceeds 65%, use the canonical `STATE.md` and `HANDOFF.json` shapes from `../../reference/references/state-and-handoff-protocol.md`, then include the current debugging step, root-cause hypothesis, and affected task IDs.
+If context usage exceeds 65%, use the canonical `STATE.json` and `HANDOFF.json` shapes from `../../reference/references/state-and-handoff-protocol.md`, then include the current debugging step, root-cause hypothesis, and affected task IDs.

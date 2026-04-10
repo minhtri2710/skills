@@ -59,4 +59,4 @@ Then create `CREATION-LOG.md` using `creation-log-template.md`.
 
 ## 5. Context-Budget Checkpoint
 
-If context usage exceeds 65%, use the canonical `STATE.md` and `HANDOFF.json` shapes from `../../reference/references/state-and-handoff-protocol.md`, then include the current phase, completed pressure tests, and remaining scenarios.
+If context usage exceeds 65%, use the canonical `STATE.json` and `HANDOFF.json` shapes from `../../reference/references/state-and-handoff-protocol.md`, then include the current phase, completed pressure tests, and remaining scenarios.

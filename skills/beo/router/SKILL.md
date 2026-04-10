@@ -122,7 +122,7 @@ If a checkpoint or resume artifact exists, preserve the planning-aware state whi
 ## Context Budget
 
 If context usage exceeds 65%, checkpoint using `../reference/references/state-and-handoff-protocol.md`.
-Include the current state, selected route, planning-aware fields when known, and any resume detail needed to continue safely.
+Include the current STATE.json, selected route, planning-aware fields when known, and any resume detail needed to continue safely.
 
 ## Red Flags & Anti-Patterns
 

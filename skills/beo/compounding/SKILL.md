@@ -70,9 +70,9 @@ See `references/compounding-operations.md` § Triage Tags for the severity scale
 
 For every `severity: critical` learning, load `references/compounding-operations.md` for the exact promotion criteria, approval gate, append format, and post-promotion refresh flow.
 
-### Phase 5: Update STATE.md
+### Phase 5: Update STATE.json
 
-Load `references/compounding-operations.md` for the canonical `STATE.md` completion shape, flush step, and checkpoint rules.
+Load `references/compounding-operations.md` for the canonical `STATE.json` completion shape, flush step, and checkpoint rules.
 
 ---
 

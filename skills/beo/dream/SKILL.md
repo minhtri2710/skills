@@ -65,7 +65,7 @@ After the consolidation pass:
 
 ## Context Budget
 
-If context usage exceeds 65%, use `../reference/references/state-and-handoff-protocol.md` for the canonical `HANDOFF.json` and `STATE.md` shapes, then include the current consolidation phase, which learnings files have been processed, and what candidates remain.
+If context usage exceeds 65%, use `../reference/references/state-and-handoff-protocol.md` for the canonical `HANDOFF.json` and `STATE.json` shapes, then include the current consolidation phase, which learnings files have been processed, and what candidates remain.
 
 ## Red Flags & Anti-Patterns
 
