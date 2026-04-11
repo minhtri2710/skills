@@ -2,7 +2,7 @@
 
 Shared protocol for reading and writing project learnings. Used by `beo-compounding`, `beo-debugging`, `beo-dream`, `beo-exploring`, `beo-planning`, and `beo-router`.
 
-**Preference order:** `.beads/learnings/` and `.beads/critical-patterns.md` are the canonical durable surfaces. Use Obsidian CLI and QMD as optional indexing and mirroring layers when available.
+**Preference order:** `.beads/learnings/` and `.beads/critical-patterns.md` are the canonical durable write surfaces. For reading, **prefer Obsidian CLI and QMD when available** — fall back to flat-file search only when those tools are unavailable.
 
 ## Table of Contents
 
@@ -23,7 +23,7 @@ obsidian help 2>/dev/null   # Check Obsidian CLI availability
 qmd status 2>/dev/null      # Check QMD search availability
 ```
 
-Both tools are optional enhancements. Flat-file operations under `.beads/` are the canonical path. Skills must work fully without Obsidian CLI or QMD.
+Both tools are optional enhancements for the write side. For the read side, they are the preferred path — flat-file operations under `.beads/` are the fallback when neither is available.
 
 ## Write Protocol
 
@@ -45,7 +45,7 @@ When `obsidian` CLI is available and mirroring is desired, copy the learning to 
 obsidian create path="beo-learnings/YYYYMMDD-<slug>.md" content="<content>" silent 2>/dev/null
 ```
 
-Always use the `silent` flag to avoid interactive prompts. The vault copy is a convenience mirror; `.beads/learnings/` remains authoritative.
+Always use the `silent` flag to avoid interactive prompts. The vault copy is a convenience mirror; `.beads/learnings/` remains the canonical write surface.
 
 ### Critical Patterns
 
@@ -60,7 +60,7 @@ obsidian append "beo-learnings/critical-patterns.md" --content "<pattern>" --sil
 
 ## Read Protocol
 
-Use `learnings-read-protocol.md` as the canonical read-side workflow: flat-file reads first, with optional QMD/Obsidian enhancement.
+Use `learnings-read-protocol.md` as the canonical read-side workflow: **QMD and Obsidian first, flat-file fallback only when unavailable.**
 
 ### Optional Enhancement: Obsidian Vault Search
 
@@ -126,9 +126,10 @@ This is safe to call even when QMD is unavailable (the `2>/dev/null` suppresses 
 
 ## Graceful Degradation Summary
 
-| Capability | Canonical path | Optional enhancement |
-|-----------|----------------|----------------------|
-| **Write learnings** | Write to `.beads/learnings/` using file writing tool | Mirror to Obsidian vault via `obsidian create/append` |
-| **Read learnings** | Read `.beads/learnings/` and `.beads/critical-patterns.md` using file reading and content search tools | `qmd query/search` over indexed learnings, plus vault search |
-| **Critical patterns** | Append to `.beads/critical-patterns.md` using file editing tool | Mirror to Obsidian vault, plus QMD-backed retrieval |
-| **Dedup check** | Search `.beads/learnings/` for `<title>` using content search tool | `qmd query "<title>"` |
+| Capability | Canonical write path | Preferred read path | Fallback read path |
+|-----------|---------------------|--------------------|--------------------|
+| **Write learnings** | Write to `.beads/learnings/` using file writing tool | N/A (always write to canonical) | N/A |
+| **Mirror learnings** | N/A | N/A | Mirror to Obsidian vault via `obsidian create/append` |
+| **Read learnings** | N/A | `qmd query/search` + Obsidian vault search | Read `.beads/learnings/` using file reading and content search tools |
+| **Critical patterns** | Append to `.beads/critical-patterns.md` | Same file (always read directly) | Same file |
+| **Dedup check** | N/A | `qmd query "<title>"` | Search `.beads/learnings/` for `<title>` using content search tool |

@@ -5,8 +5,7 @@ Canonical protocol for reading prior learnings and critical patterns before plan
 ## Why This Exists
 
 Many beo skills need the same behavior:
-- query indexed learnings with QMD
-- inspect Obsidian-backed learnings when available
+- query indexed learnings with QMD and Obsidian when available
 - read `.beads/critical-patterns.md`
 - fall back to flat-file search only when richer tools are unavailable
 
@@ -22,18 +21,22 @@ Read `.beads/critical-patterns.md` with your file reading tool (skip if absent).
 
 If present, treat relevant entries as mandatory context.
 
-### 2. Search Flat-File Learnings
+### 2. Query Indexed Learnings (Preferred Path)
 
-Use your content search tool to search `.beads/learnings/` for `<keyword or domain phrase>`.
-
-### 3. Optional Enhancement: Query Indexed Learnings With QMD
-
-If QMD is available, supplement flat-file results with semantic search:
+If QMD is available, use semantic search as the primary retrieval method:
 
 ```bash
 qmd query "<feature description or learning topic>" --json 2>/dev/null
 qmd search "<keyword>" --json 2>/dev/null
 ```
+
+If the Obsidian vault contains additional learnings not yet indexed by QMD, supplement with vault search (see `knowledge-store.md` § Optional Enhancement: Obsidian Vault Search).
+
+### 3. Flat-File Fallback
+
+If QMD is unavailable or returns no results, fall back to flat-file search:
+
+Use your content search tool to search `.beads/learnings/` for `<keyword or domain phrase>`.
 
 ### 4. Apply What Matters
 
@@ -44,13 +47,12 @@ If a prior learning is relevant:
 
 ## Tool Availability
 
-If you need to detect optional tooling first, see `knowledge-store.md`.
+If you need to detect optional tooling first, see `knowledge-store.md` § Tool Detection.
 
 ## Hard Rules
 
-- `.beads/learnings/` and `.beads/critical-patterns.md` are the authoritative read surfaces.
-- QMD and Obsidian-backed learnings are optional enhancements, not requirements.
-- Critical patterns must always be checked, even when QMD returns results.
-- Use QMD/Obsidian reads as supplementary context, not as the primary path.
+- `.beads/learnings/` and `.beads/critical-patterns.md` remain the authoritative write surfaces.
+- **QMD and Obsidian are the preferred read path** when available; flat-file search is the fallback.
+- Critical patterns must always be checked (Step 1), even when QMD returns results.
 - If a learning is relevant, incorporate it explicitly rather than silently noting it.
 - Do not skip prior learnings for "obvious" work; that is how repeat failures happen.
