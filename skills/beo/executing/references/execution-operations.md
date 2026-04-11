@@ -25,7 +25,11 @@ br show <EPIC_ID> --json
 br dep list <EPIC_ID> --direction up --type parent-child --json
 ```
 
-If the epic does not have the `approved` label, stop and route to `beo-validating`.
+If the epic does not have the `approved` label, do not treat planning artifacts as implicit approval.
+First verify the label was not accidentally removed or the wrong epic was selected.
+If approval is genuinely missing:
+- if current-phase tasks have already advanced, treat approval as invalidated and route to `beo-planning`
+- otherwise route to `beo-validating`
 
 Also confirm planning-aware scope when relevant:
 
@@ -75,6 +79,7 @@ All blocking tasks must be closed.
 ```bash
 br label remove <TASK_ID> -l blocked 2>/dev/null
 br label remove <TASK_ID> -l failed 2>/dev/null
+br label remove <TASK_ID> -l in_progress 2>/dev/null
 br label remove <TASK_ID> -l partial 2>/dev/null
 br label remove <TASK_ID> -l cancelled 2>/dev/null
 br label remove <TASK_ID> -l dispatch_prepared 2>/dev/null

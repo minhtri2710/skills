@@ -44,4 +44,4 @@ br update <TASK_ID> -s open
 br update <TASK_ID> --description "<updated Markdown spec with user's decision>"
 ```
 
-Then loop back to Phase 1 to re-schedule.
+Then loop back to task selection to re-schedule.

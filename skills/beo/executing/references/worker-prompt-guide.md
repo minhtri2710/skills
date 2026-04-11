@@ -1,6 +1,6 @@
 # Worker Prompt Guide
 
-Template, data gathering, and budget rules for Phase 3 (Worker Prompt Assembly) of `beo-executing`.
+Template, data gathering, and budget rules for the Worker Prompt Assembly step of `beo-executing`.
 
 ## Prompt Template
 

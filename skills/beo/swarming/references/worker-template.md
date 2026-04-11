@@ -147,10 +147,10 @@ You are a worker subagent in the beo swarm.
 ## Agent Mail Setup
 1. Project key: /home/user/projects/myapp
 2. On startup:
-    startup = macro_start_session(human_key="/home/user/projects/myapp", model="<MODEL>", program="<RUNTIME_PROGRAM>", task_description="beo worker execution", agent_name="BlueLake")
+    startup = macro_start_session(human_key="/home/user/projects/myapp", model="claude-opus-4", program="opencode", task_description="beo worker execution", agent_name="BlueLake")
 3. Canonical Agent Mail identity:
     resolved_agent_mail_name = startup.agent.name
-4. Post startup acknowledgment with `Nickname: BlueLake | Agent Mail: <RESOLVED_AGENT_MAIL_NAME>` in the body and `sender_name=resolved_agent_mail_name`
+4. Post startup acknowledgment with `Nickname: BlueLake | Agent Mail: AgileEagle` in the body and `sender_name=resolved_agent_mail_name`
 
 ## Skill To Load
 Load the `beo-executing` skill immediately.

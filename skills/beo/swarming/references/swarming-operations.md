@@ -46,10 +46,7 @@ br update <EPIC_ID> --claim
 ### Scheduling Cascade
 
 ```bash
-bv --robot-plan --graph-root <EPIC_ID> --format json 2>/dev/null
-|| bv --robot-next --format json 2>/dev/null
-|| br ready --json 2>/dev/null
-|| br list --status open --json
+bv --robot-plan --graph-root <EPIC_ID> --format json 2>/dev/null || bv --robot-next --format json 2>/dev/null || br ready --json
 ```
 
 Use the highest-available tier. Do not invent separate runtime planning artifacts.
@@ -207,9 +204,10 @@ bv --robot-triage --graph-root <EPIC_ID> --format json
    - choose the next route:
      - `beo-reviewing` if this was the final execution scope
      - remove `approved` label first (`br label remove <EPIC_ID> -l approved`), then `beo-planning` if `planning_mode = multi-phase` and later phases remain
-   - update `.beads/STATE.json` with phase complete and next skill
+   - update `.beads/STATE.json`: set `"status"` to `"phase-complete-needs-replan"` when later phases remain, or `"completed"` when this was the final scope; set `"next"` to the chosen route
    - clear active workers
-4. send the completion message on Agent Mail using `message-templates.md`
+4. run `br sync --flush-only` to export mutations to JSONL before committing to git
+5. send the completion message on Agent Mail using `message-templates.md`
 
 ## 6. Context-Budget Checkpoint
 

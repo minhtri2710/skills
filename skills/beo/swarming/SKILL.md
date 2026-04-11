@@ -7,7 +7,9 @@ description: >-
   pool, or running approved current-phase work at scale.
 ---
 
-> **Onboarding gate:** If `.beads/onboarding.json` is missing or stale, stop and load `beo-using-beo` before continuing.
+<HARD-GATE>
+If `.beads/onboarding.json` is missing or stale, stop and load `beo-using-beo` before continuing.
+</HARD-GATE>
 
 # Beo Swarming
 
@@ -26,6 +28,15 @@ If you are editing source code, stop immediately and route that work to `beo-exe
 
 <HARD-GATE>
 If Agent Mail is unavailable, do NOT attempt swarming. Degrade to `beo-executing`.
+</HARD-GATE>
+
+
+<HARD-GATE>
+If the epic does not have the `approved` label, do not treat planning artifacts as implicit approval.
+First verify the label was not accidentally removed or the wrong epic was selected.
+If approval is genuinely missing, do not execute:
+- if current-phase tasks have already advanced, treat approval as invalidated and route to `beo-planning`
+- otherwise route to `beo-validating`
 </HARD-GATE>
 
 ## Role Boundary
