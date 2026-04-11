@@ -56,7 +56,7 @@ Load `references/dream-operations.md` for the exact provenance checks, source se
 
 ## Process Rules
 
-Load `references/dream-operations.md` for process rules and `references/codex-source-policy.md` for source safety constraints.
+Load `references/dream-operations.md` for process rules and `references/agent-history-source-policy.md` for source safety constraints.
 
 ## Handoff
 
@@ -76,11 +76,11 @@ If context usage exceeds 65%, use `../reference/references/state-and-handoff-pro
 - A weak signal is being promoted just because a dream pass is already in progress
 - The consolidation run is drifting into new planning or implementation work instead of learnings maintenance
 
-See `references/consolidation-rubric.md`, `references/codex-source-policy.md`, and `references/pressure-scenarios.md` when classification or source safety is unclear.
+See `references/consolidation-rubric.md`, `references/agent-history-source-policy.md`, and `references/pressure-scenarios.md` when classification or source safety is unclear.
 
 ## References
 
 - `references/dream-operations.md`
 - `references/consolidation-rubric.md`
-- `references/codex-source-policy.md`
+- `references/agent-history-source-policy.md`
 - `references/pressure-scenarios.md`

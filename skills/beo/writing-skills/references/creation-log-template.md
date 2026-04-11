@@ -33,7 +33,7 @@
 - [Item 3]: because [reason]
 
 **What to leave out:**
-- [Item A]: [reason: project-specific, repetitive, Claude already knows this, etc.]
+- [Item A]: [reason: project-specific, repetitive, agent already knows this, etc.]
 - [Item B]: [reason]
 
 ---

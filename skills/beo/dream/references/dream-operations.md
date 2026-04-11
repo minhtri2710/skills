@@ -25,7 +25,7 @@ Default orientation rule: establish mode and provenance confidence before scanni
 
 ## 2. Select Sources
 
-Use `codex-source-policy.md` for source priority and recurring-window defaults.
+Use `agent-history-source-policy.md` for source priority and recurring-window defaults.
 
 ## 3. Extract and Classify Candidates
 

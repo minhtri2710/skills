@@ -30,7 +30,7 @@ Exact rationalization:
 > "No `last_dream_consolidated_at` probably means first run already happened somewhere else, so I will continue with a short window."
 
 Why this matters:
-- Violates the bootstrap-first provenance rule and risks missing initial Codex signal.
+- Violates the bootstrap-first provenance rule and risks missing initial agent history signal.
 
 ---
 

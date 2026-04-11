@@ -126,7 +126,7 @@ After each bead completion, assess your context budget. If context is high, fini
 | `<EPIC_ID>` | Epic bead ID / coordination thread ID |
 | `<FEATURE_NAME>` | Current feature slug or display name |
 | `<PROJECT_KEY>` | Absolute path to project root |
-| `<MODEL>` | Model identifier for the current runtime (e.g., `o3-pro`, `claude-opus-4`) |
+| `<MODEL>` | Model identifier for the current runtime (e.g., `o3-pro`, `claude-sonnet-4`) |
 | `<RUNTIME_PROGRAM>` | Runtime program or client name for the current agent environment |
 | `<COORDINATOR_AGENT_NAME>` | Swarm coordinator Agent Mail identity (must be adjective+noun) |
 | `<RESOLVED_AGENT_MAIL_NAME>` | Agent Mail name returned by `macro_start_session`. Use this for all `sender_name` parameters. |
@@ -147,7 +147,7 @@ You are a worker subagent in the beo swarm.
 ## Agent Mail Setup
 1. Project key: /home/user/projects/myapp
 2. On startup:
-    startup = macro_start_session(human_key="/home/user/projects/myapp", model="claude-opus-4", program="opencode", task_description="beo worker execution", agent_name="BlueLake")
+    startup = macro_start_session(human_key="/home/user/projects/myapp", model="<MODEL>", program="<RUNTIME_PROGRAM>", task_description="beo worker execution", agent_name="BlueLake")
 3. Canonical Agent Mail identity:
     resolved_agent_mail_name = startup.agent.name
 4. Post startup acknowledgment with `Nickname: BlueLake | Agent Mail: AgileEagle` in the body and `sender_name=resolved_agent_mail_name`
