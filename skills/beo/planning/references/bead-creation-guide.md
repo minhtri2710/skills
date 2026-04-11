@@ -1,6 +1,6 @@
 # Bead Creation Guide
 
-Detailed rules, templates, and checklists for Phase 6 (Task Bead Creation) and Phase 7 (Plan Review) of `beo-planning`.
+Detailed rules, templates, and checklists for the Task Bead Creation and Plan Review steps of `beo-planning`.
 
 ## Table of Contents
 
@@ -121,7 +121,7 @@ For each story in story-map.md:
 
 For features classified as **Quick**, see `../../reference/references/pipeline-contracts.md` for the canonical definition.
 
-1. Skip Phase 1 parallel exploration. Do a quick single-pass review of affected files
+1. Skip the parallel exploration step. Do a quick single-pass review of affected files
 2. Write abbreviated plan.md (approach + tasks, skip discovery summary)
 3. Create task beads directly
 4. Still wire dependencies and validate the graph

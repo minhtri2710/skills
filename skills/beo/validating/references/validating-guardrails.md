@@ -5,7 +5,7 @@
 | Flag | Description |
 |------|-------------|
 | **Skipping validation entirely** | "The plan looks fine" is not validation |
-| **Auto-approving without user** | Phase 6 is non-negotiable |
+| **Auto-approving without user** | The approval gate is non-negotiable |
 | **Ignoring spike NO results** | A failing spike means the plan is broken |
 | **Fixing failures without re-checking** | After fixing, re-run the failed dimension check |
 | **Validating without CONTEXT.md** | Decisions are the source of truth for requirement coverage |

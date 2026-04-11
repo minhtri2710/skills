@@ -6,7 +6,10 @@ All sections are required. If a section is empty, write `N/A`.
 ## Feature Boundary
 
 - Scope: <one-sentence statement of what this feature changes>
+- Scope Classification: <Quick | Standard | Deep>
 - Domain Type: <SEE | CALL | RUN | READ | ORGANIZE>
+
+Quick applies only when ALL conditions in `../../reference/references/pipeline-contracts.md` § Quick-Scope Definition are met.
 
 ## Locked Decisions
 

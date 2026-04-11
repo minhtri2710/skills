@@ -8,7 +8,9 @@ description: >-
   requirements are still unlocked or ambiguous (use beo-exploring first).
 ---
 
-> **Onboarding gate:** If `.beads/onboarding.json` is missing or stale, stop and load `beo-using-beo` before continuing.
+<HARD-GATE>
+If `.beads/onboarding.json` is missing or stale, stop and load `beo-using-beo` before continuing.
+</HARD-GATE>
 
 # Beo Planning
 
@@ -142,6 +144,18 @@ Validation always approves execution readiness for the **current phase only**.
 If later phases remain, current-phase completion is not whole-feature completion.
 
 Write `.beads/HANDOFF.json` only when the context budget requires a checkpoint or the session must pause.
+
+
+## Quick Mode
+
+When `CONTEXT.md` classifies the feature as **Quick** (see `../reference/references/pipeline-contracts.md` § Quick-Scope Definition), planning uses an abbreviated flow:
+
+- Skip parallel discovery; do a quick single-pass review of affected files
+- Write abbreviated artifacts (approach + tasks in `plan.md`, single-story `story-map.md`, minimal `phase-contract.md`)
+- The hard gate requiring `phase-contract.md` and `story-map.md` still applies — Quick mode writes abbreviated versions, it does not skip them
+- Skip the formal multi-perspective review
+
+See `references/bead-creation-guide.md` § Quick Mode for the exact abbreviated sequence.
 
 ## Replanning and Phase Advancement
 

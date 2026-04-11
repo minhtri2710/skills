@@ -1,6 +1,6 @@
 # Discovery Guide
 
-Detailed instructions for Phase 1 (Discovery) of `beo-planning`.
+Detailed instructions for the Discovery step of `beo-planning`.
 
 ## Research Questions
 

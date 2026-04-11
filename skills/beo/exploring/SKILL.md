@@ -9,7 +9,9 @@ description: >-
   (use beo-debugging), or mid-pipeline resume (use beo-router).
 ---
 
-> **Onboarding gate:** If `.beads/onboarding.json` is missing or stale, stop and load `beo-using-beo` before continuing.
+<HARD-GATE>
+If `.beads/onboarding.json` is missing or stale, stop and load `beo-using-beo` before continuing.
+</HARD-GATE>
 
 # Beo Exploring
 
@@ -51,11 +53,13 @@ Sanitize the request summary, redact or omit secrets, and use stable placeholder
 2. classify the scope and likely gray areas
 3. classify the feature domain (`SEE`, `CALL`, `RUN`, `READ`, or `ORGANIZE`)
 4. run a codebase scout: use that domain classification to identify likely artifacts, protocols, templates, or entry points, then read 2-3 relevant files to ground gray areas in existing repo patterns
-5. ask one focused behavioral question at a time
-6. annotate gray areas with existing context when available
-7. lock decisions explicitly as they emerge
-8. write a sanitized `CONTEXT.md`
-9. self-check for planning readiness, then hand off to `beo-planning`
+5. **repeat until all gray areas are resolved:**
+   a. ask one focused behavioral question
+   b. **wait for the user's response** — do not continue until the user answers
+   c. annotate gray areas with existing context when available
+   d. lock decisions explicitly as they emerge
+6. write a sanitized `CONTEXT.md`
+7. self-check for planning readiness, then hand off to `beo-planning`
 
 Use `../reference/references/learnings-read-protocol.md` when you need the canonical prior-learnings read flow.
 Use `../reference/references/slug-protocol.md` when updating the epic description safely.
@@ -152,6 +156,25 @@ When exploring is complete:
 2. update `.beads/STATE.json`
 3. report how many decisions were locked and what remains out of scope
 4. hand off to `beo-planning`
+
+Exploring STATE.json uses the canonical 12-field schema from `../reference/references/state-and-handoff-protocol.md`:
+
+```json
+{
+  "schema_version": 1,
+  "phase": "beo-exploring",
+  "status": "exploring-complete",
+  "feature": "<EPIC_ID>",
+  "feature_slug": "<slug>",
+  "tasks": "none — exploring does not create beads",
+  "next": "beo-planning",
+  "planning_mode": "<single-phase | multi-phase | unknown>",
+  "has_phase_plan": false,
+  "current_phase": 1,
+  "total_phases": "<1 | unknown>",
+  "phase_name": "unknown"
+}
+```
 
 Exploring does not create execution beads.
 Its deliverable is decision clarity.
