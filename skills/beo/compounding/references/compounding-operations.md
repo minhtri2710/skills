@@ -8,12 +8,17 @@ Detailed operational playbook for `beo-compounding`. Load this file when you nee
 - [2. Three-Category Analysis](#2-three-category-analysis)
 - [3. Synthesis and Triage](#3-synthesis-and-triage)
 - [4. Critical Promotion Workflow](#4-critical-promotion-workflow)
-- [5. Optional Integrations](#5-optional-integrations)
-- [6. State Update and Checkpointing](#6-state-update-and-checkpointing)
+- [5. State Update and Checkpointing](#5-state-update-and-checkpointing)
 
 ## 1. Gather Context
 
-Collect all available artifacts from the completed feature. Read these if present:
+### Read Prior Learnings
+
+Before analyzing the feature, read existing learnings using the canonical read protocol (`../../reference/references/learnings-read-protocol.md`): QMD/Obsidian first, flat-file fallback only when unavailable. This prevents creating duplicate learnings and grounds the analysis in what is already known.
+
+### Collect Feature Artifacts
+
+Read these if present:
 
 ```text
 .beads/artifacts/<feature_slug>/CONTEXT.md
@@ -78,14 +83,16 @@ Subagent output is staging only — see the HARD-GATE in SKILL.md for the orches
 
 ### Dedup Before Writing
 
+Use the learnings-read protocol (`../../reference/references/learnings-read-protocol.md`) to check for existing similar learnings. Preferred path: QMD semantic search first, flat-file fallback when unavailable.
+
 ```bash
-# Use your content search tool to search .beads/learnings/ for "<learning title>"
+# Preferred: semantic dedup via QMD
+qmd query "<learning title>" --json 2>/dev/null
 ```
 
-Optional semantic search if QMD is available:
-
 ```bash
-qmd query "<learning title>" --json 2>/dev/null
+# Fallback: flat-file search
+# Use your content search tool to search .beads/learnings/ for "<learning title>"
 ```
 
 If a similar learning exists, merge instead of creating a new one.
@@ -131,6 +138,18 @@ If both write surfaces are available and it is useful to keep a vault copy, mirr
 qmd update 2>/dev/null && qmd embed 2>/dev/null
 ```
 
+### Clean Up Staging Files
+
+After the learnings file is written and verified, remove the staging files:
+
+```text
+.beads/artifacts/<feature_slug>/compounding-patterns.md
+.beads/artifacts/<feature_slug>/compounding-decisions.md
+.beads/artifacts/<feature_slug>/compounding-failures.md
+```
+
+These are intermediate analysis artifacts, not durable project records. The learnings file in `.beads/learnings/` is the final output.
+
 ## 4. Critical Promotion Workflow
 
 For every `severity: critical` learning, promote only if all are true:
@@ -171,15 +190,15 @@ Update `.beads/STATE.json`:
 {
   "schema_version": 1,
   "phase": "compounding",
-  "status": "complete",
+  "status": "completed",
   "feature": "<epic-id>",
   "feature_slug": "<feature_slug>",
   "tasks": "N/A (post-execution skill)",
-  "next": "done",
-  "planning_mode": "single-phase",
-  "has_phase_plan": false,
-  "current_phase": 1,
-  "total_phases": 1,
+  "next": "beo-router",
+  "planning_mode": "<single-phase | multi-phase — use actual feature value>",
+  "has_phase_plan": "<true if phase-plan.md existed — use actual feature value>",
+  "current_phase": "<final phase number — use actual feature value>",
+  "total_phases": "<total phases — use actual feature value>",
   "phase_name": "<current phase name>"
 }
 ```

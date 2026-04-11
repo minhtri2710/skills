@@ -7,7 +7,9 @@ description: >-
   "can we ship this?", "double-check the implementation", or "run UAT".
 ---
 
-> **Onboarding gate:** If `.beads/onboarding.json` is missing or stale, stop and load `beo-using-beo` before continuing.
+<HARD-GATE>
+If `.beads/onboarding.json` is missing or stale, stop and load `beo-using-beo` before continuing.
+</HARD-GATE>
 
 # Beo Reviewing
 
@@ -100,6 +102,7 @@ See `references/reviewing-operations.md` and `references/review-specialist-promp
 Human UAT is not optional.
 Review automated findings first, then walk the user through the implemented outcome against locked decisions and exit-state claims.
 
+Use the canonical review/UAT approval rules from `../reference/references/approval-gates.md` (items 3 and 6).
 Use `references/reviewing-operations.md` Section 4 for the exact UAT loop and outcome handling.
 
 ## Intent Changes During UAT

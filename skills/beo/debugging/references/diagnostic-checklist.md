@@ -44,11 +44,19 @@ Ask: was a locked decision (D1, D2...) violated by the implementation? Decision 
 
 ## 3e. Check Agent Mail for Related Blockers
 
+If Agent Mail is available (a swarm is active and the mail session was initialized):
+
 ```bash
 fetch_inbox(project_key="<project-root-path>", agent_name="<agent-name>")
 ```
 
 Another worker may have already reported the same issue or a related conflict. Avoid duplicate debugging.
+
+If Agent Mail is **not** available (solo mode, no swarm, or mail initialization failed), use the solo-debug-mode fallback from `message-templates.md`:
+
+```bash
+br comments add <TASK_ID> --no-daemon "[DEBUG NOTE] <one-sentence root cause and status>"
+```
 
 ## 3f. Narrow to Root Cause
 

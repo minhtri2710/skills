@@ -81,15 +81,15 @@ L2 or L3 failures are P1 findings and must be fixed before proceeding.
 
 ## 3b. Reactive Fix Bead Creation
 
-When a P1 finding requires a fix, create a reactive fix bead under the current epic using both `--parent` and an explicit blocking dependency:
+When a P1 finding requires a fix, create a reactive fix bead under the current epic:
 
 ```bash
-br create "Fix: <root cause summary>" -t task --parent <EPIC_ID> --deps blocks:<affected-bead-id>
+br create "Fix: <root cause summary>" -t task --parent <EPIC_ID> -p 1 --json
 ```
 
-This ensures the fix bead is:
-1. Visible in epic task enumeration (via `--parent`)
-2. Properly linked to the affected bead (via `--deps blocks:<affected-bead-id>`)
+The fix bead is visible in epic task enumeration via `--parent`.
+Reference the affected bead ID in the fix bead description (using the Reactive Fix Bead Template) for traceability.
+Do not use `--deps blocks:<closed-bead>` — blocking an already-closed bead is a no-op and adds no scheduling value.
 
 Write the bead description using the **Reactive Fix Bead Template** from `../../reference/references/bead-description-templates.md`.
 

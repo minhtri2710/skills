@@ -76,13 +76,13 @@ Collect all findings from all specialists. Categorize:
 
 ```bash
 # P1 finding becomes a blocking task under the epic
-br create "Fix: <P1 finding summary>" -t task --parent <EPIC_ID> --deps blocks:<ORIGINAL_TASK_ID> -p 1 --json
+br create "Fix: <P1 finding summary>" -t task --parent <EPIC_ID> -p 1 --json
 br update <FIX_TASK_ID> --description "<fix bead description: see below>"
 ```
 
 P1 fix beads are **reactive fix beads** -- exempt from the story context block requirement but must satisfy the minimum execution contract used by `beo-executing`. Use the shared **Reactive Fix Bead Template** from `../../reference/references/bead-description-templates.md`.
 
-Execute the fix immediately -- route back to Phase 2 of beo-executing for this task.
+Execute the fix immediately -- route back to `beo-executing` for this task.
 
 After all P1 fixes are resolved, return to reviewing.
 
@@ -95,7 +95,7 @@ If P1 fixes fail repeatedly (>2 attempts), route to `beo-debugging` for root cau
 br create "Follow-up: <P2 finding summary>" -t task -p 3 --json
 br label add <FOLLOWUP_ID> -l review
 br label add <FOLLOWUP_ID> -l review-p2
-br update <FOLLOWUP_ID> --description "## External Reference\n- Epic: <EPIC_ID>\n- Source: review finding\n\n## Issue\n<what was found or deferred>\n\n## Why Follow-Up\n<why this should not block the current epic, and why it still matters>\n\n## Expected Outcome\n<what should be true after this follow-up is completed>\n\n## Files\n- <exact file path, if known>\n- <or write: To be determined during execution>\n\n## Suggested Next Steps\n1. <first action>\n2. <second action>\n3. <verification or handoff action>\n\n## Verification\n- <runnable or observable check>\n- <success condition>"
+br update <FOLLOWUP_ID> --description "<fill from Follow-Up Bead Template in ../../reference/references/bead-description-templates.md>"
 ```
 
 P2/P3 beads must use the shared **Follow-Up Bead Template** from `../../reference/references/bead-description-templates.md`. They are intentionally NOT children of the current epic so they don't block feature completion.

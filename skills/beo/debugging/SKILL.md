@@ -10,7 +10,9 @@ description: >-
   learnings consolidation (use beo-dream).
 ---
 
-> **Onboarding gate:** If `.beads/onboarding.json` is missing or stale, stop and load `beo-using-beo` before continuing.
+<HARD-GATE>
+If `.beads/onboarding.json` is missing or stale, stop and load `beo-using-beo` before continuing.
+</HARD-GATE>
 
 # Beo Debugging
 
@@ -40,6 +42,7 @@ Do not smuggle major repair work through ad-hoc debugging edits.
 
 ## Default Debugging Loop
 
+0. **read prior learnings** — use the canonical learnings-read protocol (`../reference/references/learnings-read-protocol.md`) before investigating. 30-40% of recurring failures are already documented. QMD/Obsidian first, flat-file fallback when unavailable.
 1. classify the issue clearly
 2. reproduce it or state why reproduction is not yet possible
 3. diagnose until the root cause fits in one sentence

@@ -13,12 +13,13 @@ Detailed operational playbook for `beo-dream`. Load this file when you need exac
 
 ## 1. Orient and Detect Run Mode
 
-1. read existing learnings files from `.beads/learnings/`
-2. detect provenance via learnings frontmatter and `.beads/learnings/dream-run-provenance.md`
-3. choose mode:
+1. detect tool availability (see `../../reference/references/knowledge-store.md` § Tool Detection)
+2. read existing learnings using the canonical read protocol (`../../reference/references/learnings-read-protocol.md`): QMD/Obsidian first, flat-file fallback only when unavailable
+3. detect provenance via learnings frontmatter and `.beads/learnings/dream-run-provenance.md`
+4. choose mode:
    - `bootstrap` if no provenance exists or the user requests a full scan
    - `recurring` otherwise
-4. if provenance signals conflict, ask one short clarification question before scanning
+5. if provenance signals conflict, ask one short clarification question before scanning
 
 Default orientation rule: establish mode and provenance confidence before scanning broad source material.
 
@@ -38,7 +39,7 @@ Then classify each candidate using `consolidation-rubric.md` into exactly one br
 - no match
 - no durable signal
 
-If QMD is available, use it before manual classification. Fall back to manual matching only when QMD is unavailable or inconclusive.
+Use the learnings-read protocol for matching: QMD query first for semantic matching, then flat-file search as fallback. Do not skip QMD when it is available.
 
 ## 4. Apply Outcomes
 
@@ -59,6 +60,32 @@ Report:
 - pending ambiguous decisions or approvals
 
 Use the approval rules from `../../reference/references/approval-gates.md` for any critical-pattern promotion proposal.
+
+### Provenance Update
+
+Write or update `.beads/learnings/dream-run-provenance.md` using this format:
+
+```markdown
+---
+last_dream_consolidated_at: YYYY-MM-DDTHH:MM:SSZ
+mode: <bootstrap | recurring>
+source_window: <description of time range or scope>
+---
+
+## Run Summary
+
+- **Files rewritten:** N
+- **Files created:** N
+- **Files skipped:** N
+- **Critical promotions proposed:** N (approved: N)
+- **Ambiguous decisions deferred:** N
+```
+
+Refresh QMD after writes if available:
+
+```bash
+qmd update 2>/dev/null && qmd embed 2>/dev/null
+```
 
 ## 6. Context-Budget Checkpoint
 

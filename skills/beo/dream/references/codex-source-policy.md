@@ -13,8 +13,21 @@ This policy defines how `beo-dream` reads Codex artifacts for one manual consoli
 
 ## Source Priority
 
-1. Primary: `~/.codex/history.jsonl`
-2. Secondary fallback: `~/.codex/logs_1.sqlite` (targeted queries only)
+1. Primary: `<CODEX_DATA_DIR>/history.jsonl`
+2. Secondary fallback: `<CODEX_DATA_DIR>/logs_1.sqlite` (targeted queries only)
+
+### Resolving `CODEX_DATA_DIR`
+
+The Codex data directory varies by platform and configuration:
+
+| Priority | Path |
+|----------|------|
+| 1 | `$CODEX_HOME` (if set) |
+| 2 | `~/.codex` (macOS / Linux default) |
+| 3 | `$XDG_DATA_HOME/codex` (Linux XDG) |
+| 4 | `%APPDATA%\codex` (Windows) |
+
+Check in priority order and use the first that exists. Do not hardcode `~/.codex` when running on unknown platforms.
 
 Use `history.jsonl` for most evidence gathering. Use `logs_1.sqlite` only when a specific claim needs
 extra confirmation and `history.jsonl` is insufficient.
