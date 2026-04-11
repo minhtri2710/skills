@@ -191,7 +191,7 @@
 - Agent follows core rule under [pressure type] pressure
 - Agent cites skill sections when justifying choices
 - [Other passing criteria]
-- `agentskills validate` passes (if available)
+- Manual validation passes: structure, references, pressure-test coverage
 - SKILL.md < 400 lines
 
 **Total iterations required:** [N]

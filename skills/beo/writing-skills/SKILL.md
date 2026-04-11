@@ -8,7 +8,9 @@ description: >-
   conventions, one-off solutions, or ordinary feature planning.
 ---
 
-> **Onboarding gate:** If `.beads/onboarding.json` is missing or stale, stop and load `beo-using-beo` before continuing.
+<HARD-GATE>
+If `.beads/onboarding.json` is missing or stale, stop and load `beo-using-beo` before continuing.
+</HARD-GATE>
 
 # Beo Writing Skills
 

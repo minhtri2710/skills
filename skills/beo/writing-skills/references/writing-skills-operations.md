@@ -49,11 +49,11 @@ Use the meta-test from `pressure-test-template.md` § The Meta-Test to distingui
 
 ## 4. Validate and Document
 
-If available, run:
+Validate the skill manually:
 
-```bash
-agentskills validate skills/<skill-name>/ 2>/dev/null
-```
+1. Confirm `SKILL.md` has the required structure: YAML frontmatter (`name`, `description`), Hard Gates section, Default Loop, Handoff, Context Budget, and Red Flags
+2. Confirm all referenced files in `references/` exist and are reachable
+3. Confirm pressure-test scenarios exist and are documented
 
 Then create `CREATION-LOG.md` using `creation-log-template.md`.
 
