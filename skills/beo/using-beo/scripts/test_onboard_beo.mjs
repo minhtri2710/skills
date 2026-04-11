@@ -21,13 +21,15 @@ test('applyRepo creates full onboarding on an empty repo', async () => {
 
   const agents = await readFile(path.join(repoRoot, 'AGENTS.md'), 'utf8')
   const statusScript = await readFile(path.join(repoRoot, '.beads', 'beo_status.mjs'), 'utf8')
-  const state = await readFile(path.join(repoRoot, '.beads', 'STATE.md'), 'utf8')
+  const state = JSON.parse(await readFile(path.join(repoRoot, '.beads', 'STATE.json'), 'utf8'))
   const onboarding = JSON.parse(await readFile(path.join(repoRoot, '.beads', 'onboarding.json'), 'utf8'))
 
   assert.match(agents, /<!-- BEO:START -->/)
   assert.match(agents, /<!-- BEO:END -->/)
   assert.match(statusScript, /ONBOARDING_VERSION/)
-  assert.match(state, /^# Beo State/m)
+  assert.equal(state.schema_version, 1)
+  assert.equal(state.phase, 'idle')
+  assert.equal(state.next, 'load beo-router')
   assert.equal(onboarding.status, 'complete')
 })
 
@@ -129,11 +131,11 @@ test('installed beo_status script reports onboarding, state, and optional handof
 
   assert.equal(status.onboarding.exists, true)
   assert.equal(status.onboarding.current, true)
-  assert.equal(status.state_md.exists, true)
-  assert.equal(status.state_md.phase, 'idle')
+  assert.equal(status.state_json.exists, true)
+  assert.equal(status.state_json.phase, 'idle')
   assert.equal(status.handoff.exists, true)
   assert.equal(status.handoff.skill, 'beo-executing')
   assert.ok(status.next_reads.includes('AGENTS.md'))
-  assert.ok(status.next_reads.includes('.beads/STATE.md'))
+  assert.ok(status.next_reads.includes('.beads/STATE.json'))
   assert.ok(status.next_reads.includes('.beads/HANDOFF.json'))
 })

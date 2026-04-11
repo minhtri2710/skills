@@ -60,6 +60,16 @@ async function readTextIfExists(targetPath) {
   }
 }
 
+async function readJsonIfExists(targetPath) {
+  const content = await readTextIfExists(targetPath)
+  if (!content) return null
+  try {
+    return JSON.parse(content)
+  } catch {
+    return null
+  }
+}
+
 function normalizeManagedBlock(content) {
   const match = content.match(/<!-- BEO:START -->[\s\S]*?<!-- BEO:END -->/)
   return match ? match[0].trim() : null
@@ -71,14 +81,7 @@ async function loadTemplate() {
 
 async function readOnboardingJson(repoRoot) {
   const onboardingPath = path.join(repoRoot, '.beads', 'onboarding.json')
-  const content = await readTextIfExists(onboardingPath)
-  if (!content) return null
-
-  try {
-    return JSON.parse(content)
-  } catch {
-    return null
-  }
+  return readJsonIfExists(onboardingPath)
 }
 
 function statusScriptContent() {
@@ -109,25 +112,20 @@ function statusScriptContent() {
     '  }',
     '}',
     '',
-    'function extractStateField(content, label) {',
-    "  const match = content?.match(new RegExp(`^- ${label}: (.+)$`, 'm'))",
-    '  return match ? match[1] : null',
-    '}',
-    '',
     'function buildStatus(repoRoot) {',
     "  const beadsRoot = path.join(repoRoot, '.beads')",
     "  const onboardingPath = path.join(beadsRoot, 'onboarding.json')",
-    "  const statePath = path.join(beadsRoot, 'STATE.md')",
+    "  const statePath = path.join(beadsRoot, 'STATE.json')",
     "  const handoffPath = path.join(beadsRoot, 'HANDOFF.json')",
     "  const criticalPatternsPath = path.join(beadsRoot, 'critical-patterns.md')",
     '',
     '  const onboarding = readJsonIfExists(onboardingPath)',
-    '  const stateText = readTextIfExists(statePath)',
+    '  const stateJson = readJsonIfExists(statePath)',
     '  const handoff = readJsonIfExists(handoffPath)',
     '',
     '  const nextReads = [\'AGENTS.md\']',
     "  if (existsSync(criticalPatternsPath)) nextReads.push('.beads/critical-patterns.md')",
-    "  if (stateText) nextReads.push('.beads/STATE.md')",
+    "  if (stateJson) nextReads.push('.beads/STATE.json')",
     "  if (handoff) nextReads.push('.beads/HANDOFF.json')",
     '',
     '  return {',
@@ -138,11 +136,11 @@ function statusScriptContent() {
     "      plugin: onboarding?.plugin ?? null,",
     "      plugin_version: onboarding?.plugin_version ?? null,",
     '    },',
-    '    state_md: {',
-    '      exists: Boolean(stateText),',
-    "      phase: extractStateField(stateText, 'Phase') ?? null,",
-    "      feature: extractStateField(stateText, 'Feature') ?? null,",
-    "      next: extractStateField(stateText, 'Next') ?? null,",
+    '    state_json: {',
+    '      exists: Boolean(stateJson),',
+    "      phase: stateJson?.phase ?? null,",
+    "      feature: stateJson?.feature ?? null,",
+    "      next: stateJson?.next ?? null,",
     '    },',
     '    handoff: {',
     '      exists: Boolean(handoff),',
@@ -169,7 +167,7 @@ function statusScriptContent() {
     '  const lines = [',
     '    `repo_root: ${status.repo_root}`,',
     "    `onboarding: ${status.onboarding.exists ? (status.onboarding.current ? 'current' : 'stale') : 'missing'}` ,",
-    "    `state: ${status.state_md.exists ? (status.state_md.phase ?? 'present') : 'missing'}` ,",
+    "    `state: ${status.state_json.exists ? (status.state_json.phase ?? 'present') : 'missing'}` ,",
     "    `handoff: ${status.handoff.exists ? (status.handoff.skill ?? 'present') : 'none'}` ,",
     "    `next_reads: ${status.next_reads.join(', ')}` ,",
     '  ]',
@@ -194,7 +192,7 @@ function buildActions(details, blockIsCurrent) {
     actions.push('create_.beads/onboarding.json')
   }
   if (!details.status_script_exists) actions.push('create_.beads/beo_status.mjs')
-  if (!details.state_md_exists) actions.push('create_.beads/STATE.md')
+  if (!details.state_json_exists) actions.push('create_.beads/STATE.json')
   if (!details.critical_patterns_exists) actions.push('create_.beads/critical-patterns.md')
   if (!details.artifacts_dir_exists) actions.push('create_.beads/artifacts/')
   if (!details.learnings_dir_exists) actions.push('create_.beads/learnings/')
@@ -209,7 +207,7 @@ export async function checkRepo(repoRoot) {
   const agentsPath = path.join(absoluteRepoRoot, 'AGENTS.md')
   const onboardingPath = path.join(absoluteRepoRoot, '.beads', 'onboarding.json')
   const statusScriptPath = path.join(absoluteRepoRoot, '.beads', 'beo_status.mjs')
-  const statePath = path.join(absoluteRepoRoot, '.beads', 'STATE.md')
+  const statePath = path.join(absoluteRepoRoot, '.beads', 'STATE.json')
   const criticalPatternsPath = path.join(absoluteRepoRoot, '.beads', 'critical-patterns.md')
   const artifactsDir = path.join(absoluteRepoRoot, '.beads', 'artifacts')
   const learningsDir = path.join(absoluteRepoRoot, '.beads', 'learnings')
@@ -225,7 +223,7 @@ export async function checkRepo(repoRoot) {
       onboarding_json_exists: Boolean(onboarding),
       onboarding_version_match: onboarding?.plugin_version === VERSION,
       status_script_exists: await pathExists(statusScriptPath),
-      state_md_exists: await pathExists(statePath),
+      state_json_exists: await pathExists(statePath),
       critical_patterns_exists: await pathExists(criticalPatternsPath),
       artifacts_dir_exists: await isDirectory(artifactsDir),
       learnings_dir_exists: await isDirectory(learningsDir),
@@ -257,14 +255,20 @@ function replaceManagedBlock(existingContent, template) {
 }
 
 function defaultStateContent() {
-  return [
-    '# Beo State',
-    '- Phase: idle',
-    '- Feature: none',
-    '- Tasks: none',
-    '- Next: load beo-router',
-    '',
-  ].join('\n')
+  return JSON.stringify({
+    schema_version: 1,
+    phase: 'idle',
+    status: 'idle',
+    feature: 'none',
+    feature_slug: '',
+    tasks: 'none',
+    next: 'load beo-router',
+    planning_mode: 'single-phase',
+    has_phase_plan: false,
+    current_phase: 1,
+    total_phases: 1,
+    phase_name: ''
+  }, null, 2) + '\n'
 }
 
 function defaultCriticalPatternsContent() {
@@ -289,7 +293,7 @@ export async function applyRepo(repoRoot) {
   const artifactsDir = path.join(beadsDir, 'artifacts')
   const learningsDir = path.join(beadsDir, 'learnings')
   const statusScriptPath = path.join(beadsDir, 'beo_status.mjs')
-  const statePath = path.join(beadsDir, 'STATE.md')
+  const statePath = path.join(beadsDir, 'STATE.json')
   const criticalPatternsPath = path.join(beadsDir, 'critical-patterns.md')
   const onboardingPath = path.join(beadsDir, 'onboarding.json')
 
@@ -321,7 +325,7 @@ export async function applyRepo(repoRoot) {
       managed_assets: {
         agents_mode: mergedAgents.mode,
         status_script: '.beads/beo_status.mjs',
-        state_md: '.beads/STATE.md',
+        state_json: '.beads/STATE.json',
         critical_patterns: '.beads/critical-patterns.md',
       },
   }
