@@ -109,6 +109,14 @@ br sync --import-only    # Import JSONL files to DB (after git pull)
 
 **Rule**: Run `br sync --flush-only` after any batch of mutations before committing to git.
 
+## Shared CLI Rules
+
+These rules apply universally across all beo skills:
+
+1. **Always use `--no-daemon`** on `br comments add` and `br comments list` commands. The daemon mode is not compatible with agent workflows.
+2. **Always run `br sync --flush-only`** after any batch of mutations (status changes, label changes, comments, closures) before committing to git or ending a session. This exports the SQLite database to JSONL files that git can track.
+3. **Never run bare `br sync`** without a flag. Always use `--flush-only` (to export) or `--import-only` (to import after pull).
+
 ## Other
 
 ```bash

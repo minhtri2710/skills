@@ -19,7 +19,7 @@ Every skill in the beo pipeline reads from or writes to these paths.
 
 | File | Written By | Read By | Purpose |
 |------|-----------|---------|---------|
-| `.beads/STATE.json` | beo-exploring, beo-planning, beo-validating, beo-swarming, beo-executing, beo-reviewing, beo-compounding | Next skill in pipeline | Intra-session skill-to-skill handoff state (see `state-and-handoff-protocol.md` for canonical schema) |
+| `.beads/STATE.json` | beo-router, beo-exploring, beo-planning, beo-validating, beo-swarming, beo-executing, beo-reviewing, beo-compounding | Next skill in pipeline | Intra-session skill-to-skill handoff state (see `state-and-handoff-protocol.md` for canonical schema) |
 | `.beads/HANDOFF.json` | Any skill (at 65% context budget) | beo-router (Phase 3) | Cross-session resume; survives context resets (see `state-and-handoff-protocol.md` for canonical schema) |
 | `.beads/beo_status.mjs` | beo-using-beo | Humans and agents | Read-only scout command summarizing onboarding, state, and optional handoff status |
 

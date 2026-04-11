@@ -49,6 +49,20 @@ Whole-feature phase plan is ready.
 Approve this phase sequence and current phase selection before validation?
 ```
 
+### 1a. CONTEXT.md Approval (Go Mode Only)
+
+In go mode, user approval of `CONTEXT.md` is required after exploring and before planning begins.
+
+This gate does **not** apply in normal (non-go) pipeline flow, where exploring hands off directly to planning.
+
+Canonical rule:
+
+> In go mode, present `CONTEXT.md` and obtain explicit user approval before invoking planning.
+
+This gate applies only in `beo-router` when go mode is active.
+
+See `../router/references/go-mode.md` for the full go-mode gate sequence.
+
 ### 2. Validation Approval
 
 Before any execution begins, user approval is required.

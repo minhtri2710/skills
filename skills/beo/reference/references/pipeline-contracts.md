@@ -148,15 +148,14 @@ The canonical Feature States table (planning → approved → executing → comp
 
 ### Fix Beads (from debugging)
 
-Fix beads must use BOTH `--parent` and an explicit blocking dependency:
+Fix beads use `--parent` for graph visibility and reference the affected bead ID in the description for traceability:
 
 ```bash
-br create "Fix: <root cause summary>" -t task --parent <EPIC_ID> --deps blocks:<original-bead-id>
+br create "Fix: <root cause summary>" -t task --parent <EPIC_ID> -p 1 --json
 ```
 
-This ensures fix beads are:
-1. Visible in epic task enumeration (via `--parent`)
-2. Properly blocking the original bead (via `--deps blocks:<original-bead-id>`)
+Do not use `--deps blocks:<closed-bead>` — the original bead is typically already closed, making the blocking dependency a no-op.
+Reference the affected bead ID in the fix bead description (using the Reactive Fix Bead Template from `bead-description-templates.md`) instead.
 
 ### Task Creation During Validation
 

@@ -223,9 +223,10 @@ When assessing an active feature, inspect artifacts in this order:
 1. `CONTEXT.md`
 2. `discovery.md`
 3. `approach.md`
-4. `phase-plan.md` *(if present)*
-5. `phase-contract.md`
-6. `story-map.md`
+4. `plan.md`
+5. `phase-plan.md` *(if present)*
+6. `phase-contract.md`
+7. `story-map.md`
 
 Interpretation rules:
 

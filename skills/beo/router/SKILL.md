@@ -12,7 +12,9 @@ description: >-
   request implying non-trivial work, even if phrased conversationally.
 ---
 
-> **Onboarding gate:** If `.beads/onboarding.json` is missing or stale, stop and load `beo-using-beo` before continuing.
+<HARD-GATE>
+If `.beads/onboarding.json` is missing or stale, stop and load `beo-using-beo` before continuing.
+</HARD-GATE>
 
 # Beo Router
 
@@ -61,6 +63,11 @@ If current-phase work is complete but later phases remain, do not treat the feat
 
 <HARD-GATE>
 If instant-scoped work expands during inspection, stop treating it as instant work and promote it into the normal pipeline.
+</HARD-GATE>
+
+<HARD-GATE>
+Routing depends on shared protocol rules in `beo-reference` (state routing table, status mapping, approval gates).
+If `beo-reference` is not co-loaded, load it before classifying state or choosing the next skill.
 </HARD-GATE>
 
 ## Default Router Loop
