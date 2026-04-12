@@ -52,6 +52,10 @@ Do not write novel implementation code inside review.
 Create fix beads and send execution work back through the proper path.
 </HARD-GATE>
 
+<HARD-GATE>
+Every task in the approved final execution scope must have status `done`, `cancelled`, or `failed` before review begins. If any tasks are still open, route back to `beo-executing`.
+</HARD-GATE>
+
 ## Default Review Loop
 
 1. confirm review is allowed for the final execution scope
@@ -63,6 +67,8 @@ Create fix beads and send execution work back through the proper path.
 
 Use `references/reviewing-operations.md` for the exact prerequisite checks, artifact verification, UAT handling, and finishing sequence.
 Use `references/review-specialist-prompts.md` for the five-specialist review structure and severity rules.
+
+**Quick Mode:** For Quick-scope features (see `pipeline-contracts.md`), skip specialist subagents, do a quick manual artifact check, a quick user confirmation, then run build/test/lint and close. See `references/reviewing-operations.md` Section 6 for details.
 
 ## Review Prerequisites
 

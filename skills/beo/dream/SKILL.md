@@ -35,6 +35,22 @@ Do not edit `critical-patterns.md` without explicit approval.
 Secret/PII redaction is mandatory before summary output and before writing to `.beads/learnings/*.md`.
 </HARD-GATE>
 
+<HARD-GATE>
+Dream must never create new beads, epics, or feature artifacts. It only reads and consolidates existing learnings.
+</HARD-GATE>
+
+<HARD-GATE>
+Every consolidated learning must include the source feature slug and original capture date.
+</HARD-GATE>
+
+<HARD-GATE>
+If recurring mode produces zero actionable candidates after full source scan, escalate to bootstrap mode before finalizing. Do not finalize an empty recurring pass without attempting the broader bootstrap window.
+</HARD-GATE>
+
+<HARD-GATE>
+Every dream run must write an updated provenance record to `dream-run-provenance.md` before finalizing, regardless of whether any learnings were merged, created, or skipped.
+</HARD-GATE>
+
 The durable write surface is `.beads/learnings/*.md`.
 Dream may propose critical promotions, but it must never edit `.beads/critical-patterns.md` without explicit user approval.
 

@@ -83,6 +83,36 @@ After resolving the lookup:
 Do not fork shared rules into individual skill bodies.
 If a skill needs a shared rule, summarize it briefly and point back here.
 
+
+## Canonical Ownership
+
+The reference skill owns the single source of truth for all shared protocol documents. Other skills MUST NOT duplicate protocol definitions — they should point here instead.
+
+| Document | Owns |
+|---|---|
+| `br-cli-reference.md` | All `br` command syntax and flags |
+| `bv-cli-reference.md` | All `bv` command syntax and flags |
+| `status-mapping.md` | Task and feature state machines |
+| `pipeline-contracts.md` | Routing table, artifact hierarchy, slug rules |
+| `state-and-handoff-protocol.md` | STATE.json schema and field semantics |
+| `artifact-protocol.md` | Artifact naming and storage conventions |
+| `slug-protocol.md` | Slug lifecycle procedures |
+| `approval-gates.md` | Approval label rules and back-edge removal |
+| `dependency-and-scheduling.md` | Task dependency wiring and scheduling |
+| `file-conventions.md` | `.beads/` directory layout |
+| `communication-standard.md` | Agent-to-agent message format |
+| `agent-mail-coordination.md` | Agent mail delivery protocol |
+| `bead-description-templates.md` | Bead description format |
+| `learnings-read-protocol.md` | How skills read learnings |
+
+## Red Flags
+
+- A skill duplicates a protocol table or status mapping instead of pointing to the reference doc
+- A `br` or `bv` command in any skill uses flags not documented in the CLI reference
+- STATE.json field semantics described outside `state-and-handoff-protocol.md`
+- Status values used that don't appear in `status-mapping.md` or `pipeline-contracts.md` routing table
+- Artifact paths that contradict `file-conventions.md`
+
 ## Handoff
 
 After resolving the lookup, explicitly return to the calling beo skill and continue using the canonical rule you found here.

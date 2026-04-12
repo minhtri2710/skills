@@ -43,8 +43,9 @@ When onboarding is current, it also installs the repo-local scout command `.bead
 1. Verify `node --version` is `>=18`. If not, stop and tell the user onboarding cannot run yet.
 2. Run a dry check:
    - `node <skill-path>/scripts/onboard_beo.mjs --repo-root <repo-root>`
-   - if the result is `needs_onboarding`, summarize the actions and ask for approval
-   - if the result is `up_to_date`, optionally run `node <repo-root>/.beads/beo_status.mjs --json` for a quick scout, then hand back to `beo-router`
+   - The script returns a JSON object with a script-level `status` field (not a STATE.json routing state):
+     - `"needs_onboarding"` → summarize the actions and ask for approval
+     - `"up_to_date"` → optionally run `node <repo-root>/.beads/beo_status.mjs --json` for a quick scout, then hand back to `beo-router`
 3. Apply onboarding when approved:
    - `node <skill-path>/scripts/onboard_beo.mjs --repo-root <repo-root> --apply`
 

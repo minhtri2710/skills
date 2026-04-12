@@ -76,6 +76,8 @@ All blocking tasks must be closed.
 
 ### Stale Label Cleanup
 
+Remove stale labels before dispatch. See `pipeline-contracts.md` Label Lifecycle for the canonical label definitions.
+
 ```bash
 br label remove <TASK_ID> -l blocked 2>/dev/null
 br label remove <TASK_ID> -l failed 2>/dev/null
@@ -217,12 +219,7 @@ The worker should return:
 
 ### Status Mapping
 
-| Worker Reports | br Commands |
-|---------------|-------------|
-| `done` | `br label remove <ID> -l in_progress && br close <ID>` |
-| `blocked` | `br label remove <ID> -l in_progress && br update <ID> -s deferred && br label add <ID> -l blocked` |
-| `failed` | `br label remove <ID> -l in_progress && br update <ID> -s deferred && br label add <ID> -l failed` |
-| `partial` | `br label remove <ID> -l in_progress && br update <ID> -s deferred && br label add <ID> -l partial` |
+> Task and feature status values follow `status-mapping.md`. See `beo-reference` for the authoritative state machines and the `br` command sequences for each worker report.
 
 ### Git Commit Format
 
@@ -334,7 +331,7 @@ Update `.beads/STATE.json`:
 {
   "schema_version": 1,
   "phase": "executing",
-  "status": "complete",
+  "status": "<ready-to-review | phase-complete-needs-replan>",
   "feature": "<epic-id>",
   "feature_slug": "<feature_slug>",
   "tasks": "<total> completed, <blocked> blocked, <failed> failed",

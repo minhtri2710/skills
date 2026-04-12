@@ -74,6 +74,15 @@ A beo skill is in good shape when:
 
 If context usage exceeds 65%, use `references/writing-skills-operations.md` together with `../reference/references/state-and-handoff-protocol.md` for the checkpoint procedure.
 
+
+## Red Flags
+
+- Skill has no Hard Gates section (every skill must gate entry)
+- Skill duplicates protocol content instead of referencing `beo-reference`
+- Pressure tests don't cover the skill's specific failure modes
+- Skill reads STATE.json but doesn't validate schema_version
+- Eval fixtures use non-canonical status values
+
 ## References
 
 Load when needed:

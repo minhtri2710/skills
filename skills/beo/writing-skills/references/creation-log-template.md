@@ -192,7 +192,7 @@
 - Agent cites skill sections when justifying choices
 - [Other passing criteria]
 - Manual validation passes: structure, references, pressure-test coverage
-- SKILL.md < 400 lines
+- SKILL.md < 500 lines
 
 **Total iterations required:** [N]
 

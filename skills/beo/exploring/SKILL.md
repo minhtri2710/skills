@@ -97,7 +97,7 @@ Look for uncertainties that would materially change planning or execution, such 
 Keep the exploration concrete and answerable.
 A good exploration question should be answerable in 1-2 sentences and should change downstream decisions.
 
-Classify the feature domain (`SEE`, `CALL`, `RUN`, `READ`, or `ORGANIZE`) and select probes from `references/gray-area-probes.md` using the matching category.
+Classify the feature domain (`SEE`, `CALL`, `RUN`, `READ`, or `ORGANIZE`) and select probes from `references/gray-area-probes.md` using the matching category. Limit to 3-5 probes per round; if more are needed, run a second round after the user responds.
 
 ## Default-Proposal Pattern
 
@@ -157,24 +157,14 @@ When exploring is complete:
 3. report how many decisions were locked and what remains out of scope
 4. hand off to `beo-planning`
 
-Exploring STATE.json uses the canonical 12-field schema from `../reference/references/state-and-handoff-protocol.md`:
+Exploring STATE.json uses the canonical 12-field schema from `../reference/references/state-and-handoff-protocol.md` (see Example F). Exploring-specific field values:
 
-```json
-{
-  "schema_version": 1,
-  "phase": "beo-exploring",
-  "status": "exploring-complete",
-  "feature": "<EPIC_ID>",
-  "feature_slug": "<slug>",
-  "tasks": "none — exploring does not create beads",
-  "next": "beo-planning",
-  "planning_mode": "<single-phase | multi-phase | unknown>",
-  "has_phase_plan": false,
-  "current_phase": 1,
-  "total_phases": "<1 | unknown>",
-  "phase_name": "unknown"
-}
-```
+- `phase`: `"exploring"`
+- `status`: `"planning-needs-approach"` (on completion)
+- `tasks`: `"none — exploring does not create beads"`
+- `next`: `"beo-planning"`
+- `planning_mode`: `"unknown"` (pre-planning)
+- `phase_name`: human-readable feature summary (e.g., `"Onboarding wizard"`)
 
 Exploring does not create execution beads.
 Its deliverable is decision clarity.

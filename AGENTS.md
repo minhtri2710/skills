@@ -89,7 +89,7 @@ skills/
       references/
         dream-operations.md
         consolidation-rubric.md
-        codex-source-policy.md
+        agent-history-source-policy.md
         pressure-scenarios.md
     writing-skills/              # Skill creation and pressure-testing
       SKILL.md

@@ -68,8 +68,14 @@ After the fix path is clear or a blocker is confirmed, capture the pattern using
 
 ## Escalation and Timeout
 
-- If you have spent more than 3 diagnostic cycles (reproduce → diagnose → attempt) without isolating the root cause, **stop and ask the user** for guidance. Do not keep spinning.
-- If the failure involves infrastructure, permissions, or external services you cannot inspect, report what you know and escalate immediately rather than guessing.
+<HARD-GATE>
+If you have spent more than 3 diagnostic cycles (reproduce → diagnose → attempt) without isolating the root cause, **stop and ask the user** for guidance. Do not keep spinning.
+</HARD-GATE>
+
+<HARD-GATE>
+If the failure involves infrastructure, permissions, or external services you cannot inspect, report what you know and escalate immediately rather than guessing. Do not attempt workarounds for inaccessible systems.
+</HARD-GATE>
+
 - If a blocker remains unresolved after one rescue attempt, classify it as `needs_human` and pause the bead. Do not silently retry indefinitely.
 
 ## Handoff
@@ -93,7 +99,7 @@ Use `references/debugging-operations.md` and `../reference/references/state-and-
 
 - **Fixing symptoms, not root cause**: If the same error recurs after the fix, root cause was not found. Return to Step 3.
 - **Skipping reproduction**: Diagnosing from the error message alone leads to wrong fixes. Always reproduce first.
-- **Not checking critical-patterns.md**: 30-40% of recurring failures are already documented. Check before investigating.
+- **Not checking critical-patterns.md first**: Always check `.beads/learnings/critical-patterns.md` before investigating from scratch — 30-40% of recurring failures are already documented.
 - **Committing a fix without running verification**: The fix must be verified with the exact failing command, not a different test.
 - **Decision violation silently patched**: Violating a `CONTEXT.md` decision to make a test pass propagates the violation downstream. Report and align first.
 - **Calling the first visible error the root cause**: Walk the error chain; the first error you see is often a symptom of a deeper cause.

@@ -54,10 +54,10 @@ Implement directly, then verify with the original failing command plus broader r
 
 ### Substantial Fix
 
-Create a fix bead using the shared reactive-fix template and the pipeline contract requiring both `--parent` and an explicit blocking dependency:
+Create a fix bead using the shared reactive-fix template. Per `pipeline-contracts.md` Fix Beads rules, use `--parent` only — do **not** use `--deps blocks:<closed-bead>`. Reference the affected bead in the description instead:
 
 ```bash
-br create "Fix: <root cause summary>" -t task --parent <EPIC_ID> --deps blocks:<original-bead-id>
+br create "Fix: <root cause summary> (ref: <original-bead-id>)" -t task --parent <EPIC_ID>
 ```
 
 If the issue is a locked-decision violation, coordinate before silently changing behavior.

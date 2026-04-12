@@ -4,20 +4,12 @@ Red flags, anti-patterns, and recovery procedures for `beo-executing`.
 
 ## Post-Compaction Recovery
 
-If you detect that context has been compacted (prior conversation is summarized):
+If context has been compacted (prior conversation is summarized), re-read the essential artifacts before resuming:
 
-1. Re-read these artifacts with your file reading tool:
-   - `.beads/artifacts/<feature_slug>/CONTEXT.md`
-   - `.beads/artifacts/<feature_slug>/plan.md`
-   - `.beads/artifacts/<feature_slug>/phase-contract.md`
-   - `.beads/artifacts/<feature_slug>/story-map.md`
-   - `.beads/STATE.json` (if present)
-   - `.beads/HANDOFF.json` (if present)
-2. Re-read current task state:
-   ```bash
-   br dep list <EPIC_ID> --direction up --type parent-child --json
-   ```
-3. Resume from the last known good state
+1. **Feature context**: `.beads/artifacts/<feature_slug>/CONTEXT.md`, `plan.md`, `phase-contract.md`, `story-map.md`
+2. **State files** (if present): `.beads/STATE.json`, `.beads/HANDOFF.json`
+3. **Task graph**: `br dep list <EPIC_ID> --direction up --type parent-child --json`
+4. Resume from the last known good state
 
 ## Red Flags
 

@@ -11,6 +11,8 @@ description: >-
 If `.beads/onboarding.json` is missing or stale, stop and load `beo-using-beo` before continuing.
 </HARD-GATE>
 
+> **Co-load `beo-reference`** alongside this skill for canonical CLI commands, status mappings, and shared protocol definitions.
+
 # Beo Swarming
 
 ## Overview
@@ -28,6 +30,10 @@ If you are editing source code, stop immediately and route that work to `beo-exe
 
 <HARD-GATE>
 If Agent Mail is unavailable, do NOT attempt swarming. Degrade to `beo-executing`.
+</HARD-GATE>
+
+<HARD-GATE>
+The current phase must have 3 or more independent tasks in `ready` status. If fewer than 3 are ready, route to `beo-executing` instead.
 </HARD-GATE>
 
 

@@ -1,5 +1,7 @@
 # State and Handoff Protocol
 
+> **450+ lines.** Key sections: STATE.json Schema (canonical fields), HANDOFF.json Schema, Status Values, Examples A-F. Use your editor's search to jump to the section you need.
+
 ## Contents
 
 - [Why This Exists](#why-this-exists)
@@ -103,6 +105,7 @@ Every skill must write `.beads/STATE.json` with all fields present.
 - **planning_mode**
   - `"single-phase"`: one current phase covers the execution scope
   - `"multi-phase"`: the feature spans multiple meaningful phases, and only the current phase is prepared now
+  - `"unknown"`: planning has not yet determined the mode (valid only during exploring and early planning, before approach.md is finalized)
 
 - **has_phase_plan**
   - `true`: `.beads/artifacts/<feature>/phase-plan.md` exists and is part of the active planning model
@@ -178,7 +181,7 @@ Rules:
 ### Canonical meanings
 
 - `planning_mode`
-  - `"single-phase"` or `"multi-phase"`
+  - `"single-phase"`, `"multi-phase"`, or `"unknown"` (pre-planning only)
 
 - `has_phase_plan`
   - `true` when `.beads/artifacts/<feature>/phase-plan.md` exists and is active
@@ -389,6 +392,25 @@ rm .beads/HANDOFF.json
   "current_phase": 1,
   "total_phases": 1,
   "phase_name": "Router remediation"
+}
+```
+
+### Example F — STATE.json for exploring (pre-planning)
+
+```json
+{
+  "schema_version": 1,
+  "phase": "exploring",
+  "status": "exploring",
+  "feature": "pe-jkl",
+  "feature_slug": "onboarding-wizard",
+  "tasks": "Requirements gathering in progress",
+  "next": "beo-planning",
+  "planning_mode": "unknown",
+  "has_phase_plan": false,
+  "current_phase": 1,
+  "total_phases": 1,
+  "phase_name": "Onboarding wizard"
 }
 ```
 

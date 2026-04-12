@@ -47,7 +47,7 @@ Ask: was a locked decision (D1, D2...) violated by the implementation? Decision 
 If Agent Mail is available (a swarm is active and the mail session was initialized):
 
 ```bash
-fetch_inbox(project_key="<project-root-path>", agent_name="<agent-name>")
+br mail fetch-inbox --project "<project-root-path>" --agent "<agent-name>"
 ```
 
 Another worker may have already reported the same issue or a related conflict. Avoid duplicate debugging.

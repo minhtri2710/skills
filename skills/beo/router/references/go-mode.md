@@ -28,7 +28,7 @@ GATE 3 (after reviewing):
 ```
 exploring → [GATE 1] → planning → validating → [GATE 2]
          → swarming (+ executing ×N) → reviewing → [GATE 3]
-         → compounding → DONE
+         → compounding → beo-router (next feature or session end)
 ```
 
 **Context budget in go mode:** If context exceeds 65% mid-pipeline, write HANDOFF.json with `"mode": "go"` so the next session resumes in go mode from the current phase.

@@ -1,15 +1,10 @@
 ---
 name: beo-router
 description: >-
-  Use whenever a beo session is starting, resuming, recovering from interruption,
-  checking status, deciding what to do next, or when the correct beo skill is
-  not obvious. Use first for prompts like "continue", "resume", "what's
-  next?", "status?", "pick this back up", "where are we?", or any new
-  feature request where the current phase is unclear. Also use when the user
-  asks to research, explore, discuss, or think through a topic that could
-  become a feature — phrases like "can you research X with me", "let's
-  explore X", "I want to build X", "help me think through X", or any
-  request implying non-trivial work, even if phrased conversationally.
+  Use whenever a beo session is starting, resuming, or when the correct beo
+  skill is unclear. Triggers: "continue", "resume", "status?", "what's
+  next?", new feature requests, or conversational prompts like "let's explore
+  X" or "help me think through X" that imply non-trivial work.
 ---
 
 <HARD-GATE>
@@ -82,7 +77,7 @@ If `beo-reference` is not co-loaded, load it before classifying state or choosin
 8. load exactly one next skill
 
 Use `references/router-operations.md` when you need the exact bootstrap steps, instant-path scaffold, resume validation procedure, planning-aware routing rules, or doctor-mode commands.
-Use `references/state-routing.md` for the canonical state table.
+Use `../reference/references/pipeline-contracts.md` for the canonical state routing table.
 Use `references/go-mode.md` when the user says "go", "run the full pipeline", or "go mode" and you need the 3-gate end-to-end sequence.
 
 ## Report State Before Routing
@@ -90,7 +85,7 @@ Use `references/go-mode.md` when the user says "go", "run the full pipeline", or
 Always report the state in human terms before loading the next skill.
 At minimum include:
 - feature
-- mode (`single-phase`, `multi-phase`, or unknown)
+- mode (`single-phase`, `multi-phase`, or `unknown` pre-planning)
 - current phase if known
 - canonical state
 - progress / blockers

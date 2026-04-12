@@ -132,7 +132,7 @@ br sync --flush-only
 ```
 
 4. write `.beads/review-findings.md` for compounding
-5. write a fresh `.beads/STATE.json` using `../../reference/references/state-and-handoff-protocol.md`; include `Next: beo-compounding` and planning-aware fields when known
+5. write a fresh `.beads/STATE.json` using `../../reference/references/state-and-handoff-protocol.md`; set `status: "learnings-pending"` and `next: "beo-compounding"`; include planning-aware fields when known
 6. optionally sync `AGENTS.md` changes with user approval
 7. remove `.beads/HANDOFF.json` only after the fresh state write succeeds
 

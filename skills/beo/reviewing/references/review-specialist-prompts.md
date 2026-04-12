@@ -74,13 +74,8 @@ Collect all findings from all specialists. Categorize:
 
 ## Creating P1 Fix Beads
 
-```bash
-# P1 finding becomes a blocking task under the epic
-br create "Fix: <P1 finding summary>" -t task --parent <EPIC_ID> -p 1 --json
-br update <FIX_TASK_ID> --description "<fix bead description: see below>"
-```
-
-P1 fix beads are **reactive fix beads** -- exempt from the story context block requirement but must satisfy the minimum execution contract used by `beo-executing`. Use the shared **Reactive Fix Bead Template** from `../../reference/references/bead-description-templates.md`.
+P1 fix beads follow the single canonical procedure in `reviewing-operations.md` Section 3.
+Use the shared **Reactive Fix Bead Template** from `../../reference/references/bead-description-templates.md`.
 
 Execute the fix immediately -- route back to `beo-executing` for this task.
 

@@ -202,3 +202,5 @@ If the user rejects or withholds approval:
 - Never continue execution if the user rejects or withholds approval.
 - Never treat current-phase approval as whole-feature approval when planning mode is `multi-phase`.
 - Never skip the validation approval gate just because the user already approved the phase sequence.
+
+> **See also:** `pipeline-contracts.md` → Label Lifecycle for the `approved` label back-edge removal rule.

@@ -12,6 +12,8 @@ description: >-
 If `.beads/onboarding.json` is missing or stale, stop and load `beo-using-beo` before continuing.
 </HARD-GATE>
 
+> **Co-load `beo-reference`** alongside this skill for canonical CLI commands, status mappings, and shared protocol definitions.
+
 # Beo Planning
 
 ## Overview
@@ -73,20 +75,18 @@ Load `references/discovery-guide.md` when running focused discovery (step 3) for
 
 Use the simplest mode that keeps execution safe and understandable.
 
-### `single-phase`
-Use when one believable closed loop can deliver the feature safely, usually in 1-4 stories, with no important capability slice that should stay deferred.
+- **`single-phase`** — one believable closed loop, usually 1-4 stories.
+- **`multi-phase`** — feature unfolds across 2+ meaningful capability slices.
 
-### `multi-phase`
-Use when the feature naturally unfolds across 2-4 meaningful capability slices, the current work mainly unlocks later work, or forcing everything into one phase would create a vague bucket or >4 stories.
+See `references/planning-operations.md` § 3 for the full decision criteria.
 
 `phase-plan.md` is the whole-feature sequence for multi-phase work.
 `phase-contract.md` and `story-map.md` always describe the **current phase only**.
-
 ## Required Artifacts and Their Roles
 
 Artifacts: `discovery.md`, `approach.md`, `plan.md`, `phase-plan.md` (multi-phase only), `phase-contract.md`, `story-map.md`, task beads.
 
-See `references/planning-operations.md` sections 4-7 for write order, artifact roles, and required fields. Use the corresponding templates: `references/approach-template.md`, `references/plan-template.md`, `references/phase-plan-template.md`, `references/phase-contract-template.md`, `references/story-map-template.md`, `references/bead-creation-guide.md`.
+See `references/planning-operations.md` sections 4-7 for write order, artifact roles, and required fields. Use the corresponding templates: `references/discovery-template.md`, `references/approach-template.md`, `references/plan-template.md`, `references/phase-plan-template.md`, `references/phase-contract-template.md`, `references/story-map-template.md`, `references/bead-creation-guide.md`.
 
 ## Learnings Retrieval
 

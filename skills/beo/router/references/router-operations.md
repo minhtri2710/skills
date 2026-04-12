@@ -216,6 +216,8 @@ If the work grows beyond instant scope:
 - route to `beo-exploring` or `beo-planning`
 - treat the existing instant task bead as planning input
 
+> **Hard gate**: After instant-path promotion, the stub CONTEXT.md and any placeholder artifacts MUST be treated as incomplete drafts. The exploring or planning skill must re-derive them from scratch — never treat promoted stubs as validated artifacts.
+
 ## 4. Artifact Inspection Order
 
 When assessing an active feature, inspect artifacts in this order:
@@ -362,11 +364,11 @@ Include all 12 canonical fields:
 - `schema_version`: always `1`
 - `feature`: epic ID
 - `feature_slug`: the immutable feature slug
-- `phase`: current skill being routed to
+- `phase`: skill that wrote this state (bare name, no `beo-` prefix)
 - `status`: canonical state from the routing table
 - `tasks`: summary of current task status
 - `next`: the next skill to load
-- `planning_mode`: `single-phase`, `multi-phase`, or `unknown`
+- `planning_mode`: `single-phase`, `multi-phase`, or `unknown` (pre-planning only)
 - `has_phase_plan`: `true` if `phase-plan.md` exists, otherwise `false`
 - `current_phase`: current phase number (use `1` for single-phase)
 - `total_phases`: total phase count (use `1` for single-phase)

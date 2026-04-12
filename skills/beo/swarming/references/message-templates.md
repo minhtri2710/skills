@@ -1,5 +1,7 @@
 # Agent Mail Message Templates
 
+> **390 lines.** Use the Table of Contents below to jump to the template you need. Most common: §3 (Completion Report), §4 (Blocker Alert), §5-6 (File Conflict).
+
 Standard message formats for swarm coordination. All messages post to the epic thread (`thread_id=<EPIC_ID>`) unless noted otherwise.
 Use `<COORDINATOR_AGENT_NAME>` for the coordinator identity. Workers use `<AGENT_MAIL_NAME>` (the canonical Agent Mail name returned by `macro_start_session`) for all `sender_name` parameters.
 

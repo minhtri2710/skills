@@ -1,11 +1,14 @@
 # Planning Operations
 
+> **616+ lines.** Use the Table of Contents below to jump to the section you need. Key sections: §3 (Planning Mode), §9 (Current-Phase Artifacts), §11 (Task Bead Creation), §13 (State Update).
+
 Detailed operational playbook for `beo-planning`.
 
 Load this file when you need exact prerequisite checks, planning-mode selection, artifact-writing steps, task bead creation flow, dependency wiring, handoff details, or the high-stakes multi-perspective review procedure.
 
 ## Table of Contents
 
+- [0. Refactoring Sequencing Rule](#0-refactoring-sequencing-rule)
 - [1. Prerequisites](#1-prerequisites)
 - [2. Learnings Retrieval](#2-learnings-retrieval)
 - [3. Decide Planning Mode](#3-decide-planning-mode)
@@ -469,7 +472,7 @@ Include these planning-specific fields.
 {
   "schema_version": 1,
   "phase": "planning",
-  "status": "complete",
+  "status": "ready-to-validate",
   "feature": "<epic-id>",
   "feature_slug": "<feature_slug>",
   "tasks": "<summary>",

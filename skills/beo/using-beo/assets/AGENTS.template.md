@@ -5,7 +5,7 @@
 2. Check `.beads/onboarding.json` exists and is current. If it is missing or stale, stop and load `beo-using-beo`.
 3. If `.beads/beo_status.mjs` exists, run `node .beads/beo_status.mjs --json` as the first quick scout step.
 4. If `.beads/HANDOFF.json` exists, do not auto-resume from it; present the saved state to the user first.
-5. Read `.beads/critical-patterns.md` before planning or execution.
+5. Read `.beads/learnings/critical-patterns.md` before planning or execution.
 
 ## Beo Skill Chain
 
@@ -35,7 +35,7 @@ Support skills: `beo-debugging`, `beo-dream`, `beo-writing-skills`
 - `.beads/STATE.json` - current phase and feature narrative
 - `.beads/HANDOFF.json` - optional resume checkpoint when a session must pause
 - `.beads/artifacts/<feature_slug>/` - per-feature artifacts such as `CONTEXT.md`, `discovery.md`, `approach.md`, `plan.md`, `phase-contract.md`, and `story-map.md`
-- `.beads/critical-patterns.md` - promoted learnings approved for broad reuse
+- `.beads/learnings/critical-patterns.md` - promoted learnings approved for broad reuse
 - `.beads/learnings/` - per-feature learnings files
 
 ## Session Finish

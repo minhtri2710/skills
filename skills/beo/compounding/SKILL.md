@@ -34,6 +34,10 @@ Never auto-append to `critical-patterns.md`; use the canonical approval rule fro
 One learnings file per feature. Group related findings within that file instead of scattering them across multiple files.
 </HARD-GATE>
 
+<HARD-GATE>
+The feature status must be `learnings-pending` (set by reviewing). Do not enter compounding if review has not finished.
+</HARD-GATE>
+
 ---
 
 ## Boundary with Reviewing
@@ -88,6 +92,8 @@ Compounding complete.
 
 Next feature starts with this knowledge available.
 ```
+
+After compounding completes, return control to `beo-router` to pick up the next feature or phase.
 
 ---
 

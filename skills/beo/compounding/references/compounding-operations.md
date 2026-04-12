@@ -180,7 +180,7 @@ br dep list <EPIC_ID> --direction up --type parent-child --json
 # Check: every bead should have status "closed"; epic should be "closed"
 ```
 
-If any bead is still open, stop and report the inconsistency to the user. Do not auto-close. Route back to `beo-reviewing` if the open beads represent unfinished work.
+If any bead is still open, stop and report the inconsistency to the user. Do not auto-close. Route back to `beo-reviewing` if the open beads represent unfinished work. If this is the second consecutive compounding→reviewing loop for the same feature, escalate to the user instead of routing back automatically.
 
 ### Normal Completion
 
@@ -202,6 +202,8 @@ Update `.beads/STATE.json`:
   "phase_name": "<current phase name>"
 }
 ```
+
+> `completed` is the canonical terminal state for a feature after compounding. This value is defined in `status-mapping.md` as a feature-level terminal state.
 
 Also record alongside the state file:
 - Learnings file: `.beads/learnings/YYYYMMDD-<slug>.md`

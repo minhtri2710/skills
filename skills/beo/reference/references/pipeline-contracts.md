@@ -105,7 +105,7 @@ Use `state-and-handoff-protocol.md` as the canonical source for the `STATE.json`
 
 See `status-mapping.md` as the canonical source for all label semantics, status-to-label mappings, and stale label cleanup rules.
 
-The `approved` label back-edge removal rule is documented in `status-mapping.md` → Feature States. The invariant: `approved` must be removed whenever routing back to planning or exploring; on normal completion it remains on the closed epic as historical state.
+The `approved` label back-edge removal invariant: `approved` must be removed whenever routing back to planning or exploring; on normal completion it remains on the closed epic as historical state.
 
 ---
 
@@ -165,21 +165,12 @@ Validation may only create **spike beads** (time-boxed experiments, priority 0).
 
 ## Feature Slug
 
-Every feature gets an immutable `feature_slug` created once by the router and used for all artifact paths.
+Feature slugs are canonicalized and managed by `slug-protocol.md`.
 
-**Rules:**
-- Derived from the epic title at creation time
-- Lowercase, hyphens only, max 40 chars: `auth-token-refresh`, `bead-scope-isolation`
-- Stored in: epic bead description (first line: `slug: <feature_slug>`), HANDOFF.json (`feature_name` field, which carries the slug/path identifier), STATE.json (`feature_slug` field)
-- Used for: `.beads/artifacts/<feature_slug>/` path, HANDOFF resume context, and learnings file slug component
+- Use `feature_slug` for artifact paths and learnings file naming.
+- Store the same immutable slug in the epic description, `STATE.json`, and `HANDOFF.json`.
+- Do not restate slug derivation or mutation rules here; `slug-protocol.md` is the single source of truth for creation, reading, safe update, and recovery.
 
-**Canonical derivation:**
-1. Take the epic title
-2. Lowercase
-3. Replace spaces and underscores with hyphens
-4. Remove all non-alphanumeric-hyphen characters
-5. Collapse consecutive hyphens
-6. Truncate to 40 characters
-7. Remove trailing hyphens
+---
 
-Once set, the slug never changes, even if the epic title is updated later.
+See also: `approval-gates.md` for gate definitions that reference this contract.

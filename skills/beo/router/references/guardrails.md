@@ -11,7 +11,6 @@
 - **Bypassing validation for instant work**: Instant-path work must still go through `beo-validating`. Do not set `approved` in the router or route directly to executing
 - **Routing to swarming without validated plan**: Swarming requires the same `approved` label as executing
 - **Skipping compounding after review**: Learnings capture is part of the pipeline, not optional
-- **Debugging without checking critical-patterns.md first**: Always check known patterns before investigating
 
 ## Anti-Patterns
 
