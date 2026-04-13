@@ -18,6 +18,10 @@ If `.beads/onboarding.json` is missing or stale, stop and load `beo-using-beo` b
 
 Dream performs one manual consolidation pass across accumulated learnings.
 It updates durable learnings in place, keeps the write surface narrow, and promotes only the patterns that still deserve long-term attention.
+> **Shared references** — this skill references specific `beo-reference` docs by path. Do not co-load the full `beo-reference` skill; read individual reference docs as needed.
+
+> Also uses `../reference/references/communication-standard.md` for inter-skill message formatting.
+
 
 **Core principle:** consolidate carefully; do not confuse repeated mention with durable signal.
 
@@ -48,7 +52,7 @@ If recurring mode produces zero actionable candidates after full source scan, es
 </HARD-GATE>
 
 <HARD-GATE>
-Every dream run must write an updated provenance record to `dream-run-provenance.md` before finalizing, regardless of whether any learnings were merged, created, or skipped.
+Every dream run must write an updated provenance record to `.beads/learnings/dream-run-provenance.md` before finalizing, regardless of whether any learnings were merged, created, or skipped.
 </HARD-GATE>
 
 The durable write surface is `.beads/learnings/*.md`.
@@ -78,8 +82,9 @@ Load `references/dream-operations.md` for process rules and `references/agent-hi
 
 After the consolidation pass:
 - persist the updated learnings state
-- record `last_dream_consolidated_at` in `dream-run-provenance.md`
+- record `last_dream_consolidated_at` in `.beads/learnings/dream-run-provenance.md`
 - report what was merged, skipped, or proposed for promotion
+- return control to `beo-router` (or the calling beo skill) after the consolidation report
 
 ## Context Budget
 

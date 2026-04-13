@@ -46,6 +46,21 @@ if status == "open":
   else → pending
 ```
 
+## Canonical Terminal-State Semantics
+
+For routing and completion decisions, treat these Beo task states as terminal outcomes:
+
+- `done`
+- `cancelled`
+- `failed`
+
+Notes:
+- `done` is the only successful terminal state and maps to `br status = "closed"`
+- `cancelled` and `failed` are terminal but non-success states and map to `br status = "deferred"` plus their label
+- `blocked` and `partial` are **not** terminal for routing/completion purposes
+
+When shared routing docs say “all tasks are in canonical terminal states,” they mean every task resolves to one of the three states above after applying this mapping.
+
 ## Feature States
 
 | Feature State | br Epic Status | br Labels | How to Set |

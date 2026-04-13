@@ -31,6 +31,7 @@ test('applyRepo creates full onboarding on an empty repo', async () => {
   assert.equal(state.phase, 'router')
   assert.equal(state.status, 'needs-onboarding')
   assert.equal(state.next, 'beo-router')
+  await readFile(path.join(repoRoot, '.beads', 'critical-patterns.md'), 'utf8')
   assert.equal(onboarding.status, 'complete')
 })
 
@@ -140,4 +141,5 @@ test('installed beo_status script reports onboarding, state, and optional handof
   assert.ok(status.next_reads.includes('AGENTS.md'))
   assert.ok(status.next_reads.includes('.beads/STATE.json'))
   assert.ok(status.next_reads.includes('.beads/HANDOFF.json'))
+  assert.ok(status.next_reads.includes('.beads/critical-patterns.md'))
 })

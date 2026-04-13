@@ -55,7 +55,7 @@ Another worker may have already reported the same issue or a related conflict. A
 If Agent Mail is **not** available (solo mode, no swarm, or mail initialization failed), use the solo-debug-mode fallback from `message-templates.md`:
 
 ```bash
-br comments add <TASK_ID> --no-daemon "[DEBUG NOTE] <one-sentence root cause and status>"
+br comments add <TASK_ID> --no-daemon --message "[DEBUG NOTE] <one-sentence root cause and status>"
 ```
 
 ## 3f. Narrow to Root Cause

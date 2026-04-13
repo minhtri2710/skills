@@ -25,7 +25,7 @@ Onboarding manages:
 - `.beads/learnings/`
 - `.beads/beo_status.mjs`
 - `.beads/STATE.json`
-- `.beads/learnings/critical-patterns.md`
+- `.beads/critical-patterns.md`
 - `.beads/onboarding.json`
 
 ## `checkRepo` JSON Schema
@@ -40,7 +40,7 @@ Onboarding manages:
     "create_.beads/onboarding.json",
     "create_.beads/beo_status.mjs",
     "create_.beads/STATE.json",
-    "create_.beads/learnings/critical-patterns.md",
+    "create_.beads/critical-patterns.md",
     "create_.beads/artifacts/",
     "create_.beads/learnings/"
   ],
@@ -71,7 +71,7 @@ When onboarding is needed, apply in this order:
 4. Create `.beads/learnings/` if missing
 5. Write `.beads/beo_status.mjs`
 6. Write `.beads/STATE.json` with canonical bootstrap defaults if missing (`phase: "router"`, `status: "needs-onboarding"`, `planning_mode: "unknown"`)
-7. Write `.beads/learnings/critical-patterns.md` defaults if missing
+7. Write `.beads/critical-patterns.md` defaults if missing
 8. Write `.beads/onboarding.json`
 
 ## `onboarding.json` Schema
@@ -87,7 +87,7 @@ When onboarding is needed, apply in this order:
     "agents_mode": "created_from_template" | "updated_managed_block" | "appended_managed_block",
     "status_script": ".beads/beo_status.mjs",
     "state_json": ".beads/STATE.json",
-    "critical_patterns": ".beads/learnings/critical-patterns.md"
+    "critical_patterns": ".beads/critical-patterns.md"
   }
 }
 ```

@@ -60,6 +60,10 @@ Pick the top executable bead from the first available track. If dispatched by sw
 
 For multi-phase work, select only beads that belong to the **current phase**.
 
+Fallback-scoping rule:
+- `bv --robot-plan --graph-root <EPIC_ID>` is authoritative when available
+- if falling back to `bv --robot-next` or `br ready`, post-filter results to beads that belong to the active epic and current phase before selecting work
+
 ## 4. Pre-Dispatch Checks
 
 ### Check the Task and Dependencies
@@ -85,8 +89,9 @@ br label remove <TASK_ID> -l in_progress 2>/dev/null
 br label remove <TASK_ID> -l partial 2>/dev/null
 br label remove <TASK_ID> -l cancelled 2>/dev/null
 br label remove <TASK_ID> -l dispatch_prepared 2>/dev/null
-br label remove <TASK_ID> -l debug_attempted 2>/dev/null
 ```
+
+Do **not** remove `debug_attempted`. It is routing-significant history, not stale execution state.
 
 ### Description Verification
 
@@ -126,6 +131,8 @@ If `phase-plan.md` exists and the bead clearly belongs to a later phase:
 
 Use the canonical reservation signatures and identity rules from `../../reference/references/agent-mail-coordination.md`.
 
+### Worker / Agent-Mail mode
+
 Before implementation, reserve the files the bead will touch:
 
 ```text
@@ -155,6 +162,15 @@ release_file_reservations(
 ```
 
 `[FILE CONFLICT]` and `[FILE CONFLICT RESOLUTION]` messages remain the coordination layer above the reservation API.
+
+### Solo mode (no Agent Mail)
+
+If Agent Mail / reservation APIs are unavailable and execution is running in standalone solo mode:
+- do not attempt reservations
+- do not assume any parallel beo workers exist
+- execute exactly one bead at a time
+- read current local changes before editing, and if unrelated concurrent edits are present, pause and ask the user instead of guessing ownership
+- still keep file scope narrow and explicit in the bead report
 
 Once file coordination is clear, transition the task:
 
@@ -283,7 +299,7 @@ After every bead close, run this validation sequence:
 
 1. Verify `br show <BEAD_ID> --json` reports status `closed`.
 2. Verify the completion report includes bead ID, files changed, tests added or modified, and verification result.
-3. Release all held file reservations with `release_file_reservations(project_key, agent_name, paths=[...])`.
+3. Release all held file reservations with `release_file_reservations(project_key, agent_name, paths=[...])` when Agent Mail mode is active.
 4. Send the `[DONE]` Agent Mail report with the full completion summary.
 5. Re-check the graph with `bv --robot-plan --graph-root <EPIC_ID> --format json` to confirm no orphaned dependencies.
 
@@ -310,11 +326,11 @@ Decision table:
 
 ### Completion
 
-When all current-phase tasks under the epic are closed:
+When all current-phase tasks under the epic are in canonical terminal states (`done`, `cancelled`, or `failed`):
 
 ```bash
 br dep list <EPIC_ID> --direction up --type parent-child --json
-# Filter for .status != "closed"; should return empty for current-phase execution scope
+# Filter for any current-phase task not in a canonical terminal state; should return empty for the current-phase execution scope
 ```
 
 Then run project-specific build/tests.

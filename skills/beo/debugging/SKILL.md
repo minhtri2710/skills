@@ -21,6 +21,10 @@ If `.beads/onboarding.json` is missing or stale, stop and load `beo-using-beo` b
 Debugging resolves blockers and failures systematically.
 Use it to classify the problem, reproduce it, isolate root cause, apply the right fix path, and capture the pattern.
 
+> **Shared references** — this skill references specific `beo-reference` docs by path. Do not co-load the full `beo-reference` skill; read individual reference docs as needed.
+>
+> Also uses `../reference/references/communication-standard.md` for inter-skill message formatting.
+
 **Core principle:** triage -> reproduce -> diagnose -> fix -> learn.
 Do not guess.
 
@@ -99,7 +103,7 @@ Use `references/debugging-operations.md` and `../reference/references/state-and-
 
 - **Fixing symptoms, not root cause**: If the same error recurs after the fix, root cause was not found. Return to Step 3.
 - **Skipping reproduction**: Diagnosing from the error message alone leads to wrong fixes. Always reproduce first.
-- **Not checking critical-patterns.md first**: Always check `.beads/learnings/critical-patterns.md` before investigating from scratch — 30-40% of recurring failures are already documented.
+- **Not checking critical-patterns.md first**: Always check `.beads/critical-patterns.md` before investigating from scratch — 30-40% of recurring failures are already documented.
 - **Committing a fix without running verification**: The fix must be verified with the exact failing command, not a different test.
 - **Decision violation silently patched**: Violating a `CONTEXT.md` decision to make a test pass propagates the violation downstream. Report and align first.
 - **Calling the first visible error the root cause**: Walk the error chain; the first error you see is often a symptom of a deeper cause.

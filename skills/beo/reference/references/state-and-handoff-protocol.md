@@ -93,6 +93,7 @@ Every skill must write `.beads/STATE.json` with all fields present.
 - **phase** — the skill that wrote this state (e.g., `"planning"`, `"executing"`)
 
 - **status** — the canonical routing state from the state routing table (e.g., `"exploring"`, `"ready-to-validate"`, `"executing"`)
+- This may also be a paused pre-execution planning state such as `"awaiting-planning-approval"` when the user must approve the multi-phase sequence before validation can begin.
 
 - **feature** — the epic ID (e.g., `"pe-abc"`)
 
@@ -395,16 +396,16 @@ rm .beads/HANDOFF.json
 }
 ```
 
-### Example F — STATE.json for exploring (pre-planning)
+### Example F — STATE.json after exploring completes (handoff to planning)
 
 ```json
 {
   "schema_version": 1,
   "phase": "exploring",
-  "status": "exploring",
+  "status": "planning-needs-approach",
   "feature": "pe-jkl",
   "feature_slug": "onboarding-wizard",
-  "tasks": "Requirements gathering in progress",
+  "tasks": "Requirements resolved; no execution beads created",
   "next": "beo-planning",
   "planning_mode": "unknown",
   "has_phase_plan": false,

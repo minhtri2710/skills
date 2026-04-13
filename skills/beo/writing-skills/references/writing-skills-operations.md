@@ -51,7 +51,7 @@ Use the meta-test from `pressure-test-template.md` § The Meta-Test to distingui
 
 Validate the skill manually:
 
-1. Confirm `SKILL.md` has the required structure: YAML frontmatter (`name`, `description`), Hard Gates section, Default Loop, Handoff, Context Budget, and Red Flags
+1. Confirm `SKILL.md` has the required structure: YAML frontmatter (`name`, `description`), Hard Gates section, core execution loop section (`Default Loop` or equivalent such as `The Core Cycle`), Handoff, Context Budget, and Red Flags
 2. Confirm all referenced files in `references/` exist and are reachable
 3. Confirm pressure-test scenarios exist and are documented
 

@@ -55,7 +55,7 @@ The `.beads/critical-patterns.md` file is the distilled subset of learnings that
 # Canonical: use your file editing tool to append to .beads/critical-patterns.md
 
 # Optional mirror: Obsidian vault append
-obsidian append "beo-learnings/critical-patterns.md" --content "<pattern>" --silent 2>/dev/null
+obsidian append "beo-learnings/critical-patterns.md" --content "<pattern>" --silent 2>/dev/null  # Vault mirror only; canonical repo path remains .beads/critical-patterns.md
 ```
 
 ## Read Protocol

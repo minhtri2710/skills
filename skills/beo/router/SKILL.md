@@ -20,7 +20,7 @@ Its job is simple:
 
 1. determine the real workflow state from artifacts and the live graph
 2. explain that state in human terms
-3. load exactly one next skill
+3. produce exactly one `NextAction` — `LoadSkill(name)`, `ReturnToUser(reason)`, or `Stop(done)`
 
 **Core principle:** always know where you are before deciding where to go.
 
@@ -57,12 +57,11 @@ If current-phase work is complete but later phases remain, do not treat the feat
 </HARD-GATE>
 
 <HARD-GATE>
-If instant-scoped work expands during inspection, stop treating it as instant work and promote it into the normal pipeline.
+If quick-scoped work expands during inspection, stop treating it as quick work and promote it into the normal pipeline.
 </HARD-GATE>
 
 <HARD-GATE>
-Routing depends on shared protocol rules in `beo-reference` (state routing table, status mapping, approval gates).
-If `beo-reference` is not co-loaded, load it before classifying state or choosing the next skill.
+> **Shared references** — this skill references specific `beo-reference` docs by path. Do not co-load the full `beo-reference` skill; read individual reference docs as needed.
 </HARD-GATE>
 
 ## Default Router Loop
@@ -74,7 +73,7 @@ If `beo-reference` is not co-loaded, load it before classifying state or choosin
 5. inspect the active feature's core artifacts and task graph
 6. classify the current state using the canonical routing table
 7. report the state in human terms
-8. load exactly one next skill
+8. emit exactly one `NextAction`: `LoadSkill(name)` to continue the pipeline, `ReturnToUser(reason)` when a decision or clarification is needed, or `Stop(done)` when the session is complete
 
 Use `references/router-operations.md` when you need the exact bootstrap steps, instant-path scaffold, resume validation procedure, planning-aware routing rules, or doctor-mode commands.
 Use `../reference/references/pipeline-contracts.md` for the canonical state routing table.
@@ -95,12 +94,12 @@ At minimum include:
 
 When no active feature exists, still use the canonical routing model.
 The intake-specific states are:
-- `new-instant-intake` -> create the epic, preserve the immutable slug using `../reference/references/slug-protocol.md`, scaffold minimal artifacts, then route to `beo-validating`
+- `new-quick-intake` -> create the epic, preserve the immutable slug using `../reference/references/slug-protocol.md`, scaffold minimal artifacts via `references/router-operations.md` Quick Path Scaffold, then route to `beo-validating`
 - `new-debug-intake` -> `beo-debugging`
 - `meta-skill` -> `beo-writing-skills`
 - otherwise -> create the epic and route to `beo-exploring`
 
-If a request first looks instant but inspection shows it is larger, ambiguous, or phase-shaped, preserve any existing instant task bead as planning input and promote the work into the normal pipeline.
+If a request first looks quick but inspection shows it is larger, ambiguous, or phase-shaped, preserve any existing quick task bead as planning input and promote the work into the normal pipeline.
 
 ## Doctor Mode
 
@@ -118,7 +117,7 @@ These override normal routing:
 
 ## Handoff
 
-After classification, report the current state in human terms and load exactly one next skill.
+After classification, report the current state in human terms and emit exactly one `NextAction`: `LoadSkill(name)`, `ReturnToUser(reason)`, or `Stop(done)`.
 If a checkpoint or resume artifact exists, preserve the planning-aware state while handing off.
 
 ## Context Budget

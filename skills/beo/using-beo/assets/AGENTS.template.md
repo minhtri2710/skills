@@ -4,8 +4,8 @@
 1. Read this file at session start and again after any context compaction.
 2. Check `.beads/onboarding.json` exists and is current. If it is missing or stale, stop and load `beo-using-beo`.
 3. If `.beads/beo_status.mjs` exists, run `node .beads/beo_status.mjs --json` as the first quick scout step.
-4. If `.beads/HANDOFF.json` exists, do not auto-resume from it; present the saved state to the user first.
-5. Read `.beads/learnings/critical-patterns.md` before planning or execution.
+4. If `.beads/HANDOFF.json` exists, read it before normal routing and verify it against live state before resuming.
+5. Read `.beads/critical-patterns.md` before planning or execution.
 
 ## Beo Skill Chain
 
@@ -35,7 +35,7 @@ Support skills: `beo-debugging`, `beo-dream`, `beo-writing-skills`
 - `.beads/STATE.json` - current phase and feature narrative
 - `.beads/HANDOFF.json` - optional resume checkpoint when a session must pause
 - `.beads/artifacts/<feature_slug>/` - per-feature artifacts such as `CONTEXT.md`, `discovery.md`, `approach.md`, `plan.md`, `phase-contract.md`, and `story-map.md`
-- `.beads/learnings/critical-patterns.md` - promoted learnings approved for broad reuse
+- `.beads/critical-patterns.md` - promoted learnings approved for broad reuse
 - `.beads/learnings/` - per-feature learnings files
 
 ## Session Finish
@@ -84,14 +84,19 @@ For full command reference, load `beo-reference` and see `bv-cli-reference.md`.
 
 ### MCP Agent Mail — Multi-Agent Coordination
 
+> Minimal subset. For full API surface, identity model, and conflict semantics, load `beo-reference` and see `agent-mail-coordination.md`.
+
 Used for swarming. Provides agent identities, threaded messaging, and file reservations.
 
 ```text
 ensure_project(project_key=<abs-path>)
 register_agent(project_key, program, model)
-file_reservation_paths(project_key, agent_name, paths, ttl_seconds, exclusive)
+macro_start_session(human_key, model, program, task_description, agent_name)
 send_message(project_key, sender_name, to, thread_id, subject, body_md)
+reply_message(project_key, message_id, sender_name, body_md)
 fetch_inbox(project_key, agent_name)
+file_reservation_paths(project_key, agent_name, paths, ttl_seconds, exclusive)
+release_file_reservations(project_key, agent_name, paths)
 ```
 
 For full Agent Mail reference, load `beo-reference` and see `agent-mail-coordination.md`.

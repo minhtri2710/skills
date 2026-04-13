@@ -18,6 +18,10 @@ If `.beads/onboarding.json` is missing or stale, stop and load `beo-using-beo` b
 Compounding is the per-feature learnings capture phase after review truly finishes.
 Its job is to turn completed feature work into durable, reusable knowledge without inflating weak observations into institutional rules.
 
+> **Shared references** — this skill references specific `beo-reference` docs by path. Do not co-load the full `beo-reference` skill; read individual reference docs as needed.
+>
+> Also uses `../reference/references/communication-standard.md` for inter-skill message formatting.
+
 **Core principle:** preserve what future work should remember, not just what happened.
 
 ## Hard Gates

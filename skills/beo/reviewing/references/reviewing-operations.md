@@ -8,7 +8,7 @@ Detailed operational playbook for `beo-reviewing`. Load this file when you need 
 - [2. Automated Review Setup](#2-automated-review-setup)
 - [3. Artifact Verification](#3-artifact-verification)
 - [4. Human UAT](#4-human-uat)
-- [5. Finishing Steps](#5-finishing-steps)
+- [5. Completion Handoff](#5-completion-handoff)
 - [6. Quick Mode](#6-quick-mode)
 - [7. Context-Budget Checkpoint](#7-context-budget-checkpoint)
 
@@ -113,28 +113,15 @@ Then do the same for each exit-state line.
 - close enough, fix later → create P2 follow-up bead using the shared follow-up template
 - changed mind → update `CONTEXT.md`, assess impact, and route appropriately
 
-## 5. Finishing Steps
+## 5. Completion Handoff
 
 After all P1 issues are resolved and UAT is complete:
 
 1. run full build/test/lint
-2. present the merge-path options to the user:
-   - create PR
-   - merge directly
-   - keep branch for more work
-   - discard branch
-3. close the epic:
-
-```bash
-br close <EPIC_ID>
-br comments add <EPIC_ID> --no-daemon --message "Feature complete. All tasks in the final execution scope closed. UAT passed."
-br sync --flush-only
-```
-
-4. write `.beads/review-findings.md` for compounding
-5. write a fresh `.beads/STATE.json` using `../../reference/references/state-and-handoff-protocol.md`; set `status: "learnings-pending"` and `next: "beo-compounding"`; include planning-aware fields when known
-6. optionally sync `AGENTS.md` changes with user approval
-7. remove `.beads/HANDOFF.json` only after the fresh state write succeeds
+2. write review comments to the epic with severity labels and concrete fixes
+3. write `.beads/review-findings.md` for compounding
+4. write a fresh `.beads/STATE.json` using `../../reference/references/state-and-handoff-protocol.md`; set `status: "learnings-pending"` and `next: "beo-compounding"`; include planning-aware fields when known
+5. remove `.beads/HANDOFF.json` only after the fresh state write succeeds
 
 ## 6. Quick Mode
 
@@ -142,7 +129,7 @@ For Quick-scope work, see `../../reference/references/pipeline-contracts.md` for
 - skip specialist subagents
 - do a quick manual artifact check
 - do a quick user confirmation
-- run build/test/lint and close the epic
+- run build/test/lint and prepare the compounding handoff
 
 ## 7. Context-Budget Checkpoint
 

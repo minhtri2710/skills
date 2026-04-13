@@ -11,7 +11,9 @@ description: >-
 If `.beads/onboarding.json` is missing or stale, stop and load `beo-using-beo` before continuing.
 </HARD-GATE>
 
-> **Co-load `beo-reference`** alongside this skill for canonical CLI commands, status mappings, and shared protocol definitions.
+> **Shared references** — this skill references specific `beo-reference` docs by path. Do not co-load the full `beo-reference` skill; read individual reference docs as needed.
+
+> Also uses `../reference/references/communication-standard.md` for inter-skill message formatting.
 
 # Beo Swarming
 

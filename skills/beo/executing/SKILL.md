@@ -13,7 +13,7 @@ description: >-
 If `.beads/onboarding.json` is missing or stale, stop and load `beo-using-beo` before continuing.
 </HARD-GATE>
 
-> **Co-load `beo-reference`** alongside this skill for canonical CLI commands, status mappings, and shared protocol definitions.
+> **Shared references** — this skill references specific `beo-reference` docs by path. Do not co-load the full `beo-reference` skill; read individual reference docs as needed.
 
 # Beo Executing
 
@@ -30,6 +30,7 @@ Execution scope is always the **currently approved phase**. If planning mode is 
 
 - **Worker mode**: dispatched by `beo-swarming`; implement directly, report to the orchestrator, and do **not** spawn sub-subagents.
 - **Standalone mode**: entered after `beo-validating`; may delegate through the session's normal subagent/task mechanism or implement directly, depending on scope and overhead.
+- **Solo mode**: standalone execution when Agent Mail or reservation APIs are unavailable. In this mode, no multi-agent coordination is assumed; execute one bead at a time, avoid speculative parallelism, and treat local file ownership as exclusive because no other beo workers should be active.
 
 The loop is the same in both modes. The main differences are how results are reported and whether delegated dispatch is available.
 

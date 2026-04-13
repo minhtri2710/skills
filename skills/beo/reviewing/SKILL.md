@@ -11,12 +11,14 @@ description: >-
 If `.beads/onboarding.json` is missing or stale, stop and load `beo-using-beo` before continuing.
 </HARD-GATE>
 
+> **Shared references** — this skill references specific `beo-reference` docs by path. Do not co-load the full `beo-reference` skill; read individual reference docs as needed.
+
 # Beo Reviewing
 
 ## Overview
 
 Reviewing is the final quality gate after execution.
-Its job is to verify that the implemented final execution scope is safe, aligned with locked decisions, and actually acceptable to the user before the feature is finished.
+Its job is to verify that the implemented final execution scope is safe, aligned with locked decisions, and actually acceptable to the user before the feature passes quality criteria.
 
 **Core principle:** review finds truth, not excuses.
 
@@ -62,7 +64,7 @@ Every task in the approved final execution scope must have status `done`, `cance
 2. run automated specialist review
 3. classify findings by severity and create follow-up work when needed
 4. run human UAT against locked decisions and exit-state claims
-5. decide whether to finish, loop through reactive fixes, or route back
+5. announce pass or fail: on pass, hand off to `beo-compounding`; on fail with fixable issues, loop through reactive fixes; on fail with unfixable issues, route back to the appropriate skill
 6. hand off to compounding only when review is truly complete
 
 Use `references/reviewing-operations.md` for the exact prerequisite checks, artifact verification, UAT handling, and finishing sequence.
@@ -128,8 +130,8 @@ Use `references/reviewing-operations.md` Section 5 for the exact conditions, fin
 
 Only after review genuinely passes:
 1. write fresh state using `../reference/references/state-and-handoff-protocol.md`
-2. announce the feature is ready to finish
-3. load `beo-compounding`
+2. set the state to `status: "learnings-pending"` and `next: "beo-compounding"`
+3. announce that the review gate has passed and hand off to `beo-compounding`
 
 Do not hand off to compounding while P1 fixes, unresolved UAT, or planning-level intent changes remain.
 

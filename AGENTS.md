@@ -150,7 +150,7 @@ Support/meta skills (invoked on demand): `beo-debugging`, `beo-dream`, `beo-writ
 11. **beo-writing-skills** -- Guide for creating and pressure-testing new beo skills
 12. **beo-using-beo** -- Onboarding bootstrap and version gate for new repositories
 
-**beo-reference** is the shared CLI reference loaded by all other skills.
+**beo-reference** is the shared CLI reference hub, loaded on demand when a skill needs protocol docs beyond its inline references.
 
 ## External Dependencies
 

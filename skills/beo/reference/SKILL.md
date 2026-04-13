@@ -4,7 +4,7 @@ description: >-
   Use whenever a beo skill needs the canonical br/bv CLI command reference,
   status mapping, artifact protocol, slug handling, handoff/state format,
   approval rules, dependency reconciliation, or other shared workflow lookup
-  tables. Load alongside any beo skill that references shared protocols. If a
+  tables. Load when a skill needs protocol docs not already referenced by path in its own instructions. If a
   beo skill says "use the canonical rule" or points to a shared reference, use
   this skill.
 ---

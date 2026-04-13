@@ -117,14 +117,14 @@ function statusScriptContent() {
     "  const onboardingPath = path.join(beadsRoot, 'onboarding.json')",
     "  const statePath = path.join(beadsRoot, 'STATE.json')",
     "  const handoffPath = path.join(beadsRoot, 'HANDOFF.json')",
-    "  const criticalPatternsPath = path.join(beadsRoot, 'learnings', 'critical-patterns.md')",
+    "  const criticalPatternsPath = path.join(beadsRoot, 'critical-patterns.md')",
     '',
     '  const onboarding = readJsonIfExists(onboardingPath)',
     '  const stateJson = readJsonIfExists(statePath)',
     '  const handoff = readJsonIfExists(handoffPath)',
     '',
     '  const nextReads = [\'AGENTS.md\']',
-    "  if (existsSync(criticalPatternsPath)) nextReads.push('.beads/learnings/critical-patterns.md')",
+    "  if (existsSync(criticalPatternsPath)) nextReads.push('.beads/critical-patterns.md')",
     "  if (stateJson) nextReads.push('.beads/STATE.json')",
     "  if (handoff) nextReads.push('.beads/HANDOFF.json')",
     '',
@@ -197,7 +197,7 @@ function buildActions(details, blockIsCurrent) {
   }
   if (!details.status_script_exists) actions.push('create_.beads/beo_status.mjs')
   if (!details.state_json_exists) actions.push('create_.beads/STATE.json')
-  if (!details.critical_patterns_exists) actions.push('create_.beads/learnings/critical-patterns.md')
+  if (!details.critical_patterns_exists) actions.push('create_.beads/critical-patterns.md')
   if (!details.artifacts_dir_exists) actions.push('create_.beads/artifacts/')
   if (!details.learnings_dir_exists) actions.push('create_.beads/learnings/')
 
@@ -212,7 +212,7 @@ export async function checkRepo(repoRoot) {
   const onboardingPath = path.join(absoluteRepoRoot, '.beads', 'onboarding.json')
   const statusScriptPath = path.join(absoluteRepoRoot, '.beads', 'beo_status.mjs')
   const statePath = path.join(absoluteRepoRoot, '.beads', 'STATE.json')
-  const criticalPatternsPath = path.join(absoluteRepoRoot, '.beads', 'learnings', 'critical-patterns.md')
+  const criticalPatternsPath = path.join(absoluteRepoRoot, '.beads', 'critical-patterns.md')
   const artifactsDir = path.join(absoluteRepoRoot, '.beads', 'artifacts')
   const learningsDir = path.join(absoluteRepoRoot, '.beads', 'learnings')
 
@@ -298,7 +298,7 @@ export async function applyRepo(repoRoot) {
   const learningsDir = path.join(beadsDir, 'learnings')
   const statusScriptPath = path.join(beadsDir, 'beo_status.mjs')
   const statePath = path.join(beadsDir, 'STATE.json')
-  const criticalPatternsPath = path.join(learningsDir, 'critical-patterns.md')
+  const criticalPatternsPath = path.join(beadsDir, 'critical-patterns.md')
   const onboardingPath = path.join(beadsDir, 'onboarding.json')
 
   await mkdir(absoluteRepoRoot, { recursive: true })
@@ -330,7 +330,7 @@ export async function applyRepo(repoRoot) {
         agents_mode: mergedAgents.mode,
         status_script: '.beads/beo_status.mjs',
         state_json: '.beads/STATE.json',
-        critical_patterns: '.beads/learnings/critical-patterns.md',
+        critical_patterns: '.beads/critical-patterns.md',
       },
   }
 

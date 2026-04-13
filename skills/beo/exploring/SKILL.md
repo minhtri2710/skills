@@ -20,6 +20,8 @@ If `.beads/onboarding.json` is missing or stale, stop and load `beo-using-beo` b
 Exploring is the decision-extraction phase.
 Use it to turn a partially formed request into a planning-usable `CONTEXT.md`.
 
+> **Shared references** — this skill references specific `beo-reference` docs by path. Do not co-load the full `beo-reference` skill; read individual reference docs as needed.
+
 **Core principle:** ask until planning can proceed without guessing.
 
 `CONTEXT.md` becomes the source of truth for downstream planning, validation, execution, and review.
@@ -97,7 +99,7 @@ Look for uncertainties that would materially change planning or execution, such 
 Keep the exploration concrete and answerable.
 A good exploration question should be answerable in 1-2 sentences and should change downstream decisions.
 
-Classify the feature domain (`SEE`, `CALL`, `RUN`, `READ`, or `ORGANIZE`) and select probes from `references/gray-area-probes.md` using the matching category. Limit to 3-5 probes per round; if more are needed, run a second round after the user responds.
+Classify the feature domain (`SEE`, `CALL`, `RUN`, `READ`, or `ORGANIZE`) using the categories in `references/gray-area-probes.md`. Each round, review the candidate probes for the relevant category and **ask exactly one question** — the single most valuable probe for the current state of the conversation. After the user responds, reassess and ask the next most valuable probe if gaps remain. Never batch multiple probes into a single message.
 
 ## Default-Proposal Pattern
 

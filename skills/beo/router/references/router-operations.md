@@ -2,7 +2,7 @@
 
 Detailed operational playbook for `beo-router`.
 
-Load this file when you need exact bootstrap steps, new-feature creation details, instant-path scaffolding, resume validation, planning-aware routing, or doctor-mode commands.
+Load this file when you need exact bootstrap steps, new-feature creation details, quick-path scaffolding, resume validation, planning-aware routing, or doctor-mode commands.
 
 ## Intent Short-Circuit Rule
 
@@ -20,7 +20,7 @@ Conversational phrasing is **not** a valid short-circuit. Requests like "researc
 
 - [1. Workspace Bootstrap](#1-workspace-bootstrap)
 - [2. New Feature Creation](#2-new-feature-creation)
-- [3. Instant Path Scaffold](#3-instant-path-scaffold)
+- [3. Quick Path Scaffold](#3-quick-path-scaffold)
 - [4. Artifact Inspection Order](#4-artifact-inspection-order)
 - [5. Planning-Aware Routing Rules](#5-planning-aware-routing-rules)
 - [6. Resume From Handoff](#6-resume-from-handoff)
@@ -70,11 +70,12 @@ This gives `beo-debugging` the epic/task context it needs for fix beads, debug l
 
 Derive the `feature_slug` from the epic title using `../../reference/references/slug-protocol.md`. Store it in the epic description with the canonical slug-first shape.
 
-## 3. Instant Path Scaffold
+## 3. Quick Path Scaffold
 
-Use for **instant** work only: single file change, well-scoped, <30 minutes.
+Use for **quick** work only: single file change, well-scoped, <30 minutes.
+Quick uses the stricter intake bar here. When work qualifies, the router may use the quick path only at intake. Once an epic already exists or the scope expands beyond that strict quick bar, fall back to the normal Quick-aware pipeline.
 
-> **Ownership exception:** The instant path creates minimal stubs for artifacts that normally belong to `beo-exploring` (CONTEXT.md) and `beo-planning` (approach.md, plan.md, phase-contract.md, story-map.md). This is an intentional shortcut — these stubs are not full-depth artifacts but placeholder scaffolds that let instant work skip directly to validation. If the work outgrows instant scope, the promotion guard below routes to the normal pipeline owners.
+> **Ownership exception:** The quick path creates minimal stubs for artifacts that normally belong to `beo-exploring` (CONTEXT.md) and `beo-planning` (approach.md, plan.md, phase-contract.md, story-map.md). This is an intentional shortcut — these stubs are not full-depth artifacts but placeholder scaffolds that let quick work skip directly to validation. If the work outgrows quick scope, the promotion guard below routes to the normal pipeline owners.
 
 ### Create the Task
 
@@ -109,7 +110,7 @@ Write these minimal stubs with file editing tools:
 
 | D-ID | Decision | Rationale | Source |
 |------|----------|-----------|--------|
-| D1 | Instant-path: no exploration needed | Single bounded change, ≤1 file | agent default |
+| D1 | Quick-path: no exploration needed | Single bounded change, ≤1 file | agent default |
 
 ### Agent's Discretion
 
@@ -157,7 +158,7 @@ Write these minimal stubs with file editing tools:
 # Approach: <name>
 
 ## Problem Shape
-Instant-path: single bounded change.
+Quick-path: single bounded change.
 
 ## Recommended Approach
 Implement the smallest change that satisfies the request while preserving existing patterns.
@@ -172,7 +173,7 @@ Implement the smallest change that satisfies the request while preserving existi
 # Plan: <name>
 
 ## Approach
-Single-task instant implementation.
+Single-task quick implementation.
 
 ## Tasks
 ### 1. <task-name>
@@ -188,7 +189,7 @@ See bead description for spec.
 - Feature works as described in request.
 
 ## Demo Story
-Instant-path: single-task feature, no deeper phase structure needed.
+Quick-path: single-task feature, no deeper phase structure needed.
 ```
 
 #### story-map.md
@@ -211,12 +212,12 @@ Instant-path: single-task feature, no deeper phase structure needed.
 
 ### Promotion Guard
 
-If the work grows beyond instant scope:
+If the work grows beyond quick scope:
 - stop implementation
 - route to `beo-exploring` or `beo-planning`
-- treat the existing instant task bead as planning input
+- treat the existing quick task bead as planning input
 
-> **Hard gate**: After instant-path promotion, the stub CONTEXT.md and any placeholder artifacts MUST be treated as incomplete drafts. The exploring or planning skill must re-derive them from scratch — never treat promoted stubs as validated artifacts.
+> **Hard gate**: After quick-path promotion, the stub CONTEXT.md and any placeholder artifacts MUST be treated as incomplete drafts. The exploring or planning skill must re-derive them from scratch — never treat promoted stubs as validated artifacts.
 
 ## 4. Artifact Inspection Order
 

@@ -18,6 +18,8 @@ If `.beads/onboarding.json` is missing or stale, stop and load `beo-using-beo` b
 
 Skills are code.
 They fail under pressure unless tested that way.
+> **Shared references** — this skill references specific `beo-reference` docs by path. Do not co-load the full `beo-reference` skill; read individual reference docs as needed.
+
 
 This skill teaches a strict test-first loop for beo skills.
 

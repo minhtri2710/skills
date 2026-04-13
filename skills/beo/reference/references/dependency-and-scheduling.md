@@ -96,7 +96,7 @@ When selecting the next task to execute, follow this priority cascade:
 ### 1. bv --robot-plan (Primary)
 
 ```bash
-bv --robot-plan --format json
+bv --robot-plan --graph-root <EPIC_ID> --format json
 ```
 
 Returns parallel execution tracks. Pick the first unstarted bead from the first track that has no in-progress beads. This gives optimal parallelism.
@@ -107,7 +107,7 @@ Returns parallel execution tracks. Pick the first unstarted bead from the first 
 bv --robot-next --format json
 ```
 
-Returns a single recommendation with reasoning. Use when robot-plan data is missing or stale.
+Returns a single recommendation with reasoning. Use when robot-plan data is missing or stale, then post-filter the result to the active epic/current phase before acting.
 
 ### 3. br ready (Fallback if bv unavailable)
 
@@ -115,7 +115,7 @@ Returns a single recommendation with reasoning. Use when robot-plan data is miss
 br ready --json
 ```
 
-Returns all unblocked, open beads. Pick the one with highest priority (lowest number). Break ties by creation order.
+Returns all unblocked, open beads. Post-filter to beads under the active epic and current phase, then pick the one with highest priority (lowest number). Break ties by creation order.
 
 ### 4. Manual Selection (Last resort)
 
