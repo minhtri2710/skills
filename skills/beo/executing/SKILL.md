@@ -6,7 +6,8 @@ description: >-
   inside a swarm. Use for prompts like "implement this bead", "do the work",
   "run the worker", "start implementing", "execute the next task", or
   whenever approved current-phase work needs to move from plan into verified
-  implementation one task at a time.
+  implementation one task at a time. Do not use for multi-worker orchestration
+  (use beo-swarming instead).
 ---
 
 <HARD-GATE>
@@ -14,6 +15,8 @@ If `.beads/onboarding.json` is missing or stale, stop and load `beo-using-beo` b
 </HARD-GATE>
 
 > **Shared references** — this skill references specific `beo-reference` docs by path. Do not co-load the full `beo-reference` skill; read individual reference docs as needed.
+
+> **Shared reference:** For agent output formatting and inter-skill message standards, load `beo-reference` and consult `references/communication-standard.md`.
 
 # Beo Executing
 
@@ -63,8 +66,18 @@ Route back through the planning-aware flow instead.
 </HARD-GATE>
 
 <HARD-GATE>
-If specs must change materially during execution, stop treating the phase as execution-ready.
-Strip `approved` and route back to planning-aware repair instead of silently rewriting the plan in execution.
+Do not mark a bead as `done` until verification has run and passed.
+Verification means the bead's stated verification criteria (tests, build, lint, or manual check) have been executed and the results confirm the deliverable works.
+</HARD-GATE>
+
+<HARD-GATE>
+Do not edit files that are reserved by another active worker.
+If file ownership is unclear (no reservation system active or reservation state is stale), treat the file as contested and coordinate before editing.
+</HARD-GATE>
+
+<HARD-GATE>
+If specs must change during execution in a way that alters file scope, adds or removes beads, changes story boundaries, or invalidates the phase contract exit state, stop treating the phase as execution-ready.
+Strip `approved` (`br label remove <EPIC_ID> -l approved`) and route back to planning-aware repair instead of silently rewriting the plan in execution.
 </HARD-GATE>
 
 ## Default Execution Loop
@@ -98,9 +111,13 @@ Choose the dispatch mode that fits the situation: implement directly in worker m
 
 See `references/execution-operations.md` section 6 for dispatch contract details and section 7 for result-to-state mapping. If a task is blocked, use `references/blocker-handling.md` and resume from task selection.
 
+After any status transition or reservation update, flush graph state per the execution operations protocol so downstream routing does not depend on stale metadata.
+
 ## Completion
 
 When all current-phase tasks are closed, run the completion and routing procedure in `references/execution-operations.md` section 8. When later phases remain, do **not** claim the whole feature is complete.
+
+Do not track completion only in the conversation. Once verification passes, update the bead state in the graph immediately.
 
 ## Handoff
 
@@ -116,8 +133,8 @@ Include planning-aware fields when known.
 
 ## Post-Compaction Recovery
 
-See `references/execution-guardrails.md` for the recovery procedure.
+If context was compacted, re-read the essential feature artifacts (`CONTEXT.md`, `plan.md`, `phase-contract.md`, `story-map.md`), relevant state files, and the live task graph before resuming. Continue from the last known good state rather than guessing from memory.
 
 ## Red Flags & Anti-Patterns
 
-See `references/execution-guardrails.md` for the full tables.
+Avoid duplicate dispatch, speculative redispatch after failures, silent spec rewrites during execution, and worker prompts that omit verification requirements.

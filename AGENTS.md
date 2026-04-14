@@ -15,22 +15,21 @@ skills/
       agents/openai.yaml
       references/
         router-operations.md
-        state-routing.md
         go-mode.md
-        guardrails.md
     exploring/                   # Socratic requirements gathering
       SKILL.md
       agents/openai.yaml
       references/
-        exploring-guardrails.md
         context-template.md
         gray-area-probes.md
     planning/                    # Epic/task decomposition + dependency wiring
       SKILL.md
       agents/openai.yaml
       references/
-        planning-operations.md
-        planning-guardrails.md
+        planning-prerequisites.md
+        planning-state-and-cleanup.md
+        artifact-writing-guide.md
+        task-creation-ops.md
         discovery-guide.md
         discovery-template.md
         approach-template.md
@@ -44,7 +43,6 @@ skills/
       agents/openai.yaml
       references/
         validation-operations.md
-        validating-guardrails.md
         plan-checker-prompt.md
         bead-reviewer-prompt.md
     swarming/                    # Parallel worker orchestration
@@ -60,7 +58,6 @@ skills/
       agents/openai.yaml
       references/
         execution-operations.md
-        execution-guardrails.md
         worker-prompt-guide.md
         blocker-handling.md
     reviewing/                   # 5-specialist review + compounding handoff
@@ -69,7 +66,6 @@ skills/
       references/
         reviewing-operations.md
         review-specialist-prompts.md
-        reviewing-guardrails.md
     compounding/                 # Learnings capture + critical-pattern promotion
       SKILL.md
       agents/openai.yaml

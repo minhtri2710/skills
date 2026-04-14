@@ -4,7 +4,9 @@ description: >-
   Use when an approved current phase has 3 or more independent ready tasks and
   parallel execution will materially reduce cycle time. Use for prompts about
   swarming, parallel workers, launching multiple agents, coordinating a worker
-  pool, or running approved current-phase work at scale.
+  pool, or running approved current-phase work at scale. Do not use for
+  single-worker execution (use beo-executing instead) or when fewer than 3
+  independent ready tasks exist.
 ---
 
 <HARD-GATE>
@@ -13,7 +15,7 @@ If `.beads/onboarding.json` is missing or stale, stop and load `beo-using-beo` b
 
 > **Shared references** — this skill references specific `beo-reference` docs by path. Do not co-load the full `beo-reference` skill; read individual reference docs as needed.
 
-> Also uses `../reference/references/communication-standard.md` for inter-skill message formatting.
+> **Shared reference:** For inter-skill message formatting, load `beo-reference` and consult `references/communication-standard.md`.
 
 # Beo Swarming
 
@@ -26,9 +28,10 @@ Its job is to launch workers, coordinate them through the live graph and Agent M
 
 ## Hard Gates
 
-<HARD-GATE>
+<GUIDELINE>
 If you are editing source code, stop immediately and route that work to `beo-executing`.
-</HARD-GATE>
+The orchestrator coordinates; workers execute. See the Role Boundary section below.
+</GUIDELINE>
 
 <HARD-GATE>
 If Agent Mail is unavailable, do NOT attempt swarming. Degrade to `beo-executing`.
@@ -36,6 +39,10 @@ If Agent Mail is unavailable, do NOT attempt swarming. Degrade to `beo-executing
 
 <HARD-GATE>
 The current phase must have 3 or more independent tasks in `ready` status. If fewer than 3 are ready, route to `beo-executing` instead.
+</HARD-GATE>
+
+<HARD-GATE>
+Before dispatching workers, verify that no two workers are assigned beads with overlapping file scopes. Each file must have exactly one owning worker. If file scopes overlap, either split the file scope between beads or serialize the overlapping beads into a single worker's queue.
 </HARD-GATE>
 
 

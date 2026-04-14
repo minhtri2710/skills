@@ -6,6 +6,8 @@ description: >-
   patterns are accumulating, or the user asks to consolidate, clean up, merge,
   or promote existing learnings. Use for prompts like "run dream",
   "consolidate learnings", "merge repeated learnings", or "do a learnings pass".
+  Do not use for single-feature learnings capture (use beo-compounding
+  instead).
 ---
 
 <HARD-GATE>
@@ -56,7 +58,6 @@ Every dream run must write an updated provenance record to `.beads/learnings/dre
 </HARD-GATE>
 
 The durable write surface is `.beads/learnings/*.md`.
-Dream may propose critical promotions, but it must never edit `.beads/critical-patterns.md` without explicit user approval.
 
 ## Use Dream vs Compounding
 

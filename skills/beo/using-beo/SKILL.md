@@ -12,7 +12,6 @@ description: >-
 
 ## Overview
 
-`beo-using-beo` is the bootstrap spoke.
 It ensures the target repository has the required `.beads/` structure and the managed `AGENTS.md` block before any other beo skill proceeds.
 > **Shared references** — this skill does not reference `beo-reference` docs directly. Load `beo-reference` only if a protocol question arises during onboarding.
 

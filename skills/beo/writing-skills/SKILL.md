@@ -16,8 +16,6 @@ If `.beads/onboarding.json` is missing or stale, stop and load `beo-using-beo` b
 
 ## Overview
 
-Skills are code.
-They fail under pressure unless tested that way.
 > **Shared references** — this skill references specific `beo-reference` docs by path. Do not co-load the full `beo-reference` skill; read individual reference docs as needed.
 
 
@@ -26,6 +24,18 @@ This skill teaches a strict test-first loop for beo skills.
 **Core principle:** do not revise or ship a skill until it has first failed under a realistic pressure scenario.
 
 ## Hard Gates
+
+<HARD-GATE>
+Every HARD-GATE must name a concrete, observable condition checkable against artifact, graph, or CLI state.
+A valid HARD-GATE passes the **Enforceability Rubric** — at least one of these must be true:
+1. An artifact exists or does not exist at a specific path
+2. A field in STATE.json, HANDOFF.json, or CONTEXT.md has a specific value
+3. A `br` or `bv` query returns a specific status, label, or count
+4. A label is present or absent on an epic or task
+5. A CLI command produces a concrete, parseable result
+
+If the condition is behavioral guidance (e.g., "write clearly", "prefer small skills"), express it as a **GUIDELINE**, not a HARD-GATE.
+</HARD-GATE>
 
 <HARD-GATE>
 Do not write or substantially revise skill content before a failing pressure test exists.

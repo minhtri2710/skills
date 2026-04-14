@@ -4,7 +4,9 @@ description: >-
   Use after the final approved execution scope is complete, or when the user
   asks whether a feature is done, ready to ship, safe to merge, or needs a
   quality check. Use for prompts like "review this feature", "is this done?",
-  "can we ship this?", "double-check the implementation", or "run UAT".
+  "can we ship this?", "double-check the implementation", or "run UAT". Do
+  not use for plan review (use beo-validating), mid-execution quality checks,
+  or when later phases remain unplanned.
 ---
 
 <HARD-GATE>
@@ -55,7 +57,8 @@ Create fix beads and send execution work back through the proper path.
 </HARD-GATE>
 
 <HARD-GATE>
-Every task in the approved final execution scope must have status `done`, `cancelled`, or `failed` before review begins. If any tasks are still open, route back to `beo-executing`.
+Every task in the approved final execution scope must be in a canonical terminal state (`done`, `cancelled`, or `failed`) before review begins. If any tasks are still open, route back to `beo-executing`.
+Only `done` (br status `closed`) is a successful terminal state. If any tasks are `cancelled` or `failed`, pause and ask the user for direction before proceeding with review. Do not silently treat cancelled/failed tasks as acceptable outcomes.
 </HARD-GATE>
 
 ## Default Review Loop
@@ -94,6 +97,7 @@ The review must cover, at minimum:
 - user-facing or workflow regression risk
 
 Use the reference file for the exact prompts and dispatch structure.
+Do not treat code inspection alone as sufficient evidence; review findings about tests, build, lint, runtime behavior, or generated artifacts must be backed by concrete verification evidence.
 
 ## Severity Semantics
 
@@ -104,6 +108,7 @@ See `references/review-specialist-prompts.md` for the severity table and rules.
 
 Reactive fixes are part of finishing the current feature. P2 and P3 work are not.
 See `references/reviewing-operations.md` and `references/review-specialist-prompts.md` for the exact P1 fix-and-re-review cycle.
+Do not patch implementation directly inside review just to save time. Route fixes back through execution with proper bookkeeping.
 
 ## Human UAT
 
@@ -121,17 +126,22 @@ If the user says the implementation is wrong because the desired behavior change
 - if the change is major, stop review, strip `approved`, and route back to `beo-planning`
 
 Do not patch over a changed feature definition inside review.
+Do not misclassify changed user intent as a normal defect; treat it as a planning/context change and route accordingly.
 
 ## Finishing Rules
 
 Use `references/reviewing-operations.md` Section 5 for the exact conditions, finish sequence, artifact verification, and final reporting.
+When review passes with non-blocking follow-up work, keep P2/P3 items outside the current epic unless the user explicitly wants them folded into the same feature closure path.
 
 ## Handoff
 
 Only after review genuinely passes:
-1. write fresh state using `../reference/references/state-and-handoff-protocol.md`
-2. set the state to `status: "learnings-pending"` and `next: "beo-compounding"`
-3. announce that the review gate has passed and hand off to `beo-compounding`
+1. close the epic in br: `br close <EPIC_ID>`
+2. write fresh state using `../reference/references/state-and-handoff-protocol.md`
+3. set the state to `status: "learnings-pending"` and `next: "beo-compounding"`
+4. announce that the review gate has passed and hand off to `beo-compounding`
+
+The epic must be closed before writing learnings-pending state. Compounding assumes a closed epic and will reject an open one.
 
 Do not hand off to compounding while P1 fixes, unresolved UAT, or planning-level intent changes remain.
 
@@ -145,4 +155,4 @@ If context usage exceeds 65%, write `.beads/HANDOFF.json` using `../reference/re
 
 ## Red Flags & Anti-Patterns
 
-See `references/reviewing-guardrails.md` for the full tables.
+Do not collapse severity levels, skip artifact verification because the implementation "looks fine," or let automated review substitute for explicit human UAT.

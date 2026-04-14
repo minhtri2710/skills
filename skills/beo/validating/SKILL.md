@@ -6,7 +6,8 @@ description: >-
   sound, execution-ready, and aligned with locked decisions. Use for prompts
   like "validate the plan", "is this ready to build?", "check the bead graph",
   "verify execution readiness", or whenever there is doubt about whether the
-  current phase is safe to execute.
+  current phase is safe to execute. Do not use for post-implementation review
+  (use beo-reviewing instead).
 ---
 
 <HARD-GATE>
@@ -43,7 +44,8 @@ If tasks do not exist, or `phase-contract.md` / `story-map.md` are genuinely mis
 
 <HARD-GATE>
 If any bead description is empty or underspecified, fail validation. This is a structural failure, not an optional quality note.
-If only 1-2 beads are thin and the phase shape is otherwise sound, you may tighten those specs and re-run validation. If the thin specs expose a larger decomposition problem, route back to `beo-planning`.
+A bead is underspecified if it lacks any of: concrete file scope, verification criteria, or a clear deliverable.
+If only 1-2 beads are underspecified and all other beads pass the three-field check above, you may tighten those specs and re-run validation. If the underspecified beads expose a larger decomposition problem (e.g., the story they belong to cannot be executed as described), route back to `beo-planning`.
 </HARD-GATE>
 
 <HARD-GATE>
@@ -56,6 +58,10 @@ After approval, do not stop at "the current phase is approved." Validation is no
 
 <HARD-GATE>
 A spike NO result invalidates the current phase plan. Do not proceed to approval.
+</HARD-GATE>
+
+<HARD-GATE>
+If the plan designates swarming (parallel worker execution), verify: (1) at least 3 independent ready tasks exist in the current phase, (2) no two tasks share write access to the same file, and (3) task dependencies do not create a serial chain that negates parallelism. If any condition fails, flag the plan for revision — swarming is not justified.
 </HARD-GATE>
 
 ## Default Validation Loop
@@ -96,6 +102,8 @@ Use `references/validation-operations.md` and `references/plan-checker-prompt.md
 ### Repair Rule
 
 See `references/validation-operations.md` Section 3 (Failure Handling) for the repair-routing table and iteration limits. Do not keep patching a plan whose current phase no longer makes sense as a closed loop.
+After repairing a failed dimension, re-run the relevant checks instead of assuming the plan now passes.
+If failures reveal a broader decomposition problem rather than an isolated defect, route back to planning instead of continuing to patch in place.
 
 ## Graph Health and Bead Quality
 
@@ -109,13 +117,15 @@ Use spikes only when a yes/no proof would change whether this phase should proce
 
 Before approval, confirm that completing all stories and beads will achieve the phase exit state. See `references/plan-checker-prompt.md` Dimension 8 for the exact readiness questions. If any answer is no or uncertain, do not approve execution -- route back to the layer that must change.
 
+Reject plans whose phase exit state is vague or non-observable, whose first story cannot explain why it must happen first, or whose bead-level "done" definitions do not trace cleanly to story outcomes.
+
 ## Approval Gate
 
 Use the canonical approval rule from `../reference/references/approval-gates.md`.
 Approval must be explicit and must apply to the **current phase** only.
 
 When approval is granted:
-- mark the epic approved
+- run `br label add <epic-id> -l approved`
 - choose and explicitly state the next execution mode (`beo-executing` or `beo-swarming`)
 
 When approval is rejected or withheld:
@@ -140,4 +150,4 @@ If context usage exceeds 65%, checkpoint validation progress. See `references/va
 
 ## Red Flags & Anti-Patterns
 
-See `references/validating-guardrails.md` for the full tables.
+Do not rubber-stamp approval, skip decision coverage, or treat overlap and missing story linkage as minor issues. Validation must produce evidence, not vibes.

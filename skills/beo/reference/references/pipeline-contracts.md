@@ -119,7 +119,7 @@ Use `state-and-handoff-protocol.md` as the canonical source for the `STATE.json`
 
 See `status-mapping.md` as the canonical source for all label semantics, status-to-label mappings, and stale label cleanup rules.
 
-The `approved` label back-edge removal invariant: `approved` must be removed whenever routing back to planning or exploring; on normal completion it remains on the closed epic as historical state.
+The `approved` label back-edge removal invariant: `approved` must be removed via `br label remove <EPIC_ID> -l approved` whenever routing back to planning or exploring; on normal completion it remains on the closed epic as historical state. See `approval-gates.md` → Approved Label Ownership for the per-skill responsibility matrix.
 
 ---
 
@@ -148,6 +148,8 @@ The canonical Feature States table (planning → approved → executing → comp
 **Who transitions to executing:** The first skill that starts execution (executing or swarming) must run `br update <EPIC_ID> --claim` before dispatching any workers.
 
 **Router epic query:** Use `br list --type epic -a --json` to find all epics including `in_progress` and `closed` ones. Filter in application logic.
+
+**Who closes the epic:** The reviewing skill closes the epic (`br close <EPIC_ID>`) as part of the completion handoff, after all P1 fixes are resolved and UAT passes. This must happen before writing `learnings-pending` state. No other skill closes the epic during normal pipeline flow.
 
 ---
 

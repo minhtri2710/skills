@@ -117,7 +117,8 @@ Regenerate `phase-contract.md` and `story-map.md` for the new single-phase scope
 2. Delete stale `phase-contract.md` and `story-map.md` if they reference an old phase identity
 3. Refresh all planning-aware fields including `phase_name`
 4. Regenerate current-phase artifacts for the newly selected phase
-5. Prior approval is invalidated — route back through `beo-validating`
+5. Remove the `approved` label: `br label remove <EPIC_ID> -l approved`
+6. Prior approval is invalidated — route back through `beo-validating`
 
 ### If the current phase completed and the next phase starts
 
@@ -126,13 +127,14 @@ Regenerate `phase-contract.md` and `story-map.md` for the new single-phase scope
 3. Increment `current_phase`
 4. Update `phase_name` to the new current phase name
 5. Create fresh `phase-contract.md` and `story-map.md` for the new current phase
-6. Prior approval is invalidated — route back through `beo-validating`
+6. Remove the `approved` label: `br label remove <EPIC_ID> -l approved`
+7. Prior approval is invalidated — route back through `beo-validating`
 
 ### Hard rules
 
 - **Delete, do not invalidate.** Stale `phase-plan.md` must be deleted, not marked invalid.
 - **`phase_name` must be refreshed.** Do not leave a stale phase name from a prior cycle.
-- **Prior approval is always invalidated** when the phase structure or execution scope changes.
+- **Prior approval is always invalidated** when the phase structure or execution scope changes. The `approved` label must be explicitly removed via `br label remove <EPIC_ID> -l approved`.
 - **`STATE.json` and `HANDOFF.json` must be refreshed** before any handoff after replanning.
 
 ## 15. Context-Budget Checkpointing

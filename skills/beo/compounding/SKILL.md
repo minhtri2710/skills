@@ -4,7 +4,8 @@ description: >-
   Use after reviewing completes and a feature is effectively finished. Use for
   prompts like "what did we learn?", "capture learnings", "document what we
   found", "compound this work", or whenever a finished feature should improve
-  future work instead of ending as isolated effort.
+  future work instead of ending as isolated effort. Do not use for cross-feature
+  learnings consolidation (use beo-dream instead).
 ---
 
 <HARD-GATE>
@@ -20,15 +21,16 @@ Its job is to turn completed feature work into durable, reusable knowledge witho
 
 > **Shared references** — this skill references specific `beo-reference` docs by path. Do not co-load the full `beo-reference` skill; read individual reference docs as needed.
 >
-> Also uses `../reference/references/communication-standard.md` for inter-skill message formatting.
+> **Shared reference:** For inter-skill message formatting, load `beo-reference` and consult `references/communication-standard.md`.
 
 **Core principle:** preserve what future work should remember, not just what happened.
 
 ## Hard Gates
 
-<HARD-GATE>
+<GUIDELINE>
 Do NOT have subagents write the final learnings file; only the orchestrator writes that.
-</HARD-GATE>
+Subagents produce staging files; the orchestrator synthesizes, triages, and writes the final learnings artifact.
+</GUIDELINE>
 
 <HARD-GATE>
 Never auto-append to `critical-patterns.md`; use the canonical approval rule from `../reference/references/approval-gates.md`.
@@ -40,6 +42,10 @@ One learnings file per feature. Group related findings within that file instead 
 
 <HARD-GATE>
 The feature status must be `learnings-pending` (set by reviewing). Do not enter compounding if review has not finished.
+</HARD-GATE>
+
+<HARD-GATE>
+Before writing any learnings artifact, scan all content for PII (names, emails, credentials, internal URLs, customer data). Redact or generalize any PII found. Learnings must be safe to persist in the knowledge store without access restrictions.
 </HARD-GATE>
 
 ---

@@ -177,10 +177,12 @@ Before writing the final state, verify that the bead graph reflects completion â
 
 ```bash
 br dep list <EPIC_ID> --direction up --type parent-child --json
-# Check: every bead should have status "closed"; epic should be "closed"
+# Check: every bead should have status "closed" (done) or "deferred" with "cancelled"/"failed" label; epic should be "closed"
 ```
 
 If any bead is still open, stop and report the inconsistency to the user. Do not auto-close. Route back to `beo-reviewing` if the open beads represent unfinished work. If this is the second consecutive compoundingâ†’reviewing loop for the same feature, escalate to the user instead of routing back automatically.
+
+If the epic is not closed, stop and route back to `beo-reviewing`. The reviewing skill owns epic closure and must close the epic before handing off to compounding.
 
 ### Normal Completion
 

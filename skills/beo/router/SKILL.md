@@ -4,7 +4,9 @@ description: >-
   Use whenever a beo session is starting, resuming, or when the correct beo
   skill is unclear. Triggers: "continue", "resume", "status?", "what's
   next?", new feature requests, or conversational prompts like "let's explore
-  X" or "help me think through X" that imply non-trivial work.
+  X" or "help me think through X" that imply non-trivial work. Do not use for
+  simple direct questions that need no project state, instant one-off tasks,
+  or when the correct beo skill is already obvious.
 ---
 
 <HARD-GATE>
@@ -44,6 +46,10 @@ Do not skip the handoff path.
 </HARD-GATE>
 
 <HARD-GATE>
+When reading HANDOFF.json, validate required fields exist: `from` (source skill name), `status` (current feature state), and `next` (target skill name). If any required field is missing or malformed, do not route — report the malformed handoff to the user.
+</HARD-GATE>
+
+<HARD-GATE>
 When resuming from handoff, trust the stored `skill` and `next_action` unless live graph state or current artifacts clearly contradict them.
 Do not blindly trust stale checkpoints, but do not recompute from scratch when the handoff is still valid.
 </HARD-GATE>
@@ -60,9 +66,9 @@ If current-phase work is complete but later phases remain, do not treat the feat
 If quick-scoped work expands during inspection, stop treating it as quick work and promote it into the normal pipeline.
 </HARD-GATE>
 
-<HARD-GATE>
-> **Shared references** — this skill references specific `beo-reference` docs by path. Do not co-load the full `beo-reference` skill; read individual reference docs as needed.
-</HARD-GATE>
+<GUIDELINE>
+**Shared references** — this skill references specific `beo-reference` docs by path. Do not co-load the full `beo-reference` skill; read individual reference docs as needed.
+</GUIDELINE>
 
 ## Default Router Loop
 
@@ -100,10 +106,12 @@ The intake-specific states are:
 - otherwise -> create the epic and route to `beo-exploring`
 
 If a request first looks quick but inspection shows it is larger, ambiguous, or phase-shaped, preserve any existing quick task bead as planning input and promote the work into the normal pipeline.
+Before creating a new epic, always confirm there is not already an active one for the same feature.
 
 ## Doctor Mode
 
 When asked to check project health, inspect graph health, blocked work, stale work, planning shape, artifact presence, and one next corrective action.
+On first-session bootstrap or when workspace health is in doubt, include `br doctor` in the health check flow.
 
 ## Priority Rules
 
@@ -114,6 +122,8 @@ These override normal routing:
 3. Never skip `beo-validating`.
 4. Spike failures halt the pipeline and send work back to planning.
 5. Current-phase completion is not whole-feature completion when later phases remain.
+6. Instant-path work still routes through validation before execution.
+7. Choose `beo-swarming` only when validated parallel-ready tasks exist; otherwise route to `beo-executing`.
 
 ## Handoff
 
@@ -127,4 +137,4 @@ Include the current STATE.json, selected route, planning-aware fields when known
 
 ## Red Flags & Anti-Patterns
 
-See `references/guardrails.md` for the full tables.
+Do not create duplicate epics, bypass validation because work seems small, route to swarming without a validated parallel plan, or skip compounding after successful review.

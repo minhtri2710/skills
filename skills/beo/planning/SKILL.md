@@ -33,7 +33,8 @@ If `CONTEXT.md` does not exist, do not invent requirements here. First verify th
 </HARD-GATE>
 
 <HARD-GATE>
-If the work is clearly multi-phase, do not skip `phase-plan.md` and do not prepare the current phase as if it were the whole feature.
+If the work requires 2 or more distinct capability slices that cannot ship as a single closed loop, write `phase-plan.md` and do not prepare the current phase as if it were the whole feature.
+See `references/planning-prerequisites.md` § 3 for the full decision criteria.
 </HARD-GATE>
 
 <HARD-GATE>
@@ -48,6 +49,18 @@ It does not replace validation approval.
 
 <HARD-GATE>
 Create beads for the current phase only. Do not pre-create execution beads for future phases.
+</HARD-GATE>
+
+<HARD-GATE>
+Do not begin current-phase artifacts (`phase-contract.md`, `story-map.md`, or beads) until `approach.md` exists and has been verified as non-trivial.
+</HARD-GATE>
+
+<HARD-GATE>
+Before discovery begins, retrieve prior learnings using `../reference/references/learnings-read-protocol.md`. If no relevant learnings exist, record that explicitly. Do not skip this step.
+</HARD-GATE>
+
+<HARD-GATE>
+`CONTEXT.md` must have all material gray areas resolved (locked or explicitly scoped out) before planning proceeds. Checking that the file exists is not sufficient — verify that decisions are actually locked.
 </HARD-GATE>
 
 <HARD-GATE>
@@ -73,7 +86,9 @@ Load the specific planning reference you need:
 - `references/artifact-writing-guide.md` for artifact writing, approval, and high-stakes review
 - `references/task-creation-ops.md` for bead creation, wiring, and epic updates
 - `references/planning-state-and-cleanup.md` for state updates, replanning cleanup, and checkpointing
-Load `references/discovery-guide.md` when running focused discovery (step 3) for guidance on research subagent patterns and codebase investigation.
+Read `references/planning-guardrails.md` before starting any planning procedure to review constraints and anti-patterns.
+Read `references/discovery-guide.md` when beginning the discovery phase (step 3) to structure codebase analysis.
+Read `references/bead-creation-guide.md` when creating beads (after `story-map.md` is written) to ensure correct bead structure, dotted ID format, and dependency wiring.
 
 ## Planning Modes
 
@@ -133,10 +148,24 @@ Use `references/task-creation-ops.md` section 11 for the exact create / write / 
 Use `references/bead-creation-guide.md` for decomposition rules and the bead quality checklist.
 
 After creation, read every bead back and verify it is specific enough for a fresh worker.
+Also verify that:
+- every bead has concrete verification criteria and a complete Markdown description before handoff
+- task scopes are neither too granular nor too large; target believable worker-sized slices rather than micro-steps or whole-feature blobs
+- independent tasks with overlapping write scope are sequenced explicitly rather than presented as parallel-ready
+- I/O-facing beads state failure behavior explicitly
+- future-phase dependencies, types, or stubs are not added early just to anticipate later phases
+
+When exit criteria refer to verification counts, prefer durable invariants such as "all relevant tests pass" over hardcoded totals that can become invalid during legitimate refactors.
+
+After wiring dependencies, run `br dep cycles --json` to confirm the graph is still acyclic.
 
 ## High-Stakes Review
 
 For HIGH-stakes work — core architecture, auth, data model changes, large blast radius, or multiple HIGH-risk components — use `references/artifact-writing-guide.md` section 10 for the multi-perspective review before handoff.
+
+Do not inflate ordinary work to HIGH by default. Risk labels should reflect real blast radius and uncertainty.
+
+When artifacts depend on external package or tool versions, verify the versions against the authoritative package registry or source of truth rather than trusting agent-reported version numbers.
 
 ## Handoff
 
@@ -179,4 +208,4 @@ If context usage exceeds 65%, use `../reference/references/state-and-handoff-pro
 
 ## Red Flags & Anti-Patterns
 
-See `references/planning-guardrails.md` for the full tables.
+Guard against plan-to-task shortcuts, vague exit states, and bead descriptions that would force workers to improvise. The inline rules above are the source of truth.

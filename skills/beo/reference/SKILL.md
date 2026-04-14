@@ -6,7 +6,8 @@ description: >-
   approval rules, dependency reconciliation, or other shared workflow lookup
   tables. Load when a skill needs protocol docs not already referenced by path in its own instructions. If a
   beo skill says "use the canonical rule" or points to a shared reference, use
-  this skill.
+  this skill. Do not use for direct implementation work or when another beo
+  skill already provides the needed reference inline.
 ---
 
 <HARD-GATE>
@@ -71,6 +72,33 @@ Use the shared references to avoid treating current-phase artifacts as whole-fea
 Use this skill as a narrow lookup layer.
 Read only the specific shared reference needed for the decision at hand unless a broader protocol conflict makes more context necessary.
 
+**CLI References:**
+- `references/br-cli-reference.md` — When you need exact `br` command syntax, flags, or subcommands.
+- `references/bv-cli-reference.md` — When you need exact `bv` command syntax for graph analytics or triage.
+
+**Status & State:**
+- `references/status-mapping.md` — When mapping between beo feature states and `br` task statuses.
+- `references/state-and-handoff-protocol.md` — When reading or writing `STATE.json` / `HANDOFF.json` files.
+- `references/slug-protocol.md` — When generating or validating epic/bead slug IDs.
+
+**Workflow Contracts:**
+- `references/pipeline-contracts.md` — When checking routing conditions, label lifecycle, or skill handoff boundaries.
+- `references/approval-gates.md` — When checking approval requirements or label ownership for `approved` label.
+- `references/dependency-and-scheduling.md` — When wiring bead dependencies or checking execution order.
+
+**Artifacts & Files:**
+- `references/artifact-protocol.md` — When writing plan artifacts (`discovery.md`, `approach.md`, `plan.md`, etc.).
+- `references/file-conventions.md` — When checking expected file locations or naming conventions.
+- `references/bead-description-templates.md` — When writing bead descriptions for `br` tasks.
+
+**Communication & Coordination:**
+- `references/communication-standard.md` — When formatting agent output or inter-skill messages.
+- `references/agent-mail-coordination.md` — When coordinating between parallel workers via agent mail.
+- `references/learnings-read-protocol.md` — When reading prior learnings before planning or compounding.
+
+**Knowledge Store:**
+- `references/knowledge-store.md` — When reading from or writing to the Obsidian/QMD knowledge store.
+
 After resolving the lookup:
 - state the canonical rule you found
 - name the specific shared reference that supplied it when useful
@@ -90,20 +118,21 @@ The reference skill owns the single source of truth for all shared protocol docu
 
 | Document | Owns |
 |---|---|
+| `agent-mail-coordination.md` | Agent mail delivery protocol |
+| `approval-gates.md` | Approval label rules and back-edge removal |
+| `artifact-protocol.md` | Artifact naming and storage conventions |
+| `bead-description-templates.md` | Bead description format |
 | `br-cli-reference.md` | All `br` command syntax and flags |
 | `bv-cli-reference.md` | All `bv` command syntax and flags |
-| `status-mapping.md` | Task and feature state machines |
-| `pipeline-contracts.md` | Routing table, artifact hierarchy, slug rules |
-| `state-and-handoff-protocol.md` | STATE.json schema and field semantics |
-| `artifact-protocol.md` | Artifact naming and storage conventions |
-| `slug-protocol.md` | Slug lifecycle procedures |
-| `approval-gates.md` | Approval label rules and back-edge removal |
+| `communication-standard.md` | Agent-to-agent message format |
 | `dependency-and-scheduling.md` | Task dependency wiring and scheduling |
 | `file-conventions.md` | `.beads/` directory layout |
-| `communication-standard.md` | Agent-to-agent message format |
-| `agent-mail-coordination.md` | Agent mail delivery protocol |
-| `bead-description-templates.md` | Bead description format |
 | `learnings-read-protocol.md` | How skills read learnings |
+| `knowledge-store.md` | Obsidian/QMD knowledge store integration: read/write operations, vault structure, query patterns |
+| `pipeline-contracts.md` | Routing table, artifact hierarchy, slug rules |
+| `slug-protocol.md` | Slug lifecycle procedures |
+| `state-and-handoff-protocol.md` | STATE.json schema and field semantics |
+| `status-mapping.md` | Task and feature state machines |
 
 ## Red Flags
 

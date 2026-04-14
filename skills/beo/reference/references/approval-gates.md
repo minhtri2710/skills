@@ -204,3 +204,14 @@ If the user rejects or withholds approval:
 - Never skip the validation approval gate just because the user already approved the phase sequence.
 
 > **See also:** `pipeline-contracts.md` → Label Lifecycle for the `approved` label back-edge removal rule.
+
+## Approved Label Ownership
+
+| Skill | Action | When |
+|-------|--------|------|
+| `beo-validating` | Adds `approved` via `br label add <EPIC_ID> -l approved` | After user grants execution approval |
+| `beo-planning` | Removes `approved` via `br label remove <EPIC_ID> -l approved` | During replanning cleanup when phase structure or scope changes |
+| `beo-reviewing` | Removes `approved` via `br label remove <EPIC_ID> -l approved` | When routing back to planning due to multi-phase advancement or intent change |
+| `beo-router` | Reads `approved` label to determine routing | Never adds or removes |
+
+On normal completion, the `approved` label remains on the closed epic as historical state.

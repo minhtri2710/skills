@@ -23,7 +23,7 @@ Use it to classify the problem, reproduce it, isolate root cause, apply the righ
 
 > **Shared references** — this skill references specific `beo-reference` docs by path. Do not co-load the full `beo-reference` skill; read individual reference docs as needed.
 >
-> Also uses `../reference/references/communication-standard.md` for inter-skill message formatting.
+> **Shared reference:** For inter-skill message formatting, load `beo-reference` and consult `references/communication-standard.md`.
 
 **Core principle:** triage -> reproduce -> diagnose -> fix -> learn.
 Do not guess.
@@ -31,7 +31,8 @@ Do not guess.
 ## Hard Gates
 
 <HARD-GATE>
-If you cannot write a one-sentence root cause, you do not have the root cause yet. Do not proceed to Fix.
+If you cannot write a one-sentence root cause that names the specific component, condition, and failure mechanism, you do not have the root cause yet. Do not proceed to Fix.
+A valid root cause sentence follows the pattern: "[Component] fails when [condition] because [mechanism]."
 </HARD-GATE>
 
 <HARD-GATE>
@@ -40,8 +41,13 @@ If the failure cannot be reproduced directly, say so explicitly and treat that a
 </HARD-GATE>
 
 <HARD-GATE>
-Substantial fixes belong in a fix bead that follows the shared reactive-fix template and normal execution path.
-Do not smuggle major repair work through ad-hoc debugging edits.
+After applying a fix, verify it using the exact failing command or reproduction path from diagnosis.
+Do not treat a different test or a clean build as proof the original failure is resolved.
+</HARD-GATE>
+
+<HARD-GATE>
+Fixes that change more than one file, alter public interfaces, or require test updates belong in a fix bead that follows the shared reactive-fix template and normal execution path.
+Do not smuggle multi-file or interface-changing repair work through ad-hoc debugging edits.
 </HARD-GATE>
 
 ## Default Debugging Loop
@@ -90,6 +96,13 @@ After the fix is verified:
 - if the issue remains ambiguous, report the blocker clearly and pause for user direction
 
 For blocker-specific handling, use `references/debugging-operations.md`. Do not spin; report once, then pause.
+
+## Return Path
+
+After debugging resolves the root cause:
+- **Router origin** (standalone debugging session): Hand back to `beo-router` with findings in STATE.json so router can re-route to the appropriate skill.
+- **Swarm origin** (worker hit a blocker during swarming): Return findings to the swarm orchestrator via the worker's blocker comment. The swarm coordinator decides whether to unblock, reassign, or escalate.
+- **Standalone origin** (user invoked debugging directly): Present findings and recommended fix to the user. Do not auto-route to another skill without user confirmation.
 
 ---
 

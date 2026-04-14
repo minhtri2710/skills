@@ -58,7 +58,7 @@ The report captures what the worker accomplished. It is appended as a bead comme
 
 ```bash
 # For short reports (< 32KB)
-br comments add <id> --message "---ARTIFACT:report:v1---
+br comments add <id> --no-daemon --message "---ARTIFACT:report:v1---
 ## Summary
 Implemented auth middleware with JWT validation.
 
@@ -113,7 +113,7 @@ context_pct: <estimated context usage percentage>
 ### Writing a Task State
 
 ```bash
-br comments add <id> --message "---ARTIFACT:task_state:v1---
+br comments add <id> --no-daemon --message "---ARTIFACT:task_state:v1---
 beo_status: in_progress
 worker: BlueLake
 claimed_at: 2026-03-15T10:30:00Z

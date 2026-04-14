@@ -33,15 +33,25 @@ Ask **one focused question at a time**.
 Do not batch multiple exploration questions into one message.
 </HARD-GATE>
 
-<HARD-GATE>
+<GUIDELINE>
 Ask about **behavior**, not implementation.
 Users decide what should happen; planning decides how to build it.
-</HARD-GATE>
+</GUIDELINE>
 
 <HARD-GATE>
 Do not proceed to planning until every material gray area has either:
 - a locked decision, or
 - an explicit out-of-scope ruling.
+</HARD-GATE>
+
+<HARD-GATE>
+Do not continue exploration until the user answers the current question.
+If the user has not responded, wait. Do not infer answers from silence or prior context.
+</HARD-GATE>
+
+<HARD-GATE>
+Do not lock a default proposal without explicit user confirmation.
+"I'll assume X unless you object" is not confirmation — the user must actively accept or reject.
 </HARD-GATE>
 
 <HARD-GATE>
@@ -177,4 +187,10 @@ If context usage exceeds 65%, use `../reference/references/state-and-handoff-pro
 
 ## Red Flags & Anti-Patterns
 
-See `references/exploring-guardrails.md` for the full tables.
+Red flags to catch early:
+- if you find fewer than 2 meaningful gray areas for non-trivial work, verify that you have not skipped edge cases or scope boundaries
+- do not spend excessive time circling a single unresolved question; lock what is known and mark the rest for planning only when the remaining uncertainty is truly planning-shaped
+- do not skip exploring for non-instant feature work just because the request sounds simple; only work classified as `instant-path` by `beo-router` may bypass exploring
+
+Read `references/context-template.md` when creating or updating `CONTEXT.md` to ensure correct structure and required fields.
+Read `references/gray-area-probes.md` when a user's answer is ambiguous or incomplete and you need targeted follow-up questions.

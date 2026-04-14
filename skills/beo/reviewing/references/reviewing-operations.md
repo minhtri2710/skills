@@ -39,6 +39,7 @@ br dep list <EPIC_ID> --direction up --type parent-child --json
 ```
 
 If tasks from the final execution scope are still open/in progress, route back to `beo-executing`.
+If any tasks are `cancelled` or `failed`, these are terminal but non-success states. Pause and present the cancelled/failed tasks to the user with a request for direction (re-queue, accept, or re-plan) before proceeding with review.
 If required current-scope artifacts such as `plan.md`, `phase-contract.md`, or `story-map.md` are missing, stop and route back to the planning-aware layer before continuing review.
 If any tasks remain blocked/failed/partial, use the approval rules in `../../reference/references/approval-gates.md` before deciding whether to proceed, defer, or re-plan.
 If `planning_mode = multi-phase` and later phases remain, remove the `approved` label first, then route back to `beo-planning` instead of reviewing the feature as complete:
@@ -120,8 +121,11 @@ After all P1 issues are resolved and UAT is complete:
 1. run full build/test/lint
 2. write review comments to the epic with severity labels and concrete fixes
 3. write `.beads/review-findings.md` for compounding
-4. write a fresh `.beads/STATE.json` using `../../reference/references/state-and-handoff-protocol.md`; set `status: "learnings-pending"` and `next: "beo-compounding"`; include planning-aware fields when known
-5. remove `.beads/HANDOFF.json` only after the fresh state write succeeds
+4. close the epic: `br close <EPIC_ID>`
+5. write a fresh `.beads/STATE.json` using `../../reference/references/state-and-handoff-protocol.md`; set `status: "learnings-pending"` and `next: "beo-compounding"`; include planning-aware fields when known
+6. remove `.beads/HANDOFF.json` only after the fresh state write succeeds
+
+The epic must be closed (step 4) before writing learnings-pending state (step 5). Compounding's graph verification expects a closed epic and will reject an open one.
 
 ## 6. Quick Mode
 

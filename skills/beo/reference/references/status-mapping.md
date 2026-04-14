@@ -59,7 +59,16 @@ Notes:
 - `cancelled` and `failed` are terminal but non-success states and map to `br status = "deferred"` plus their label
 - `blocked` and `partial` are **not** terminal for routing/completion purposes
 
-When shared routing docs say “all tasks are in canonical terminal states,” they mean every task resolves to one of the three states above after applying this mapping.
+When shared routing docs say "all tasks are in canonical terminal states," they mean every task resolves to one of the three states above after applying this mapping.
+
+### Advancement Semantics
+
+Only `done`/`closed` tasks advance cleanly through the pipeline. If a feature reaches the review gate with `cancelled` or `failed` tasks, the reviewing skill must pause and request user direction before proceeding. The user may choose to:
+- re-queue the task (reset to `pending`)
+- accept the outcome and proceed with review
+- re-plan the affected scope
+
+Do not silently advance a feature through review when non-success terminal states are present.
 
 ## Feature States
 
