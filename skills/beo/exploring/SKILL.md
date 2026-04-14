@@ -1,7 +1,7 @@
 ---
 name: beo-exploring
 description: >-
-  Use before any non-instant feature work, refactor, behavior change, or
+  Use before any non-Quick feature work, refactor, behavior change, or
   requirements-shaping conversation where user intent is not yet locked,
   especially when the user knows what they want but has not fully thought
   through edge cases, scope boundaries, or expected behavior. Do not use for
@@ -190,7 +190,7 @@ If context usage exceeds 65%, use `../reference/references/state-and-handoff-pro
 Red flags to catch early:
 - if you find fewer than 2 meaningful gray areas for non-trivial work, verify that you have not skipped edge cases or scope boundaries
 - do not spend excessive time circling a single unresolved question; lock what is known and mark the rest for planning only when the remaining uncertainty is truly planning-shaped
-- do not skip exploring for non-instant feature work just because the request sounds simple; only work classified as `instant-path` by `beo-router` may bypass exploring
+- do not skip exploring for non-Quick feature work just because the request sounds simple; only work classified as Quick scope by `beo-router` (via `new-quick-intake` state) may bypass exploring
 
 Read `references/context-template.md` when creating or updating `CONTEXT.md` to ensure correct structure and required fields.
 Read `references/gray-area-probes.md` when a user's answer is ambiguous or incomplete and you need targeted follow-up questions.

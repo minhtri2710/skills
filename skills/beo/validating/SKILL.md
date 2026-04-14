@@ -45,7 +45,7 @@ If tasks do not exist, or `phase-contract.md` / `story-map.md` are genuinely mis
 <HARD-GATE>
 If any bead description is empty or underspecified, fail validation. This is a structural failure, not an optional quality note.
 A bead is underspecified if it lacks any of: concrete file scope, verification criteria, or a clear deliverable.
-If only 1-2 beads are underspecified and all other beads pass the three-field check above, you may tighten those specs and re-run validation. If the underspecified beads expose a larger decomposition problem (e.g., the story they belong to cannot be executed as described), route back to `beo-planning`.
+If only 1-2 beads are underspecified and all other beads pass the three-field check above, you may tighten those specs by restoring missing text that already exists verbatim in the bead package, story-map, or phase-contract — do not invent new scope or rewrite task boundaries — and then re-run validation. If the underspecified beads expose a larger decomposition problem (e.g., the story they belong to cannot be executed as described), route back to `beo-planning`.
 </HARD-GATE>
 
 <HARD-GATE>
@@ -61,7 +61,7 @@ A spike NO result invalidates the current phase plan. Do not proceed to approval
 </HARD-GATE>
 
 <HARD-GATE>
-If the plan designates swarming (parallel worker execution), verify: (1) at least 3 independent ready tasks exist in the current phase, (2) no two tasks share write access to the same file, and (3) task dependencies do not create a serial chain that negates parallelism. If any condition fails, flag the plan for revision — swarming is not justified.
+When choosing the execution mode, if swarming (parallel worker execution) is under consideration, verify: (1) at least 3 independent ready tasks exist in the current phase, (2) no two tasks share write access to the same file, and (3) task dependencies do not create a serial chain that negates parallelism. If any condition fails, flag the plan for revision — swarming is not justified.
 </HARD-GATE>
 
 ## Default Validation Loop

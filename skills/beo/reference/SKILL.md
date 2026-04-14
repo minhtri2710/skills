@@ -102,6 +102,21 @@ Any document listed in the Reference Index above is owned exclusively by this sk
 Do not fork shared rules into individual skill bodies.
 If a skill needs a shared rule, summarize it briefly and point back here.
 
+## Pause and Resume
+
+Any skill can pause by writing `.beads/HANDOFF.json` using `references/state-and-handoff-protocol.md` and returning to `beo-router`.
+This applies whether the pause is triggered by context budget, user request, or an unrecoverable error.
+Router reads the handoff on resume and routes to the correct skill.
+
+## Skip-Stage Policy
+
+No pipeline stage may be skipped without explicit user acknowledgment of the consequences.
+When a user asks to skip a stage:
+1. State what the stage protects against (e.g., "validation catches structural defects before code is written").
+2. Ask for explicit confirmation that the user accepts the risk.
+3. If confirmed, record the skip as a note in `STATE.json` and proceed to the next stage.
+4. Exploring, validating, and human UAT (in reviewing) are **never skippable** — they are structural safety gates, except that router-classified Quick intake (via `new-quick-intake` per `pipeline-contracts.md`) may bypass exploring by design. If the user insists on skipping a non-exempt gate, suggest exiting the beo pipeline for that work instead.
+
 ## Red Flags & Anti-Patterns
 
 - A skill duplicates a protocol table or status mapping instead of pointing to the reference doc

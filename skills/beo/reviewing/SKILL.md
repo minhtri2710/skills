@@ -13,6 +13,10 @@ description: >-
 If `.beads/onboarding.json` is missing or stale, stop and load `beo-using-beo` before continuing.
 </HARD-GATE>
 
+<HARD-GATE>
+If no active epic with terminal-state tasks exists, do not attempt review. Route to `beo-router` for state detection and proper intake.
+</HARD-GATE>
+
 > **Shared references** — this skill references specific `beo-reference` docs by path. Do not co-load the full `beo-reference` skill; read individual reference docs as needed.
 
 # Beo Reviewing
@@ -59,6 +63,7 @@ Create fix beads and send execution work back through the proper path.
 <HARD-GATE>
 Every task in the approved final execution scope must be in a canonical terminal state (`done`, `cancelled`, or `failed`) before review begins. If any tasks are still open, route back to `beo-executing`.
 Only `done` (br status `closed`) is a successful terminal state. If any tasks are `cancelled` or `failed`, pause and ask the user for direction before proceeding with review. Do not silently treat cancelled/failed tasks as acceptable outcomes.
+Review may continue past cancelled/failed tasks only if the user explicitly confirms they were intentionally descoped or superseded and the phase exit state can still be achieved without them. Otherwise route to `beo-planning` for scope changes or `beo-executing` for incomplete work.
 </HARD-GATE>
 
 ## Default Review Loop
@@ -73,7 +78,7 @@ Only `done` (br status `closed`) is a successful terminal state. If any tasks ar
 Use `references/reviewing-operations.md` for the exact prerequisite checks, artifact verification, UAT handling, and finishing sequence.
 Use `references/review-specialist-prompts.md` for the five-specialist review structure and severity rules.
 
-**Quick Mode:** For Quick-scope features (see `pipeline-contracts.md`), skip specialist subagents, do a quick manual artifact check, a quick user confirmation, then run build/test/lint and close. See `references/reviewing-operations.md` Section 6 for details.
+**Quick Mode:** For Quick-scope features (see `../reference/references/pipeline-contracts.md`), skip specialist subagents, do a quick manual artifact check, explicit per-claim user confirmation (Quick mode skips specialist subagents, not the UAT requirement), then run build/test/lint and close. See `references/reviewing-operations.md` Section 6 for details.
 
 ## Review Prerequisites
 

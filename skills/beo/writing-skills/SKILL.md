@@ -66,8 +66,6 @@ Do not bloat the skill with hypothetical failures you did not see.
 
 Use `references/writing-skills-operations.md` for the exact RED/GREEN/REFACTOR execution flow and documentation steps.
 
-Each phase in brief: **RED** confirms failure without the skill using realistic multi-pressure scenarios. **GREEN** writes the minimal skill and reruns those same scenarios. **REFACTOR** closes loopholes without overfitting to specific wording.
-
 ## Handoff
 
 After the skill survives RED/GREEN/REFACTOR:

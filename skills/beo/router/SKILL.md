@@ -5,7 +5,7 @@ description: >-
   skill is unclear. Triggers: "continue", "resume", "status?", "what's
   next?", new feature requests, or conversational prompts like "let's explore
   X" or "help me think through X" that imply non-trivial work. Do not use for
-  simple direct questions that need no project state, instant one-off tasks,
+  simple direct questions that need no project state, quick one-off tasks that fit the Quick scope definition,
   or when the correct beo skill is already obvious.
 ---
 
@@ -79,7 +79,7 @@ If quick-scoped work expands during inspection, stop treating it as quick work a
 7. report the state in human terms
 8. emit exactly one `NextAction`: `LoadSkill(name)` to continue the pipeline, `ReturnToUser(reason)` when a decision or clarification is needed, or `Stop(done)` when the session is complete
 
-Use `references/router-operations.md` when you need the exact bootstrap steps, instant-path scaffold, resume validation procedure, planning-aware routing rules, or doctor-mode commands.
+Use `references/router-operations.md` when you need the exact bootstrap steps, Quick-scope scaffold, resume validation procedure, planning-aware routing rules, or doctor-mode commands.
 Use `../reference/references/pipeline-contracts.md` for the canonical state routing table.
 Use `references/go-mode.md` when the user says "go", "run the full pipeline", or "go mode" and you need the 3-gate end-to-end sequence.
 Use `../reference/references/communication-standard.md` for inter-skill message formatting when writing handoff messages or state reports.
@@ -121,7 +121,7 @@ These override normal routing:
 3. Never skip `beo-validating`.
 4. Spike failures halt the pipeline and send work back to planning.
 5. Current-phase completion is not whole-feature completion when later phases remain.
-6. Instant-path work still routes through validation before execution.
+6. Quick-scope work still routes through validation before execution.
 7. Choose `beo-swarming` only when validated parallel-ready tasks exist; otherwise route to `beo-executing`.
 
 ## Handoff
@@ -135,5 +135,7 @@ If context usage exceeds 65%, checkpoint using `../reference/references/state-an
 Include the current STATE.json, selected route, planning-aware fields when known, and any resume detail needed to continue safely.
 
 ## Red Flags & Anti-Patterns
+
+**Known limitation**: `STATE.json` and `HANDOFF.json` are currently singleton files. When multiple features are in flight simultaneously, verify the `feature` field matches the intended epic before trusting state. Feature-scoped state files are a future improvement.
 
 Do not create duplicate epics, bypass validation because work seems small, route to swarming without a validated parallel plan, or skip compounding after successful review.

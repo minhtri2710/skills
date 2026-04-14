@@ -48,6 +48,7 @@ Do not treat a different test or a clean build as proof the original failure is 
 <HARD-GATE>
 Fixes that change more than one file, alter public interfaces, or require test updates belong in a fix bead that follows the shared reactive-fix template and normal execution path.
 Do not smuggle multi-file or interface-changing repair work through ad-hoc debugging edits.
+Single-file fixes that do not alter public interfaces or require test updates may be applied directly within the debugging session, except when debugging was entered from `beo-reviewing` — review-found defects must go through fix beads per reviewing's routing rules.
 </HARD-GATE>
 
 ## Default Debugging Loop
@@ -90,19 +91,19 @@ If the failure involves infrastructure, permissions, or external services you ca
 
 ## Handoff
 
-After the fix is verified:
-- if debugging was entered from `beo-executing`, route back to `beo-executing`
-- if debugging was entered from `beo-reviewing`, route back to `beo-reviewing`
-- if the issue remains ambiguous, report the blocker clearly and pause for user direction
+After debugging resolves the root cause and the fix is verified, route based on origin:
 
-For blocker-specific handling, use `references/debugging-operations.md`. Do not spin; report once, then pause.
+| Origin | Route |
+|--------|-------|
+| `beo-executing` (worker hit a blocker) | Route back to `beo-executing` to resume the execution loop |
+| `beo-reviewing` (review found a defect) | Route back to `beo-reviewing` to continue the review cycle |
+| `beo-swarming` (worker blocker during swarm) | Return findings to the swarm orchestrator via the worker’s blocker comment; the coordinator decides whether to unblock, reassign, or escalate |
+| `beo-router` (standalone debugging session) | Hand back to `beo-router` with findings in STATE.json so router can re-route |
+| Direct user invocation | If a direct fix was applied, summarize what changed and ask for user confirmation before further routing. Otherwise, present findings and recommended fix to the user; do not auto-route without user confirmation |
 
-## Return Path
+If the issue remains unresolved after escalation, report the blocker clearly and pause for user direction. Do not spin; report once, then pause.
 
-After debugging resolves the root cause:
-- **Router origin** (standalone debugging session): Hand back to `beo-router` with findings in STATE.json so router can re-route to the appropriate skill.
-- **Swarm origin** (worker hit a blocker during swarming): Return findings to the swarm orchestrator via the worker's blocker comment. The swarm coordinator decides whether to unblock, reassign, or escalate.
-- **Standalone origin** (user invoked debugging directly): Present findings and recommended fix to the user. Do not auto-route to another skill without user confirmation.
+For blocker-specific handling details, see `references/debugging-operations.md`.
 
 ---
 

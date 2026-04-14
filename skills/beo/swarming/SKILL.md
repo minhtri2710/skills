@@ -28,10 +28,10 @@ Its job is to launch workers, coordinate them through the live graph and Agent M
 
 ## Hard Gates
 
-<GUIDELINE>
+<HARD-GATE>
 If you are editing source code, stop immediately and route that work to `beo-executing`.
 The orchestrator coordinates; workers execute. See the Role Boundary section below.
-</GUIDELINE>
+</HARD-GATE>
 
 <HARD-GATE>
 If Agent Mail is unavailable before workers are launched, do NOT attempt swarming. Degrade to `beo-executing`.
@@ -53,6 +53,10 @@ First verify the label was not accidentally removed or the wrong epic was select
 If approval is genuinely missing, do not execute:
 - if current-phase tasks have already advanced, treat approval as invalidated and route to `beo-planning`
 - otherwise route to `beo-validating`
+</HARD-GATE>
+
+<HARD-GATE>
+If no active epic or current-phase task beads exist, do not attempt swarming. Route to `beo-router` for state detection and proper intake.
 </HARD-GATE>
 
 ## Role Boundary

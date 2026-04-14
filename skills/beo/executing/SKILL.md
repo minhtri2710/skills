@@ -32,12 +32,16 @@ Execution scope is always the **currently approved phase**. If planning mode is 
 ## Operating Modes
 
 - **Worker mode**: dispatched by `beo-swarming`; implement directly, report to the orchestrator, and do **not** spawn sub-subagents.
-- **Standalone mode**: entered after `beo-validating`; may delegate through the session's normal subagent/task mechanism or implement directly, depending on scope and overhead.
+- **Standalone mode**: entered after `beo-validating`; may delegate through the session's normal subagent/task mechanism or implement directly, depending on scope and overhead. Standalone delegation is still one-bead-at-a-time — if multiple beads would benefit from parallel execution, route to `beo-swarming` instead.
 - **Solo mode**: standalone execution when Agent Mail or reservation APIs are unavailable. Before entering Solo mode, verify that no other beo workers are active (check for in-flight beads in the graph and any existing reservation state). If active workers or reservations exist but cannot be coordinated, do not enter Solo mode — pause and report the conflict to the user. Once exclusivity is confirmed, execute one bead at a time, avoid speculative parallelism, and treat local file ownership as exclusive.
 
-The loop is the same in both modes. The main differences are how results are reported and whether delegated dispatch is available.
+The loop is the same in all three modes. The main differences are how results are reported and whether delegated dispatch is available.
 
 ## Hard Gates
+
+<HARD-GATE>
+If no active epic or current-phase task beads exist, do not attempt execution. Route to `beo-router` for state detection and proper intake.
+</HARD-GATE>
 
 <HARD-GATE>
 If the epic does not have the `approved` label, do not treat planning artifacts as implicit approval.
@@ -51,7 +55,7 @@ If approval is genuinely missing, do not execute:
 If a bead description is empty or still lacks execution-critical detail, stop and treat it as invalid for execution.
 At minimum, execution requires concrete file scope and verification criteria.
 Do not reconstruct the full spec from `plan.md` or `CONTEXT.md`.
-If the gap is purely clerical and the intended spec already exists verbatim elsewhere in the bead package, restore it faithfully; otherwise route back to `beo-planning` or `beo-validating`.
+If the gap is purely clerical and the intended spec already exists verbatim elsewhere in the bead package, restore it faithfully; otherwise route to `beo-validating` for clerical spec-completeness defects, or to `beo-planning` if the gap involves scope, decomposition, or story-boundary changes.
 </HARD-GATE>
 
 <HARD-GATE>
