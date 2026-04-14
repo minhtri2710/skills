@@ -38,15 +38,11 @@ br dep list <EPIC_ID> --direction up --type parent-child --json
 # Check: every bead that was executed should have status "closed"
 ```
 
-If tasks from the final execution scope are still open/in progress, route back to `beo-executing`.
-If any tasks are `cancelled` or `failed`, these are terminal but non-success states. Pause and present the cancelled/failed tasks to the user with a request for direction (re-queue, accept, or re-plan) before proceeding with review.
-If required current-scope artifacts such as `plan.md`, `phase-contract.md`, or `story-map.md` are missing, stop and route back to the planning-aware layer before continuing review.
-If any tasks remain blocked/failed/partial, use the approval rules in `../../reference/references/approval-gates.md` before deciding whether to proceed, defer, or re-plan.
-If `planning_mode = multi-phase` and later phases remain, remove the `approved` label first, then route back to `beo-planning` instead of reviewing the feature as complete:
-
-```bash
-br label remove <EPIC_ID> -l approved
-```
+- **Open/in-progress tasks** → route back to `beo-executing`
+- **Cancelled/failed tasks** → pause, present to user for direction (re-queue, accept, or re-plan)
+- **Missing required artifacts** (`plan.md`, `phase-contract.md`, `story-map.md`) → route to planning
+- **Blocked/partial tasks** → use approval rules in `../../reference/references/approval-gates.md`
+- **Multi-phase** → see `../../reference/references/shared-hard-gates.md` § Multi-Phase Completion Routing
 
 ## 2. Automated Review Setup
 
@@ -142,4 +138,4 @@ If context usage exceeds 65%, use the canonical `STATE.json` and `HANDOFF.json` 
 - gathered findings so far
 - UAT progress
 - any in-flight fix beads
-- planning-aware fields when relevant (`planning_mode`, `has_phase_plan`, `current_phase`, `total_phases`, `phase_name`)
+- planning-aware fields per `../../reference/references/state-and-handoff-protocol.md` § Planning-Aware HANDOFF.json Extension Fields

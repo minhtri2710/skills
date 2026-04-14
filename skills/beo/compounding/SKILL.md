@@ -9,7 +9,7 @@ description: >-
 ---
 
 <HARD-GATE>
-If `.beads/onboarding.json` is missing or stale, stop and load `beo-using-beo` before continuing.
+Onboarding — see `../reference/references/shared-hard-gates.md` § Onboarding Check.
 </HARD-GATE>
 
 # Beo Compounding
@@ -19,9 +19,7 @@ If `.beads/onboarding.json` is missing or stale, stop and load `beo-using-beo` b
 Compounding is the per-feature learnings capture phase after review truly finishes.
 Its job is to turn completed feature work into durable, reusable knowledge without inflating weak observations into institutional rules.
 
-> **Shared references** — this skill references specific `beo-reference` docs by path. Do not co-load the full `beo-reference` skill; read individual reference docs as needed.
->
-> Also uses `../reference/references/communication-standard.md` for inter-skill message formatting.
+> See `../reference/references/shared-hard-gates.md` § Shared References Convention.
 
 **Core principle:** preserve what future work should remember, not just what happened.
 
@@ -78,7 +76,7 @@ Use the format from `references/learnings-template.md`. Include YAML frontmatter
 
 #### Learning Triage
 
-See `references/compounding-operations.md` § Triage Tags for the severity scale and triage procedure.
+See `references/compounding-operations.md` § 3. Synthesis and Triage (subsection Triage Tags) for the severity scale and triage procedure.
 
 ---
 
@@ -109,32 +107,17 @@ After compounding completes, return control to `beo-router` to pick up the next 
 
 ## Context Budget
 
-If context usage exceeds 65%, load `references/compounding-operations.md` and follow the checkpoint procedure exactly.
+Follow `../reference/references/shared-hard-gates.md` § Context Budget Protocol. Skill-specific checkpoint: see `references/compounding-operations.md` for the full checkpoint procedure.
 
 ## Red Flags & Anti-Patterns
 
-**Do NOT skip compounding because "we're in a hurry."**
-The compound loop only works if it runs every cycle. One skip is fine;
-a habit of skipping means the ecosystem never gets smarter.
-
-**Do NOT promote everything as critical.**
-critical-patterns.md is read at the start of every session. If it grows
-past 20-30 entries it becomes noise. Only promote learnings that would
-have saved >= 30 minutes if known in advance.
-
-**Do NOT write generic learnings.**
-"Test more carefully" is worthless. "When migrating database columns with
-a non-null constraint, always provide a default in the migration or it
-will fail in production with zero rows affected" is valuable.
-
-**Do NOT fabricate findings.**
-If the feature ran smoothly with no surprises, write that. A short learnings
-file with 2 genuine entries is better than a long file with invented ones.
-
-- Letting subagents author the final learnings file instead of using them as staging-only analyzers
-- Promoting local, feature-specific notes to `critical-patterns.md` without proving broad reuse value
-- Splitting one feature's learnings across multiple files instead of keeping one coherent feature record
-- Rewriting history to sound more insightful than the actual evidence supports
+- **Never skip compounding** — the loop only works if it runs every cycle
+- **Never promote everything as critical** — `critical-patterns.md` caps at 20-30 entries; only promote learnings that would have saved ≥30 min
+- **Never write generic learnings** — "Test more carefully" is worthless; include specific cause-and-effect (e.g., "non-null migration without default fails silently")
+- **Never fabricate findings** — 2 genuine entries beats a long file with invented ones
+- **Never let subagents author the final learnings file** — they produce staging only; orchestrator synthesizes
+- **Never promote local notes without proving broad reuse value**
+- **Never split one feature's learnings across multiple files**
 
 ---
 

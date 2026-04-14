@@ -116,33 +116,13 @@ Write these minimal stubs with file editing tools:
 
 - Implementation details follow existing codebase patterns
 
-## Specific Ideas & References
-
-- N/A
-
 ## Existing Code Context
 
 - Reusable assets: <inferred from request>
 - Established patterns: <inferred from request>
 - Integration points: <inferred from request>
 
-## Canonical References
-
-- N/A
-
-## Outstanding Questions
-
-### Resolve Before Planning
-
-- N/A
-
-### Deferred to Planning
-
-- N/A
-
-## Deferred Ideas
-
-- N/A
+_Sections omitted for quick-path stub: Specific Ideas, Canonical References, Outstanding Questions, Deferred Ideas — all N/A._
 
 ## Handoff Note
 
@@ -239,31 +219,13 @@ Interpretation rules:
 
 ## 5. Planning-Aware Routing Rules
 
-Use these rules when the planning model is relevant.
-
-### Rule A — Context exists but planning artifacts do not
-
-If `CONTEXT.md` exists but `approach.md` does not:
-- route to `beo-planning`
-
-### Rule B — Approach exists but current-phase artifacts are missing
-
-If `approach.md` exists and either `phase-contract.md` or `story-map.md` is missing:
-- route to `beo-planning`
-
-### Rule C — Multi-phase sequencing exists
-
-If `phase-plan.md` exists:
-- treat the feature as multi-phase unless the file is clearly obsolete or contradicted by current state
-- do not assume current-phase completion means whole-feature completion
-
-### Rule D — Current phase complete, later phases remain
-
-If all current-phase beads are closed, `phase-plan.md` exists, and later phases remain:
-- route to `beo-planning`
-- next action = prepare the next phase
-
-Pseudo-logic:
+| Rule | Condition | Route / Action |
+|------|-----------|----------------|
+| A | CONTEXT.md exists, no approach.md | → beo-planning |
+| B | approach.md exists, missing phase-contract.md or story-map.md | → beo-planning |
+| C | phase-plan.md exists | Treat as multi-phase unless clearly obsolete; current-phase completion ≠ whole-feature completion |
+| D | All current-phase beads closed + phase-plan.md + later phases remain | → beo-planning (prepare next phase) |
+| E | Execution complete, no later phases | → beo-reviewing |
 
 ```text
 if phase_plan exists and current phase complete and later phases remain:
@@ -271,11 +233,6 @@ if phase_plan exists and current phase complete and later phases remain:
 else if no later phases remain and implementation complete:
   route = beo-reviewing
 ```
-
-### Rule E — Final execution scope complete
-
-If execution is complete and no later phases remain:
-- route to `beo-reviewing`
 
 ## 6. Resume From Handoff
 
@@ -359,20 +316,8 @@ In addition to graph health, report planning shape when relevant:
 
 ## 8. STATE.json on Handoff
 
-After classifying the state and before loading the next skill, write `.beads/STATE.json` using the canonical format from `../../reference/references/state-and-handoff-protocol.md`.
+After classifying the state and before loading the next skill, write `.beads/STATE.json` using the complete canonical schema from `../../reference/references/state-and-handoff-protocol.md` § Canonical STATE.json Schema.
 
-Include all 12 canonical fields:
-- `schema_version`: always `1`
-- `feature`: epic ID
-- `feature_slug`: the immutable feature slug
-- `phase`: skill that wrote this state (bare name, no `beo-` prefix)
-- `status`: canonical state from the routing table
-- `tasks`: summary of current task status
-- `next`: the next skill to load
-- `planning_mode`: `single-phase`, `multi-phase`, or `unknown` (pre-planning only)
-- `has_phase_plan`: `true` if `phase-plan.md` exists, otherwise `false`
-- `current_phase`: current phase number (use `1` for single-phase)
-- `total_phases`: total phase count (use `1` for single-phase)
-- `phase_name`: human-readable current phase name
+All 12 required fields must be present: the 7 base fields (`schema_version`, `phase`, `status`, `feature`, `feature_slug`, `tasks`, `next`) plus the 5 planning-aware fields (`planning_mode`, `has_phase_plan`, `current_phase`, `total_phases`, `phase_name`).
 
 This ensures every skill transition has a readable state record, not just handoff-from-checkpoint scenarios.

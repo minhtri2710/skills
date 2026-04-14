@@ -11,7 +11,7 @@ description: >-
 ---
 
 <HARD-GATE>
-If `.beads/onboarding.json` is missing or stale, stop and load `beo-using-beo` before continuing.
+Onboarding — see `../reference/references/shared-hard-gates.md` § Onboarding Check.
 </HARD-GATE>
 
 # Beo Debugging
@@ -21,9 +21,7 @@ If `.beads/onboarding.json` is missing or stale, stop and load `beo-using-beo` b
 Debugging resolves blockers and failures systematically.
 Use it to classify the problem, reproduce it, isolate root cause, apply the right fix path, and capture the pattern.
 
-> **Shared references** — this skill references specific `beo-reference` docs by path. Do not co-load the full `beo-reference` skill; read individual reference docs as needed.
->
-> Also uses `../reference/references/communication-standard.md` for inter-skill message formatting.
+> See `../reference/references/shared-hard-gates.md` § Shared References Convention.
 
 **Core principle:** triage -> reproduce -> diagnose -> fix -> learn.
 Do not guess.
@@ -109,20 +107,18 @@ For blocker-specific handling details, see `references/debugging-operations.md`.
 
 ## Context Budget
 
-Use `references/debugging-operations.md` and `../reference/references/state-and-handoff-protocol.md` for canonical checkpoint behavior when context exceeds 65%.
+Follow `../reference/references/shared-hard-gates.md` § Context Budget Protocol. Skill-specific checkpoint: see `references/debugging-operations.md` for the full procedure.
 
 ---
 
 ## Red Flags & Anti-Patterns
 
-- **Fixing symptoms, not root cause**: If the same error recurs after the fix, root cause was not found. Return to Step 3.
-- **Skipping reproduction**: Diagnosing from the error message alone leads to wrong fixes. Always reproduce first.
-- **Not checking critical-patterns.md first**: Always check `.beads/critical-patterns.md` before investigating from scratch — 30-40% of recurring failures are already documented.
-- **Committing a fix without running verification**: The fix must be verified with the exact failing command, not a different test.
-- **Decision violation silently patched**: Violating a `CONTEXT.md` decision to make a test pass propagates the violation downstream. Report and align first.
-- **Calling the first visible error the root cause**: Walk the error chain; the first error you see is often a symptom of a deeper cause.
-- **Treating blocked work as "someone else's problem"**: Classify and report blockers cleanly instead of ignoring them.
-
-See `references/debugging-operations.md` for the full diagnostic checklist and fix-path details.
+- Fixing symptoms instead of root cause — if the error recurs, return to diagnosis
+- Skipping reproduction — never diagnose from the error message alone
+- Not checking `critical-patterns.md` first — 30-40% of recurring failures are already documented
+- Committing fixes without verification using the exact failing command
+- Silently patching `CONTEXT.md` decision violations to make tests pass
+- Calling the first visible error the root cause — walk the full error chain
+- Ignoring blocked work instead of classifying and reporting it cleanly
 
 ---

@@ -10,7 +10,7 @@ description: >-
 ---
 
 <HARD-GATE>
-If `.beads/onboarding.json` is missing or stale, stop and load `beo-using-beo` before continuing.
+Onboarding — see `../reference/references/shared-hard-gates.md` § Onboarding Check.
 </HARD-GATE>
 
 # Beo Exploring
@@ -20,7 +20,7 @@ If `.beads/onboarding.json` is missing or stale, stop and load `beo-using-beo` b
 Exploring is the decision-extraction phase.
 Use it to turn a partially formed request into a planning-usable `CONTEXT.md`.
 
-> **Shared references** — this skill references specific `beo-reference` docs by path. Do not co-load the full `beo-reference` skill; read individual reference docs as needed.
+> See `../reference/references/shared-hard-gates.md` § Shared References Convention.
 
 **Core principle:** ask until planning can proceed without guessing.
 
@@ -169,21 +169,11 @@ When exploring is complete:
 3. report how many decisions were locked and what remains out of scope
 4. hand off to `beo-planning`
 
-Exploring STATE.json uses the canonical 12-field schema from `../reference/references/state-and-handoff-protocol.md` (see Example F). Exploring-specific field values:
-
-- `phase`: `"exploring"`
-- `status`: `"planning-needs-approach"` (on completion)
-- `tasks`: `"none — exploring does not create beads"`
-- `next`: `"beo-planning"`
-- `planning_mode`: `"unknown"` (pre-planning)
-- `phase_name`: human-readable feature summary (e.g., `"Onboarding wizard"`)
-
-Exploring does not create execution beads.
-Its deliverable is decision clarity.
+Exploring STATE.json uses the canonical 12-field schema from `../reference/references/state-and-handoff-protocol.md` (see Example F). Set `phase: "exploring"`, `status: "planning-needs-approach"`, `tasks: "none"`, `next: "beo-planning"`, `planning_mode: "unknown"`, and `phase_name` to a human-readable feature summary. Exploring does not create execution beads — its deliverable is decision clarity.
 
 ## Context Budget
 
-If context usage exceeds 65%, use `../reference/references/state-and-handoff-protocol.md` for canonical `STATE.json` and `HANDOFF.json`, then include exploring-specific fields such as locked decisions and open questions before pausing.
+Follow `../reference/references/shared-hard-gates.md` § Context Budget Protocol. Skill-specific checkpoint items: locked decisions and open questions.
 
 ## Red Flags & Anti-Patterns
 

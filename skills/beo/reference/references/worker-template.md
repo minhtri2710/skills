@@ -7,7 +7,6 @@ Use this template when spawning a worker subagent. Fill in the placeholders from
 - [Canonical Subagent Spawn](#canonical-subagent-spawn)
 - [Worker Prompt Template](#worker-prompt-template)
 - [Filling In Placeholders](#filling-in-placeholders)
-- [Example: Fully-Filled Worker Prompt](#example-fully-filled-worker-prompt)
 
 ---
 
@@ -132,29 +131,4 @@ After each bead completion, assess your context budget. If context is high, fini
 | `<RESOLVED_AGENT_MAIL_NAME>` | Agent Mail name returned by `macro_start_session`. Use this for all `sender_name` parameters. |
 | `<STARTUP_HINT>` | Optional: current ready bead or urgency note from live `bv --robot-triage` |
 
----
 
-## Example: Fully-Filled Worker Prompt
-
-```
-You are a worker subagent in the beo swarm.
-
-## Your Identity
-- Agent name: BlueLake
-- Epic ID: br-epic-001
-- Feature: auth-refresh
-
-## Agent Mail Setup
-1. Project key: /home/user/projects/myapp
-2. On startup:
-    startup = macro_start_session(human_key="/home/user/projects/myapp", model="<MODEL>", program="<RUNTIME_PROGRAM>", task_description="beo worker execution", agent_name="BlueLake")
-3. Canonical Agent Mail identity:
-    resolved_agent_mail_name = startup.agent.name
-4. Post startup acknowledgment with `Nickname: BlueLake | Agent Mail: AgileEagle` in the body and `sender_name=resolved_agent_mail_name`
-
-## Skill To Load
-Load the `beo-executing` skill immediately.
-
-## Startup Hint
-Urgent ready bead to inspect first: br-012. Still verify with `bv --robot-plan` before claiming it.
-```

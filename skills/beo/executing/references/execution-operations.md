@@ -25,11 +25,7 @@ br show <EPIC_ID> --json
 br dep list <EPIC_ID> --direction up --type parent-child --json
 ```
 
-If the epic does not have the `approved` label, do not treat planning artifacts as implicit approval.
-First verify the label was not accidentally removed or the wrong epic was selected.
-If approval is genuinely missing:
-- if current-phase tasks have already advanced, treat approval as invalidated and route to `beo-planning`
-- otherwise route to `beo-validating`
+See `../../reference/references/shared-hard-gates.md` § Approval Verification for the canonical approval check and routing rules.
 
 Also confirm planning-aware scope when relevant:
 
@@ -50,11 +46,7 @@ See `../../reference/references/pipeline-contracts.md` → Epic Lifecycle.
 
 ## 3. Task Selection
 
-Use the scheduling cascade:
-
-```bash
-bv --robot-plan --graph-root <EPIC_ID> --format json 2>/dev/null || bv --robot-next --format json 2>/dev/null || br ready --json
-```
+Use the scheduling cascade from `../../reference/references/dependency-and-scheduling.md` § Scheduling Cascade.
 
 Pick the top executable bead from the first available track. If dispatched by swarming, respect any startup hint but always verify against the live graph.
 
@@ -133,35 +125,17 @@ Use the canonical reservation signatures and identity rules from `../../referenc
 
 ### Worker / Agent-Mail mode
 
-Before implementation, reserve the files the bead will touch:
-
-```text
-file_reservation_paths(
-  project_key="<project-root-path>",
-  agent_name="<agent-mail-name>",
-  paths=["<path-1>", "<path-2>"],
-  ttl_seconds=3600,
-  exclusive=true,
-  reason="Working bead <BEAD_ID>"
-)
-```
+Before implementation, reserve the files the bead will touch using the `file_reservation_paths` API from the canonical reference above.
 
 If `conflicts` are returned:
 - do not edit through the conflict
-- send a `[FILE CONFLICT]` message to the coordinator using `../swarming/references/message-templates.md`
+- send a `[FILE CONFLICT]` message to the coordinator using `../../swarming/references/message-templates.md`
 - poll inbox until the coordinator resolves the conflict
 
-After bead close, release any held paths:
-
-```text
-release_file_reservations(
-  project_key="<project-root-path>",
-  agent_name="<agent-mail-name>",
-  paths=["<path-1>", "<path-2>"]
-)
-```
+After bead close, release held paths using the `release_file_reservations` API from the same reference.
 
 `[FILE CONFLICT]` and `[FILE CONFLICT RESOLUTION]` messages remain the coordination layer above the reservation API.
+
 
 ### Solo mode (no Agent Mail)
 
@@ -380,10 +354,5 @@ Write a final report artifact for the current task and stop gracefully. The orch
 
 Use the canonical base schema from `../../reference/references/state-and-handoff-protocol.md`, then add any executing-specific resume detail you need.
 
-When relevant, include:
-- `planning_mode`
-- `has_phase_plan`
-- `current_phase`
-- `total_phases`
-- `phase_name`
+When relevant, include the planning-aware fields from `../../reference/references/state-and-handoff-protocol.md` § Planning-Aware HANDOFF.json Extension Fields.
 - whether current-phase execution is complete or partially complete

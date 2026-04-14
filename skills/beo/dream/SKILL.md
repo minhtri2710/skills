@@ -11,7 +11,7 @@ description: >-
 ---
 
 <HARD-GATE>
-If `.beads/onboarding.json` is missing or stale, stop and load `beo-using-beo` before continuing.
+Onboarding — see `../reference/references/shared-hard-gates.md` § Onboarding Check.
 </HARD-GATE>
 
 # Beo Dream
@@ -20,9 +20,7 @@ If `.beads/onboarding.json` is missing or stale, stop and load `beo-using-beo` b
 
 Dream performs one manual consolidation pass across accumulated learnings.
 It updates durable learnings in place, keeps the write surface narrow, and promotes only the patterns that still deserve long-term attention.
-> **Shared references** — this skill references specific `beo-reference` docs by path. Do not co-load the full `beo-reference` skill; read individual reference docs as needed.
->
-> Also uses `../reference/references/communication-standard.md` for inter-skill message formatting.
+> See `../reference/references/shared-hard-gates.md` § Shared References Convention.
 
 
 **Core principle:** consolidate carefully; do not confuse repeated mention with durable signal.
@@ -89,7 +87,7 @@ After the consolidation pass:
 
 ## Context Budget
 
-If context usage exceeds 65%, use `../reference/references/state-and-handoff-protocol.md` for the canonical `HANDOFF.json` and `STATE.json` shapes, then include the current consolidation phase, which learnings files have been processed, and what candidates remain.
+Follow `../reference/references/shared-hard-gates.md` § Context Budget Protocol. Skill-specific checkpoint items: current consolidation phase, which learnings files have been processed, and what candidates remain.
 
 ## Red Flags & Anti-Patterns
 

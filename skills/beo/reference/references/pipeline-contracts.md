@@ -66,13 +66,6 @@ This includes very small, well-scoped requests that previously fell under instan
 | 22 | Epic exists, `CONTEXT.md` exists, no `approach.md` | **planning-needs-approach** | `LoadSkill(beo-planning)` |
 | 23 | Epic exists, no tasks, no `approved` label | **exploring** | `LoadSkill(beo-exploring)` |
 
-Key changes from prior versions:
-- explicit distinction between approach-level planning and current-phase planning
-- routing now recognizes that `phase-contract.md` and `story-map.md` are current-phase artifacts
-- explicit phase-advancement routing sends completed current phases with later phases remaining back to planning
-- execution routing now requires a valid `approved` label lifecycle before re-entering `beo-executing`
-- final review is only valid when later phases do not remain
-
 Ordering notes:
 1. The onboarding row must stay first so stale or missing onboarding blocks all deeper routing.
 2. Explicit user-intent rows stay near the top so meta-skill work and explicit dream requests short-circuit feature-state routing when they are actually actionable.

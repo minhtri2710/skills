@@ -1,4 +1,4 @@
-# Discovery Guide
+# Discovery Reference
 
 Detailed instructions for the Discovery step of `beo-planning`.
 
@@ -34,7 +34,7 @@ Launch 2-4 parallel research subagents using the session's normal subagent/task-
    - Community best practices
 
 Each agent writes findings to a structured format. Collect all results.
-Write the discovery report using `references/discovery-template.md` as the output format.
+Write the discovery report using the Output Template section below.
 
 For refactoring work touching 3+ module boundaries, use multi-agent audit with narrow, non-overlapping mandates (e.g., structural/module, architecture/UX, domain/backend). Different architectural lenses reveal different issues that a single-perspective audit would miss.
 
@@ -49,7 +49,7 @@ When discovery inventories items by annotation (`#[allow(dead_code)]`, `// TODO`
 | `// TODO: remove` | Verify the removal condition is met |
 
 Discovery artifacts should list annotated items as "annotated — verify before removing" not "confirmed dead code."
-When annotation-verification findings exist, record them under `## Verified Annotations / Deletion Candidates` in `references/discovery-template.md`.
+When annotation-verification findings exist, record them under `## Verified Annotations / Deletion Candidates` in the Output Template section below.
 
 ## Synthesis
 
@@ -60,4 +60,54 @@ Combine research into a discovery summary:
 - What external factors matter (dependencies)
 
 Write findings to `.beads/artifacts/<feature_slug>/discovery.md`.
-Use `references/discovery-template.md` to preserve the architecture, pattern, constraint, external research, and verified-annotation sections consistently.
+Use the Output Template section below to preserve the architecture, pattern, constraint, external research, and verified-annotation sections consistently.
+
+---
+
+## Output Template
+
+## Agent A - Architecture Snapshot
+
+- Relevant modules:
+- Entry points:
+- Data flow:
+- Existing patterns:
+
+## Agent B - Pattern Search
+
+- Similar features in the codebase:
+- Reusable components or helpers:
+- Established conventions to follow:
+
+## Agent C - Constraints & Risks
+
+- Hard constraints:
+- Dependency versions verified against registry or lockfiles:
+- Performance bounds:
+- Security surface:
+- Licensing or policy constraints:
+
+## Verified Annotations / Deletion Candidates
+
+- Item:
+  - Annotation:
+  - Verification method:
+  - Result:
+
+## Agent D - External Research
+
+- Library docs:
+- API references:
+- Community patterns:
+- Known pitfalls:
+
+## Institutional Learnings
+
+- Relevant entries from `.beads/critical-patterns.md`:
+- Relevant entries from `.beads/learnings/`:
+
+## Summary for Synthesis
+
+- Key findings:
+- Unresolved questions:
+- Recommended approach direction:

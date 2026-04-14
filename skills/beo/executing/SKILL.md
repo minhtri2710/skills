@@ -11,12 +11,10 @@ description: >-
 ---
 
 <HARD-GATE>
-If `.beads/onboarding.json` is missing or stale, stop and load `beo-using-beo` before continuing.
+Onboarding — see `../reference/references/shared-hard-gates.md` § Onboarding Check.
 </HARD-GATE>
 
-> **Shared references** — this skill references specific `beo-reference` docs by path. Do not co-load the full `beo-reference` skill; read individual reference docs as needed.
->
-> Also uses `../reference/references/communication-standard.md` for inter-skill message formatting.
+> See `../reference/references/shared-hard-gates.md` § Shared References Convention.
 
 # Beo Executing
 
@@ -44,11 +42,7 @@ If no active epic or current-phase task beads exist, do not attempt execution. R
 </HARD-GATE>
 
 <HARD-GATE>
-If the epic does not have the `approved` label, do not treat planning artifacts as implicit approval.
-First verify the label was not accidentally removed or the wrong epic was selected.
-If approval is genuinely missing, do not execute:
-- if current-phase tasks have already advanced, treat approval as invalidated and route to `beo-planning`
-- otherwise route to `beo-validating`
+Approval verification — see `../reference/references/shared-hard-gates.md` § Approval Verification.
 </HARD-GATE>
 
 <HARD-GATE>
@@ -100,25 +94,16 @@ Use `references/worker-prompt-guide.md` for the full worker prompt template.
 
 ## Execution Notes
 
-### Before implementation
-
-Verify prerequisites, task selection, stale-label cleanup, and description checks per `references/execution-operations.md` sections 1-4. If `beo-swarming` supplied a startup hint, still verify it against the live graph before acting.
-
-### File coordination and prompt assembly
-
-Reserve files before editing; do not edit files when ownership is unclear. See `references/execution-operations.md` section 5 for the full file-coordination protocol and `references/worker-prompt-guide.md` for the prompt template. Never truncate the bead spec itself.
-
-### Dispatch and result handling
-
-Choose the dispatch mode that fits the situation: implement directly in worker mode, delegate in standalone mode when multiple beads are ready and a reliable mechanism exists, or execute directly when delegation overhead would exceed the benefit. Never invent pseudo-dispatch.
-
-See `references/execution-operations.md` section 6 for dispatch contract details and section 7 for result-to-state mapping. If a task is blocked, use `references/blocker-handling.md` and resume from task selection.
-
-After any status transition or reservation update, flush graph state per the execution operations protocol so downstream routing does not depend on stale metadata.
+- **Before implementation:** Verify prerequisites, task selection, stale-label cleanup, and description checks per `references/execution-operations.md` sections 1-4. If swarming supplied a startup hint, verify it against the live graph.
+- **File coordination:** Reserve files before editing; see `references/execution-operations.md` section 5 and `references/worker-prompt-guide.md` for the prompt template. Never truncate the bead spec.
+- **Dispatch:** Implement directly in worker mode; delegate in standalone mode when overhead is justified; never invent pseudo-dispatch. See `references/execution-operations.md` sections 6-7 for dispatch and result-to-state mapping. If blocked, use `references/blocker-handling.md` and resume from task selection.
+- **State flushing:** After any status transition or reservation update, flush graph state so downstream routing does not depend on stale metadata.
 
 ## Completion
 
 When all current-phase tasks are closed, run the completion and routing procedure in `references/execution-operations.md` section 8. When later phases remain, do **not** claim the whole feature is complete.
+
+For multi-phase completion routing, see `../reference/references/shared-hard-gates.md` § Multi-Phase Completion Routing.
 
 Do not track completion only in the conversation. Once verification passes, update the bead state in the graph immediately.
 
@@ -131,8 +116,7 @@ When the current phase closes successfully:
 
 ## Context Budget
 
-If context usage exceeds 65%, write `.beads/HANDOFF.json` using `../reference/references/state-and-handoff-protocol.md`, then checkpoint the current execution state using the procedure in `references/execution-operations.md`.
-Include planning-aware fields when known.
+Follow `../reference/references/shared-hard-gates.md` § Context Budget Protocol. Skill-specific checkpoint items: current execution state via `references/execution-operations.md`, and planning-aware fields when known.
 
 ## Post-Compaction Recovery
 

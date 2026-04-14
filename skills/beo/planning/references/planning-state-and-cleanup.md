@@ -63,19 +63,7 @@ Ready to validate.
 
 #### Multi-phase
 
-```text
-Whole-feature phase plan is ready.
-Mode: multi-phase
-
-- Total phases: <N>
-- Current phase to prepare now: <phase name>
-- Why this phase is first / next: <reason>
-- Stories in current phase: <count>
-- Tasks in current phase: <count>
-- Later phases intentionally deferred: <summary>
-
-Approve this phase sequence and current phase selection before validation?
-```
+Use the canonical multi-phase planning approval prompt from `../../reference/references/approval-gates.md` § 1. Planning Approval for Multi-Phase Work.
 
 ## 14. Phase-Plan Invalidation and Replanning Cleanup
 

@@ -9,14 +9,14 @@ description: >-
 ---
 
 <HARD-GATE>
-If `.beads/onboarding.json` is missing or stale, stop and load `beo-using-beo` before continuing.
+Onboarding — see `../reference/references/shared-hard-gates.md` § Onboarding Check.
 </HARD-GATE>
 
 # Beo Writing Skills
 
 ## Overview
 
-> **Shared references** — this skill references specific `beo-reference` docs by path. Do not co-load the full `beo-reference` skill; read individual reference docs as needed.
+> See `../reference/references/shared-hard-gates.md` § Shared References Convention.
 
 
 This skill teaches a strict test-first loop for beo skills.
@@ -83,7 +83,7 @@ A beo skill is in good shape when:
 
 ## Context Budget
 
-If context usage exceeds 65%, use `references/writing-skills-operations.md` together with `../reference/references/state-and-handoff-protocol.md` for the checkpoint procedure.
+Follow `../reference/references/shared-hard-gates.md` § Context Budget Protocol. Skill-specific checkpoint: see `references/writing-skills-operations.md` for the full procedure.
 
 
 ## Red Flags & Anti-Patterns

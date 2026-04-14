@@ -152,30 +152,6 @@ It is **not** the execution approval gate.
 
 Use the canonical rule from `../../reference/references/approval-gates.md`.
 
-### Approval prompt shape
-
-```text
-Whole-feature phase plan is ready.
-
-- Total phases: <N>
-- Current phase to prepare now: <phase name>
-- Why this phase is first / next: <reason>
-- Later phases intentionally deferred: <summary>
-
-Approve this phase sequence and current phase selection before validation?
-```
-
-### If approved
-
-- proceed to current-phase artifacts or validating handoff, depending on what is already drafted
-- keep the approval meaning narrow: planning shape is approved, not execution readiness
-
-### If rejected or withheld
-
-- stop planning handoff
-- revise `phase-plan.md`, `approach.md`, or current-phase framing
-- do not route to `beo-validating`
-
 ## 9. Writing Current-Phase Artifacts
 
 After `approach.md` is complete — and after `phase-plan.md` if multi-phase — prepare the current phase for execution.

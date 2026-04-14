@@ -1,6 +1,6 @@
 # State and Handoff Protocol
 
-> **450+ lines.** Key sections: STATE.json Schema (canonical fields), HANDOFF.json Schema, Status Values, Examples A-F. Use your editor's search to jump to the section you need.
+> **~334 lines.** Key sections: STATE.json Schema (canonical fields), HANDOFF.json Schema, Status Values, Examples A-F. Use your editor's search to jump to the section you need.
 
 ## Contents
 
@@ -67,24 +67,7 @@ Every skill must write `.beads/STATE.json` with all fields present.
 }
 ```
 
-### Complete STATE.json (all fields)
-
-```json
-{
-  "schema_version": 1,
-  "phase": "<skill-name>",
-  "status": "<canonical-routing-state>",
-  "feature": "<epic-id>",
-  "feature_slug": "<feature_slug>",
-  "tasks": "<summary relevant to current phase>",
-  "next": "beo-<next-skill>",
-  "planning_mode": "single-phase",
-  "has_phase_plan": false,
-  "current_phase": 1,
-  "total_phases": 1,
-  "phase_name": "<current phase name or feature summary>"
-}
-```
+The complete STATE.json combines both blocks above (12 fields total).
 
 ### Field semantics
 
@@ -179,25 +162,7 @@ Rules:
 - planning-aware fields keep their normal meaning when `mode = "go"`
 - do not invent additional mode values without updating this canonical protocol first
 
-### Canonical meanings
-
-- `planning_mode`
-  - `"single-phase"`, `"multi-phase"`, or `"unknown"` (pre-planning only)
-
-- `has_phase_plan`
-  - `true` when `.beads/artifacts/<feature>/phase-plan.md` exists and is active
-  - `false` otherwise
-
-- `current_phase`
-  - current selected phase number
-  - use `1` for single-phase work
-
-- `total_phases`
-  - integer when known
-  - `"unknown"` when not yet stable
-
-- `phase_name`
-  - concise current phase label
+Planning-aware field semantics are defined in the [Field semantics](#field-semantics) section above.
 
 ## Optional Artifact Presence Map
 
@@ -300,22 +265,9 @@ rm .beads/HANDOFF.json
 
 ### Example B — STATE.json for multi-phase planning handoff
 
-```json
-{
-  "schema_version": 1,
-  "phase": "planning",
-  "status": "ready-to-validate",
-  "feature": "pe-def",
-  "feature_slug": "inbound-mail",
-  "tasks": "5 planned for current phase",
-  "next": "beo-validating",
-  "planning_mode": "multi-phase",
-  "has_phase_plan": true,
-  "current_phase": 1,
-  "total_phases": 3,
-  "phase_name": "Accept inbound payload safely"
-}
-```
+Same as Example A with these field changes:
+
+- `"planning_mode": "multi-phase"`, `"has_phase_plan": true`, `"total_phases": 3`
 
 ### Example C — HANDOFF.json for single-phase work
 
@@ -348,105 +300,27 @@ rm .beads/HANDOFF.json
 
 ### Example D — HANDOFF.json for multi-phase work
 
-```json
-{
-  "schema_version": 1,
-  "phase": "validating",
-  "skill": "beo-validating",
-  "feature": "pe-def",
-  "feature_name": "inbound-mail",
-  "next_action": "Resume current-phase validation for Phase 1, then route to execution only if approval is granted.",
-  "in_flight_beads": [],
-  "timestamp": "2026-03-31T12:30:00Z",
-  "planning_mode": "multi-phase",
-  "has_phase_plan": true,
-  "current_phase": 1,
-  "total_phases": 3,
-  "phase_name": "Accept inbound payload safely",
-  "artifacts": {
-    "context": true,
-    "discovery": true,
-    "approach": true,
-    "plan": true,
-    "phase_plan": true,
-    "phase_contract": true,
-    "story_map": true
-  }
-}
-```
+Same as Example C with: `"planning_mode": "multi-phase"`, `"has_phase_plan": true`, `"total_phases": 3`, all `artifacts` values `true`.
 
 ### Example E — HANDOFF.json for go-mode resume
 
-```json
-{
-  "schema_version": 1,
-  "phase": "executing",
-  "skill": "beo-executing",
-  "feature": "pe-ghi",
-  "feature_name": "router-remediation",
-  "next_action": "Resume the current execution loop, then continue go-mode routing at the next gate.",
-  "in_flight_beads": ["pe-ghi.2"],
-  "timestamp": "2026-03-31T13:00:00Z",
-  "mode": "go",
-  "planning_mode": "single-phase",
-  "has_phase_plan": false,
-  "current_phase": 1,
-  "total_phases": 1,
-  "phase_name": "Router remediation"
-}
-```
+Same as Example C base fields plus top-level `"mode": "go"` and `"in_flight_beads": ["pe-ghi.2"]`.
 
 ### Example F — STATE.json after exploring completes (handoff to planning)
 
-```json
-{
-  "schema_version": 1,
-  "phase": "exploring",
-  "status": "planning-needs-approach",
-  "feature": "pe-jkl",
-  "feature_slug": "onboarding-wizard",
-  "tasks": "Requirements resolved; no execution beads created",
-  "next": "beo-planning",
-  "planning_mode": "unknown",
-  "has_phase_plan": false,
-  "current_phase": 1,
-  "total_phases": 1,
-  "phase_name": "Onboarding wizard"
-}
-```
+Same as Example A with: `"phase": "exploring"`, `"status": "planning-needs-approach"`, `"next": "beo-planning"`, `"planning_mode": "unknown"`.
 
 ## Planning-Aware Field Transition Cleanup
 
-When replanning changes the planning mode, phase structure, or execution scope, all planning-aware fields must be refreshed in both `STATE.json` and `HANDOFF.json` before any handoff.
+When replanning changes the planning mode, phase structure, or execution scope, refresh all planning-aware fields in both `STATE.json` and `HANDOFF.json` before any handoff.
 
-### Replanning to single-phase
+| Scenario | Fields to set | Artifacts to clean |
+|----------|--------------|-------------------|
+| Replan → single-phase | `planning_mode: "single-phase"`, `has_phase_plan: false`, `current_phase: 1`, `total_phases: 1`, `phase_name`: feature summary | Delete `phase-plan.md` |
+| Replan within multi-phase | `has_phase_plan: true` (rewrite), `current_phase`: new number, `total_phases`: updated, `phase_name`: new name | Rewrite `phase-plan.md` |
+| Phase advancement | Increment `current_phase`, update `phase_name`, keep `total_phases` current | Delete old `phase-contract.md` + `story-map.md` |
 
-Set:
-
-- `planning_mode`: `"single-phase"`
-- `has_phase_plan`: `false`
-- `current_phase`: `1`
-- `total_phases`: `1`
-- `phase_name`: feature summary or cleared value — do not leave a stale phase name
-
-Delete `phase-plan.md` from the artifact directory. Do not leave it as a stale artifact.
-
-### Replanning within multi-phase (changed sequencing)
-
-Set all fields to reflect the new sequence:
-
-- `has_phase_plan`: `true` (rewrite the plan)
-- `current_phase`: new selected phase number
-- `total_phases`: updated count
-- `phase_name`: new current phase name — must not carry the old phase name
-
-### Phase advancement (current phase completed, next phase starts)
-
-Increment `current_phase`, update `phase_name` to the new phase, and keep `total_phases` current. Delete old `phase-contract.md` and `story-map.md` before regenerating for the new phase.
-
-### Hard rule
-
-Never leave stale `phase_name`, `current_phase`, or `has_phase_plan` values after replanning or phase advancement. Every planning-aware field must reflect the actual state of the work.
+**Hard rule:** Never leave stale `phase_name`, `current_phase`, or `has_phase_plan` values after replanning or phase advancement.
 
 ## Hard Rules
 

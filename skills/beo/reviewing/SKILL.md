@@ -10,14 +10,14 @@ description: >-
 ---
 
 <HARD-GATE>
-If `.beads/onboarding.json` is missing or stale, stop and load `beo-using-beo` before continuing.
+Onboarding — see `../reference/references/shared-hard-gates.md` § Onboarding Check.
 </HARD-GATE>
 
 <HARD-GATE>
 If no active epic with terminal-state tasks exists, do not attempt review. Route to `beo-router` for state detection and proper intake.
 </HARD-GATE>
 
-> **Shared references** — this skill references specific `beo-reference` docs by path. Do not co-load the full `beo-reference` skill; read individual reference docs as needed.
+> See `../reference/references/shared-hard-gates.md` § Shared References Convention.
 
 # Beo Reviewing
 
@@ -30,13 +30,12 @@ Its job is to verify that the implemented final execution scope is safe, aligned
 
 ## Communication Standard
 
-Review outputs must follow `../reference/references/communication-standard.md`.
+All review outputs (specialist findings, P1/P2/P3 classifications) must follow `../reference/references/communication-standard.md`: plain language first, evidence with quotes or path:line, concrete failure scenario, and smallest fix.
 
 ## Hard Gates
 
 <HARD-GATE>
-If `planning_mode = multi-phase` and later phases remain, do not treat the feature as complete.
-Remove `approved` if needed and route back to `beo-planning`.
+Multi-phase completion — see `../reference/references/shared-hard-gates.md` § Multi-Phase Completion Routing.
 </HARD-GATE>
 
 <HARD-GATE>
@@ -61,9 +60,7 @@ Create fix beads and send execution work back through the proper path.
 </HARD-GATE>
 
 <HARD-GATE>
-Every task in the approved final execution scope must be in a canonical terminal state (`done`, `cancelled`, or `failed`) before review begins. If any tasks are still open, route back to `beo-executing`.
-Only `done` (br status `closed`) is a successful terminal state. If any tasks are `cancelled` or `failed`, pause and ask the user for direction before proceeding with review. Do not silently treat cancelled/failed tasks as acceptable outcomes.
-Review may continue past cancelled/failed tasks only if the user explicitly confirms they were intentionally descoped or superseded and the phase exit state can still be achieved without them. Otherwise route to `beo-planning` for scope changes or `beo-executing` for incomplete work.
+Every task in the approved final execution scope must be in a terminal state (`done`, `cancelled`, or `failed`) before review begins. If any are still open, route back to `beo-executing`. Only `done` (`closed` in br) is a successful terminal. For `cancelled`/`failed` tasks, pause and ask the user for direction — continue only if the user confirms they were intentionally descoped and the phase exit state is still achievable. Otherwise route to `beo-planning` or `beo-executing`.
 </HARD-GATE>
 
 ## Default Review Loop
@@ -152,11 +149,7 @@ Do not hand off to compounding while P1 fixes, unresolved UAT, or planning-level
 
 ## Context Budget
 
-If context usage exceeds 65%, write `.beads/HANDOFF.json` using `../reference/references/state-and-handoff-protocol.md` and include:
-- review progress
-- open findings by severity
-- UAT status
-- whether review is waiting on execution, planning, or user confirmation
+Follow `../reference/references/shared-hard-gates.md` § Context Budget Protocol. Skill-specific checkpoint items: review progress, open findings by severity, UAT status, and whether review is waiting on execution, planning, or user confirmation.
 
 ## Red Flags & Anti-Patterns
 

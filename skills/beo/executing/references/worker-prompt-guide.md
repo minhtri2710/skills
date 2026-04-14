@@ -2,7 +2,7 @@
 
 Template, data gathering, and budget rules for the Worker Prompt Assembly step of `beo-executing`.
 
-For the canonical worker subagent spawn template (identity, Agent Mail, operating model), see `../reference/references/worker-template.md`. This guide covers the task-level prompt that the worker builds for each bead.
+For the canonical worker subagent spawn template (identity, Agent Mail, operating model), see `../../reference/references/worker-template.md`. This guide covers the task-level prompt that the worker builds for each bead.
 
 ## Prompt Template
 

@@ -9,10 +9,10 @@ description: >-
 ---
 
 <HARD-GATE>
-If `.beads/onboarding.json` is missing or stale, stop and load `beo-using-beo` before continuing.
+Onboarding — see `../reference/references/shared-hard-gates.md` § Onboarding Check.
 </HARD-GATE>
 
-> **Shared references** — this skill references specific `beo-reference` docs by path. Do not co-load the full `beo-reference` skill; read individual reference docs as needed.
+> See `../reference/references/shared-hard-gates.md` § Shared References Convention.
 
 # Beo Planning
 
@@ -34,7 +34,7 @@ If `CONTEXT.md` does not exist, do not invent requirements here. First verify th
 
 <HARD-GATE>
 If the work requires 2 or more distinct capability slices that cannot ship as a single closed loop, write `phase-plan.md` and do not prepare the current phase as if it were the whole feature.
-See `references/planning-prerequisites.md` § 3 for the full decision criteria.
+See `references/planning-prerequisites.md` § 3. Decide Planning Mode for the full decision criteria.
 </HARD-GATE>
 
 <HARD-GATE>
@@ -86,11 +86,11 @@ If phase structure or execution scope changes during replanning, prior approval 
 Load the specific planning reference you need:
 - `references/planning-prerequisites.md` for prerequisites, learnings, and planning mode
 - `references/artifact-writing-guide.md` for artifact writing, approval, and high-stakes review
-- `references/task-creation-ops.md` for bead creation, wiring, and epic updates
+- `references/bead-ops.md` for bead creation, wiring, and epic updates
 - `references/planning-state-and-cleanup.md` for state updates, replanning cleanup, and checkpointing
 - `../reference/references/communication-standard.md` for inter-skill message formatting when writing handoff messages
-Read `references/discovery-guide.md` when beginning the discovery phase (step 3) to structure codebase analysis.
-Read `references/bead-creation-guide.md` when creating beads (after `story-map.md` is written) to ensure correct bead structure, dotted ID format, and dependency wiring.
+Read `references/discovery-reference.md` when beginning the discovery phase (step 3) to structure codebase analysis.
+Read `references/bead-ops.md` when creating beads (after `story-map.md` is written) to ensure correct bead structure, dotted ID format, and dependency wiring.
 
 ## Planning Modes
 
@@ -99,7 +99,7 @@ Use the simplest mode that keeps execution safe and understandable.
 - **`single-phase`** — one believable closed loop, usually 1-4 stories.
 - **`multi-phase`** — feature unfolds across 2+ meaningful capability slices.
 
-See `references/planning-prerequisites.md` § 3 for the full decision criteria.
+See `references/planning-prerequisites.md` § 3. Decide Planning Mode for the full decision criteria.
 
 `phase-plan.md` is the whole-feature sequence for multi-phase work.
 `phase-contract.md` and `story-map.md` always describe the **current phase only**.
@@ -107,7 +107,7 @@ See `references/planning-prerequisites.md` § 3 for the full decision criteria.
 
 Artifacts: `discovery.md`, `approach.md`, `plan.md`, `phase-plan.md` (multi-phase only), `phase-contract.md`, `story-map.md`, task beads.
 
-See `references/artifact-writing-guide.md` sections 4-7 for write order, artifact roles, and required fields. Use the corresponding templates: `references/discovery-template.md`, `references/approach-template.md`, `references/plan-template.md`, `references/phase-plan-template.md`, `references/phase-contract-template.md`, `references/story-map-template.md`, `references/bead-creation-guide.md`.
+See `references/artifact-writing-guide.md` sections 4-7 for write order, artifact roles, and required fields. Use the corresponding templates: `references/discovery-reference.md`, `references/approach-template.md`, `references/plan-template.md`, `references/phase-plan-template.md`, `references/phase-contract-template.md`, `references/story-map-template.md`, `references/bead-ops.md`.
 
 ## Learnings Retrieval
 
@@ -146,18 +146,10 @@ If the exit state in `phase-contract.md` is vague, fix the contract instead of p
 
 Only create beads after `phase-contract.md` and `story-map.md` are real and coherent.
 
-Use `references/task-creation-ops.md` section 11 for the exact create / write / wire / validate sequence.
-Use `references/bead-creation-guide.md` for decomposition rules and the bead quality checklist.
+Use `references/bead-ops.md` section 11 for the exact create / write / wire / validate sequence.
+Use `references/bead-ops.md` for decomposition rules and the bead quality checklist.
 
-After creation, read every bead back and verify it is specific enough for a fresh worker.
-Also verify that:
-- every bead has concrete verification criteria and a complete Markdown description before handoff
-- task scopes are neither too granular nor too large; target believable worker-sized slices rather than micro-steps or whole-feature blobs
-- independent tasks with overlapping write scope are sequenced explicitly rather than presented as parallel-ready
-- I/O-facing beads state failure behavior explicitly
-- future-phase dependencies, types, or stubs are not added early just to anticipate later phases
-
-When exit criteria refer to verification counts, prefer durable invariants such as "all relevant tests pass" over hardcoded totals that can become invalid during legitimate refactors.
+After creation, read every bead back and verify it passes the quality checklist in `references/bead-ops.md`. Key checks: concrete verification criteria, believable worker-sized scope, explicit file-overlap sequencing, and no premature future-phase stubs. Prefer durable invariants ("all relevant tests pass") over hardcoded counts in exit criteria.
 
 After wiring dependencies, run `br dep cycles --json` to confirm the graph is still acyclic.
 
@@ -185,14 +177,14 @@ Write `.beads/HANDOFF.json` only when the context budget requires a checkpoint o
 
 ## Quick Mode
 
-When `CONTEXT.md` classifies the feature as **Quick** (see `../reference/references/pipeline-contracts.md` § Quick-Scope Definition), planning uses an abbreviated flow:
+When `CONTEXT.md` classifies the feature as **Quick** (see `../reference/references/pipeline-contracts.md` § State Routing Table > Quick-Scope Definition), planning uses an abbreviated flow:
 
 - Skip parallel discovery; do a quick single-pass review of affected files
 - Write abbreviated artifacts (approach + tasks in `plan.md`, single-story `story-map.md`, minimal `phase-contract.md`)
 - The hard gate requiring `phase-contract.md` and `story-map.md` still applies — Quick mode writes abbreviated versions, it does not skip them
 - Skip the formal multi-perspective review
 
-See `references/bead-creation-guide.md` § Quick Mode for the exact abbreviated sequence.
+See `references/bead-ops.md` § Quick Mode for the exact abbreviated sequence.
 
 ## Replanning and Phase Advancement
 
@@ -202,11 +194,7 @@ Use `references/planning-state-and-cleanup.md` section 14 for the exact cleanup 
 
 ## Context Budget
 
-If context usage exceeds 65%, use `../reference/references/state-and-handoff-protocol.md` for the canonical `STATE.json` / `HANDOFF.json` shapes, then checkpoint:
-- planning mode
-- current-phase selection
-- artifact completeness
-- any ready beads already created
+Follow `../reference/references/shared-hard-gates.md` § Context Budget Protocol. Skill-specific checkpoint items: planning mode, current-phase selection, artifact completeness, and any ready beads already created.
 
 ## Red Flags & Anti-Patterns
 

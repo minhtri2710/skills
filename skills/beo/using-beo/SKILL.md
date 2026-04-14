@@ -13,7 +13,7 @@ description: >-
 ## Overview
 
 It ensures the target repository has the required `.beads/` structure and the managed `AGENTS.md` block before any other beo skill proceeds.
-> **Shared references** — this skill does not reference `beo-reference` docs directly. Load `beo-reference` only if a protocol question arises during onboarding.
+> See `../reference/references/shared-hard-gates.md` § Shared References Convention.
 
 
 `beo-router` loads this skill when onboarding is missing or stale.
@@ -60,9 +60,7 @@ Do not route directly to downstream beo skills from here.
 
 ## Context Budget
 
-`beo-using-beo` should stay small and procedural.
-If context usage exceeds 30% during onboarding, stop and check whether the script should be doing more of the work.
-The 30% threshold (vs. the standard 65%) is intentional: this is a bootstrap skill that delegates heavy work to `onboard_beo.mjs`, so high context consumption signals logic leaking out of the script.
+`beo-using-beo` uses a **30%** threshold (not the standard 65%) since it is a lightweight bootstrap skill. If context usage exceeds 30%, stop and check whether the onboarding script should be doing more of the work.
 
 ## Red Flags & Anti-Patterns
 

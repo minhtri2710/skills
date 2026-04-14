@@ -45,31 +45,12 @@ br update <EPIC_ID> --claim
 
 ### Scheduling Cascade
 
-```bash
-bv --robot-plan --graph-root <EPIC_ID> --format json 2>/dev/null || bv --robot-next --format json 2>/dev/null || br ready --json
-```
-
-Use the highest-available tier. Do not invent separate runtime planning artifacts.
+Use the scheduling cascade from `../../reference/references/dependency-and-scheduling.md` § Scheduling Cascade. Use the highest-available tier. Do not invent separate runtime planning artifacts.
 If the graph and Agent Mail disagree about what is ready, pause spawning and reconcile before adding more workers.
 
 ## 2. Initialize Agent Mail
 
-Register the coordinator and bootstrap the epic thread.
-
-Canonical setup shape:
-
-```text
-ensure_project(human_key="<project-root-path>")
-register_agent(
-  project_key="<project-root-path>",
-  name="<COORDINATOR_AGENT_NAME>",
-  program="<runtime-program>",
-  model="<MODEL>",
-  task_description="swarm-coordinator"
-)
-```
-
-Use `../../reference/references/agent-mail-coordination.md` as the canonical source for reservation signatures and identity rules.
+Register the coordinator and bootstrap the epic thread using the `ensure_project` and `register_agent` APIs from `../../reference/references/agent-mail-coordination.md`.
 
 Each worker contract inherits file-reservation discipline from `../../reference/references/worker-template.md`.
 
@@ -194,6 +175,6 @@ bv --robot-triage --graph-root <EPIC_ID> --format json
 If context usage exceeds 65%:
 - write `.beads/HANDOFF.json` using the canonical base fields from `../../reference/references/state-and-handoff-protocol.md`
 - include swarming-specific extension fields (`session`, `swarm`, `graph_status`, `active_workers`, `open_blockers`, `resume_instructions`, `context_at_pause`)
-- include planning-aware fields when relevant (`planning_mode`, `has_phase_plan`, `current_phase`, `total_phases`, `phase_name`)
+- include planning-aware fields per `../../reference/references/state-and-handoff-protocol.md` § Planning-Aware HANDOFF.json Extension Fields when relevant
 - broadcast a pause notification on the epic thread
 - report to the user how to resume

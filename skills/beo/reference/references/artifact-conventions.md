@@ -24,7 +24,6 @@ Combined reference for artifact storage protocols, slug lifecycle, and file layo
   - [Feature Artifact Root](#feature-artifact-root)
   - [Feature Artifacts](#feature-artifacts)
   - [Artifact Semantics](#artifact-semantics)
-  - [Planning Mode Interpretation](#planning-mode-interpretation)
   - [Artifact Cleanup on Replanning](#artifact-cleanup-on-replanning)
   - [Pipeline-Level Files](#pipeline-level-files)
   - [Knowledge Store](#knowledge-store)
@@ -210,19 +209,11 @@ br update <EPIC_ID> --description "slug: <feature_slug>"
 
 ### Read Procedure
 
-Whenever a skill needs artifact paths, read the current epic description first and extract the first line.
-
-Expected first line:
-
-```text
-slug: <feature_slug>
-```
-
-Use that slug for:
+Read the current epic description and extract the first-line slug (format shown above). Use it for:
 - `.beads/artifacts/<feature_slug>/...`
 - `feature_name` in `HANDOFF.json` (historical field name; value is still the slug)
-- the `feature_slug` field in `STATE.json`
-- learnings file slug components where applicable
+- `feature_slug` in `STATE.json`
+- learnings file slug components
 
 ### Safe Update Procedure
 
@@ -314,92 +305,20 @@ See `pipeline-contracts.md` → Feature Slug for derivation rules.
 
 ### Artifact Semantics
 
-#### `CONTEXT.md`
-`CONTEXT.md` is the feature-definition artifact.
+| Artifact | Role | Key Rule |
+|----------|------|----------|
+| `CONTEXT.md` | Feature definition: locked decisions, scope boundaries, out-of-scope, open questions | All downstream must honor it |
+| `discovery.md` | Research findings: architecture topology, existing patterns, constraints, external deps | Evidence, not the final plan |
+| `approach.md` | Strategy: goal, existing state, gaps/risks, chosen direction, alternatives, risk map, single/multi-phase decision | Canonical strategy artifact |
+| `plan.md` | Human-readable plan summary for quick consumption | Not a replacement for structured artifacts |
+| `phase-plan.md` | Optional multi-phase sequencing: whole-feature goal, 2-4 phases, ordering rationale, current phase selection | Absent for single-phase work |
+| `phase-contract.md` | **Current phase only**: entry/exit state, demo story, scope, pivot signals | Never whole-feature in multi-phase |
+| `story-map.md` | **Current phase only**: story sequence, closure check, story-to-bead mapping | Future phases deferred in `phase-plan.md` |
 
-It holds:
-
-- locked product / behavior decisions
-- scope boundaries
-- out-of-scope decisions
-- planning-relevant open questions
-
-All downstream planning and execution must honor it.
-
-#### `discovery.md`
-`discovery.md` captures findings from research:
-
-- architecture topology
-- existing patterns
-- constraints
-- external dependency notes
-
-It is evidence, not the final plan.
-
-#### `approach.md`
-`approach.md` is the strategy artifact.
-
-It should explain:
-
-- what the feature needs to make true
-- what the codebase already provides
-- what is missing or risky
-- the chosen implementation direction
-- alternatives considered
-- the risk map
-- whether the work stays single-phase or becomes multi-phase
-
-#### `plan.md`
-`plan.md` is the human-readable plan summary.
-
-It should remain readable by a teammate or reviewer who wants the shape of the plan quickly without reading all structured artifacts in depth.
-
-`plan.md` is not a replacement for `approach.md`, `phase-plan.md`, `phase-contract.md`, or `story-map.md`.
-
-#### `phase-plan.md`
-`phase-plan.md` is optional.
-
-It exists only when the feature should be understood as **multi-phase**.
-
-It defines:
-
-- the whole-feature goal
-- why one phase is not enough
-- the 2-4 meaningful phases
-- why the order makes sense
-- which phase is the current phase to prepare now
-- what later phases remain intentionally deferred
-
-If the feature fits one clean closed loop, `phase-plan.md` should be absent.
-
-#### `phase-contract.md`
-`phase-contract.md` always describes the **current phase only**.
-
-This is the canonical rule.
-
-It must never be interpreted as a whole-feature contract when the feature is multi-phase.
-
-If the feature is single-phase, the current phase may also cover the full execution scope.  
-If the feature is multi-phase, `phase-contract.md` still describes only the selected current phase.
-
-#### `story-map.md`
-`story-map.md` always maps the **current phase only**.
-
-This is the canonical rule.
-
-It must never be interpreted as a whole-feature story map when the feature is multi-phase.
-
-If future phases exist, they remain deferred in `phase-plan.md`.
-
-### Planning Mode Interpretation
-
-See `pipeline-contracts.md` → Planning Artifact Hierarchy for the canonical artifact table, gate-controlling designations, and planning mode rules (single-phase vs. multi-phase artifact shapes).
-
-Key reading rules are summarized here for convenience:
-
-- When `phase-plan.md` exists, the feature is multi-phase; `phase-contract.md` and `story-map.md` describe only the current phase
-- When `phase-plan.md` is absent, the work is single-phase unless other evidence contradicts that assumption
-- Current-phase completion must not automatically imply whole-feature completion when `phase-plan.md` exists
+**Planning mode rules** — see `pipeline-contracts.md` → Planning Artifact Hierarchy for full details:
+- `phase-plan.md` present → multi-phase; `phase-contract.md` and `story-map.md` describe only the current phase
+- `phase-plan.md` absent → single-phase
+- Current-phase completion ≠ whole-feature completion when multi-phase
 
 ### Artifact Cleanup on Replanning
 

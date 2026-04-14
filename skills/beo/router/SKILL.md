@@ -10,7 +10,7 @@ description: >-
 ---
 
 <HARD-GATE>
-If `.beads/onboarding.json` is missing or stale, stop and load `beo-using-beo` before continuing.
+Onboarding — see `../reference/references/shared-hard-gates.md` § Onboarding Check.
 </HARD-GATE>
 
 # Beo Router
@@ -59,14 +59,14 @@ If `phase-plan.md` exists, treat `phase-contract.md` and `story-map.md` as curre
 </HARD-GATE>
 
 <HARD-GATE>
-If current-phase work is complete but later phases remain, do not treat the feature as complete. Route back to `beo-planning`.
+Multi-phase completion — see `../reference/references/shared-hard-gates.md` § Multi-Phase Completion Routing.
 </HARD-GATE>
 
 <HARD-GATE>
 If quick-scoped work expands during inspection, stop treating it as quick work and promote it into the normal pipeline.
 </HARD-GATE>
 
-> **Shared references** — this skill references specific `beo-reference` docs by path. Do not co-load the full `beo-reference` skill; read individual reference docs as needed.
+> See `../reference/references/shared-hard-gates.md` § Shared References Convention.
 
 ## Default Router Loop
 
@@ -131,8 +131,7 @@ If a checkpoint or resume artifact exists, preserve the planning-aware state whi
 
 ## Context Budget
 
-If context usage exceeds 65%, checkpoint using `../reference/references/state-and-handoff-protocol.md`.
-Include the current STATE.json, selected route, planning-aware fields when known, and any resume detail needed to continue safely.
+Follow `../reference/references/shared-hard-gates.md` § Context Budget Protocol. Skill-specific checkpoint items: current STATE.json, selected route, planning-aware fields when known, and any resume detail needed to continue safely.
 
 ## Red Flags & Anti-Patterns
 

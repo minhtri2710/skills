@@ -61,7 +61,7 @@ Canonical rule:
 
 This gate applies only in `beo-router` when go mode is active.
 
-See `../router/references/go-mode.md` for the full go-mode gate sequence.
+See `../../router/references/go-mode.md` for the full go-mode gate sequence.
 
 ### 2. Validation Approval
 

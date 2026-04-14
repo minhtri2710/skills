@@ -310,13 +310,7 @@ If context usage exceeds 65%:
 
 Use the canonical base schema from `../../reference/references/state-and-handoff-protocol.md`, then add any validating-specific resume detail you need.
 
-When relevant, include:
-- `planning_mode`
-- `has_phase_plan`
-- `current_phase`
-- `total_phases`
-- `phase_name`
-- artifact completeness
+When relevant, include planning-aware fields per `../../reference/references/state-and-handoff-protocol.md` § Planning-Aware HANDOFF.json Extension Fields, plus artifact completeness.
 
 ### Normal Handoff
 
@@ -333,23 +327,7 @@ Decision rule:
 - if the exact independent-track count is not available from the current context, inspect it now
 - if it is still ambiguous after a reasonable inspection, default to `beo-executing` unless there is clear evidence that swarming is warranted
 
-Your approval summary should therefore end in a concrete next-skill statement, not just approval language. For example:
-
-```text
-Execution approved for the current phase only.
-Later phases remain deferred.
-Next skill: beo-executing
-```
-
-or
-
-```text
-Execution approved for the current phase only.
-Later phases remain deferred.
-Next skill: beo-swarming
-```
-
-If the user approved but the summary still lacks `Next skill: ...`, validation handoff is incomplete and must be corrected before stopping.
+Your approval summary must end with a concrete `Next skill: beo-executing` or `Next skill: beo-swarming` statement. Without it, validation handoff is incomplete.
 
 Update `.beads/STATE.json` with:
 - validated task count

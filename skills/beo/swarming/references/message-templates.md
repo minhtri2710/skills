@@ -1,9 +1,9 @@
 # Agent Mail Message Templates
 
-> **390 lines.** Use the Table of Contents below to jump to the template you need. Most common: §3 (Completion Report), §4 (Blocker Alert), §5-6 (File Conflict).
+> **~350 lines.** Use the Table of Contents below to jump to the template you need. Most common: §3 (Completion Report), §4 (Blocker Alert), §5-6 (File Conflict).
 
-Standard message formats for swarm coordination. All messages post to the epic thread (`thread_id=<EPIC_ID>`) unless noted otherwise.
-Use `<COORDINATOR_AGENT_NAME>` for the coordinator identity. Workers use `<AGENT_MAIL_NAME>` (the canonical Agent Mail name returned by `macro_start_session`) for all `sender_name` parameters.
+Standard message formats for swarm coordination. All messages use `send_message()` or `reply_message()` from Agent Mail, posting to the epic thread (`thread_id=<EPIC_ID>`) unless noted.
+Coordinator identity: `<COORDINATOR_AGENT_NAME>`. Worker identity: `<AGENT_MAIL_NAME>` (from `macro_start_session`).
 
 ## Table of Contents
 
@@ -24,12 +24,7 @@ Use `<COORDINATOR_AGENT_NAME>` for the coordinator identity. Workers use `<AGENT
 
 ## 1. Spawn Notification
 
-**Posted by:** Swarm coordinator (`<COORDINATOR_AGENT_NAME>`)
-**When:** After Agent Mail setup is complete, before spawning workers
-**Purpose:** Announces the swarm start and the self-routing execution model
-
-Runtime call:
-`send_message(project_key=..., sender_name="<COORDINATOR_AGENT_NAME>", to=["<COORDINATOR_AGENT_NAME>"], thread_id="<EPIC_ID>", ...)`
+> Coordinator → workers | After Agent Mail setup, before spawning
 
 ```
 Subject: [SWARM START] <feature-name>
@@ -55,12 +50,7 @@ All workers: join this thread, post startup acknowledgment, then load the beo-ex
 
 ## 2. Worker Spawn Acknowledgment
 
-**Posted by:** Worker
-**When:** Immediately on startup
-**Purpose:** Confirms the worker is live and following the expected loop
-
-Runtime call:
-`send_message(project_key=..., sender_name="<AGENT_MAIL_NAME>", to=["<COORDINATOR_AGENT_NAME>"], thread_id="<EPIC_ID>", ...)`
+> Worker → Coordinator | Immediately on startup
 
 ```
 Subject: [ONLINE] <AGENT_NAME> ready
@@ -77,12 +67,7 @@ Next step: read context, run `bv --robot-plan`, claim the top executable bead.
 
 ## 3. Completion Report
 
-**Posted by:** Worker
-**When:** After each bead is closed with `br close`
-**Purpose:** Notifies orchestrator of progress
-
-Runtime call:
-`send_message(project_key=..., sender_name="<AGENT_MAIL_NAME>", to=["<COORDINATOR_AGENT_NAME>"], thread_id="<EPIC_ID>", ...)`
+> Worker → Coordinator | After bead close
 
 ```
 Subject: [DONE] <bead-id>: <bead-title>
@@ -112,12 +97,7 @@ Next action: return to `bv --robot-plan`
 
 ## 4. Blocker Alert
 
-**Posted by:** Worker
-**When:** Immediately upon discovering a blocking issue
-**Purpose:** Requests orchestrator intervention
-
-Runtime call:
-`send_message(project_key=..., sender_name="<AGENT_MAIL_NAME>", to=["<COORDINATOR_AGENT_NAME>"], thread_id="<EPIC_ID>", ...)`
+> Worker → Coordinator | On discovering a blocker
 
 ```
 Subject: [BLOCKED] <bead-id>: <one-line description>
@@ -141,12 +121,7 @@ I am paused on this bead and waiting for a reply on this thread.
 
 ## 5. File Conflict Request
 
-**Posted by:** Worker
-**When:** Worker needs a file another worker currently holds
-**Purpose:** Coordinates file access without preassigned worker scopes
-
-Runtime call:
-`send_message(project_key=..., sender_name="<AGENT_MAIL_NAME>", to=["<COORDINATOR_AGENT_NAME>"], thread_id="<EPIC_ID>", ...)`
+> Worker → Coordinator | File needed that another worker holds
 
 ```
 Subject: [FILE CONFLICT] <path/to/file>
@@ -172,11 +147,7 @@ Awaiting orchestrator decision:
 
 ## 6. File Conflict Resolution
 
-**Posted by:** Swarm coordinator (`<COORDINATOR_AGENT_NAME>`)
-**When:** Replying to a File Conflict Request
-
-Runtime call:
-`reply_message(project_key=..., message_id=<file-conflict-message-id>, sender_name="<COORDINATOR_AGENT_NAME>", body_md="...")`
+> Coordinator → Worker | Reply to file conflict request
 
 ```
 Subject: Re: [FILE CONFLICT] <path/to/file>
@@ -204,11 +175,7 @@ OPTION C: Defer:
 
 ## 7. Overseer Broadcast
 
-**Posted by:** Swarm coordinator (`<COORDINATOR_AGENT_NAME>`)
-**When:** Shared correction or reminder is needed across the swarm
-
-Runtime call:
-`send_message(project_key=..., sender_name="<COORDINATOR_AGENT_NAME>", to=[<worker-list>], thread_id="<EPIC_ID>", ...)`
+> Coordinator → all workers | Shared correction or reminder
 
 ```
 Subject: [OVERSEER] <short instruction>
@@ -229,12 +196,7 @@ Examples:
 
 ## 8. Coordinator Context Warning
 
-**Posted by:** Swarm coordinator (`<COORDINATOR_AGENT_NAME>`)
-**When:** Swarm coordinator detects its own context is approaching 65%
-**Purpose:** Warns workers and records the pause
-
-Runtime call:
-`send_message(project_key=..., sender_name="<COORDINATOR_AGENT_NAME>", to=[<worker-list>], thread_id="<EPIC_ID>", ...)`
+> Coordinator → all workers | Context approaching 65%
 
 ```
 Subject: [CONTEXT WARNING] Coordinator approaching capacity
@@ -260,11 +222,7 @@ Resume artifacts:
 
 ## 9. Swarm Completion Announcement
 
-**Posted by:** Swarm coordinator (`<COORDINATOR_AGENT_NAME>`)
-**When:** All beads are verified closed
-
-Runtime call:
-`send_message(project_key=..., sender_name="<COORDINATOR_AGENT_NAME>", to=[<worker-list>], thread_id="<EPIC_ID>", ...)`
+> Coordinator → all workers | All beads verified closed
 
 ```
 Subject: [SWARM COMPLETE] <feature-name>: all beads closed
@@ -290,8 +248,7 @@ Next step:
 
 ## 10. Startup Reminder
 
-**Posted by:** Swarm coordinator (`<COORDINATOR_AGENT_NAME>`)
-**When:** A spawned worker has not posted `[ONLINE]` after 2 cycles
+> Coordinator → worker | Worker not online after 2 cycles
 
 ```
 Subject: [STARTUP REMINDER] <WORKER_NAME>
@@ -309,8 +266,7 @@ Please either:
 
 ## 11. Silent Worker Reminder
 
-**Posted by:** Swarm coordinator (`<COORDINATOR_AGENT_NAME>`)
-**When:** A worker has not posted updates for multiple cycles after startup
+> Coordinator → worker | No updates for multiple cycles
 
 ```
 Subject: [STATUS CHECK] <WORKER_NAME>
@@ -331,18 +287,10 @@ Reply with:
 
 Write to `.beads/HANDOFF.json` when the swarm coordinator context exceeds 65%.
 
-The swarming HANDOFF extends the base schema (first 8 fields) with swarm-specific coordination state. The base fields are required for router compatibility.
+Extends the base HANDOFF schema from `../../reference/references/state-and-handoff-protocol.md` (schema_version, phase, skill, feature, feature_name, next_action, in_flight_beads, timestamp) with swarm-specific fields:
 
 ```json
 {
-  "schema_version": 1,
-  "phase": "swarming",
-  "skill": "beo-swarming",
-  "feature": "<EPIC_ID>",
-  "feature_name": "<feature_slug>",
-  "next_action": "Resume swarm: poll epic thread, inspect live graph",
-  "in_flight_beads": ["<bead-ids-in-progress>"],
-  "timestamp": "<ISO-8601 timestamp>",
   "format": "beo-swarm-handoff",
   "session": {
     "id": "beo-swarm-<YYYYMMDD-HHMMSS>",

@@ -11,7 +11,7 @@ description: >-
 ---
 
 <HARD-GATE>
-If `.beads/onboarding.json` is missing or stale, stop and load `beo-using-beo` before continuing.
+Onboarding — see `references/shared-hard-gates.md` § Onboarding Check.
 </HARD-GATE>
 
 # Beo Reference
@@ -44,6 +44,9 @@ Dependent skills should summarize these rules, not fork them.
 
 Use this skill as a narrow lookup layer.
 Read only the specific shared reference needed for the decision at hand unless a broader protocol conflict makes more context necessary.
+
+**Cross-Cutting Gates:**
+- `references/shared-hard-gates.md` — onboarding check, approval verification, multi-phase routing, context budget protocol, shared references convention
 
 **CLI References:**
 - `references/br-cli-reference.md` — exact `br` command syntax, flags, subcommands
@@ -93,7 +96,7 @@ After resolving the lookup:
 
 ## Canonical Ownership
 
-The reference skill owns the single source of truth for **all 14 documents in `references/`**. Other skills MUST NOT duplicate protocol definitions — they should summarize briefly and point back here.
+The reference skill owns the single source of truth for **all 15 documents in `references/`**. Other skills MUST NOT duplicate protocol definitions — they should summarize briefly and point back here.
 
 Any document listed in the Reference Index above is owned exclusively by this skill. If a reference doc and a local skill summary disagree, the reference doc wins.
 
@@ -133,5 +136,4 @@ Do not leave duplicated or forked protocol text behind as a substitute for the s
 
 ## Context Budget
 
-Read only the specific reference file you need when possible.
-If context usage exceeds 65%, prefer a narrow lookup and checkpoint using `references/state-and-handoff-protocol.md` instead of loading broad summaries.
+Read only the specific reference file you need. If context usage exceeds 65%, prefer a narrow lookup and checkpoint using `references/state-and-handoff-protocol.md`.

@@ -11,10 +11,10 @@ description: >-
 ---
 
 <HARD-GATE>
-If `.beads/onboarding.json` is missing or stale, stop and load `beo-using-beo` before continuing.
+Onboarding — see `../reference/references/shared-hard-gates.md` § Onboarding Check.
 </HARD-GATE>
 
-> **Shared references** — this skill references specific `beo-reference` docs by path. Do not co-load the full `beo-reference` skill; read individual reference docs as needed.
+> See `../reference/references/shared-hard-gates.md` § Shared References Convention.
 
 # Beo Validating
 
@@ -29,7 +29,7 @@ If `phase-plan.md` exists, validation still applies to the **current phase only*
 
 ## Communication Standard
 
-Validation outputs must follow `../reference/references/communication-standard.md`.
+All validation outputs (plan-checker findings, bead-reviewer findings, dimension failures) must follow `../reference/references/communication-standard.md`: plain language first, evidence with quotes or path:line, concrete failure scenario, and smallest fix.
 
 ## Hard Gates
 
@@ -146,7 +146,7 @@ If later phases remain, say so explicitly. Validation approval for the current p
 
 ## Context Budget
 
-If context usage exceeds 65%, checkpoint validation progress. See `references/validation-operations.md` Section 8 (Context-Budget Checkpoint) and `../reference/references/state-and-handoff-protocol.md` for the handoff schema.
+Follow `../reference/references/shared-hard-gates.md` § Context Budget Protocol. Skill-specific checkpoint items: validation progress, and see `references/validation-operations.md` Section 8 for the full checkpoint procedure.
 
 ## Red Flags & Anti-Patterns
 
