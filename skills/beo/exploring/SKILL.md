@@ -74,7 +74,7 @@ Sanitize the request summary, redact or omit secrets, and use stable placeholder
 7. self-check for planning readiness, then hand off to `beo-planning`
 
 Use `../reference/references/learnings-read-protocol.md` when you need the canonical prior-learnings read flow.
-Use `../reference/references/slug-protocol.md` when updating the epic description safely.
+Use `../reference/references/artifact-conventions.md#slug-lifecycle` when updating the epic description safely.
 
 ## Scope Classification
 
@@ -157,7 +157,7 @@ The reviewer checks:
 - D-IDs are assigned consistently
 - outstanding questions are split correctly between "Resolve Before Planning" and "Deferred to Planning"
 
-Allow at most one retry iteration. If the draft still fails after that retry, flag the unresolved gray areas to the user and ask whether to proceed or keep exploring. Do not auto-proceed.
+Allow at most one retry iteration. If the draft still fails after that retry, flag the unresolved gray areas to the user and ask them to either resolve each flagged item or explicitly mark it as out-of-scope. Do not offer a "proceed anyway" option — the HARD-GATE requiring all material gray areas to be resolved or scoped out still applies.
 
 **Quick** work is exempt from this self-review step.
 

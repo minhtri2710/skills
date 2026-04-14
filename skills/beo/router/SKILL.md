@@ -46,7 +46,7 @@ Do not skip the handoff path.
 </HARD-GATE>
 
 <HARD-GATE>
-When reading HANDOFF.json, validate required fields exist: `from` (source skill name), `status` (current feature state), and `next` (target skill name). If any required field is missing or malformed, do not route — report the malformed handoff to the user.
+When reading HANDOFF.json, validate the canonical schema fields: `skill` (source skill name), `next_action` (target skill or action), `feature` (epic ID), and `timestamp`. These are the authoritative fields defined in `../reference/references/state-and-handoff-protocol.md`. If any required field is missing or malformed, do not route — report the malformed handoff to the user and attempt to reconstruct routing from live graph state and artifacts.
 </HARD-GATE>
 
 <HARD-GATE>
@@ -66,9 +66,7 @@ If current-phase work is complete but later phases remain, do not treat the feat
 If quick-scoped work expands during inspection, stop treating it as quick work and promote it into the normal pipeline.
 </HARD-GATE>
 
-<GUIDELINE>
-**Shared references** — this skill references specific `beo-reference` docs by path. Do not co-load the full `beo-reference` skill; read individual reference docs as needed.
-</GUIDELINE>
+> **Shared references** — this skill references specific `beo-reference` docs by path. Do not co-load the full `beo-reference` skill; read individual reference docs as needed.
 
 ## Default Router Loop
 
@@ -84,6 +82,7 @@ If quick-scoped work expands during inspection, stop treating it as quick work a
 Use `references/router-operations.md` when you need the exact bootstrap steps, instant-path scaffold, resume validation procedure, planning-aware routing rules, or doctor-mode commands.
 Use `../reference/references/pipeline-contracts.md` for the canonical state routing table.
 Use `references/go-mode.md` when the user says "go", "run the full pipeline", or "go mode" and you need the 3-gate end-to-end sequence.
+Use `../reference/references/communication-standard.md` for inter-skill message formatting when writing handoff messages or state reports.
 
 ## Report State Before Routing
 
@@ -100,7 +99,7 @@ At minimum include:
 
 When no active feature exists, still use the canonical routing model.
 The intake-specific states are:
-- `new-quick-intake` -> create the epic, preserve the immutable slug using `../reference/references/slug-protocol.md`, scaffold minimal artifacts via `references/router-operations.md` Quick Path Scaffold, then route to `beo-validating`
+- `new-quick-intake` -> create the epic, preserve the immutable slug using `../reference/references/artifact-conventions.md#slug-lifecycle`, scaffold minimal artifacts via `references/router-operations.md` Quick Path Scaffold, then route to `beo-validating`
 - `new-debug-intake` -> `beo-debugging`
 - `meta-skill` -> `beo-writing-skills`
 - otherwise -> create the epic and route to `beo-exploring`

@@ -14,8 +14,8 @@ If `.beads/onboarding.json` is missing or stale, stop and load `beo-using-beo` b
 </HARD-GATE>
 
 > **Shared references** — this skill references specific `beo-reference` docs by path. Do not co-load the full `beo-reference` skill; read individual reference docs as needed.
-
-> **Shared reference:** For inter-skill message formatting, load `beo-reference` and consult `references/communication-standard.md`.
+>
+> Also uses `../reference/references/communication-standard.md` for inter-skill message formatting.
 
 # Beo Swarming
 
@@ -34,11 +34,12 @@ The orchestrator coordinates; workers execute. See the Role Boundary section bel
 </GUIDELINE>
 
 <HARD-GATE>
-If Agent Mail is unavailable, do NOT attempt swarming. Degrade to `beo-executing`.
+If Agent Mail is unavailable before workers are launched, do NOT attempt swarming. Degrade to `beo-executing`.
+If Agent Mail fails mid-swarm with active workers: stop spawning new workers, wait for in-flight workers to report or time out, reconcile all file reservations, confirm single-worker ownership of any remaining work, then degrade to `beo-executing`. Do not leave orphaned reservations or uncoordinated concurrent workers.
 </HARD-GATE>
 
 <HARD-GATE>
-The current phase must have 3 or more independent tasks in `ready` status. If fewer than 3 are ready, route to `beo-executing` instead.
+The current phase must have 3 or more independent tasks that are open (`pending` status) and parallel-safe (no overlapping file scopes, no blocking dependencies between them). If fewer than 3 qualify, route to `beo-executing` instead.
 </HARD-GATE>
 
 <HARD-GATE>
@@ -73,7 +74,7 @@ You are the **ORCHESTRATOR**. Launch workers, monitor coordination, handle escal
 
 Use `references/swarming-operations.md` for the exact readiness checks, worker-spawn contract, monitor/tend loop, progress heuristics, and completion/checkpoint mechanics.
 Use `references/message-templates.md` for Agent Mail bodies.
-Use `references/worker-template.md` when building worker context.
+Use `../reference/references/worker-template.md` when building worker context.
 
 ## Active Swarm Never Idles
 

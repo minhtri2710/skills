@@ -68,7 +68,7 @@ This gives `beo-debugging` the epic/task context it needs for fix beads, debug l
 
 ### Store the Immutable Slug
 
-Derive the `feature_slug` from the epic title using `../../reference/references/slug-protocol.md`. Store it in the epic description with the canonical slug-first shape.
+Derive the `feature_slug` from the epic title using `../../reference/references/artifact-conventions.md#slug-lifecycle`. Store it in the epic description with the canonical slug-first shape.
 
 ## 3. Quick Path Scaffold
 

@@ -23,7 +23,7 @@ Use it to classify the problem, reproduce it, isolate root cause, apply the righ
 
 > **Shared references** — this skill references specific `beo-reference` docs by path. Do not co-load the full `beo-reference` skill; read individual reference docs as needed.
 >
-> **Shared reference:** For inter-skill message formatting, load `beo-reference` and consult `references/communication-standard.md`.
+> Also uses `../reference/references/communication-standard.md` for inter-skill message formatting.
 
 **Core principle:** triage -> reproduce -> diagnose -> fix -> learn.
 Do not guess.
@@ -86,7 +86,7 @@ If you have spent more than 3 diagnostic cycles (reproduce → diagnose → atte
 If the failure involves infrastructure, permissions, or external services you cannot inspect, report what you know and escalate immediately rather than guessing. Do not attempt workarounds for inaccessible systems.
 </HARD-GATE>
 
-- If a blocker remains unresolved after one rescue attempt, classify it as `needs_human` and pause the bead. Do not silently retry indefinitely.
+- If a blocker remains unresolved after one rescue attempt, leave the bead in `blocked` status with a comment documenting the blocker details, then pause and report to the user for direction. Do not silently retry indefinitely.
 
 ## Handoff
 

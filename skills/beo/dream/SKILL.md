@@ -21,7 +21,7 @@ If `.beads/onboarding.json` is missing or stale, stop and load `beo-using-beo` b
 Dream performs one manual consolidation pass across accumulated learnings.
 It updates durable learnings in place, keeps the write surface narrow, and promotes only the patterns that still deserve long-term attention.
 > **Shared references** — this skill references specific `beo-reference` docs by path. Do not co-load the full `beo-reference` skill; read individual reference docs as needed.
-
+>
 > Also uses `../reference/references/communication-standard.md` for inter-skill message formatting.
 
 

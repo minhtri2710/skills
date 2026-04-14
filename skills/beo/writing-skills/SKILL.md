@@ -26,15 +26,16 @@ This skill teaches a strict test-first loop for beo skills.
 ## Hard Gates
 
 <HARD-GATE>
-Every HARD-GATE must name a concrete, observable condition checkable against artifact, graph, or CLI state.
+Every HARD-GATE must name a concrete, observable condition.
 A valid HARD-GATE passes the **Enforceability Rubric** — at least one of these must be true:
 1. An artifact exists or does not exist at a specific path
 2. A field in STATE.json, HANDOFF.json, or CONTEXT.md has a specific value
 3. A `br` or `bv` query returns a specific status, label, or count
 4. A label is present or absent on an epic or task
 5. A CLI command produces a concrete, parseable result
+6. A binary protocol condition is met (e.g., "user has explicitly confirmed", "handoff contains required fields", "question was answered before proceeding") — these are allowed when no stronger artifact/CLI proxy exists
 
-If the condition is behavioral guidance (e.g., "write clearly", "prefer small skills"), express it as a **GUIDELINE**, not a HARD-GATE.
+If the condition is subjective guidance (e.g., "write clearly", "prefer small skills"), express it as a **GUIDELINE**, not a HARD-GATE.
 </HARD-GATE>
 
 <HARD-GATE>
@@ -87,7 +88,7 @@ A beo skill is in good shape when:
 If context usage exceeds 65%, use `references/writing-skills-operations.md` together with `../reference/references/state-and-handoff-protocol.md` for the checkpoint procedure.
 
 
-## Red Flags
+## Red Flags & Anti-Patterns
 
 - Skill has no Hard Gates section (every skill must gate entry)
 - Skill duplicates protocol content instead of referencing `beo-reference`

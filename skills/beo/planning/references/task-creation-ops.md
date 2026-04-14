@@ -90,7 +90,7 @@ If a bead belongs to a later phase:
 Before updating the epic description, use:
 
 ```text
-../../reference/references/slug-protocol.md
+../../reference/references/artifact-conventions.md#slug-lifecycle
 ```
 
 Preserve the canonical slug-first shape.

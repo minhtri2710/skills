@@ -21,7 +21,7 @@ Its job is to turn completed feature work into durable, reusable knowledge witho
 
 > **Shared references** — this skill references specific `beo-reference` docs by path. Do not co-load the full `beo-reference` skill; read individual reference docs as needed.
 >
-> **Shared reference:** For inter-skill message formatting, load `beo-reference` and consult `references/communication-standard.md`.
+> Also uses `../reference/references/communication-standard.md` for inter-skill message formatting.
 
 **Core principle:** preserve what future work should remember, not just what happened.
 

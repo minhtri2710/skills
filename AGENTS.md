@@ -2,7 +2,7 @@
 
 ## What This Repo Is
 
-A collection of 13 AI agent skills for structured feature development using `br` (beads_rust) and `bv` (Beads Viewer) as the execution backbone, with optional knowledge store integration via Obsidian CLI and QMD. No application code -- only skill definitions (Markdown).
+A collection of 13 AI agent skills for structured feature development using `br` (beads_rust) and `bv` (Beads Viewer) as the execution backbone, with optional knowledge store integration via Obsidian CLI and QMD. Primarily skill definitions (Markdown), plus onboarding scripts and template assets.
 
 ## Repository Structure
 
@@ -51,7 +51,6 @@ skills/
       references/
         swarming-operations.md
         message-templates.md
-        worker-template.md
         pressure-scenarios.md
     executing/                   # Per-worker implementation loop
       SKILL.md
@@ -104,22 +103,21 @@ skills/
     reference/                   # Shared CLI reference hub
       SKILL.md                       # Navigation hub
       agents/openai.yaml
-      references/                    # 15 reference docs
+      references/                    # 14 reference docs
         br-cli-reference.md
         bv-cli-reference.md
         status-mapping.md
-        artifact-protocol.md
-        slug-protocol.md
+        artifact-conventions.md
         state-and-handoff-protocol.md
         approval-gates.md
         dependency-and-scheduling.md
-        file-conventions.md
         pipeline-contracts.md
         knowledge-store.md
         bead-description-templates.md
         learnings-read-protocol.md
         agent-mail-coordination.md
         communication-standard.md
+        worker-template.md
 ```
 
 Every skill directory also contains an `evals/` subdirectory for evaluation data.

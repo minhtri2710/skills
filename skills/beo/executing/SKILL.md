@@ -15,8 +15,8 @@ If `.beads/onboarding.json` is missing or stale, stop and load `beo-using-beo` b
 </HARD-GATE>
 
 > **Shared references** — this skill references specific `beo-reference` docs by path. Do not co-load the full `beo-reference` skill; read individual reference docs as needed.
-
-> **Shared reference:** For agent output formatting and inter-skill message standards, load `beo-reference` and consult `references/communication-standard.md`.
+>
+> Also uses `../reference/references/communication-standard.md` for inter-skill message formatting.
 
 # Beo Executing
 
@@ -33,7 +33,7 @@ Execution scope is always the **currently approved phase**. If planning mode is 
 
 - **Worker mode**: dispatched by `beo-swarming`; implement directly, report to the orchestrator, and do **not** spawn sub-subagents.
 - **Standalone mode**: entered after `beo-validating`; may delegate through the session's normal subagent/task mechanism or implement directly, depending on scope and overhead.
-- **Solo mode**: standalone execution when Agent Mail or reservation APIs are unavailable. In this mode, no multi-agent coordination is assumed; execute one bead at a time, avoid speculative parallelism, and treat local file ownership as exclusive because no other beo workers should be active.
+- **Solo mode**: standalone execution when Agent Mail or reservation APIs are unavailable. Before entering Solo mode, verify that no other beo workers are active (check for in-flight beads in the graph and any existing reservation state). If active workers or reservations exist but cannot be coordinated, do not enter Solo mode — pause and report the conflict to the user. Once exclusivity is confirmed, execute one bead at a time, avoid speculative parallelism, and treat local file ownership as exclusive.
 
 The loop is the same in both modes. The main differences are how results are reported and whether delegated dispatch is available.
 
@@ -93,7 +93,6 @@ Strip `approved` (`br label remove <EPIC_ID> -l approved`) and route back to pla
 
 Use `references/execution-operations.md` for the exact scheduling cascade, transition protocol, dispatch contract, status mapping, completion bookkeeping, and checkpoint procedure.
 Use `references/worker-prompt-guide.md` for the full worker prompt template.
-Use `references/execution-guardrails.md` for recovery steps and anti-patterns.
 
 ## Execution Notes
 

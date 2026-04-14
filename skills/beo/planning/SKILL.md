@@ -52,7 +52,9 @@ Create beads for the current phase only. Do not pre-create execution beads for f
 </HARD-GATE>
 
 <HARD-GATE>
-Do not begin current-phase artifacts (`phase-contract.md`, `story-map.md`, or beads) until `approach.md` exists and has been verified as non-trivial.
+Do not begin current-phase artifacts (`phase-contract.md`, `story-map.md`, or beads) until the approach exists and has been verified as non-trivial.
+In standard mode, this means a standalone `approach.md` file.
+In Quick mode, the approach may be an inline section within `plan.md` — but the approach content must still exist and be verifiable before current-phase artifacts are written.
 </HARD-GATE>
 
 <HARD-GATE>
@@ -86,7 +88,7 @@ Load the specific planning reference you need:
 - `references/artifact-writing-guide.md` for artifact writing, approval, and high-stakes review
 - `references/task-creation-ops.md` for bead creation, wiring, and epic updates
 - `references/planning-state-and-cleanup.md` for state updates, replanning cleanup, and checkpointing
-Read `references/planning-guardrails.md` before starting any planning procedure to review constraints and anti-patterns.
+- `../reference/references/communication-standard.md` for inter-skill message formatting when writing handoff messages
 Read `references/discovery-guide.md` when beginning the discovery phase (step 3) to structure codebase analysis.
 Read `references/bead-creation-guide.md` when creating beads (after `story-map.md` is written) to ensure correct bead structure, dotted ID format, and dependency wiring.
 

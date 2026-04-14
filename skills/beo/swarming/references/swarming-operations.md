@@ -71,27 +71,13 @@ register_agent(
 
 Use `../../reference/references/agent-mail-coordination.md` as the canonical source for reservation signatures and identity rules.
 
-In every worker contract, require this file-reservation discipline:
-- call `file_reservation_paths()` before touching code
-- call `release_file_reservations()` after bead close
-- report conflicts immediately with `[FILE CONFLICT]`
+Each worker contract inherits file-reservation discipline from `../../reference/references/worker-template.md`.
 
 Then create the first thread message using the templates in `message-templates.md`.
 
 ### Dual-Identity Contract
 
-Each worker has two names:
-- a coordinator-assigned nickname for human readability
-- the Agent Mail name returned by `macro_start_session` as `startup.agent.name`
-
-The Agent Mail name is canonical for all `sender_name` parameters and inbox operations.
-Workers must include both identities in the initial `[ONLINE]` message body as:
-
-```text
-Nickname: <NICKNAME> | Agent Mail: <NAME>
-```
-
-After that first message, `sender_name` carries the Agent Mail identity and the body does not need to repeat the mapping every time.
+Each worker has a coordinator-assigned nickname and an Agent Mail name from `macro_start_session`. Workers post both in their `[ONLINE]` message as `Nickname: <X> | Agent Mail: <Y>`. After first message, `sender_name` carries the Agent Mail identity. See `../../reference/references/worker-template.md` for the full worker startup sequence.
 
 ### Cycle Definition
 
@@ -121,13 +107,7 @@ Do not assign fixed tracks or fixed bead lists in the normal case. Workers shoul
 
 ### Worker startup acknowledgment
 
-A worker startup acknowledgment is valid only when all of these are true:
-
-1. `macro_start_session` returned successfully.
-2. The worker read `AGENTS.md`.
-3. The worker posted `[ONLINE]` with both nickname and Agent Mail identity.
-
-After `[ONLINE]`, the worker enters the normal execution loop: fetch inbox, query the graph with `bv --robot-plan`, and begin the first bead. Those steps are part of execution, not startup validation.
+A worker startup is valid when `[ONLINE]` arrives with both nickname and Agent Mail identity. See `../../reference/references/worker-template.md` for the full startup sequence.
 
 Recovery ladder:
 - after 2 cycles without `[ONLINE]`, send `[STARTUP REMINDER]`

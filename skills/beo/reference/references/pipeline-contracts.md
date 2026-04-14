@@ -181,11 +181,11 @@ Validation may only create **spike beads** (time-boxed experiments, priority 0).
 
 ## Feature Slug
 
-Feature slugs are canonicalized and managed by `slug-protocol.md`.
+Feature slugs are canonicalized and managed by `artifact-conventions.md#slug-lifecycle`.
 
 - Use `feature_slug` for artifact paths and learnings file naming.
 - Store the same immutable slug in the epic description, `STATE.json`, and `HANDOFF.json`.
-- Do not restate slug derivation or mutation rules here; `slug-protocol.md` is the single source of truth for creation, reading, safe update, and recovery.
+- Do not restate slug derivation or mutation rules here; `artifact-conventions.md#slug-lifecycle` is the single source of truth for creation, reading, safe update, and recovery.
 
 ---
 
