@@ -32,11 +32,7 @@ If ownership is ambiguous, ask the user instead of silently choosing a merge tar
 </HARD-GATE>
 
 <HARD-GATE>
-Do not edit `critical-patterns.md` without explicit approval.
-</HARD-GATE>
-
-<HARD-GATE>
-Secret/PII redaction is mandatory before summary output and before writing to `.beads/learnings/*.md`.
+Follow the canonical learnings write-governance rules in `../reference/references/knowledge-store.md`, including PII redaction and approval before any `critical-patterns.md` promotion.
 </HARD-GATE>
 
 <HARD-GATE>

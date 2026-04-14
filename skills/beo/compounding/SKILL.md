@@ -31,7 +31,7 @@ Subagents produce staging files; the orchestrator synthesizes, triages, and writ
 </GUIDELINE>
 
 <HARD-GATE>
-Never auto-append to `critical-patterns.md`; use the canonical approval rule from `../reference/references/approval-gates.md`.
+Follow the canonical learnings write-governance rules in `../reference/references/knowledge-store.md`, including PII redaction and approval before any `critical-patterns.md` promotion.
 </HARD-GATE>
 
 <HARD-GATE>
@@ -40,10 +40,6 @@ One learnings file per feature. Group related findings within that file instead 
 
 <HARD-GATE>
 The feature status must be `learnings-pending` (set by reviewing). Do not enter compounding if review has not finished.
-</HARD-GATE>
-
-<HARD-GATE>
-Before writing any learnings artifact, scan all content for PII (names, emails, credentials, internal URLs, customer data). Redact or generalize any PII found. Learnings must be safe to persist in the knowledge store without access restrictions.
 </HARD-GATE>
 
 ---

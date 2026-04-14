@@ -27,6 +27,11 @@ Both tools are optional enhancements for the write side. For the read side, they
 
 ## Write Protocol
 
+Learnings write governance:
+- redact or generalize PII, secrets, customer data, internal URLs, and credentials before any write
+- never append to `.beads/critical-patterns.md` without explicit user approval per `approval-gates.md`
+- refresh QMD after writes when available so later reads see the latest state
+
 ### Canonical: Flat Files
 
 Always write learnings to `.beads/learnings/`:
