@@ -1,6 +1,6 @@
 # Knowledge Store Protocol
 
-Shared protocol for reading and writing project learnings. Used by `beo-compounding`, `beo-debugging`, `beo-dream`, `beo-exploring`, `beo-planning`, and `beo-router`.
+Shared protocol for reading and writing project learnings. Used by `beo-compound`, `beo-debug`, `beo-dream`, `beo-explore`, `beo-plan`, and `beo-route`.
 
 **Preference order:** `.beads/learnings/` and `.beads/critical-patterns.md` are the canonical durable write surfaces. For reads, **prefer Obsidian CLI and QMD when available**; fall back to flat-file search only when they are unavailable.
 
@@ -54,7 +54,7 @@ Use the `silent` flag to avoid interactive prompts. The vault copy is a convenie
 
 ### Critical Patterns
 
-`.beads/critical-patterns.md` is the distilled subset of learnings that every planning and exploring Phase 0 reads. Promote patterns here only when they meet severity thresholds (see `beo-compounding`).
+`.beads/critical-patterns.md` is the distilled subset of learnings that every planning and exploring Phase 0 reads. Promote patterns here only when they meet severity thresholds (see `beo-compound`).
 
 ```bash
 # Canonical: use your file editing tool to append to .beads/critical-patterns.md

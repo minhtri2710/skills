@@ -1,4 +1,0 @@
-interface:
-  display_name: "Beo Compounding"
-  short_description: "Capture learnings from completed feature work"
-  default_prompt: "Use $beo-compounding to capture learnings from this completed feature, triage by severity, and propose critical-pattern promotions."

@@ -7,7 +7,7 @@ Universal gates and protocols referenced by all beo skills. Skills point here in
 ## Onboarding Check
 
 <HARD-GATE>
-If `.beads/onboarding.json` is missing or stale, stop and load `beo-using-beo` before continuing.
+If `.beads/onboarding.json` is missing or stale, stop and load `beo-onboard` before continuing.
 </HARD-GATE>
 
 ---
@@ -18,8 +18,8 @@ If `.beads/onboarding.json` is missing or stale, stop and load `beo-using-beo` b
 If the epic does not have the `approved` label, do not treat planning artifacts as implicit approval.
 First verify the label was not accidentally removed or the wrong epic was selected.
 If approval is genuinely missing, do not execute:
-- if current-phase tasks have already advanced, treat approval as invalidated and route to `beo-planning`
-- otherwise route to `beo-validating`
+- if current-phase tasks have already advanced, treat approval as invalidated and route to `beo-plan`
+- otherwise route to `beo-validate`
 </HARD-GATE>
 
 ---
@@ -29,7 +29,7 @@ If approval is genuinely missing, do not execute:
 If the planning mode is `multi-phase` and later phases remain after the current phase completes:
 - Do not treat the feature as complete.
 - Remove the `approved` label if present (`br label remove <EPIC_ID> -l approved`).
-- Route back to `beo-planning` to prepare the next phase.
+- Route back to `beo-plan` to prepare the next phase.
 - Never describe current-phase completion as full feature completion when multi-phase work remains.
 
 ---
@@ -43,7 +43,7 @@ If context usage exceeds **65%**, checkpoint state before continuing:
 3. Add the skill-specific checkpoint items listed in each skill's Context Budget section.
 4. Resume from the checkpoint after context is restored.
 
-Exception: `beo-using-beo` uses a **30%** threshold since it is a lightweight bootstrap skill.
+Exception: `beo-onboard` uses a **30%** threshold since it is a lightweight bootstrap skill.
 
 ---
 

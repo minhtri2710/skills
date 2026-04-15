@@ -22,7 +22,7 @@ Shared Markdown templates for all bead description types in the Beo workflow. Us
 
 ## Planned Task Bead Template
 
-Use for beads created during `beo-planning` and other planned execution paths.
+Use for beads created during `beo-plan` and other planned execution paths.
 
 ```markdown
 ## Story Context
@@ -89,7 +89,7 @@ If none apply:
 
 ## Reactive Fix Bead Template
 
-Use for beads created by `beo-reviewing`, `beo-debugging`, or reactive repair flows, including router instant-path fixes. These beads do not need Story Context but still require a complete Markdown spec.
+Use for beads created by `beo-review`, `beo-debug`, or reactive repair flows, including router instant-path fixes. These beads do not need Story Context but still require a complete Markdown spec.
 
 ```markdown
 ## Objective

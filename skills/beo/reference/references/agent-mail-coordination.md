@@ -1,6 +1,6 @@
 # Agent Mail Coordination
 
-Shared canonical reference for Agent Mail coordination used by `beo-executing` and `beo-swarming`.
+Shared canonical reference for Agent Mail coordination used by `beo-execute` and `beo-swarm`.
 
 ## Core Runtime Surface
 
@@ -15,7 +15,7 @@ The beo workflow assumes this Agent Mail surface exists when swarming is enabled
 - `file_reservation_paths(...)`
 - `release_file_reservations(...)`
 
-If this surface is not available, do not start `beo-swarming`. Route to solo execution instead.
+If this surface is not available, do not start `beo-swarm`. Route to solo execution instead.
 
 ## Project / Session Initialization
 

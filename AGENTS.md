@@ -10,19 +10,19 @@ A collection of 13 AI agent skills for structured feature development using `br`
 skills/
   beo/
     REVIEW-PLAN.md               # Repo-wide audit and cleanup tracker
-    router/                      # Phase detection + skill routing
+    route/                       # Phase detection + skill routing
       SKILL.md
       agents/openai.yaml
       references/
         router-operations.md
         go-mode.md
-    exploring/                   # Socratic requirements gathering
+    explore/                     # Socratic requirements gathering
       SKILL.md
       agents/openai.yaml
       references/
         context-template.md
         gray-area-probes.md
-    planning/                    # Epic/task decomposition + dependency wiring
+    plan/                        # Epic/task decomposition + dependency wiring
       SKILL.md
       agents/openai.yaml
       references/
@@ -36,47 +36,47 @@ skills/
         phase-plan-template.md
         phase-contract-template.md
         story-map-template.md
-    validating/                  # 8-dimension plan verification gate
+    validate/                    # 8-dimension plan verification gate
       SKILL.md
       agents/openai.yaml
       references/
         validation-operations.md
         plan-checker-prompt.md
         bead-reviewer-prompt.md
-    swarming/                    # Parallel worker orchestration
+    swarm/                       # Parallel worker orchestration
       SKILL.md
       agents/openai.yaml
       references/
         swarming-operations.md
         message-templates.md
         pressure-scenarios.md
-    executing/                   # Per-worker implementation loop
+    execute/                     # Per-worker implementation loop
       SKILL.md
       agents/openai.yaml
       references/
         execution-operations.md
         worker-prompt-guide.md
         blocker-handling.md
-    reviewing/                   # 5-specialist review + compounding handoff
+    review/                      # 5-specialist review + compounding handoff
       SKILL.md
       agents/openai.yaml
       references/
         reviewing-operations.md
         review-specialist-prompts.md
-    compounding/                 # Learnings capture + critical-pattern promotion
+    compound/                    # Per-feature learnings capture + critical-pattern promotion
       SKILL.md
       agents/openai.yaml
       references/
         compounding-operations.md
         learnings-template.md
-    debugging/                   # Systematic debugging for blockers/failures
+    debug/                       # Systematic debugging for blockers/failures
       SKILL.md
       agents/openai.yaml
       references/
         debugging-operations.md
         diagnostic-checklist.md
         message-templates.md
-    dream/                       # Periodic learnings consolidation
+    dream/                       # Periodic cross-feature learnings consolidation
       SKILL.md
       agents/openai.yaml
       references/
@@ -84,23 +84,22 @@ skills/
         consolidation-rubric.md
         agent-history-source-policy.md
         pressure-scenarios.md
-    writing-skills/              # Skill creation and pressure-testing
+    author/                      # Skill creation and pressure-testing
       SKILL.md
       agents/openai.yaml
       references/
         writing-skills-operations.md
         creation-log-template.md
         pressure-test-template.md
-    using-beo/                   # Onboarding bootstrap gate
+    onboard/                     # Onboarding bootstrap gate
       SKILL.md
       agents/openai.yaml
       assets/
       scripts/
       references/
         onboarding-flow.md
-    reference/                   # Shared CLI reference hub
-      SKILL.md                       # Navigation hub
-      agents/openai.yaml
+    reference/                   # Shared reference corpus (not a loadable skill)
+      INDEX.md                       # Navigation hub
       references/                    # 16 reference docs
         br-cli-reference.md
         bv-cli-reference.md
@@ -125,25 +124,25 @@ The `*-workspace/` directories under `skills/beo/` are generated audit artifacts
 ## Skill Workflow (Pipeline)
 
 ```
-beo-router -> beo-exploring -> beo-planning -> beo-validating -> (beo-executing | beo-swarming -> beo-executing) -> beo-reviewing -> beo-compounding
+beo-route -> beo-explore -> beo-plan -> beo-validate -> (beo-execute | beo-swarm -> beo-execute) -> beo-review -> beo-compound
 ```
 
-Support/meta skills (invoked on demand): `beo-debugging`, `beo-dream`, `beo-writing-skills`
+Support/meta skills (invoked on demand): `beo-debug`, `beo-dream`, `beo-author`
 
-1. **beo-router** -- Detects current project state via `br`/`bv` and routes to the correct skill
-2. **beo-exploring** -- Socratic dialogue to lock decisions into `CONTEXT.md` before any planning
-3. **beo-planning** -- Runs discovery, writes `discovery.md`, `approach.md`, `plan.md`, optional `phase-plan.md`, then creates current-phase `phase-contract.md`, `story-map.md`, and beads for the current phase only
-4. **beo-validating** -- Phase contract, story map, and bead graph verification gate (8 dimensions); must pass before any code is written
-5. **beo-swarming** -- Orchestrates parallel worker agents for feature execution
-6. **beo-executing** -- Per-worker implementation loop: claim, build prompt, dispatch, verify, report
-7. **beo-reviewing** -- 5 specialist review agents, P1/P2/P3 severity, hands off to compounding
-8. **beo-compounding** -- Captures learnings from completed features, promotes critical patterns
-9. **beo-debugging** -- Systematic debugging for blocked workers, test failures, build errors
+1. **beo-route** -- Detects current project state via `br`/`bv` and routes to the correct skill
+2. **beo-explore** -- Socratic dialogue to lock decisions into `CONTEXT.md` before any planning
+3. **beo-plan** -- Runs discovery, writes `discovery.md`, `approach.md`, `plan.md`, optional `phase-plan.md`, then creates current-phase `phase-contract.md`, `story-map.md`, and beads for the current phase only
+4. **beo-validate** -- Phase contract, story map, and bead graph verification gate (8 dimensions); must pass before any code is written
+5. **beo-swarm** -- Orchestrates parallel worker agents for feature execution
+6. **beo-execute** -- Per-worker implementation loop: claim, build prompt, dispatch, verify, report
+7. **beo-review** -- 5 specialist review agents, P1/P2/P3 severity, hands off to compounding
+8. **beo-compound** -- Captures learnings from completed features, promotes critical patterns
+9. **beo-debug** -- Systematic debugging for blocked workers, test failures, build errors
 10. **beo-dream** -- Periodic consolidation of learnings across features
-11. **beo-writing-skills** -- Guide for creating and pressure-testing new beo skills
-12. **beo-using-beo** -- Onboarding bootstrap and version gate for new repositories
+11. **beo-author** -- Guide for creating and pressure-testing new beo skills
+12. **beo-onboard** -- Onboarding bootstrap and version gate for new repositories
 
-**beo-reference** is the shared CLI reference hub, loaded on demand when a skill needs protocol docs beyond its inline references.
+**beo-reference** is now a shared reference corpus (not a loadable skill), accessed on demand when a skill needs protocol docs beyond its inline references.
 
 ## External Dependencies
 

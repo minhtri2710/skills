@@ -34,7 +34,7 @@ Canonical rule:
 
 > For multi-phase work, user approval is required for the whole-feature phase sequence and current-phase selection before treating the current phase as ready for validation handoff.
 
-Apply this gate in `beo-planning` when `phase-plan.md` exists.
+Apply this gate in `beo-plan` when `phase-plan.md` exists.
 
 #### Canonical approval prompt for multi-phase planning
 
@@ -59,9 +59,9 @@ Canonical rule:
 
 > In go mode, present `CONTEXT.md` and obtain explicit user approval before invoking planning.
 
-Apply this gate only in `beo-router` when go mode is active.
+Apply this gate only in `beo-route` when go mode is active.
 
-See `../../router/references/go-mode.md` for the full go-mode gate sequence.
+See `beo-route` → `references/go-mode.md` for the full go-mode gate sequence.
 
 ### 2. Validation Approval
 
@@ -71,7 +71,7 @@ Canonical rule:
 
 > User approval is required before any code is written. This is non-negotiable.
 
-Use this gate in `beo-validating` before setting the `approved` label.
+Use this gate in `beo-validate` before setting the `approved` label.
 
 #### Validation semantics by planning mode
 
@@ -103,7 +103,7 @@ Approve execution for this current phase?
 
 ### 3. Review / UAT Confirmation
 
-During `beo-reviewing`, human review is required.
+During `beo-review`, human review is required.
 
 Canonical rule:
 
@@ -121,7 +121,7 @@ Canonical rule:
 
 > Never auto-append to `critical-patterns.md`; explicit user approval is mandatory.
 
-Use this gate in `beo-compounding` and `beo-dream`.
+Use this gate in `beo-compound` and `beo-dream`.
 
 ### 5. Ambiguous Dream Consolidation Decisions
 
@@ -131,7 +131,7 @@ Do not silently choose a target file when ownership is ambiguous.
 
 ### 6. Partial or Deferred Review Outcomes
 
-If `beo-reviewing` encounters blocked, failed, or partial tasks before closure, report them and get explicit user direction before proceeding, deferring, or re-planning.
+If `beo-review` encounters blocked, failed, or partial tasks before closure, report them and get explicit user direction before proceeding, deferring, or re-planning.
 
 Do not close the feature or proceed to compounding while the outcome remains ambiguous.
 
@@ -164,7 +164,7 @@ Avoid vague prompts like:
 
 Do not require separate planning approval just because planning artifacts exist.
 
-For single-phase work, planning normally hands off to `beo-validating`. The key irreversible approval remains the validation gate before execution.
+For single-phase work, planning normally hands off to `beo-validate`. The key irreversible approval remains the validation gate before execution.
 
 ### Multi-phase planning
 
@@ -209,9 +209,9 @@ If the user rejects or withholds approval:
 
 | Skill | Action | When |
 |-------|--------|------|
-| `beo-validating` | Adds `approved` via `br label add <EPIC_ID> -l approved` | After user grants execution approval |
-| `beo-planning` | Removes `approved` via `br label remove <EPIC_ID> -l approved` | During replanning cleanup when phase structure or scope changes |
-| `beo-reviewing` | Removes `approved` via `br label remove <EPIC_ID> -l approved` | When routing back to planning due to multi-phase advancement or intent change |
-| `beo-router` | Reads `approved` label to determine routing | Never adds or removes |
+| `beo-validate` | Adds `approved` via `br label add <EPIC_ID> -l approved` | After user grants execution approval |
+| `beo-plan` | Removes `approved` via `br label remove <EPIC_ID> -l approved` | During replanning cleanup when phase structure or scope changes |
+| `beo-review` | Removes `approved` via `br label remove <EPIC_ID> -l approved` | When routing back to planning due to multi-phase advancement or intent change |
+| `beo-route` | Reads `approved` label to determine routing | Never adds or removes |
 
 On normal completion, the `approved` label remains on the closed epic as historical state.

@@ -1,7 +1,5 @@
 # State and Handoff Protocol
 
-> **~334 lines.** Key sections: STATE.json Schema (canonical fields), HANDOFF.json Schema, Status Values, Examples A-F. Use your editor's search to jump to the section you need.
-
 ## Contents
 
 - [Why This Exists](#why-this-exists)
@@ -15,6 +13,7 @@
 - [What To Include In A Checkpoint](#what-to-include-in-a-checkpoint)
 - [Resume Protocol](#resume-protocol)
 - [Cleanup Rule](#cleanup-rule)
+- [Canonical Wait-State Statuses](#canonical-wait-state-statuses)
 - [Examples](#examples)
 - [Planning-Aware Field Transition Cleanup](#planning-aware-field-transition-cleanup)
 - [Hard Rules](#hard-rules)
@@ -65,6 +64,24 @@ Every skill must write `.beads/STATE.json` with all fields present.
 
 The complete `STATE.json` combines both blocks above (12 fields total).
 
+### Optional extension fields
+
+These top-level fields are valid when present but not required in every write:
+
+```json
+{
+  "origin_skill": "beo-review",
+  "return_to": "beo-review",
+  "reactive_fix": true
+}
+```
+
+- **origin_skill** — The skill that initiated a reactive-fix or debugging transition. Set when entering `beo-debug` or routing a reactive fix through `beo-execute`.
+- **return_to** — The skill to return to after the fix or debug session completes.
+- **reactive_fix** — `true` when the transition is a reactive fix from review; `false` or absent otherwise.
+
+Clear all three fields after successful return to the origin skill. Downstream skills must preserve these fields when writing `STATE.json` until cleared. When checkpointing to `HANDOFF.json`, include these fields if they are set.
+
 ### Field semantics
 
 - **schema_version** — Always `1`. Increment only for incompatible schema changes.
@@ -73,7 +90,7 @@ The complete `STATE.json` combines both blocks above (12 fields total).
 - **feature** — Record the epic ID, such as `"pe-abc"`.
 - **feature_slug** — Record the stable feature slug / artifact-path identifier, such as `"feedback-flow"`.
 - **tasks** — Summarize task state for the current phase, such as `"4 planned for current phase"` or `"3/5 complete, 1 blocked"`.
-- **next** — Record the next skill or action, such as `"beo-validating"` or `"beo-compounding"`.
+- **next** — Record the next skill or action, such as `"beo-validate"` or `"beo-compound"`.
 - **planning_mode** — Use `"single-phase"` when one current phase covers execution scope, `"multi-phase"` when the feature spans meaningful phases and only the current phase is prepared now, and `"unknown"` only during exploring and early planning before `approach.md` is finalized.
 - **has_phase_plan** — Set `true` when `.beads/artifacts/<feature>/phase-plan.md` exists and is part of the active planning model. Set `false` when no whole-feature phase sequencing artifact exists; this is normal for single-phase work.
 - **current_phase** — Record the selected current phase number. Use `1` for single-phase work.
@@ -218,14 +235,39 @@ rm .beads/HANDOFF.json
 
 | Skill | Write `phase` | Write `status` | Write `next` |
 |---|---|---|---|
-| `beo-router` | `"router"` | current routing state | routed skill |
-| `beo-exploring` | `"exploring"` | `"planning-needs-approach"` when exploring completes | `"beo-planning"` |
-| `beo-planning` | `"planning"` | planning state from the routing table, including paused states such as `"awaiting-planning-approval"` and handoff states such as `"ready-to-validate"` | next required skill or action |
-| `beo-validating` | `"validating"` | validation result state from the routing table | next required skill or action |
-| `beo-swarming` | `"swarming"` | swarming/execution routing state from the routing table | next required skill or action |
-| `beo-executing` | `"executing"` | execution state from the routing table | next required skill or action |
-| `beo-reviewing` | `"reviewing"` | review result state from the routing table | `"beo-compounding"` or other required next action |
-| `beo-compounding` | `"compounding"` | final post-review state from the routing table | next required skill or action |
+| `beo-route` | `"router"` | current routing state | routed skill |
+| `beo-explore` | `"exploring"` | `"planning-needs-approach"` on completion; `"awaiting-exploration-answer"` when paused for user | `"beo-plan"` on completion; current skill on pause |
+| `beo-plan` | `"planning"` | planning state from the routing table, including `"awaiting-planning-approval"` and `"ready-to-validate"` | next required skill or action |
+| `beo-validate` | `"validating"` | validation result state; `"awaiting-execution-approval"` when waiting for user approval | next required skill or action |
+| `beo-swarm` | `"swarming"` | swarming/execution routing state from the routing table | next required skill or action |
+| `beo-execute` | `"executing"` | execution state; `"blocked-awaiting-user"` or `"blocked-external"` when paused | next required skill or action |
+| `beo-review` | `"reviewing"` | review result state; `"awaiting-uat"` when waiting for human UAT | `"beo-compound"` or other required next action |
+| `beo-debug` | `"debugging"` | debugging state; `"debug-findings-ready"` or `"blocked-external"` when paused | origin skill via `return_to`, or `"beo-route"` for standalone |
+| `beo-compound` | `"compounding"` | final post-review state from the routing table | next required skill or action |
+| `beo-dream` | `"dream"` | consolidation state; `"dream-complete"` on finish | `"beo-route"` |
+| `beo-author` | `"writing-skills"` | skill-creation state from the RED/GREEN/REFACTOR cycle | `"beo-route"` |
+| `beo-onboard` | `"using-beo"` | onboarding state; `"onboarding-complete"` on finish | `"beo-route"` |
+
+## Canonical Wait-State Statuses
+
+When a skill pauses for a human decision, use one of these canonical `status` values in `STATE.json`. This prevents router from reloading the wrong skill or advancing prematurely after resume.
+
+| Status | Skill That Sets It | Meaning | Resume Trigger |
+|---|---|---|---|
+| `awaiting-exploration-answer` | `beo-explore` | Exploring paused for user answer to a gray-area question | User provides the answer |
+| `awaiting-planning-approval` | `beo-plan` | Multi-phase sequence needs user approval before validation | User approves or rejects the sequence |
+| `awaiting-execution-approval` | `beo-validate` | Validation passed; waiting for explicit user approval to begin execution | User grants execution approval |
+| `awaiting-uat` | `beo-review` | Automated review complete; waiting for human UAT walkthrough | User completes UAT confirmation |
+| `blocked-awaiting-user` | `beo-execute` | All remaining work is blocked and requires a human decision | User provides direction on blockers |
+| `blocked-external` | `beo-execute`, `beo-debug` | Blocked on infrastructure, permissions, or external service outside agent control | External dependency resolved |
+| `debug-findings-ready` | `beo-debug` | Root cause identified or escalation limit reached; findings ready for user review | User reviews findings and provides direction |
+
+### Wait-State Usage Rules
+
+- Write the wait-state status to `STATE.json` before pausing.
+- Router must match the wait-state status to decide whether to resume the paused skill or return to user.
+- Do not advance past a wait state without the triggering event.
+- On resume, the paused skill re-reads `STATE.json` and continues from its saved progress.
 
 ## Examples
 
@@ -239,7 +281,7 @@ rm .beads/HANDOFF.json
   "feature": "pe-abc",
   "feature_slug": "feedback-flow",
   "tasks": "4 planned for current phase",
-  "next": "beo-validating",
+  "next": "beo-validate",
   "planning_mode": "single-phase",
   "has_phase_plan": false,
   "current_phase": 1,
@@ -260,7 +302,7 @@ Same as Example A with these field changes:
 {
   "schema_version": 1,
   "phase": "planning",
-  "skill": "beo-planning",
+  "skill": "beo-plan",
   "feature": "pe-abc",
   "feature_name": "feedback-flow",
   "next_action": "Finish phase-contract.md, then write story-map.md and create current-phase beads.",
@@ -293,7 +335,7 @@ Same as Example C base fields plus top-level `"mode": "go"` and `"in_flight_bead
 
 ### Example F — STATE.json after exploring completes (handoff to planning)
 
-Same as Example A with: `"phase": "exploring"`, `"status": "planning-needs-approach"`, `"next": "beo-planning"`, `"planning_mode": "unknown"`.
+Same as Example A with: `"phase": "exploring"`, `"status": "planning-needs-approach"`, `"next": "beo-plan"`, `"planning_mode": "unknown"`.
 
 ## Planning-Aware Field Transition Cleanup
 

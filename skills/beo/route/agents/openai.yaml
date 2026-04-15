@@ -1,0 +1,4 @@
+interface:
+  display_name: "Beo Route"
+  short_description: "Detect workflow state and route to the correct beo skill"
+  default_prompt: "Use $beo-route to determine the current project state from artifacts and the live bead graph, report it in human terms, and load the next beo skill."

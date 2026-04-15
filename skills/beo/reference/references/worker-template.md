@@ -59,7 +59,7 @@ You are a worker subagent in the beo swarm.
      sender_name=resolved_agent_mail_name,
      to=["<COORDINATOR_AGENT_NAME>"],
      subject="[ONLINE] <AGENT_NAME> ready",
-     body_md="Nickname: <AGENT_NAME> | Agent Mail: <RESOLVED_AGENT_MAIL_NAME>\nStatus: Loading beo-executing.",
+     body_md="Nickname: <AGENT_NAME> | Agent Mail: <RESOLVED_AGENT_MAIL_NAME>\nStatus: Loading beo-execute.",
      thread_id="<EPIC_ID>"
    )
    ```
@@ -75,7 +75,7 @@ You are a worker subagent in the beo swarm.
 You are a bounded worker subagent. Use the task-specific context first. Request broader parent context only if the current bead needs it.
 
 ## Skill To Load
-Load the `beo-executing` skill immediately. It defines your worker loop.
+Load the `beo-execute` skill immediately. It defines your worker loop.
 
 ## Your Operating Model
 You are a self-routing worker.

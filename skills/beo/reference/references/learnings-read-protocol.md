@@ -11,7 +11,7 @@ Many beo skills need the same behavior:
 
 This file centralizes that read-side behavior.
 
-`beo-compounding` is the primary write-side producer for the learnings files and critical patterns this protocol reads.
+`beo-compound` is the primary write-side producer for the learnings files and critical patterns this protocol reads.
 
 ## Mandatory Read-Side Workflow
 

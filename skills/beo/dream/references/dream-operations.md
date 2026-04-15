@@ -13,8 +13,8 @@ Load this file for exact provenance checks, mode selection, candidate classifica
 
 ## 1. Orient and Detect Run Mode
 
-1. detect tool availability (see `../../reference/references/knowledge-store.md` § Tool Detection)
-2. read existing learnings using the canonical read protocol (`../../reference/references/learnings-read-protocol.md`): QMD/Obsidian first; flat-file fallback only when unavailable
+1. detect tool availability (see `beo-reference` → `references/knowledge-store.md` § Tool Detection)
+2. read existing learnings using the canonical read protocol (`beo-reference` → `references/learnings-read-protocol.md`): QMD/Obsidian first; flat-file fallback only when unavailable
 3. detect provenance from learnings frontmatter and `.beads/learnings/dream-run-provenance.md`
 4. choose mode:
    - `bootstrap` if no provenance exists or the user requests a full scan
@@ -61,7 +61,7 @@ Report:
 - whether provenance was updated
 - pending ambiguous decisions or approvals
 
-Use the approval rules from `../../reference/references/approval-gates.md` for any critical-pattern promotion proposal.
+Use the approval rules from `beo-reference` → `references/approval-gates.md` for any critical-pattern promotion proposal.
 
 ### Provenance Update
 
@@ -91,4 +91,4 @@ qmd update 2>/dev/null && qmd embed 2>/dev/null
 
 ## 6. Context-Budget Checkpoint
 
-If context usage exceeds 65%, use the canonical `STATE.json` and `HANDOFF.json` shapes from `../../reference/references/state-and-handoff-protocol.md`, then include the current consolidation phase, processed files, and remaining candidates.
+If context usage exceeds 65%, use the canonical `STATE.json` and `HANDOFF.json` shapes from `beo-reference` → `references/state-and-handoff-protocol.md`, then include the current consolidation phase, processed files, and remaining candidates.
