@@ -19,7 +19,7 @@ Onboarding — see `../reference/references/shared-hard-gates.md` § Onboarding 
 ## Overview
 
 Debugging resolves blockers and failures systematically.
-Use it to classify the problem, reproduce it, isolate root cause, apply the right fix path, and capture the pattern.
+Classify the problem, reproduce it, isolate root cause, apply the right fix path, and capture the pattern.
 
 > See `../reference/references/shared-hard-gates.md` § Shared References Convention.
 
@@ -29,23 +29,23 @@ Do not guess.
 ## Hard Gates
 
 <HARD-GATE>
-If you cannot write a one-sentence root cause that names the specific component, condition, and failure mechanism, you do not have the root cause yet. Do not proceed to Fix.
+If you cannot write a one-sentence root cause that names the specific component, condition, and failure mechanism, you do not have the root cause. Do not proceed to Fix.
 A valid root cause sentence follows the pattern: "[Component] fails when [condition] because [mechanism]."
 </HARD-GATE>
 
 <HARD-GATE>
-Do not skip reproduction just because the error message looks obvious.
-If the failure cannot be reproduced directly, say so explicitly and treat that as part of diagnosis.
+Do not skip reproduction because the error message looks obvious.
+If the failure cannot be reproduced directly, state that explicitly and treat it as part of diagnosis.
 </HARD-GATE>
 
 <HARD-GATE>
-After applying a fix, verify it using the exact failing command or reproduction path from diagnosis.
+After applying a fix, verify it with the exact failing command or reproduction path from diagnosis.
 Do not treat a different test or a clean build as proof the original failure is resolved.
 </HARD-GATE>
 
 <HARD-GATE>
 Fixes that change more than one file, alter public interfaces, or require test updates belong in a fix bead that follows the shared reactive-fix template and normal execution path.
-Do not smuggle multi-file or interface-changing repair work through ad-hoc debugging edits.
+Do not route multi-file or interface-changing repair work through ad-hoc debugging edits.
 Single-file fixes that do not alter public interfaces or require test updates may be applied directly within the debugging session, except when debugging was entered from `beo-reviewing` — review-found defects must go through fix beads per reviewing's routing rules.
 </HARD-GATE>
 
@@ -58,14 +58,16 @@ Single-file fixes that do not alter public interfaces or require test updates ma
 4. apply the right fix path
 5. capture the pattern and route back cleanly
 
-Use `references/debugging-operations.md` for the exact known-pattern check, reproduction flow, fix split, blocker handling, and checkpoint behavior.
-Use `references/diagnostic-checklist.md` for the ordered sub-checks.
-Use `references/message-templates.md` when reporting blockers or results to the orchestrator via Agent Mail.
+| File | Use for |
+|---|---|
+| `references/debugging-operations.md` | Known-pattern check, reproduction flow, fix split, blocker handling, and checkpoint behavior |
+| `references/diagnostic-checklist.md` | Ordered diagnostic sub-checks |
+| `references/message-templates.md` | Agent Mail blocker and result reporting |
 
 ## Triage and Diagnosis
 
-The output of triage should be a one-line classification such as `[TYPE] in [component]: [symptom]`.
-Then work through reproduction and diagnosis in order.
+Output triage as one line: `[TYPE] in [component]: [symptom]`.
+Then run reproduction and diagnosis in order.
 
 ## Fix Path
 
@@ -73,7 +75,7 @@ Fix beads must still use the shared **Reactive Fix Bead Template** from `../refe
 
 ## Learn
 
-After the fix path is clear or a blocker is confirmed, capture the pattern using the debug-note flow in `references/debugging-operations.md`, including the `debug_attempted` labeling rule.
+After the fix path is clear or a blocker is confirmed, capture the pattern with the debug-note flow in `references/debugging-operations.md`, including the `debug_attempted` labeling rule.
 
 ## Escalation and Timeout
 
@@ -117,8 +119,6 @@ Follow `../reference/references/shared-hard-gates.md` § Context Budget Protocol
 - Skipping reproduction — never diagnose from the error message alone
 - Not checking `critical-patterns.md` first — 30-40% of recurring failures are already documented
 - Committing fixes without verification using the exact failing command
-- Silently patching `CONTEXT.md` decision violations to make tests pass
 - Calling the first visible error the root cause — walk the full error chain
-- Ignoring blocked work instead of classifying and reporting it cleanly
 
 ---

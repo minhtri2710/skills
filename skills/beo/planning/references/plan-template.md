@@ -26,8 +26,10 @@
 
 ## Field Guidance
 
-- **Goal**: Must be verifiable — a reader should be able to tell whether the goal was achieved.
-- **Implementation Direction**: Do not repeat the full approach.md. Summarize the chosen path and link to the artifact for detail.
-- **Main Risks**: Include at least 2. Each risk should state the threat and how you plan to handle it (mitigate, accept, or defer).
-- **Phase Shape**: If single-phase, say so explicitly. If multi-phase, state why phasing is needed.
-- **Story and Task Overview**: These become beads. Each item should map to one bead or one small group of beads.
+| Field | Rule |
+|-------|------|
+| **Goal** | Must be verifiable — a reader should be able to tell whether the goal was achieved |
+| **Implementation Direction** | Summarize the chosen path; do not repeat `approach.md` — link to it for detail |
+| **Main Risks** | Include at least 2; each must state the threat and handling strategy (mitigate, accept, or defer) |
+| **Phase Shape** | If single-phase, say so explicitly; if multi-phase, state why phasing is needed |
+| **Story and Task Overview** | These become beads; each item should map to one bead or one small group of beads |

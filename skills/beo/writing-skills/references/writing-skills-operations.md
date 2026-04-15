@@ -1,6 +1,6 @@
 # Writing Skills Operations
 
-Detailed operational playbook for `beo-writing-skills`. Load this file when you need exact RED/GREEN/REFACTOR execution steps, validation commands, meta-test handling, or checkpoint behavior.
+Load this file for exact RED/GREEN/REFACTOR steps, validation, meta-test handling, and checkpoint behavior.
 
 ## Table of Contents
 
@@ -12,48 +12,50 @@ Detailed operational playbook for `beo-writing-skills`. Load this file when you 
 
 ## 1. RED: Failing Test First
 
-1. define the skill purpose and expected failure modes
-2. create 3-5 pressure scenarios using `pressure-test-template.md`
-3. run scenarios without the skill
-4. capture exact violations and rationalizations verbatim
-5. identify repeated excuse patterns
+1. Define the skill purpose and expected failure modes.
+2. Create 3-5 pressure scenarios with `pressure-test-template.md`.
+3. Run the scenarios without the skill.
+4. Capture exact violations and rationalizations verbatim.
+5. Identify repeated excuse patterns.
 
 ## 2. GREEN: Minimal Skill
 
 Write the smallest skill that addresses observed rationalizations only.
 
 Verify before proceeding:
-- frontmatter has correct `name` and trigger-only `description`
-- description contains triggering conditions only, not workflow steps
-- persuasion principles (why the rule matters) are included where judgment is needed
-- hard-gates use `<HARD-GATE>` markers where ambiguity is dangerous
-- bulky detail is moved into `references/`, not inlined in the skill body
+1. Frontmatter has the correct `name` and a trigger-only `description`.
+2. Description contains triggering conditions only, not workflow steps.
+3. Include persuasion principles where judgment is required.
+4. Use `<HARD-GATE>` markers where ambiguity is dangerous.
+5. Move bulky detail into `references/`, not the skill body.
 
 Then rerun the same pressure scenarios with the skill present.
 
 ## 3. REFACTOR: Close Loopholes
 
 When an agent still violates a rule:
-1. capture the new rationalization verbatim
-2. tighten the skill where the failure actually happened
-3. add explicit negation only if explanation-first guidance still leaves a real loophole
-4. add a rationalization-table entry
-5. add a red-flag entry
-6. rerun all scenarios
+1. Capture the new rationalization verbatim.
+2. Tighten the skill where the failure happened.
+3. Add explicit negation only if explanation-first guidance still leaves a real loophole.
+4. Add a rationalization-table entry.
+5. Add a red-flag entry.
+6. Rerun all scenarios.
 
 Use the meta-test from `pressure-test-template.md` § The Meta-Test to distinguish:
-- clear-but-ignored rules
-- missing wording
-- buried sections
-- over-rigid wording that needs better explanation rather than louder prohibitions
+| Diagnosis type | Meaning |
+|---|---|
+| clear-but-ignored rules | The rule was clear but the agent ignored it |
+| missing wording | The skill did not state what the agent needed |
+| buried sections | The key instruction was present but not prominent |
+| over-rigid wording | The skill needs better explanation, not louder prohibitions |
 
 ## 4. Validate and Document
 
 Validate the skill manually:
 
-1. Confirm `SKILL.md` has the required structure: YAML frontmatter (`name`, `description`), Hard Gates section, core execution loop section (`Default Loop` or equivalent such as `The Core Cycle`), Handoff, Context Budget, and Red Flags
-2. Confirm all referenced files in `references/` exist and are reachable
-3. Confirm pressure-test scenarios exist and are documented
+1. Confirm `SKILL.md` has the required structure: YAML frontmatter (`name`, `description`), Hard Gates, a core execution loop (`Default Loop` or equivalent such as `The Core Cycle`), Handoff, Context Budget, and Red Flags.
+2. Confirm all referenced files in `references/` exist and are reachable.
+3. Confirm pressure-test scenarios exist and are documented.
 
 Then create `CREATION-LOG.md` using `creation-log-template.md`.
 

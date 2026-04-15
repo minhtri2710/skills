@@ -24,8 +24,6 @@ What this feature needs to make true in practical terms.
 
 ## Current Codebase Reality
 
-What already exists, what is missing, and what constraints matter.
-
 ### Existing capabilities
 - <existing module / pattern / endpoint / component>
 - <existing abstraction that should be reused>
@@ -44,8 +42,6 @@ What already exists, what is missing, and what constraints matter.
 
 ## Gap Analysis
 
-What must be added, changed, or avoided.
-
 ### Must add
 - <new capability / behavior / integration / path>
 
@@ -58,8 +54,6 @@ What must be added, changed, or avoided.
 - <scope expansion that should stay out>
 
 ## Recommended Approach
-
-Describe the chosen implementation strategy in plain language.
 
 - Main implementation direction:
 - Why this direction fits the current codebase:
@@ -93,8 +87,6 @@ Describe the chosen implementation strategy in plain language.
 
 ## Relevant Learnings Applied
 
-List learnings, critical patterns, or prior failures that shape the plan.
-
 - Pattern reused:
 - Prior failure avoided:
 - Existing abstraction honored:
@@ -109,16 +101,12 @@ List learnings, critical patterns, or prior failures that shape the plan.
 
 ## Current Phase Strategy
 
-Describe what should be prepared now.
-
 - Current phase outcome:
 - Why this is the right first / next slice:
 - What this phase unlocks:
 - What remains for later phases, if any:
 
 ## Summary For plan.md
-
-Write a short human-readable summary that can be reused in `plan.md`.
 
 - One-paragraph summary:
 - Main risks:

@@ -15,7 +15,7 @@ The beo workflow assumes this Agent Mail surface exists when swarming is enabled
 - `file_reservation_paths(...)`
 - `release_file_reservations(...)`
 
-If this surface is not available, `beo-swarming` must not start. Route to solo execution instead.
+If this surface is not available, do not start `beo-swarming`. Route to solo execution instead.
 
 ## Project / Session Initialization
 
@@ -58,7 +58,7 @@ Workers often have two names:
 - an orchestrator-assigned nickname for human readability
 - an Agent Mail identity returned by Agent Mail startup or registration calls
 
-The Agent Mail identity is canonical for all `sender_name`, inbox, and reservation calls.
+Use the Agent Mail identity for all `sender_name`, inbox, and reservation calls.
 If both names are shown, format them as:
 
 ```text
@@ -90,7 +90,7 @@ release_file_reservations(
 )
 ```
 
-Use specific paths or narrow globs. Do not reserve broad file sets unless the work truly requires them.
+Use specific paths or narrow globs. Do not reserve broad file sets unless required.
 
 ## Messaging APIs
 
@@ -147,9 +147,9 @@ Reservation APIs own file reservations.
 Agent Mail messages own conflict resolution, status reporting, and handoff communication.
 
 In practice:
-- use reservation APIs to claim or release paths
-- use `[FILE CONFLICT]` and `[FILE CONFLICT RESOLUTION]` messages to coordinate who should wait, release, reassign, or defer
-- use inbox/message APIs for worker liveness, completion reports, blocker escalation, and pause/resume coordination
+1. use reservation APIs to claim or release paths
+2. use `[FILE CONFLICT]` and `[FILE CONFLICT RESOLUTION]` messages to coordinate who should wait, release, reassign, or defer
+3. use inbox/message APIs for worker liveness, completion reports, blocker escalation, and pause/resume coordination
 
 ## Cycle Vocabulary
 

@@ -22,7 +22,7 @@ Shared Markdown templates for all bead description types in the Beo workflow. Us
 
 ## Planned Task Bead Template
 
-Use for beads created during `beo-planning` and any other planned execution path.
+Use for beads created during `beo-planning` and other planned execution paths.
 
 ```markdown
 ## Story Context
@@ -83,13 +83,13 @@ If none apply:
 - `## Rollback` is required only for HIGH-risk planned beads.
 - Include `## Decisions` with relevant D-IDs when `CONTEXT.md` has a Locked Decisions table.
 - Do not copy all of `CONTEXT.md` into the bead. Reference the relevant decision(s).
-- A fresh worker should understand what to build from this bead alone.
+- Write the bead so a fresh worker can build from it alone.
 
 ---
 
 ## Reactive Fix Bead Template
 
-Use for beads created by `beo-reviewing`, `beo-debugging`, or reactive repair flows (including router instant-path fixes). These beads are exempt from Story Context but still need a complete Markdown spec.
+Use for beads created by `beo-reviewing`, `beo-debugging`, or reactive repair flows, including router instant-path fixes. These beads do not need Story Context but still require a complete Markdown spec.
 
 ```markdown
 ## Objective
@@ -117,7 +117,7 @@ Use for beads created by `beo-reviewing`, `beo-debugging`, or reactive repair fl
 ### Notes
 
 - Keep the scope narrow and directly tied to the defect.
-- Verification must prove the bug is fixed, not just that the code changed.
+- Prove the bug is fixed, not just that the code changed.
 
 ---
 
@@ -164,4 +164,4 @@ Use for independent follow-up beads created from review findings, deferred UAT a
 
 - Follow-up beads are not children of the current epic unless explicitly re-planned.
 - If file scope is unknown, say so explicitly instead of guessing.
-- Keep enough context for a future worker to act without reopening the entire review.
+- Include enough context for a future worker to act without reopening the full review.

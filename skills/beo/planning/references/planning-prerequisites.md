@@ -4,7 +4,7 @@ Operational reference for prerequisites, learnings retrieval, and planning mode 
 
 ## 0. Refactoring Sequencing Rule
 
-When planning structural refactoring, always sequence steps in this order:
+When planning structural refactoring, sequence steps in this order:
 
 1. **Fix** dependency violations (wrong-direction imports, DAG breaks)
 2. **Remove** dead artifacts (unused code, stale modules)
@@ -14,60 +14,36 @@ This is the only rework-free order. Fixing the DAG first means dead-code analysi
 
 ## 1. Prerequisites
 
-Before starting, verify:
+Verify the epic exists:
 
 ```bash
-# Epic must exist
 br show <EPIC_ID> --json
 ```
 
-Read these artifacts with your file reading tool:
+Read these artifacts:
 
-- `.beads/artifacts/<feature_slug>/CONTEXT.md` (required -- if absent, stop and route back to `beo-exploring`)
-- `.beads/critical-patterns.md` (optional)
+- `.beads/artifacts/<feature_slug>/CONTEXT.md` — **required**; if absent, stop and route back to `beo-exploring`
+- `.beads/critical-patterns.md` — optional
 
-If `CONTEXT.md` does not exist, stop and route back to `beo-exploring`.
-
-Planning assumes decisions are already locked. Do not reopen product-definition questions here unless the planning work proves the decisions are contradictory or incomplete.
+Planning assumes decisions are already locked. Do not reopen product-definition questions unless planning reveals contradictions or gaps.
 
 ## 2. Learnings Retrieval
 
-This step is mandatory before research.
-
-Use `../../reference/references/learnings-read-protocol.md` as the canonical read-side workflow.
+Run this step before research. Use `../../reference/references/learnings-read-protocol.md` as the canonical workflow.
 
 If relevant patterns exist:
+- Note them in `discovery.md`
+- Apply them in `approach.md`
+- Carry them into affected bead descriptions
+- Let them influence single-phase vs. multi-phase selection
 
-- note them explicitly in `discovery.md`
-- apply them in `approach.md`
-- carry them into affected bead descriptions
-- let them influence whether the work should stay single-phase or become multi-phase
-
-If no relevant prior learnings exist, record that explicitly rather than implying the step was skipped.
+If no relevant prior learnings exist, record that explicitly.
 
 ## 3. Decide Planning Mode
 
-Planning supports two modes:
+| Mode | Choose when |
+|------|-------------|
+| `single-phase` | ALL: one believable closed loop; 1–4 stories; no obvious deferred capability sequence; one phase stays focused |
+| `multi-phase` | ANY: 2+ meaningful capability slices; current work mainly unlocks later work; one phase would be vague or oversized; story count likely exceeds 4; later work should stay intentionally deferred |
 
-- `single-phase`
-- `multi-phase`
-
-Choose `single-phase` when ALL of these are true:
-
-- one believable closed loop can explain the work
-- the feature can usually be expressed in 1-4 stories
-- there is no obvious capability sequence that should remain deferred
-- preparing one current phase does not turn the phase into a vague work bucket
-
-Choose `multi-phase` when ANY of these are true:
-
-- the feature naturally unfolds across 2+ meaningful capability slices
-- the current work mainly unlocks later work
-- forcing everything into one phase would create a vague or oversized loop
-- the full feature only makes sense as a sequence
-- story count would likely exceed 4 if kept in one phase
-- later work should stay intentionally deferred instead of being loosely implied
-
-Record the planning-mode decision in `approach.md`.
-
-Do not choose `multi-phase` just because the work is moderately large. Use the simplest mode that keeps the work understandable and execution-safe.
+Record the decision in `approach.md`. Do not choose `multi-phase` just because the work is moderately large — use the simplest mode that keeps the work understandable and execution-safe.

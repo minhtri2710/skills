@@ -1,7 +1,7 @@
 # Creation Log: [Skill Name]
 
 <!-- Copy this template to your skill directory as CREATION-LOG.md -->
-<!-- Complete every section. This is the evidence that TDD was followed -->
+<!-- Complete every section. Use this as evidence that TDD was followed -->
 
 ## Table of Contents
 1. [Source Material](#source-material)
@@ -62,7 +62,7 @@
 
 ## RED Phase: Baseline Testing
 
-<!-- Run these scenarios WITHOUT the skill loaded. Document results verbatim. -->
+<!-- Run these scenarios WITHOUT the skill loaded. Record results verbatim. -->
 
 ### Scenario 1: [Name]
 

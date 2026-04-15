@@ -1,6 +1,6 @@
 # Dependency Reconciliation
 
-When a plan specifies task dependencies (e.g., "Task 3 depends on Task 1 and Task 2"), you must reconcile the desired dependency graph with the actual bead dependency edges.
+When a plan specifies task dependencies (for example, "Task 3 depends on Task 1 and Task 2"), reconcile the desired dependency graph with the actual bead dependency edges.
 
 ## Table of Contents
 
@@ -14,17 +14,17 @@ When a plan specifies task dependencies (e.g., "Task 3 depends on Task 1 and Tas
 
 ### 1. Determine Desired Edges
 
-From the plan, build a map of `{ child_bead_id → [parent_bead_id, ...] }` based on the `dependsOn` fields.
+Build a map of `{ child_bead_id → [parent_bead_id, ...] }` from the plan's `dependsOn` fields.
 
 ### 2. Read Actual Edges
 
-For each task bead under the epic:
+For each task bead under the epic, run:
 
 ```bash
 br dep list <bead-id> --direction down --type blocks --json
 ```
 
-This returns the beads that `<bead-id>` depends on (waits for).
+This returns the beads that `<bead-id>` depends on.
 
 ### 3. Compute Diff
 
@@ -54,7 +54,7 @@ br dep cycles --json
 
 ## Example
 
-Given a plan with:
+Given:
 - Task A (no dependencies)
 - Task B depends on A
 - Task C depends on A and B
@@ -72,7 +72,7 @@ br dep cycles --json
 
 ## Epic Lookup
 
-To find the epic bead for a feature by name:
+Find the epic bead for a feature by name:
 
 ```bash
 # List all epics (including closed)
@@ -91,7 +91,7 @@ br dep list <epic-id> --direction up --type parent-child --json
 
 ## Scheduling Cascade
 
-When selecting the next task to execute, follow this priority cascade:
+Select the next task to execute with this priority cascade:
 
 ### 1. bv --robot-plan (Primary)
 
@@ -99,7 +99,7 @@ When selecting the next task to execute, follow this priority cascade:
 bv --robot-plan --graph-root <EPIC_ID> --format json
 ```
 
-Returns parallel execution tracks. Pick the first unstarted bead from the first track that has no in-progress beads. This gives optimal parallelism.
+Returns parallel execution tracks. Pick the first unstarted bead from the first track with no in-progress beads. This preserves optimal parallelism.
 
 ### 2. bv --robot-next (Fallback if plan unavailable)
 
@@ -107,7 +107,7 @@ Returns parallel execution tracks. Pick the first unstarted bead from the first 
 bv --robot-next --format json
 ```
 
-Returns a single recommendation with reasoning. Use when robot-plan data is missing or stale, then post-filter the result to the active epic/current phase before acting.
+Returns a single recommendation with reasoning. Use it when robot-plan data is missing or stale, then post-filter the result to the active epic and current phase before acting.
 
 ### 3. br ready (Fallback if bv unavailable)
 
@@ -115,11 +115,12 @@ Returns a single recommendation with reasoning. Use when robot-plan data is miss
 br ready --json
 ```
 
-Returns all unblocked, open beads. Post-filter to beads under the active epic and current phase, then pick the one with highest priority (lowest number). Break ties by creation order.
+Returns all unblocked, open beads. Post-filter to beads under the active epic and current phase, then pick the highest-priority bead (lowest number). Break ties by creation order.
 
 ### 4. Manual Selection (Last resort)
 
 If all CLI tools fail:
-1. `br list --type task -s open --json`: get all open tasks
-2. For each, check `br dep list <id> --direction down --type blocks --json`: skip if any dependency is not closed
-3. Pick the highest priority unblocked task
+
+1. Run `br list --type task -s open --json` to get all open tasks.
+2. For each task, run `br dep list <id> --direction down --type blocks --json` and skip the task if any dependency is not closed.
+3. Pick the highest-priority unblocked task.

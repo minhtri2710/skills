@@ -18,8 +18,8 @@ Onboarding — see `../reference/references/shared-hard-gates.md` § Onboarding 
 
 ## Overview
 
-Dream performs one manual consolidation pass across accumulated learnings.
-It updates durable learnings in place, keeps the write surface narrow, and promotes only the patterns that still deserve long-term attention.
+Run one manual consolidation pass across accumulated learnings.
+Update durable learnings in place, keep the write surface narrow, and promote only patterns that still deserve long-term attention.
 > See `../reference/references/shared-hard-gates.md` § Shared References Convention.
 
 
@@ -32,7 +32,7 @@ If ownership is ambiguous, ask the user instead of silently choosing a merge tar
 </HARD-GATE>
 
 <HARD-GATE>
-Follow the canonical learnings write-governance rules in `../reference/references/knowledge-store.md`, including PII redaction and approval before any `critical-patterns.md` promotion.
+Follow the learnings write-governance rules in `../reference/references/knowledge-store.md`, including PII redaction and approval before any `critical-patterns.md` promotion.
 </HARD-GATE>
 
 <HARD-GATE>
@@ -44,7 +44,7 @@ Every consolidated learning must include the source feature slug and original ca
 </HARD-GATE>
 
 <HARD-GATE>
-If recurring mode produces zero actionable candidates after full source scan, escalate to bootstrap mode before finalizing. Do not finalize an empty recurring pass without attempting the broader bootstrap window.
+If recurring mode yields zero actionable candidates after a full source scan, escalate to bootstrap mode before finalizing. Do not finalize an empty recurring pass without attempting the broader bootstrap window.
 </HARD-GATE>
 
 <HARD-GATE>
@@ -55,19 +55,23 @@ The durable write surface is `.beads/learnings/*.md`.
 
 ## Use Dream vs Compounding
 
-Use `beo-compounding` after one completed feature.
-Use `beo-dream` when consolidating, deduplicating, or promoting learnings across multiple completed features over time.
-When in doubt: compounding is per-feature, dream is cross-feature.
+| Use | Skill |
+| --- | --- |
+| Consolidate learnings from one completed feature | `beo-compounding` |
+| Consolidate, deduplicate, or promote learnings across multiple completed features over time | `beo-dream` |
+
+When in doubt: compounding is per-feature; dream is cross-feature.
 
 ## Default Dream Loop
 
-1. orient on provenance and choose bootstrap vs recurring mode
-2. select the right source window
-3. extract and classify candidate learnings
-4. apply outcomes: merge, create, skip, or ask the user when ownership is ambiguous
-5. finalize the run and update provenance
+1. orient on provenance; choose bootstrap or recurring mode
+2. select the source window
+3. extract and classify candidates
+4. apply outcomes: merge, create, skip, or ask when ownership is ambiguous
+5. finalize and update provenance
 
-Load `references/dream-operations.md` for the exact provenance checks, source selection, candidate classification mechanics, apply-outcome behavior, and finalization steps.
+Load `references/dream-operations.md` for exact provenance checks, source selection, candidate classification, apply-outcome behavior, and finalization.
+Use `../reference/references/failure-recovery.md` when provenance/state files are malformed or learnings writes fail during consolidation.
 
 ## Process Rules
 
@@ -96,7 +100,9 @@ See `references/consolidation-rubric.md`, `references/agent-history-source-polic
 
 ## References
 
-- `references/dream-operations.md`
-- `references/consolidation-rubric.md`
-- `references/agent-history-source-policy.md`
-- `references/pressure-scenarios.md`
+| File | Use for |
+| --- | --- |
+| `references/dream-operations.md` | Provenance checks, mode selection, source selection, classification flow, finalization |
+| `references/consolidation-rubric.md` | Candidate matching criteria and outcome rules |
+| `references/agent-history-source-policy.md` | Source priority, run windows, provenance persistence, redaction rules |
+| `references/pressure-scenarios.md` | RED-phase failure cases and guardrail checks |

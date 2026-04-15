@@ -1,6 +1,6 @@
 # Validation Operations
 
-Detailed operational playbook for `beo-validating`. Load this file when you need exact prerequisite checks, planning-aware orientation, graph-health commands, spike handling, approval messaging, or handoff details.
+Operational playbook for `beo-validating`.
 
 ## Table of Contents
 
@@ -15,7 +15,7 @@ Detailed operational playbook for `beo-validating`. Load this file when you need
 
 ## 1. Prerequisites
 
-Verify before starting:
+Run:
 
 ```bash
 # Epic exists and has tasks
@@ -24,40 +24,38 @@ br show <EPIC_ID> --json
 br dep list <EPIC_ID> --direction up --type parent-child --json
 ```
 
-Read these artifacts with your file reading tool:
+Read artifacts in this order:
 
-- `.beads/artifacts/<feature_slug>/CONTEXT.md` (required)
-- `.beads/artifacts/<feature_slug>/discovery.md` (optional)
-- `.beads/artifacts/<feature_slug>/approach.md` (required)
-- `.beads/artifacts/<feature_slug>/plan.md` (required)
-- `.beads/artifacts/<feature_slug>/phase-plan.md` (optional)
-- `.beads/artifacts/<feature_slug>/phase-contract.md` (required)
-- `.beads/artifacts/<feature_slug>/story-map.md` (required)
+1. `.beads/artifacts/<feature_slug>/CONTEXT.md` (required)
+2. `.beads/artifacts/<feature_slug>/discovery.md` (optional)
+3. `.beads/artifacts/<feature_slug>/approach.md` (required)
+4. `.beads/artifacts/<feature_slug>/plan.md` (required)
+5. `.beads/artifacts/<feature_slug>/phase-plan.md` (optional)
+6. `.beads/artifacts/<feature_slug>/phase-contract.md` (required)
+7. `.beads/artifacts/<feature_slug>/story-map.md` (required)
 
 Stop and route back to `beo-planning` if tasks, `approach.md`, `phase-contract.md`, or `story-map.md` are missing.
 
 Interpretation rules:
 
-- if `phase-plan.md` exists, treat the feature as multi-phase unless current artifacts clearly contradict that model
+- if `phase-plan.md` exists, treat the feature as multi-phase unless current artifacts prove the model stale or invalid
 - `phase-contract.md` and `story-map.md` always describe the **current phase**
 
 ## 2. Learnings Retrieval + Current-Phase Orientation
 
-Before validating structure, use `../../reference/references/learnings-read-protocol.md` as the canonical read-side workflow.
+Use `../../reference/references/learnings-read-protocol.md` as the canonical read-side workflow.
 
 If a prior learning affects phase closure, story order, spike design, or sequencing, verify that the current phase plan reflects it.
 
 ### Current-phase orientation
 
-Before running the structural check, orient the validator.
+Read, when available, in this order:
 
-Read, when available:
-
-- `.beads/STATE.json`
-- `approach.md`
-- `phase-plan.md`
-- `phase-contract.md`
-- `story-map.md`
+1. `.beads/STATE.json`
+2. `approach.md`
+3. `phase-plan.md`
+4. `phase-contract.md`
+5. `story-map.md`
 
 Summarize:
 
@@ -85,25 +83,26 @@ If `phase-plan.md` exists, also verify:
 ### Run the Plan Checker
 
 Load `plan-checker-prompt.md`. Spawn an isolated subagent with:
-- all current-phase task beads for the epic (`br show <TASK_ID> --json` for each)
-- `CONTEXT.md`
-- `discovery.md` if it exists
-- `approach.md`
-- `plan.md`
-- `phase-plan.md` if it exists
-- `phase-contract.md`
-- `story-map.md`
-- dependency output for each task: `br dep list <TASK_ID> --direction down --type blocks --json`
+
+1. all current-phase task beads for the epic (`br show <TASK_ID> --json` for each)
+2. `CONTEXT.md`
+3. `discovery.md` if it exists
+4. `approach.md`
+5. `plan.md`
+6. `phase-plan.md` if it exists
+7. `phase-contract.md`
+8. `story-map.md`
+9. dependency output for each task: `br dep list <TASK_ID> --direction down --type blocks --json`
 
 The checker returns a structured PASS/FAIL report for all 8 dimensions.
 
 ### Triage Results
 
-- If all 8 dimensions PASS → proceed to graph health.
-- If any dimension FAILS:
-  1. fix the issue in the relevant artifact
-  2. re-run the checker
-  3. count that as the next iteration
+1. If all 8 dimensions PASS, proceed to graph health.
+2. If any dimension FAILS:
+   1. fix the issue in the relevant artifact
+   2. re-run the checker
+   3. count that as the next iteration
 
 ### Repair Routing
 
@@ -126,7 +125,7 @@ Do not attempt iteration 4.
 
 ## 4. Graph Health Operations
 
-Use `bv` to inspect graph health:
+Run:
 
 ```bash
 # Suggestions (missing deps, duplicates)
@@ -152,26 +151,30 @@ bv --robot-priority --format json 2>/dev/null
 
 ### Deduplication Check
 
-Manually review task titles and descriptions for overlap:
+Review task titles and descriptions for overlap:
+
 - same output → merge
 - same files → sequence or merge
 - near-identical descriptions → one may be unnecessary
 
 ### Story-to-Bead Coherence Check
 
-Inspect `story-map.md` and verify:
+Verify:
+
 - every story maps to at least one bead
 - every bead belongs to a story
 - stories with 4+ beads may be too large
 - no bead spans unrelated stories
 
 If `phase-plan.md` exists, also verify:
+
 - every bead belongs to the **current phase**
 - no future-phase work is smuggled into the current execution set
 
 ### Bead Description Verification
 
 For each task bead under the epic, read `br show <TASK_ID> --json` and verify:
+
 - `.description` is non-empty
 - it uses the appropriate shared bead template
 - it includes story context (if planned), file scope, implementation steps, and verification
@@ -181,7 +184,7 @@ Fail validation if any bead is empty or underspecified.
 
 ### Semantic Cross-Checks
 
-Beyond structural completeness, verify that bead specs are semantically compatible with locked decisions:
+Verify that bead specs are semantically compatible with locked decisions:
 
 1. **Interface compatibility**: For every trait, interface, or abstract type in bead specs, ask: "Does any locked decision require dynamic dispatch (`dyn Trait`, plugin system, registry)?" If yes, verify the design supports it.
 2. **Secret handling**: For every decision mentioning API keys, tokens, secrets, or credentials, verify bead specs include file permission requirements, redaction in logs, and secure transport.
@@ -201,6 +204,7 @@ br create "Spike: <specific question to answer>" -t task --parent <EPIC_ID> -p 0
 ```
 
 The spike must:
+
 1. ask a binary yes/no question
 2. be time-boxed to 30 minutes
 3. produce a concrete finding
@@ -212,15 +216,18 @@ br close <SPIKE_ID>
 br comments add <SPIKE_ID> --no-daemon --message "FINDING: YES|NO: <explanation>"
 ```
 
-- YES → continue validation and embed the finding
-- NO → full stop, route back to `beo-planning`
+| Result | Action |
+|--------|--------|
+| YES | continue validation and embed the finding |
+| NO | full stop, route back to `beo-planning` |
 
 ## 6. Fresh-Eyes Review
 
 For deep-complexity features or features with 5+ tasks, load `bead-reviewer-prompt.md` and spawn an isolated subagent with:
-- only the current bead descriptions
-- no implementation history
-- no broad conversation context
+
+1. only the current bead descriptions
+2. no implementation history
+3. no broad conversation context
 
 If issues are found, fix bead descriptions before proceeding.
 
@@ -268,16 +275,14 @@ Approve execution for this current phase? (yes/no)
 
 ### On Approval
 
-Use the canonical approval rule from `../../reference/references/approval-gates.md`, then:
+Use the canonical approval rule from `../../reference/references/approval-gates.md`, then run:
 
 ```bash
 br label add <EPIC_ID> -l approved
 br sync --flush-only
 ```
 
-Approval is not fully summarized until you also name the next execution mode for the approved current phase.
-Do not stop at "approved for execution" without saying whether the next skill is `beo-executing` or `beo-swarming`.
-If the next mode is not obvious, inspect the ready current-phase work immediately and resolve it before ending the approval summary.
+Approval is incomplete until you name the next execution mode for the approved current phase: `beo-executing` or `beo-swarming`. If it is not obvious, inspect the ready current-phase work immediately and resolve it before ending the approval summary.
 
 ### On Rejection
 
@@ -285,7 +290,8 @@ If the next mode is not obvious, inspect the ready current-phase work immediatel
 br label remove <EPIC_ID> -l approved 2>/dev/null
 ```
 
-Then route appropriately:
+Then route:
+
 - `beo-planning` if the plan needs rework
 - `beo-exploring` if decisions changed
 - fix in place if the feedback is minor
@@ -295,6 +301,7 @@ Then route appropriately:
 ### Quick Mode
 
 For Quick-scope features, see `../../reference/references/pipeline-contracts.md` for the canonical definition. When the feature qualifies as Quick:
+
 1. skip the full 8-dimension pass
 2. skip graph analysis
 3. skip spikes
@@ -304,13 +311,14 @@ For Quick-scope features, see `../../reference/references/pipeline-contracts.md`
 ### Context-Budget Checkpoint
 
 If context usage exceeds 65%:
+
 1. save validation progress
 2. save any spike results
 3. write `HANDOFF.json`
 
-Use the canonical base schema from `../../reference/references/state-and-handoff-protocol.md`, then add any validating-specific resume detail you need.
+Use the canonical base schema from `../../reference/references/state-and-handoff-protocol.md`, then add any validating-specific resume detail needed.
 
-When relevant, include planning-aware fields per `../../reference/references/state-and-handoff-protocol.md` § Planning-Aware HANDOFF.json Extension Fields, plus artifact completeness.
+When relevant, include planning-aware fields from `../../reference/references/state-and-handoff-protocol.md` § Planning-Aware HANDOFF.json Extension Fields, plus artifact completeness.
 
 ### Normal Handoff
 
@@ -322,6 +330,7 @@ br ready --json
 ```
 
 Decision rule:
+
 - ≤2 independent ready tasks → `beo-executing`
 - 3+ independent ready tasks → `beo-swarming`
 - if the exact independent-track count is not available from the current context, inspect it now
@@ -330,6 +339,7 @@ Decision rule:
 Your approval summary must end with a concrete `Next skill: beo-executing` or `Next skill: beo-swarming` statement. Without it, validation handoff is incomplete.
 
 Update `.beads/STATE.json` with:
+
 - validated task count
 - planning mode
 - current phase

@@ -1,26 +1,24 @@
 # CONTEXT Template: <Feature Name>
 
-Use this template for `.beads/artifacts/<feature_slug>/CONTEXT.md`.
-All sections are required. If a section is empty, write `N/A`.
+Use for `.beads/artifacts/<feature_slug>/CONTEXT.md`. All sections required; write `N/A` if empty.
 
 ## Feature Boundary
 
 - Scope: <one-sentence statement of what this feature changes>
 - Scope Classification: <Quick | Standard | Deep>
 - Domain Type: <SEE | CALL | RUN | READ | ORGANIZE>
-Standard applies when the feature needs planning, beads, and at least one review cycle. Expected timeline: days to a week.
-Deep applies when the change is large, cross-cutting, likely multi-phase with parallel execution. Expected timeline: weeks.
 
-Quick applies only when ALL conditions in `../../reference/references/pipeline-contracts.md` § Quick-Scope Definition are met.
+Quick: all conditions in `../../reference/references/pipeline-contracts.md` § Quick-Scope Definition met.
+Standard: needs planning, beads, at least one review cycle (days to a week).
+Deep: large, cross-cutting, likely multi-phase with parallel execution (weeks).
 
 ## Locked Decisions
 
 | D-ID | Decision | Rationale | Source |
 |------|----------|-----------|--------|
-| D1 | <decision> | <why it is locked> | <user | agent default> |
+| D1 | <decision> | <why locked> | <user \| agent default> |
 
-D-ID format is `D<sequential number>` with no hyphen, for example `D1`, `D2`, `D3`.
-Assign these during exploring, reference them in planning bead descriptions, and verify them during execution.
+D-ID format: `D<number>` (no hyphen). Assign during exploring, reference in planning, verify during execution.
 
 ### Agent's Discretion
 
@@ -28,11 +26,11 @@ Assign these during exploring, reference them in planning bead descriptions, and
 
 ## Specific Ideas & References
 
-- <user-provided reference, example, screenshot, prior art, or notable preference>
+- <user-provided reference, example, screenshot, prior art, or preference>
 
 ## Existing Code Context
 
-- Reusable assets: <components, commands, helpers, templates, or docs already present>
+- Reusable assets: <components, commands, helpers, templates, docs already present>
 - Established patterns: <repo conventions that should shape the solution>
 - Integration points: <files, modules, commands, or artifacts the feature will touch>
 
@@ -56,7 +54,7 @@ Assign these during exploring, reference them in planning bead descriptions, and
 
 ## Handoff Note
 
-- `beo-planning` reads: <which sections matter most for decomposition>
-- `beo-validating` reads: <which sections matter most for validation>
-- `beo-executing` reads: <which sections matter most for execution>
-- `beo-reviewing` reads: <which sections matter most for review/UAT>
+- `beo-planning` reads: <sections for decomposition>
+- `beo-validating` reads: <sections for validation>
+- `beo-executing` reads: <sections for execution>
+- `beo-reviewing` reads: <sections for review/UAT>

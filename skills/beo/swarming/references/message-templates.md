@@ -1,6 +1,6 @@
 # Agent Mail Message Templates
 
-> **~350 lines.** Use the Table of Contents below to jump to the template you need. Most common: §3 (Completion Report), §4 (Blocker Alert), §5-6 (File Conflict).
+> Use the Table of Contents to jump to the template needed. Most common: §3 (Completion Report), §4 (Blocker Alert), §5-6 (File Conflict).
 
 Standard message formats for swarm coordination. All messages use `send_message()` or `reply_message()` from Agent Mail, posting to the epic thread (`thread_id=<EPIC_ID>`) unless noted.
 Coordinator identity: `<COORDINATOR_AGENT_NAME>`. Worker identity: `<AGENT_MAIL_NAME>` (from `macro_start_session`).
@@ -34,16 +34,16 @@ Importance: NORMAL
 Swarm initialized for epic <EPIC_ID>.
 
 Execution model:
-- Workers are self-routing via `bv --robot-plan`
-- File coordination happens through Agent Mail reservations
-- Blockers and course corrections happen in this thread
+- Workers self-route via `bv --robot-plan`
+- File coordination via Agent Mail reservations
+- Blockers and corrections in this thread
 
 Workers spawning now:
 - <AGENT_NAME_1>
 - <AGENT_NAME_2>
 - <AGENT_NAME_3>
 
-All workers: join this thread, post startup acknowledgment, then load the beo-executing skill.
+All workers: join thread, post startup acknowledgment, then load beo-executing.
 ```
 
 ---
@@ -60,7 +60,7 @@ Importance: NORMAL
 <AGENT_NAME> online.
 Nickname: <NICKNAME> | Agent Mail: <NAME>
 Status: Loading beo-executing skill.
-Next step: read context, run `bv --robot-plan`, claim the top executable bead.
+Next: read context, run `bv --robot-plan`, claim top executable bead.
 ```
 
 ---
@@ -79,18 +79,16 @@ Title: <bead-title>
 Worker: <AGENT_NAME>
 Commit: <git-commit-hash>
 
-Summary of changes:
-<2-3 sentence description of what was implemented>
+Summary: <2-3 sentence description>
 
 Files modified:
 - <path/to/file1>
 - <path/to/file2>
 
-Verification:
-- <command/result summary>
+Verification: <command/result summary>
 
 Context budget: ~<XX>% used
-Next action: return to `bv --robot-plan`
+Next: return to `bv --robot-plan`
 ```
 
 ---
@@ -104,17 +102,17 @@ Subject: [BLOCKED] <bead-id>: <one-line description>
 Thread: <EPIC_ID>
 Importance: HIGH
 
-BLOCKED: <AGENT_NAME> cannot proceed on bead <bead-id>.
+BLOCKED: <AGENT_NAME> on bead <bead-id>.
 
-Blocker type: [MISSING_CONTEXT | DEPENDENCY_NOT_MET | TECHNICAL_FAILURE | AMBIGUITY]
+Type: [MISSING_CONTEXT | DEPENDENCY_NOT_MET | TECHNICAL_FAILURE | AMBIGUITY]
 
 Description:
-<Clear description of what is blocking. Include errors, file names, and relevant details.>
+<What is blocking. Include errors, file names, relevant details.>
 
-What I need to proceed:
-<Specific ask: information, release of a file reservation, user decision, etc.>
+Need to proceed:
+<Specific ask: information, file reservation release, user decision, etc.>
 
-I am paused on this bead and waiting for a reply on this thread.
+Paused on this bead, waiting for reply.
 ```
 
 ---
@@ -128,19 +126,18 @@ Subject: [FILE CONFLICT] <path/to/file>
 Thread: <EPIC_ID>
 Importance: HIGH
 
-File conflict: <AGENT_NAME> needs a file that is currently reserved.
+File conflict: <AGENT_NAME> needs a reserved file.
 
 Requested file: <path/to/file>
-Currently reserved by: <AGENT_NAME_holder or "unknown">
-Reservation reason: <reason from reservation holder>
-Conflict details: <structured conflict payload from `file_reservation_paths(...)`>
+Reserved by: <AGENT_NAME_holder or "unknown">
+Conflict details: <payload from `file_reservation_paths(...)`>
 My bead: <bead-id>
-Reason needed: <Why this file is required for this bead>
+Reason needed: <Why this file is required>
 
-Awaiting orchestrator decision:
-1. Request holder release at a safe checkpoint
+Awaiting decision:
+1. Request holder release at safe checkpoint
 2. Ask me to wait
-3. Ask me to defer and create a follow-up bead
+3. Ask me to defer and create follow-up bead
 ```
 
 ---
@@ -154,21 +151,21 @@ Subject: Re: [FILE CONFLICT] <path/to/file>
 Thread: <EPIC_ID>
 Importance: NORMAL
 
-Decision on file conflict for <path/to/file>:
+Decision for <path/to/file>:
 
 [Choose one:]
 
-OPTION A: Wait:
-<AGENT_NAME_requester>: wait for <AGENT_NAME_holder> to release the reservation.
+OPTION A - Wait:
+<AGENT_NAME_requester>: wait for <AGENT_NAME_holder> to release.
 
-OPTION B: Release requested:
-<AGENT_NAME_holder>: please release <path/to/file> when you reach a safe checkpoint.
-Call `release_file_reservations(project_key, agent_name, paths=["<path/to/file>"])` when safe.
-<AGENT_NAME_requester>: stand by until release is confirmed.
-After release, call `file_reservation_paths(project_key, agent_name, paths=["<path/to/file>"], ttl_seconds=3600, exclusive=true, reason="Working bead <BEAD_ID>")` to acquire it.
+OPTION B - Release requested:
+<AGENT_NAME_holder>: release <path/to/file> at safe checkpoint.
+Call `release_file_reservations(project_key, agent_name, paths=["<path/to/file>"])`.
+<AGENT_NAME_requester>: stand by until confirmed, then acquire with
+`file_reservation_paths(project_key, agent_name, paths=["<path/to/file>"], ttl_seconds=3600, exclusive=true, reason="Working bead <BEAD_ID>")`.
 
-OPTION C: Defer:
-<AGENT_NAME_requester>: defer this change. Create a follow-up bead and continue with the next executable bead.
+OPTION C - Defer:
+<AGENT_NAME_requester>: defer change, create follow-up bead, continue with next executable bead.
 ```
 
 ---
@@ -183,13 +180,7 @@ Thread: <EPIC_ID>
 Importance: HIGH
 
 Broadcast to all workers:
-
 <Instruction or correction>
-
-Examples:
-- Re-read AGENTS.md before continuing
-- Do not touch <file/path> until blocker <id> is resolved
-- Decision D7 is now locked; honor it in all remaining work
 ```
 
 ---
@@ -205,17 +196,11 @@ Importance: HIGH
 
 Coordinator context at ~<XX>%. Writing HANDOFF.json now.
 
-Current status:
-- Open beads: <count>
-- In-progress beads: <count>
-- Known blockers: <count>
+Status: Open: <N> | In-progress: <N> | Blocked: <N>
 
-Workers: continue current bead safely, then report status to this thread.
+Workers: complete current bead safely, then report status.
 
-Resume artifacts:
-- .beads/HANDOFF.json
-- .beads/STATE.json
-- bv --robot-triage --graph-root <EPIC_ID>
+Resume: .beads/HANDOFF.json, .beads/STATE.json, `bv --robot-triage --graph-root <EPIC_ID>`
 ```
 
 ---
@@ -231,17 +216,11 @@ Importance: NORMAL
 
 Swarm complete for epic <EPIC_ID>.
 
-Summary:
-- Beads implemented: <N>
-- Workers used: <K>
-- Build status: PASS
-- Test status: PASS
+Beads: <N> | Workers: <K> | Build: PASS | Tests: PASS
 
-All workers: your work is complete.
+All workers: work complete.
 
-Next step:
-- If this is the final execution scope: invoke beo-reviewing.
-- If later phases remain: remove `approved`, then invoke beo-planning for the next phase.
+Next: final scope → beo-reviewing. Later phases remain → remove `approved`, invoke beo-planning.
 ```
 
 ---
@@ -255,11 +234,8 @@ Subject: [STARTUP REMINDER] <WORKER_NAME>
 Thread: <EPIC_ID>
 Importance: HIGH
 
-You were spawned N cycles ago but have not posted `[ONLINE]`.
-
-Please either:
-- post `[ONLINE]` with your nickname and Agent Mail identities, or
-- report a blocker if you cannot start.
+Spawned N cycles ago, no [ONLINE] posted.
+Post [ONLINE] with identities, or report a blocker.
 ```
 
 ---
@@ -273,21 +249,16 @@ Subject: [STATUS CHECK] <WORKER_NAME>
 Thread: <EPIC_ID>
 Importance: HIGH
 
-No messages received for N cycles.
-
-Reply with:
-- current bead and status
-- any blockers
-- estimated time to completion
+No messages for N cycles.
+Reply with: current bead/status, blockers, estimated completion.
 ```
 
 ---
 
 ## Handoff JSON Template
 
-Write to `.beads/HANDOFF.json` when the swarm coordinator context exceeds 65%.
-
-Extends the base HANDOFF schema from `../../reference/references/state-and-handoff-protocol.md` (schema_version, phase, skill, feature, feature_name, next_action, in_flight_beads, timestamp) with swarm-specific fields:
+Write to `.beads/HANDOFF.json` when coordinator context exceeds 65%.
+Extends the base HANDOFF schema from `../../reference/references/state-and-handoff-protocol.md` with swarm-specific fields:
 
 ```json
 {
@@ -308,13 +279,13 @@ Extends the base HANDOFF schema from `../../reference/references/state-and-hando
     "in_progress_beads": ["<bead-id-3>"],
     "blocked_beads": ["<bead-id-4>"]
   },
-    "active_workers": [
-      {
-        "agent_nickname": "<NICKNAME>",
-        "agent_mail_name": "<NAME>",
-        "current_bead": "<bead-id-3>",
-        "status": "in_progress"
-      }
+  "active_workers": [
+    {
+      "agent_nickname": "<NICKNAME>",
+      "agent_mail_name": "<NAME>",
+      "current_bead": "<bead-id-3>",
+      "status": "in_progress"
+    }
   ],
   "open_blockers": [
     {
@@ -325,11 +296,11 @@ Extends the base HANDOFF schema from `../../reference/references/state-and-hando
     }
   ],
   "resume_instructions": {
-    "priority_next": "Poll epic thread, then inspect the live graph",
+    "priority_next": "Poll epic thread, then inspect live graph",
     "read_first": [".beads/STATE.json", ".beads/HANDOFF.json"],
     "check_mail": true,
     "bead_check": "bv --robot-triage --graph-root <EPIC_ID>",
-    "restore_confirmation": "Confirm open/in-progress/blocked counts still match before resuming"
+    "restore_confirmation": "Confirm open/in-progress/blocked counts match before resuming"
   },
   "context_at_pause": {
     "tokens_used_pct": 0.67,

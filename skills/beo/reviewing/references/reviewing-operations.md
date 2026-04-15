@@ -1,6 +1,6 @@
 # Reviewing Operations
 
-Detailed operational playbook for `beo-reviewing`. Load this file when you need exact prerequisite checks, artifact-verification procedure, finishing commands, Quick-review flow, or checkpoint mechanics.
+Operational playbook for `beo-reviewing`.
 
 ## Table of Contents
 
@@ -14,7 +14,7 @@ Detailed operational playbook for `beo-reviewing`. Load this file when you need 
 
 ## 1. Prerequisites
 
-Verify before review:
+Before review:
 
 ```bash
 br dep list <EPIC_ID> --direction up --type parent-child --json
@@ -31,38 +31,40 @@ Read these artifacts with your file reading tool:
 
 Also run project-specific build/tests before review.
 
-Verify graph state matches conversation state — all executed beads must be `closed` in `br`, not just reported as done in conversation. If any bead that was implemented and verified is still open in `br`, close it before proceeding:
+Verify graph state matches conversation state. Every executed bead must be `closed` in `br`, not just reported done in conversation.
 
 ```bash
 br dep list <EPIC_ID> --direction up --type parent-child --json
-# Check: every bead that was executed should have status "closed"
 ```
 
-- **Open/in-progress tasks** → route back to `beo-executing`
-- **Cancelled/failed tasks** → pause, present to user for direction (re-queue, accept, or re-plan)
-- **Missing required artifacts** (`plan.md`, `phase-contract.md`, `story-map.md`) → route to planning
-- **Blocked/partial tasks** → use approval rules in `../../reference/references/approval-gates.md`
-- **Multi-phase** → see `../../reference/references/shared-hard-gates.md` § Multi-Phase Completion Routing
+| State | Action |
+| --- | --- |
+| Open/in-progress tasks | Route back to `beo-executing` |
+| Cancelled/failed tasks | Pause and present options: re-queue, accept, or re-plan |
+| Missing required artifacts (`plan.md`, `phase-contract.md`, `story-map.md`) | Route to planning |
+| Blocked/partial tasks | Use approval rules in `../../reference/references/approval-gates.md` |
+| Multi-phase | See `../../reference/references/shared-hard-gates.md` § Multi-Phase Completion Routing |
 
 ## 2. Automated Review Setup
 
 Use `review-specialist-prompts.md` for the specialist table, dispatch strategy, and P1/P2/P3 bead-creation patterns.
 
 Prefer isolated review inputs:
-- changed files or diff
-- `CONTEXT.md`
-- `plan.md`
-- `approach.md` if it exists
-- final current-phase artifacts (`phase-contract.md`, `story-map.md`, and `phase-plan.md` when present)
+1. changed files or diff
+2. `CONTEXT.md`
+3. `plan.md`
+4. `approach.md` if it exists
+5. final current-phase artifacts (`phase-contract.md`, `story-map.md`, and `phase-plan.md` when present)
 
 If multiple specialists produce the same finding, deduplicate before creating follow-up work.
 
 ## 3. Artifact Verification
 
-For each significant artifact promised by the final execution scope, run the 3-level verification:
-- L1 exists
-- L2 substantive
-- L3 wired
+For each significant artifact promised by the final execution scope, run 3-level verification:
+
+1. L1 exists
+2. L2 substantive
+3. L3 wired
 
 Suggested verification actions:
 
@@ -84,8 +86,7 @@ When a P1 finding requires a fix, create a reactive fix bead under the current e
 br create "Fix: <root cause summary>" -t task --parent <EPIC_ID> -p 1 --json
 ```
 
-The fix bead is visible in epic task enumeration via `--parent`.
-Reference the affected bead ID in the fix bead description (using the Reactive Fix Bead Template) for traceability.
+Reference the affected bead ID in the fix bead description for traceability.
 Do not use `--deps blocks:<closed-bead>` — blocking an already-closed bead is a no-op and adds no scheduling value.
 
 Write the bead description using the **Reactive Fix Bead Template** from `../../reference/references/bead-description-templates.md`.
@@ -96,12 +97,10 @@ Then route the fix bead through `beo-executing`. Do not implement fix code insid
 
 Use the canonical human-review rule from `../../reference/references/approval-gates.md`.
 
-For each locked decision:
-1. state the decision
+For each locked decision and each exit-state line:
+1. state it
 2. show how implementation fulfills it
 3. ask whether it matches intent
-
-Then do the same for each exit-state line.
 
 ### UAT Outcomes
 
@@ -121,21 +120,21 @@ After all P1 issues are resolved and UAT is complete:
 5. write a fresh `.beads/STATE.json` using `../../reference/references/state-and-handoff-protocol.md`; set `status: "learnings-pending"` and `next: "beo-compounding"`; include planning-aware fields when known
 6. remove `.beads/HANDOFF.json` only after the fresh state write succeeds
 
-The epic must be closed (step 4) before writing learnings-pending state (step 5). Compounding's graph verification expects a closed epic and will reject an open one.
+Close the epic before writing learnings-pending state. Compounding rejects an open epic.
 
 ## 6. Quick Mode
 
 For Quick-scope work, see `../../reference/references/pipeline-contracts.md` for the canonical definition. When the feature qualifies as Quick:
-- skip specialist subagents
-- do a quick manual artifact check
-- do a quick user confirmation
-- run build/test/lint and prepare the compounding handoff
+1. skip specialist subagents
+2. do a quick manual artifact check
+3. do a quick user confirmation
+4. run build/test/lint and prepare the compounding handoff
 
 ## 7. Context-Budget Checkpoint
 
 If context usage exceeds 65%, use the canonical `STATE.json` and `HANDOFF.json` shapes from `../../reference/references/state-and-handoff-protocol.md`, then include:
-- current review phase
-- gathered findings so far
-- UAT progress
-- any in-flight fix beads
-- planning-aware fields per `../../reference/references/state-and-handoff-protocol.md` § Planning-Aware HANDOFF.json Extension Fields
+1. current review phase
+2. gathered findings so far
+3. UAT progress
+4. any in-flight fix beads
+5. planning-aware fields per `../../reference/references/state-and-handoff-protocol.md` § Planning-Aware HANDOFF.json Extension Fields

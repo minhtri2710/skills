@@ -1,7 +1,6 @@
 # Dream Consolidation Rubric
 
-Use this rubric to classify each candidate signal as `clear match`, `ambiguous`, `no match`, or
-`no durable signal`.
+Use this rubric to classify each candidate signal as `clear match`, `ambiguous`, `no match`, or `no durable signal`.
 
 ## 1) Clear Match
 
@@ -25,10 +24,10 @@ Choose `ambiguous` when any are true:
 Action:
 - Show candidate learnings files and reasons.
 - Offer plain-chat labeled choices:
- - `merge -> <target file>`
- - `merge -> <target file>` for each plausible target file
- - `create new`
- - `skip`
+  - `merge -> <target file>`
+  - `merge -> <target file>` for each plausible target file
+  - `create new`
+  - `skip`
 - Wait for user choice before writing.
 
 ## 3) No Match
@@ -54,5 +53,4 @@ Action:
 
 ## Exact-One-Owner Rewrite Rule
 
-Rewrite existing content only when exactly one owner is clear. If more than one target file is
-plausible, treat as ambiguous and require user choice.
+Rewrite existing content only when exactly one owner is clear. If more than one target file is plausible, treat as ambiguous and require user choice.

@@ -19,12 +19,13 @@
 | 2 | **Architecture** | Module boundaries, coupling, separation of concerns | Does the implementation respect existing architecture? Any new coupling introduced? |
 | 3 | **Security** | Input validation, auth, injection, data exposure | Any security vulnerabilities? Unsanitized inputs? Exposed secrets? |
 | 4 | **Test Coverage** | Tests exist, meaningful assertions, edge cases | Are the verification criteria actually tested? Any missing edge cases? |
-| 5 | **Learnings Synthesis** | Cross-cutting patterns, institutional memory | What patterns emerged? What should be remembered for future work? |
+| 5 | **Regression Risk** | User-facing behavior, workflow regressions, operational breakage | Could this change break an existing user flow, contract, integration, or rollout path even if the code looks correct? |
+| 6 | **Learnings Synthesis** | Cross-cutting patterns, institutional memory | What patterns emerged? What should be remembered for future work? |
 
 ## Dispatch Strategy
 
-- **4 or fewer specialists needed**: Launch all in parallel via the session's normal subagent/task-dispatch mechanism
-- **All 5**: Launch first 4 in parallel, then learnings synthesizer last (it cross-references the other findings)
+- **5 or fewer specialists needed**: Launch all in parallel via the session's normal subagent/task-dispatch mechanism
+- **All 6**: Launch the first 5 in parallel, then the learnings synthesizer last because it cross-references the other findings
 
 ## Specialist Prompt Template
 
@@ -71,6 +72,14 @@ Collect all findings from all specialists. Categorize:
 | **P1** (blocks merge) | Create a fix task bead, wire to epic, execute immediately |
 | **P2** (should fix) | Create a follow-up bead NOT under the current epic; its description must use Markdown |
 | **P3** (nice to have) | Record but do not create beads unless user requests |
+
+### Conflict Resolution
+
+When specialists disagree:
+- any substantiated P1 finding blocks completion until re-verified or fixed
+- substantiated P2/P3 findings are unioned rather than voted against each other
+- evidence-free claims should be discarded or downgraded
+- contradictory blocking claims require targeted re-verification or user escalation; never resolve them by majority vote alone
 
 ## Creating P1 Fix Beads
 

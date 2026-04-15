@@ -1,6 +1,6 @@
 # Debugging Operations
 
-Detailed operational playbook for `beo-debugging`. Load this file when you need exact known-pattern checks, reproduction commands, fix-bead handling, debug-note writes, blocker handling, or checkpoint mechanics.
+Operational playbook for `beo-debugging`. Load this file for exact known-pattern checks, reproduction commands, fix-bead handling, debug-note writes, blocker handling, or checkpoint mechanics.
 
 ## Table of Contents
 
@@ -28,19 +28,19 @@ npm run build 2>&1 | tee /tmp/debug-output.txt
 ```
 
 Then:
-- isolate the minimal repro
-- run twice to distinguish deterministic vs flaky behavior
-- classify flaky tests separately
+1. Isolate the minimal repro.
+2. Run twice to distinguish deterministic vs flaky behavior.
+3. Classify flaky tests separately.
 
 ## 3. Diagnostic Flow
 
 Use `diagnostic-checklist.md` for the ordered sub-checks:
-- source read
-- git blame
-- bead context
-- CONTEXT.md decision check
-- Agent Mail check
-- root-cause sentence
+1. source read
+2. git blame
+3. bead context
+4. CONTEXT.md decision check
+5. Agent Mail check
+6. root-cause sentence
 
 Do not proceed until you can state the root cause in one sentence.
 
@@ -70,7 +70,7 @@ If this is a new failure pattern, append a debug note to:
 .beads/artifacts/<feature_slug>/debug-notes.md
 ```
 
-If this reveals an outdated critical pattern, write a pattern-update note there as well.
+If this reveals an outdated critical pattern, write a pattern-update note there.
 
 After debugging, mark:
 

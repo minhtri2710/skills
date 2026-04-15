@@ -61,6 +61,7 @@ Read only the specific shared reference needed for the decision at hand unless a
 - `references/pipeline-contracts.md` — routing conditions, label lifecycle, skill handoff boundaries
 - `references/approval-gates.md` — approval requirements and label ownership
 - `references/dependency-and-scheduling.md` — bead dependency wiring and execution order
+- `references/failure-recovery.md` — shared recovery rules for tool failures, malformed state, and resume corruption
 
 **Artifacts & Files:**
 - `references/artifact-conventions.md#artifact-protocol` — artifact storage conventions (`discovery.md`, `approach.md`, `plan.md`, etc.)
@@ -96,7 +97,7 @@ After resolving the lookup:
 
 ## Canonical Ownership
 
-The reference skill owns the single source of truth for **all 15 documents in `references/`**. Other skills MUST NOT duplicate protocol definitions — they should summarize briefly and point back here.
+The reference skill owns the single source of truth for **all 16 documents in `references/`**. Other skills MUST NOT duplicate protocol definitions — they should summarize briefly and point back here.
 
 Any document listed in the Reference Index above is owned exclusively by this skill. If a reference doc and a local skill summary disagree, the reference doc wins.
 

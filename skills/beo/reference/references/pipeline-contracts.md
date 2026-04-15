@@ -1,23 +1,24 @@
 # Pipeline Contracts
 
-Canonical definitions for cross-cutting pipeline protocols. All skills reference this file for pipeline-level rules (back-edge responsibilities, artifact write rules, slug protocol). For task-state transitions and label semantics, see `status-mapping.md` as the canonical source. For approval grant rules, see `approval-gates.md`.
+Canonical pipeline-level rules for all skills: back-edge responsibilities, artifact write rules, and slug protocol. Use `status-mapping.md` for task-state transitions and label semantics, and `approval-gates.md` for approval grant rules.
 
 ## Table of Contents
 
 1. [State Routing Table](#state-routing-table)
-2. [HANDOFF.json Schema](#handoffjson-schema)
-3. [STATE.json Schema](#statejson-schema)
-4. [Label Lifecycle](#label-lifecycle)
-5. [Task Enumeration](#task-enumeration)
-6. [Epic Lifecycle](#epic-lifecycle)
-7. [Shared Artifact Write Rules](#shared-artifact-write-rules)
-8. [Feature Slug](#feature-slug)
+2. [Cross-Skill Invariants](#cross-skill-invariants)
+3. [HANDOFF.json Schema](#handoffjson-schema)
+4. [STATE.json Schema](#statejson-schema)
+5. [Label Lifecycle](#label-lifecycle)
+6. [Task Enumeration](#task-enumeration)
+7. [Epic Lifecycle](#epic-lifecycle)
+8. [Shared Artifact Write Rules](#shared-artifact-write-rules)
+9. [Feature Slug](#feature-slug)
 
 ---
 
 ## State Routing Table
 
-Evaluate **top-to-bottom, first match wins**. Earlier rows take priority.
+Evaluate **top-to-bottom; first match wins**.
 
 ### NextAction Types
 
@@ -31,14 +32,14 @@ Every router cycle ends with exactly one `NextAction`:
 
 ### Quick-Scope Definition
 
-Quick applies only when ALL of these are true:
+Apply quick scope only when ALL are true:
 - the work touches `<=2` files
 - there is no new public API
 - there are no schema changes
 - there is no user-facing behavior change
 - there is no auth/security impact
 
-This includes very small, well-scoped requests that previously fell under instant intake, such as single-file work that is plausibly `<30 minutes`.
+Include very small, well-scoped requests that previously fell under instant intake, such as single-file work plausibly `<30 minutes`.
 
 | # | Condition | State | Route To |
 |---|-----------|-------|----------|
@@ -67,18 +68,18 @@ This includes very small, well-scoped requests that previously fell under instan
 | 23 | Epic exists, no tasks, no `approved` label | **exploring** | `LoadSkill(beo-exploring)` |
 
 Ordering notes:
-1. The onboarding row must stay first so stale or missing onboarding blocks all deeper routing.
-2. Explicit user-intent rows stay near the top so meta-skill work and explicit dream requests short-circuit feature-state routing when they are actually actionable.
-3. New-feature intake rows stay above active-feature rows so clearly quick/debug/normal feature requests can bootstrap correctly before normal state routing applies.
-4. `invalid-epic-closure` (row 9) must stay above `learnings-pending` and `completed` so a prematurely closed epic with open child tasks is caught before being treated as finished.
-5. `learnings-pending` must stay above `completed` so closed epics route to compounding before they are treated as fully complete.
-6. `phase-complete-needs-replan` must stay above review and execution rows so multi-phase advancement does not get misclassified as generic execution.
-7. `awaiting-planning-approval` must stay above `planning-current-phase` and `ready-to-validate` semantics in any implementation logic so explicit planning-approval pauses are not skipped on resume.
-8. `exploring` is the fallback after the context and planning-artifact rows fail. Read it as "epic exists, but planning has not actually started yet."
+1. Keep the onboarding row first; stale or missing onboarding blocks deeper routing.
+2. Keep explicit user-intent rows near the top; let meta-skill work and explicit dream requests short-circuit feature-state routing when actionable.
+3. Keep new-feature intake rows above active-feature rows; bootstrap quick/debug/normal feature requests before normal state routing applies.
+4. Keep `invalid-epic-closure` (row 9) above `learnings-pending` and `completed`; catch prematurely closed epics with open child tasks before treating them as finished.
+5. Keep `learnings-pending` above `completed`; route closed epics to compounding before treating them as fully complete.
+6. Keep `phase-complete-needs-replan` above review and execution rows; do not misclassify multi-phase advancement as generic execution.
+7. Keep `awaiting-planning-approval` above `planning-current-phase` and `ready-to-validate`; do not skip explicit planning-approval pauses on resume.
+8. Treat `exploring` as the fallback after the context and planning-artifact rows fail: epic exists, but planning has not started.
 
 ### Planning Artifact Hierarchy
 
-The planning phase now produces up to seven artifacts in this order:
+Planning produces up to seven artifacts in this order:
 
 | Artifact | Role | Gate-Controlling |
 |----------|------|-----------------|
@@ -90,9 +91,82 @@ The planning phase now produces up to seven artifacts in this order:
 | `phase-contract.md` | Current phase as closed loop: entry/exit state, demo, scope | Yes (planning → validating gate) |
 | `story-map.md` | Current-phase story sequence, closure check, story-to-bead mapping | Yes (planning → validating gate) |
 
-The validation gate requires `phase-contract.md` AND `story-map.md` for the **current phase**.
+Validation requires `phase-contract.md` AND `story-map.md` for the **current phase**.
 
-`phase-plan.md` is optional and only exists when the feature is multi-phase.
+Create `phase-plan.md` only for multi-phase work.
+
+---
+
+## Cross-Skill Invariants
+
+Use these rules for all cross-skill handoffs. If a local skill summary disagrees, this section wins.
+
+### Single-Feature Workspace Thread
+
+Beo uses singleton `.beads/STATE.json` and `.beads/HANDOFF.json` files, so one workspace supports one active feature thread at a time.
+
+Checklist:
+- Do not silently choose among multiple active epics.
+- Route back to the user to select the intended epic before deeper routing continues.
+- Treat multiple active epics as ambiguity, not as a recoverable default, in onboarding, router, and resume flows.
+
+### Planning -> Validating Boundary
+
+Planning owns artifact creation and current-phase decomposition. Validating owns execution-readiness proof.
+
+Checklist:
+- Hand off from planning only after current-phase artifacts and bead graph exist.
+- Treat planning approval for `multi-phase` work as approval for sequence and current-phase selection only; never treat it as execution approval.
+- Do not invent missing planning artifacts in validating; if they are absent or structurally wrong, route back to planning.
+
+### Validation Approval Ownership
+
+Execution approval belongs to `beo-validating`.
+
+Checklist:
+- Add `approved` in `beo-validating` only after explicit user approval.
+- Do not let any other skill add `approved`.
+- Remove `approved` on any back-edge to planning or exploring before replanning continues.
+
+See `approval-gates.md` for the per-skill ownership matrix.
+
+### Validating -> Executing / Swarming Mode Selection
+
+Do not treat validation as complete until the next execution mode is chosen.
+
+Checklist:
+- Route to `beo-swarming` if 3+ independent ready tasks exist with isolated file scope and no serial bottleneck.
+- Otherwise route to `beo-executing`.
+- Treat "swarming not justified" as a mode-selection outcome, not a planning defect.
+
+### Execution and Review Back-Edges
+
+Preserve planning integrity when scope changes.
+
+Checklist:
+- If implementation or UAT reveals a planning-level intent change, update `CONTEXT.md`, remove `approved`, and route back to `beo-planning`.
+- If execution discovers a local fixable defect without changing locked decisions, keep work in execution/review flow instead of reopening planning.
+- Re-enter review-created P1 fixes through `beo-executing`; do not patch code directly in review.
+
+### Phase Advancement and Closure
+
+Treat current-phase completion and feature completion as different states.
+
+Checklist:
+- If later phases remain, route current-phase completion back to `beo-planning` and keep the feature open.
+- If no later phases remain and the final execution scope is terminal, route to `beo-reviewing`.
+- Close the epic in `beo-reviewing` only after P1 fixes are resolved and UAT passes.
+- Move state to `learnings-pending` after closure and before compounding begins.
+
+### Resume and HANDOFF Precedence
+
+Use both checkpoint files and live graph state when resuming.
+
+Checklist:
+- Let a valid, current `HANDOFF.json` drive resume.
+- Ignore malformed handoff data; reconstruct from live graph state and artifacts.
+- Let live state win when live graph/artifact state contradicts a stale handoff.
+- Treat `HANDOFF.json` as cleanup state, not durable truth; remove it only after the receiving skill writes fresh `STATE.json`.
 
 ---
 
@@ -112,7 +186,10 @@ Use `state-and-handoff-protocol.md` as the canonical source for the `STATE.json`
 
 See `status-mapping.md` as the canonical source for all label semantics, status-to-label mappings, and stale label cleanup rules.
 
-The `approved` label back-edge removal invariant: `approved` must be removed via `br label remove <EPIC_ID> -l approved` whenever routing back to planning or exploring; on normal completion it remains on the closed epic as historical state. See `approval-gates.md` → Approved Label Ownership for the per-skill responsibility matrix.
+Back-edge removal invariant for `approved`:
+- Remove it via `br label remove <EPIC_ID> -l approved` whenever routing back to planning or exploring.
+- Leave it on the closed epic on normal completion as historical state.
+- See `approval-gates.md` → Approved Label Ownership for the per-skill responsibility matrix.
 
 ---
 
@@ -136,13 +213,12 @@ Interpret task enumeration against the active planning mode:
 
 The canonical Feature States table (planning → approved → executing → completed) lives in `status-mapping.md` → Feature States.
 
-**Summary:** Epics start as `open` with no labels (planning), gain `approved` via validation, transition to `in_progress` when execution claims them, and close when the feature completes. Closed epics normally retain `approved` as the historical marker that validated execution completed without a planning/exploring back-edge. See `status-mapping.md` for the full state table and exact commands.
-
-**Who transitions to executing:** The first skill that starts execution (executing or swarming) must run `br update <EPIC_ID> --claim` before dispatching any workers.
-
-**Router epic query:** Use `br list --type epic -a --json` to find all epics including `in_progress` and `closed` ones. Filter in application logic.
-
-**Who closes the epic:** The reviewing skill closes the epic (`br close <EPIC_ID>`) as part of the completion handoff, after all P1 fixes are resolved and UAT passes. This must happen before writing `learnings-pending` state. No other skill closes the epic during normal pipeline flow.
+| Topic | Contract |
+|------|----------|
+| Summary | Start epics as `open` with no labels (planning), add `approved` via validation, transition to `in_progress` when execution claims them, and close when the feature completes. Closed epics normally retain `approved` as the historical marker that validated execution completed without a planning/exploring back-edge. See `status-mapping.md` for the full state table and exact commands. |
+| Who transitions to executing | Run `br update <EPIC_ID> --claim` in the first skill that starts execution (executing or swarming) before dispatching any workers. |
+| Router epic query | Use `br list --type epic -a --json` to find all epics, including `in_progress` and `closed`. Filter in application logic. |
+| Who closes the epic | Let `beo-reviewing` close the epic via `br close <EPIC_ID>` as part of the completion handoff, after all P1 fixes are resolved and UAT passes. Do this before writing `learnings-pending` state. Do not let any other skill close the epic during normal pipeline flow. |
 
 ---
 
@@ -150,25 +226,27 @@ The canonical Feature States table (planning → approved → executing → comp
 
 ### critical-patterns.md
 
-- **Who writes:** `beo-compounding` and `beo-dream` propose entries.
-- **Approval required:** Both skills must present proposed promotions to the user and receive explicit approval before appending. Never auto-append.
-- **Format:** See compounding's Phase 4 for entry format.
-- **Aligned with:** dream (hard rule: do not edit `critical-patterns.md` without explicit approval) and reviewing (red flag: "Promoting learnings without approval").
+| Field | Rule |
+|------|------|
+| Who writes | `beo-compounding` and `beo-dream` propose entries. |
+| Approval required | Present proposed promotions to the user and receive explicit approval before appending. Never auto-append. |
+| Format | See compounding's Phase 4 for entry format. |
+| Aligned with | Follow dream (hard rule: do not edit `critical-patterns.md` without explicit approval) and reviewing (red flag: "Promoting learnings without approval"). |
 
 ### Fix Beads (from debugging)
 
-Fix beads use `--parent` for graph visibility and reference the affected bead ID in the description for traceability:
+Use `--parent` for graph visibility and reference the affected bead ID in the description for traceability:
 
 ```bash
 br create "Fix: <root cause summary>" -t task --parent <EPIC_ID> -p 1 --json
 ```
 
-Do not use `--deps blocks:<closed-bead>` — the original bead is typically already closed, making the blocking dependency a no-op.
-Reference the affected bead ID in the fix bead description (using the Reactive Fix Bead Template from `bead-description-templates.md`) instead.
+Do not use `--deps blocks:<closed-bead>`; the original bead is typically already closed, so the blocking dependency is a no-op.
+Reference the affected bead ID in the fix bead description instead, using the Reactive Fix Bead Template from `bead-description-templates.md`.
 
 ### Task Creation During Validation
 
-Validation may only create **spike beads** (time-boxed experiments, priority 0). Spikes are not implementation tasks; they are experiments to reduce uncertainty. For actual missing tasks, route back to `beo-planning`.
+Create only **spike beads** during validation (time-boxed experiments, priority 0). Do not treat spikes as implementation tasks; use them to reduce uncertainty. For actual missing tasks, route back to `beo-planning`.
 
 ---
 

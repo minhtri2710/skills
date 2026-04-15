@@ -1,6 +1,6 @@
 # Bead Operations
 
-Operational reference for task bead creation, description writing, dependency wiring, review checklists, Quick Mode, and promotion flow.
+Task bead creation, description writing, dependency wiring, review checklists, Quick Mode, and promotion flow.
 
 ## Table of Contents
 
@@ -17,18 +17,16 @@ Operational reference for task bead creation, description writing, dependency wi
 
 ## Story Context Block
 
-Every bead description must be written in Markdown format using the shared templates from `../../reference/references/bead-description-templates.md` and include the required sections.
-
-If no institutional learnings apply, write: "No prior learnings for this domain."
+Every bead description must use Markdown format with the shared templates from `../../reference/references/bead-description-templates.md`. If no institutional learnings apply, write: "No prior learnings for this domain."
 
 ---
 
 ## Story-to-Bead Decomposition Rules
 
-- One story usually becomes 1-3 beads
-- A bead should not span multiple unrelated stories
-- If a story needs 4+ substantial beads, re-check whether the story is too large
-- The story order should still be visible after decomposition
+- One story → usually 1-3 beads
+- A bead must not span multiple unrelated stories
+- If a story needs 4+ substantial beads, the story may be too large
+- Story order must remain visible after decomposition
 - Story closure matters more than layer purity
 
 ---
@@ -39,67 +37,60 @@ If no institutional learnings apply, write: "No prior learnings for this domain.
 After all beads are created, read every bead back and verify. No bead may be handed off without passing this check.
 </HARD-GATE>
 
-For each task bead under the epic:
+For each task bead: `br show <TASK_ID> --json`
 
-```bash
-br show <TASK_ID> --json
-```
+Verify `.description` contains:
 
-Verify that `.description` contains:
-
-- [ ] Non-empty description
-- [ ] Markdown-formatted description using the shared planned bead template
+- [ ] Non-empty Markdown description using the shared planned bead template
 - [ ] Story context block (Story, Purpose, Contributes To, Unlocks)
-- [ ] File scope (which files to create/modify)
+- [ ] File scope (files to create/modify)
 - [ ] Numbered implementation steps
 - [ ] Verification criteria
 - [ ] Enough context for a fresh worker who has never seen the plan
-- [ ] Error contract for I/O beads (what happens on failure?)
+- [ ] Error contract for I/O beads (failure behavior)
 - [ ] Secret handling requirements when decisions mention API keys/tokens
-- [ ] Locked decision references (D-IDs) are present when `CONTEXT.md` has a Locked Decisions table
+- [ ] Locked decision references (D-IDs) when `CONTEXT.md` has a Locked Decisions table
 
-If any bead fails this check, fix it immediately via `br update <TASK_ID> --description`. A bead without a complete description is an invalid intermediate state. It must not survive to handoff.
+Fix immediately via `br update <TASK_ID> --description`. A bead without a complete description is an invalid state that must not survive to handoff.
 
 ---
 
 ## Plan Review Checklists
 
-Before marking the plan as approved, run these self-review checks.
-
-### Completeness Check
+### Completeness
 
 For each CONTEXT.md decision (D1, D2, ...):
-- [ ] Is there at least one task that implements this decision?
-- [ ] Is the verification criteria traceable to the decision?
+- [ ] At least one task implements this decision
+- [ ] Verification criteria traceable to the decision
 
-### Decomposition Quality Check
+### Decomposition Quality
 
 For each task:
-- [ ] Could a developer start this task with only the task description + plan?
-- [ ] Is the file scope clear (no overlapping files between independent tasks)?
-- [ ] Are verification criteria concrete and testable?
-- [ ] Is the risk assessment honest?
+- [ ] Developer can start with only the task description + plan
+- [ ] File scope clear (no overlapping files between independent tasks)
+- [ ] Verification criteria concrete and testable
+- [ ] Risk assessment honest
 
-### Story Completeness Check
+### Story Completeness
 
 For each story in story-map.md:
 - [ ] At least one bead maps to this story
-- [ ] The bead set for this story covers the story's "Done Looks Like" criteria
-- [ ] No bead is orphaned (every bead maps to exactly one story)
+- [ ] Bead set covers the story's "Done Looks Like" criteria
+- [ ] No orphaned beads (every bead maps to exactly one story)
 
 ---
 
 ## Quick Mode
 
-For features classified as **Quick**, see `../../reference/references/pipeline-contracts.md` for the canonical definition.
+For features classified as **Quick** (see `../../reference/references/pipeline-contracts.md` § Quick-Scope Definition):
 
-1. Skip the parallel exploration step. Do a quick single-pass review of affected files
+1. Skip parallel exploration — do a quick single-pass review of affected files
 2. Write abbreviated plan.md (approach + tasks, skip discovery summary)
 3. Create task beads directly
-4. Still wire dependencies and validate the graph
-5. Skip the formal review. Present directly to user
-6. Write abbreviated phase-contract.md (approach + exit state, skip phase diagram)
-7. Write abbreviated story-map.md (single story, skip dependency diagram)
+4. Wire dependencies and validate the graph
+5. Skip formal review — present directly to user
+6. Write abbreviated phase-contract.md (approach + exit state)
+7. Write abbreviated story-map.md (single story)
 
 ---
 
@@ -107,125 +98,66 @@ For features classified as **Quick**, see `../../reference/references/pipeline-c
 
 When instant-path tasks grow beyond their envelope:
 
-### Step 1: Gather Existing Tasks
-
-```bash
-# List existing manual tasks (canonical enumeration; see pipeline-contracts.md)
-br dep list <EPIC_ID> --direction up --type parent-child --json
-```
-
-### Step 2: Write Plan Around Them
-
-Create plan.md that incorporates existing tasks as entries, plus any new tasks needed.
-
-### Step 3: Create Missing Task Beads
-
-Only create beads for tasks that don't already exist. Wire dependencies for all tasks (existing + new).
-
-### Step 4: Proceed to Validation
-
-Route to `beo-validating`. Promoted plans need the same rigor as fresh plans.
+1. **Gather existing tasks:** `br dep list <EPIC_ID> --direction up --type parent-child --json`
+2. **Write plan around them:** Create plan.md incorporating existing tasks + any new tasks needed
+3. **Create missing beads:** Only for tasks that don't already exist. Wire dependencies for all (existing + new)
+4. **Proceed to validation:** Route to `beo-validating`. Promoted plans need the same rigor as fresh plans
 
 ---
 
 ## Task Bead Creation Operations
 
-### Create Task Beads
-
-For each current-phase task in the plan:
+### Create task beads
 
 ```bash
 br create "<Task Name>" -t task --parent <EPIC_ID> -p <priority> --json
 ```
 
-Priority assignment:
+| Priority | Use for |
+|----------|---------|
+| 0 | Spike / urgent proof task |
+| 1 | Critical path |
+| 2 | Standard delivery |
+| 3 | Cleanup / nice-to-have |
 
-- spike / urgent proof task: 0
-- critical path: 1
-- standard delivery: 2
-- cleanup / nice-to-have: 3
+### Write descriptions
 
-### Write Task Descriptions
-
-Use the shared **Planned Task Bead Template** from:
-
-```text
-../../reference/references/bead-description-templates.md
-```
+Use the **Planned Task Bead Template** from `../../reference/references/bead-description-templates.md`.
 
 ```bash
 br update <TASK_ID> --description "<markdown task spec content>"
 ```
 
-If no institutional learnings apply, include:
-
-```text
-No prior learnings for this domain.
-```
-
-### Wire Dependencies
-
-For each dependency:
+### Wire dependencies
 
 ```bash
 # Task B depends on Task A (B is blocked by A)
 br dep add <TASK_B_ID> <TASK_A_ID>
 ```
 
-### Complete Story-to-Bead Mapping
+### Complete story-to-bead mapping
 
-After bead creation, fill the `Story-To-Bead Mapping` section in:
+After bead creation, fill `Story-To-Bead Mapping` in `.beads/artifacts/<feature_slug>/story-map.md`.
 
-```bash
-# .beads/artifacts/<feature_slug>/story-map.md
-```
-
-### Validate the Graph
+### Validate the graph
 
 ```bash
-# Check for dependency cycles
-br dep cycles --json
-
-# Verify all tasks are reachable
-bv --robot-insights --format json
+br dep cycles --json        # Check for cycles
+bv --robot-insights --format json  # Verify all tasks reachable
 ```
 
-If cycles are detected:
+If cycles detected: identify cycle → find weakest edge → `br dep remove <child> <parent>` → re-validate.
 
-1. identify the cycle
-2. determine the weakest edge
-3. remove it with `br dep remove <child> <parent>`
-4. re-validate
+### Run bead completeness check
 
-### Bead Completeness Check
+Read each bead back and verify it passes the check above.
 
-After all beads are created, read each one back and verify it passes the Bead Completeness Check section above.
+### Multi-phase scope rule
 
-### Scope rule for multi-phase work
-
-If planning mode is `multi-phase`, verify that every bead belongs to the selected current phase.
-
-If a bead belongs to a later phase:
-
-- remove it from the current execution set
-- keep that work deferred in `phase-plan.md`
-- do not smuggle future-phase work into the current phase “just to save time”
+If multi-phase, verify every bead belongs to the current phase. If a bead belongs to a later phase: remove from current set, keep deferred in `phase-plan.md`. Do not smuggle future-phase work into the current phase.
 
 ## Epic Description Update
 
-Before updating the epic description, use:
+Use `../../reference/references/artifact-conventions.md#slug-lifecycle` to preserve the canonical slug-first shape.
 
-```text
-../../reference/references/artifact-conventions.md#slug-lifecycle
-```
-
-Preserve the canonical slug-first shape.
-
-If the epic description includes a planning summary, update it to reflect:
-
-- planning mode (`single-phase` or `multi-phase`)
-- whether `phase-plan.md` exists
-- current phase number / name, if known
-- total phase count, if known
-
-Keep the description concise. Do not paste full artifact contents into the epic bead.
+If the epic description includes a planning summary, update to reflect: planning mode, whether `phase-plan.md` exists, current phase number/name, total phase count. Keep concise — do not paste full artifact contents.

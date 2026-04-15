@@ -24,8 +24,7 @@ flowchart LR
     S3 --> X[Exit State]
 ```
 
-Replace the placeholder story nodes with the actual story names. If multiple
-stories can run in parallel, show that explicitly:
+Replace placeholder nodes with actual story names. Show parallel stories explicitly:
 
 ```mermaid
 flowchart LR
@@ -86,15 +85,13 @@ flowchart LR
   - `<bead theme 1>`
   - `<bead theme 2>`
 
-Remove any unused story sections and keep only the stories the phase actually
-needs.
+Remove unused story sections.
 
 ---
 
 ## 4. Closure Check
 
-> If every story reaches its "Done Looks Like" line, should the phase exit state
-> be true?
+If every story reaches its "Done Looks Like" line, should the phase exit state be true?
 
 - [ ] Yes: the story set fully closes the phase loop
 - [ ] No: missing story or exit-state coverage remains
@@ -105,8 +102,7 @@ If "No", revise the map before creating beads.
 
 ## 5. Story-To-Bead Mapping
 
-> Fill this in after bead creation so downstream validation and swarming can see
-> how the narrative maps to executable work.
+Fill in after bead creation so downstream validation and swarming can see how the narrative maps to executable work.
 
 | Story | Beads | Notes |
 |-------|-------|-------|

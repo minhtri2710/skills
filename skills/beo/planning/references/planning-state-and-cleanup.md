@@ -4,13 +4,7 @@ Operational reference for state updates, handoff rules, replanning cleanup, and 
 
 ## 13. State Update and Handoff Rules
 
-After planning artifacts are written, tasks are created, and dependencies are wired, write `.beads/STATE.json` using the canonical schema from:
-
-```text
-../../reference/references/state-and-handoff-protocol.md
-```
-
-Include these planning-specific fields.
+After artifacts are written, tasks created, and dependencies wired, write `.beads/STATE.json` using the canonical schema from `../../reference/references/state-and-handoff-protocol.md`.
 
 ### Minimum planning state fields
 
@@ -33,22 +27,17 @@ Include these planning-specific fields.
 
 ### Handoff rules
 
-#### Single-phase
+**Single-phase:** validating checks the current phase, which is also the full execution scope.
 
-- validating checks the current phase, which is also the full execution scope
-
-#### Multi-phase
-
-- validating checks the selected current phase only
-- later phases remain deferred in `phase-plan.md`
-- when the current phase completes and later phases remain, router should return to `beo-planning`
-- do not treat current-phase completion as whole-feature completion
-- do not hand off to validating until the user has approved the phase sequence and current-phase selection
+**Multi-phase:**
+- Validating checks the selected current phase only; later phases remain deferred in `phase-plan.md`
+- When the current phase completes and later phases remain, router returns to `beo-planning`
+- Do not treat current-phase completion as whole-feature completion
+- Do not hand off to validating until the user has approved the phase sequence and current-phase selection
 
 ### Approval summary templates
 
-#### Single-phase
-
+**Single-phase:**
 ```text
 Plan ready.
 Mode: single-phase
@@ -61,36 +50,29 @@ Mode: single-phase
 Ready to validate.
 ```
 
-#### Multi-phase
-
-Use the canonical multi-phase planning approval prompt from `../../reference/references/approval-gates.md` § 1. Planning Approval for Multi-Phase Work.
+**Multi-phase:** Use the canonical prompt from `../../reference/references/approval-gates.md` § 1. Planning Approval for Multi-Phase Work.
 
 ## 14. Phase-Plan Invalidation and Replanning Cleanup
 
-When planning re-enters (multi-phase back-edge, scope revision, or user-initiated replan), stale artifacts and state fields must be cleaned up before new planning proceeds.
+When planning re-enters (multi-phase back-edge, scope revision, or user-initiated replan), clean up stale artifacts before new planning proceeds.
 
 ### Trigger conditions
 
 Replanning cleanup is required when any of these are true:
-
-- the current phase completed and the back-edge returns to planning for the next phase
-- the user or reviewer requests a scope revision that changes the phase structure
-- the planning mode changes (e.g., multi-phase to single-phase or vice versa)
-- the phase sequence changes within multi-phase work
+- Current phase completed and back-edge returns to planning for the next phase
+- User or reviewer requests a scope revision that changes the phase structure
+- Planning mode changes (e.g., multi-phase → single-phase or vice versa)
+- Phase sequence changes within multi-phase work
 
 ### If replanning results in single-phase work
 
 ```bash
-# 1. Delete stale phase-plan.md
 rm .beads/artifacts/<feature_slug>/phase-plan.md
-
-# 2. Delete stale current-phase artifacts if they reference the old phase identity
 rm .beads/artifacts/<feature_slug>/phase-contract.md
 rm .beads/artifacts/<feature_slug>/story-map.md
 ```
 
-Then rewrite planning-aware state fields in `STATE.json` and `HANDOFF.json`:
-
+Rewrite planning-aware state fields in `STATE.json` and `HANDOFF.json`:
 - `planning_mode: single-phase`
 - `has_phase_plan: false`
 - `current_phase: 1`
@@ -106,7 +88,7 @@ Regenerate `phase-contract.md` and `story-map.md` for the new single-phase scope
 3. Refresh all planning-aware fields including `phase_name`
 4. Regenerate current-phase artifacts for the newly selected phase
 5. Remove the `approved` label: `br label remove <EPIC_ID> -l approved`
-6. Prior approval is invalidated — route back through `beo-validating`
+6. Route back through `beo-validating`
 
 ### If the current phase completed and the next phase starts
 
@@ -116,39 +98,26 @@ Regenerate `phase-contract.md` and `story-map.md` for the new single-phase scope
 4. Update `phase_name` to the new current phase name
 5. Create fresh `phase-contract.md` and `story-map.md` for the new current phase
 6. Remove the `approved` label: `br label remove <EPIC_ID> -l approved`
-7. Prior approval is invalidated — route back through `beo-validating`
+7. Route back through `beo-validating`
 
 ### Hard rules
 
 - **Delete, do not invalidate.** Stale `phase-plan.md` must be deleted, not marked invalid.
-- **`phase_name` must be refreshed.** Do not leave a stale phase name from a prior cycle.
-- **Prior approval is always invalidated** when the phase structure or execution scope changes. The `approved` label must be explicitly removed via `br label remove <EPIC_ID> -l approved`.
+- **`phase_name` must be refreshed.** Never leave a stale phase name from a prior cycle.
+- **Prior approval is always invalidated** when phase structure or execution scope changes — remove via `br label remove <EPIC_ID> -l approved`.
 - **`STATE.json` and `HANDOFF.json` must be refreshed** before any handoff after replanning.
 
 ## 15. Context-Budget Checkpointing
 
-If context usage exceeds 65% during planning:
+If context usage exceeds 65% during planning, write all available artifacts in this order:
 
-1. write findings so far to `discovery.md`
-2. write `approach.md` if approach shaping has started
-3. write `plan.md` if a summary exists
-4. write `phase-plan.md` if multi-phase sequencing is already clear
-5. write `phase-contract.md` if the current phase is drafted
-6. write `story-map.md` if the current phase story sequence is drafted
-7. create any ready current-phase task beads
-8. write `HANDOFF.json`
+1. `discovery.md` — findings so far
+2. `approach.md` — if approach shaping has started
+3. `plan.md` — if a summary exists
+4. `phase-plan.md` — if multi-phase sequencing is clear
+5. `phase-contract.md` — if the current phase is drafted
+6. `story-map.md` — if the current phase story sequence is drafted
+7. Create any ready current-phase task beads
+8. Write `HANDOFF.json` using the canonical base schema from `../../reference/references/state-and-handoff-protocol.md`, plus any planning-specific resume detail needed
 
-Use the canonical base schema from:
-
-```text
-../../reference/references/state-and-handoff-protocol.md
-```
-
-Then add any planning-specific resume detail you need.
-
-### Checkpoint rule
-
-Prefer partial but truthful artifacts over leaving planning state only in conversation history.
-
-A partial `approach.md` or `phase-plan.md` is acceptable if clearly marked as incomplete.
-A missing artifact is harder to resume from than an incomplete one with explicit gaps.
+**Rule:** Prefer partial but truthful artifacts over leaving planning state only in conversation history. A partial `approach.md` or `phase-plan.md` clearly marked as incomplete is easier to resume from than a missing artifact.

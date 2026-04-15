@@ -1,7 +1,5 @@
 # Execution Operations
 
-Detailed operational playbook for `beo-executing`. Load this file when you need exact prereq checks, task transitions, reporting commands, completion verification, or checkpoint/handoff details.
-
 ## Table of Contents
 
 - [1. Prerequisites](#1-prerequisites)
@@ -27,12 +25,12 @@ br dep list <EPIC_ID> --direction up --type parent-child --json
 
 See `../../reference/references/shared-hard-gates.md` § Approval Verification for the canonical approval check and routing rules.
 
-Also confirm planning-aware scope when relevant:
+Confirm planning-aware scope when relevant:
 
-- read `.beads/STATE.json` if present
-- read `phase-plan.md` if present
-- treat `phase-contract.md` and `story-map.md` as the **current phase** artifacts
-- do not assume current-phase execution implies whole-feature completion when `planning_mode = multi-phase`
+1. Read `.beads/STATE.json` if present.
+2. Read `phase-plan.md` if present.
+3. Treat `phase-contract.md` and `story-map.md` as the **current phase** artifacts.
+4. Do not assume current-phase execution implies whole-feature completion when `planning_mode = multi-phase`.
 
 ## 2. Epic Claim
 
@@ -53,8 +51,9 @@ Pick the top executable bead from the first available track. If dispatched by sw
 For multi-phase work, select only beads that belong to the **current phase**.
 
 Fallback-scoping rule:
-- `bv --robot-plan --graph-root <EPIC_ID>` is authoritative when available
-- if falling back to `bv --robot-next` or `br ready`, post-filter results to beads that belong to the active epic and current phase before selecting work
+
+1. `bv --robot-plan --graph-root <EPIC_ID>` is authoritative when available.
+2. If falling back to `bv --robot-next` or `br ready`, post-filter results to beads that belong to the active epic and current phase before selecting work.
 
 ## 4. Pre-Dispatch Checks
 
@@ -72,7 +71,7 @@ All blocking tasks must be closed.
 
 ### Stale Label Cleanup
 
-Remove stale labels before dispatch. See `pipeline-contracts.md` Label Lifecycle for the canonical label definitions.
+Remove stale labels before dispatch. See `pipeline-contracts.md` Label Lifecycle for canonical label definitions.
 
 ```bash
 br label remove <TASK_ID> -l blocked 2>/dev/null
@@ -88,10 +87,11 @@ Do **not** remove `debug_attempted`. It is routing-significant history, not stal
 ### Description Verification
 
 Read `br show <TASK_ID> --json` and verify `.description` is:
-- non-empty and substantive
-- includes file scope
-- includes concrete verification criteria
-- includes story context unless this is a reactive fix bead
+
+1. non-empty and substantive
+2. includes file scope
+3. includes concrete verification criteria
+4. includes story context unless this is a reactive fix bead
 
 If empty or underspecified, do not dispatch. Route back to `beo-planning` or `beo-validating`.
 
@@ -99,23 +99,27 @@ If empty or underspecified, do not dispatch. Route back to `beo-planning` or `be
 
 Scan the bead description for D-ID markers (`D1`, `D2`, ...) and verify each one exists in the Locked Decisions table in `.beads/artifacts/<feature_slug>/CONTEXT.md`.
 
-Flag any of these mismatches:
-- a D-ID is referenced in the bead but missing from `CONTEXT.md`
-- the bead's requested behavior contradicts a locked decision in `CONTEXT.md`
+Flag either mismatch:
+
+1. a D-ID is referenced in the bead but missing from `CONTEXT.md`
+2. the bead's requested behavior contradicts a locked decision in `CONTEXT.md`
 
 If a mismatch is found, stop execution and route to `beo-exploring` to resolve the decision conflict before dispatch.
 
 Fallback for legacy features:
-- if `CONTEXT.md` has no Locked Decisions table, skip D-ID verification and log the warning `No Locked Decisions table found — D-ID verification skipped.`
+
+1. If `CONTEXT.md` has no Locked Decisions table, skip D-ID verification.
+2. Log `No Locked Decisions table found — D-ID verification skipped.`
 
 ### Current-Phase Scope Check
 
 Before execution, confirm the bead belongs to the currently approved phase.
 
 If `phase-plan.md` exists and the bead clearly belongs to a later phase:
-- do not execute it
-- route back to planning-aware flow
-- keep later-phase work deferred until the next planning cycle
+
+1. Do not execute it.
+2. Route back to planning-aware flow.
+3. Keep later-phase work deferred until the next planning cycle.
 
 ## 5. Task Transition Protocol
 
@@ -128,9 +132,10 @@ Use the canonical reservation signatures and identity rules from `../../referenc
 Before implementation, reserve the files the bead will touch using the `file_reservation_paths` API from the canonical reference above.
 
 If `conflicts` are returned:
-- do not edit through the conflict
-- send a `[FILE CONFLICT]` message to the coordinator using `../../swarming/references/message-templates.md`
-- poll inbox until the coordinator resolves the conflict
+
+1. Do not edit through the conflict.
+2. Send a `[FILE CONFLICT]` message to the coordinator using `../../swarming/references/message-templates.md`.
+3. Poll inbox until the coordinator resolves the conflict.
 
 After bead close, release held paths using the `release_file_reservations` API from the same reference.
 
@@ -140,11 +145,12 @@ After bead close, release held paths using the `release_file_reservations` API f
 ### Solo mode (no Agent Mail)
 
 If Agent Mail / reservation APIs are unavailable and execution is running in standalone solo mode:
-- do not attempt reservations
-- do not assume any parallel beo workers exist
-- execute exactly one bead at a time
-- read current local changes before editing, and if unrelated concurrent edits are present, pause and ask the user instead of guessing ownership
-- still keep file scope narrow and explicit in the bead report
+
+1. Do not attempt reservations.
+2. Do not assume any parallel beo workers exist.
+3. Execute exactly one bead at a time.
+4. Read current local changes before editing, and if unrelated concurrent edits are present, pause and ask the user instead of guessing ownership.
+5. Keep file scope narrow and explicit in the bead report.
 
 Once file coordination is clear, transition the task:
 
@@ -169,21 +175,22 @@ br audit record --kind tool_call --issue-id <TASK_ID> --tool-name "dispatch"
 
 Use `worker-prompt-guide.md` for the full prompt template and budget-truncation rules.
 
-The worker prompt should include, when relevant:
-- planning mode
-- current phase name / number
-- current-phase exit state
-- current story context
-- a note that later phases remain deferred if the feature is multi-phase
+Include, when relevant:
+
+1. planning mode
+2. current phase name / number
+3. current-phase exit state
+4. current story context
+5. a note that later phases remain deferred if the feature is multi-phase
 
 ### Standalone Dispatch
 
-Use the session's standard subagent or task-execution tool. The exact tool name may vary by environment; the required payload does not:
+Use the session's standard subagent or task-execution tool. Required payload:
 
-- implementation-focused task title or description
-- assembled worker prompt
-- worker/subagent type capable of implementation
-- blocking wait for the result before post-worker updates
+1. implementation-focused task title or description
+2. assembled worker prompt
+3. worker/subagent type capable of implementation
+4. blocking wait for the result before post-worker updates
 
 Abstract contract:
 
@@ -200,16 +207,17 @@ If no worker-dispatch mechanism is available, skip delegated dispatch and implem
 ### Worker Report Expectations
 
 The worker should return:
-- status: `done | blocked | failed | partial`
-- summary
-- blockers (if any)
-- learnings
+
+1. status: `done | blocked | failed | partial`
+2. summary
+3. blockers (if any)
+4. learnings
 
 ## 7. Post-Worker Updates
 
 ### Status Mapping
 
-> Task and feature status values follow `status-mapping.md`. See `beo-reference` for the authoritative state machines and the `br` command sequences for each worker report.
+Task and feature status values follow `status-mapping.md`. See `beo-reference` for the authoritative state machines and the `br` command sequences for each worker report.
 
 ### Git Commit Format
 
@@ -220,12 +228,15 @@ Recommended commit format:
 ```
 
 Use the type that best matches the bead work:
-- `feat` for new functionality
-- `fix` for bug fixes
-- `refactor` for restructuring
-- `docs` for documentation
-- `test` for test-only changes
-- `chore` for config or tooling work
+
+| Type | Use |
+| --- | --- |
+| `feat` | new functionality |
+| `fix` | bug fixes |
+| `refactor` | restructuring |
+| `docs` | documentation |
+| `test` | test-only changes |
+| `chore` | config or tooling work |
 
 Use one logical commit per bead at close time. Multi-file beads should still produce a single atomic commit.
 
@@ -234,8 +245,6 @@ Example:
 ```text
 feat(pe-jju.3): add retry logic to webhook handler
 ```
-
-This format is a strong recommendation, not a hard gate.
 
 ### Write the Report Artifact
 
@@ -269,8 +278,6 @@ br sync --flush-only
 
 ### Bead Completion Validation
 
-After every bead close, run this validation sequence:
-
 1. Verify `br show <BEAD_ID> --json` reports status `closed`.
 2. Verify the completion report includes bead ID, files changed, tests added or modified, and verification result.
 3. Release all held file reservations with `release_file_reservations(project_key, agent_name, paths=[...])` when Agent Mail mode is active.
@@ -291,12 +298,13 @@ br dep list <EPIC_ID> --direction up --type parent-child --json
 bv --robot-next --format json 2>/dev/null || br ready --json
 ```
 
-Decision table:
-- more ready current-phase tasks → loop
-- all remaining tasks blocked → report blockers
-- all current-phase tasks closed → complete current phase
-- a task failed → report and ask user
-- context budget >65% → checkpoint and pause
+| Condition | Action |
+| --- | --- |
+| more ready current-phase tasks | loop |
+| all remaining tasks blocked | report blockers |
+| all current-phase tasks closed | complete current phase |
+| a task failed | report and ask user |
+| context budget >65% | checkpoint and pause |
 
 ### Completion
 
@@ -335,9 +343,12 @@ Update `.beads/STATE.json`:
 ```
 
 Routing rule:
-- if `planning_mode = single-phase` and execution scope is complete → `beo-reviewing`
-- if `planning_mode = multi-phase` and later phases remain → remove `approved` label first (`br label remove <EPIC_ID> -l approved`), then route to `beo-planning`
-- if `planning_mode = multi-phase` and this was the final phase → `beo-reviewing`
+
+| Condition | Route |
+| --- | --- |
+| `planning_mode = single-phase` and execution scope is complete | `beo-reviewing` |
+| `planning_mode = multi-phase` and later phases remain | remove `approved` label first (`br label remove <EPIC_ID> -l approved`), then route to `beo-planning` |
+| `planning_mode = multi-phase` and this was the final phase | `beo-reviewing` |
 
 ## 9. Context-Budget Checkpoint
 
@@ -347,12 +358,12 @@ Write a final report artifact for the current task and stop gracefully. The orch
 
 ### Single-Worker Mode
 
-1. finish updating the current task status
-2. write `HANDOFF.json`
-3. flush with `br sync --flush-only`
-4. pause
+1. Finish updating the current task status.
+2. Write `HANDOFF.json`.
+3. Flush with `br sync --flush-only`.
+4. Pause.
 
 Use the canonical base schema from `../../reference/references/state-and-handoff-protocol.md`, then add any executing-specific resume detail you need.
 
 When relevant, include the planning-aware fields from `../../reference/references/state-and-handoff-protocol.md` § Planning-Aware HANDOFF.json Extension Fields.
-- whether current-phase execution is complete or partially complete
+1. whether current-phase execution is complete or partially complete

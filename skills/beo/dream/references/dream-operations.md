@@ -1,6 +1,6 @@
 # Dream Operations
 
-Detailed operational playbook for `beo-dream`. Load this file when you need exact provenance checks, mode selection, candidate classification mechanics, run-finalization steps, or checkpoint behavior.
+Load this file for exact provenance checks, mode selection, candidate classification, finalization, and checkpoint behavior.
 
 ## Table of Contents
 
@@ -14,8 +14,8 @@ Detailed operational playbook for `beo-dream`. Load this file when you need exac
 ## 1. Orient and Detect Run Mode
 
 1. detect tool availability (see `../../reference/references/knowledge-store.md` § Tool Detection)
-2. read existing learnings using the canonical read protocol (`../../reference/references/learnings-read-protocol.md`): QMD/Obsidian first, flat-file fallback only when unavailable
-3. detect provenance via learnings frontmatter and `.beads/learnings/dream-run-provenance.md`
+2. read existing learnings using the canonical read protocol (`../../reference/references/learnings-read-protocol.md`): QMD/Obsidian first; flat-file fallback only when unavailable
+3. detect provenance from learnings frontmatter and `.beads/learnings/dream-run-provenance.md`
 4. choose mode:
    - `bootstrap` if no provenance exists or the user requests a full scan
    - `recurring` otherwise
@@ -29,24 +29,26 @@ Use `agent-history-source-policy.md` for source priority and recurring-window de
 
 ## 3. Extract and Classify Candidates
 
-Apply the safety filter first:
+1. Apply the safety filter:
 - redact secrets and PII before any summary or durable write
 - skip candidates that cannot be safely redacted
 
-Then classify each candidate using `consolidation-rubric.md` into exactly one branch:
-- clear match
-- ambiguous
-- no match
-- no durable signal
+2. Classify each candidate with `consolidation-rubric.md` into exactly one branch:
+   - clear match
+   - ambiguous
+   - no match
+   - no durable signal
 
-Use the learnings-read protocol for matching: QMD query first for semantic matching, then flat-file search as fallback. Do not skip QMD when it is available.
+3. Use the learnings-read protocol for matching: QMD query first for semantic matching, then flat-file search as fallback. Do not skip QMD when it is available.
 
 ## 4. Apply Outcomes
 
-- `clear match` → rewrite/merge only when exactly one owner is clear
-- `ambiguous` → present explicit merge/create/skip options
-- `no match` → create a new dated learnings file
-- `no durable signal` → write nothing for that candidate
+| Classification | Action |
+| --- | --- |
+| `clear match` | Rewrite or merge only when exactly one owner is clear |
+| `ambiguous` | Present explicit merge/create/skip options |
+| `no match` | Create a new dated learnings file |
+| `no durable signal` | Write nothing for that candidate |
 
 Always run finalization once per completed run by updating `.beads/learnings/dream-run-provenance.md`.
 

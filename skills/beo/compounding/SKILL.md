@@ -16,8 +16,8 @@ Onboarding — see `../reference/references/shared-hard-gates.md` § Onboarding 
 
 ## Overview
 
-Compounding is the per-feature learnings capture phase after review truly finishes.
-Its job is to turn completed feature work into durable, reusable knowledge without inflating weak observations into institutional rules.
+Compounding captures per-feature learnings after review finishes.
+Turn completed work into durable, reusable knowledge without inflating weak observations into institutional rules.
 
 > See `../reference/references/shared-hard-gates.md` § Shared References Convention.
 
@@ -26,8 +26,7 @@ Its job is to turn completed feature work into durable, reusable knowledge witho
 ## Hard Gates
 
 <GUIDELINE>
-Do NOT have subagents write the final learnings file; only the orchestrator writes that.
-Subagents produce staging files; the orchestrator synthesizes, triages, and writes the final learnings artifact.
+Do NOT have subagents write the final learnings file. Subagents write staging files; the orchestrator synthesizes, triages, and writes the final learnings artifact.
 </GUIDELINE>
 
 <HARD-GATE>
@@ -46,7 +45,7 @@ The feature status must be `learnings-pending` (set by reviewing). Do not enter 
 
 ## Boundary with Reviewing
 
-The reviewing skill's Learnings Synthesis specialist **identifies candidate learnings** — patterns, surprises, and reusable insights — but does not write the final learnings file or promote anything. Compounding is where formal capture, triage, dedup, and promotion happen. If the reviewing specialist produced staging notes, use them as input to Phase 2 below rather than re-analyzing from scratch.
+The reviewing skill's Learnings Synthesis specialist **identifies candidate learnings** — patterns, surprises, and reusable insights — but does not write the final learnings file or promote anything. Compounding handles formal capture, triage, dedup, and promotion. If reviewing produced staging notes, use them as input to Phase 2 instead of re-analyzing from scratch.
 
 ## Default Compounding Loop
 
@@ -56,19 +55,22 @@ Complete these phases in order. The three-agent analysis (Phase 2) runs in paral
 
 ### Phase 1: Gather Context
 
-Load `references/compounding-operations.md` for the exact artifact collection set, git-history fallback rules, and context-gathering procedure.
+Load the references below.
+
+| File | Use for |
+| --- | --- |
+| `references/compounding-operations.md` | artifact collection, git-history fallback, and context gathering |
+| `../reference/references/failure-recovery.md` | corrupted or unavailable resume data, state files, or learnings writes |
 
 ---
 
 ### Phase 2: Three-Category Analysis (3 Parallel Subagents)
 
-Load `references/compounding-operations.md` for the exact three-agent analysis split, staging-file targets, and subagent task summaries.
+Run the 3-agent parallel analysis. Load `references/compounding-operations.md` for the exact analysis split, staging-file targets, and task summaries.
 
 ### Phase 3: Synthesis & Triage
 
-After all three agents complete, load `references/compounding-operations.md` for the exact staging-file read order, dedup procedure, triage tags, slugging rule, learnings-file write flow, and QMD refresh step.
-
-Use the format from `references/learnings-template.md`. Include YAML frontmatter.
+After all three agents complete, load `references/compounding-operations.md` for staging-file read order, dedup, triage tags, slugging, learnings-file write flow, and QMD refresh. Use `references/learnings-template.md` and include YAML frontmatter.
 
 #### Learning Triage
 
@@ -78,7 +80,7 @@ See `references/compounding-operations.md` § 3. Synthesis and Triage (subsectio
 
 ### Phase 4: Promote Critical Learnings
 
-For every `severity: critical` learning, load `references/compounding-operations.md` for the exact promotion criteria, approval gate, append format, and post-promotion refresh flow.
+For every `severity: critical` learning, load `references/compounding-operations.md` for promotion criteria, approval gate, append format, and post-promotion refresh.
 
 ### Phase 5: Update STATE.json
 
@@ -111,9 +113,7 @@ Follow `../reference/references/shared-hard-gates.md` § Context Budget Protocol
 - **Never promote everything as critical** — `critical-patterns.md` caps at 20-30 entries; only promote learnings that would have saved ≥30 min
 - **Never write generic learnings** — "Test more carefully" is worthless; include specific cause-and-effect (e.g., "non-null migration without default fails silently")
 - **Never fabricate findings** — 2 genuine entries beats a long file with invented ones
-- **Never let subagents author the final learnings file** — they produce staging only; orchestrator synthesizes
 - **Never promote local notes without proving broad reuse value**
-- **Never split one feature's learnings across multiple files**
 
 ---
 

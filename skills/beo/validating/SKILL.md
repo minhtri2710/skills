@@ -20,12 +20,12 @@ Onboarding — see `../reference/references/shared-hard-gates.md` § Onboarding 
 
 ## Overview
 
-Validating is the gate between planning and execution.
-Its job is to prove that the **current phase** is structurally sound before any code is written.
+Validating gates planning and execution.
+Prove the **current phase** is structurally sound before any code is written.
 
 **Core principle:** catch plan failures before they become implementation failures.
 
-If `phase-plan.md` exists, validation still applies to the **current phase only**. Whole-feature sequencing matters for context, but approval never expands into later phases.
+If `phase-plan.md` exists, validate the **current phase only**.
 
 ## Communication Standard
 
@@ -35,7 +35,6 @@ All validation outputs (plan-checker findings, bead-reviewer findings, dimension
 
 <HARD-GATE>
 No code is written until validation succeeds and the user explicitly approves execution.
-Do not infer approval from silence, tone, or partial agreement.
 </HARD-GATE>
 
 <HARD-GATE>
@@ -43,8 +42,8 @@ If tasks do not exist, or `phase-contract.md` / `story-map.md` are genuinely mis
 </HARD-GATE>
 
 <HARD-GATE>
-If any bead description is empty or underspecified, fail validation. This is a structural failure, not an optional quality note.
-A bead is underspecified if it lacks any of: concrete file scope, verification criteria, or a clear deliverable.
+If any bead description is empty or underspecified, fail validation.
+A bead is underspecified if it lacks any of: concrete file scope, verification criteria, or a deliverable that passes the clear-deliverable rule below.
 If only 1-2 beads are underspecified and all other beads pass the three-field check above, you may tighten those specs by restoring missing text that already exists verbatim in the bead package, story-map, or phase-contract — do not invent new scope or rewrite task boundaries — and then re-run validation. If the underspecified beads expose a larger decomposition problem (e.g., the story they belong to cannot be executed as described), route back to `beo-planning`.
 </HARD-GATE>
 
@@ -53,7 +52,7 @@ Validation approves the current phase only. If planning mode is `multi-phase`, c
 </HARD-GATE>
 
 <HARD-GATE>
-After approval, do not stop at "the current phase is approved." Validation is not complete until you also choose and announce the next execution mode (`beo-executing` or `beo-swarming`) for the approved current-phase work.
+After approval, choose and announce the next execution mode (`beo-executing` or `beo-swarming`) for the approved current-phase work.
 </HARD-GATE>
 
 <HARD-GATE>
@@ -61,28 +60,30 @@ A spike NO result invalidates the current phase plan. Do not proceed to approval
 </HARD-GATE>
 
 <HARD-GATE>
-When choosing the execution mode, if swarming (parallel worker execution) is under consideration, verify: (1) at least 3 independent ready tasks exist in the current phase, (2) no two tasks share write access to the same file, and (3) task dependencies do not create a serial chain that negates parallelism. If any condition fails, flag the plan for revision — swarming is not justified.
+When choosing the execution mode, if swarming (parallel worker execution) is under consideration, verify: (1) at least 3 independent ready tasks exist in the current phase, (2) no two tasks share write access to the same file, and (3) task dependencies do not create a serial chain that negates parallelism. If any condition fails, do not send the plan back for revision on that basis alone — route the approved current phase to `beo-executing` instead.
 </HARD-GATE>
 
 ## Default Validation Loop
 
 1. confirm current-phase artifacts and task beads exist
-2. retrieve prior learnings and orient to the current phase
+2. retrieve prior learnings; orient to the current phase
 3. run the 8-dimension structural check
 4. inspect graph health and bead quality
-5. run spikes only where yes/no proof would change go / no-go
-6. summarize readiness in human terms
+5. run spikes only when yes/no proof changes go / no-go
+6. summarize readiness in plain language
 7. get explicit user approval before execution
 
-Load `references/validation-operations.md` when you need the exact checker flow, graph commands, spike mechanics, approval summary, Quick mode, or handoff procedure.
+| File | Use for |
+| --- | --- |
+| `references/validation-operations.md` | exact checker flow, graph commands, spike mechanics, approval summary, Quick mode, handoff procedure |
 
 ## Prerequisites
 
-Confirm that all execution prerequisites are met: epic, task beads, and all required artifacts exist and are readable. See `references/validation-operations.md` Section 1 for the exact artifact checklist and read order.
+Confirm epic, task beads, and required artifacts exist and are readable. See `references/validation-operations.md` Section 1 for the exact artifact checklist and read order.
 
 ## Current-Phase Orientation
 
-Orient to the current phase before running the structural gate. Verify that current-phase artifacts, state metadata, and task graph all describe the same phase. See `references/validation-operations.md` Section 2 for the orientation procedure and summary format.
+Orient to the current phase before the structural gate. Verify current-phase artifacts, state metadata, and the task graph describe the same phase. See `references/validation-operations.md` Section 2 for the procedure and summary format.
 
 ## The 8-Dimension Structural Check
 
@@ -97,7 +98,10 @@ Run validation across these 8 dimensions:
 7. **Verification completeness**
 8. **Exit-state completeness and risk alignment**
 
-Use `references/validation-operations.md` and `references/plan-checker-prompt.md` for the exact checker procedure and full PASS / FAIL detail.
+| File | Use for |
+| --- | --- |
+| `references/validation-operations.md` | exact checker procedure |
+| `references/plan-checker-prompt.md` | full PASS / FAIL detail |
 
 ### Repair Rule
 
@@ -107,7 +111,36 @@ If failures reveal a broader decomposition problem rather than an isolated defec
 
 ## Graph Health and Bead Quality
 
-Confirm graph integrity, story-to-bead coherence, and bead description quality. See `references/validation-operations.md` Section 4 for the exact graph-health procedure, and `references/bead-reviewer-prompt.md` for fresh-eyes bead review when complexity is high.
+Confirm graph integrity, story-to-bead coherence, and bead description quality.
+
+| File | Use for |
+| --- | --- |
+| `references/validation-operations.md` | exact graph-health procedure |
+| `references/bead-reviewer-prompt.md` | fresh-eyes bead review when complexity is high |
+
+## Decision Rubrics
+
+Keep canonical mechanics in the references; use these tie-breaks inline:
+
+### Repair in place vs route back
+
+| Choose | When |
+| --- | --- |
+| Repair in place | The defect is local, clerical, and does not change story boundaries, phase exit state, or decomposition. |
+| Route back to `beo-planning` | The fix changes scope, ordering, or bead shape in a meaningful way. |
+
+### Spike or no spike
+
+| Choose | When |
+| --- | --- |
+| Run a spike | A yes/no result would change approval, sequencing, or execution mode. |
+| Skip the spike | The phase would make the same go/no-go decision either way. |
+
+### Clear deliverable
+
+| Pass | Fail |
+| --- | --- |
+| A worker can point to the expected artifact, behavior, or state change without inventing scope. | The outcome cannot be named concretely; fail validation or repair the bead/package before approval. |
 
 ## Spikes for HIGH-Risk Work
 
@@ -131,7 +164,7 @@ When approval is granted:
 When approval is rejected or withheld:
 - do not proceed; route back to planning or exploring as needed
 
-See `references/validation-operations.md` Section 7 for the full approval summary format, execution-mode decision rule, rejection procedure, and handoff steps.
+See `references/validation-operations.md` Section 7 for the full approval summary, execution-mode rule, rejection procedure, and handoff steps.
 
 ## Quick Mode
 
@@ -150,4 +183,4 @@ Follow `../reference/references/shared-hard-gates.md` § Context Budget Protocol
 
 ## Red Flags & Anti-Patterns
 
-Do not rubber-stamp approval, skip decision coverage, or treat overlap and missing story linkage as minor issues. Validation must produce evidence, not vibes.
+Do not rubber-stamp approval, skip decision coverage, treat overlap and missing story linkage as minor issues, or use spikes as ceremony. Validation must produce evidence, not vibes.

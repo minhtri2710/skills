@@ -1,6 +1,6 @@
 # Worker Subagent Template
 
-Use this template when spawning a worker subagent. Fill in the placeholders from live swarm state.
+Use this template when spawning a worker subagent. Fill placeholders from live swarm state.
 
 ## Table of Contents
 
@@ -21,7 +21,7 @@ Subagent(
 )
 ```
 
-`Subagent(...)` is the canonical architecture term. Replace it with the worker-spawn primitive available in your current runtime while keeping the same manager-pattern behavior.
+`Subagent(...)` is the canonical architecture term. Replace it with the worker-spawn primitive in the current runtime while keeping the same manager-pattern behavior.
 
 ---
 
@@ -72,7 +72,7 @@ You are a worker subagent in the beo swarm.
    ```
 
 ## Context Boundary
-You are a bounded worker subagent. Use the task-specific context you were given first, and only request broader parent context if the current bead genuinely needs it.
+You are a bounded worker subagent. Use the task-specific context first. Request broader parent context only if the current bead needs it.
 
 ## Skill To Load
 Load the `beo-executing` skill immediately. It defines your worker loop.
@@ -92,7 +92,7 @@ Normal loop:
 
 ## Startup Hint
 <STARTUP_HINT>
-Optional. If present, this is a hint about a ready bead or urgent area to check first.
+Optional hint about a ready bead or urgent area to check first.
 It is not a fixed assignment. The live bead graph and Agent Mail state still win.
 </STARTUP_HINT>
 
@@ -130,5 +130,4 @@ After each bead completion, assess your context budget. If context is high, fini
 | `<COORDINATOR_AGENT_NAME>` | Swarm coordinator Agent Mail identity (must be adjective+noun) |
 | `<RESOLVED_AGENT_MAIL_NAME>` | Agent Mail name returned by `macro_start_session`. Use this for all `sender_name` parameters. |
 | `<STARTUP_HINT>` | Optional: current ready bead or urgency note from live `bv --robot-triage` |
-
 

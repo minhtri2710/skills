@@ -13,15 +13,15 @@ Canonical wording and protocol for human approval requirements in the beo pipeli
 
 ## Why This Exists
 
-Several beo skills require explicit user confirmation before proceeding with an irreversible or shared-state-changing action.
+Several beo skills require explicit user confirmation before irreversible or shared-state-changing actions.
 
-This file centralizes those approval rules so all beo skills ask for approval consistently and stop in the same places.
+This file centralizes those rules so all beo skills ask consistently and stop at the same gates.
 
 ## Approval-Requiring Moments
 
 ### 1. Planning Approval for Multi-Phase Work
 
-If planning determines that a feature is **multi-phase**, user approval is required for the whole-feature phase sequence before the current phase is treated as execution-ready.
+If planning determines that a feature is **multi-phase**, get user approval for the whole-feature phase sequence before treating the current phase as execution-ready.
 
 This approval confirms:
 
@@ -34,7 +34,7 @@ Canonical rule:
 
 > For multi-phase work, user approval is required for the whole-feature phase sequence and current-phase selection before treating the current phase as ready for validation handoff.
 
-This gate applies in `beo-planning` when `phase-plan.md` exists.
+Apply this gate in `beo-planning` when `phase-plan.md` exists.
 
 #### Canonical approval prompt for multi-phase planning
 
@@ -51,21 +51,21 @@ Approve this phase sequence and current phase selection before validation?
 
 ### 1a. CONTEXT.md Approval (Go Mode Only)
 
-In go mode, user approval of `CONTEXT.md` is required after exploring and before planning begins.
+In go mode, get user approval of `CONTEXT.md` after exploring and before planning.
 
-This gate does **not** apply in normal (non-go) pipeline flow, where exploring hands off directly to planning.
+Do **not** apply this gate in normal pipeline flow, where exploring hands off directly to planning.
 
 Canonical rule:
 
 > In go mode, present `CONTEXT.md` and obtain explicit user approval before invoking planning.
 
-This gate applies only in `beo-router` when go mode is active.
+Apply this gate only in `beo-router` when go mode is active.
 
 See `../../router/references/go-mode.md` for the full go-mode gate sequence.
 
 ### 2. Validation Approval
 
-Before any execution begins, user approval is required.
+Before execution begins, get user approval.
 
 Canonical rule:
 
@@ -125,15 +125,15 @@ Use this gate in `beo-compounding` and `beo-dream`.
 
 ### 5. Ambiguous Dream Consolidation Decisions
 
-If `beo-dream` finds multiple plausible owners for a candidate learning, it must ask the user to choose between merge / create / skip outcomes.
+If `beo-dream` finds multiple plausible owners for a candidate learning, ask the user to choose merge / create / skip.
 
 Do not silently choose a target file when ownership is ambiguous.
 
 ### 6. Partial or Deferred Review Outcomes
 
-If `beo-reviewing` encounters blocked, failed, or partial tasks before closure, it must report them and obtain explicit user direction before proceeding, deferring, or re-planning.
+If `beo-reviewing` encounters blocked, failed, or partial tasks before closure, report them and get explicit user direction before proceeding, deferring, or re-planning.
 
-Do not close the feature or proceed to compounding while the outcome is still ambiguous.
+Do not close the feature or proceed to compounding while the outcome remains ambiguous.
 
 ## Approval Presentation Guidance
 
@@ -144,7 +144,7 @@ When asking for approval:
 - make the next step explicit
 - ask for a clear yes / no or a structured choice
 
-Approval prompts should be concrete enough that the user can understand the consequence of saying yes.
+Make the consequence of approval clear.
 
 Prefer:
 
@@ -162,17 +162,17 @@ Avoid vague prompts like:
 
 ### Single-phase planning
 
-A separate planning approval is not required just because planning artifacts exist.
+Do not require separate planning approval just because planning artifacts exist.
 
-For single-phase work, planning normally hands off to `beo-validating`, and the key irreversible approval remains the validation gate before execution.
+For single-phase work, planning normally hands off to `beo-validating`. The key irreversible approval remains the validation gate before execution.
 
 ### Multi-phase planning
 
-For multi-phase work, planning approval is required because choosing the whole-feature sequence and the current phase changes the shape of all downstream work.
+For multi-phase work, planning approval is required because choosing the whole-feature sequence and current phase shapes downstream work.
 
 That approval does **not** replace validation approval.
 
-It comes earlier and answers a different question:
+Use this distinction:
 
 - planning approval = "Is this the right feature sequence and current phase to prepare?"
 - validation approval = "Is this current phase safe to execute now?"
@@ -188,11 +188,11 @@ If the user rejects or withholds approval:
 
 ### Typical route-back patterns
 
-- rejects phase sequencing -> revise `phase-plan.md`
-- rejects current phase choice -> revise `phase-plan.md` and current-phase artifacts
-- rejects current-phase readiness -> revise `phase-contract.md`, `story-map.md`, bead descriptions, or broader planning
-- rejects UAT outcome -> create or route to fix work, then re-run review
-- rejects critical promotion -> keep the learning local; do not promote it
+1. rejects phase sequencing -> revise `phase-plan.md`
+2. rejects current phase choice -> revise `phase-plan.md` and current-phase artifacts
+3. rejects current-phase readiness -> revise `phase-contract.md`, `story-map.md`, bead descriptions, or broader planning
+4. rejects UAT outcome -> create or route to fix work, then re-run review
+5. rejects critical promotion -> keep the learning local; do not promote it
 
 ## Hard Rules
 

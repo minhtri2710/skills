@@ -2,7 +2,7 @@
 
 Shared protocol for reading and writing project learnings. Used by `beo-compounding`, `beo-debugging`, `beo-dream`, `beo-exploring`, `beo-planning`, and `beo-router`.
 
-**Preference order:** `.beads/learnings/` and `.beads/critical-patterns.md` are the canonical durable write surfaces. For reading, **prefer Obsidian CLI and QMD when available** — fall back to flat-file search only when those tools are unavailable.
+**Preference order:** `.beads/learnings/` and `.beads/critical-patterns.md` are the canonical durable write surfaces. For reads, **prefer Obsidian CLI and QMD when available**; fall back to flat-file search only when they are unavailable.
 
 ## Table of Contents
 
@@ -23,7 +23,7 @@ obsidian help 2>/dev/null   # Check Obsidian CLI availability
 qmd status 2>/dev/null      # Check QMD search availability
 ```
 
-Both tools are optional enhancements for the write side. For the read side, they are the preferred path — flat-file operations under `.beads/` are the fallback when neither is available.
+Both tools are optional on writes. On reads, prefer them and fall back to flat-file operations under `.beads/` when neither is available.
 
 ## Write Protocol
 
@@ -34,27 +34,27 @@ Learnings write governance:
 
 ### Canonical: Flat Files
 
-Always write learnings to `.beads/learnings/`:
+Write learnings to `.beads/learnings/`:
 
 ```bash
 mkdir -p .beads/learnings
 ```
 
-Then use your file writing tool to create `.beads/learnings/YYYYMMDD-<slug>.md` with the learnings content.
+Then use your file writing tool to create `.beads/learnings/YYYYMMDD-<slug>.md`.
 
 ### Optional Mirror: Obsidian CLI
 
-When `obsidian` CLI is available and mirroring is desired, copy the learning to the vault for richer linking and graph navigation:
+When `obsidian` CLI is available and mirroring is desired, copy the learning to the vault:
 
 ```bash
 obsidian create path="beo-learnings/YYYYMMDD-<slug>.md" content="<content>" silent 2>/dev/null
 ```
 
-Always use the `silent` flag to avoid interactive prompts. The vault copy is a convenience mirror; `.beads/learnings/` remains the canonical write surface.
+Use the `silent` flag to avoid interactive prompts. The vault copy is a convenience mirror; `.beads/learnings/` remains canonical.
 
 ### Critical Patterns
 
-The `.beads/critical-patterns.md` file is the distilled subset of learnings that every planning and exploring Phase 0 reads. Promote patterns here only when they meet severity thresholds (see `beo-compounding`).
+`.beads/critical-patterns.md` is the distilled subset of learnings that every planning and exploring Phase 0 reads. Promote patterns here only when they meet severity thresholds (see `beo-compounding`).
 
 ```bash
 # Canonical: use your file editing tool to append to .beads/critical-patterns.md
@@ -117,17 +117,17 @@ if [ -n "$VAULT_PATH" ]; then
 fi
 ```
 
-> **Note**: QMD indexes a single directory per collection. If you use both the Obsidian vault and `.beads/learnings/`, create separate collections for each.
+> QMD indexes a single directory per collection. If you use both the Obsidian vault and `.beads/learnings/`, create separate collections for each.
 
 ## Index Refresh
 
-After writing new learnings, refresh the QMD index (if QMD is available):
+After writing new learnings, refresh the QMD index if QMD is available:
 
 ```bash
 qmd update 2>/dev/null && qmd embed 2>/dev/null
 ```
 
-This is safe to call even when QMD is unavailable (the `2>/dev/null` suppresses errors).
+This is safe even when QMD is unavailable because `2>/dev/null` suppresses errors.
 
 ## Graceful Degradation Summary
 

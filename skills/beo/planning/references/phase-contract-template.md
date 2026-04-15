@@ -25,8 +25,6 @@
 
 ## 1. Why This Phase Exists
 
-> Explain in plain language why this phase is the next small loop to close.
-
 `<2-4 sentences on why this phase matters now, not later.>`
 
 ---
@@ -49,8 +47,6 @@
 
 ## 3. Entry State
 
-> What is true before this phase starts?
-
 - `<observable truth 1>`
 - `<observable truth 2>`
 - `<constraint or dependency already satisfied>`
@@ -59,21 +55,17 @@
 
 ## 4. Exit State
 
-> What must be true when this phase is complete?
-
 - `<observable truth 1>`
 - `<observable truth 2>`
 - `<integration or system-level truth>`
 
-**Rule:** every exit-state line must be testable or demonstrable.
+**Rule:** Every exit-state line must be testable or demonstrable.
 
-**Rule:** use invariant-based criteria, not hardcoded counts. For refactoring, prefer "all tests pass" over "all N tests pass" — moving code legitimately changes counts.
+**Rule:** Use invariant-based criteria, not hardcoded counts. For refactoring, prefer "all tests pass" over "all N tests pass" — moving code legitimately changes counts.
 
 ---
 
 ## 5. Demo Story
-
-> The simplest walkthrough that proves the phase is real.
 
 `<In one short paragraph: "A user can now..." or "The system can now...">`
 
@@ -86,9 +78,6 @@
 ---
 
 ## 6. Story Outline
-
-> Stories are the internal narrative slices inside the phase. They explain why
-> the work order makes sense before beads are created.
 
 | Story | Purpose | Why Now | Unlocks | Done Looks Like |
 |-------|---------|---------|---------|-----------------|
@@ -108,8 +97,7 @@ flowchart LR
     S3 --> B[Exit State]
 ```
 
-If the phase has fewer than 3 stories, remove the unused nodes and keep the
-diagram aligned to the actual sequence.
+Remove unused nodes and keep the diagram aligned to the actual sequence.
 
 ---
 
@@ -129,7 +117,7 @@ diagram aligned to the actual sequence.
 
 ## 10. Failure / Pivot Signals
 
-> If any of these happen, do not blindly continue the whole plan.
+If any of these happen, do not blindly continue the whole plan.
 
 - `<signal that means the phase design is wrong>`
 - `<signal that means the current approach should pivot>`

@@ -4,29 +4,34 @@ Use this file when the short onboarding summary in `SKILL.md` is not enough.
 
 ## Prerequisites
 
-Agents must verify `node --version` is `>=18` before running `scripts/onboard_beo.mjs`.
-If Node.js is unavailable, stop and ask the user to install it or perform manual setup.
+1. Verify `node --version` is `>=18` before running `scripts/onboard_beo.mjs`.
+2. If Node.js is unavailable, stop and ask the user to install it or perform manual setup.
 
 ## Decision Matrix
 
-The `checkRepo` return value contains a script-level `status` field (not a routing state):
+The `checkRepo` return value contains a script-level `status` field, not a routing state:
 
-- `status: "up_to_date"` -> report that onboarding is current and hand back to `beo-router`
-- `status: "needs_onboarding"` -> summarize the actions, ask the user for approval, then apply when approved
+| `status` | Action |
+| --- | --- |
+| `"up_to_date"` | Report that onboarding is current and hand back to `beo-router`. |
+| `"needs_onboarding"` | Summarize the actions, ask for approval, then apply when approved. |
 
 > **Note:** These are script return values, not STATE.json routing states. The canonical routing state for a freshly-onboarded repo is `needs-onboarding` (see `pipeline-contracts.md` routing table).
 
 ## What Onboarding Installs
 
 Onboarding manages:
-- `AGENTS.md` merge with the `<!-- BEO:START -->` / `<!-- BEO:END -->` block
-- `.beads/`
-- `.beads/artifacts/`
-- `.beads/learnings/`
-- `.beads/beo_status.mjs`
-- `.beads/STATE.json`
-- `.beads/critical-patterns.md`
-- `.beads/onboarding.json`
+
+| Asset | Purpose |
+| --- | --- |
+| `AGENTS.md` merge with the `<!-- BEO:START -->` / `<!-- BEO:END -->` block | Install or update the managed beo instructions. |
+| `.beads/` | Create the beo workspace root. |
+| `.beads/artifacts/` | Store artifacts. |
+| `.beads/learnings/` | Store learnings. |
+| `.beads/beo_status.mjs` | Install the repo-local scout command. |
+| `.beads/STATE.json` | Initialize bootstrap state. |
+| `.beads/critical-patterns.md` | Seed critical patterns defaults. |
+| `.beads/onboarding.json` | Record onboarding completion and managed assets. |
 
 ## `checkRepo` JSON Schema
 

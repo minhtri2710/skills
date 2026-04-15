@@ -1,6 +1,7 @@
 # Artifact Conventions
 
-Combined reference for artifact storage protocols, slug lifecycle, and file layout conventions.
+Reference for artifact storage protocols, slug lifecycle, and file layout conventions.
+Follow these rules for all beo pipeline artifacts.
 
 ## Table of Contents
 
@@ -32,7 +33,7 @@ Combined reference for artifact storage protocols, slug lifecycle, and file layo
 
 ## Artifact Protocol
 
-Tasks use three artifact types: **spec** (what to do), **report** (what was done), and **task_state** (machine-readable status snapshot). Each has a specific location within the bead system.
+Use three artifact types for tasks: **spec** (what to do), **report** (what was done), and **task_state** (machine-readable status snapshot).
 
 ### Locations
 
@@ -44,21 +45,24 @@ Tasks use three artifact types: **spec** (what to do), **report** (what was done
 
 ### Spec (Bead Description)
 
-The task specification is the bead's description field. Write it once during task creation or planning, always in Markdown format.
+Store the task specification in the bead description. Write it during task creation or planning. Format it as Markdown.
 
 #### Required Spec Structure
 
-Use `bead-description-templates.md` as the single source of truth for all bead description formats.
+Use `bead-description-templates.md` as the single source of truth.
 
-- Planned execution beads → **Planned Task Bead Template**
-- Reactive fix beads → **Reactive Fix Bead Template**
-- Review/debug follow-up beads → **Follow-Up Bead Template**
+| Bead type | Required template |
+|-----------|-------------------|
+| Planned execution beads | **Planned Task Bead Template** |
+| Reactive fix beads | **Reactive Fix Bead Template** |
+| Review/debug follow-up beads | **Follow-Up Bead Template** |
 
-Every bead description must be Markdown-formatted.
-
-Reactive fix beads (created by `beo-reviewing` or `beo-debugging`) are exempt from the Story Context requirement, but they must still follow the shared reactive template.
-
-Instant-path beads created by `beo-router` still use the Planned Task Bead Template, but may use abbreviated Story Context.
+Checklist:
+- Format every bead description as Markdown.
+- Exempt reactive fix beads created by `beo-reviewing` or `beo-debugging` from Story Context.
+- Keep reactive fix beads on the shared reactive template.
+- Use the Planned Task Bead Template for instant-path beads created by `beo-router`.
+- Allow abbreviated Story Context for instant-path beads.
 
 ```bash
 # Write spec
@@ -67,7 +71,7 @@ br update <id> --description "<Markdown content using the appropriate shared bea
 
 ### Report (Comment-Backed)
 
-The report captures what the worker accomplished. It is appended as a bead comment with a specific header format.
+Append the worker report as a bead comment with the required header format.
 
 #### Format
 
@@ -110,7 +114,7 @@ br comments list <id> --json --no-daemon
 
 #### Completion Report Minimum Fields
 
-When execution policy requires close-time validation, every completion report must include:
+When execution policy requires close-time validation, include:
 - bead ID
 - files changed
 - tests added or modified
@@ -118,7 +122,7 @@ When execution policy requires close-time validation, every completion report mu
 
 ### Task State (Comment-Backed)
 
-The task_state artifact is a machine-readable status snapshot used by the orchestrator and monitoring tools. It follows the same comment-backed format as reports.
+Use `task_state` for a machine-readable status snapshot. Store it as a comment-backed artifact with the same format pattern as reports.
 
 #### Format
 
@@ -146,18 +150,23 @@ context_pct: 35
 ---END_ARTIFACT---" --no-daemon
 ```
 
-Task state is optional and **informational only**. The authoritative bead status is always the `br` status (see `status-mapping.md` → Reading Beo State from br). Workers update `task_state` when claiming, blocking, or completing beads. The orchestrator reads the latest version to build the swarm status view.
-
-**Important:** A `task_state` comment with `beo_status: done` does **not** close the bead. The actual closure requires `br close <id>` per `status-mapping.md`. Always write `task_state: done` only **after** `br close` succeeds.
-
-Reservation release and swarm coordination stay in execution flow and Agent Mail protocols, not in new artifact kinds. If workers record `beo_status: done`, they do so only after `br close` succeeds and after the completion report is written.
+Checklist:
+- Treat task state as optional and informational only.
+- Treat `br` status as authoritative. See `status-mapping.md` → Reading Beo State from br.
+- Update `task_state` when claiming, blocking, or completing beads.
+- Read the latest version to build the swarm status view.
+- Do not treat `beo_status: done` as bead closure.
+- Run `br close <id>` to close the bead, per `status-mapping.md`.
+- Write `task_state: done` only after `br close` succeeds.
+- Keep reservation release and swarm coordination in execution flow and Agent Mail protocols, not new artifact kinds.
+- If workers record `beo_status: done`, do it only after `br close` succeeds and after writing the completion report.
 
 ### Version Semantics
 
-- Versions are monotonically increasing integers: v1, v2, v3...
-- When reading, always take the **latest** (highest version number) artifact of each kind
-- When writing, increment the version if updating an existing artifact
-- Multiple versions of the same artifact kind can coexist in comments. Only the latest matters.
+- Use monotonically increasing integer versions: v1, v2, v3...
+- Read the latest (highest version number) artifact of each kind.
+- Increment the version when updating an existing artifact.
+- Allow multiple versions of the same artifact kind in comments. Only the latest matters.
 
 ### Batch Sync Rule
 
@@ -171,22 +180,22 @@ br sync --flush-only   # Export DB to JSONL for git
 
 ## Slug Lifecycle
 
-Canonical protocol for creating, reading, preserving, and recovering the immutable `feature_slug` used across the beo pipeline.
+Use this protocol to create, read, preserve, and recover the immutable `feature_slug` across the beo pipeline.
 
 ### Why This Exists
 
-The `feature_slug` is the stable identifier that ties together:
+The `feature_slug` ties together:
 - the epic bead description
 - `.beads/artifacts/<feature-slug>/`
 - `STATE.json`
 - `HANDOFF.json`
 - learnings file naming
 
-Once created, it must not drift.
+Do not let it drift after creation.
 
 ### Source of Truth
 
-The canonical storage location is the **first line of the epic description**:
+Store the canonical slug in the first line of the epic description:
 
 ```text
 slug: <feature_slug>
@@ -209,7 +218,7 @@ br update <EPIC_ID> --description "slug: <feature_slug>"
 
 ### Read Procedure
 
-Read the current epic description and extract the first-line slug (format shown above). Use it for:
+Read the epic description. Extract the first-line slug. Use it for:
 - `.beads/artifacts/<feature_slug>/...`
 - `feature_name` in `HANDOFF.json` (historical field name; value is still the slug)
 - `feature_slug` in `STATE.json`
@@ -261,9 +270,7 @@ br update <EPIC_ID> --description "slug: <feature_slug>\nFeature: <name>\n\nScop
 
 ## File Layout
 
-Canonical locations for all pipeline artifacts and state files.
-
-Every skill in the beo pipeline reads from or writes to these paths.
+Use these canonical locations for pipeline artifacts and state files.
 
 ### State Files
 
@@ -277,7 +284,7 @@ Every skill in the beo pipeline reads from or writes to these paths.
 
 ### Feature Artifact Root
 
-All feature artifacts live under:
+Store all feature artifacts under:
 
 ```text
 .beads/artifacts/<feature_slug>/
@@ -322,9 +329,9 @@ See `pipeline-contracts.md` → Feature Slug for derivation rules.
 
 ### Artifact Cleanup on Replanning
 
-See `state-and-handoff-protocol.md` → Planning-Aware Field Transition Cleanup for the canonical replanning cleanup rules, including single-phase conversion, multi-phase re-sequencing, and phase advancement procedures.
+See `state-and-handoff-protocol.md` → Planning-Aware Field Transition Cleanup for canonical replanning cleanup rules, including single-phase conversion, multi-phase re-sequencing, and phase advancement procedures.
 
-**Hard rule:** Stale `phase-plan.md` must be deleted, not marked invalid. Current-phase artifacts (`phase-contract.md`, `story-map.md`) must always reflect the actual current phase.
+**Hard rule:** Delete stale `phase-plan.md`; do not mark it invalid. Keep current-phase artifacts (`phase-contract.md`, `story-map.md`) aligned to the actual current phase.
 
 ### Pipeline-Level Files
 
@@ -337,7 +344,7 @@ See `state-and-handoff-protocol.md` → Planning-Aware Field Transition Cleanup 
 
 ### Knowledge Store
 
-Canonical knowledge-store order:
+Use this canonical knowledge-store order:
 
 1. Flat files under `.beads/learnings/` and `.beads/critical-patterns.md` (authoritative)
 2. QMD retrieval over indexed learnings (optional enhancement)

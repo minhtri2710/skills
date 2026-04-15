@@ -247,7 +247,7 @@ If onboarding is missing or stale, route to `beo-using-beo` before resuming the 
 
 ### Read planning-aware fields when present
 
-If present, read and trust these fields unless live artifacts clearly contradict them:
+If present, read and trust these fields unless live artifacts prove the checkpoint stale or invalid:
 
 - `planning_mode`
 - `has_phase_plan`
@@ -271,7 +271,7 @@ Also re-check the artifact set in the canonical inspection order.
 
 If `has_phase_plan = true`, verify that `phase-plan.md` still exists.
 
-If `mode = "go"`, resume within go-mode rather than normal routing. Preserve the saved `skill` and `next_action`, and continue using go-mode semantics at the next human gate unless live state clearly invalidates the checkpoint.
+If `mode = "go"`, resume within go-mode rather than normal routing. Preserve the saved `skill` and `next_action`, and continue using go-mode semantics at the next human gate unless live state proves the checkpoint stale or invalid.
 
 ### Clean Up Only After Fresh Checkpoint
 

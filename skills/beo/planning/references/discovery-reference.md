@@ -4,43 +4,30 @@ Detailed instructions for the Discovery step of `beo-planning`.
 
 ## Research Questions
 
-From CONTEXT.md, extract:
-- **Architecture questions**: "How is the existing code structured?"
-- **Pattern questions**: "What patterns does this codebase use?"
-- **Constraint questions**: "What limits or requirements exist?"
-- **External questions**: "What do external APIs/libraries require?"
+From `CONTEXT.md`, extract:
+- **Architecture**: How is the existing code structured?
+- **Patterns**: What patterns does this codebase use?
+- **Constraints**: What limits or requirements exist?
+- **External**: What do external APIs/libraries require?
 
 ## Parallel Research Subagents
 
-Launch 2-4 parallel research subagents using the session's normal subagent/task-dispatch mechanism, focused on:
+Launch 2–4 parallel research subagents:
 
-1. **Architecture Agent**: Explore codebase structure relevant to the feature
-   - File organization, module boundaries, import patterns
-   - Existing code that will be modified or extended
+| Agent | Focus |
+|-------|-------|
+| **Architecture** | File organization, module boundaries, import patterns, existing code to be modified or extended |
+| **Pattern** | Similar features, reusable helpers, testing patterns, error handling, naming conventions, file placement |
+| **Constraint** | Type system constraints, API contracts, performance requirements, compatibility, dependency versions |
+| **External** *(if needed)* | API docs, SDK usage, known issues, migration guides, community best practices |
 
-2. **Pattern Agent**: Identify patterns to follow
-   - How similar features are implemented
-   - Testing patterns, error handling conventions
-   - Naming conventions, file placement rules
+Collect all results and write the discovery report using the Output Template below.
 
-3. **Constraint Agent**: Discover hard limits
-   - Type system constraints, API contracts
-   - Performance requirements, compatibility needs
-   - Dependencies and version constraints
-
-4. **External Agent** (if needed): Research external dependencies
-   - API documentation, SDK usage patterns
-   - Known issues, migration guides
-   - Community best practices
-
-Each agent writes findings to a structured format. Collect all results.
-Write the discovery report using the Output Template section below.
-
-For refactoring work touching 3+ module boundaries, use multi-agent audit with narrow, non-overlapping mandates (e.g., structural/module, architecture/UX, domain/backend). Different architectural lenses reveal different issues that a single-perspective audit would miss.
+For refactoring work touching 3+ module boundaries, use multi-agent audit with narrow, non-overlapping mandates (e.g., structural/module, architecture/UX, domain/backend) — different lenses reveal issues a single-perspective audit misses.
 
 ## Annotation Verification
 
-When discovery inventories items by annotation (`#[allow(dead_code)]`, `// TODO`, `@deprecated`, `@SuppressWarnings`), treat annotations as human claims, not compiler guarantees. For each annotated item, verify the claim independently before including it in the plan:
+When discovery inventories items by annotation, treat annotations as human claims, not compiler guarantees. Verify each independently before including in the plan:
 
 | Annotation | Verification |
 |-----------|-------------|
@@ -48,19 +35,11 @@ When discovery inventories items by annotation (`#[allow(dead_code)]`, `// TODO`
 | `@deprecated` | Grep for callers |
 | `// TODO: remove` | Verify the removal condition is met |
 
-Discovery artifacts should list annotated items as "annotated — verify before removing" not "confirmed dead code."
-When annotation-verification findings exist, record them under `## Verified Annotations / Deletion Candidates` in the Output Template section below.
+List annotated items as "annotated — verify before removing", not "confirmed dead code." Record findings under `## Verified Annotations / Deletion Candidates` in the Output Template.
 
 ## Synthesis
 
-Combine research into a discovery summary:
-- What exists today (architecture)
-- What patterns to follow (conventions)
-- What constraints apply (limits)
-- What external factors matter (dependencies)
-
-Write findings to `.beads/artifacts/<feature_slug>/discovery.md`.
-Use the Output Template section below to preserve the architecture, pattern, constraint, external research, and verified-annotation sections consistently.
+Combine research into a discovery summary covering: what exists today, patterns to follow, constraints, and external factors. Write to `.beads/artifacts/<feature_slug>/discovery.md` using the Output Template below.
 
 ---
 

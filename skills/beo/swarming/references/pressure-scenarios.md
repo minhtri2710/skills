@@ -1,6 +1,6 @@
 # Pressure Scenarios
 
-Use these RED/GREEN scenarios when debugging swarm coordination failures.
+Use these RED/GREEN scenarios for swarm coordination failures.
 
 ## Scenario 1: Worker Skips [ONLINE]
 
@@ -36,3 +36,24 @@ Setup: Worker A skips `[ONLINE]`, Worker B sends `[BLOCKED]`, Worker C hits a fi
 
 - RED: Any single failure mode from the earlier scenarios causes the swarm to drift.
 - GREEN: Coordinator handles the issues in priority order: startup escalation for A, blocker handling for B, conflict resolution for C, then a context-budget checkpoint.
+
+## Scenario 6: Worker Timeout with Reserved Files
+
+Setup: A worker reserves files, starts implementation, then times out or disappears before releasing reservations.
+
+- RED: Reservations remain stale, other workers block indefinitely, and the coordinator does not reconcile ownership.
+- GREEN: Coordinator detects the silent worker timeout, confirms no fresh progress arrived, releases or reassigns stale reservations using the canonical recovery path, and notifies affected workers.
+
+## Scenario 7: Mixed Success Across Dependent Beads
+
+Setup: Worker A finishes an upstream bead, Worker B fails a dependent bead, and Worker C is waiting on the same dependency chain.
+
+- RED: Coordinator marks the swarm as broadly successful or keeps dispatching downstream work without reconciling the failed dependency.
+- GREEN: Coordinator records the mixed outcome explicitly, halts newly unblocked dependent work, routes the failed path to the right recovery flow, and preserves the completed upstream result.
+
+## Scenario 8: Stale Reservation Reconciliation After Resume
+
+Setup: The coordinator resumes after interruption and finds reservation records that may belong to workers that no longer exist.
+
+- RED: Coordinator trusts stale reservations forever or wipes them without checking for real in-flight work.
+- GREEN: Coordinator reconciles reservations against current mail, process state, and graph progress, then clears only stale claims and reports the reconciliation result.

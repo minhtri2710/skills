@@ -12,7 +12,7 @@ description: >-
 
 ## Overview
 
-It ensures the target repository has the required `.beads/` structure and the managed `AGENTS.md` block before any other beo skill proceeds.
+Ensure the target repository has the required `.beads/` structure and managed `AGENTS.md` block before any other beo skill proceeds.
 > See `../reference/references/shared-hard-gates.md` § Shared References Convention.
 
 
@@ -21,50 +21,56 @@ It ensures the target repository has the required `.beads/` structure and the ma
 ## Hard Gates
 
 <HARD-GATE>
-If onboarding is not complete, do not continue into any other beo skill.
+Do not continue into any other beo skill until onboarding completes.
 </HARD-GATE>
 
 <HARD-GATE>
-After onboarding finishes, hand back to `beo-router`. Do not route directly to exploring, planning, or execution.
+After onboarding, hand back to `beo-router`. Do not route directly to exploring, planning, or execution.
 </HARD-GATE>
 
 <HARD-GATE>
-Do not rerun onboarding when `.beads/onboarding.json` already exists and matches the current onboarding version.
+Do not rerun onboarding when `.beads/onboarding.json` exists and matches the current onboarding version.
 </HARD-GATE>
 
 ## Script Location
 
 The onboarding script lives at `scripts/onboard_beo.mjs` inside this skill package.
 Resolve the absolute path from the installed skill directory before running it.
-The script is standalone Node.js and has no npm dependencies.
+Use standalone Node.js; no npm dependencies.
 When onboarding is current, it also installs the repo-local scout command `.beads/beo_status.mjs`.
 
 ## Onboarding Flow
 
 1. Verify `node --version` is `>=18`. If not, stop and tell the user onboarding cannot run yet.
 2. Run a dry check:
-   - `node <skill-path>/scripts/onboard_beo.mjs --repo-root <repo-root>`
-   - The script returns a JSON object with a script-level `status` field (not a STATE.json routing state):
-     - `"needs_onboarding"` → summarize the actions and ask for approval
-     - `"up_to_date"` → optionally run `node <repo-root>/.beads/beo_status.mjs --json` for a quick scout, then hand back to `beo-router`
-   - **Error or unexpected status** → surface the raw error output to the user, do not proceed with onboarding, and ask whether to inspect prerequisites (Node version, filesystem permissions) or the script itself
-3. Apply onboarding when approved:
-   - `node <skill-path>/scripts/onboard_beo.mjs --repo-root <repo-root> --apply`
+   `node <skill-path>/scripts/onboard_beo.mjs --repo-root <repo-root>`
+3. Use the script-level `status` field from the JSON response, not a STATE.json routing state:
 
-For the full decision matrix, write surface, and JSON schemas, see `references/onboarding-flow.md`.
+   | Status | Action |
+   | --- | --- |
+   | `"needs_onboarding"` | Summarize actions and ask for approval. |
+   | `"up_to_date"` | Optionally run `node <repo-root>/.beads/beo_status.mjs --json` for a quick scout, then hand back to `beo-router`. |
+
+4. If the script errors or returns an unexpected status, surface the raw error output, do not proceed, and ask whether to inspect prerequisites (Node version, filesystem permissions) or the script itself.
+5. Apply onboarding when approved:
+   `node <skill-path>/scripts/onboard_beo.mjs --repo-root <repo-root> --apply`
+
+| File | Use for |
+| --- | --- |
+| `references/onboarding-flow.md` | Full decision matrix, write surface, and JSON schemas. |
+| `../reference/references/failure-recovery.md` | Malformed state files, failed artifact writes, or missing `br`/`bv` prerequisites surfaced during bootstrap checks. |
 
 ## Handoff
 
 After onboarding is confirmed, hand back to `beo-router` for normal phase detection and routing.
-Do not route directly to downstream beo skills from here.
+Do not route directly to downstream beo skills.
 
 ## Context Budget
 
-`beo-using-beo` uses a **30%** threshold (not the standard 65%) since it is a lightweight bootstrap skill. If context usage exceeds 30%, stop and check whether the onboarding script should be doing more of the work.
+`beo-using-beo` uses a **30%** threshold, not the standard 65%, because it is a lightweight bootstrap skill. If context usage exceeds 30%, stop and check whether the onboarding script should do more of the work.
 
 ## Red Flags & Anti-Patterns
 
 - Skipping onboarding checks and jumping straight into the pipeline
 - Running onboarding again when the repository is already current
 - Manually writing `.beads/onboarding.json` instead of using the script
-- Routing directly to another beo skill instead of handing back to `beo-router`

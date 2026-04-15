@@ -29,15 +29,13 @@ skills/
         planning-prerequisites.md
         planning-state-and-cleanup.md
         artifact-writing-guide.md
-        task-creation-ops.md
-        discovery-guide.md
-        discovery-template.md
+        bead-ops.md
+        discovery-reference.md
         approach-template.md
         plan-template.md
         phase-plan-template.md
         phase-contract-template.md
         story-map-template.md
-        bead-creation-guide.md
     validating/                  # 8-dimension plan verification gate
       SKILL.md
       agents/openai.yaml
@@ -103,7 +101,7 @@ skills/
     reference/                   # Shared CLI reference hub
       SKILL.md                       # Navigation hub
       agents/openai.yaml
-      references/                    # 14 reference docs
+      references/                    # 16 reference docs
         br-cli-reference.md
         bv-cli-reference.md
         status-mapping.md
@@ -112,21 +110,22 @@ skills/
         approval-gates.md
         dependency-and-scheduling.md
         pipeline-contracts.md
+        failure-recovery.md
         knowledge-store.md
         bead-description-templates.md
         learnings-read-protocol.md
         agent-mail-coordination.md
         communication-standard.md
         worker-template.md
+        shared-hard-gates.md
 ```
 
-Every skill directory also contains an `evals/` subdirectory for evaluation data.
 The `*-workspace/` directories under `skills/beo/` are generated audit artifacts, not skill source.
 
 ## Skill Workflow (Pipeline)
 
 ```
-beo-router -> beo-exploring -> beo-planning -> beo-validating -> beo-swarming -> beo-executing -> beo-reviewing -> beo-compounding
+beo-router -> beo-exploring -> beo-planning -> beo-validating -> (beo-executing | beo-swarming -> beo-executing) -> beo-reviewing -> beo-compounding
 ```
 
 Support/meta skills (invoked on demand): `beo-debugging`, `beo-dream`, `beo-writing-skills`

@@ -19,16 +19,12 @@
 - [Planning-Aware Field Transition Cleanup](#planning-aware-field-transition-cleanup)
 - [Hard Rules](#hard-rules)
 
-Canonical protocol for writing, reading, and cleaning up `.beads/STATE.json` and `.beads/HANDOFF.json`.
+Canonical protocol for writing, reading, resuming, and cleaning up `.beads/STATE.json` and `.beads/HANDOFF.json`.
 
 ## Why This Exists
 
-The beo pipeline uses two state surfaces:
-
-- `STATE.json` for normal adjacent-skill handoff
-- `HANDOFF.json` for emergency checkpointing when context is running out or a session must resume later
-
-All skills must use the same shapes and semantics.
+Use `STATE.json` for normal adjacent-skill handoff and `HANDOFF.json` for emergency checkpointing when context is low or a session must resume later.
+Use the canonical shapes and semantics in every skill.
 
 ## Core Rule
 
@@ -67,52 +63,28 @@ Every skill must write `.beads/STATE.json` with all fields present.
 }
 ```
 
-The complete STATE.json combines both blocks above (12 fields total).
+The complete `STATE.json` combines both blocks above (12 fields total).
 
 ### Field semantics
 
-- **schema_version** — always `1`; increment only when the schema changes incompatibly
-
-- **phase** — the skill that wrote this state (e.g., `"planning"`, `"executing"`)
-
-- **status** — the canonical routing state from the state routing table (e.g., `"exploring"`, `"ready-to-validate"`, `"executing"`)
-- This may also be a paused pre-execution planning state such as `"awaiting-planning-approval"` when the user must approve the multi-phase sequence before validation can begin.
-
-- **feature** — the epic ID (e.g., `"pe-abc"`)
-
-- **feature_slug** — the stable feature slug / artifact-path identifier (e.g., `"feedback-flow"`)
-
-- **tasks** — human-readable summary of task state relevant to the current phase (e.g., `"4 planned for current phase"`, `"3/5 complete, 1 blocked"`)
-
-- **next** — the next skill or action to take (e.g., `"beo-validating"`, `"beo-compounding"`)
-
-- **planning_mode**
-  - `"single-phase"`: one current phase covers the execution scope
-  - `"multi-phase"`: the feature spans multiple meaningful phases, and only the current phase is prepared now
-  - `"unknown"`: planning has not yet determined the mode (valid only during exploring and early planning, before approach.md is finalized)
-
-- **has_phase_plan**
-  - `true`: `.beads/artifacts/<feature>/phase-plan.md` exists and is part of the active planning model
-  - `false`: no whole-feature phase sequencing artifact exists; this is normal for single-phase work
-
-- **current_phase**
-  - The selected current phase number
-  - Use `1` for single-phase work
-
-- **total_phases**
-  - Total phase count when known
-  - Use `"unknown"` when sequencing exists conceptually but the count is not yet stable
-  - For single-phase work, use `1`
-
-- **phase_name**
-  - Human-readable name of the current phase
-  - For single-phase work, this may be the feature name or a concise summary of the current loop
+- **schema_version** — Always `1`. Increment only for incompatible schema changes.
+- **phase** — Record the skill that wrote the state, such as `"planning"` or `"executing"`.
+- **status** — Use the canonical routing state from the state routing table, such as `"exploring"`, `"ready-to-validate"`, or `"executing"`. Use paused pre-execution planning states such as `"awaiting-planning-approval"` when the user must approve the multi-phase sequence before validation begins.
+- **feature** — Record the epic ID, such as `"pe-abc"`.
+- **feature_slug** — Record the stable feature slug / artifact-path identifier, such as `"feedback-flow"`.
+- **tasks** — Summarize task state for the current phase, such as `"4 planned for current phase"` or `"3/5 complete, 1 blocked"`.
+- **next** — Record the next skill or action, such as `"beo-validating"` or `"beo-compounding"`.
+- **planning_mode** — Use `"single-phase"` when one current phase covers execution scope, `"multi-phase"` when the feature spans meaningful phases and only the current phase is prepared now, and `"unknown"` only during exploring and early planning before `approach.md` is finalized.
+- **has_phase_plan** — Set `true` when `.beads/artifacts/<feature>/phase-plan.md` exists and is part of the active planning model. Set `false` when no whole-feature phase sequencing artifact exists; this is normal for single-phase work.
+- **current_phase** — Record the selected current phase number. Use `1` for single-phase work.
+- **total_phases** — Record the total phase count when known. Use `"unknown"` when sequencing exists conceptually but the count is not yet stable. Use `1` for single-phase work.
+- **phase_name** — Record a human-readable name for the current phase. For single-phase work, use the feature name or a concise summary of the current loop.
 
 ## Canonical HANDOFF.json Base Schema
 
 All fields below are required.
 
-Note: `feature_name` is the historical field name, but in beo it carries the stable feature slug / artifact-path identifier, not a mutable display title. (STATE.json uses the clearer name `feature_slug` for the same value.)
+Note: `feature_name` is the historical field name, but in beo it carries the stable feature slug / artifact-path identifier, not a mutable display title. `STATE.json` uses `feature_slug` for the same value.
 
 ```json
 {
@@ -157,10 +129,10 @@ Go-mode checkpoints may add an optional top-level `mode` field:
 
 Rules:
 
-- allowed values: `"go"` or field absent
-- `"go"` means resume the saved `skill` and `next_action` inside go-mode rather than normal feature routing
-- planning-aware fields keep their normal meaning when `mode = "go"`
-- do not invent additional mode values without updating this canonical protocol first
+- Allow only `"go"` or field absence.
+- Use `"go"` to resume the saved `skill` and `next_action` inside go-mode instead of normal feature routing.
+- Keep planning-aware fields at their normal meaning when `mode = "go"`.
+- Do not invent additional mode values without updating this canonical protocol first.
 
 Planning-aware field semantics are defined in the [Field semantics](#field-semantics) section above.
 
@@ -184,10 +156,10 @@ When checkpointing planning, validating, routing, or execution state, include an
 
 ### Artifact map rules
 
-- Use booleans only
-- Include the map when artifact completeness matters to the next step
-- Do not infer that `phase_plan: false` is an error; it is normal for single-phase work
-- `phase_contract` and `story_map` always refer to the **current phase** artifacts
+- Use booleans only.
+- Include the map when artifact completeness matters to the next step.
+- Do not treat `phase_plan: false` as an error; it is normal for single-phase work.
+- Treat `phase_contract` and `story_map` as **current phase** artifacts.
 
 ## When To Write HANDOFF.json
 
@@ -201,7 +173,7 @@ Do not write it for normal phase-to-phase progression when `STATE.json` is suffi
 
 ## What To Include In A Checkpoint
 
-In addition to the base fields, include phase-specific context such as:
+Include phase-specific context such as:
 
 - completed sub-steps
 - pending dimensions/checks
@@ -218,19 +190,19 @@ Swarming may extend the top level with extra fields, but the base schema must re
 
 When `HANDOFF.json` exists:
 
-1. read it before normal routing
-2. verify the saved state is still valid against the live graph and current files
-3. load the saved skill
-4. follow `next_action`
+1. Read it before normal routing.
+2. Verify the saved state against the live graph and current files.
+3. Load the saved skill.
+4. Follow `next_action`.
 
 ### Planning-aware resume notes
 
 When the checkpoint includes planning-aware fields:
 
-- treat `planning_mode` as the source of truth unless live artifacts contradict it
-- if `has_phase_plan` is `true`, check whether `phase-plan.md` still exists
-- if `current_phase` is present, resume against that phase unless the live graph proves the phase already completed
-- never assume current-phase completion means whole-feature completion when `planning_mode = "multi-phase"`
+- Treat `planning_mode` as the source of truth unless live artifacts contradict it.
+- If `has_phase_plan` is `true`, check whether `phase-plan.md` still exists.
+- If `current_phase` is present, resume against that phase unless the live graph proves the phase already completed.
+- Never assume current-phase completion means whole-feature completion when `planning_mode = "multi-phase"`.
 
 ## Cleanup Rule
 
@@ -241,6 +213,19 @@ Canonical cleanup command after successful resume:
 ```bash
 rm .beads/HANDOFF.json
 ```
+
+## State Transitions Per Skill
+
+| Skill | Write `phase` | Write `status` | Write `next` |
+|---|---|---|---|
+| `beo-router` | `"router"` | current routing state | routed skill |
+| `beo-exploring` | `"exploring"` | `"planning-needs-approach"` when exploring completes | `"beo-planning"` |
+| `beo-planning` | `"planning"` | planning state from the routing table, including paused states such as `"awaiting-planning-approval"` and handoff states such as `"ready-to-validate"` | next required skill or action |
+| `beo-validating` | `"validating"` | validation result state from the routing table | next required skill or action |
+| `beo-swarming` | `"swarming"` | swarming/execution routing state from the routing table | next required skill or action |
+| `beo-executing` | `"executing"` | execution state from the routing table | next required skill or action |
+| `beo-reviewing` | `"reviewing"` | review result state from the routing table | `"beo-compounding"` or other required next action |
+| `beo-compounding` | `"compounding"` | final post-review state from the routing table | next required skill or action |
 
 ## Examples
 

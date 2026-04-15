@@ -14,7 +14,8 @@
 
 ## 3a. Read Relevant Source Files
 
-Use your content search tool to find files containing `<error symbol or function>` in `src/` (e.g., `*.ts` files). Then read the implicated files.
+1. Use your content search tool to find files containing `<error symbol or function>` in `src/` (e.g., `*.ts` files).
+2. Read the implicated files.
 
 Do not read the entire codebase. Read exactly the files implicated by the error output.
 
@@ -50,7 +51,7 @@ If Agent Mail is available (a swarm is active and the mail session was initializ
 br mail fetch-inbox --project "<project-root-path>" --agent "<agent-name>"
 ```
 
-Another worker may have already reported the same issue or a related conflict. Avoid duplicate debugging.
+Another worker may have already reported the same issue or conflict. Avoid duplicate debugging.
 
 If Agent Mail is **not** available (solo mode, no swarm, or mail initialization failed), use the solo-debug-mode fallback from `message-templates.md`:
 
@@ -65,6 +66,23 @@ After checks 3a-3e, write a one-sentence root cause:
 > Root cause: `<file>:<line>` -- `<what is wrong and why>`
 
 If you cannot write this sentence, you do not have the root cause yet. Do not proceed to Fix.
+
+## Flaky Test Diagnosis
+
+When a failure is intermittent rather than deterministic:
+
+1. rerun the exact failing test multiple times before changing code
+2. check for shared mutable state, test ordering assumptions, timers, retries, and environment-sensitive setup
+3. compare pass vs fail output to identify what actually changes between runs
+4. treat "cannot reproduce twice in a row" as missing evidence, not a fix
+
+| Common flaky-test causes |
+|---|
+| leaked global state between tests |
+| async work not awaited |
+| timeouts that are too tight for CI variance |
+| race conditions around filesystem, network mocks, or background workers |
+| dependence on wall-clock time, locale, or machine-specific environment |
 
 ---
 

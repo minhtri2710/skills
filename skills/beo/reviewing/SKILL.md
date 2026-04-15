@@ -24,7 +24,7 @@ If no active epic with terminal-state tasks exists, do not attempt review. Route
 ## Overview
 
 Reviewing is the final quality gate after execution.
-Its job is to verify that the implemented final execution scope is safe, aligned with locked decisions, and actually acceptable to the user before the feature passes quality criteria.
+Verify the implemented final execution scope is safe, aligned with locked decisions, and acceptable to the user before the feature passes quality criteria.
 
 **Core principle:** review finds truth, not excuses.
 
@@ -40,17 +40,15 @@ Multi-phase completion — see `../reference/references/shared-hard-gates.md` §
 
 <HARD-GATE>
 Do not finish the feature while any P1 issue remains unresolved.
-P1 findings become reactive fix beads under the current epic and must be executed before review can finish.
 </HARD-GATE>
 
 <HARD-GATE>
 Human UAT is required.
-Do not auto-pass UAT from automated review, tone, or silence.
 Walk through locked decisions and exit-state claims one at a time, waiting for explicit user confirmation.
 </HARD-GATE>
 
 <HARD-GATE>
-If the user changes intent in a way that affects architecture, sequencing, or other locked decisions, stop review.
+If the user changes intent in a way that meets the planning-level intent-change rule below, stop review.
 Update `CONTEXT.md`, strip `approved` if needed, and route back to `beo-planning`.
 </HARD-GATE>
 
@@ -67,36 +65,40 @@ Every task in the approved final execution scope must be in a terminal state (`d
 
 1. confirm review is allowed for the final execution scope
 2. run automated specialist review
-3. classify findings by severity and create follow-up work when needed
+3. classify findings and create follow-up work as needed
 4. run human UAT against locked decisions and exit-state claims
-5. announce pass or fail: on pass, hand off to `beo-compounding`; on fail with fixable issues, loop through reactive fixes; on fail with unfixable issues, route back to the appropriate skill
-6. hand off to compounding only when review is truly complete
+5. announce pass or fail; hand off, loop reactive fixes, or route back as needed
+6. hand off to compounding only when review is complete
 
-Use `references/reviewing-operations.md` for the exact prerequisite checks, artifact verification, UAT handling, and finishing sequence.
-Use `references/review-specialist-prompts.md` for the five-specialist review structure and severity rules.
+| File | Use for |
+| --- | --- |
+| `references/reviewing-operations.md` | exact prerequisite checks, artifact verification, UAT handling, finishing sequence |
+| `references/review-specialist-prompts.md` | five-specialist review structure and severity rules |
 
-**Quick Mode:** For Quick-scope features (see `../reference/references/pipeline-contracts.md`), skip specialist subagents, do a quick manual artifact check, explicit per-claim user confirmation (Quick mode skips specialist subagents, not the UAT requirement), then run build/test/lint and close. See `references/reviewing-operations.md` Section 6 for details.
+**Quick Mode:** For Quick-scope features (see `../reference/references/pipeline-contracts.md`), skip specialist subagents, do a quick manual artifact check, get explicit per-claim user confirmation, then run build/test/lint and close. Do not skip UAT. See `references/reviewing-operations.md` Section 6.
 
 ## Review Prerequisites
 
-Confirm the final execution scope is actually complete and all required artifacts are available before starting review.
+Confirm the final execution scope is complete and all required artifacts are available before starting review.
 See `references/reviewing-operations.md` Section 1 for the exact prerequisite checks.
 
 ## Scope Rule
 
 Review the executed scope only.
-For multi-phase work, that means the final approved scope for the feature **only when no later phases remain**.
-If later phases still exist, do not finish the feature in review; route back to planning-aware flow instead.
+For multi-phase work, review the final approved scope for the feature **only when no later phases remain**.
+If later phases still exist, do not finish the feature in review; route back to planning-aware flow.
 
 ## Automated Specialist Review
 
 Run the canonical five-specialist review defined in `references/review-specialist-prompts.md`.
-The review must cover, at minimum:
-- implementation correctness
-- contract / interface safety
-- test and verification adequacy
-- architecture / maintainability risk
-- user-facing or workflow regression risk
+
+| Specialist | Focus |
+| --- | --- |
+| implementation correctness | implementation correctness |
+| contract / interface safety | contract and interface safety |
+| test and verification adequacy | test and verification adequacy |
+| architecture / maintainability risk | architecture and maintainability risk |
+| user-facing or workflow regression risk | user-facing and workflow regression risk |
 
 Use the reference file for the exact prompts and dispatch structure.
 Do not treat code inspection alone as sufficient evidence; review findings about tests, build, lint, runtime behavior, or generated artifacts must be backed by concrete verification evidence.
@@ -106,11 +108,22 @@ Do not treat code inspection alone as sufficient evidence; review findings about
 Do not collapse the P1/P2/P3 categories. Their placement and blocking behavior matter.
 See `references/review-specialist-prompts.md` for the severity table and rules.
 
+## Specialist Conflict Resolution
+
+Use a conservative evidence-first policy when specialists disagree:
+
+| Case | Rule |
+| --- | --- |
+| substantiated P1 | block completion until re-verified or fixed |
+| substantiated P2/P3 | keep all; disagreement does not erase them |
+| evidence-free claim | discard or downgrade |
+| contradictory blocking findings | run targeted re-verification or escalate to the user |
+
 ## Reactive Fix Loop
 
 Reactive fixes are part of finishing the current feature. P2 and P3 work are not.
 See `references/reviewing-operations.md` and `references/review-specialist-prompts.md` for the exact P1 fix-and-re-review cycle.
-Do not patch implementation directly inside review just to save time. Route fixes back through execution with proper bookkeeping.
+Do not patch implementation directly inside review. Route fixes back through execution with proper bookkeeping.
 
 ## Human UAT
 
@@ -120,12 +133,31 @@ Review automated findings first, then walk the user through the implemented outc
 Use the canonical review/UAT approval rules from `../reference/references/approval-gates.md` (items 3 and 6).
 Use `references/reviewing-operations.md` Section 4 for the exact UAT loop and outcome handling.
 
+### UAT Walkthrough Order
+
+Derive the walkthrough list in this order:
+1. locked decisions from `CONTEXT.md`
+2. promised exit-state lines from `phase-contract.md`
+3. any user-facing workflow claims added during execution or reactive fixes
+
+Walk each item one at a time. If an item cannot be traced to implementation or verification evidence, treat it as a review defect.
+
 ## Intent Changes During UAT
 
 If the user says the implementation is wrong because the desired behavior changed:
 - update `CONTEXT.md` to reflect the new decision
-- if the change is minor and does not alter architecture or sequencing, create follow-up work using the proper severity path
+- if the change is minor, create follow-up work using the proper severity path
 - if the change is major, stop review, strip `approved`, and route back to `beo-planning`
+
+Treat the change as **minor** only when all of these are true:
+
+| Test | Must be true |
+| --- | --- |
+| locked decisions | no locked decision in `CONTEXT.md` changes |
+| ordering | no story ordering or phase sequencing changes |
+| scope boundary | no new artifact, contract, or architectural boundary is required |
+
+If any of those conditions fail, treat the change as **major**.
 
 Do not patch over a changed feature definition inside review.
 Do not misclassify changed user intent as a normal defect; treat it as a planning/context change and route accordingly.
@@ -143,8 +175,6 @@ Only after review genuinely passes:
 3. set the state to `status: "learnings-pending"` and `next: "beo-compounding"`
 4. announce that the review gate has passed and hand off to `beo-compounding`
 
-The epic must be closed before writing learnings-pending state. Compounding assumes a closed epic and will reject an open one.
-
 Do not hand off to compounding while P1 fixes, unresolved UAT, or planning-level intent changes remain.
 
 ## Context Budget
@@ -153,4 +183,4 @@ Follow `../reference/references/shared-hard-gates.md` § Context Budget Protocol
 
 ## Red Flags & Anti-Patterns
 
-Do not collapse severity levels, skip artifact verification because the implementation "looks fine," or let automated review substitute for explicit human UAT.
+Do not skip artifact verification because the implementation "looks fine," invent a walkthrough list without grounding it in `CONTEXT.md` and `phase-contract.md`, or downgrade a planning-level intent change into a cosmetic follow-up.
