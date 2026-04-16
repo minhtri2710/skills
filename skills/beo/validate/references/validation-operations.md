@@ -2,6 +2,8 @@
 
 Operational playbook for `beo-validate`.
 
+`beo-validate` is a read-only quality gate for planning artifacts. It inspects, evaluates, and reports. It does not repair planning artifacts, edit dependency graphs, create or close spikes, rewrite bead descriptions, or otherwise mutate planned scope. Its only write actions are `approved` label management, `HANDOFF.json`, and minimal `.beads/STATE.json` updates needed for handoff.
+
 ## Table of Contents
 
 - [1. Prerequisites](#1-prerequisites)
@@ -100,28 +102,28 @@ The checker returns a structured PASS/FAIL report for all 8 dimensions.
 
 1. If all 8 dimensions PASS, proceed to graph health.
 2. If any dimension FAILS:
-   1. fix the issue in the relevant artifact
-   2. re-run the checker
-   3. count that as the next iteration
+   1. report the issue in the rejection output
+   2. map the issue to the artifact or bead set `beo-plan` must update
+   3. stop validation and route back to `beo-plan`
 
 ### Repair Routing
 
-| Failed Dimension | Fix In |
-|-----------------|--------|
+| Failed Dimension | Report For `beo-plan` To Fix |
+|-----------------|-------------------------------|
 | Phase contract unclear | Revise `phase-contract.md` |
 | Story order or scope unclear | Revise `story-map.md` |
 | Decision/gap issue | Revise `approach.md`, story map, and/or bead descriptions |
-| Dependency/scope/budget issue | Revise beads |
+| Dependency/scope/budget issue | Revise beads and dependency declarations |
 | Exit state not convincingly reachable | Revise `phase-contract.md`, `story-map.md`, `approach.md`, or `plan.md` |
 | Current phase no longer fits the whole-feature sequence | Revise `phase-plan.md` and current-phase artifacts |
 
 ### Failure Handling
 
-- **1-2 failures**: fix in place
-- **3+ failures**: route back to `beo-plan`
-- **After 3 iterations with any FAIL still present**: stop and escalate to the user
+- **1+ failures**: produce a prioritized rejection report and route back to `beo-plan`
+- **If decisions changed rather than planning structure**: route back to `beo-explore`
+- **Repeated reject/replan loops with no convergence**: escalate to the user
 
-Do not attempt iteration 4.
+The rejection report is the remediation plan. Order fixes so `beo-plan` can apply them deterministically.
 
 ## 4. Graph Health Operations
 
@@ -142,11 +144,11 @@ bv --robot-priority --format json 2>/dev/null
 
 | Finding | Action |
 |---------|--------|
-| Missing dependency suggested | Evaluate if genuine -> `br dep add <child-id> <depends-on-id>` |
-| Duplicate beads detected | Merge or close the duplicate -> `br close <dup_id>` |
-| Cycle detected | Break the weakest edge -> `br dep remove <child-id> <depends-on-id>` |
-| Articulation point | Consider splitting the task |
-| Priority misalignment | Adjust with `br update <id> -p <n>` |
+| Missing dependency suggested | Report dependency issue for `beo-plan` to evaluate and declare |
+| Duplicate beads detected | Report duplication for `beo-plan` to merge, rewrite, or close |
+| Cycle detected | Report the cycle and recommend the dependency edge `beo-plan` should reconsider |
+| Articulation point | Recommend task splitting for `beo-plan` |
+| Priority misalignment | Report priority concern for `beo-plan` to adjust |
 | Critical path identified | Note it; do not delay these tasks |
 
 ### Deduplication Check
@@ -193,33 +195,21 @@ Verify that bead specs are semantically compatible with locked decisions:
 
 Semantic gaps are structural failures, not optional quality notes.
 
-## 5. Spike Execution
+## 5. Spike Assessment
 
 Use for HIGH-risk tasks when the approach is unproven, depends on external systems, has hard performance requirements, or otherwise relies on hope.
 
-### Create the Spike
+### Recommend the Spike
 
-```bash
-br create "Spike: <specific question to answer>" -t task --parent <EPIC_ID> -p 0 --json
-```
-
-The spike must:
+If a spike is needed, tell `beo-plan` to create it. The recommendation must specify that the spike:
 
 1. ask a binary yes/no question
 2. be time-boxed to 30 minutes
 3. produce a concrete finding
 
-### Record the Result
+### Record the Need
 
-```bash
-br close <SPIKE_ID>
-br comments add <SPIKE_ID> --no-daemon --message "FINDING: YES|NO: <explanation>"
-```
-
-| Result | Action |
-|--------|--------|
-| YES | continue validation and embed the finding |
-| NO | full stop, route back to `beo-plan` |
+If prior spike results already exist, incorporate them into validation. If a required spike has not yet been created or resolved, reject validation and instruct `beo-plan` to add it before execution.
 
 ## 6. Fresh-Eyes Review
 
@@ -229,7 +219,7 @@ For deep-complexity features or features with 5+ tasks, load `bead-reviewer-prom
 2. no implementation history
 3. no broad conversation context
 
-If issues are found, fix bead descriptions before proceeding.
+If issues are found, flag the affected bead descriptions for `beo-plan` to rewrite before validation can pass.
 
 ## 7. Approval Gate
 
@@ -245,9 +235,9 @@ Beads: <N>
 Demo story: <one-line from phase-contract.md>
 
 Structural Check: <N>/8 PASS (after <N> iterations)
-Graph Health: <clean | N issues found and fixed>
-Spikes: <N run, all YES | N/A>
-Fresh-Eyes: <PASS | N issues fixed | skipped>
+Graph Health: <clean | N issues found>
+Spikes: <N completed with findings | N recommended | N/A>
+Fresh-Eyes: <PASS | N issues flagged | skipped>
 
 Exit-State Readiness:
 - Entry state understood: YES
@@ -294,7 +284,7 @@ Then route:
 
 - `beo-plan` if the plan needs rework
 - `beo-explore` if decisions changed
-- fix in place if the feedback is minor
+- do not fix in place during validation; the rejection report becomes the ordered remediation plan
 
 ## 8. Handoff and Checkpointing
 
@@ -340,9 +330,8 @@ Your approval summary must end with a concrete `Next skill: beo-execute` or `Nex
 
 Update `.beads/STATE.json` with:
 
-- validated task count
-- planning mode
 - current phase
-- next skill
+- current skill/status for validation handoff
+- next action / next skill
 
 If `planning_mode = multi-phase`, note explicitly that later phases remain deferred until routed back through `beo-plan`.

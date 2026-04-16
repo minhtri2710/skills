@@ -4,6 +4,8 @@ Detailed operational playbook for `beo-route`.
 
 Load this file when you need exact bootstrap steps, new-feature creation details, quick-path scaffolding, resume validation, planning-aware routing, or doctor-mode commands.
 
+> **Intake scaffolding authorization:** The quick-path bootstrap steps in this file are a narrow exception to route's NO-IMPLEMENTATION gate. They are authorized only as intake scaffolding for new work: creating the epic/task structure, artifact directory, and minimal draft/stub artifacts that downstream skills will complete or overwrite.
+
 ## Intent Short-Circuit Rule
 
 Before doing full feature-state routing, check whether the user's explicit request already selects a meta-path.
@@ -47,6 +49,8 @@ If workspace repair is needed, use the doctor-mode commands in section 7 rather 
 
 ## 2. New Feature Creation
 
+This section covers intake scaffolding for brand-new features, not general artifact creation during normal routing.
+
 ### Create the Epic
 
 ```bash
@@ -75,7 +79,7 @@ Derive the `feature_slug` from the epic title using `beo-reference` → `referen
 Use for **quick** work only: single file change, well-scoped, <30 minutes.
 Quick uses the stricter intake bar here. When work qualifies, the router may use the quick path only at intake. Once an epic already exists or the scope expands beyond that strict quick bar, fall back to the normal Quick-aware pipeline.
 
-> **Ownership exception:** The quick path creates minimal stubs for artifacts that normally belong to `beo-explore` (CONTEXT.md) and `beo-plan` (approach.md, plan.md, phase-contract.md, story-map.md). This is an intentional shortcut — these stubs are not full-depth artifacts but placeholder scaffolds that let quick work skip directly to validation. If the work outgrows quick scope, the promotion guard below routes to the normal pipeline owners.
+> **Ownership exception:** The quick path creates minimal intake scaffolds for artifacts that normally belong to `beo-explore` (CONTEXT.md) and `beo-plan` (approach.md, plan.md, phase-contract.md, story-map.md). This is an intentional shortcut — these files are draft/stub placeholders, not full-depth artifacts, and they exist only to let quick work skip directly to validation. If the work outgrows quick scope, the promotion guard below routes to the normal pipeline owners, which must complete or overwrite these drafts.
 
 ### Create the Task
 
@@ -86,15 +90,15 @@ br create "<task-name>" -t task --parent <EPIC_ID> -p 1 --json
 br update <TASK_ID> --description "<markdown task spec: background + what to do + verify steps>"
 ```
 
-After scaffolding the minimal artifacts, route to `beo-validate`. Do not set the `approved` label here; only `beo-validate` grants approval.
+After scaffolding the minimal draft artifacts, route to `beo-validate`. Do not set the `approved` label here; only `beo-validate` grants approval.
 
-### Create Minimal Artifacts
+### Create Minimal Draft Artifacts
 
 ```bash
 mkdir -p .beads/artifacts/<feature_slug>
 ```
 
-Write these minimal stubs with file editing tools:
+Write these minimal draft/stub files with file editing tools. Each file should remain obviously incomplete so downstream skills can complete or overwrite it as needed.
 
 #### CONTEXT.md
 
@@ -197,7 +201,7 @@ If the work grows beyond quick scope:
 - route to `beo-explore` or `beo-plan`
 - treat the existing quick task bead as planning input
 
-> **Hard gate**: After quick-path promotion, the stub CONTEXT.md and any placeholder artifacts MUST be treated as incomplete drafts. The exploring or planning skill must re-derive them from scratch — never treat promoted stubs as validated artifacts.
+> **Hard gate**: After quick-path promotion, the stub CONTEXT.md and any placeholder artifacts MUST be treated as incomplete drafts. The exploring or planning skill must re-derive them from scratch or overwrite them as needed — never treat promoted stubs as validated artifacts.
 
 ## 4. Artifact Inspection Order
 

@@ -16,7 +16,7 @@ The `checkRepo` return value contains a script-level `status` field, not a routi
 | `"up_to_date"` | Report that onboarding is current and hand back to `beo-route`. |
 | `"needs_onboarding"` | Summarize the actions, ask for approval, then apply when approved. |
 
-> **Note:** These are script return values, not STATE.json routing states. The canonical routing state for a freshly-onboarded repo is `needs-onboarding` (see `pipeline-contracts.md` routing table).
+> **Note:** These are script return values, not STATE.json routing states. `needs-onboarding` is the pre-onboarding detection state; after successful onboarding, the repository returns to normal routing for its actual project state.
 
 ## What Onboarding Installs
 

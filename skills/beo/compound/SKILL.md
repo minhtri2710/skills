@@ -1,7 +1,7 @@
 ---
 name: beo-compound
 description: |
-  Use after review accepts and a feature is effectively finished. Triggers: "what did we learn?", "capture learnings", "document what we found", "compound this work". Extracts learnings from a single completed feature into durable knowledge with optional critical-pattern promotion. MUST NOT compound incomplete features, consolidate across features, promote patterns without user approval, or modify other features' learnings. Do not use for cross-feature learnings consolidation (use beo-dream).
+  Use after review accepts a feature to extract learnings from that single completed feature into durable knowledge. Identifies what worked, what failed, and unexpected discoveries; categorizes as feature-specific or generalizable; optionally proposes critical-pattern promotions requiring explicit user approval. MUST NOT run on incomplete or unaccepted features, consolidate across multiple features, or promote patterns without user approval. Do not use for cross-feature learnings consolidation (use beo-dream) or while the feature is still in progress or under review.
 ---
 
 > **HARD-GATE: ONBOARDING** — Before any work, verify `br` and `bv` are accessible and `.beads/` is initialized (`beo-reference` → `references/shared-hard-gates.md`). If stale or missing, load `beo-onboard` and stop.
@@ -14,7 +14,7 @@ description: |
 Capture what a single completed feature taught the system and store it in the knowledge corpus. **Core principle: turn finished work into reusable knowledge without expanding scope beyond the one feature.**
 
 ## Boundary Rules
-- **MUST NOT** route to skills — owned by `beo-route`.
+- **MUST NOT** perform independent state detection or free-form routing — owned by `beo-route`. May emit canonical handoff to the next allowed pipeline skill when exit conditions are met.
 - **MUST NOT** gather requirements — owned by `beo-explore`.
 - **MUST NOT** decompose work — owned by `beo-plan`.
 - **MUST NOT** verify plans — owned by `beo-validate`.
@@ -27,7 +27,7 @@ Capture what a single completed feature taught the system and store it in the kn
 ## Hard Gates
 > **HARD-GATE: POST-REVIEW-ONLY** — Compound only runs after review accepts. If review has not accepted, compound does not start.
 
-> **HARD-GATE: SINGLE-FEATURE-SCOPE** — Compound extracts learnings from exactly one feature. It never reads or modifies learnings from other features, except an approved promotion write to the shared critical-patterns destination defined by `artifact conventions (`beo-reference` → `references/artifact-conventions.md`)`.
+> **HARD-GATE: SINGLE-FEATURE-SCOPE** — Compound extracts learnings from exactly one feature. Writes only current feature learnings and approved critical-pattern appends. May read prior learnings for deduplication only, using the shared critical-patterns destination defined by `artifact conventions (`beo-reference` → `references/artifact-conventions.md`)`.
 
 > **HARD-GATE: CRITICAL-PATTERN-APPROVAL** — Promoting a pattern to `critical-patterns.md` requires explicit user approval per `the beo approval gates` (`beo-reference` → `references/approval-gates.md`). Compound proposes; user decides.
 
@@ -40,7 +40,7 @@ Capture what a single completed feature taught the system and store it in the kn
 3. **Categorize**: Group learnings by type such as technique, pitfall, tool-usage, architecture, and process.
 4. **Generalize patterns**: Decide whether each learning is feature-specific or generalizable. Use `references/learnings-template.md` to normalize format before any promotion consideration.
 5. **Promote critical patterns**: When a generalized pattern is recurring, high-impact, and actionable, propose promotion for user approval per `the beo approval gates` (`beo-reference` → `references/approval-gates.md`).
-6. **Write artifacts**: Write `.beads/knowledge/features/<feature_slug>/feature-learnings.md` and optionally update `.beads/knowledge/critical-patterns.md` if approved. If the knowledge store is available, update it per `the knowledge store (`beo-reference` → `references/knowledge-store.md`)`.
+6. **Write artifacts**: Write `.beads/learnings/YYYYMMDD-<feature_slug>.md` and optionally update `.beads/critical-patterns.md` if approved. If the knowledge store is available, update it per `the knowledge store (`beo-reference` → `references/knowledge-store.md`)`.
 
 ### Reference Files
 | File | Purpose |
@@ -50,7 +50,7 @@ Capture what a single completed feature taught the system and store it in the kn
 
 ## Inputs and Outputs
 - **Inputs** — Completed feature after review acceptance, review findings, implementation artifacts, bead history, and feature-scoped knowledge inputs resolved via `artifact conventions (`beo-reference` → `references/artifact-conventions.md`)`.
-- **Outputs** — `.beads/knowledge/features/<feature_slug>/feature-learnings.md`, optional `.beads/knowledge/critical-patterns.md` updates when approved, and any state/handoff records required by the STATE.json/HANDOFF.json protocol (`beo-reference` → `references/state-and-handoff-protocol.md`).
+- **Outputs** — `.beads/learnings/YYYYMMDD-<feature_slug>.md`, optional `.beads/critical-patterns.md` updates when approved, and any state/handoff records required by the STATE.json/HANDOFF.json protocol (`beo-reference` → `references/state-and-handoff-protocol.md`).
 
 ## Decision Rubrics
 - **Feature-Specific vs General** — If a learning depends on this feature’s exact tech stack, domain, or constraints, keep it feature-specific. If it applies across future features, generalize it.
@@ -66,7 +66,7 @@ Capture what a single completed feature taught the system and store it in the kn
 - Learnings should never be empty; if no meaningful learning exists, explicitly record that outcome and why.
 
 ## Handoff
-> Write `HANDOFF.json` for every skill transition (`beo-reference` → `references/pipeline-contracts.md`). Transitions follow the pipeline: route → explore → plan → validate → (execute | swarm → execute) → review → compound.
+> Write `STATE.json` for the normal adjacent-skill handoff with completion status, promoted learnings, and any deferred follow-up. Use `HANDOFF.json` only for emergency checkpoint or low-context resume scenarios.
 
 ## Context Budget
 > If context exceeds 65% capacity, compress non-essential history before continuing (`beo-reference` → `references/shared-hard-gates.md`).

@@ -46,7 +46,7 @@ See `beo-reference` → `references/pipeline-contracts.md` → Epic Lifecycle.
 
 Use the scheduling cascade from `beo-reference` → `references/dependency-and-scheduling.md` § Scheduling Cascade.
 
-Pick the top executable bead from the first available track. If dispatched by swarming, respect any startup hint but always verify against the live graph.
+Pick the top executable bead from the first available track. In swarm-worker mode, execute only the assigned bead, but still verify against the live graph before starting.
 
 For multi-phase work, select only beads that belong to the **current phase**.
 
@@ -67,22 +67,19 @@ br show <TASK_ID> --json
 br dep list <TASK_ID> --direction down --type blocks --json
 ```
 
-All blocking tasks must be closed.
+All blocking tasks must be done or otherwise in an allowed terminal dependency state per the canonical graph rules.
 
 ### Stale Label Cleanup
 
-Remove stale labels before dispatch. See `pipeline-contracts.md` Label Lifecycle for canonical label definitions.
+Remove only transient stale labels before dispatch. See `pipeline-contracts.md` Label Lifecycle for canonical label definitions.
 
 ```bash
 br label remove <TASK_ID> -l blocked 2>/dev/null
-br label remove <TASK_ID> -l failed 2>/dev/null
 br label remove <TASK_ID> -l in_progress 2>/dev/null
-br label remove <TASK_ID> -l partial 2>/dev/null
-br label remove <TASK_ID> -l cancelled 2>/dev/null
 br label remove <TASK_ID> -l dispatch_prepared 2>/dev/null
 ```
 
-Do **not** remove `debug_attempted`. It is routing-significant history, not stale execution state.
+Do **not** remove `debug_attempted`. It is routing-significant history, not stale execution state. Do **not** auto-remove `failed` or `cancelled`; those are real terminal states and require an explicit routing decision.
 
 ### Description Verification
 
@@ -208,7 +205,7 @@ If no worker-dispatch mechanism is available, skip delegated dispatch and implem
 
 The worker should return:
 
-1. status: `done | blocked | failed | partial`
+1. status: `done | blocked | failed | cancelled`
 2. summary
 3. blockers (if any)
 4. learnings
@@ -280,7 +277,7 @@ br sync --flush-only
 
 ### Bead Completion Validation
 
-1. Verify `br show <BEAD_ID> --json` reports status `closed`.
+1. Verify `br show <BEAD_ID> --json` maps to canonical status `done` (backed by `br` status `closed`).
 2. Verify the completion report includes bead ID, files changed, tests added or modified, and verification result.
 3. Release all held file reservations with `release_file_reservations(project_key, agent_name, paths=[...])` when Agent Mail mode is active.
 4. Send the `[DONE]` Agent Mail report with the full completion summary.
@@ -304,7 +301,7 @@ bv --robot-next --format json 2>/dev/null || br ready --json
 | --- | --- |
 | more ready current-phase tasks | loop |
 | all remaining tasks blocked | report blockers |
-| all current-phase tasks closed | complete current phase |
+| all current-phase tasks in terminal states (`done`, `cancelled`, or `failed`) | complete current phase |
 | a task failed | report and ask user |
 | context budget >65% | checkpoint and pause |
 
@@ -368,4 +365,4 @@ Write a final report artifact for the current task and stop gracefully. The orch
 Use the canonical base schema from `beo-reference` → `references/state-and-handoff-protocol.md`, then add any executing-specific resume detail you need.
 
 When relevant, include the planning-aware fields from `beo-reference` → `references/state-and-handoff-protocol.md` § Planning-Aware HANDOFF.json Extension Fields.
-1. whether current-phase execution is complete or partially complete
+1. whether current-phase execution is complete or still has non-terminal work

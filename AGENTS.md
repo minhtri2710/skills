@@ -22,6 +22,7 @@ skills/
       references/
         context-template.md
         gray-area-probes.md
+        go-mode.md
     plan/                        # Epic/task decomposition + dependency wiring
       SKILL.md
       agents/openai.yaml
@@ -99,7 +100,7 @@ skills/
       references/
         onboarding-flow.md
     reference/                   # Shared reference corpus (not a loadable skill)
-      INDEX.md                       # Navigation hub
+      SKILL.md                       # Navigation hub / index
       references/                    # 16 reference docs
         br-cli-reference.md
         bv-cli-reference.md

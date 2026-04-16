@@ -12,7 +12,7 @@ From `CONTEXT.md`, extract:
 
 ## Parallel Research Subagents
 
-Launch 2–4 parallel research subagents:
+Default: run one focused discovery pass. For broad or high-risk features, escalate to 2–4 parallel research subagents:
 
 | Agent | Focus |
 |-------|-------|

@@ -47,7 +47,7 @@ br dep list <EPIC_ID> --direction up --type parent-child --json
 
 ## 2. Automated Review Setup
 
-Use `review-specialist-prompts.md` for the specialist table, dispatch strategy, and P1/P2/P3 bead-creation patterns.
+Use `review-specialist-prompts.md` for the canonical 5-specialist table, dispatch strategy, and P1/P2/P3 bead-creation patterns.
 
 Prefer isolated review inputs:
 1. changed files or diff
@@ -57,6 +57,7 @@ Prefer isolated review inputs:
 5. final current-phase artifacts (`phase-contract.md`, `story-map.md`, and `phase-plan.md` when present)
 
 If multiple specialists produce the same finding, deduplicate before creating follow-up work.
+P2 findings become non-blocking follow-up beads outside the current epic scope; only P1 findings block acceptance.
 
 ## 3. Artifact Verification
 
@@ -106,7 +107,7 @@ For each locked decision and each exit-state line:
 
 - yes → mark verified and continue
 - no → create P1 fix bead and route to executing
-- close enough, fix later → create P2 follow-up bead using the shared follow-up template
+- close enough, fix later → create non-blocking P2 follow-up bead using the shared follow-up template
 - changed mind → update `CONTEXT.md`, assess impact, and route appropriately
 
 ## 5. Completion Handoff
@@ -115,7 +116,7 @@ After all P1 issues are resolved and UAT is complete:
 
 1. run full build/test/lint
 2. write review comments to the epic with severity labels and concrete fixes
-3. write `.beads/review-findings.md` for compounding
+3. write `.beads/artifacts/<feature_slug>/review-findings.md` for compounding
 4. close the epic: `br close <EPIC_ID>`
 5. write a fresh `.beads/STATE.json` using `beo-reference` → `references/state-and-handoff-protocol.md`; set `status: "learnings-pending"` and `next: "beo-compound"`; include planning-aware fields when known
 6. remove `.beads/HANDOFF.json` only after the fresh state write succeeds

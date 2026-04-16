@@ -76,7 +76,7 @@ Measure silence thresholds here and in `message-templates.md` in cycles, not wal
 
 ## 3. Spawn Workers
 
-Spawn worker subagents in parallel using the canonical worker contract. Default max workers = `min(independent ready tasks, 5)`. Override only with explicit user approval.
+Spawn worker subagents in parallel using the canonical worker contract. Default max workers = `min(independent ready tasks, 5)`. Override only with explicit user approval. Default maximum 5 concurrent workers to limit coordination overhead and merge conflict risk.
 
 Each worker must receive:
 - Agent Mail identity
@@ -86,11 +86,16 @@ Each worker must receive:
 - optional startup hint (clearly marked as a hint)
 - scoped task context by default
 
-Do not assign fixed tracks or fixed bead lists in the normal case. Workers should self-route from the live graph.
+Coordinator assignment flow:
+1. Identify ready beads from the live graph.
+2. Assign exactly one bead per worker via Agent Mail.
+3. Require the worker to confirm readiness by validating the bead is still ready and the file scope is still safe.
+4. Have the worker execute the assigned bead only.
+5. Require completion or failure reporting via Agent Mail.
 
 ### Worker startup acknowledgment
 
-A worker startup is valid when `[ONLINE]` arrives with both nickname and Agent Mail identity. See `beo-reference` → `references/worker-template.md` for the full startup sequence.
+A worker startup is valid when `[ONLINE]` arrives with both nickname and Agent Mail identity. After `[ONLINE]`, send a bead assignment and wait for the worker's readiness confirmation before treating the worker as active on that bead. See `beo-reference` → `references/worker-template.md` for the full startup sequence.
 
 Recovery ladder:
 1. After 2 cycles without `[ONLINE]`, send `[STARTUP REMINDER]`.
@@ -155,7 +160,7 @@ After each completion:
 | --- | --- |
 | >50% beads open | Continue normally |
 | <50% beads open | Consider reducing workers |
-| All current-phase beads closed | Complete swarm |
+| All current-phase beads done/cancelled/failed | Complete swarm |
 | No progress for 3+ cycles | Diagnose mail, reservations, or worker health |
 
 If coordination overhead starts exceeding useful progress, stop expanding the swarm and degrade the remainder to `beo-execute`.
@@ -171,10 +176,10 @@ bv --robot-triage --graph-root <EPIC_ID> --format json
 ```
 
 2. If orphaned or blocked beads remain, report them and get user direction.
-3. If all current-phase beads are closed, run final build/test commands.
+3. If all current-phase beads are in terminal states (`done`, `cancelled`, or `failed`), run final build/test commands.
 4. Choose the next route:
-   - `beo-review` if this was the final execution scope
    - remove `approved` first (`br label remove <EPIC_ID> -l approved`), then `beo-plan` if `planning_mode = multi-phase` and later phases remain
+   - `beo-review` if this was the final execution scope
 5. Update `.beads/STATE.json`, clear active workers, run `br sync --flush-only`, and send the completion message using `message-templates.md`:
    - set `"status"` to `"phase-complete-needs-replan"` when later phases remain, or `"ready-to-review"` when this was the final scope
    - set `"next"` to the chosen route

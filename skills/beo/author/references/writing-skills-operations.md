@@ -12,7 +12,7 @@ Load this file for exact RED/GREEN/REFACTOR steps, validation, meta-test handlin
 
 ## 1. RED: Failing Test First
 
-1. Define the skill purpose and expected failure modes.
+1. Define the skill purpose, gather skill definition inputs, and list expected failure modes.
 2. Create 3-5 pressure scenarios with `pressure-test-template.md`.
 3. Run the scenarios without the skill.
 4. Capture exact violations and rationalizations verbatim.
@@ -24,10 +24,10 @@ Write the smallest skill that addresses observed rationalizations only.
 
 Verify before proceeding:
 1. Frontmatter has the correct `name` and a trigger-only `description`.
-2. Description contains triggering conditions only, not workflow steps.
+2. Description contains triggering conditions, scope, and hard exclusions only, not workflow steps.
 3. Include persuasion principles where judgment is required.
 4. Use `<HARD-GATE>` markers where ambiguity is dangerous.
-5. Move bulky detail into `references/`, not the skill body.
+5. Move bulky shared protocol detail into `references/` or `beo-reference`, not the skill body.
 
 Then rerun the same pressure scenarios with the skill present.
 
@@ -53,9 +53,10 @@ Use the meta-test from `pressure-test-template.md` § The Meta-Test to distingui
 
 Validate the skill manually:
 
-1. Confirm `SKILL.md` has the required structure: YAML frontmatter (`name`, `description`), Hard Gates, a core execution loop (`Default Loop` or equivalent such as `The Core Cycle`), Handoff, Context Budget, and Red Flags.
-2. Confirm all referenced files in `references/` exist and are reachable.
-3. Confirm pressure-test scenarios exist and are documented.
+1. Confirm `SKILL.md` has the required structural contract: YAML frontmatter (`name`, `description`), Hard Gates, Boundary Rules, a core execution loop (`Default Loop` or an equivalent section name), a reference table, Inputs and Outputs, Decision Rubrics, recovery guidance, Handoff, Context Budget, and Red Flags.
+2. Confirm equivalent section names still satisfy the purpose of each required structural section; textual matching to the canonical headings is not required.
+3. Confirm all referenced files in `references/` exist and are reachable.
+4. Confirm pressure-test scenarios exist and are documented.
 
 Then create `CREATION-LOG.md` using `creation-log-template.md`.
 

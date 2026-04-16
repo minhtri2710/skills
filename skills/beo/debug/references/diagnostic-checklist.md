@@ -14,7 +14,7 @@
 
 ## 3a. Read Relevant Source Files
 
-1. Use your content search tool to find files containing `<error symbol or function>` in `src/` (e.g., `*.ts` files).
+1. Use your content search tool to find files containing `<error symbol or function>` in the relevant source roots (for example, `*.ts` files under the project's actual code directories).
 2. Read the implicated files.
 
 Do not read the entire codebase. Read exactly the files implicated by the error output.

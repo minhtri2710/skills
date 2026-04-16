@@ -1,7 +1,7 @@
 ---
 name: beo-dream
 description: |
-  Use when beo learnings need a manual consolidation pass across multiple completed features, especially when learnings have gone stale, repeated patterns are accumulating, or the user asks to consolidate. Triggers: "run dream", "consolidate learnings", "merge repeated learnings", "do a learnings pass". Synthesizes cross-feature patterns into canonical knowledge. MUST NOT run without multiple features' learnings, invent patterns not present in source artifacts, capture single-feature learnings, or consolidate prematurely. Do not use for single-feature learnings capture (use beo-compound).
+  Use when learnings from multiple completed features need periodic consolidation into shared canonical knowledge — especially when repeated patterns accumulate, learnings go stale, or the user requests a consolidation pass. Synthesizes cross-feature patterns, merges duplicates, promotes recurring insights to critical-patterns.md, and archives superseded entries. MUST NOT run with fewer than 2 features' learnings, invent patterns absent from source artifacts, or capture single-feature learnings. Do not use for single-feature learning extraction (use beo-compound).
 ---
 
 > **HARD-GATE: ONBOARDING** — Before any work, verify `br` and `bv` are accessible and `.beads/` is initialized (`beo-reference` → `references/shared-hard-gates.md`). If stale or missing, load `beo-onboard` and stop.
@@ -14,7 +14,7 @@ description: |
 Periodically consolidate learnings across multiple completed features into durable, reusable knowledge. **Core principle: synthesize only from existing evidence, never invent net-new patterns.**
 
 ## Boundary Rules
-- **MUST NOT** route to skills — owned by `beo-route`.
+- **MUST NOT** perform independent state detection or free-form routing — owned by `beo-route`. May emit canonical handoff to the next allowed pipeline skill when exit conditions are met.
 - **MUST NOT** gather requirements — owned by `beo-explore`.
 - **MUST NOT** decompose work — owned by `beo-plan`.
 - **MUST NOT** write code — owned by `beo-execute`.
@@ -26,7 +26,7 @@ Periodically consolidate learnings across multiple completed features into durab
 ## Hard Gates
 > **HARD-GATE: MULTI-FEATURE-ONLY** — Dream requires learnings from at least 2 completed features. If only 1 feature exists, stop and use `beo-compound`.
 
-> **HARD-GATE: AMBIGUOUS-PROMOTION-APPROVAL** — Promoting ambiguous or borderline patterns to `critical-patterns.md` requires user approval per the beo approval gates (`beo-reference` → `references/approval-gates.md`). If approval is missing, stop promotion and surface the decision.
+> **HARD-GATE: AMBIGUOUS-PROMOTION-APPROVAL** — All appends to `critical-patterns.md` require explicit user approval per the beo approval gates (`beo-reference` → `references/approval-gates.md`). If approval is missing, stop promotion and surface the decision.
 
 > **HARD-GATE: NO-INVENTION** — Dream only consolidates, merges, and promotes learnings already present in source artifacts. If a pattern does not appear in feature learnings, it cannot be created here.
 
@@ -34,10 +34,10 @@ Periodically consolidate learnings across multiple completed features into durab
 > Follow the communication standard (`beo-reference` → `references/communication-standard.md`).
 
 ## Default Dream Loop
-1. **Read** — Load `.beads/knowledge/features/*/feature-learnings.md` and `.beads/knowledge/critical-patterns.md` using artifact conventions (`beo-reference` → `references/artifact-conventions.md`). Follow `references/dream-operations.md` and `references/agent-history-source-policy.md` while collecting source material.
+1. **Read** — Load `.beads/learnings/` and `.beads/critical-patterns.md` using artifact conventions (`beo-reference` → `references/artifact-conventions.md`). Follow `references/dream-operations.md` and `references/agent-history-source-policy.md` while collecting source material.
 2. **Identify patterns** — Find learnings repeated across at least 2 completed features, group them by theme, and score them with `references/consolidation-rubric.md`.
 3. **Consolidate** — Merge duplicate or overlapping learnings into canonical entries while preserving feature attribution and keeping state handling aligned with the bead lifecycle states (`beo-reference` → `references/status-mapping.md`).
-4. **Promote** — For entries that meet the promotion rubric, prepare updates to `.beads/knowledge/critical-patterns.md`; require approval for ambiguous promotions per the beo approval gates (`beo-reference` → `references/approval-gates.md`).
+4. **Promote** — For entries that meet the promotion rubric, prepare updates to `.beads/critical-patterns.md`; require explicit user approval for all appends per the beo approval gates (`beo-reference` → `references/approval-gates.md`).
 5. **Archive** — Archive stale or superseded learnings instead of deleting them, following standard failure recovery (`beo-reference` → `references/failure-recovery.md`).
 
 ### Reference Files
@@ -63,8 +63,8 @@ Periodically consolidate learnings across multiple completed features into durab
 - Flag patterns that have drifted and require review.
 
 ## Inputs and Outputs
-- **Inputs** — `.beads/knowledge/features/*/feature-learnings.md`, `.beads/knowledge/critical-patterns.md`, and feature artifacts resolved via artifact conventions (`beo-reference` → `references/artifact-conventions.md`).
-- **Outputs** — Updated `.beads/knowledge/critical-patterns.md`, archived stale learnings, and handoff/state artifacts per the STATE.json/HANDOFF.json protocol (`beo-reference` → `references/state-and-handoff-protocol.md`).
+- **Inputs** — `.beads/learnings/`, `.beads/critical-patterns.md`, and feature artifacts resolved via artifact conventions (`beo-reference` → `references/artifact-conventions.md`).
+- **Outputs** — Updated `.beads/critical-patterns.md`, archived stale learnings, and handoff/state artifacts per the STATE.json/HANDOFF.json protocol (`beo-reference` → `references/state-and-handoff-protocol.md`).
 
 ## Decision Rubrics
 ### Promote vs Keep Local
@@ -83,10 +83,10 @@ Periodically consolidate learnings across multiple completed features into durab
 - Treat input and output paths according to artifact conventions (`beo-reference` → `references/artifact-conventions.md`).
 - Use the learnings read protocol (`beo-reference` → `references/learnings-read-protocol.md`) for reading learnings and critical patterns.
 - Route any blocked or invalid state through standard failure recovery (`beo-reference` → `references/failure-recovery.md`).
-- Preserve pipeline alignment from the canonical pipeline sequence (`beo-reference` → `references/pipeline-contracts.md`): `route → explore → plan → validate → (execute | swarm → execute) → review → compound`; support skills remain `debug` on-demand, `dream` periodic, `author` meta, and `onboard` bootstrap.
+- Preserve canonical pipeline contracts (`beo-reference` → `references/pipeline-contracts.md`) while treating `dream` as a periodic support skill rather than a main pipeline stage.
 
 ## Handoff
-> Write `HANDOFF.json` for every skill transition (`beo-reference` → `references/pipeline-contracts.md`). Transitions follow the pipeline: route → explore → plan → validate → (execute | swarm → execute) → review → compound.
+> Handoff to `beo-route` for next-action detection after consolidation completes. Write `STATE.json` for the normal transition, and reserve `HANDOFF.json` for emergency checkpoint or low-context resume scenarios.
 
 ## Context Budget
 > If context exceeds 65% capacity, compress non-essential history before continuing (`beo-reference` → `references/shared-hard-gates.md`).
@@ -94,6 +94,6 @@ Periodically consolidate learnings across multiple completed features into durab
 ## Red Flags & Anti-Patterns
 - Running dream with learnings from only 1 feature
 - Promoting a pattern that cannot be traced to source feature learnings
-- Updating `critical-patterns.md` without required approval for ambiguous cases
+- Updating `critical-patterns.md` without explicit user approval for every append
 - Deleting stale learnings instead of archiving them
 - Modifying feature-specific learnings that belong to `beo-compound`

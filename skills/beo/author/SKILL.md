@@ -1,7 +1,7 @@
 ---
 name: beo-author
 description: |
-  Use when creating a new beo skill, editing an existing beo skill, or pressure-testing a beo skill before deployment. Triggers: "create a skill", "revise this skill", "pressure test", "write a beo skill". Creates and pressure-tests beo skills to maintain system coherence. MUST NOT create skills without pressure testing, modify core pipeline skills without approval, introduce boundary overlap, or perform feature pipeline work. Do not use for project-specific AGENTS.md conventions, one-off solutions, or ordinary feature planning.
+  Use when creating a new beo skill, editing an existing beo skill definition, or pressure-testing a skill before deployment. Ensures each skill has single responsibility, explicit boundaries, compliant template structure, and passes structured pressure tests before it can be considered complete. MUST NOT create skills without pressure testing, modify core pipeline skills without explicit user approval, introduce boundary overlap between skills, or perform feature pipeline work. Do not use for project-specific AGENTS.md conventions, one-off solutions, or ordinary feature planning and execution.
 ---
 
 > **HARD-GATE: SKILL-REPO-CONTEXT** — Author operates within the beo-skills repository. It reads existing skills as reference, not as project artifacts.
@@ -14,8 +14,8 @@ description: |
 Create and pressure-test beo skills so the system stays coherent as it evolves. **Core principle: every skill must have a single responsibility, explicit boundaries, and a tested template-compliant definition.**
 
 ## Boundary Rules
-- **MUST NOT** route to skills — owned by `beo-route`.
-- **MUST NOT** gather requirements — owned by `beo-explore`.
+- **MUST NOT** perform independent state detection or free-form routing — owned by `beo-route`. May emit canonical handoff to the next allowed pipeline skill when exit conditions are met.
+- **MUST NOT** gather feature requirements — owned by `beo-explore`.
 - **MUST NOT** decompose feature work — owned by `beo-plan`.
 - **MUST NOT** verify feature plans — owned by `beo-validate`.
 - **MUST NOT** write feature code — owned by `beo-execute`.
@@ -26,7 +26,9 @@ Create and pressure-test beo skills so the system stays coherent as it evolves. 
 - **MUST NOT** bootstrap repositories — owned by `beo-onboard`.
 
 ## Hard Gates
-> **HARD-GATE: CANONICAL-TEMPLATE** — Every skill produced or revised by author must follow the canonical `SKILL.md` template exactly. If the structure deviates, fix it before release.
+> **HARD-GATE: CANONICAL-TEMPLATE** — Every skill produced or revised by author must include the canonical `SKILL.md` structural sections: hard gates, boundary rules, default loop, reference table, inputs/outputs, decision rubrics, failure recovery or equivalent recovery guidance, handoff, context budget, and red flags. Equivalent section names are acceptable; structural completeness is required.
+
+> **HARD-GATE: PIPELINE-SKILL-APPROVAL** — Modifications to core pipeline skills (`route`, `explore`, `plan`, `validate`, `execute`, `swarm`, `review`, `compound`) require explicit user approval before applying changes.
 
 > **HARD-GATE: PRESSURE-TEST-REQUIRED** — Every new or substantially modified skill must be pressure-tested with `references/pressure-test-template.md`. If pressure testing is incomplete, the skill is not ready.
 
@@ -36,7 +38,7 @@ Create and pressure-test beo skills so the system stays coherent as it evolves. 
 > Follow the communication standard (`beo-reference` → `references/communication-standard.md`).
 
 ## Default Author Loop
-1. **Gather requirements** — Define the skill's single responsibility, its inputs and outputs using the repository's artifact layout, its place relative to the pipeline, and the boundaries it must enforce.
+1. **Gather skill definition inputs** — Define the skill's single responsibility, its inputs and outputs using the repository's artifact layout, its place relative to the pipeline, and the boundaries it must enforce.
 2. **Draft SKILL.md** — Write or rewrite the skill using the canonical template, including YAML frontmatter, overview, Does NOT Do, hard gates, communication standard, default loop, reference table, decision rubrics, handoff, context budget, and red flags.
 3. **Pressure test** — Apply `references/pressure-test-template.md` to boundary violations, ambiguous requests, failure modes, and scope-creep scenarios, then record outcomes per `references/creation-log-template.md`.
 4. **Refine** — Fix every failed scenario, ensure recovery behavior uses standard failure recovery (`beo-reference` → `references/failure-recovery.md`), and repeat until the skill passes.
@@ -49,7 +51,7 @@ Create and pressure-test beo skills so the system stays coherent as it evolves. 
 | `references/pressure-test-template.md` | Supplies structured scenarios for validating skill boundaries and failure handling |
 
 ## Inputs and Outputs
-- **Inputs** — Skill requirements, existing skill templates, canonical `SKILL.md` structure, pressure-test scenarios from `references/pressure-test-template.md`.
+- **Inputs** — Skill definition inputs, existing skill templates, canonical `SKILL.md` structure, pressure-test scenarios from `references/pressure-test-template.md`.
 - **Outputs** — New or revised `SKILL.md`, pressure-test results logged via `references/creation-log-template.md`, integration guidance.
 
 ## Decision Rubrics
@@ -66,14 +68,14 @@ Create and pressure-test beo skills so the system stays coherent as it evolves. 
 - **Document and monitor** when the scenario reveals a preference or caution that belongs in red flags rather than a hard gate.
 
 ## Special Rules
-- Inline shared concerns directly in the skill so it stands alone without cross-skill file references.
+- Reference shared protocol docs from `beo-reference` rather than duplicating them inline. Each skill should be self-contained in its behavioral instructions but may cite shared references for protocol details.
 - Keep state transitions aligned to the bead lifecycle states (`beo-reference` → `references/status-mapping.md`) and the canonical pipeline sequence (`beo-reference` → `references/pipeline-contracts.md`).
 - Use the beo approval gates (`beo-reference` → `references/approval-gates.md`) when a skill definition introduces approval-sensitive behavior.
 - Ensure every failure mode has a recovery route via standard failure recovery (`beo-reference` → `references/failure-recovery.md`).
 - Preserve pipeline terminology exactly: `route → explore → plan → validate → (execute | swarm → execute) → review → compound`; support skills remain `debug` on-demand, `dream` periodic, `author` meta, and `onboard` bootstrap.
 
 ## Handoff
-> Write `HANDOFF.json` for every skill transition (`beo-reference` → `references/pipeline-contracts.md`). Transitions follow the pipeline: route → explore → plan → validate → (execute | swarm → execute) → review → compound.
+> Handoff to `beo-route` for next-action detection after authoring or pressure-testing completes. Write `STATE.json` for the normal transition, and reserve `HANDOFF.json` for emergency checkpoint or low-context resume scenarios.
 
 ## Context Budget
 > If context exceeds 65% capacity, compress non-essential history before continuing (`beo-reference` → `references/shared-hard-gates.md`).

@@ -2,7 +2,7 @@
 
 Artifact write order, writing guidance, multi-phase approval, current-phase definition, and the high-stakes review.
 
-## 4. Artifact Write Order
+## 1. Artifact Write Order
 
 ### Single-phase flow
 
@@ -25,7 +25,7 @@ Artifact write order, writing guidance, multi-phase approval, current-phase defi
 
 Do not use `phase-contract.md` as a whole-feature artifact for multi-phase work.
 
-## 5. Writing `approach.md`
+## 2. Writing `approach.md`
 
 Write to `.beads/artifacts/<feature_slug>/approach.md` using `approach-template.md`.
 
@@ -50,7 +50,7 @@ Write to `.beads/artifacts/<feature_slug>/approach.md` using `approach-template.
 
 If `approach.md` is weak, fix it first — do not compensate by overloading `plan.md`.
 
-## 6. Writing `plan.md`
+## 3. Writing `plan.md`
 
 Write to `.beads/artifacts/<feature_slug>/plan.md` using `plan-template.md`.
 
@@ -64,7 +64,7 @@ Human-readable planning summary. Must remain readable even when `approach.md` an
 - Do not turn into a second `phase-plan.md`
 - If multi-phase: summarize phase sequence briefly, point to `phase-plan.md`
 
-## 7. Writing `phase-plan.md`
+## 4. Writing `phase-plan.md`
 
 Only for `multi-phase` planning mode. Write to `.beads/artifacts/<feature_slug>/phase-plan.md` using `phase-plan-template.md`.
 
@@ -85,13 +85,13 @@ Only for `multi-phase` planning mode. Write to `.beads/artifacts/<feature_slug>/
 
 Do not create `phase-plan.md` for single-phase features.
 
-## 8. Multi-Phase Planning Approval
+## 5. Multi-Phase Planning Approval
 
 Required before current phase handoff to validation. Approves: whole-feature phase sequence, selected current phase, intentional deferral of later phases. This is **not** the execution approval gate.
 
 Use the canonical rule from `beo-reference` → `references/approval-gates.md`.
 
-## 9. Writing Current-Phase Artifacts
+## 6. Writing Current-Phase Artifacts
 
 After `approach.md` (and `phase-plan.md` if multi-phase), prepare the current phase.
 
@@ -115,7 +115,7 @@ Do not create beads until both files exist.
 - Task beads created for current phase only
 - Do not pre-create beads for later phases
 
-## 10. High-Stakes Multi-Perspective Check
+## 7. High-Stakes Multi-Perspective Check
 
 Only for high-stakes features: multiple HIGH-risk components, core architecture changes, auth flows, data model changes, broad blast radius, external dependency risk.
 

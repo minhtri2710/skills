@@ -46,6 +46,8 @@ D-ID format: `D<number>` (no hyphen). Assign during exploring, reference in plan
 
 ### Deferred to Planning
 
+> Only decomposition or implementation questions may be deferred to planning. Anything affecting scope, UX, compatibility expectations, or behavioral contracts must be resolved before handoff from explore.
+
 - <question safe to resolve during decomposition>
 
 ## Deferred Ideas

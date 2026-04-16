@@ -1,17 +1,17 @@
 ---
 name: beo-route
 description: |
-  Use whenever a beo session is starting, resuming, or when the correct beo skill is unclear. Triggers: "continue", "resume", "status?", "what's next?", new feature requests, or conversational prompts like "let's explore X" or "help me think through X" that imply non-trivial work. Detects current pipeline state via br/bv and routes to the correct skill. MUST NOT execute pipeline work, modify delivery artifacts, or route to execute/swarm without a validated plan. Do not use for simple direct questions, quick one-off tasks, or when the correct beo skill is already obvious.
+  Use whenever a beo pipeline session starts, resumes after interruption, or when the correct next skill is ambiguous. Reads project state via br/bv and handoff records to select exactly one next action: load a specific skill, return control to the user, or stop. May perform bounded intake scaffolding (create epic, quick-path beads, artifact directory stubs) when routing fresh work. MUST NOT gather requirements, decompose work, verify plans, write implementation code, orchestrate workers, review output, capture learnings, diagnose failures, or consolidate knowledge. Do not use when the correct skill is already known, for direct questions unrelated to pipeline state, or for quick tasks that bypass the pipeline entirely.
 ---
 
 > **HARD-GATE: ONBOARDING** — Before any work, verify `br` and `bv` are accessible and `.beads/` is initialized (`beo-reference` → `references/shared-hard-gates.md`). If stale or missing, load `beo-onboard` and stop.
 
-> **Protocol References**: Protocol rules reference the `beo-reference` skill via `→ references/<file>` for canonical documents.
+> **Protocol References**: Protocol rules reference the `beo-reference` corpus via `→ references/<file>` for canonical documents.
 
 # beo-route
 
 ## Overview
-Detect the current pipeline state and choose the next action using canonical routing rules, handoff precedence, and repo state signals. **Core principle: route only; never implement, plan, or mutate delivery artifacts.**
+Detect the current pipeline state and choose the next action using canonical routing rules, handoff precedence, and repo state signals. **Core principle: route only; never implement or perform full planning, with intake scaffolding allowed only as a narrow routing exception.**
 
 ## Boundary Rules
 - **MUST NOT** gather requirements — owned by `beo-explore`.
@@ -25,7 +25,7 @@ Detect the current pipeline state and choose the next action using canonical rou
 - **MUST NOT** consolidate learnings — owned by `beo-dream`.
 
 ## Hard Gates
-> **HARD-GATE: NO-IMPLEMENTATION** — Route never writes code, creates artifacts, or modifies beads. If violated, stop and revert to pure routing behavior.
+> **HARD-GATE: NO-IMPLEMENTATION** — Route does not write implementation code or modify existing feature artifacts. Route MAY perform intake scaffolding for new work when required by routing rules: create the feature epic via `br`, create quick-path task beads, create the artifact directory, and write minimal draft/stub artifacts for downstream skills to complete or overwrite. This exception is limited to intake scaffolding only; if route starts doing exploration, planning, validation, implementation, or editing existing feature artifacts, stop and revert to pure routing behavior.
 
 > **HARD-GATE: HANDOFF-PRECEDENCE** — If `HANDOFF.json` exists, its `NextSkill` takes priority over state detection. If violated, routing is invalid and must restart per the STATE.json/HANDOFF.json protocol (`beo-reference` → `references/state-and-handoff-protocol.md`).
 
@@ -35,7 +35,8 @@ Detect the current pipeline state and choose the next action using canonical rou
 ## Default Route Loop
 1. Read `STATE.json` and `HANDOFF.json`. If `HANDOFF.json` exists with `NextSkill`, use it and clear it after read per the STATE.json/HANDOFF.json protocol (`beo-reference` → `references/state-and-handoff-protocol.md`).
 2. If no handoff exists, query `br` and `bv`, then match the observed state against the canonical routing table in the canonical pipeline routing table (`beo-reference` → `references/pipeline-contracts.md`) using first-match-wins semantics.
-3. Emit `NextAction` as `LoadSkill(skill_name)`, `ReturnToUser(reason)`, or `Stop`, then update `STATE.json` per the STATE.json/HANDOFF.json protocol (`beo-reference` → `references/state-and-handoff-protocol.md`).
+3. When fresh intake qualifies for quick-path handling, route may perform intake scaffolding as part of selecting the next action; see `references/router-operations.md` for the bounded quick-path scaffold procedure.
+4. Emit `NextAction` as `LoadSkill(skill_name)`, `ReturnToUser(reason)`, or `Stop`, then update `STATE.json` per the STATE.json/HANDOFF.json protocol (`beo-reference` → `references/state-and-handoff-protocol.md`).
 
 ### Reference Files
 | File | Purpose |
@@ -55,7 +56,7 @@ Detect the current pipeline state and choose the next action using canonical rou
 
 ## Decision Rubrics
 ### Resume vs Fresh Start
-- If `STATE.json.current_skill` is set and no `HANDOFF.json` is present, resume that skill.
+- If `STATE.json.skill` is set and no `HANDOFF.json` is present, resume that skill.
 - If `STATE.json` is missing, treat the request as a fresh start and decide between go-mode handling or `beo-explore`.
 
 ### Handoff vs Detection
@@ -70,7 +71,7 @@ Detect the current pipeline state and choose the next action using canonical rou
 > Any routing failure, missing state, malformed handoff, or unmatched pipeline condition must return a concise recovery action to the user.
 
 ## Handoff
-> Write `HANDOFF.json` for every skill transition (`beo-reference` → `references/pipeline-contracts.md`). Transitions follow the pipeline: route → explore → plan → validate → (execute | swarm → execute) → review → compound.
+> Write `STATE.json` when routing to the next adjacent skill so the selected skill receives current status, gating signals, and artifact pointers. Use `HANDOFF.json` only for emergency checkpoint or low-context resume scenarios.
 
 ## Context Budget
 > If context exceeds 65% capacity, compress non-essential history before continuing (`beo-reference` → `references/shared-hard-gates.md`).

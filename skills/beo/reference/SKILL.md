@@ -1,10 +1,13 @@
 ---
 name: beo-reference
 description: |
-  Use when a beo skill needs canonical protocol documents: CLI references, status mapping, artifact conventions, state/handoff protocol, pipeline contracts, approval gates, dependency scheduling, failure recovery, knowledge store, or communication standards. Load this skill to access shared reference documents that all beo skills depend on.
+  Use when a beo skill needs canonical protocol documents: CLI references, status mapping, artifact conventions, state/handoff protocol, pipeline contracts, approval gates, dependency scheduling, failure recovery, knowledge store, or communication standards. Read individual reference documents as needed — do not co-load this entire corpus. Use this index to locate the specific shared reference files that beo skills depend on.
 ---
 
 # beo-reference
+
+Shared reference corpus for all beo skills. **This is not a behavioral skill — it provides canonical protocol documents only.** This corpus is not a routing target. No skill should hand off to `beo-reference`; it exists only as an index for locating shared protocol documents.
+
 
 Shared reference corpus for all beo skills. **This is not a behavioral skill — it provides canonical protocol documents that other skills reference by name.**
 

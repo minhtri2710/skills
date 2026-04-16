@@ -1,7 +1,7 @@
 ---
 name: beo-debug
 description: |
-  Use when a bead is blocked or when a build, test, runtime, integration, or worker-execution failure needs root-cause analysis. Triggers: "why is this failing?", "it's stuck", "flaky test", "blocked", "keeps regressing", or any failure that needs systematic diagnosis. Systematic debugging: diagnose, root-cause, minimal-fix, verify. MUST NOT guess at fixes, apply fixes without root cause, expand scope beyond the blocker, or perform quality review. Do not use for planning ambiguity (use beo-explore), post-implementation quality checks (use beo-review), or cross-feature learnings (use beo-dream).
+  Use when a bead is blocked or when a build, test, runtime, integration, or worker-execution failure needs root-cause analysis. Systematically diagnoses the failure, isolates root cause, applies the minimal viable fix, verifies resolution, and returns control to the skill that invoked it. Always tracks origin and returns to invoking skill. MUST NOT expand scope beyond the specific blocker, guess at fixes without root-cause evidence, or perform quality review. Do not use for planning ambiguity (use beo-explore), post-implementation quality review (use beo-review), or cross-feature pattern analysis (use beo-dream).
 ---
 
 > **HARD-GATE: ONBOARDING** — Before any work, verify `br` and `bv` are accessible and `.beads/` is initialized (`beo-reference` → `references/shared-hard-gates.md`). If stale or missing, load `beo-onboard` and stop.
@@ -14,7 +14,7 @@ description: |
 Unblock failed or stalled work by isolating root cause, applying the smallest viable fix, and proving the blocker is resolved. **Core principle: minimal-intervention troubleshooting with explicit return to the invoking skill.**
 
 ## Boundary Rules
-- **MUST NOT** route to skills — owned by `beo-route`.
+- **MUST NOT** perform independent state detection or free-form routing — owned by `beo-route`. May emit canonical handoff to the next allowed pipeline skill when exit conditions are met.
 - **MUST NOT** gather requirements — owned by `beo-explore`.
 - **MUST NOT** decompose work — owned by `beo-plan`.
 - **MUST NOT** verify plans — owned by `beo-validate`.
@@ -24,7 +24,7 @@ Unblock failed or stalled work by isolating root cause, applying the smallest vi
 - **MUST NOT** consolidate learnings — owned by `beo-dream`.
 
 ## Hard Gates
-> **HARD-GATE: ORIGIN-TRACKING** — Debug always records which skill invoked it and returns to that origin skill using `the STATE.json/HANDOFF.json protocol` (`beo-reference` → `references/state-and-handoff-protocol.md`). Never hand off to an unrelated skill.
+> **HARD-GATE: ORIGIN-TRACKING** — Debug always records which skill invoked it and returns based on the state uncovered during debugging using `the STATE.json/HANDOFF.json protocol` (`beo-reference` → `references/state-and-handoff-protocol.md`). Default: return to the invoking skill. If debugging reveals a plan defect, route to `beo-plan`. If resolution requires a substantial fix bead, route to `beo-execute`. If a blocker is resolved during an active review loop, `beo-review` resumes.
 
 > **HARD-GATE: MINIMAL-INTERVENTION** — Debug fixes the specific blocker only. It does not refactor, optimize, or expand scope beyond what is required to unblock.
 
@@ -64,7 +64,7 @@ Unblock failed or stalled work by isolating root cause, applying the smallest vi
 - Debug should not exceed three diagnostic cycles without a documented root-cause hypothesis or escalation decision.
 
 ## Handoff
-> Write `HANDOFF.json` for every skill transition (`beo-reference` → `references/pipeline-contracts.md`). Transitions follow the pipeline: route → explore → plan → validate → (execute | swarm → execute) → review → compound.
+> Return to the invoking skill using origin-tracking once the blocker is resolved or a bounded debugging report is produced. Write `STATE.json` for the normal return handoff, and reserve `HANDOFF.json` for emergency checkpoint or low-context resume scenarios.
 
 ## Context Budget
 > If context exceeds 65% capacity, compress non-essential history before continuing (`beo-reference` → `references/shared-hard-gates.md`).

@@ -15,17 +15,16 @@
 
 | # | Specialist | Focus | Key Questions |
 |---|-----------|-------|---------------|
-| 1 | **Code Quality** | Clean code, patterns, naming, complexity | Does the code follow project conventions? Any dead code? Unnecessary complexity? |
-| 2 | **Architecture** | Module boundaries, coupling, separation of concerns | Does the implementation respect existing architecture? Any new coupling introduced? |
-| 3 | **Security** | Input validation, auth, injection, data exposure | Any security vulnerabilities? Unsanitized inputs? Exposed secrets? |
-| 4 | **Test Coverage** | Tests exist, meaningful assertions, edge cases | Are the verification criteria actually tested? Any missing edge cases? |
-| 5 | **Regression Risk** | User-facing behavior, workflow regressions, operational breakage | Could this change break an existing user flow, contract, integration, or rollout path even if the code looks correct? |
-| 6 | **Learnings Synthesis** | Cross-cutting patterns, institutional memory | What patterns emerged? What should be remembered for future work? |
+| 1 | **Code Quality** | Implementation correctness, readability, maintainability | Does the code follow project conventions? Any dead code, confusing naming, or unnecessary complexity? |
+| 2 | **Architecture** | Structural alignment with plan, dependency correctness, integration points, regression risk | Does the implementation respect planned structure? Are boundaries, contracts, integrations, and regression risks handled correctly? |
+| 3 | **Testing** | Test coverage, test quality, edge cases, verification completeness | Are the acceptance criteria actually verified? Are tests meaningful and are edge cases covered? |
+| 4 | **UX/Performance** | User-facing behavior, performance characteristics, accessibility | Does the feature behave correctly for users? Any responsiveness, accessibility, or resource-usage concerns? |
+| 5 | **Security** | Vulnerability assessment, auth/authz, data handling, input validation | Any security vulnerabilities, trust-boundary issues, unsanitized inputs, or exposed data? |
 
 ## Dispatch Strategy
 
-- **5 or fewer specialists needed**: Launch all in parallel via the session's normal subagent/task-dispatch mechanism
-- **All 6**: Launch the first 5 in parallel, then the learnings synthesizer last because it cross-references the other findings
+- Launch all 5 specialists in parallel via the session's normal subagent/task-dispatch mechanism.
+- Regression risk concerns are reviewed within the Architecture specialist rather than as a separate specialist.
 
 ## Specialist Prompt Template
 
@@ -70,7 +69,7 @@ Collect all findings from all specialists. Categorize:
 | Severity | Action |
 |----------|--------|
 | **P1** (blocks merge) | Create a fix task bead, wire to epic, execute immediately |
-| **P2** (should fix) | Create a follow-up bead NOT under the current epic; its description must use Markdown |
+| **P2** (should fix) | Create a non-blocking follow-up bead NOT under the current epic; its description must use Markdown |
 | **P3** (nice to have) | Record but do not create beads unless user requests |
 
 ### Conflict Resolution
@@ -102,4 +101,4 @@ br label add <FOLLOWUP_ID> -l review-p2
 br update <FOLLOWUP_ID> --description "<fill from Follow-Up Bead Template in beo-reference → references/bead-description-templates.md>"
 ```
 
-P2/P3 beads must use the shared **Follow-Up Bead Template** from `beo-reference` → `references/bead-description-templates.md`. They are intentionally NOT children of the current epic so they don't block feature completion.
+P2/P3 beads must use the shared **Follow-Up Bead Template** from `beo-reference` → `references/bead-description-templates.md`. P2 follow-up beads are intentionally NOT children of the current epic so they do not block feature acceptance or completion.

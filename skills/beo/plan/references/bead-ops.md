@@ -88,9 +88,11 @@ For features classified as **Quick** (see `beo-reference` → `references/pipeli
 2. Write abbreviated plan.md (approach + tasks, skip discovery summary)
 3. Create task beads directly
 4. Wire dependencies and validate the graph
-5. Skip formal review — present directly to user
+5. Continue through the normal pipeline: validate → execute → review → compound
 6. Write abbreviated phase-contract.md (approach + exit state)
 7. Write abbreviated story-map.md (single story)
+
+Quick mode reduces ceremony with smaller artifacts and faster cycles, but it does not skip validation or review.
 
 ---
 

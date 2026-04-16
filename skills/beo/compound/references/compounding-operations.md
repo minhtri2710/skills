@@ -66,7 +66,7 @@ Launch three subagents in parallel. Each writes to `.beads/artifacts/<feature_sl
 2. For each one, describe what went wrong, root cause, cost, and a prevention rule.
 3. Write to `.beads/artifacts/<feature_slug>/compounding-failures.md`.
 
-Subagent output is staging only — see the HARD-GATE in SKILL.md for the orchestrator-writes rule.
+Subagent output is staging only.
 
 ## 3. Synthesis and Triage
 

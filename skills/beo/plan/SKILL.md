@@ -1,7 +1,7 @@
 ---
 name: beo-plan
 description: |
-  Use when a fully locked CONTEXT.md exists and needs to be transformed into executable planning artifacts and current-phase beads. Triggers: "plan this", "break this into tasks", "decompose this work", "map the stories", or "turn this into beads". Runs discovery, writes discovery.md, approach.md, plan.md, optional phase-plan.md, then creates current-phase phase-contract.md, story-map.md, and beads. MUST NOT create beads beyond the current phase, write implementation code, or validate plans. Do not use when requirements are still unlocked or ambiguous (use beo-explore first).
+  Use when a fully locked CONTEXT.md exists and needs transformation into executable planning artifacts and current-phase beads. Runs codebase discovery, selects technical approach, writes plan artifacts (discovery.md, approach.md, plan.md, optional phase-plan.md), then creates current-phase phase-contract.md, story-map.md, and bead graph. MUST NOT create beads beyond the current phase, write implementation code, or verify plan quality. Do not use when requirements are still unlocked or ambiguous (use beo-explore), or when a plan exists and needs structural verification (use beo-validate).
 ---
 
 > **HARD-GATE: ONBOARDING** — Before any work, verify `br` and `bv` are accessible and `.beads/` is initialized (`beo-reference` → `references/shared-hard-gates.md`). If stale or missing, load `beo-onboard` and stop.
@@ -14,7 +14,7 @@ description: |
 Convert locked requirements into executable planning artifacts, current-phase contracts, and bead graphs that are ready for validation. **Core principle: decompose precisely for the current phase only, without writing implementation code.**
 
 ## Boundary Rules
-- **MUST NOT** route to skills — owned by `beo-route`.
+- **MUST NOT** perform independent state detection or free-form routing — owned by `beo-route`. May emit canonical handoff to the next allowed pipeline skill when exit conditions are met.
 - **MUST NOT** gather requirements — owned by `beo-explore`.
 - **MUST NOT** verify plan quality — owned by `beo-validate`.
 - **MUST NOT** write implementation code — owned by `beo-execute`.
@@ -29,7 +29,7 @@ Convert locked requirements into executable planning artifacts, current-phase co
 
 > **HARD-GATE: NO-CODE** — Plan never writes implementation code. It writes planning artifacts and creates beads only. If violated, stop and remove implementation drift from the planning session.
 
-> **HARD-GATE: APPROVAL-REMOVAL** — If the `Approved` label exists from a prior validation cycle, plan must remove it before writing artifacts per the beo approval gates (`beo-reference` → `references/approval-gates.md`). If violated, cleanup is required before planning continues.
+> **HARD-GATE: APPROVAL-REMOVAL** — If the `approved` label exists from a prior validation cycle, plan must remove it before writing artifacts per the beo approval gates (`beo-reference` → `references/approval-gates.md`). If violated, cleanup is required before planning continues.
 
 ## Communication Standard
 > Follow the communication standard (`beo-reference` → `references/communication-standard.md`).
@@ -94,7 +94,7 @@ Convert locked requirements into executable planning artifacts, current-phase co
 > Any missing artifact, stale approval, dependency conflict, malformed bead graph, or planning interruption must return a concise recovery action to the user.
 
 ## Handoff
-> Write `HANDOFF.json` for every skill transition (`beo-reference` → `references/pipeline-contracts.md`). Transitions follow the pipeline: route → explore → plan → validate → (execute | swarm → execute) → review → compound.
+> Write `STATE.json` for the transition to the next adjacent skill with discovery status, current-phase artifacts, bead graph state, and unresolved assumptions. Use `HANDOFF.json` only for emergency checkpoint or low-context resume scenarios.
 
 ## Context Budget
 > If context exceeds 65% capacity, compress non-essential history before continuing (`beo-reference` → `references/shared-hard-gates.md`).
@@ -104,4 +104,4 @@ Convert locked requirements into executable planning artifacts, current-phase co
 - Plan writing implementation code or execution details that belong to workers.
 - Plan starting without a fully locked `CONTEXT.md`.
 - Plan exceeding 20 beads for a single phase without explicit decomposition review.
-- Plan failing to remove a stale `Approved` label before rewriting artifacts.
+- Plan failing to remove a stale `approved` label before rewriting artifacts.

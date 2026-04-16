@@ -1,6 +1,6 @@
 # Agent Mail Message Templates
 
-> Use the Table of Contents to jump to the template needed. Most common: §3 (Completion Report), §4 (Blocker Alert), §5-6 (File Conflict).
+> Use the Table of Contents to jump to the template needed. Most common: §3 (Bead Assignment), §4 (Completion Report), §5-7 (Blocker/File Conflict).
 
 Standard message formats for swarm coordination. All messages use `send_message()` or `reply_message()` from Agent Mail, posting to the epic thread (`thread_id=<EPIC_ID>`) unless noted.
 Coordinator identity: `<COORDINATOR_AGENT_NAME>`. Worker identity: `<AGENT_MAIL_NAME>` (from `macro_start_session`).
@@ -9,15 +9,16 @@ Coordinator identity: `<COORDINATOR_AGENT_NAME>`. Worker identity: `<AGENT_MAIL_
 
 - [1. Spawn Notification](#1-spawn-notification)
 - [2. Worker Spawn Acknowledgment](#2-worker-spawn-acknowledgment)
-- [3. Completion Report](#3-completion-report)
-- [4. Blocker Alert](#4-blocker-alert)
-- [5. File Conflict Request](#5-file-conflict-request)
-- [6. File Conflict Resolution](#6-file-conflict-resolution)
-- [7. Overseer Broadcast](#7-overseer-broadcast)
-- [8. Coordinator Context Warning](#8-coordinator-context-warning)
-- [9. Swarm Completion Announcement](#9-swarm-completion-announcement)
-- [10. Startup Reminder](#10-startup-reminder)
-- [11. Silent Worker Reminder](#11-silent-worker-reminder)
+- [3. Bead Assignment](#3-bead-assignment)
+- [4. Completion Report](#4-completion-report)
+- [5. Blocker Alert](#5-blocker-alert)
+- [6. File Conflict Request](#6-file-conflict-request)
+- [7. File Conflict Resolution](#7-file-conflict-resolution)
+- [8. Overseer Broadcast](#8-overseer-broadcast)
+- [9. Coordinator Context Warning](#9-coordinator-context-warning)
+- [10. Swarm Completion Announcement](#10-swarm-completion-announcement)
+- [11. Startup Reminder](#11-startup-reminder)
+- [12. Silent Worker Reminder](#12-silent-worker-reminder)
 - [Handoff JSON Template](#handoff-json-template)
 
 ---
@@ -34,7 +35,7 @@ Importance: NORMAL
 Swarm initialized for epic <EPIC_ID>.
 
 Execution model:
-- Workers self-route via `bv --robot-plan`
+- Coordinator assigns one bead per worker
 - File coordination via Agent Mail reservations
 - Blockers and corrections in this thread
 
@@ -43,7 +44,7 @@ Workers spawning now:
 - <AGENT_NAME_2>
 - <AGENT_NAME_3>
 
-All workers: join thread, post startup acknowledgment, then load beo-execute.
+All workers: join thread, post startup acknowledgment, wait for assignment, then load beo-execute.
 ```
 
 ---
@@ -60,12 +61,32 @@ Importance: NORMAL
 <AGENT_NAME> online.
 Nickname: <NICKNAME> | Agent Mail: <NAME>
 Status: Loading beo-execute skill.
-Next: read context, run `bv --robot-plan`, claim top executable bead.
+Next: read context, wait for assignment from coordinator.
 ```
 
 ---
 
-## 3. Completion Report
+## 3. Bead Assignment
+
+> Coordinator → worker | After `[ONLINE]`, before execution begins
+
+```
+Subject: [ASSIGNMENT] <bead-id>
+Thread: <EPIC_ID>
+Importance: HIGH
+
+[ASSIGNMENT]
+Bead: <bead-id>
+Description: <bead description summary>
+File scope: <expected files>
+Dependencies satisfied: <list of completed dep beads>
+Verification: <expected verification command>
+Phase: <current phase>
+```
+
+---
+
+## 4. Completion Report
 
 > Worker → Coordinator | After bead close
 
@@ -93,7 +114,7 @@ Next: return to `bv --robot-plan`
 
 ---
 
-## 4. Blocker Alert
+## 5. Blocker Alert
 
 > Worker → Coordinator | On discovering a blocker
 
@@ -117,7 +138,7 @@ Paused on this bead, waiting for reply.
 
 ---
 
-## 5. File Conflict Request
+## 6. File Conflict Request
 
 > Worker → Coordinator | File needed that another worker holds
 
@@ -143,7 +164,7 @@ Awaiting decision:
 
 ---
 
-## 6. File Conflict Resolution
+## 7. File Conflict Resolution
 
 > Coordinator → Worker | Reply to file conflict request
 
@@ -171,7 +192,7 @@ OPTION C - Defer:
 
 ---
 
-## 7. Overseer Broadcast
+## 8. Overseer Broadcast
 
 > Coordinator → all workers | Shared correction or reminder
 
@@ -186,7 +207,7 @@ Broadcast to all workers:
 
 ---
 
-## 8. Coordinator Context Warning
+## 9. Coordinator Context Warning
 
 > Coordinator → all workers | Context approaching 65%
 
@@ -206,7 +227,7 @@ Resume: .beads/HANDOFF.json, .beads/STATE.json, `bv --robot-triage --graph-root 
 
 ---
 
-## 9. Swarm Completion Announcement
+## 10. Swarm Completion Announcement
 
 > Coordinator → all workers | All beads verified closed
 
@@ -226,7 +247,7 @@ Next: final scope → beo-review. Later phases remain → remove `approved`, inv
 
 ---
 
-## 10. Startup Reminder
+## 11. Startup Reminder
 
 > Coordinator → worker | Worker not online after 2 cycles
 
@@ -241,7 +262,7 @@ Post [ONLINE] with identities, or report a blocker.
 
 ---
 
-## 11. Silent Worker Reminder
+## 12. Silent Worker Reminder
 
 > Coordinator → worker | No updates for multiple cycles
 

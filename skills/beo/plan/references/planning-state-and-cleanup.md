@@ -2,7 +2,7 @@
 
 Operational reference for state updates, handoff rules, replanning cleanup, and context-budget checkpointing.
 
-## 13. State Update and Handoff Rules
+## 1. State Update and Handoff Rules
 
 After artifacts are written, tasks created, and dependencies wired, write `.beads/STATE.json` using the canonical schema from `beo-reference` → `references/state-and-handoff-protocol.md`.
 
@@ -52,7 +52,7 @@ Ready to validate.
 
 **Multi-phase:** Use the canonical prompt from `beo-reference` → `references/approval-gates.md` § 1. Planning Approval for Multi-Phase Work.
 
-## 14. Phase-Plan Invalidation and Replanning Cleanup
+## 2. Phase-Plan Invalidation and Replanning Cleanup
 
 When planning re-enters (multi-phase back-edge, scope revision, or user-initiated replan), clean up stale artifacts before new planning proceeds.
 
@@ -107,7 +107,7 @@ Regenerate `phase-contract.md` and `story-map.md` for the new single-phase scope
 - **Prior approval is always invalidated** when phase structure or execution scope changes — remove via `br label remove <EPIC_ID> -l approved`.
 - **`STATE.json` and `HANDOFF.json` must be refreshed** before any handoff after replanning.
 
-## 15. Context-Budget Checkpointing
+## 3. Context-Budget Checkpointing
 
 If context usage exceeds 65% during planning, write all available artifacts in this order:
 
@@ -118,6 +118,6 @@ If context usage exceeds 65% during planning, write all available artifacts in t
 5. `phase-contract.md` — if the current phase is drafted
 6. `story-map.md` — if the current phase story sequence is drafted
 7. Create any ready current-phase task beads
-8. Write `HANDOFF.json` using the canonical base schema from `beo-reference` → `references/state-and-handoff-protocol.md`, plus any planning-specific resume detail needed
+8. Write `STATE.json` for the normal adjacent-skill transition using the canonical schema from `beo-reference` → `references/state-and-handoff-protocol.md`; write `HANDOFF.json` only for emergency checkpoint or low-context resume detail when needed
 
 **Rule:** Prefer partial but truthful artifacts over leaving planning state only in conversation history. A partial `approach.md` or `phase-plan.md` clearly marked as incomplete is easier to resume from than a missing artifact.

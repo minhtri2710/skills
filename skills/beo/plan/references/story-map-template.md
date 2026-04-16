@@ -2,7 +2,7 @@
 
 **Date**: <YYYY-MM-DD>
 **Phase Contract**: `.beads/artifacts/<feature_slug>/phase-contract.md`
-**Approach Reference**: `.beads/artifacts/<feature_slug>/plan.md`
+**Plan Reference**: `.beads/artifacts/<feature_slug>/plan.md`
 
 ## Table of Contents
 

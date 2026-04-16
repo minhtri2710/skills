@@ -6,6 +6,8 @@ Agent Mail `send_message` templates for the debugging workflow.
 
 Report a CONTEXT.md decision violation before fixing.
 
+> Note: `send_message()` pseudocode maps to `br mail send` in actual CLI usage.
+
 ```
 send_message(
   project_key: "<project-root-path>",
