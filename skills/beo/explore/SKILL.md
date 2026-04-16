@@ -1,7 +1,7 @@
 ---
 name: beo-explore
 description: |
-  Use before any non-trivial feature work when user intent is not fully locked — scope boundaries, edge cases, expected behavior, or compatibility decisions remain unresolved. Runs Socratic dialogue to clarify ambiguities and lock every decision into CONTEXT.md before planning can begin. MUST NOT design solutions, create beads or task decompositions, or produce any artifact beyond CONTEXT.md. Do not use for quick/instant work, bug-fix root-cause diagnosis (use beo-debug), mid-pipeline resume (use beo-route), or when all requirements are already locked and ready for planning.
+  Use when a feature or change request has unlocked requirements — scope, behavior, interfaces, constraints, edge cases, or compatibility decisions remain ambiguous or unstated. Runs Socratic dialogue to resolve every ambiguity and writes a fully locked CONTEXT.md. Do not use when requirements are already locked and planning should begin (use beo-plan), for routing decisions (use beo-route), failure diagnosis (use beo-debug), or during implementation/review (use beo-execute/beo-review).
 ---
 
 > **HARD-GATE: ONBOARDING** — Before any work, verify `br` and `bv` are accessible and `.beads/` is initialized (`beo-reference` → `references/shared-hard-gates.md`). If stale or missing, load `beo-onboard` and stop.
@@ -11,7 +11,7 @@ description: |
 # beo-explore
 
 ## Overview
-Run a focused Socratic dialogue that turns user intent into a fully locked `CONTEXT.md` for a single feature. **Core principle: clarify and lock decisions without drifting into planning or implementation.**
+**Atomic purpose: elicit and lock all requirements decisions into CONTEXT.md via structured dialogue.** Turn ambiguous user intent into a locked feature requirements artifact. **Core principle: clarify and lock decisions without drifting into planning, implementation, or technical design.**
 
 ## Boundary Rules
 - **MUST NOT** perform independent state detection or free-form routing — owned by `beo-route`. May emit canonical handoff to the next allowed pipeline skill when exit conditions are met.
@@ -47,8 +47,8 @@ Run a focused Socratic dialogue that turns user intent into a fully locked `CONT
 | `references/go-mode.md` | Compressed intake protocol for batch-confirmed requirement capture. |
 
 ## Inputs and Outputs
-- **Inputs** — User intent in natural language, optional existing `.beads/artifacts/<feature_slug>/CONTEXT.md`.
-- **Outputs** — Completed `.beads/artifacts/<feature_slug>/CONTEXT.md` with all decisions locked.
+- **Inputs** — Feature request or user answers, feature identifier or slug, existing `.beads/artifacts/<feature_slug>/CONTEXT.md` if resuming.
+- **Outputs** — Completed `.beads/artifacts/<feature_slug>/CONTEXT.md` with all scope-affecting decisions locked.
 - Artifact locations and ownership follow artifact conventions (`beo-reference` → `references/artifact-conventions.md`).
 
 ## Decision Rubrics

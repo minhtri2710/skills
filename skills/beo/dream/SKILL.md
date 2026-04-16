@@ -1,7 +1,7 @@
 ---
 name: beo-dream
 description: |
-  Use when learnings from multiple completed features need periodic consolidation into shared canonical knowledge — especially when repeated patterns accumulate, learnings go stale, or the user requests a consolidation pass. Synthesizes cross-feature patterns, merges duplicates, promotes recurring insights to critical-patterns.md, and archives superseded entries. MUST NOT run with fewer than 2 features' learnings, invent patterns absent from source artifacts, or capture single-feature learnings. Do not use for single-feature learning extraction (use beo-compound).
+  Use when learnings from 2+ accepted features need consolidation into shared canonical knowledge. Synthesizes cross-feature patterns from existing evidence, merges duplicates, retires stale entries, and updates critical-patterns.md with user approval. Sole owner of shared-pattern promotion. Do not use for single-feature extraction (use beo-compound), to invent patterns without source evidence, or to modify code or pipeline flow.
 ---
 
 > **HARD-GATE: ONBOARDING** — Before any work, verify `br` and `bv` are accessible and `.beads/` is initialized (`beo-reference` → `references/shared-hard-gates.md`). If stale or missing, load `beo-onboard` and stop.
@@ -11,7 +11,7 @@ description: |
 # beo-dream
 
 ## Overview
-Periodically consolidate learnings across multiple completed features into durable, reusable knowledge. **Core principle: synthesize only from existing evidence, never invent net-new patterns.**
+**Atomic purpose: consolidate learnings across multiple features into durable system-wide patterns.** Consolidate multi-feature learnings into shared canonical knowledge. **Core principle: synthesize only from existing evidence, never invent net-new patterns.**
 
 ## Boundary Rules
 - **MUST NOT** perform independent state detection or free-form routing — owned by `beo-route`. May emit canonical handoff to the next allowed pipeline skill when exit conditions are met.
@@ -63,8 +63,8 @@ Periodically consolidate learnings across multiple completed features into durab
 - Flag patterns that have drifted and require review.
 
 ## Inputs and Outputs
-- **Inputs** — `.beads/learnings/`, `.beads/critical-patterns.md`, and feature artifacts resolved via artifact conventions (`beo-reference` → `references/artifact-conventions.md`).
-- **Outputs** — Updated `.beads/critical-patterns.md`, archived stale learnings, and handoff/state artifacts per the STATE.json/HANDOFF.json protocol (`beo-reference` → `references/state-and-handoff-protocol.md`).
+- **Inputs** — At least two feature learnings files from `.beads/learnings/`, current `.beads/critical-patterns.md`, optional archive/staleness metadata.
+- **Outputs** — Consolidated learning updates, archived/superseded entries, approved updates to `.beads/critical-patterns.md`, consolidation summary.
 
 ## Decision Rubrics
 ### Promote vs Keep Local

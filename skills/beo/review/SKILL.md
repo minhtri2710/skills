@@ -1,7 +1,7 @@
 ---
 name: beo-review
 description: |
-  Use after all current-phase beads reach terminal state, or when the user asks whether completed work is ready to ship or needs a quality check. Runs 5-specialist assessment (Code Quality, Architecture, Testing, UX/Performance, Security) with P1/P2/P3 severity grading, producing an accept, fix, or reject decision. MUST NOT modify implementation code, accept with any unresolved P1 finding, or verify plan structure. Do not use for pre-execution plan verification (use beo-validate), mid-execution quality checks, or failure diagnosis of blocked beads (use beo-debug).
+  Use when all current-phase beads are terminal and post-implementation quality assessment is needed. Runs 5-specialist review (Code Quality, Architecture, Testing, UX/Performance, Security) with P1/P2/P3 severity grading, producing accept, fix, or reject. Do not use before implementation (use beo-validate), during active execution (use beo-execute/beo-swarm), for plan redesign (use beo-plan), for failure diagnosis (use beo-debug), or for learning extraction (use beo-compound).
 ---
 
 > **HARD-GATE: ONBOARDING** — Before any work, verify `br` and `bv` are accessible and `.beads/` is initialized (`beo-reference` → `references/shared-hard-gates.md`). If stale or missing, load `beo-onboard` and stop.
@@ -11,7 +11,7 @@ description: |
 # beo-review
 
 ## Overview
-Assess completed execution scope through 5-specialist review with severity grading and accept/fix/reject decision. **Core principle: pure assessment — produce findings and a decision, never implementation changes.**
+**Atomic purpose: assess post-execution quality across 5 specialist dimensions and emit a severity-classified verdict.** Make the post-execution quality decision for the completed current phase. **Core principle: pure assessment — produce findings and a decision, never implementation changes or follow-up bead creation.**
 
 ## Boundary Rules
 - **MUST NOT** perform independent state detection or free-form routing — owned by `beo-route`. May emit canonical handoff to the next allowed pipeline skill when exit conditions are met.
@@ -56,15 +56,15 @@ Assess completed execution scope through 5-specialist review with severity gradi
 
 ## Severity Model
 - **P1 (Critical)** — Must fix before shipping. Blocks accept.
-- **P2 (Important)** — Should fix as tracked follow-up work outside the current epic scope. Does not block accept.
+- **P2 (Important)** — Should fix. Recorded in findings for downstream tracking. Does not block accept.
 - **P3 (Minor)** — Nice to fix. Never blocks accept.
 
 ## Inputs and Outputs
-- **Inputs** — Completed execution scope for the current phase, implementation code, test results, bead comments/history, and current feature artifacts under `.beads/artifacts/<feature_slug>/` per `artifact conventions (`beo-reference` → `references/artifact-conventions.md`)`.
-- **Outputs** — `.beads/artifacts/<feature_slug>/review-findings.md`, severity-graded findings, accept/fix/reject decision, label updates per `the beo approval gates` (`beo-reference` → `references/approval-gates.md`), and handoff artifacts per `the STATE.json/HANDOFF.json protocol` (`beo-reference` → `references/state-and-handoff-protocol.md`).
+- **Inputs** — Completed current-phase implementation, test/verification results, bead comments/history, `CONTEXT.md`, `phase-contract.md`, optional `plan.md` as accepted-scope baseline.
+- **Outputs** — `.beads/artifacts/<feature_slug>/review-findings.md`, severity-graded findings, decision (`accept | fix | reject`), exact remediation targets for fix/reject.
 
 ## Decision Rubrics
-- **Accept vs Fix vs Reject** — Any P1 finding → fix. P2 findings become tracked follow-up beads outside the current epic scope and do not block feature acceptance. Structural mismatch with `CONTEXT.md`, `plan.md`, or `phase-contract.md` → reject and route to `beo-plan`. Only P2/P3 findings → accept.
+- **Accept vs Fix vs Reject** — Any P1 finding → fix. P2 findings are recorded in review-findings.md for downstream tracking and do not block acceptance. Structural mismatch with `CONTEXT.md`, `plan.md`, or `phase-contract.md` → reject and route to `beo-plan`. Only P2/P3 findings → accept.
 - **Fix Scope** — Every fix directive must name the exact bead(s), exact finding(s), and exact acceptance condition. Never issue vague directives like “improve quality.”
 - **UAT Gate** — If user approval is required at this point, follow `the beo approval gates` (`beo-reference` → `references/approval-gates.md`) before finalizing the decision.
 - **Failure Recovery** — If review execution is interrupted, incomplete, or inconsistent, recover using `standard failure recovery (`beo-reference` → `references/failure-recovery.md`)`.
@@ -88,3 +88,4 @@ Assess completed execution scope through 5-specialist review with severity gradi
 - Review fails to remove `approved` on fix or reject.
 - Review emits vague findings without severity, owner, or remediation target.
 - Review duplicates shared-reference content instead of linking canonical sources.
+- Review creating follow-up beads or tracked work items (plan owns bead creation).

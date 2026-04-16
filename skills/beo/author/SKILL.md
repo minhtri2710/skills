@@ -1,7 +1,7 @@
 ---
 name: beo-author
 description: |
-  Use when creating a new beo skill, editing an existing beo skill definition, or pressure-testing a skill before deployment. Ensures each skill has single responsibility, explicit boundaries, compliant template structure, and passes structured pressure tests before it can be considered complete. MUST NOT create skills without pressure testing, modify core pipeline skills without explicit user approval, introduce boundary overlap between skills, or perform feature pipeline work. Do not use for project-specific AGENTS.md conventions, one-off solutions, or ordinary feature planning and execution.
+  Use when creating, revising, or pressure-testing beo skill definitions. Produces or refines SKILL.md contracts, enforces single-responsibility boundaries, and runs structured pressure tests before release. Do not use for feature pipeline work (requirements, planning, execution, review), repository onboarding (use beo-onboard), or modifying core pipeline skills without explicit user approval.
 ---
 
 > **HARD-GATE: SKILL-REPO-CONTEXT** — Author operates within the beo-skills repository. It reads existing skills as reference, not as project artifacts.
@@ -11,7 +11,7 @@ description: |
 # beo-author
 
 ## Overview
-Create and pressure-test beo skills so the system stays coherent as it evolves. **Core principle: every skill must have a single responsibility, explicit boundaries, and a tested template-compliant definition.**
+**Atomic purpose: create, modify, or pressure-test beo skill definitions and supporting artifacts.** Create and validate beo skill definitions so the skill system stays coherent. **Core principle: every skill must have a single responsibility, explicit boundaries, and a tested template-compliant definition.**
 
 ## Boundary Rules
 - **MUST NOT** perform independent state detection or free-form routing — owned by `beo-route`. May emit canonical handoff to the next allowed pipeline skill when exit conditions are met.
@@ -51,7 +51,7 @@ Create and pressure-test beo skills so the system stays coherent as it evolves. 
 | `references/pressure-test-template.md` | Supplies structured scenarios for validating skill boundaries and failure handling |
 
 ## Inputs and Outputs
-- **Inputs** — Skill definition inputs, existing skill templates, canonical `SKILL.md` structure, pressure-test scenarios from `references/pressure-test-template.md`.
+- **Inputs** — Target skill definition or change request, existing `SKILL.md` files and related skill contracts, canonical skill template requirements, pressure-test scenarios.
 - **Outputs** — New or revised `SKILL.md`, pressure-test results logged via `references/creation-log-template.md`, integration guidance.
 
 ## Decision Rubrics

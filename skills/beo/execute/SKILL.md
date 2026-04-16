@@ -1,7 +1,7 @@
 ---
 name: beo-execute
 description: |
-  Use when an approved bead is ready for implementation by one worker, either self-directed or assigned by swarm. Claims one bead, constructs the implementation prompt, writes code, verifies against acceptance criteria, and reports outcome. Operates in two modes: single-worker (self-directed sequencing) and swarm-worker (assigned via Agent Mail). MUST NOT work on unapproved or unassigned beads, parallelize within a single worker, or skip verification before marking complete. Do not use for multi-worker orchestration (use beo-swarm), when the plan is not validated (use beo-validate), or for complex blocked-bead diagnosis (use beo-debug).
+  Use when exactly one approved bead is ready for implementation, either self-selected or assigned by swarm. Claims the bead, writes code, runs acceptance-criteria verification, and reports success or blocker. Only obvious local retries (≤2) belong here. Do not use for multi-worker coordination (use beo-swarm), plan verification (use beo-validate), non-obvious root-cause analysis (use beo-debug), or post-phase quality assessment (use beo-review).
 ---
 
 > **HARD-GATE: ONBOARDING** — Before any work, verify `br` and `bv` are accessible and `.beads/` is initialized (`beo-reference` → `references/shared-hard-gates.md`). If stale or missing, load `beo-onboard` and stop.
@@ -11,7 +11,7 @@ description: |
 # beo-execute
 
 ## Overview
-Implement one bead at a time from claim through verification and reporting, whether running independently or under swarm direction. **Core principle: one bead, one bounded implementation target, one verified outcome at a time.**
+**Atomic purpose: implement one assigned bead — claim, code, verify, and report completion.** Implement and verify one approved bead at a time. **Core principle: one bead, one bounded implementation target, one verified outcome at a time.**
 
 ## Boundary Rules
 - **MUST NOT** perform independent state detection or free-form routing — owned by `beo-route`. May emit canonical handoff to the next allowed pipeline skill when exit conditions are met.
@@ -55,8 +55,8 @@ Implement one bead at a time from claim through verification and reporting, whet
 - **Swarm-worker mode** — Directed execution. Receive a bead assignment from `beo-swarm` via Agent Mail and execute only that assignment.
 
 ## Inputs and Outputs
-- **Inputs** — A single bead claimed through `br`, plus worker prompt context from swarm or self-generated artifact/state context in `.beads/artifacts/<feature_slug>/`, using artifact conventions (`beo-reference` → `references/artifact-conventions.md`).
-- **Outputs** — Implementation changes, verification results, bead comments, status updates using the canonical execution terms (`open`, `dispatch_prepared`, `in_progress`, `done`, `blocked`, `failed`, `cancelled`), and handoff/state artifacts using the required state and handoff artifacts.
+- **Inputs** — One approved bead ID and description, that bead's acceptance criteria and verification steps, relevant source files, optional swarm assignment message.
+- **Outputs** — Implementation changes for that bead, verification evidence/results, bead comment/update, final bead status (`done`, `blocked`, `failed`, or `cancelled`).
 
 ## Blocker Handling
 - **Implementation failure after 2 retries** — Mark `blocked` and add blocker detail with `br comments add <ID> --no-daemon --message "..."`.

@@ -1,7 +1,7 @@
 ---
 name: beo-onboard
 description: |
-  Use when a repository needs beo pipeline onboarding, when onboarding status must be verified, or when any beo skill reports missing or stale tooling. Checks and installs required tools (br 0.1.28+, bv 0.15.2+), initializes .beads/ directory structure, creates bootstrap artifacts (STATE.json, AGENTS.md), and verifies the repository is in valid operating state. Safe to re-run (idempotent). MUST NOT overwrite existing artifacts or user data, perform any pipeline stage work, or proceed without verified tooling. Do not use when the repository is already fully onboarded and current with no tooling issues.
+  Use when beo tooling or repository bootstrap state is missing, stale, or must be verified before pipeline skills can operate. Checks and installs required tools (br 0.1.28+, bv 0.15.2+), initializes missing .beads/ structure and bootstrap artifacts, and reports readiness. Idempotent and safe to re-run. Do not use for pipeline routing (use beo-route), feature work (requirements, planning, execution, review), or any destructive rewrite of existing data.
 ---
 
 > **HARD-GATE: IDEMPOTENT** — Onboard is safe to re-run. It checks existing state and only creates or updates what is missing or stale.
@@ -11,7 +11,7 @@ description: |
 # beo-onboard
 
 ## Overview
-Bootstrap a repository into a valid beo operating state and verify required tool versions. **Core principle: initialize safely, verify explicitly, and never destroy existing project state.**
+**Atomic purpose: validate and bootstrap the environment so all beo skills can operate correctly.** Bring a repository into a valid beo operating state without destructive changes. **Core principle: initialize safely, verify explicitly, and never destroy existing project state.**
 
 ## Boundary Rules
 - **MUST NOT** perform independent state detection or free-form routing — owned by `beo-route`. May emit canonical handoff to the next allowed pipeline skill when exit conditions are met.
@@ -48,8 +48,8 @@ Bootstrap a repository into a valid beo operating state and verify required tool
 | `references/onboarding-flow.md` | Defines bootstrap checks, version requirements, initialization order, and stop conditions |
 
 ## Inputs and Outputs
-- **Inputs** — Repository state, `br`/`bv` tool availability, existing `.beads/` structure, current `AGENTS.md`.
-- **Outputs** — Initialized `.beads/` directory, `STATE.json`, verified tooling, updated `AGENTS.md`, onboarding status report.
+- **Inputs** — Repository root state, Node/`br`/`bv` version info, existing `.beads/` structure and bootstrap files, existing `AGENTS.md`.
+- **Outputs** — Onboarding status report, created missing bootstrap directories/files, safe `AGENTS.md` update/merge, verified tooling readiness.
 
 ## Decision Rubrics
 ### Fresh Install vs Update

@@ -1,7 +1,7 @@
 ---
 name: beo-debug
 description: |
-  Use when a bead is blocked or when a build, test, runtime, integration, or worker-execution failure needs root-cause analysis. Systematically diagnoses the failure, isolates root cause, applies the minimal viable fix, verifies resolution, and returns control to the skill that invoked it. Always tracks origin and returns to invoking skill. MUST NOT expand scope beyond the specific blocker, guess at fixes without root-cause evidence, or perform quality review. Do not use for planning ambiguity (use beo-explore), post-implementation quality review (use beo-review), or cross-feature pattern analysis (use beo-dream).
+  Use when a specific blocker or failure prevents execution from proceeding and the cause is not obvious enough for a local retry. Diagnoses root cause, applies the minimal viable fix, verifies resolution, and returns control to the invoking skill. Do not use for requirements ambiguity (use beo-explore), general quality review (use beo-review), cross-feature pattern analysis (use beo-dream), or when execute can resolve via simple retry.
 ---
 
 > **HARD-GATE: ONBOARDING** — Before any work, verify `br` and `bv` are accessible and `.beads/` is initialized (`beo-reference` → `references/shared-hard-gates.md`). If stale or missing, load `beo-onboard` and stop.
@@ -11,7 +11,7 @@ description: |
 # beo-debug
 
 ## Overview
-Unblock failed or stalled work by isolating root cause, applying the smallest viable fix, and proving the blocker is resolved. **Core principle: minimal-intervention troubleshooting with explicit return to the invoking skill.**
+**Atomic purpose: diagnose a specific failure's root cause and apply the minimal targeted fix to unblock execution.** Diagnose and minimally unblock a specific failure, then return to the invoking skill. **Core principle: minimal-intervention troubleshooting with explicit return to origin.**
 
 ## Boundary Rules
 - **MUST NOT** perform independent state detection or free-form routing — owned by `beo-route`. May emit canonical handoff to the next allowed pipeline skill when exit conditions are met.
@@ -47,8 +47,8 @@ Unblock failed or stalled work by isolating root cause, applying the smallest vi
 | `references/message-templates.md` | Standard messaging patterns for blocker reporting, updates, and resolution handoffs. |
 
 ## Inputs and Outputs
-- **Inputs** — Blocked bead or failure context, origin skill identifier, error evidence, relevant artifacts under `.beads/artifacts/<feature_slug>/`, and current state records per `the STATE.json/HANDOFF.json protocol` (`beo-reference` → `references/state-and-handoff-protocol.md`).
-- **Outputs** — Root cause diagnosis, minimal applied fix or escalation, verification evidence, bead comment update, status transition per `the bead lifecycle states` (`beo-reference` → `references/status-mapping.md`), and return handoff to the invoking skill.
+- **Inputs** — Invoking skill identifier, blocked bead or failure evidence/logs, relevant code/artifacts, current execution/review state.
+- **Outputs** — Root-cause statement, minimal applied fix or evidence-based escalation target, verification evidence, bead comment/status update, return-to-origin handoff.
 
 ## Decision Rubrics
 - **Fix vs Escalate** — If root cause is within bead scope and resolvable quickly with a local change, fix directly. If root cause is structural, missing dependency, wrong approach, or plan error, escalate to the appropriate skill.

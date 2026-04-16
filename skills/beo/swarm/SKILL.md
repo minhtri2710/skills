@@ -1,7 +1,7 @@
 ---
 name: beo-swarm
 description: |
-  Use when an approved current phase has 3 or more independent ready beads with non-overlapping file scopes and parallel execution will materially reduce cycle time. Orchestrates parallel worker agents via Agent Mail — assigns beads, monitors progress, resolves file-scope conflicts, and aggregates completion results. Degrades gracefully to execute if conditions not met. MUST NOT write implementation code, operate on unvalidated plans, or swarm fewer than 3 independent tasks. Do not use for single-bead execution (use beo-execute), when fewer than 3 independent ready beads exist, or when the plan is not yet approved.
+  Use when execution is approved and 3+ independent ready beads with non-overlapping file scopes make parallel coordination worthwhile. Assigns beads to workers via Agent Mail, monitors progress, resolves file-scope conflicts, and aggregates results. Degrades to beo-execute if preconditions collapse. Do not use for single-bead work (use beo-execute), unapproved plans (use beo-validate first), or when fewer than 3 independent non-overlapping beads exist.
 ---
 
 > **HARD-GATE: ONBOARDING** — Before any work, verify `br` and `bv` are accessible and `.beads/` is initialized (`beo-reference` → `references/shared-hard-gates.md`). If stale or missing, load `beo-onboard` and stop.
@@ -11,7 +11,7 @@ description: |
 # beo-swarm
 
 ## Overview
-Coordinate parallel worker execution across independent current-phase beads without file-scope collisions. **Core principle: orchestrate only — assign, monitor, and resolve coordination issues without editing implementation code.**
+**Atomic purpose: orchestrate parallel worker assignments and inter-worker coordination for the current phase.** Coordinate safe parallel execution across multiple independent approved beads. **Core principle: orchestrate only — assign, monitor, and resolve coordination issues without editing implementation code.**
 
 ## Boundary Rules
 - **MUST NOT** perform independent state detection or free-form routing — owned by `beo-route`. May emit canonical handoff to the next allowed pipeline skill when exit conditions are met.
@@ -56,8 +56,8 @@ Coordinate parallel worker execution across independent current-phase beads with
 | `references/pressure-scenarios.md` | Expected swarm behavior under contention, failures, and load |
 
 ## Inputs and Outputs
-- **Inputs** — approved current-phase beads with at least 3 independent ready items and non-overlapping file scopes, using artifact and state contracts from `.beads/artifacts/<feature_slug>/` using artifact conventions (`beo-reference` → `references/artifact-conventions.md`).
-- **Outputs** — Worker assignments sent through Agent Mail, conflict-resolution decisions, degradation decisions, and handoff/state artifacts using the required state and handoff artifacts.
+- **Inputs** — Approved current-phase ready bead set (≥3 independent), dependency/readiness state, declared file scopes, Agent Mail availability.
+- **Outputs** — Worker assignments via Agent Mail, conflict-resolution or serialization decisions, degrade-to-serial signal when preconditions collapse, aggregated execution status.
 
 ## Decision Rubrics
 - **Swarm or Degrade** — If there are ≥3 independent ready beads with non-overlapping scopes, swarm. Otherwise, degrade to `beo-execute` via `STATE.json` for the normal transition.

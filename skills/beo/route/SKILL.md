@@ -1,7 +1,7 @@
 ---
 name: beo-route
 description: |
-  Use whenever a beo pipeline session starts, resumes after interruption, or when the correct next skill is ambiguous. Reads project state via br/bv and handoff records to select exactly one next action: load a specific skill, return control to the user, or stop. May perform bounded intake scaffolding (create epic, quick-path beads, artifact directory stubs) when routing fresh work. MUST NOT gather requirements, decompose work, verify plans, write implementation code, orchestrate workers, review output, capture learnings, diagnose failures, or consolidate knowledge. Do not use when the correct skill is already known, for direct questions unrelated to pipeline state, or for quick tasks that bypass the pipeline entirely.
+  Use when a beo pipeline session starts, resumes after interruption, or the correct next skill is ambiguous. Reads STATE.json, optional HANDOFF.json, onboarding readiness, and bead state via br/bv to select exactly one next action: load a skill, return control to the user, or stop. Do not use when the correct skill is already known, for requirements gathering (use beo-explore), solution design (use beo-plan), plan verification (use beo-validate), implementation (use beo-execute/beo-swarm), quality assessment (use beo-review), failure diagnosis (use beo-debug), or learning capture (use beo-compound/beo-dream).
 ---
 
 > **HARD-GATE: ONBOARDING** — Before any work, verify `br` and `bv` are accessible and `.beads/` is initialized (`beo-reference` → `references/shared-hard-gates.md`). If stale or missing, load `beo-onboard` and stop.
@@ -11,7 +11,7 @@ description: |
 # beo-route
 
 ## Overview
-Detect the current pipeline state and choose the next action using canonical routing rules, handoff precedence, and repo state signals. **Core principle: route only; never implement or perform full planning, with intake scaffolding allowed only as a narrow routing exception.**
+**Atomic purpose: detect current pipeline state and emit exactly one skill-routing directive.** Select the single correct next action from current pipeline state. **Core principle: route only — never implement, plan, or perform intake scaffolding beyond pure routing.**
 
 ## Boundary Rules
 - **MUST NOT** gather requirements — owned by `beo-explore`.
@@ -25,7 +25,7 @@ Detect the current pipeline state and choose the next action using canonical rou
 - **MUST NOT** consolidate learnings — owned by `beo-dream`.
 
 ## Hard Gates
-> **HARD-GATE: NO-IMPLEMENTATION** — Route does not write implementation code or modify existing feature artifacts. Route MAY perform intake scaffolding for new work when required by routing rules: create the feature epic via `br`, create quick-path task beads, create the artifact directory, and write minimal draft/stub artifacts for downstream skills to complete or overwrite. This exception is limited to intake scaffolding only; if route starts doing exploration, planning, validation, implementation, or editing existing feature artifacts, stop and revert to pure routing behavior.
+> **HARD-GATE: NO-IMPLEMENTATION** — Route does not write implementation code, create epics, create beads, create feature artifacts, or modify existing feature artifacts. Route selects the next action only. If route starts doing exploration, planning, validation, implementation, or artifact creation, stop and revert to pure routing behavior.
 
 > **HARD-GATE: HANDOFF-PRECEDENCE** — If `HANDOFF.json` exists, its `NextSkill` takes priority over state detection. If violated, routing is invalid and must restart per the STATE.json/HANDOFF.json protocol (`beo-reference` → `references/state-and-handoff-protocol.md`).
 
@@ -35,7 +35,7 @@ Detect the current pipeline state and choose the next action using canonical rou
 ## Default Route Loop
 1. Read `STATE.json` and `HANDOFF.json`. If `HANDOFF.json` exists with `NextSkill`, use it and clear it after read per the STATE.json/HANDOFF.json protocol (`beo-reference` → `references/state-and-handoff-protocol.md`).
 2. If no handoff exists, query `br` and `bv`, then match the observed state against the canonical routing table in the canonical pipeline routing table (`beo-reference` → `references/pipeline-contracts.md`) using first-match-wins semantics.
-3. When fresh intake qualifies for quick-path handling, route may perform intake scaffolding as part of selecting the next action; see `references/router-operations.md` for the bounded quick-path scaffold procedure.
+3. Select the matching next action based on the routing table. Route does not create artifacts; if fresh intake requires scaffolding, route to the appropriate skill.
 4. Emit `NextAction` as `LoadSkill(skill_name)`, `ReturnToUser(reason)`, or `Stop`, then update `STATE.json` per the STATE.json/HANDOFF.json protocol (`beo-reference` → `references/state-and-handoff-protocol.md`).
 
 ### Reference Files
@@ -45,8 +45,8 @@ Detect the current pipeline state and choose the next action using canonical rou
 | `references/go-mode.md` | Defines the go-mode branch used when fresh-start routing detects compressed intake behavior. |
 
 ## Inputs and Outputs
-- **Inputs** — `STATE.json`, `HANDOFF.json`, `br`/`bv` state queries.
-- **Outputs** — `NextAction (LoadSkill | ReturnToUser | Stop)`, updated `STATE.json`.
+- **Inputs** — Current user request or resume signal, `STATE.json`, optional `HANDOFF.json`, onboarding readiness signal (`br`, `bv`, `.beads/`), current bead status snapshot from `br`/`bv`.
+- **Outputs** — `NextAction (LoadSkill | ReturnToUser | Stop)`, updated `STATE.json`, consumed/cleared `HANDOFF.json` if present.
 - Artifact paths and ownership follow artifact conventions (`beo-reference` → `references/artifact-conventions.md`).
 
 ## Pipeline Contract
@@ -82,3 +82,4 @@ Detect the current pipeline state and choose the next action using canonical rou
 - Route making planning, validation, or implementation decisions.
 - Route skipping `HANDOFF.json` when present.
 - Route mutating bead state instead of returning the correct next action.
+- Route creating epics, beads, or feature directory stubs (scaffolding belongs to downstream skills).

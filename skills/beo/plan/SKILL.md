@@ -1,7 +1,7 @@
 ---
 name: beo-plan
 description: |
-  Use when a fully locked CONTEXT.md exists and needs transformation into executable planning artifacts and current-phase beads. Runs codebase discovery, selects technical approach, writes plan artifacts (discovery.md, approach.md, plan.md, optional phase-plan.md), then creates current-phase phase-contract.md, story-map.md, and bead graph. MUST NOT create beads beyond the current phase, write implementation code, or verify plan quality. Do not use when requirements are still unlocked or ambiguous (use beo-explore), or when a plan exists and needs structural verification (use beo-validate).
+  Use when CONTEXT.md is fully locked and technical solution design is needed. Reads the codebase, selects approach, writes planning artifacts (discovery.md, approach.md, plan.md, optional phase-plan.md), and creates current-phase phase-contract.md, story-map.md, and bead graph. Do not use when requirements are unlocked or ambiguous (use beo-explore), when a plan exists and needs verification (use beo-validate), or for implementation (use beo-execute).
 ---
 
 > **HARD-GATE: ONBOARDING** — Before any work, verify `br` and `bv` are accessible and `.beads/` is initialized (`beo-reference` → `references/shared-hard-gates.md`). If stale or missing, load `beo-onboard` and stop.
@@ -11,7 +11,7 @@ description: |
 # beo-plan
 
 ## Overview
-Convert locked requirements into executable planning artifacts, current-phase contracts, and bead graphs that are ready for validation. **Core principle: decompose precisely for the current phase only, without writing implementation code.**
+**Atomic purpose: transform locked requirements into a complete, bead-backed execution plan for the current phase.** Convert locked requirements into current-phase technical design and executable planning artifacts. **Core principle: decompose precisely for the current phase only, without writing implementation code or self-approving.**
 
 ## Boundary Rules
 - **MUST NOT** perform independent state detection or free-form routing — owned by `beo-route`. May emit canonical handoff to the next allowed pipeline skill when exit conditions are met.
@@ -56,7 +56,7 @@ Convert locked requirements into executable planning artifacts, current-phase co
 | `references/story-map-template.md` | Template for current-phase story and bead dependency mapping. |
 
 ## Inputs and Outputs
-- **Inputs** — Locked `.beads/artifacts/<feature_slug>/CONTEXT.md`, feature learnings, and critical patterns per the learnings read protocol (`beo-reference` → `references/learnings-read-protocol.md`).
+- **Inputs** — Locked `.beads/artifacts/<feature_slug>/CONTEXT.md`, feature identifier or slug, relevant codebase files and architecture context.
 - **Outputs** — Written to `.beads/artifacts/<feature_slug>/`:
   - `discovery.md`
   - `approach.md`
