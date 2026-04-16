@@ -1,86 +1,83 @@
 ---
 name: beo-explore
 description: |
-  Use when a feature or change request has unlocked requirements — scope, behavior, interfaces, constraints, edge cases, or compatibility decisions remain ambiguous or unstated. Runs Socratic dialogue to resolve every ambiguity and writes a fully locked CONTEXT.md. Do not use when requirements are already locked and planning should begin (use beo-plan), for routing decisions (use beo-route), failure diagnosis (use beo-debug), or during implementation/review (use beo-execute/beo-review).
+  Use when a feature or change request still has unlocked requirements and planning cannot begin safely. Explore resolves ambiguity in scope, behavior, interfaces, constraints, compatibility, edge cases, and acceptance boundaries, then writes a fully locked `CONTEXT.md`. Do not use once requirements are already locked, or for technical design, validation, execution, review, debugging, learning capture, or routing decisions.
 ---
 
 > **HARD-GATE: ONBOARDING** — Before any work, verify `br` and `bv` are accessible and `.beads/` is initialized (`beo-reference` → `references/shared-hard-gates.md`). If stale or missing, load `beo-onboard` and stop.
 
-> **Protocol References**: Protocol rules reference the `beo-reference` skill via `→ references/<file>` for canonical documents.
+> **Protocol References** — Shared protocol rules live in `beo-reference` → `references/<file>`.
 
 # beo-explore
 
-## Overview
-**Atomic purpose: elicit and lock all requirements decisions into CONTEXT.md via structured dialogue.** Turn ambiguous user intent into a locked feature requirements artifact. **Core principle: clarify and lock decisions without drifting into planning, implementation, or technical design.**
+## Atomic purpose
+Turn ambiguous feature intent into one fully locked `CONTEXT.md`.
 
-## Boundary Rules
-- **MUST NOT** perform independent state detection or free-form routing — owned by `beo-route`. May emit canonical handoff to the next allowed pipeline skill when exit conditions are met.
-- **MUST NOT** decompose into tasks — owned by `beo-plan`.
-- **MUST NOT** verify plans — owned by `beo-validate`.
-- **MUST NOT** write code — owned by `beo-execute`.
-- **MUST NOT** review implementations — owned by `beo-review`.
-- **MUST NOT** capture learnings — owned by `beo-compound`.
-- **MUST NOT** diagnose failures — owned by `beo-debug`.
+## When to use
+- new feature or change request with missing or contradictory requirements
+- planning cannot start because scope or behavior is still unclear
+- a replan reveals locked decisions are missing or inconsistent and work must return to requirements clarification
 
-## Hard Gates
-> **HARD-GATE: NO-PLANNING** — Explore never creates beads, epics, tasks, `discovery.md`, `approach.md`, or `plan.md`. If violated, stop and return to pure requirements capture.
+## Inputs
+**Required**
+- current feature request
+- feature identifier / slug
+- user answers to clarification questions
 
-> **HARD-GATE: NO-UNLOCKED-EXIT** — Explore does not hand off to `beo-plan` while any item remains open in **Resolve Before Planning**. All user-visible behavior, scope, contracts, and compatibility decisions must be locked before handoff. Items deferred to planning must be decomposition-only and must not change scope, UX, contracts, or expected behavior.
+**Optional**
+- existing `.beads/artifacts/<feature_slug>/CONTEXT.md`
+- relevant prior learnings read via `beo-reference` → `references/learnings-read-protocol.md` when needed
 
-> **HARD-GATE: GO-MODE** — If the user says “go mode” or equivalent, follow `references/go-mode.md`. If violated, restart the interaction in compressed confirmation mode.
+## Outputs
+**Allowed writes**
+- `.beads/artifacts/<feature_slug>/CONTEXT.md`
+- `.beads/STATE.json`
+- `.beads/HANDOFF.json` only when checkpoint or resume protocol requires it
 
-## Communication Standard
-> Follow the communication standard (`beo-reference` → `references/communication-standard.md`).
+**Must not write**
+- planning artifacts (`discovery.md`, `approach.md`, `plan.md`, `phase-plan.md`, `phase-contract.md`, `story-map.md`)
+- beads or decomposition state
+- implementation code
 
-## Default Explore Loop
-1. Read existing `.beads/artifacts/<feature_slug>/CONTEXT.md` if present so the session resumes instead of restarts. Also read feature learnings and critical patterns per the learnings read protocol (`beo-reference` → `references/learnings-read-protocol.md`).
-2. Identify gray areas, ambiguous scope, hidden assumptions, edge cases, and behavioral boundaries using `references/gray-area-probes.md`.
-3. Ask targeted questions with one concern per question and no more than three questions per turn, then wait for the user response.
-4. Record each resolved decision in `CONTEXT.md` using `references/context-template.md`, marking locked and unlocked items explicitly.
-5. When every decision is locked, write the final `CONTEXT.md` and hand off to `beo-plan` via `STATE.json` per the STATE.json/HANDOFF.json protocol (`beo-reference` → `references/state-and-handoff-protocol.md`).
+## Boundary rules
+- Explore owns requirement locking only.
+- Explore does not choose implementation approach, create bead graphs, validate readiness, implement code, review results, debug failures, or synthesize learnings.
+- Anything that changes scope, behavior, contracts, UX, or compatibility must be resolved here before handoff.
 
-### Reference Files
-| File | Purpose |
-|------|---------|
-| `references/context-template.md` | Canonical structure for recording requirements and lock status in `CONTEXT.md`. |
-| `references/gray-area-probes.md` | Probe patterns for resolving ambiguity, assumptions, and missing requirements. |
-| `references/go-mode.md` | Compressed intake protocol for batch-confirmed requirement capture. |
+## Minimum hard gates
+- **LOCK-BEFORE-PLAN** — Do not hand off while any scope-affecting decision remains unlocked.
+- **NO-PLANNING** — Do not create planning artifacts or beads.
+- **STRUCTURED-QUESTIONS-ONLY** — Use the structured question tool for clarification or approvals per `beo-reference` → `references/shared-hard-gates.md`.
+- **GO-MODE** — If the user explicitly requests go mode, switch to `references/go-mode.md`.
+- **TERMINATE-ON-HANDOFF** — After writing `CONTEXT.md` and handoff state, stop immediately.
+- **FRESH-LOAD-REQUIRED** — Explore must run as a fresh invocation.
 
-## Inputs and Outputs
-- **Inputs** — Feature request or user answers, feature identifier or slug, existing `.beads/artifacts/<feature_slug>/CONTEXT.md` if resuming.
-- **Outputs** — Completed `.beads/artifacts/<feature_slug>/CONTEXT.md` with all scope-affecting decisions locked.
-- Artifact locations and ownership follow artifact conventions (`beo-reference` → `references/artifact-conventions.md`).
+## Default loop
+1. Read any existing `CONTEXT.md` and relevant learnings so the session resumes instead of restarting.
+2. Identify unresolved gray areas using `references/gray-area-probes.md`.
+3. Ask targeted questions until all requirement-level decisions are locked.
+4. Record locked decisions in `CONTEXT.md` using `references/context-template.md`.
+5. When requirements are fully locked, write `.beads/STATE.json` for `beo-plan` and stop.
 
-## Decision Rubrics
-### Lock vs Probe
-- If the user provides a clear, unambiguous answer, lock the decision.
-- If the answer is vague, contradictory, or incomplete, probe deeper before locking.
+## References
+| File | Use when |
+|------|----------|
+| `references/context-template.md` | Writing or normalizing `CONTEXT.md` |
+| `references/gray-area-probes.md` | Finding missing scope / behavior decisions |
+| `references/go-mode.md` | Running compressed intake with explicit user consent |
+| `beo-reference` → `references/learnings-read-protocol.md` | Reading prior learnings without turning explore into dream/compound |
+| `beo-reference` → `references/state-and-handoff-protocol.md` | Writing handoff state |
 
-### Go-Mode vs Standard
-- If the user says “go mode”, “just do it”, or equivalent compression language, switch to the batch-confirmation protocol in `references/go-mode.md`.
-- Otherwise stay in the standard Socratic flow.
+## Handoff and exit
+- Normal forward handoff: `beo-plan`
+- Backward / pause outcome: `ReturnToUser(...)` when awaiting clarification
+- Explore must not load `beo-plan` directly; it writes state and yields.
 
-### Scope Creep Handling
-- If new information changes a previously locked decision, unlock the affected section and re-probe.
-- If new information is additive and consistent, lock it without reopening unrelated decisions.
+## Context budget
+If context exceeds 65%, checkpoint via the shared protocol in `beo-reference` → `references/shared-hard-gates.md`.
 
-## Approval and State Rules
-- Approval moments must follow the beo approval gates (`beo-reference` → `references/approval-gates.md`).
-- State transitions and handoff data must follow the bead lifecycle states (`beo-reference` → `references/status-mapping.md`) and the STATE.json/HANDOFF.json protocol (`beo-reference` → `references/state-and-handoff-protocol.md`).
-
-## Failure Recovery
-> Any stalled dialogue, contradictory answers, missing context, or failed handoff must return a concise recovery action to the user.
-
-## Handoff
-> Write `STATE.json` when transitioning to the next adjacent skill with locked decisions, open questions, and artifact pointers. Use `HANDOFF.json` only for emergency checkpoint or low-context resume scenarios.
-
-## Context Budget
-> If context exceeds 65% capacity, compress non-essential history before continuing (`beo-reference` → `references/shared-hard-gates.md`).
-
-## Red Flags & Anti-Patterns
-- Explore writing any code or pseudo-code implementation plan.
-- Explore creating beads, epics, or phase artifacts.
-- Explore producing anything beyond `CONTEXT.md`.
-- Explore handing off with unlocked decisions still present.
-- Deferring scope-affecting decisions to planning instead of resolving them.
-- Explore spending more than 10 turns on a single unresolved gray area; at turn 10, present a default recommendation and ask for explicit approval to proceed with that default.
+## Red flags
+- drafting solutions or decomposition instead of clarifying requirements
+- leaving behavior-affecting ambiguity for planning to guess later
+- writing anything other than `CONTEXT.md` plus canonical handoff state
+- continuing after handoff state is written

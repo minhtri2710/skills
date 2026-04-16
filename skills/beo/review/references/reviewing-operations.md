@@ -79,20 +79,11 @@ Also verify each exit-state line from `phase-contract.md` against the actual imp
 
 L2 or L3 failures are P1 findings and must be fixed before proceeding.
 
-## 3b. Reactive Fix Bead Creation
+## 3b. Reactive Fix Routing
 
-When a P1 finding requires a fix, create a reactive fix bead under the current epic:
+When a P1 finding requires a fix, specify the remediation target clearly in `review-findings.md` and use the canonical reactive-fix contract from `beo-reference` → `references/pipeline-contracts.md` to route the work.
 
-```bash
-br create "Fix: <root cause summary>" -t task --parent <EPIC_ID> -p 1 --json
-```
-
-Reference the affected bead ID in the fix bead description for traceability.
-Do not use `--deps blocks:<closed-bead>` — blocking an already-closed bead is a no-op and adds no scheduling value.
-
-Write the bead description using the **Reactive Fix Bead Template** from `beo-reference` → `references/bead-description-templates.md`.
-
-Then route the fix bead through `beo-execute`. Do not implement fix code inside review.
+Review may identify and describe the fix path, but it must not create or implement fix work directly inside the review phase.
 
 ## 4. Human UAT
 
@@ -106,8 +97,8 @@ For each locked decision and each exit-state line:
 ### UAT Outcomes
 
 - yes → mark verified and continue
-- no → create P1 fix bead and route to executing
-- close enough, fix later → create non-blocking P2 follow-up bead using the shared follow-up template
+- no → record a blocking remediation target and route through the canonical reactive-fix or replan path
+- close enough, fix later → record a non-blocking follow-up recommendation using the shared follow-up template
 - changed mind → update `CONTEXT.md`, assess impact, and route appropriately
 
 ## 5. Completion Handoff

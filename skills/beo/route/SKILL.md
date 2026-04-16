@@ -1,85 +1,86 @@
 ---
 name: beo-route
 description: |
-  Use when a beo pipeline session starts, resumes after interruption, or the correct next skill is ambiguous. Reads STATE.json, optional HANDOFF.json, onboarding readiness, and bead state via br/bv to select exactly one next action: load a skill, return control to the user, or stop. Do not use when the correct skill is already known, for requirements gathering (use beo-explore), solution design (use beo-plan), plan verification (use beo-validate), implementation (use beo-execute/beo-swarm), quality assessment (use beo-review), failure diagnosis (use beo-debug), or learning capture (use beo-compound/beo-dream).
+  Use when a beo session is starting, resuming, or the correct next skill is not already determined. Route reads the current request, onboarding readiness, `.beads/STATE.json`, optional `.beads/HANDOFF.json`, and live bead or epic state to choose exactly one next action: load one downstream skill, return control to the user, or stop. Do not use when the downstream skill is already known, or to perform requirements, planning, validation, execution, review, debugging, learning, onboarding, reference lookup, or authoring work itself.
 ---
 
-> **HARD-GATE: ONBOARDING** — Before any work, verify `br` and `bv` are accessible and `.beads/` is initialized (`beo-reference` → `references/shared-hard-gates.md`). If stale or missing, load `beo-onboard` and stop.
+> **HARD-GATE: ONBOARDING** — Before any routing work, verify `br` and `bv` are accessible and `.beads/` is initialized (`beo-reference` → `references/shared-hard-gates.md`). If stale or missing, load `beo-onboard` and stop.
 
-> **Protocol References**: Protocol rules reference the `beo-reference` corpus via `→ references/<file>` for canonical documents.
+> **Protocol References** — Shared protocol rules live in `beo-reference` → `references/<file>`.
 
 # beo-route
 
-## Overview
-**Atomic purpose: detect current pipeline state and emit exactly one skill-routing directive.** Select the single correct next action from current pipeline state. **Core principle: route only — never implement, plan, or perform intake scaffolding beyond pure routing.**
+## Atomic purpose
+Detect current beo state and emit exactly one canonical next action.
 
-## Boundary Rules
-- **MUST NOT** gather requirements — owned by `beo-explore`.
-- **MUST NOT** decompose work — owned by `beo-plan`.
-- **MUST NOT** verify plans — owned by `beo-validate`.
-- **MUST NOT** write code — owned by `beo-execute`.
-- **MUST NOT** orchestrate workers — owned by `beo-swarm`.
-- **MUST NOT** review implementations — owned by `beo-review`.
-- **MUST NOT** capture learnings — owned by `beo-compound`.
-- **MUST NOT** diagnose failures — owned by `beo-debug`.
-- **MUST NOT** consolidate learnings — owned by `beo-dream`.
+## When to use
+- session start
+- resume after interruption or checkpoint
+- explicit "continue", "resume", or "what's next?"
+- any time multiple beo skills could plausibly apply and routing must choose exactly one
 
-## Hard Gates
-> **HARD-GATE: NO-IMPLEMENTATION** — Route does not write implementation code, create epics, create beads, create feature artifacts, or modify existing feature artifacts. Route selects the next action only. If route starts doing exploration, planning, validation, implementation, or artifact creation, stop and revert to pure routing behavior.
+## Inputs
+**Required**
+- current user request or resume signal
+- onboarding readiness state
+- `.beads/STATE.json`
+- live bead and epic state from `br` and `bv`
 
-> **HARD-GATE: HANDOFF-PRECEDENCE** — If `HANDOFF.json` exists, its `NextSkill` takes priority over state detection. If violated, routing is invalid and must restart per the STATE.json/HANDOFF.json protocol (`beo-reference` → `references/state-and-handoff-protocol.md`).
+**Optional**
+- `.beads/HANDOFF.json`
 
-## Communication Standard
-> Follow the communication standard (`beo-reference` → `references/communication-standard.md`).
+## Outputs
+**Decisions**
+- exactly one `NextAction`: `LoadSkill(name)`, `ReturnToUser(reason)`, or `Stop(done)`
 
-## Default Route Loop
-1. Read `STATE.json` and `HANDOFF.json`. If `HANDOFF.json` exists with `NextSkill`, use it and clear it after read per the STATE.json/HANDOFF.json protocol (`beo-reference` → `references/state-and-handoff-protocol.md`).
-2. If no handoff exists, query `br` and `bv`, then match the observed state against the canonical routing table in the canonical pipeline routing table (`beo-reference` → `references/pipeline-contracts.md`) using first-match-wins semantics.
-3. Select the matching next action based on the routing table. Route does not create artifacts; if fresh intake requires scaffolding, route to the appropriate skill.
-4. Emit `NextAction` as `LoadSkill(skill_name)`, `ReturnToUser(reason)`, or `Stop`, then update `STATE.json` per the STATE.json/HANDOFF.json protocol (`beo-reference` → `references/state-and-handoff-protocol.md`).
+**Allowed writes**
+- `.beads/STATE.json`
+- `.beads/HANDOFF.json` only when checkpoint or resume protocol requires it
+- canonical intake scaffolding only when the routing table explicitly assigns it to route for new-intake rows
 
-### Reference Files
-| File | Purpose |
-|------|---------|
-| `references/router-operations.md` | Route-specific operational procedure and state detection guidance. |
-| `references/go-mode.md` | Defines the go-mode branch used when fresh-start routing detects compressed intake behavior. |
+**Must not write**
+- feature artifacts under `.beads/artifacts/<feature_slug>/`
+- implementation code
+- review or learning artifacts
 
-## Inputs and Outputs
-- **Inputs** — Current user request or resume signal, `STATE.json`, optional `HANDOFF.json`, onboarding readiness signal (`br`, `bv`, `.beads/`), current bead status snapshot from `br`/`bv`.
-- **Outputs** — `NextAction (LoadSkill | ReturnToUser | Stop)`, updated `STATE.json`, consumed/cleared `HANDOFF.json` if present.
-- Artifact paths and ownership follow artifact conventions (`beo-reference` → `references/artifact-conventions.md`).
+## Boundary rules
+- Route owns selection of the next skill; it does not perform downstream work.
+- Route does not clarify requirements, design solutions, validate plans, implement code, review outcomes, debug blockers, extract learnings, or rewrite skills.
+- Route may perform only the minimum intake scaffolding already required by the canonical routing table; it must not expand that into planning or execution work.
 
-## Pipeline Contract
-- Pipeline sequence is fixed: `route → explore → plan → validate → (execute | swarm → execute) → review → compound`.
-- Support skills remain on-demand or periodic: `debug`, `dream`, `author`, `onboard`.
-- State transitions must follow the bead lifecycle states (`beo-reference` → `references/status-mapping.md`).
+## Minimum hard gates
+- **HANDOFF-PRECEDENCE** — If `.beads/HANDOFF.json` exists, honor the saved `skill` and `next_action` per `beo-reference` → `references/state-and-handoff-protocol.md` before normal state detection.
+- **CANONICAL-FIELDS-ONLY** — Use the canonical `STATE.json` and `HANDOFF.json` field names from `beo-reference` → `references/state-and-handoff-protocol.md`. Do not invent aliases such as `NextSkill` or `STATE.skill`.
+- **FIRST-MATCH-WINS** — Match live state against the routing table in `beo-reference` → `references/pipeline-contracts.md` top-to-bottom.
+- **TERMINATE-ON-HANDOFF** — After writing handoff state, stop immediately (`beo-reference` → `references/shared-hard-gates.md`).
+- **FRESH-LOAD-REQUIRED** — Route must run as a fresh invocation, not as a continuation of another skill's session (`beo-reference` → `references/shared-hard-gates.md`).
 
-## Decision Rubrics
-### Resume vs Fresh Start
-- If `STATE.json.skill` is set and no `HANDOFF.json` is present, resume that skill.
-- If `STATE.json` is missing, treat the request as a fresh start and decide between go-mode handling or `beo-explore`.
+## Default loop
+1. Verify onboarding readiness.
+2. Read `.beads/HANDOFF.json` first when present, then `.beads/STATE.json`, using the canonical resume protocol.
+3. If no handoff controls the next step, inspect the live bead / epic state and current request, then match the first applicable routing row in `pipeline-contracts.md`.
+4. Emit exactly one `NextAction` and write `.beads/STATE.json` for the selected transition.
+5. Stop. Never begin the downstream skill in the same session.
 
-### Handoff vs Detection
-- If `HANDOFF.json` contains `NextSkill`, always honor it first.
-- Only run state detection when no valid handoff is present.
+## References
+| File | Use when |
+|------|----------|
+| `references/router-operations.md` | Applying route-specific detection and intake mechanics |
+| `references/go-mode.md` | A fresh request explicitly enters compressed go-mode intake |
+| `beo-reference` → `references/pipeline-contracts.md` | Selecting the canonical next action |
+| `beo-reference` → `references/state-and-handoff-protocol.md` | Reading or writing `STATE.json` / `HANDOFF.json` |
+| `beo-reference` → `references/shared-hard-gates.md` | Enforcing onboarding and session-boundary rules |
 
-### Ambiguous State
-- If multiple routing rows match, use the first canonical match from the canonical pipeline routing table (`beo-reference` → `references/pipeline-contracts.md`).
-- If no row matches, return control to the user with a concise state dump and clear recovery direction.
+## Handoff and exit
+- Allowed direct outcomes: `beo-onboard`, `beo-explore`, `beo-plan`, `beo-validate`, `beo-execute`, `beo-swarm`, `beo-review`, `beo-compound`, `beo-debug`, `beo-dream`, `beo-author`, `ReturnToUser`, `Stop(done)`.
+- Every route decision must match an allowed edge in `beo-reference` → `references/pipeline-contracts.md`.
 
-## Failure Recovery
-> Any routing failure, missing state, malformed handoff, or unmatched pipeline condition must return a concise recovery action to the user.
+## Context budget
+If context exceeds 65%, checkpoint using the shared protocol in `beo-reference` → `references/shared-hard-gates.md`.
 
-## Handoff
-> Write `STATE.json` when routing to the next adjacent skill so the selected skill receives current status, gating signals, and artifact pointers. Use `HANDOFF.json` only for emergency checkpoint or low-context resume scenarios.
-
-## Context Budget
-> If context exceeds 65% capacity, compress non-essential history before continuing (`beo-reference` → `references/shared-hard-gates.md`).
-
-## Red Flags & Anti-Patterns
-- Route spending more than 2 minutes on detection.
-- Route modifying any artifact under `.beads/artifacts/<feature_slug>/`.
-- Route making planning, validation, or implementation decisions.
-- Route skipping `HANDOFF.json` when present.
-- Route mutating bead state instead of returning the correct next action.
-- Route creating epics, beads, or feature directory stubs (scaffolding belongs to downstream skills).
+## Red flags
+- using non-canonical handoff field names
+- clearing or rewriting handoff state outside the canonical protocol
+- doing exploration, planning, validation, execution, review, debug, or learning work after selecting a route
+- creating feature artifacts not explicitly owned by route in the routing table
+- continuing after writing `STATE.json`

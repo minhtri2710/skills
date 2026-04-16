@@ -290,13 +290,7 @@ Then route:
 
 ### Quick Mode
 
-For Quick-scope features, see `beo-reference` → `references/pipeline-contracts.md` for the canonical definition. When the feature qualifies as Quick:
-
-1. skip the full 8-dimension pass
-2. skip graph analysis
-3. skip spikes
-4. skip fresh-eyes review
-5. still require user approval
+For Quick-scope features, see `beo-reference` → `references/pipeline-contracts.md` for the canonical definition. When the feature qualifies as Quick, keep validation lightweight but preserve the binary gate: shorten supporting analysis as appropriate, do not create work during validation, and still require explicit user approval before any approval label is added.
 
 ### Context-Budget Checkpoint
 

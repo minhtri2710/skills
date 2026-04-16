@@ -1,80 +1,81 @@
 ---
 name: beo-onboard
 description: |
-  Use when beo tooling or repository bootstrap state is missing, stale, or must be verified before pipeline skills can operate. Checks and installs required tools (br 0.1.28+, bv 0.15.2+), initializes missing .beads/ structure and bootstrap artifacts, and reports readiness. Idempotent and safe to re-run. Do not use for pipeline routing (use beo-route), feature work (requirements, planning, execution, review), or any destructive rewrite of existing data.
+  Use when beo tooling, bootstrap files, or repository operating state are missing, stale, or must be verified before any other beo skill can run safely. Onboard checks required tooling, creates only missing bootstrap structure, safely updates shared onboarding guidance when necessary, and reports readiness. Do not use for feature delivery, routing logic, or destructive rewrites of existing repo state.
 ---
 
-> **HARD-GATE: IDEMPOTENT** — Onboard is safe to re-run. It checks existing state and only creates or updates what is missing or stale.
+> **HARD-GATE: IDEMPOTENT** — Onboard is safe to re-run. It checks existing state first and only creates or updates the minimum missing bootstrap state.
 
-> **Protocol References**: Protocol rules reference the `beo-reference` skill via `→ references/<file>` for canonical documents.
+> **Protocol References** — Shared protocol rules live in `beo-reference` → `references/<file>`.
 
 # beo-onboard
 
-## Overview
-**Atomic purpose: validate and bootstrap the environment so all beo skills can operate correctly.** Bring a repository into a valid beo operating state without destructive changes. **Core principle: initialize safely, verify explicitly, and never destroy existing project state.**
+## Atomic purpose
+Bring the repository into a valid beo operating state with minimal safe changes.
 
-## Boundary Rules
-- **MUST NOT** perform independent state detection or free-form routing — owned by `beo-route`. May emit canonical handoff to the next allowed pipeline skill when exit conditions are met.
-- **MUST NOT** gather requirements — owned by `beo-explore`.
-- **MUST NOT** decompose work — owned by `beo-plan`.
-- **MUST NOT** verify plans — owned by `beo-validate`.
-- **MUST NOT** write feature code — owned by `beo-execute`.
-- **MUST NOT** review implementations — owned by `beo-review`.
-- **MUST NOT** capture learnings — owned by `beo-compound`.
-- **MUST NOT** diagnose failures — owned by `beo-debug`.
-- **MUST NOT** orchestrate parallel worker execution — owned by `beo-swarm`.
-- **MUST NOT** consolidate cross-feature learnings — owned by `beo-dream`.
-- **MUST NOT** create skills — owned by `beo-author`.
+## When to use
+- `.beads/` bootstrap state is missing or stale
+- required beo tooling is missing, outdated, or unverified
+- another beo skill cannot safely start until environment readiness is confirmed
 
-## Hard Gates
-> **HARD-GATE: TOOLING-VERIFICATION** — Node.js 18 or newer, `br` version 0.1.28 or newer, and `bv` version 0.15.2 or newer must be installed and accessible. If any required tool is missing or too old, provide installation guidance from `references/onboarding-flow.md` and stop.
+## Inputs
+**Required**
+- repository root state
+- installed tool versions for Node, `br`, and `bv`
+- existing `.beads/` structure and onboarding artifacts when present
 
-> **HARD-GATE: NO-DESTRUCTIVE-WRITES** — Onboard never overwrites existing artifacts, beads, or user-authored data. If a write would replace existing content, stop and require an explicit update path.
+**Optional**
+- existing `AGENTS.md`
+- repo-specific bootstrap templates or scripts referenced by local onboarding docs
 
-## Communication Standard
-> Follow the communication standard (`beo-reference` → `references/communication-standard.md`).
+## Outputs
+**Allowed writes**
+- missing beo bootstrap directories / files
+- safe updates to `AGENTS.md` when onboarding guidance must be merged
+- `.beads/STATE.json`
+- `.beads/HANDOFF.json` only when checkpoint or resume protocol requires it
 
-## Default Onboard Loop
-1. **Check status** — Determine whether `.beads/` exists, whether onboarding artifacts match artifact conventions (`beo-reference` → `references/artifact-conventions.md`), and whether the repository is already current. If fully current, report status and stop.
-2. **Install or verify tooling** — Confirm Node.js 18+, `br`, and `bv` meet minimum versions using `references/onboarding-flow.md`. If required tooling is unavailable, provide instructions and do not continue.
-3. **Review planned changes and get approval** — Summarize the onboarding changes you intend to apply and obtain user approval before writing bootstrap files or updating shared repo guidance.
-4. **Initialize structure** — Create only missing bootstrap structure, including `.beads/`, `STATE.json`, and required knowledge directories, using the repository's onboarding scripts and asset templates.
-5. **Create or update AGENTS.md** — Add beo conventions, tool requirements, and editing guidance without removing existing user content unless an explicit safe merge path exists.
-6. **Verify** — Confirm `br` responds, `bv` responds, required directories exist, and state files are valid; route any failure through standard failure recovery (`beo-reference` → `references/failure-recovery.md`).
+**Must not write**
+- feature artifacts for active work
+- implementation code
+- destructive overwrites of user-authored content
 
-### Reference Files
-| File | Purpose |
-|------|---------|
-| `references/onboarding-flow.md` | Defines bootstrap checks, version requirements, initialization order, and stop conditions |
+## Boundary rules
+- Onboard owns environment and bootstrap readiness only.
+- Onboard does not perform routing, requirements, planning, validation, execution, review, debugging, learning, or authoring work.
+- Onboard should make the smallest safe change that enables the rest of the beo system to function.
 
-## Inputs and Outputs
-- **Inputs** — Repository root state, Node/`br`/`bv` version info, existing `.beads/` structure and bootstrap files, existing `AGENTS.md`.
-- **Outputs** — Onboarding status report, created missing bootstrap directories/files, safe `AGENTS.md` update/merge, verified tooling readiness.
+## Minimum hard gates
+- **TOOLING-VERIFICATION** — Confirm the required toolchain and minimum versions before continuing.
+- **NO-DESTRUCTIVE-WRITES** — Never overwrite existing managed or user-authored content without an explicit safe merge path.
+- **STRUCTURED-APPROVALS-ONLY** — Use the structured question tool before applying bootstrap changes that affect shared repo guidance.
+- **TERMINATE-ON-HANDOFF** and **FRESH-LOAD-REQUIRED** — Follow the shared session-boundary rules.
 
-## Decision Rubrics
-### Fresh Install vs Update
-- **Fresh install** when `.beads/` and other required beo artifacts do not exist.
-- **Update in place** when the repository is partially onboarded or stale and only missing or outdated pieces need attention.
+## Default loop
+1. Inspect the repo for beo bootstrap readiness and current onboarding artifacts.
+2. Verify Node, `br`, and `bv` against the onboarding requirements.
+3. If tooling is missing or too old, report the exact gap and stop.
+4. Summarize the minimum bootstrap changes required and obtain any needed approval.
+5. Create only the missing beo structure and safely merge shared onboarding guidance when necessary.
+6. Verify the resulting setup, write handoff state to `beo-route`, and stop.
 
-### Stop vs Continue
-- **Stop** when `br` or `bv` is missing, below minimum version, or otherwise unavailable.
-- **Continue** only after tooling verification passes and safe non-destructive initialization remains possible.
+## References
+| File | Use when |
+|------|----------|
+| `references/onboarding-flow.md` | Running readiness checks, bootstrap order, and stop conditions |
+| `beo-reference` → `references/artifact-conventions.md` | Knowing where beo bootstrap state belongs |
+| `beo-reference` → `references/state-and-handoff-protocol.md` | Writing canonical handoff state |
+| `beo-reference` → `references/shared-hard-gates.md` | Session boundaries and shared onboarding rules |
 
-## Special Rules
-- Treat file locations and ownership according to artifact conventions (`beo-reference` → `references/artifact-conventions.md`).
-- Keep onboarding state and handoff files aligned to the STATE.json/HANDOFF.json protocol (`beo-reference` → `references/state-and-handoff-protocol.md`).
-- Respect the shared hard gates (`beo-reference` → `references/shared-hard-gates.md`) and the beo approval gates (`beo-reference` → `references/approval-gates.md`) when onboarding intersects existing managed state.
-- Preserve exact pipeline language: `route → explore → plan → validate → (execute | swarm → execute) → review → compound`; support skills remain `debug` on-demand, `dream` periodic, `author` meta, and `onboard` bootstrap.
+## Handoff and exit
+- Normal completion handoff: `beo-route`
+- Onboard stops after writing handoff state.
 
-## Handoff
-> Handoff to `beo-route` for next-action detection after onboarding bootstrap or version gating completes. Write `STATE.json` for the normal transition, and reserve `HANDOFF.json` for emergency checkpoint or low-context resume scenarios.
+## Context budget
+If context exceeds 30%, checkpoint via the shared protocol in `beo-reference` → `references/shared-hard-gates.md`.
 
-## Context Budget
-> If context exceeds 30% capacity (onboard-specific allocation), compress non-essential history before continuing (`beo-reference` → `references/shared-hard-gates.md`).
-
-## Red Flags & Anti-Patterns
-- Overwriting existing artifacts or user-authored data
-- Proceeding without verified `br` and `bv` tooling
-- Running full bootstrap on a repository that is already current instead of reporting status
-- Creating beads, plans, or feature artifacts during onboarding
-- Ignoring missing-state recovery guidance when verification fails
+## Red flags
+- overwriting existing user-authored repo content
+- proceeding without verified `br` / `bv` readiness
+- creating feature artifacts during onboarding
+- continuing after writing handoff state

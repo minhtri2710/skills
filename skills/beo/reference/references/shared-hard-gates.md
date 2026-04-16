@@ -7,7 +7,7 @@ Universal gates and protocols referenced by all beo skills. Skills point here in
 ## Onboarding Check
 
 <HARD-GATE>
-If `.beads/onboarding.json` is missing or stale, stop and load `beo-onboard` before continuing.
+If `br` or `bv` is unavailable, or the `.beads/` bootstrap state is missing or stale, stop and load `beo-onboard` before continuing. `.beads/onboarding.json` may inform the check, but it is not sufficient on its own.
 </HARD-GATE>
 
 ---
@@ -44,6 +44,38 @@ If context usage exceeds **65%**, checkpoint state before continuing:
 4. Resume from the checkpoint after context is restored.
 
 Exception: `beo-onboard` uses a **30%** threshold since it is a lightweight bootstrap skill.
+
+---
+
+## Session Boundary Protocol
+
+<HARD-GATE>
+**TERMINATE-ON-HANDOFF** — When a skill writes `STATE.json` or `HANDOFF.json` to hand off to another skill, it MUST immediately stop all work and yield control. The skill must not:
+- Continue executing any pipeline work after writing the handoff artifact
+- Load or begin the next skill in the same session context
+- Write code, create beads, or produce artifacts belonging to downstream skills
+- Interpret "hand off to skill-X" as "now do skill-X" — handoff means STOP
+
+The next skill must be loaded fresh by `beo-route` or by the orchestrator loading the named skill explicitly. A skill that writes STATE.json and then continues working has violated session boundaries.
+</HARD-GATE>
+
+<HARD-GATE>
+**FRESH-LOAD-REQUIRED** — Every skill must be loaded as a fresh invocation, not continued-into from the prior skill's session. If the current context contains another skill's active work (dialogue, decisions, implementation, review findings), the newly loaded skill must STOP and yield control so it can be started cleanly. Context from the prior skill is passed exclusively via `STATE.json`, `HANDOFF.json`, and persisted artifacts — never by inheriting the conversational session.
+
+Each skill's inline FRESH-LOAD-REQUIRED gate names the most common predecessor to watch for, but the rule applies universally to all prior-skill contexts.
+</HARD-GATE>
+
+---
+
+## User Interaction Protocol
+
+When a skill needs to ask the user a question, present choices, or request approval, it **MUST** use the structured question tool rather than inline plain text. This ensures:
+
+- Questions are clearly structured with labeled options
+- User responses are unambiguous and machine-readable
+- Approval gates produce explicit, trackable decisions
+
+All approval gates defined in `approval-gates.md` **MUST** be presented via the structured question tool.
 
 ---
 

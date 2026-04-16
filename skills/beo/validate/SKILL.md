@@ -1,98 +1,88 @@
 ---
 name: beo-validate
 description: |
-  Use when current-phase planning artifacts exist and need a binary execution-readiness gate before implementation begins. Reads phase-contract.md, story-map.md, and bead graph, runs 8-dimension structural verification, and either approves or returns an ordered remediation list. Only validate may add the approved label. Do not use to modify artifacts (use beo-plan), write code (use beo-execute), assess post-implementation quality (use beo-review), or diagnose failures (use beo-debug).
+  Use when current-phase planning artifacts exist and execution readiness needs a binary gate before implementation begins. Validate reads the locked context, current-phase contract, story map, and current-phase bead graph, then either approves execution or returns an ordered remediation list. Only validate may add the `approved` label. Do not use to repair planning artifacts, write code, review completed work, or diagnose blockers.
 ---
 
 > **HARD-GATE: ONBOARDING** — Before any work, verify `br` and `bv` are accessible and `.beads/` is initialized (`beo-reference` → `references/shared-hard-gates.md`). If stale or missing, load `beo-onboard` and stop.
 
-> **Protocol References**: Protocol rules reference the `beo-reference` skill via `→ references/<file>` for canonical documents.
+> **Protocol References** — Shared protocol rules live in `beo-reference` → `references/<file>`.
 
 # beo-validate
 
-## Overview
-**Atomic purpose: verify plan artifacts meet all 8 quality dimensions and gate execution readiness.** Gate execution by approving or rejecting the current-phase plan. **Core principle: inspect and decide without modifying planning artifacts, dependency graphs, or bead descriptions.**
+## Atomic purpose
+Gate current-phase execution readiness with one decision: approve or remediate.
 
-## Boundary Rules
-- **MUST NOT** perform independent state detection or free-form routing — owned by `beo-route`. May emit canonical handoff to the next allowed pipeline skill when exit conditions are met.
-- **MUST NOT** gather requirements — owned by `beo-explore`.
-- **MUST NOT** write or modify plans — owned by `beo-plan`.
-- **MUST NOT** write code — owned by `beo-execute`.
-- **MUST NOT** orchestrate workers — owned by `beo-swarm`.
-- **MUST NOT** review implementations — owned by `beo-review`.
-- **MUST NOT** capture learnings — owned by `beo-compound`.
+## When to use
+- current-phase planning artifacts are present and execution must be approved or rejected
+- approved scope may have become stale and needs a fresh gate
+- quick-path intake has produced the minimum planning artifacts required for validation
 
-## Hard Gates
-> **HARD-GATE: NO-CODE-BEFORE-APPROVAL** — No implementation code until validation passes and the `approved` label is set. If code exists, fail validation.
+## Inputs
+**Required**
+- locked `.beads/artifacts/<feature_slug>/CONTEXT.md`
+- current-phase `.beads/artifacts/<feature_slug>/phase-contract.md`
+- current-phase `.beads/artifacts/<feature_slug>/story-map.md`
+- current-phase bead graph and details from `br` / `bv`
 
-> **HARD-GATE: READ-ONLY-VALIDATION** — Validate does not modify planning artifacts, dependency edges, priorities, spike beads, or bead descriptions. The only permitted writes are `approved` label management, `STATE.json` for normal transitions, `HANDOFF.json` for emergency checkpoint/resume scenarios, and minimal `.beads/STATE.json` updates for phase, skill, and next_action.
+**Optional**
+- `.beads/artifacts/<feature_slug>/plan.md`
+- `.beads/artifacts/<feature_slug>/approach.md`
 
-> **HARD-GATE: UNDERSPECIFIED-BEAD-FAIL** — Any bead missing acceptance criteria or verification steps fails the entire validation. No partial passes.
+## Outputs
+**Allowed writes**
+- `approved` label management on the active epic
+- `.beads/STATE.json`
+- `.beads/HANDOFF.json` only when checkpoint or resume protocol requires it
+- ordered remediation report in the validation response
 
-> **HARD-GATE: CURRENT-PHASE-ONLY** — Validate only checks beads for the current phase. Future-phase beads are out of scope.
+**Must not write**
+- planning artifacts
+- bead descriptions or dependency graphs
+- implementation code
 
-> **HARD-GATE: SPIKE-NO-INVALIDATES** — If a bead is marked as spike, it must have a clear deliverable (report, prototype, decision). Spikes without deliverables fail validation.
+## Boundary rules
+- Validate is a read-only gate over current-phase planning quality.
+- Validate does not repair failures itself; it only decides readiness.
+- Validate owns the execution-readiness decision and validates only the current phase.
 
-> **HARD-GATE: APPROVAL-OWNERSHIP** — Only validate adds the `approved` label. Per the beo approval gates (`beo-reference` → `references/approval-gates.md`).
+## Minimum hard gates
+- **READ-ONLY-VALIDATION** — The only mutable state owned here is approval state and canonical handoff state.
+- **CURRENT-PHASE-ONLY** — Validate only the current phase.
+- **NO-CODE-BEFORE-APPROVAL** — If implementation already exists for unapproved current-phase work, fail validation and route back appropriately.
+- **UNDERSPECIFIED-BEAD-FAILS-THE-GATE** — Missing acceptance criteria, verification steps, or clear deliverables block approval.
+- **APPROVAL-OWNERSHIP** — Only validate adds `approved`.
+- **STRUCTURED-APPROVALS-ONLY** — If human execution approval is required, request it via the structured question tool before adding `approved`.
+- **TERMINATE-ON-HANDOFF** and **FRESH-LOAD-REQUIRED** — Follow the shared session-boundary rules.
 
-## Communication Standard
-> Follow the communication standard (`beo-reference` → `references/communication-standard.md`).
+## Default loop
+1. Read the locked context, current-phase artifacts, and current-phase bead graph.
+2. Run the 8-dimension structural check using `references/validation-operations.md` and `references/plan-checker-prompt.md`.
+3. Review every current-phase bead for acceptance criteria, verification, dependency correctness, and deliverable clarity using `references/bead-reviewer-prompt.md`.
+4. If all checks pass, obtain any required user approval, add `approved`, recommend `beo-execute` or `beo-swarm`, write `.beads/STATE.json`, and stop.
+5. If any check fails, produce an ordered remediation list for `beo-plan`, write `.beads/STATE.json`, and stop.
 
-## Default Validate Loop
-1. **Load artifacts**: Read current-phase artifacts from `.beads/artifacts/<feature_slug>/` per artifact conventions (`beo-reference` → `references/artifact-conventions.md`): `phase-contract.md`, `story-map.md`, `plan.md`, and `CONTEXT.md`. Query beads via `br` and `bv` using canonical CLI behavior from the shared references.
-2. **8-dimension structural check**: Run the plan-check workflow across all 8 dimensions per `references/validation-operations.md`. Use `references/plan-checker-prompt.md` for each dimension assessment.
-3. **Bead-level review**: For each current-phase bead, verify acceptance criteria, verification steps, dependencies, and description quality. Use `references/bead-reviewer-prompt.md`.
-4. **Decision**: If all checks pass, add `approved`, include an execution-mode recommendation, and hand off forward via the defined pipeline transitions. If any check fails, produce an ordered repair list for `beo-plan` and route back without fixing artifacts directly.
+## References
+| File | Use when |
+|------|----------|
+| `references/validation-operations.md` | Running the validation gate end-to-end |
+| `references/plan-checker-prompt.md` | Applying the canonical 8 validation dimensions |
+| `references/bead-reviewer-prompt.md` | Reviewing bead-level specification quality |
+| `beo-reference` → `references/approval-gates.md` | Approved-label ownership and execution approval timing |
+| `beo-reference` → `references/failure-recovery.md` | Recovering from malformed or interrupted validation |
 
-### Reference Files
-| File | Purpose |
-|------|---------|
-| `references/validation-operations.md` | Operational sequence for running the structural validation gate |
-| `references/plan-checker-prompt.md` | Prompt contract for evaluating each validation dimension |
-| `references/bead-reviewer-prompt.md` | Prompt contract for bead-level specification review |
+## Handoff and exit
+- Forward handoff: `beo-execute` or `beo-swarm` after approval
+- Backward handoff: `beo-plan` for remediation
+- Pause: `ReturnToUser(...)` when explicit execution approval is required
+- Validate never repairs artifacts itself.
 
-## Inputs and Outputs
-- **Inputs** — `CONTEXT.md`, `plan.md`, `phase-contract.md`, `story-map.md`, current-phase bead definitions and dependencies from `.beads/artifacts/<feature_slug>/` and `br`/`bv`.
-- **Outputs** — Validation decision (`approved` or `rejected`), ordered remediation list when rejected, `approved` label update when approved, `STATE.json` for normal transitions.
+## Context budget
+If context exceeds 65%, checkpoint via the shared protocol in `beo-reference` → `references/shared-hard-gates.md`.
 
-## Validation Dimensions
-Validate uses a canonical 8-dimension model defined in `references/plan-checker-prompt.md`.
-
-Briefly, the dimensions cover:
-1. Phase contract clarity
-2. Story coverage and ordering
-3. Decision coverage from `CONTEXT.md`
-4. Dependency correctness
-5. File-scope isolation
-6. Context-budget fit
-7. Verification completeness
-8. Exit-state completeness and risk alignment
-
-See `references/plan-checker-prompt.md` for the canonical evaluation dimensions and pass/fail criteria.
-
-## Decision Rubrics
-- **Repair vs Route-Back** — If there are ≤3 issues and all are bead-level, return an ordered repair list to `beo-plan`. If issues are structural (`phase-contract.md`, `story-map.md`, cross-artifact integrity), route back to `beo-plan` with full diagnosis.
-- **Spike or Not** — If a bead deliverable is framed as “investigate” or “research,” treat it as a spike. Spikes require an explicit deliverable format.
-- **Clear Deliverable** — A deliverable is clear when a machine or a specifically described human action can verify it. Vague outcomes like “it works” or “looks good” fail.
-- **Approval or Fail** — Approval requires all 8 dimensions to pass, all current-phase beads to be sufficiently specified, and all hard gates to remain satisfied. Any unresolved failure blocks approval.
-
-## Failure Recovery Rules
-> Recover all validation failure modes via standard failure recovery (`beo-reference` → `references/failure-recovery.md`).
-
-## State and Approval Rules
-- Follow the bead lifecycle states (`beo-reference` → `references/status-mapping.md`) for allowed state transitions associated with validation outcomes.
-- Follow the beo approval gates (`beo-reference` → `references/approval-gates.md`) for approval timing, ownership, and label authority.
-
-## Handoff
-> Write `STATE.json` for normal adjacent-skill transitions with validation results, blocking issues, approval status, and artifact pointers. Use `HANDOFF.json` only for emergency checkpoint or low-context resume scenarios.
-
-## Context Budget
-> If context exceeds 65% capacity, compress non-essential history before continuing (`beo-reference` → `references/shared-hard-gates.md`).
-
-## Red Flags & Anti-Patterns
-- Modifying any artifact instead of evaluating it.
-- Modifying dependency graphs, priorities, or bead descriptions during validation.
-- Writing code or changing implementation files.
-- Approving with unresolved failures.
-- Checking future-phase beads as part of current-phase validation.
-- Running multiple validation passes without producing a decision.
+## Red flags
+- editing artifacts during validation
+- approving with any unresolved structural or bead-level failure
+- checking future-phase work as part of the current gate
+- treating planning artifacts as implicit approval
+- continuing after approval or remediation handoff is written

@@ -54,7 +54,7 @@ Use the `silent` flag to avoid interactive prompts. The vault copy is a convenie
 
 ### Critical Patterns
 
-`.beads/critical-patterns.md` is the distilled subset of learnings that every planning and exploring Phase 0 reads. Promote patterns here only when they meet severity thresholds (see `beo-compound`).
+`.beads/critical-patterns.md` is the distilled subset of learnings that every planning and exploring Phase 0 reads. Promote patterns here only when they are supported by multi-feature evidence and explicit approval (see `beo-dream` and `approval-gates.md`).
 
 ```bash
 # Canonical: use your file editing tool to append to .beads/critical-patterns.md

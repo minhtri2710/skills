@@ -27,8 +27,7 @@ Read these if present:
 .beads/artifacts/<feature_slug>/plan.md
 .beads/artifacts/<feature_slug>/phase-contract.md
 .beads/artifacts/<feature_slug>/story-map.md
-.beads/review-findings.md
-.beads/artifacts/<feature_slug>/debug-notes.md
+.beads/artifacts/<feature_slug>/review-findings.md
 .beads/STATE.json or HANDOFF artifacts
 .beads/ or `br show` output
 ```
@@ -44,39 +43,17 @@ git log --oneline main..HEAD
 
 If no history files exist, use recent git diff and conversation/session summaries.
 
-## 2. Three-Category Analysis
+## 2. Single-Feature Analysis
 
-Launch three subagents in parallel. Each writes to `.beads/artifacts/<feature_slug>/`.
+Review the feature evidence and extract three categories directly into your working notes before writing the final learnings artifact:
 
-### Agent 1: Pattern Extractor
+1. reusable patterns
+2. significant decisions and trade-offs
+3. failures, blockers, or wrong assumptions
 
-1. Identify reusable code, architecture, process, and integration patterns.
-2. For each pattern, provide name, why it matters, first location, and `applicable-when`.
-3. Write to `.beads/artifacts/<feature_slug>/compounding-patterns.md`.
-
-### Agent 2: Decision Analyst
-
-1. Identify significant good calls, bad calls, surprises, and trade-offs.
-2. For each decision, describe what was chosen, how it played out, tag it, and recommend future handling.
-3. Write to `.beads/artifacts/<feature_slug>/compounding-decisions.md`.
-
-### Agent 3: Failure Analyst
-
-1. Identify failures, blockers, wasted effort, wrong assumptions, missing prerequisites, and test gaps.
-2. For each one, describe what went wrong, root cause, cost, and a prevention rule.
-3. Write to `.beads/artifacts/<feature_slug>/compounding-failures.md`.
-
-Subagent output is staging only.
+These categories are analysis lenses, not separate durable artifacts.
 
 ## 3. Synthesis and Triage
-
-### Read the Staging Files
-
-```text
-.beads/artifacts/<feature_slug>/compounding-patterns.md
-.beads/artifacts/<feature_slug>/compounding-decisions.md
-.beads/artifacts/<feature_slug>/compounding-failures.md
-```
 
 ### Dedup Before Writing
 
@@ -141,39 +118,9 @@ If both write surfaces are available and a vault copy is useful, mirror the fina
 qmd update 2>/dev/null && qmd embed 2>/dev/null
 ```
 
-### Clean Up Staging Files
+A feature learning may note candidate reusable patterns, including severe ones, but compound does not promote or append anything to `.beads/critical-patterns.md`. Cross-feature promotion belongs to `beo-dream` after explicit evidence-backed consolidation.
 
-After the learnings file is written and verified, remove the staging files:
-
-```text
-.beads/artifacts/<feature_slug>/compounding-patterns.md
-.beads/artifacts/<feature_slug>/compounding-decisions.md
-.beads/artifacts/<feature_slug>/compounding-failures.md
-```
-
-These are intermediate analysis artifacts. The learnings file in `.beads/learnings/` is the final output.
-
-## 4. Critical Promotion Workflow
-
-Promote every `severity: critical` learning only if all are true:
-
-1. It applies beyond a single feature.
-2. It would save meaningful future effort.
-3. It generalizes well enough to matter again.
-
-### Proposal Rule
-
-Propose the promotion to the user first (see HARD-GATE in SKILL.md for the no-auto-append rule).
-
-### After Approval
-
-Use the canonical approval rule from `beo-reference` → `references/approval-gates.md`, then append to `.beads/critical-patterns.md`:
-
-Append using the entry format from `learnings-template.md` § critical-patterns.md Entry Format.
-
-Refresh QMD after promotion if available.
-
-## 5. State Update and Checkpointing
+## 4. State Update and Checkpointing
 
 ### Graph Verification
 

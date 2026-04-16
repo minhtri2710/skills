@@ -305,10 +305,6 @@ See `pipeline-contracts.md` → Feature Slug for derivation rules.
 | `phase-plan.md` | beo-plan | beo-route, beo-validate, future planning cycles | Optional whole-feature sequencing artifact for multi-phase work |
 | `phase-contract.md` | beo-plan | beo-route, beo-validate, beo-execute, beo-review, beo-compound | Current phase as a closed loop: entry/exit state, demo story, scope, pivot signals |
 | `story-map.md` | beo-plan | beo-route, beo-validate, beo-execute, beo-review, beo-compound | Current phase story sequence, closure check, story-to-bead mapping |
-| `debug-notes.md` | beo-debug | beo-compound, beo-debug | Failure patterns discovered during debugging |
-| `compounding-patterns.md` | beo-compound (Agent 1) | beo-compound orchestrator | Staging: reusable patterns extracted |
-| `compounding-decisions.md` | beo-compound (Agent 2) | beo-compound orchestrator | Staging: decision analysis |
-| `compounding-failures.md` | beo-compound (Agent 3) | beo-compound orchestrator | Staging: failure analysis |
 
 ### Artifact Semantics
 
@@ -337,10 +333,9 @@ See `state-and-handoff-protocol.md` → Planning-Aware Field Transition Cleanup 
 
 | File | Written By | Read By | Purpose |
 |------|-----------|---------|---------|
-| `.beads/review-findings.md` | beo-review | beo-compound | P1/P2/P3 severity findings from specialist reviewers |
-| `.beads/learnings/YYYYMMDD-<slug>.md` | beo-compound | all skills (Phase 0) | Finalized learnings from completed features |
-| `.beads/critical-patterns.md` | beo-compound | beo-explore, beo-plan, beo-validate, beo-debug, beo-dream | Promoted high-value patterns (multi-feature, generalizable) |
-| `.beads/learnings/dream-run-provenance.md` | beo-dream | beo-dream | Dream run markers: tracks when last consolidation ran |
+| `.beads/artifacts/<feature_slug>/review-findings.md` | beo-review | beo-compound | P1/P2/P3 severity findings from specialist reviewers for one feature |
+| `.beads/learnings/YYYYMMDD-<feature_slug>.md` | beo-compound | all skills when relevant | Finalized learnings from one completed feature |
+| `.beads/critical-patterns.md` | beo-dream | beo-explore, beo-plan, beo-validate, beo-debug, beo-dream | Promoted high-value patterns consolidated from multiple features with explicit approval |
 
 ### Knowledge Store
 

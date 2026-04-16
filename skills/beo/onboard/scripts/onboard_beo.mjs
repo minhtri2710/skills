@@ -266,7 +266,7 @@ function defaultStateContent() {
     feature: 'none',
     feature_slug: '',
     tasks: 'none',
-    next: 'beo-router',
+    next: 'beo-route',
     planning_mode: 'unknown',
     has_phase_plan: false,
     current_phase: 1,

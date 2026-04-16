@@ -1,60 +1,65 @@
 ---
 name: beo-reference
 description: |
-  Use when a beo skill needs a specific canonical protocol document — CLI references, status mapping, artifact conventions, state/handoff protocol, pipeline contracts, approval gates, dependency scheduling, failure recovery, knowledge store, or communication standards. Read only the targeted reference file; do not bulk-load the corpus. This is not a behavioral skill and must not be used as a routing target or handoff destination.
+  Use when another beo skill needs one specific canonical support document such as a protocol, contract, convention, gate, status map, scheduling rule, recovery rule, knowledge-store rule, communication standard, or CLI reference. Reference resolves and exposes only the targeted file. Do not use as a pipeline phase, routing target, or behavioral skill.
 ---
 
 # beo-reference
 
-Shared reference corpus for all beo skills. **This is not a behavioral skill — it provides canonical protocol documents only.** This corpus is not a routing target. No skill should hand off to `beo-reference`; it exists only as an index for locating shared protocol documents.
+Canonical shared reference corpus for beo skills.
 
+This skill is lookup-only. It exists so other beo skills can cite `beo-reference` → `references/<file>` and load exactly the protocol document they need.
 
-Shared reference corpus for all beo skills. **This is not a behavioral skill — it provides canonical protocol documents that other skills reference by name.**
+## Atomic purpose
+Provide one targeted canonical reference document to a beo skill.
 
-> **Convention**: Other skills reference these documents as `beo-reference` → `references/<file>`. Load this skill to resolve those references.
+## Inputs
+**Required**
+- the specific reference document path or name needed by the calling skill
 
-## CLI References
+## Outputs
+**Allowed reads only**
+- targeted reference resolution from `references/<file>`
 
-| Document | Path | Purpose |
-|----------|------|---------|
-| br CLI Reference | `references/br-cli-reference.md` | Canonical br command syntax and usage |
-| bv CLI Reference | `references/bv-cli-reference.md` | Canonical bv command syntax and usage |
+**Must not write**
+- `STATE.json`
+- `HANDOFF.json`
+- feature artifacts
+- implementation code
 
-## Status & State
+## Boundary rules
+- `beo-reference` is not a routing destination.
+- `beo-reference` does not make decisions, write state, edit artifacts, or perform feature work.
+- Callers should load only the specific reference file they need, not the full corpus.
 
-| Document | Path | Purpose |
-|----------|------|---------|
-| Status Mapping | `references/status-mapping.md` | 8 bead states, allowed transitions, terminal states |
-| State & Handoff Protocol | `references/state-and-handoff-protocol.md` | STATE.json and HANDOFF.json schemas, write timing, resume protocol |
+## Reference index
+### CLI references
+- `references/br-cli-reference.md` — canonical `br` command usage
+- `references/bv-cli-reference.md` — canonical `bv` command usage
 
-## Artifacts
+### Status and state
+- `references/status-mapping.md` — canonical bead states and transitions
+- `references/state-and-handoff-protocol.md` — `STATE.json` and `HANDOFF.json` schema and resume rules
 
-| Document | Path | Purpose |
-|----------|------|---------|
-| Artifact Conventions | `references/artifact-conventions.md` | Artifact types, paths, slugs, read/write ownership |
-| Bead Description Templates | `references/bead-description-templates.md` | Standard bead description formats |
+### Artifacts
+- `references/artifact-conventions.md` — artifact paths, ownership, and naming
+- `references/bead-description-templates.md` — standard bead description formats
 
-## Workflow Protocols
+### Workflow protocols
+- `references/pipeline-contracts.md` — routing table, allowed transitions, cross-skill invariants
+- `references/approval-gates.md` — approval timing and label ownership
+- `references/dependency-and-scheduling.md` — dependency reconciliation and scheduling cascade
+- `references/failure-recovery.md` — failure classes and recovery rules
+- `references/shared-hard-gates.md` — shared onboarding, session-boundary, and interaction rules
+- `references/worker-template.md` — standard worker prompt template
 
-| Document | Path | Purpose |
-|----------|------|---------|
-| Pipeline Contracts | `references/pipeline-contracts.md` | State routing table, skill transitions, cross-skill invariants |
-| Approval Gates | `references/approval-gates.md` | 6 approval moments, label ownership matrix |
-| Dependency & Scheduling | `references/dependency-and-scheduling.md` | Reconciliation procedure, scheduling cascade |
-| Failure Recovery | `references/failure-recovery.md` | 5 failure classes, recovery rules |
-| Shared Hard Gates | `references/shared-hard-gates.md` | Onboarding, approval verification, context budget |
-| Worker Template | `references/worker-template.md` | Standard worker prompt template for execute/swarm |
+### Knowledge and communication
+- `references/knowledge-store.md` — knowledge-store rules and integration
+- `references/learnings-read-protocol.md` — reading learnings and critical patterns safely
+- `references/communication-standard.md` — communication rules for beo outputs
+- `references/agent-mail-coordination.md` — coordinator / worker messaging protocol
 
-## Knowledge Store
-
-| Document | Path | Purpose |
-|----------|------|---------|
-| Knowledge Store | `references/knowledge-store.md` | Knowledge hierarchy, Obsidian integration |
-| Learnings Read Protocol | `references/learnings-read-protocol.md` | How skills read learnings and critical-patterns |
-
-## Communication
-
-| Document | Path | Purpose |
-|----------|------|---------|
-| Communication Standard | `references/communication-standard.md` | User communication format and rules |
-| Agent Mail Coordination | `references/agent-mail-coordination.md` | Inter-agent messaging protocol for swarm/execute |
+## Red flags
+- routing to `beo-reference`
+- loading the entire corpus instead of one needed file
+- treating reference docs as permission to change pipeline ownership

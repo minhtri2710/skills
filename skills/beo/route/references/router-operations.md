@@ -87,7 +87,7 @@ Use the shared Markdown bead templates from `beo-reference` → `references/bead
 
 ```bash
 br create "<task-name>" -t task --parent <EPIC_ID> -p 1 --json
-br update <TASK_ID> --description "<markdown task spec: background + what to do + verify steps>"
+br update <TASK_ID> --description "<Markdown content that follows the shared bead template>"
 ```
 
 After scaffolding the minimal draft artifacts, route to `beo-validate`. Do not set the `approved` label here; only `beo-validate` grants approval.

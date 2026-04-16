@@ -1,6 +1,6 @@
-# Dream Agent History Source Policy
+# Dream Source Policy
 
-This policy defines how `beo-dream` reads agent session artifacts for one manual consolidation pass.
+This policy defines how `beo-dream` selects evidence for one consolidation pass.
 
 ## Untrusted Input Contract
 
@@ -13,72 +13,33 @@ This policy defines how `beo-dream` reads agent session artifacts for one manual
 
 ## Source Priority
 
-1. Primary: `<AGENT_DATA_DIR>/history.jsonl` (or equivalent session log)
-2. Secondary fallback: `<AGENT_DATA_DIR>/logs_1.sqlite` (targeted queries only)
+1. Primary: existing feature learning artifacts in `.beads/learnings/`
+2. Primary companion: current `.beads/critical-patterns.md`
+3. Optional supporting evidence: feature artifacts, review findings, or implementation context that clarify whether a pattern is truly reusable across features
+4. External history or runtime logs only when the user explicitly asks for them and they are needed to disambiguate an evidence-backed pattern
 
-### Resolving `AGENT_DATA_DIR`
+Dream should prefer durable project artifacts over transient session history.
 
-The agent data directory varies by agent runtime and platform. Check in priority order and use the first that exists:
+## Source Selection Rules
 
-| Agent | Priority | Path |
-|-------|----------|------|
-| Any | 1 | `$AGENT_DATA_DIR` (if explicitly set by operator) |
-| Amp | 2 | `~/.amp/` (macOS / Linux) |
-| Claude Code | 2 | `~/.claude/` (macOS / Linux) |
-| Codex | 2 | `$CODEX_HOME` or `~/.codex/` (macOS / Linux) |
-| Any | 3 | `$XDG_DATA_HOME/<agent>/` (Linux XDG) |
-| Any | 4 | `%APPDATA%\<agent>` (Windows) |
-
-Do not hardcode a single agent path. Detect the active runtime or ask the operator which agent history to scan.
-
-Use `history.jsonl` (or the agent's equivalent session log) for most evidence gathering. Use database files only when a specific claim needs extra confirmation and the primary log is insufficient.
-
-## Run Modes
-
-### Bootstrap
-
-Use bootstrap when:
-- Neither learnings frontmatter nor `.beads/learnings/dream-run-provenance.md` has `last_dream_consolidated_at`, or
-- User explicitly asks for a full consolidation scan.
-
-Bootstrap scan scope:
-- Full relevant agent history needed to establish the initial consolidated baseline.
-
-### Recurring
-
-Use recurring when:
-- Learnings frontmatter or `.beads/learnings/dream-run-provenance.md` has `last_dream_consolidated_at`, and
-- User did not request bootstrap.
-
-Recurring default window:
-- Last `7 days`
-- Up to `20 sessions`
-
-User may override by days and/or sessions.
-Do not silently escalate recurring mode to full-history scan.
-
-## Run Provenance Persistence
-
-Every completed dream run must update `.beads/learnings/dream-run-provenance.md` with:
-- `last_dream_consolidated_at`
-- mode used (`bootstrap` or `recurring`)
-- effective source window
-
-This write is required even when no candidate produced a durable learnings change.
+- Require evidence from at least two accepted features before promoting or revising shared guidance.
+- Use external histories or logs only as supporting evidence, never as the sole basis for a promoted pattern.
+- If the available evidence does not clearly support consolidation, stop and ask for clarification or defer the promotion.
+- Do not invent provenance schemes or recurring scan windows beyond what the current dream contract defines.
 
 ## Conflict Handling
 
-If provenance and user intent conflict (for example no markers but user requests recurring), ask one short clarification question. Do not silently guess.
+If candidate sources disagree about whether a pattern is durable, preserve the stricter interpretation and ask one focused clarification question before writing.
 
 ## Noise Control
 
-- Do not perform indiscriminate telemetry scans in recurring mode.
-- Prefer narrow, hypothesis-driven lookups when querying database files.
+- Prefer narrow reads of relevant feature learnings over broad scans.
 - Keep extracted evidence limited to durable lessons, decisions, and reusable facts.
+- Ignore transient environment or runtime details unless they materially change the shared guidance.
 
 ## Mandatory Redaction
 
-Before returning summaries or writing to `.beads/learnings/*.md`:
+Before returning summaries or writing to `.beads/learnings/*.md` or `.beads/critical-patterns.md`:
 
-- Redact secrets and PII from artifact-derived excerpts.
-- If safe redaction is not possible, drop that candidate and log the skip reason in the run summary.
+- Redact secrets and PII from source excerpts.
+- If safe redaction is not possible, drop that candidate and report the skip reason in the summary.

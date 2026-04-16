@@ -10,9 +10,9 @@ Choose `clear match` only when all are true:
 - No competing target file has similar ownership strength.
 
 Action:
-- Merge/rewrite that one owner file.
+- Merge or rewrite that one justified target.
 - Keep durable guidance and remove contradicted details.
-- Update `last_dream_consolidated_at` in frontmatter.
+- Preserve any existing file format instead of inventing new metadata fields during consolidation.
 
 ## 2) Ambiguous
 
@@ -35,9 +35,9 @@ Action:
 Choose `no match` when no existing file is a good owner and the signal is durable.
 
 Action:
-- Create a new dated learnings file.
-- Add durable synthesis only.
-- Set `last_dream_consolidated_at` in frontmatter.
+- Do not create a new shared-guidance file unless the canonical dream workflow explicitly requires one.
+- Keep the candidate out of shared guidance until enough multi-feature evidence exists.
+- Add durable synthesis only when there is a justified target to update.
 
 ## 4) No Durable Signal
 

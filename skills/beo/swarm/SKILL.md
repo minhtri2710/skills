@@ -1,95 +1,90 @@
 ---
 name: beo-swarm
 description: |
-  Use when execution is approved and 3+ independent ready beads with non-overlapping file scopes make parallel coordination worthwhile. Assigns beads to workers via Agent Mail, monitors progress, resolves file-scope conflicts, and aggregates results. Degrades to beo-execute if preconditions collapse. Do not use for single-bead work (use beo-execute), unapproved plans (use beo-validate first), or when fewer than 3 independent non-overlapping beads exist.
+  Use when execution is already approved and at least three independent ready beads with non-overlapping file scopes make parallel coordination worthwhile. Swarm assigns beads to workers, monitors progress, resolves coordination conflicts, and aggregates status; if those preconditions disappear, it degrades to execute. Do not use for single-bead work, plan validation, code implementation by the coordinator, review, debugging, or learning capture.
 ---
 
 > **HARD-GATE: ONBOARDING** — Before any work, verify `br` and `bv` are accessible and `.beads/` is initialized (`beo-reference` → `references/shared-hard-gates.md`). If stale or missing, load `beo-onboard` and stop.
 
-> **Protocol References**: Protocol rules reference the `beo-reference` skill via `→ references/<file>` for canonical documents.
+> **Protocol References** — Shared protocol rules live in `beo-reference` → `references/<file>`.
 
 # beo-swarm
 
-## Overview
-**Atomic purpose: orchestrate parallel worker assignments and inter-worker coordination for the current phase.** Coordinate safe parallel execution across multiple independent approved beads. **Core principle: orchestrate only — assign, monitor, and resolve coordination issues without editing implementation code.**
+## Atomic purpose
+Coordinate safe parallel execution across multiple approved current-phase beads.
 
-## Boundary Rules
-- **MUST NOT** perform independent state detection or free-form routing — owned by `beo-route`. May emit canonical handoff to the next allowed pipeline skill when exit conditions are met.
-- **MUST NOT** gather requirements — owned by `beo-explore`.
-- **MUST NOT** decompose work — owned by `beo-plan`.
-- **MUST NOT** verify plans — owned by `beo-validate`.
-- **MUST NOT** write implementation code — owned by `beo-execute`.
-- **MUST NOT** review implementations — owned by `beo-review`.
-- **MUST NOT** capture learnings — owned by `beo-compound`.
-- **MUST NOT** diagnose root causes — owned by `beo-debug`.
+## When to use
+- at least 3 independent ready beads exist
+- their file scopes do not overlap
+- parallel coordination will outperform serial execution
 
-## Hard Gates
-> **HARD-GATE: NO-CODE-EDITING** — Swarm never writes, modifies, or deletes implementation code. It orchestrates only.
+## Inputs
+**Required**
+- approved current-phase ready bead set
+- dependency / readiness state
+- declared file scopes for candidate beads
+- Agent Mail availability
 
-> **HARD-GATE: AGENT-MAIL-REQUIRED** — All worker coordination uses Agent Mail per the Agent Mail protocol (`beo-reference` → `references/agent-mail-coordination.md`). Swarm may update `STATE.json` and manage epic/phase labels for orchestration, but must not edit implementation artifacts.
+**Optional**
+- existing worker status from a resumed swarm session
 
-> **HARD-GATE: THREE-PLUS-INDEPENDENT** — Swarm requires ≥3 independent ready beads with non-overlapping file scopes. If <3, degrade to single-worker `beo-execute`.
+## Outputs
+**Allowed writes**
+- worker assignments and coordination messages
+- orchestration state / status updates allowed by the canonical protocols
+- `.beads/STATE.json`
+- `.beads/HANDOFF.json` only when checkpoint or resume protocol requires it
 
-> **HARD-GATE: NO-OVERLAPPING-FILE-SCOPES** — The coordinator must ensure non-overlapping file scopes at assignment time. If overlap is detected later, reassign or serialize.
+**Must not write**
+- implementation code
+- planning or review artifacts
+- feature learnings
 
-> **HARD-GATE: APPROVAL-VERIFICATION** — Swarm only runs on `approved`-labeled epics. Per the beo approval gates (`beo-reference` → `references/approval-gates.md`).
+## Boundary rules
+- Swarm owns assignment, monitoring, conflict resolution, and degradation decisions.
+- Swarm does not implement code, redesign plans, approve work, review outcomes, debug substantive root causes, or extract learnings.
+- Worker implementation remains owned by `beo-execute` running in worker mode.
 
-> **HARD-GATE: ACTIVE-EPIC-REQUIRED** — A current epic must exist. If no epic exists, route to `beo-plan`.
+## Minimum hard gates
+- **THREE-PLUS-INDEPENDENT** — Start only when at least 3 independent ready beads exist.
+- **NO-OVERLAPPING-FILE-SCOPES** — Assignment scopes must not overlap.
+- **APPROVED-ONLY** — Swarm runs only on approved current-phase work.
+- **AGENT-MAIL-REQUIRED** — Coordination requires Agent Mail; otherwise degrade.
+- **NO-CODE-EDITING** — The coordinator does not edit implementation code.
+- **TERMINATE-ON-HANDOFF** and **FRESH-LOAD-REQUIRED** — Follow the shared session-boundary rules.
 
-## Communication Standard
-> Follow the communication standard (`beo-reference` → `references/communication-standard.md`).
+## Default loop
+1. Enumerate current-phase ready beads and confirm they are independent and non-overlapping.
+2. Assign one bead per worker using Agent Mail.
+3. Monitor worker progress, blockers, and file-scope drift.
+4. Resolve coordination conflicts by reassignment or minimal serialization.
+5. Continue dispatching while useful parallel work remains.
+6. If preconditions collapse, degrade to `beo-execute`.
+7. If the current phase completes, hand off according to the canonical pipeline and stop.
 
-## Default Swarm Loop
-1. **Enumerate ready beads**: Query `br` for ready beads in the current phase. Filter by independence and file scope.
-2. **Assign workers**: Create worker assignments so each worker gets exactly 1 specific bead. The coordinator owns assignment choice, dependency checks, and non-overlapping file scopes. Use the standard worker prompt template (`beo-reference` → `references/worker-template.md`) for worker prompt structure.
-3. **Dispatch workers**: Send the explicit bead assignment via Agent Mail per `references/message-templates.md`.
-4. **Monitor progress**: Poll worker status and track readiness confirmations, completion, blockers, and conflicts.
-5. **Resolve conflicts**: If file-scope overlap or readiness drift appears mid-execution, pause the conflicting worker and reassign per `references/swarming-operations.md`.
-6. **Report completion**: When all assigned beads complete or block, aggregate results.
-7. **Decide next**: If more ready beads exist, loop to step 1. If the current phase is complete and later phases remain, remove `approved` and hand off to `beo-plan`. If all work is done for the final execution scope, hand off to `beo-review`. If degradation is triggered, hand off to `beo-execute`.
+## References
+| File | Use when |
+|------|----------|
+| `references/swarming-operations.md` | Running coordinator logic and conflict handling |
+| `references/message-templates.md` | Sending worker assignments and updates |
+| `references/pressure-scenarios.md` | Checking expected behavior under contention or failure |
+| `beo-reference` → `references/agent-mail-coordination.md` | Agent Mail protocol |
+| `beo-reference` → `references/dependency-and-scheduling.md` | Readiness and assignment ordering |
+| `beo-reference` → `references/pipeline-contracts.md` | Degradation and downstream transitions |
 
-### Reference Files
-| File | Purpose |
-|------|---------|
-| `references/swarming-operations.md` | Coordination flow, assignment rules, and runtime swarm operations |
-| `references/message-templates.md` | Agent Mail message formats for worker dispatch and updates |
-| `references/pressure-scenarios.md` | Expected swarm behavior under contention, failures, and load |
+## Handoff and exit
+- Degrade to `beo-execute` when parallel coordination no longer makes sense
+- Hand off to `beo-plan` when later phases remain after current-phase completion
+- Hand off to `beo-review` when the final execution scope is complete
+- Return control to the user when all remaining work is blocked and a decision is required
+- Swarm stops after writing inter-skill handoff state.
 
-## Inputs and Outputs
-- **Inputs** — Approved current-phase ready bead set (≥3 independent), dependency/readiness state, declared file scopes, Agent Mail availability.
-- **Outputs** — Worker assignments via Agent Mail, conflict-resolution or serialization decisions, degrade-to-serial signal when preconditions collapse, aggregated execution status.
+## Context budget
+If context exceeds 65%, checkpoint via the shared protocol in `beo-reference` → `references/shared-hard-gates.md`.
 
-## Decision Rubrics
-- **Swarm or Degrade** — If there are ≥3 independent ready beads with non-overlapping scopes, swarm. Otherwise, degrade to `beo-execute` via `STATE.json` for the normal transition.
-- **Repeated Conflicts** — If the same file-scope conflict occurs 2 or more times across different bead pairs, serialize those beads and continue swarming the rest.
-- **Active Swarm Never Idles** — If a worker finishes and more ready beads exist, assign the next bead immediately. Do not batch-wait.
-- **Conflict Resolution Priority** — Prefer reassignment first; if safe reassignment is impossible, serialize only the minimal conflicting subset.
-
-## Degradation Triggers
-| Trigger | Action |
-|---------|--------|
-| `<3 independent beads` | Degrade to `beo-execute` |
-| `Agent Mail unavailable` | Degrade to `beo-execute` per standard failure recovery (`beo-reference` → `references/failure-recovery.md`) |
-| `Repeated file conflicts` | Serialize conflicting beads and continue the rest |
-| `All beads blocked` | Hand off to `beo-debug` |
-
-## Scheduling and State Rules
-- Follow the scheduling cascade (`beo-reference` → `references/dependency-and-scheduling.md`) for readiness reconciliation and assignment ordering.
-- Follow the bead lifecycle states (`beo-reference` → `references/status-mapping.md`) for allowed status transitions affected by swarm coordination.
-- Follow the beo approval gates (`beo-reference` → `references/approval-gates.md`) for approval preconditions before swarm startup.
-
-## Failure Recovery Rules
-> Recover all swarm failure modes via standard failure recovery (`beo-reference` → `references/failure-recovery.md`).
-
-## Handoff
-> Write `STATE.json` for normal adjacent-skill transitions with worker assignments, shard status, verification rollup, and unresolved dependencies. Use `HANDOFF.json` only for emergency checkpoint or low-context resume scenarios.
-
-## Context Budget
-> If context exceeds 65% capacity, compress non-essential history before continuing (`beo-reference` → `references/shared-hard-gates.md`).
-
-## Red Flags & Anti-Patterns
-- Writing code directly from the swarm coordinator.
-- Assigning overlapping file scopes.
-- Continuing coordination without Agent Mail.
-- Idling while ready beads are available.
-- Running swarm on a non-approved epic.
+## Red flags
+- coordinator editing code
+- assigning overlapping file scopes
+- running with fewer than 3 independent beads
+- continuing without Agent Mail
+- continuing after writing inter-skill handoff state

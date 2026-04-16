@@ -1,107 +1,102 @@
 ---
 name: beo-plan
 description: |
-  Use when CONTEXT.md is fully locked and technical solution design is needed. Reads the codebase, selects approach, writes planning artifacts (discovery.md, approach.md, plan.md, optional phase-plan.md), and creates current-phase phase-contract.md, story-map.md, and bead graph. Do not use when requirements are unlocked or ambiguous (use beo-explore), when a plan exists and needs verification (use beo-validate), or for implementation (use beo-execute).
+  Use when `CONTEXT.md` is locked and the work needs technical design and current-phase decomposition. Plan reads the codebase, selects the implementation approach, writes planning artifacts, and creates the current-phase execution contract and bead graph. Do not use while requirements are still ambiguous, when only execution readiness must be checked, or for implementation, review, debugging, or learning work.
 ---
 
 > **HARD-GATE: ONBOARDING** — Before any work, verify `br` and `bv` are accessible and `.beads/` is initialized (`beo-reference` → `references/shared-hard-gates.md`). If stale or missing, load `beo-onboard` and stop.
 
-> **Protocol References**: Protocol rules reference the `beo-reference` skill via `→ references/<file>` for canonical documents.
+> **Protocol References** — Shared protocol rules live in `beo-reference` → `references/<file>`.
 
 # beo-plan
 
-## Overview
-**Atomic purpose: transform locked requirements into a complete, bead-backed execution plan for the current phase.** Convert locked requirements into current-phase technical design and executable planning artifacts. **Core principle: decompose precisely for the current phase only, without writing implementation code or self-approving.**
+## Atomic purpose
+Convert one locked feature into technical design artifacts and a current-phase bead plan.
 
-## Boundary Rules
-- **MUST NOT** perform independent state detection or free-form routing — owned by `beo-route`. May emit canonical handoff to the next allowed pipeline skill when exit conditions are met.
-- **MUST NOT** gather requirements — owned by `beo-explore`.
-- **MUST NOT** verify plan quality — owned by `beo-validate`.
-- **MUST NOT** write implementation code — owned by `beo-execute`.
-- **MUST NOT** orchestrate workers — owned by `beo-swarm`.
-- **MUST NOT** review implementations — owned by `beo-review`.
-- **MUST NOT** capture learnings — owned by `beo-compound`.
+## When to use
+- `CONTEXT.md` is locked and technical design must be chosen
+- later phases remain and the next current phase must be prepared
+- validation or execution invalidated approved scope and the work must be replanned
 
-## Hard Gates
-> **HARD-GATE: LOCKED-CONTEXT-REQUIRED** — Plan never starts without a `CONTEXT.md` where every decision is locked. If unlocked items exist, route back to `beo-explore`.
+## Inputs
+**Required**
+- `.beads/artifacts/<feature_slug>/CONTEXT.md`
+- relevant codebase context
+- feature identifier / slug
 
-> **HARD-GATE: CURRENT-PHASE-ONLY** — Plan creates beads only for the current phase. If future-phase beads are created, stop and reconcile to the current phase per the pipeline transition rules (`beo-reference` → `references/pipeline-contracts.md`).
+**Optional**
+- existing planning artifacts for the same feature
+- current bead graph and epic state from `br` / `bv`
 
-> **HARD-GATE: NO-CODE** — Plan never writes implementation code. It writes planning artifacts and creates beads only. If violated, stop and remove implementation drift from the planning session.
+## Outputs
+**Allowed writes**
+- `.beads/artifacts/<feature_slug>/discovery.md`
+- `.beads/artifacts/<feature_slug>/approach.md`
+- `.beads/artifacts/<feature_slug>/plan.md`
+- `.beads/artifacts/<feature_slug>/phase-plan.md` when multi-phase work is required
+- `.beads/artifacts/<feature_slug>/phase-contract.md`
+- `.beads/artifacts/<feature_slug>/story-map.md`
+- current-phase beads and dependency wiring via `br`
+- `.beads/STATE.json`
+- `.beads/HANDOFF.json` only when checkpoint or resume protocol requires it
 
-> **HARD-GATE: APPROVAL-REMOVAL** — If the `approved` label exists from a prior validation cycle, plan must remove it before writing artifacts per the beo approval gates (`beo-reference` → `references/approval-gates.md`). If violated, cleanup is required before planning continues.
+**Must not write**
+- implementation code
+- validation verdicts or `approved` labels
+- review or learning artifacts
 
-## Communication Standard
-> Follow the communication standard (`beo-reference` → `references/communication-standard.md`).
+## Boundary rules
+- Plan owns technical design and decomposition for the current phase.
+- Plan does not gather requirements, approve execution, coordinate workers, implement code, review outcomes, debug blockers, or write learnings.
+- Multi-phase planning is allowed, but only the current phase gets executable beads.
 
-## Default Plan Loop
-1. **Discovery** — Read the codebase, identify relevant files, dependencies, and constraints, then write `.beads/artifacts/<feature_slug>/discovery.md` using `references/discovery-reference.md` patterns.
-2. **Approach** — Choose the technical strategy and write `.beads/artifacts/<feature_slug>/approach.md` using `references/approach-template.md`. If the work is multi-phase, also write `.beads/artifacts/<feature_slug>/phase-plan.md` using `references/phase-plan-template.md` and obtain approval per the beo approval gates (`beo-reference` → `references/approval-gates.md`).
-3. **Planning** — Write `.beads/artifacts/<feature_slug>/plan.md` using `references/plan-template.md`, covering the full feature and its story breakdown.
-4. **Current-Phase Artifacts** — Write `.beads/artifacts/<feature_slug>/phase-contract.md` using `references/phase-contract-template.md` and `.beads/artifacts/<feature_slug>/story-map.md` using `references/story-map-template.md`.
-5. **Bead Creation** — Create beads via `br` for the current phase only, reconcile dependencies using the scheduling cascade (`beo-reference` → `references/dependency-and-scheduling.md`), use `references/bead-ops.md` for command patterns, and use standard bead description templates (`beo-reference` → `references/bead-description-templates.md`) for descriptions.
+## Minimum hard gates
+- **LOCKED-CONTEXT-REQUIRED** — Start only from a fully locked `CONTEXT.md`.
+- **CURRENT-PHASE-ONLY** — Create executable beads only for the current phase.
+- **NO-CODE** — Do not write implementation code.
+- **APPROVAL-REMOVAL-ON-REPLAN** — If replanning invalidates a prior approval cycle, remove `approved` per `beo-reference` → `references/approval-gates.md`.
+- **STRUCTURED-APPROVALS-ONLY** — Use the structured question tool for planning approvals when `phase-plan.md` requires them.
+- **TERMINATE-ON-HANDOFF** and **FRESH-LOAD-REQUIRED** — Follow the shared session-boundary rules.
 
-### Reference Files
-| File | Purpose |
-|------|---------|
-| `references/planning-prerequisites.md` | Preconditions and readiness checks before planning begins. |
-| `references/planning-state-and-cleanup.md` | Planning-specific state hygiene, cleanup, and resumption rules. |
-| `references/artifact-writing-guide.md` | Writing standards for planning artifacts and artifact quality checks. |
-| `references/bead-ops.md` | Canonical `br` command patterns for creating and managing current-phase beads. |
-| `references/discovery-reference.md` | Discovery patterns for codebase analysis and constraint capture. |
-| `references/approach-template.md` | Template and rubric for selecting the implementation approach. |
-| `references/plan-template.md` | Template for the full feature plan artifact. |
-| `references/phase-plan-template.md` | Template for multi-phase decomposition when a feature spans phases. |
-| `references/phase-contract-template.md` | Template for defining current-phase scope and execution boundaries. |
-| `references/story-map-template.md` | Template for current-phase story and bead dependency mapping. |
+## Default loop
+1. Read `CONTEXT.md`, existing artifacts, and the relevant code paths.
+2. Write `discovery.md` to capture constraints, existing patterns, and important files.
+3. Choose and record the implementation strategy in `approach.md`.
+4. If the feature spans meaningful phases, write `phase-plan.md` and obtain the required planning approval before preparing the current phase.
+5. Write `plan.md`, `phase-contract.md`, and `story-map.md`.
+6. Create and wire current-phase beads via `br`, using the dependency rules from the shared references.
+7. Write `.beads/STATE.json` for `beo-validate` or, if requirements were found to be insufficient, back-edge to `beo-explore`.
+8. Stop.
 
-## Inputs and Outputs
-- **Inputs** — Locked `.beads/artifacts/<feature_slug>/CONTEXT.md`, feature identifier or slug, relevant codebase files and architecture context.
-- **Outputs** — Written to `.beads/artifacts/<feature_slug>/`:
-  - `discovery.md`
-  - `approach.md`
-  - `plan.md`
-  - `phase-plan.md` when applicable
-  - `phase-contract.md`
-  - `story-map.md`
-  - current-phase beads created via `br`
-- Artifact paths and ownership follow artifact conventions (`beo-reference` → `references/artifact-conventions.md`).
+## References
+| File | Use when |
+|------|----------|
+| `references/planning-prerequisites.md` | Checking whether planning can start safely |
+| `references/planning-state-and-cleanup.md` | Cleaning up stale plan state or resuming planning |
+| `references/artifact-writing-guide.md` | Keeping planning artifacts high-signal and consistent |
+| `references/bead-ops.md` | Creating / updating current-phase beads |
+| `references/discovery-reference.md` | Structuring technical discovery |
+| `references/approach-template.md` | Writing the chosen strategy |
+| `references/plan-template.md` | Writing the full plan summary |
+| `references/phase-plan-template.md` | Multi-phase sequencing |
+| `references/phase-contract-template.md` | Defining current-phase execution boundaries |
+| `references/story-map-template.md` | Mapping stories to current-phase beads |
+| `beo-reference` → `references/dependency-and-scheduling.md` | Dependency wiring and readiness logic |
+| `beo-reference` → `references/approval-gates.md` | Planning approval and approved-label lifecycle |
 
-## Decision Rubrics
-### Single Phase vs Multi-Phase
-- If the scope fits within 12 or fewer beads and has no natural phase boundary, use a single phase.
-- Otherwise write `phase-plan.md`, segment by phase, and obtain the required approval before continuing.
+## Handoff and exit
+- Normal forward handoff: `beo-validate`
+- Normal backward handoff: `beo-explore` when locked requirements prove insufficient or contradictory
+- Planning pauses with `ReturnToUser(...)` when explicit planning approval is required
+- Plan never starts validation itself; it writes state and yields.
 
-### Bead Granularity
-- Each bead must represent one verifiable deliverable.
-- If one bead would require more than one independent verification step, split it.
-- If two beads always execute together and cannot be verified independently, merge them.
+## Context budget
+If context exceeds 65%, checkpoint via the shared protocol in `beo-reference` → `references/shared-hard-gates.md`.
 
-### Dependency Wiring
-- Apply the reconciliation procedure from the scheduling cascade (`beo-reference` → `references/dependency-and-scheduling.md`).
-- Validate that the bead graph has no cycles and that dependencies reflect real execution constraints.
-
-### Return-to-Explore Threshold
-- If planning reveals unresolved or contradictory requirements, stop planning and route back to `beo-explore`.
-- Do not paper over missing requirements with speculative assumptions.
-
-## Approval and State Rules
-- Approval gates follow the beo approval gates (`beo-reference` → `references/approval-gates.md`).
-- State transitions follow the bead lifecycle states (`beo-reference` → `references/status-mapping.md`).
-- `STATE.json` and `HANDOFF.json` updates follow the STATE.json/HANDOFF.json protocol (`beo-reference` → `references/state-and-handoff-protocol.md`).
-
-## Failure Recovery
-> Any missing artifact, stale approval, dependency conflict, malformed bead graph, or planning interruption must return a concise recovery action to the user.
-
-## Handoff
-> Write `STATE.json` for the transition to the next adjacent skill with discovery status, current-phase artifacts, bead graph state, and unresolved assumptions. Use `HANDOFF.json` only for emergency checkpoint or low-context resume scenarios.
-
-## Context Budget
-> If context exceeds 65% capacity, compress non-essential history before continuing (`beo-reference` → `references/shared-hard-gates.md`).
-
-## Red Flags & Anti-Patterns
-- Plan creating beads for future phases.
-- Plan writing implementation code or execution details that belong to workers.
-- Plan starting without a fully locked `CONTEXT.md`.
-- Plan exceeding 20 beads for a single phase without explicit decomposition review.
-- Plan failing to remove a stale `approved` label before rewriting artifacts.
+## Red flags
+- planning from an unlocked or contradictory `CONTEXT.md`
+- creating future-phase executable beads
+- keeping or adding `approved` during replanning
+- writing implementation details that belong in execute
+- validating or reviewing the plan inside the planning skill
+- continuing after handoff state is written

@@ -127,7 +127,7 @@ br create "<Task Name>" -t task --parent <EPIC_ID> -p <priority> --json
 Use the **Planned Task Bead Template** from `beo-reference` → `references/bead-description-templates.md`.
 
 ```bash
-br update <TASK_ID> --description "<markdown task spec content>"
+br update <TASK_ID> --description "<Markdown content using the shared planned-task bead template>"
 ```
 
 ### Wire dependencies

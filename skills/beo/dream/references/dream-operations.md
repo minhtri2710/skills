@@ -1,6 +1,6 @@
 # Dream Operations
 
-Load this file for exact provenance checks, mode selection, candidate classification, finalization, and checkpoint behavior.
+Load this file for source selection, candidate classification, consolidation behavior, approval-gated promotion, and checkpoint behavior.
 
 ## Table of Contents
 
@@ -11,21 +11,15 @@ Load this file for exact provenance checks, mode selection, candidate classifica
 - [5. Finalization and Reporting](#5-finalization-and-reporting)
 - [6. Context-Budget Checkpoint](#6-context-budget-checkpoint)
 
-## 1. Orient and Detect Run Mode
+## 1. Orient and Select Sources
 
 1. detect tool availability (see `beo-reference` → `references/knowledge-store.md` § Tool Detection)
 2. read existing learnings using the canonical read protocol (`beo-reference` → `references/learnings-read-protocol.md`): QMD/Obsidian first; flat-file fallback only when unavailable
-3. detect provenance from learnings frontmatter and `.beads/learnings/dream-run-provenance.md`
-4. choose mode:
-   - `bootstrap` if no provenance exists or the user requests a full scan
-   - `recurring` otherwise
-5. if provenance signals conflict, ask one short clarification question before scanning
+3. confirm there is evidence from at least two accepted features before attempting shared-pattern promotion
+4. use `agent-history-source-policy.md` to prioritize durable project artifacts over transient histories
+5. if the available evidence is insufficient or contradictory, ask one short clarification question before scanning broader material
 
-Default orientation rule: establish mode and provenance confidence before scanning broad source material.
-
-## 2. Select Sources
-
-Use `agent-history-source-policy.md` for source priority and recurring-window defaults.
+Default orientation rule: establish evidence quality before scanning broad source material.
 
 ## 3. Extract and Classify Candidates
 
@@ -45,43 +39,20 @@ Use `agent-history-source-policy.md` for source priority and recurring-window de
 
 | Classification | Action |
 | --- | --- |
-| `clear match` | Rewrite or merge only when exactly one owner is clear |
-| `ambiguous` | Present explicit merge/create/skip options |
-| `no match` | Create a new dated learnings file |
+| `clear match` | Merge or rewrite only when exactly one target guidance location is clearly justified by source evidence |
+| `ambiguous` | Present explicit merge / create / skip options |
+| `no match` | Keep the pattern out of shared guidance until enough multi-feature evidence exists |
 | `no durable signal` | Write nothing for that candidate |
 
-Always run finalization once per completed run by updating `.beads/learnings/dream-run-provenance.md`.
+Use the approval rules from `beo-reference` → `references/approval-gates.md` for any update to `.beads/critical-patterns.md`.
 
 ## 5. Finalization and Reporting
 
 Report:
-- mode used
-- source window used
-- files rewritten / created / skipped
-- whether provenance was updated
+- sources used
+- files reviewed
+- patterns merged / retained / skipped
 - pending ambiguous decisions or approvals
-
-Use the approval rules from `beo-reference` → `references/approval-gates.md` for any critical-pattern promotion proposal.
-
-### Provenance Update
-
-Write or update `.beads/learnings/dream-run-provenance.md` using this format:
-
-```markdown
----
-last_dream_consolidated_at: YYYY-MM-DDTHH:MM:SSZ
-mode: <bootstrap | recurring>
-source_window: <description of time range or scope>
----
-
-## Run Summary
-
-- **Files rewritten:** N
-- **Files created:** N
-- **Files skipped:** N
-- **Critical promotions proposed:** N (approved: N)
-- **Ambiguous decisions deferred:** N
-```
 
 Refresh QMD after writes if available:
 

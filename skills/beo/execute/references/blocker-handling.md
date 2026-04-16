@@ -21,15 +21,10 @@ br comments list <TASK_ID> --json
 
 ## Step 3: Ask User for Decision
 
-Present blocker with options: (1) provide missing info, (2) skip/cancel task, (3) re-plan task, (4) unblock manually.
+Use the structured question tool to present the blocker and available options, such as: provide missing info, skip/cancel task, re-plan task, or unblock manually.
 
 ## Step 4: Resume
 
-```bash
-br label remove <TASK_ID> -l blocked
-br update <TASK_ID> -s open
-# Update the Markdown description with the new information, preserving the shared bead template structure
-br update <TASK_ID> --description "<updated Markdown spec with user's decision>"
-```
+If the blocker is cleared without changing scope, update task status and resume through the normal execute flow.
 
-Loop back to task selection.
+If the user decision changes scope, requirements, or planning assumptions, stop executing and route through the canonical back-edge instead of rewriting the task inside execute.

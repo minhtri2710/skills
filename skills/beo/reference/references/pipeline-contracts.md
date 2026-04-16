@@ -353,10 +353,10 @@ The canonical Feature States table (planning → approved → executing → comp
 
 | Field | Rule |
 |------|------|
-| Who writes | `beo-compound` and `beo-dream` propose entries. |
+| Who writes | `beo-dream` proposes entries from multi-feature evidence. |
 | Approval required | Present proposed promotions to the user and receive explicit approval before appending. Never auto-append. |
-| Format | See compounding's Phase 4 for entry format. |
-| Aligned with | Follow dream (hard rule: do not edit `critical-patterns.md` without explicit approval) and reviewing (red flag: "Promoting learnings without approval"). |
+| Format | Preserve the canonical file format already used in `.beads/critical-patterns.md`; do not invent a second schema during promotion. |
+| Aligned with | Follow `beo-dream` and `approval-gates.md`; `beo-compound` may flag candidates inside a feature learning artifact but does not write `critical-patterns.md`. |
 
 ### Fix Beads (from debugging)
 
@@ -371,7 +371,7 @@ Reference the affected bead ID in the fix bead description instead, using the Re
 
 ### Task Creation During Validation
 
-Create only **spike beads** during validation (time-boxed experiments, priority 0). Do not treat spikes as implementation tasks; use them to reduce uncertainty. For actual missing tasks, route back to `beo-plan`.
+Validation is a read-only gate over current-phase planning quality. Do not create beads during validation, including spikes. If exploratory work or missing tasks are needed, return an ordered remediation list and route back to `beo-plan`. 
 
 ---
 

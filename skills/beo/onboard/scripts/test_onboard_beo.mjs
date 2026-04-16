@@ -30,7 +30,7 @@ test('applyRepo creates full onboarding on an empty repo', async () => {
   assert.equal(state.schema_version, 1)
   assert.equal(state.phase, 'router')
   assert.equal(state.status, 'needs-onboarding')
-  assert.equal(state.next, 'beo-router')
+  assert.equal(state.next, 'beo-route')
   await readFile(path.join(repoRoot, '.beads', 'critical-patterns.md'), 'utf8')
   assert.equal(onboarding.status, 'complete')
 })
@@ -61,7 +61,7 @@ test('applyRepo replaces a stale managed block and preserves surrounding content
   assert.match(agents, /# Before/)
   assert.match(agents, /# After/)
   assert.doesNotMatch(agents, /old managed block/)
-  assert.match(agents, /beo-router -> beo-exploring -> beo-planning -> beo-validating/)
+  assert.match(agents, /beo-route -> beo-explore -> beo-plan -> beo-validate/)
 })
 
 test('checkRepo reports needs_onboarding for a fresh repo', async () => {
@@ -113,7 +113,7 @@ test('installed beo_status script reports onboarding, state, and optional handof
       {
         schema_version: 1,
         phase: 'executing',
-        skill: 'beo-executing',
+        skill: 'beo-execute',
         feature: 'br-123',
         feature_name: 'status-check',
         next_action: 'Resume the worker loop',
@@ -137,7 +137,7 @@ test('installed beo_status script reports onboarding, state, and optional handof
   assert.equal(status.state_json.phase, 'router')
   assert.equal(status.state_json.status, 'needs-onboarding')
   assert.equal(status.handoff.exists, true)
-  assert.equal(status.handoff.skill, 'beo-executing')
+  assert.equal(status.handoff.skill, 'beo-execute')
   assert.ok(status.next_reads.includes('AGENTS.md'))
   assert.ok(status.next_reads.includes('.beads/STATE.json'))
   assert.ok(status.next_reads.includes('.beads/HANDOFF.json'))

@@ -7,12 +7,11 @@
 - [Reactive Fix Bead Template](#reactive-fix-bead-template)
 - [Follow-Up Bead Template](#follow-up-bead-template)
 
-Shared Markdown templates for all bead description types in the Beo workflow. Use these templates as the single source of truth whenever a skill creates or updates bead descriptions.
+Shared templates for all bead description types in the Beo workflow. Use these templates as the single source of truth whenever a skill creates or updates bead descriptions.
 
 ## Rules
 
 - Every bead description must be written in Markdown format.
-- Prefer explicit section headers over inline prose.
 - Keep file paths exact and verification steps runnable.
 - Planned execution beads use the **Planned Task Bead Template**.
 - Reactive fix beads use the **Reactive Fix Bead Template**.

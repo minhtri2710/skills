@@ -5,15 +5,16 @@ Use this file when the short onboarding summary in `SKILL.md` is not enough.
 ## Prerequisites
 
 1. Verify `node --version` is `>=18` before running `scripts/onboard_beo.mjs`.
-2. If Node.js is unavailable, stop and ask the user to install it or perform manual setup.
+2. Verify `br` and `bv` are installed, callable, and compatible with the repo's onboarding requirements.
+3. If Node.js, `br`, or `bv` is unavailable or broken, stop and ask the user to install or repair the missing tooling before proceeding.
 
 ## Decision Matrix
 
-The `checkRepo` return value contains a script-level `status` field, not a routing state:
+The `checkRepo` return value contains a script-level `status` field, not a routing state. Treat a repo as ready only when the bootstrap state is present enough for beo operation and the required tooling checks pass.
 
 | `status` | Action |
 | --- | --- |
-| `"up_to_date"` | Report that onboarding is current and hand back to `beo-route`. |
+| `"up_to_date"` | Verify tool readiness, report that onboarding is current, and hand back to `beo-route`. |
 | `"needs_onboarding"` | Summarize the actions, ask for approval, then apply when approved. |
 
 > **Note:** These are script return values, not STATE.json routing states. `needs-onboarding` is the pre-onboarding detection state; after successful onboarding, the repository returns to normal routing for its actual project state.

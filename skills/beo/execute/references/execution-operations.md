@@ -101,7 +101,7 @@ Flag either mismatch:
 1. a D-ID is referenced in the bead but missing from `CONTEXT.md`
 2. the bead's requested behavior contradicts a locked decision in `CONTEXT.md`
 
-If a mismatch is found, stop execution and route to `beo-explore` to resolve the decision conflict before dispatch.
+If a mismatch is found, stop execution and route back through the canonical planning back-edge so the conflict is resolved before dispatch. Do not patch the mismatch inside execute.
 
 Fallback for legacy features:
 

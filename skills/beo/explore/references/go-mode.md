@@ -1,33 +1,11 @@
-# Go Mode (Full Pipeline)
+# Go Mode
 
-Chain all skills end-to-end with exactly **3 human gates**. No phase skipped.
+Use this note only when the user explicitly wants the full beo pipeline while keeping the normal approval gates intact.
 
-**Trigger:** User says "go", "run the full pipeline", "go mode", or `/go [feature]`.
+Explore still owns only requirement locking. It must not orchestrate downstream phases from this reference.
 
-**The 3 gates (never skip):**
-
-<HARD-GATE>
-GATE 1 (after exploring):
-  Present CONTEXT.md. Ask: "Decisions locked. Approve before planning?"
-  Do not invoke planning until user approves.
-
-GATE 2 (after validating):
-  Present: phase exit state, story count, bead count, risk summary, spike results.
-  Ask: "Phase verified. Approve execution?"
-  Do not invoke swarming/executing until user approves.
-
-GATE 3 (after reviewing):
-  Present: P1/P2/P3 counts.
-  P1 > 0: "P1 findings block merge. Fix before proceeding?"
-  P1 = 0: "Review complete. Approve close?"
-  Do not close epic until user responds.
-</HARD-GATE>
-
-**Sequence:**
-```
-exploring → [GATE 1] → planning → validating → [GATE 2]
-         → swarming (+ executing ×N) → reviewing → [GATE 3]
-         → compounding → beo-route (next feature or session end)
-```
-
-**Context budget:** If context exceeds 65% mid-pipeline, write HANDOFF.json with `"mode": "go"` so next session resumes in go mode.
+When go-mode intent is explicit during explore:
+- compress requirement gathering only as far as the user allows
+- still lock every requirement-level decision before handing off
+- preserve any go-mode marker in canonical handoff state so downstream routing can continue the same mode
+- rely on downstream skills to enforce their own approvals and handoff rules

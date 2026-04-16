@@ -68,9 +68,9 @@ Collect all findings from all specialists. Categorize:
 
 | Severity | Action |
 |----------|--------|
-| **P1** (blocks merge) | Create a fix task bead, wire to epic, execute immediately |
-| **P2** (should fix) | Create a non-blocking follow-up bead NOT under the current epic; its description must use Markdown |
-| **P3** (nice to have) | Record but do not create beads unless user requests |
+| **P1** (blocks merge) | Record a blocking remediation target and route through the canonical reactive-fix path |
+| **P2** (should fix) | Record a non-blocking follow-up recommendation for later triage |
+| **P3** (nice to have) | Record but do not create work unless user requests |
 
 ### Conflict Resolution
 
@@ -80,25 +80,8 @@ When specialists disagree:
 - evidence-free claims should be discarded or downgraded
 - contradictory blocking claims require targeted re-verification or user escalation; never resolve them by majority vote alone
 
-## Creating P1 Fix Beads
+## Reactive Fix and Follow-Up Handling
 
-P1 fix beads follow the single canonical procedure in `reviewing-operations.md` Section 3.
-Use the shared **Reactive Fix Bead Template** from `beo-reference` → `references/bead-description-templates.md`.
+For P1 findings, use `reviewing-operations.md` and the canonical reactive-fix contract to send work back through the correct downstream skill. Review identifies the fix target; it does not create or implement the fix directly.
 
-Execute the fix immediately -- route back to `beo-execute` for this task.
-
-After all P1 fixes are resolved, return to reviewing.
-
-If P1 fixes fail repeatedly (>2 attempts), route to `beo-debug` for root cause analysis.
-
-## Creating P2/P3 Follow-Up Beads
-
-```bash
-# P2 findings become independent follow-up beads (NOT under the epic)
-br create "Follow-up: <P2 finding summary>" -t task -p 3 --json
-br label add <FOLLOWUP_ID> -l review
-br label add <FOLLOWUP_ID> -l review-p2
-br update <FOLLOWUP_ID> --description "<fill from Follow-Up Bead Template in beo-reference → references/bead-description-templates.md>"
-```
-
-P2/P3 beads must use the shared **Follow-Up Bead Template** from `beo-reference` → `references/bead-description-templates.md`. P2 follow-up beads are intentionally NOT children of the current epic so they do not block feature acceptance or completion.
+For P2/P3 findings, record follow-up recommendations using the shared follow-up template and leave creation of later work to the appropriate downstream phase or explicit user request.

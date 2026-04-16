@@ -1,91 +1,92 @@
 ---
 name: beo-execute
 description: |
-  Use when exactly one approved bead is ready for implementation, either self-selected or assigned by swarm. Claims the bead, writes code, runs acceptance-criteria verification, and reports success or blocker. Only obvious local retries (≤2) belong here. Do not use for multi-worker coordination (use beo-swarm), plan verification (use beo-validate), non-obvious root-cause analysis (use beo-debug), or post-phase quality assessment (use beo-review).
+  Use when exactly one approved bead is ready for implementation, either in single-worker mode or assigned by swarm. Execute claims the bead, makes only the required changes, runs the bead’s verification steps, and reports success or blocker. Only obvious local retries belong here; non-obvious diagnosis belongs to debug. Do not use for worker coordination, planning, validation, post-implementation review, or cross-feature learning work.
 ---
 
 > **HARD-GATE: ONBOARDING** — Before any work, verify `br` and `bv` are accessible and `.beads/` is initialized (`beo-reference` → `references/shared-hard-gates.md`). If stale or missing, load `beo-onboard` and stop.
 
-> **Protocol References**: Protocol rules reference the `beo-reference` skill via `→ references/<file>` for canonical documents.
+> **Protocol References** — Shared protocol rules live in `beo-reference` → `references/<file>`.
 
 # beo-execute
 
-## Overview
-**Atomic purpose: implement one assigned bead — claim, code, verify, and report completion.** Implement and verify one approved bead at a time. **Core principle: one bead, one bounded implementation target, one verified outcome at a time.**
+## Atomic purpose
+Implement, verify, and report exactly one approved bead.
 
-## Boundary Rules
-- **MUST NOT** perform independent state detection or free-form routing — owned by `beo-route`. May emit canonical handoff to the next allowed pipeline skill when exit conditions are met.
-- **MUST NOT** gather requirements — owned by `beo-explore`.
-- **MUST NOT** decompose work — owned by `beo-plan`.
-- **MUST NOT** verify plans — owned by `beo-validate`.
-- **MUST NOT** orchestrate parallel workers — owned by `beo-swarm`.
-- **MUST NOT** review completed scope — owned by `beo-review`.
-- **MUST NOT** capture learnings — owned by `beo-compound`.
-- **MUST NOT** diagnose complex root causes — owned by `beo-debug`.
+## When to use
+- a single approved ready bead must be executed
+- swarm assigned one specific bead to a worker
+- a reactive fix has already been judged safe for direct execution by the canonical pipeline contract
 
-## Hard Gates
-> **HARD-GATE: APPROVED-ONLY** — Execute only runs on beads under an `approved`-labeled epic. Per the beo approval gates (`beo-reference` → `references/approval-gates.md`).
+## Inputs
+**Required**
+- one bead ID and its specification
+- acceptance criteria and verification steps for that bead
+- active epic approval state
+- relevant source files
 
-> **HARD-GATE: ONE-BEAD-AT-A-TIME** — Execute works on exactly one bead at a time. Never parallelize within a single worker.
+**Optional**
+- swarm assignment metadata
+- origin / return fields in `.beads/STATE.json` for reactive-fix execution
 
-> **HARD-GATE: STATUS-TRANSITIONS** — All bead status changes follow the bead lifecycle states (`beo-reference` → `references/status-mapping.md`) allowed transitions. Forbidden transitions abort the operation.
+## Outputs
+**Allowed writes**
+- implementation changes required by the assigned bead
+- verification evidence
+- bead comments / status updates allowed by `beo-reference` → `references/status-mapping.md`
+- `.beads/STATE.json`
+- `.beads/HANDOFF.json` only when checkpoint or resume protocol requires it
 
-> **HARD-GATE: VERIFICATION-REQUIRED** — Every bead must pass its acceptance-criteria verification before being marked `done`. No unverified completion.
+**Must not write**
+- planning artifacts unless the canonical pipeline explicitly routes back for replan
+- unrelated beads or cross-feature learnings
+- review verdicts
 
-## Communication Standard
-> Follow the communication standard (`beo-reference` → `references/communication-standard.md`).
+## Boundary rules
+- Execute owns only one bead at a time.
+- Execute does not redesign scope, approve execution, coordinate multiple workers, perform post-phase review, or do broad root-cause analysis.
+- If the blocker is not obvious and local, execute stops escalating through the proper edge instead of guessing.
 
-## Default Execute Loop
-1. **Claim**: In single-worker mode, select the next bead via the scheduling cascade (`beo-reference` → `references/dependency-and-scheduling.md`) (`bv --robot-plan` → `bv --robot-next` → `br ready` → manual). In swarm-worker mode, claim the assigned bead only.
-2. **Pre-dispatch**: Validate the bead is still `open`, dependencies are satisfied, and file scope is still safe. Set status to `dispatch_prepared` per the bead lifecycle states (`beo-reference` → `references/status-mapping.md`), then transition to `in_progress` when active work begins.
-3. **Build prompt**: Read the bead description, acceptance criteria, dependencies, and relevant source files. Build the implementation prompt per `references/worker-prompt-guide.md`.
-4. **Implement**: Write code to satisfy the bead's acceptance criteria while following project conventions.
-5. **Verify**: Run acceptance-criteria verification such as tests, linting, type-checking, or manual checks as specified. If verification fails, attempt a fix up to 2 retries. If it still fails, mark the bead `blocked` or `failed` and report.
-6. **Report**: On success, set the bead status to `done` and record verification results in a bead comment. On failure, set `blocked`, `failed`, or `cancelled` as appropriate and describe the outcome in a bead comment. In swarm-worker mode, report via Agent Mail. In single-worker mode, either claim the next ready bead or hand off according to pipeline state.
+## Minimum hard gates
+- **APPROVED-ONLY** — Verify the active epic has the `approved` label before starting.
+- **ONE-BEAD-AT-A-TIME** — Never parallelize within a worker.
+- **STATUS-TRANSITIONS-ONLY** — Use only allowed bead transitions from `beo-reference` → `references/status-mapping.md`.
+- **VERIFICATION-REQUIRED** — Never mark `done` without the bead's required verification evidence.
+- **OBVIOUS-RETRIES-ONLY** — Keep retries local and bounded; non-obvious blockers escalate.
+- **TERMINATE-ON-HANDOFF** and **FRESH-LOAD-REQUIRED** — Follow the shared session-boundary rules for transitions to other skills.
 
-### Reference Files
-| File | Purpose |
-|------|---------|
-| `references/execution-operations.md` | Operational sequence for claiming, implementing, verifying, and reporting bead work |
-| `references/worker-prompt-guide.md` | Rules for constructing implementation prompts from bead context |
-| `references/blocker-handling.md` | Standard handling for retries, blockers, escalation, and reporting |
+## Default loop
+1. Confirm the epic is approved and the bead is ready.
+2. Claim the bead, move through the allowed status transitions, and load the relevant code and acceptance criteria.
+3. Implement only the changes required for that bead.
+4. Run the specified verification.
+5. If verification passes, mark the bead `done` and record evidence.
+6. If verification fails in an obvious local way, retry within the local limit.
+7. If the issue is structural or non-obvious, record the blocker and hand off through the canonical pipeline (`beo-debug`, `beo-plan`, or `beo-review` path as appropriate), then stop.
 
-## Modes
-- **Single-worker mode** — Self-directed execution. Select the next ready bead via the scheduling cascade (`beo-reference` → `references/dependency-and-scheduling.md`).
-- **Swarm-worker mode** — Directed execution. Receive a bead assignment from `beo-swarm` via Agent Mail and execute only that assignment.
+## References
+| File | Use when |
+|------|----------|
+| `references/execution-operations.md` | Following the canonical claim → build → verify → report flow |
+| `references/worker-prompt-guide.md` | Building the implementation prompt from bead context |
+| `references/blocker-handling.md` | Deciding retry vs block vs escalation |
+| `beo-reference` → `references/dependency-and-scheduling.md` | Selecting the next ready bead in single-worker mode |
+| `beo-reference` → `references/approval-gates.md` | Verifying execution preconditions |
+| `beo-reference` → `references/pipeline-contracts.md` | Reactive-fix and back-edge rules |
 
-## Inputs and Outputs
-- **Inputs** — One approved bead ID and description, that bead's acceptance criteria and verification steps, relevant source files, optional swarm assignment message.
-- **Outputs** — Implementation changes for that bead, verification evidence/results, bead comment/update, final bead status (`done`, `blocked`, `failed`, or `cancelled`).
+## Handoff and exit
+- Normal self-loop: another ready bead in single-worker mode
+- Forward handoff: `beo-review` when the final execution scope is complete
+- Backward handoff: `beo-plan` when later phases remain or approved scope is invalidated
+- Escalation handoff: `beo-debug` for non-obvious blockers
+- Execute stops after writing an inter-skill handoff.
 
-## Blocker Handling
-- **Implementation failure after 2 retries** — Mark `blocked` and add blocker detail with `br comments add <ID> --no-daemon --message "..."`.
-- **External dependency missing** — Mark `blocked` and note the dependency explicitly.
-- **Swarm-worker blocker** — Report the blocker to the swarm orchestrator via Agent Mail.
-- **Complex blocker** — Hand off to `beo-debug` with origin context when root-cause analysis is required.
+## Context budget
+If context exceeds 65%, checkpoint via the shared protocol in `beo-reference` → `references/shared-hard-gates.md`.
 
-## Decision Rubrics
-- **Fix vs Block** — If the failure is a simple code error with an obvious correction, retry up to 2 times. If it is structural, environmental, or unclear, block immediately.
-- **Done vs Blocked/Failed** — If all acceptance criteria pass, mark `done`. If any acceptance criterion still fails, do not mark incomplete success; mark `blocked` or `failed` with details.
-- **Next Bead vs Handoff** — In single-worker mode, if more ready beads exist, continue the loop. If no ready beads remain and some are blocked, hand off to `beo-debug`. If all current-phase beads are in terminal states and later phases remain, remove `approved` and hand off to `beo-plan`. If all current-phase beads are in terminal states for the final execution scope, hand off to `beo-review`.
-- **Assignment Boundaries** — In swarm-worker mode, never expand scope beyond the assigned bead without a new swarm instruction.
-
-## Scheduling, Approval, and Recovery Rules
-- Follow the scheduling cascade (`beo-reference` → `references/dependency-and-scheduling.md`) for bead selection and readiness order.
-- Follow the beo approval gates (`beo-reference` → `references/approval-gates.md`) for execution preconditions tied to approved scope.
-- Follow the bead lifecycle states (`beo-reference` → `references/status-mapping.md`) for status transition legality.
-- Recover all execution failures via standard failure recovery (`beo-reference` → `references/failure-recovery.md`).
-
-## Handoff
-> Write `STATE.json` for normal transitions to adjacent skills so the next skill has current implementation status, verification results, blockers, and artifact locations. Use `HANDOFF.json` only for emergency checkpoint or low-context resume scenarios.
-
-## Context Budget
-> If context exceeds 65% capacity, compress non-essential history before continuing (`beo-reference` → `references/shared-hard-gates.md`).
-
-## Red Flags & Anti-Patterns
-- Working on beads that are not under an approved epic.
-- Skipping verification before marking work complete.
-- Modifying beads outside the current assignment.
-- Spending more than 2 retries on the same failure.
-- Failing to report via Agent Mail in swarm mode.
-- Using project-specific commands not called for by the bead description.
+## Red flags
+- starting without verifying `approved`
+- changing scope beyond the assigned bead
+- marking work complete without verification evidence
+- using execute to diagnose broad or unclear failures
+- continuing after writing inter-skill handoff state

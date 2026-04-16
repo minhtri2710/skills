@@ -62,15 +62,9 @@ br create "Fix: <root cause summary> (ref: <original-bead-id>)" -t task --parent
 
 If the issue is a locked-decision violation, coordinate before silently changing behavior.
 
-## 5. Learnings Capture
+## 5. Resolution Reporting
 
-If this is a new failure pattern, append a debug note to:
-
-```text
-.beads/artifacts/<feature_slug>/debug-notes.md
-```
-
-If this reveals an outdated critical pattern, write a pattern-update note there.
+Record the verified blocker, root cause, and minimal unblock in the task comments or other debug-owned reporting surface allowed by the contract. If the investigation suggests a reusable learning or outdated shared guidance, return that evidence to the origin phase rather than writing learning artifacts from debug.
 
 After debugging, mark:
 
