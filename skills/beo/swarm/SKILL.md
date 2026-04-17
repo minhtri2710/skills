@@ -1,7 +1,8 @@
 ---
 name: beo-swarm
 description: |
-  Use when execution is already approved and at least three independent ready beads with non-overlapping file scopes make parallel coordination worthwhile. Swarm assigns beads to workers, monitors progress, resolves coordination conflicts, and aggregates status; if those preconditions disappear, it degrades to execute. Do not use for single-bead work, plan validation, code implementation by the coordinator, review, debugging, or learning capture.
+  Coordinate parallel execution when approved current-phase work contains at least three independent ready beads with non-overlapping file scopes and parallelism is worth the overhead. Use it only for orchestration; not for code delivery, replanning, or review.
+
 ---
 
 > **HARD-GATE: ONBOARDING** — Before any work, verify `br` and `bv` are accessible and `.beads/` is initialized (`beo-reference` → `references/shared-hard-gates.md`). If stale or missing, load `beo-onboard` and stop.
@@ -11,17 +12,17 @@ description: |
 # beo-swarm
 
 ## Atomic purpose
-Coordinate safe parallel execution across multiple approved current-phase beads.
+Orchestrate parallel workers only.
 
 ## When to use
-- at least 3 independent ready beads exist
-- their file scopes do not overlap
-- parallel coordination will outperform serial execution
+- approved current-phase work contains at least 3 independent ready beads
+- candidate beads have non-overlapping file scopes
+- parallel coordination is materially better than serial execution
 
 ## Inputs
 **Required**
 - approved current-phase ready bead set
-- dependency / readiness state
+- dependency and readiness state
 - declared file scopes for candidate beads
 - Agent Mail availability
 
@@ -30,8 +31,9 @@ Coordinate safe parallel execution across multiple approved current-phase beads.
 
 ## Outputs
 **Allowed writes**
-- worker assignments and coordination messages
-- orchestration state / status updates allowed by the canonical protocols
+- worker-to-bead assignments
+- coordination and progress messages
+- orchestration metadata or state updates allowed by protocol
 - `.beads/STATE.json`
 - `.beads/HANDOFF.json` only when checkpoint or resume protocol requires it
 
@@ -41,9 +43,10 @@ Coordinate safe parallel execution across multiple approved current-phase beads.
 - feature learnings
 
 ## Boundary rules
-- Swarm owns assignment, monitoring, conflict resolution, and degradation decisions.
-- Swarm does not implement code, redesign plans, approve work, review outcomes, debug substantive root causes, or extract learnings.
-- Worker implementation remains owned by `beo-execute` running in worker mode.
+- Swarm owns parallel coordination only.
+- Swarm must not implement code as the coordinator, redesign plans, approve work, perform review, debug root causes, or write learnings.
+- Swarm must not assign overlapping file scopes or claim bead completion except as reflected from worker results and orchestration metadata.
+- Swarm must degrade to `beo-execute` when safe parallelism no longer applies.
 
 ## Minimum hard gates
 - **THREE-PLUS-INDEPENDENT** — Start only when at least 3 independent ready beads exist.

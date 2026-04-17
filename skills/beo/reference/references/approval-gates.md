@@ -103,23 +103,21 @@ Approve execution for this current phase?
 
 ### 3. Review / UAT Confirmation
 
-During `beo-review`, human review is required.
+During `beo-review`, request human confirmation only when the accepted exit state, locked intent, or repo policy requires explicit user-facing UAT.
 
 Canonical rule:
 
-> Human review is required. Walk through the feature with the user.
+> Human UAT is conditional, not automatic. Ask for it when user confirmation is needed to judge intent match or user-visible acceptance.
 
-For locked decisions and exit-state checks, ask one thing at a time and wait for confirmation.
-
-Use this gate even if all automated review passes are clean.
+When UAT is required, walk through the relevant locked decisions and exit-state checks one thing at a time and wait for confirmation.
 
 ### 4. Critical Pattern Promotion
 
-Before appending to `.beads/critical-patterns.md`, explicit user approval is required.
+Before writing to `.beads/critical-patterns.md`, explicit user approval is required.
 
 Canonical rule:
 
-> Never auto-append to `critical-patterns.md`; explicit user approval is mandatory.
+> Never auto-write to `critical-patterns.md`; explicit user approval is mandatory.
 
 Use this gate in `beo-compound` and `beo-dream`.
 
@@ -211,7 +209,8 @@ If the user rejects or withholds approval:
 |-------|--------|------|
 | `beo-validate` | Adds `approved` via `br label add <EPIC_ID> -l approved` | After user grants execution approval |
 | `beo-plan` | Removes `approved` via `br label remove <EPIC_ID> -l approved` | During replanning cleanup when phase structure or scope changes |
-| `beo-review` | Removes `approved` via `br label remove <EPIC_ID> -l approved` | When routing back to planning due to multi-phase advancement or intent change |
+| `beo-execute` | Removes `approved` via `br label remove <EPIC_ID> -l approved` | When execution discovers a scope or intent change and routes back to planning |
+| `beo-review` | Removes `approved` via `br label remove <EPIC_ID> -l approved` | When verdict is `fix` or `reject` and work routes backward |
 | `beo-route` | Reads `approved` label to determine routing | Never adds or removes |
 
 On normal completion, the `approved` label remains on the closed epic as historical state.

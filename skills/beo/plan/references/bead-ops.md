@@ -1,96 +1,40 @@
 # Bead Operations
 
-Task bead creation, description writing, dependency wiring, review checklists, Quick Mode, and promotion flow.
+Canonical operational guide for creating and maintaining current-phase beads during planning.
 
-## Table of Contents
+## Preconditions
 
-- [Story Context Block](#story-context-block)
-- [Story-to-Bead Decomposition Rules](#story-to-bead-decomposition-rules)
-- [Bead Completeness Check](#bead-completeness-check)
-- [Plan Review Checklists](#plan-review-checklists)
-- [Quick Mode](#quick-mode)
-- [Promotion Flow](#promotion-flow)
-- [Task Bead Creation Operations](#task-bead-creation-operations)
-- [Epic Description Update](#epic-description-update)
+- `CONTEXT.md` is locked.
+- `approach.md` exists or is being finalized in the same planning cycle.
+- `phase-contract.md` and `story-map.md` are being written for the current phase.
+- Planning owns bead creation; execution, validation, review, and route do not create planned execution beads.
 
----
-
-## Story Context Block
+## Description Template Rule
 
 Every bead description must use Markdown format with the shared templates from `beo-reference` → `references/bead-description-templates.md`. If no institutional learnings apply, write: "No prior learnings for this domain."
 
----
+## Bead Completeness Gate
 
-## Story-to-Bead Decomposition Rules
+After creating or updating current-phase beads, read each bead back before handoff and verify it includes:
+- a non-empty Markdown description using the planned task template
+- clear file scope
+- acceptance criteria
+- verification steps
+- references to the relevant locked decisions or planning artifacts
+- enough context for a fresh worker to execute it without reopening planning
 
-- One story → usually 1-3 beads
-- A bead must not span multiple unrelated stories
-- If a story needs 4+ substantial beads, the story may be too large
-- Story order must remain visible after decomposition
-- Story closure matters more than layer purity
+Fix incomplete beads immediately before routing to `beo-validate`.
 
----
+## Quick-Scoped Planning
 
-## Bead Completeness Check
+For quick-scoped work, planning may keep artifacts smaller and the current phase narrower, but it still must:
 
-<HARD-GATE>
-After all beads are created, read every bead back and verify. No bead may be handed off without passing this check.
-</HARD-GATE>
-
-For each task bead: `br show <TASK_ID> --json`
-
-Verify `.description` contains:
-
-- [ ] Non-empty Markdown description using the shared planned bead template
-- [ ] Story context block (Story, Purpose, Contributes To, Unlocks)
-- [ ] File scope (files to create/modify)
-- [ ] Numbered implementation steps
-- [ ] Verification criteria
-- [ ] Enough context for a fresh worker who has never seen the plan
-- [ ] Error contract for I/O beads (failure behavior)
-- [ ] Secret handling requirements when decisions mention API keys/tokens
-- [ ] Locked decision references (D-IDs) when `CONTEXT.md` has a Locked Decisions table
-
-Fix immediately via `br update <TASK_ID> --description`. A bead without a complete description is an invalid state that must not survive to handoff.
-
----
-
-## Plan Review Checklists
-
-### Completeness
-
-For each CONTEXT.md decision (D1, D2, ...):
-- [ ] At least one task implements this decision
-- [ ] Verification criteria traceable to the decision
-
-### Decomposition Quality
-
-For each task:
-- [ ] Developer can start with only the task description + plan
-- [ ] File scope clear (no overlapping files between independent tasks)
-- [ ] Verification criteria concrete and testable
-- [ ] Risk assessment honest
-
-### Story Completeness
-
-For each story in story-map.md:
-- [ ] At least one bead maps to this story
-- [ ] Bead set covers the story's "Done Looks Like" criteria
-- [ ] No orphaned beads (every bead maps to exactly one story)
-
----
-
-## Quick Mode
-
-For features classified as **Quick** (see `beo-reference` → `references/pipeline-contracts.md` § Quick-Scope Definition):
-
-1. Skip parallel exploration — do a quick single-pass review of affected files
-2. Write abbreviated plan.md (approach + tasks, skip discovery summary)
-3. Create task beads directly
-4. Wire dependencies and validate the graph
-5. Continue through the normal pipeline: validate → execute → review → compound
-6. Write abbreviated phase-contract.md (approach + exit state)
-7. Write abbreviated story-map.md (single story)
+1. write `approach.md`
+2. write `plan.md`
+3. write `phase-contract.md`
+4. write `story-map.md`
+5. create the current-phase bead set
+6. route to `beo-validate`
 
 Quick mode reduces ceremony with smaller artifacts and faster cycles, but it does not skip validation or review.
 
@@ -98,12 +42,12 @@ Quick mode reduces ceremony with smaller artifacts and faster cycles, but it doe
 
 ## Promotion Flow
 
-When instant-path tasks grow beyond their envelope:
+When quick-scoped work grows beyond its initial envelope:
 
 1. **Gather existing tasks:** `br dep list <EPIC_ID> --direction up --type parent-child --json`
-2. **Write plan around them:** Create plan.md incorporating existing tasks + any new tasks needed
-3. **Create missing beads:** Only for tasks that don't already exist. Wire dependencies for all (existing + new)
-4. **Proceed to validation:** Route to `beo-validate`. Promoted plans need the same rigor as fresh plans
+2. **Write plan around them:** Create `plan.md` incorporating existing tasks plus any new tasks needed
+3. **Create missing beads:** Only for tasks that do not already exist. Wire dependencies for all current-phase work
+4. **Proceed to validation:** Route to `beo-validate`. Expanded plans need the same rigor as fresh plans
 
 ---
 
@@ -115,51 +59,30 @@ When instant-path tasks grow beyond their envelope:
 br create "<Task Name>" -t task --parent <EPIC_ID> -p <priority> --json
 ```
 
-| Priority | Use for |
-|----------|---------|
-| 0 | Spike / urgent proof task |
-| 1 | Critical path |
-| 2 | Standard delivery |
-| 3 | Cleanup / nice-to-have |
-
-### Write descriptions
+### Write bead descriptions
 
 Use the **Planned Task Bead Template** from `beo-reference` → `references/bead-description-templates.md`.
 
-```bash
-br update <TASK_ID> --description "<Markdown content using the shared planned-task bead template>"
-```
+Checklist:
+- include exact file paths when known
+- include acceptance criteria
+- include verification steps
+- reference the relevant locked decisions or planning artifacts
+- keep the bead independently executable by a fresh worker
 
-### Wire dependencies
+### Dependency wiring
 
-```bash
-# Task B depends on Task A (B is blocked by A)
-br dep add <TASK_B_ID> <TASK_A_ID>
-```
+Use `beo-reference` → `references/dependency-and-scheduling.md` for canonical dependency rules.
 
-### Complete story-to-bead mapping
+### Story-map sync
 
 After bead creation, fill `Story-To-Bead Mapping` in `.beads/artifacts/<feature_slug>/story-map.md`.
 
-### Validate the graph
+## Hard Rules
 
-```bash
-br dep cycles --json        # Check for cycles
-bv --robot-insights --format json  # Verify all tasks reachable
-```
-
-If cycles detected: identify cycle → find weakest edge → `br dep remove <child> <parent>` → re-validate.
-
-### Run bead completeness check
-
-Read each bead back and verify it passes the check above.
-
-### Multi-phase scope rule
-
-If multi-phase, verify every bead belongs to the current phase. If a bead belongs to a later phase: remove from current set, keep deferred in `phase-plan.md`. Do not smuggle future-phase work into the current phase.
-
-## Epic Description Update
-
-Use `beo-reference` → `references/artifact-conventions.md#slug-lifecycle` to preserve the canonical slug-first shape.
-
-If the epic description includes a planning summary, update to reflect: planning mode, whether `phase-plan.md` exists, current phase number/name, total phase count. Keep concise — do not paste full artifact contents.
+- Do not create future-phase executable beads.
+- Do not rely on route to create planned execution beads.
+- Do not create beads during validation.
+- Do not hand off beads that fail the bead completeness gate.
+- Do not leave bead descriptions without acceptance criteria or verification.
+- Do not skip dependency wiring when ordering matters.

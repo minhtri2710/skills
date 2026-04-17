@@ -15,7 +15,7 @@ The `checkRepo` return value contains a script-level `status` field, not a routi
 | `status` | Action |
 | --- | --- |
 | `"up_to_date"` | Verify tool readiness, report that onboarding is current, and hand back to `beo-route`. |
-| `"needs_onboarding"` | Summarize the actions, ask for approval, then apply when approved. |
+| `"needs_onboarding"` | Summarize the actions, ask for approval only when shared repo guidance will be created or merged, then apply the minimum safe bootstrap changes. |
 
 > **Note:** These are script return values, not STATE.json routing states. `needs-onboarding` is the pre-onboarding detection state; after successful onboarding, the repository returns to normal routing for its actual project state.
 
@@ -31,7 +31,7 @@ Onboarding manages:
 | `.beads/learnings/` | Store learnings. |
 | `.beads/beo_status.mjs` | Install the repo-local scout command. |
 | `.beads/STATE.json` | Initialize bootstrap state. |
-| `.beads/critical-patterns.md` | Seed critical patterns defaults. |
+| `.beads/critical-patterns.md` | Initialize the canonical shared-guidance file when the repo bootstrap expects it. This is bootstrap plumbing, not pattern promotion. |
 | `.beads/onboarding.json` | Record onboarding completion and managed assets. |
 
 ## `checkRepo` JSON Schema
@@ -77,7 +77,7 @@ When onboarding is needed, apply in this order:
 4. Create `.beads/learnings/` if missing
 5. Write `.beads/beo_status.mjs`
 6. Write `.beads/STATE.json` with canonical bootstrap defaults if missing (`phase: "router"`, `status: "needs-onboarding"`, `planning_mode: "unknown"`)
-7. Write `.beads/critical-patterns.md` defaults if missing
+7. Initialize `.beads/critical-patterns.md` if the bootstrap layout expects it
 8. Write `.beads/onboarding.json`
 
 ## `onboarding.json` Schema
@@ -97,3 +97,11 @@ When onboarding is needed, apply in this order:
   }
 }
 ```
+
+## Approval Boundary
+
+Use explicit approval before:
+- creating or merging the managed `AGENTS.md` block
+- applying any onboarding change that modifies shared repo guidance
+
+Do not introduce extra approval gates for purely local bootstrap state such as `.beads/` directories or checkpoint files when the user has already asked onboarding to proceed.

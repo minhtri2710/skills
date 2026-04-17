@@ -1,7 +1,8 @@
 ---
 name: beo-compound
 description: |
-  Use only after review has accepted a completed feature and that single feature’s lessons need to be captured durably. Compound extracts feature-scoped learnings, separates feature-local observations from candidate reusable patterns, and writes one feature learning artifact. Do not use before review acceptance, for multi-feature synthesis, code changes, or promotion of shared patterns into `critical-patterns.md`.
+  Capture durable learnings from one accepted feature and optionally promote reusable patterns when review has already accepted that single feature. Use it only for single-feature learning extraction after acceptance, not for cross-feature consolidation or operational delivery work.
+
 ---
 
 > **HARD-GATE: ONBOARDING** — Before any work, verify `br` and `bv` are accessible and `.beads/` is initialized (`beo-reference` → `references/shared-hard-gates.md`). If stale or missing, load `beo-onboard` and stop.
@@ -11,51 +12,53 @@ description: |
 # beo-compound
 
 ## Atomic purpose
-Extract and record durable learnings from one accepted feature.
+Extract durable learnings from one accepted feature only.
 
 ## When to use
-- review has accepted a feature and learnings have not yet been captured
-- a completed feature needs its lessons preserved before the pipeline closes
+- review has accepted a feature and its lessons have not yet been captured
+- a completed feature needs its durable learnings preserved before the pipeline closes
 
 ## Inputs
 **Required**
-- accepted feature identifier / slug
+- accepted feature slug or identifier
 - `.beads/artifacts/<feature_slug>/review-findings.md`
-- bead history / comments for the feature
+- feature bead history and comments
 - relevant implementation artifacts for that feature
 
 **Optional**
 - prior feature learning artifacts for deduplication only
+- existing `.beads/critical-patterns.md` only for deduplication or promotion checks
 
 ## Outputs
 **Allowed writes**
 - `.beads/learnings/YYYYMMDD-<feature_slug>.md`
+- updates to `.beads/critical-patterns.md` only with explicit approval
 - `.beads/STATE.json`
 - `.beads/HANDOFF.json` only when checkpoint or resume protocol requires it
 
 **Must not write**
-- `.beads/critical-patterns.md`
 - learnings for other features
 - planning, implementation, or review artifacts
 
 ## Boundary rules
-- Compound is single-feature only.
-- Compound extracts what one feature taught; it does not consolidate evidence across features.
-- Compound must not update `.beads/critical-patterns.md` and may only flag candidate reusable patterns inside the feature learning artifact.
+- Compound owns learning extraction and pattern promotion for one accepted feature only.
+- Compound must not run before review acceptance, merge evidence across multiple features, modify code or plans, or perform corpus-wide consolidation, retirement, or restructuring.
+- Promoted patterns must remain traceable to the accepted feature.
+- Compound must not create or rewrite review artifacts.
 
 ## Minimum hard gates
 - **POST-REVIEW-ONLY** — Start only after review acceptance.
 - **SINGLE-FEATURE-SCOPE** — Write learnings for exactly one feature.
-- **NO-SHARED-PATTERN-WRITES** — Do not write `critical-patterns.md`.
-- **GENERALIZE-BEFORE-FLAGGING** — Candidate shared patterns must be framed as evidence-backed candidates, not promoted rules.
+- **EXPLICIT-PROMOTION-APPROVAL** — Any write to `critical-patterns.md` requires explicit approval via the structured question tool.
+- **GENERALIZE-BEFORE-PROMOTION** — Promoted patterns must be evidence-backed and traceable to the accepted feature.
 - **TERMINATE-ON-HANDOFF** and **FRESH-LOAD-REQUIRED** — Follow the shared session-boundary rules.
 
 ## Default loop
 1. Read the accepted feature's review findings, bead history, and implementation evidence.
 2. Extract what worked, what failed, what surprised the team, and what should be remembered.
-3. Separate feature-local observations from candidate reusable patterns.
+3. Separate feature-local observations from reusable patterns supported by that feature.
 4. Write `.beads/learnings/YYYYMMDD-<feature_slug>.md` using the local learning template.
-5. Hand off to `beo-route` and stop.
+5. If reusable patterns are warranted, present the proposed `critical-patterns.md` updates, obtain explicit approval, apply the approved promotions, and stop after writing handoff state to `beo-route`.
 
 ## References
 | File | Use when |
@@ -67,14 +70,14 @@ Extract and record durable learnings from one accepted feature.
 
 ## Handoff and exit
 - Normal completion handoff: `beo-route`
-- Compound does not promote shared patterns or branch into dream automatically; route decides any later dream work.
+- Compound does not branch into dream automatically; route decides any later long-horizon consolidation work.
 
 ## Context budget
 If context exceeds 65%, checkpoint via the shared protocol in `beo-reference` → `references/shared-hard-gates.md`.
 
 ## Red flags
 - running before review acceptance
-- writing shared patterns directly into `critical-patterns.md`
 - merging evidence from multiple features inside compound
+- promoting a pattern that is not traceable to the accepted feature
 - producing empty or content-free learnings
 - continuing after writing handoff state

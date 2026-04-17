@@ -1,7 +1,8 @@
 ---
 name: beo-explore
 description: |
-  Use when a feature or change request still has unlocked requirements and planning cannot begin safely. Explore resolves ambiguity in scope, behavior, interfaces, constraints, compatibility, edge cases, and acceptance boundaries, then writes a fully locked `CONTEXT.md`. Do not use once requirements are already locked, or for technical design, validation, execution, review, debugging, learning capture, or routing decisions.
+  Lock ambiguous requirement decisions into `CONTEXT.md` when scope, behavior, constraints, interfaces, compatibility, or acceptance boundaries are still unclear, and establish the active feature thread for new-feature intake when it does not yet exist. Use it only for requirement definition and intake bootstrap; not for architecture, decomposition, sequencing, or implementation planning.
+
 ---
 
 > **HARD-GATE: ONBOARDING** — Before any work, verify `br` and `bv` are accessible and `.beads/` is initialized (`beo-reference` → `references/shared-hard-gates.md`). If stale or missing, load `beo-onboard` and stop.
@@ -11,25 +12,26 @@ description: |
 # beo-explore
 
 ## Atomic purpose
-Turn ambiguous feature intent into one fully locked `CONTEXT.md`.
+Define the requirement contract and establish intake bootstrap when missing.
 
 ## When to use
-- new feature or change request with missing or contradictory requirements
-- planning cannot start because scope or behavior is still unclear
-- a replan reveals locked decisions are missing or inconsistent and work must return to requirements clarification
+- a feature or change request still has missing, conflicting, or ambiguous requirements
+- planning would otherwise have to guess scope, behavior, constraints, interfaces, compatibility, or acceptance boundaries
+- replanning reveals that requirement-level decisions are still unlocked
 
 ## Inputs
 **Required**
-- current feature request
-- feature identifier / slug
-- user answers to clarification questions
+- current feature or change request
+- feature slug or identifier
+- user clarification responses
 
 **Optional**
 - existing `.beads/artifacts/<feature_slug>/CONTEXT.md`
-- relevant prior learnings read via `beo-reference` → `references/learnings-read-protocol.md` when needed
+- relevant prior learnings only as requirement-shaping context
 
 ## Outputs
 **Allowed writes**
+- feature-intake bootstrap required to establish the active feature thread, including the feature epic and canonical `feature_slug` when they do not already exist
 - `.beads/artifacts/<feature_slug>/CONTEXT.md`
 - `.beads/STATE.json`
 - `.beads/HANDOFF.json` only when checkpoint or resume protocol requires it
@@ -40,11 +42,14 @@ Turn ambiguous feature intent into one fully locked `CONTEXT.md`.
 - implementation code
 
 ## Boundary rules
-- Explore owns requirement locking only.
-- Explore does not choose implementation approach, create bead graphs, validate readiness, implement code, review results, debug failures, or synthesize learnings.
-- Anything that changes scope, behavior, contracts, UX, or compatibility must be resolved here before handoff.
+- Explore owns requirement definition and new-feature intake bootstrap only.
+- Explore must define user-visible scope, constraints, interfaces, compatibility, and acceptance boundaries without choosing architecture, decomposition, sequencing, or implementation strategy.
+- Explore may establish the feature epic and canonical `feature_slug` only when missing for a new feature intake.
+- Explore must not create plans or beads, validate readiness, implement code, review work, debug failures, or consolidate learnings.
+- Any unresolved scope, behavior, contract, UX, or compatibility decision must be locked here or routed back here.
 
 ## Minimum hard gates
+- **INTAKE-BOOTSTRAP-ONLY-WHEN-MISSING** — Create the feature epic and canonical `feature_slug` only for new-feature intake or recovery when they do not already exist.
 - **LOCK-BEFORE-PLAN** — Do not hand off while any scope-affecting decision remains unlocked.
 - **NO-PLANNING** — Do not create planning artifacts or beads.
 - **STRUCTURED-QUESTIONS-ONLY** — Use the structured question tool for clarification or approvals per `beo-reference` → `references/shared-hard-gates.md`.
@@ -53,11 +58,12 @@ Turn ambiguous feature intent into one fully locked `CONTEXT.md`.
 - **FRESH-LOAD-REQUIRED** — Explore must run as a fresh invocation.
 
 ## Default loop
-1. Read any existing `CONTEXT.md` and relevant learnings so the session resumes instead of restarting.
-2. Identify unresolved gray areas using `references/gray-area-probes.md`.
-3. Ask targeted questions until all requirement-level decisions are locked.
-4. Record locked decisions in `CONTEXT.md` using `references/context-template.md`.
-5. When requirements are fully locked, write `.beads/STATE.json` for `beo-plan` and stop.
+1. If this is a new feature intake, create the active feature epic when missing and record the canonical `feature_slug` on the epic before writing feature artifacts.
+2. Read any existing `CONTEXT.md` and relevant learnings so the session resumes instead of restarting.
+3. Identify unresolved gray areas using `references/gray-area-probes.md`.
+4. Ask targeted questions until all requirement-level decisions are locked.
+5. Record locked decisions in `CONTEXT.md` using `references/context-template.md`.
+6. When requirements are fully locked, write `.beads/STATE.json` for `beo-plan` and stop.
 
 ## References
 | File | Use when |
@@ -65,12 +71,14 @@ Turn ambiguous feature intent into one fully locked `CONTEXT.md`.
 | `references/context-template.md` | Writing or normalizing `CONTEXT.md` |
 | `references/gray-area-probes.md` | Finding missing scope / behavior decisions |
 | `references/go-mode.md` | Running compressed intake with explicit user consent |
+| `beo-reference` → `references/artifact-conventions.md` | Creating and preserving the canonical `feature_slug` |
+| `beo-reference` → `references/br-cli-reference.md` | Creating the feature epic during intake |
 | `beo-reference` → `references/learnings-read-protocol.md` | Reading prior learnings without turning explore into dream/compound |
 | `beo-reference` → `references/state-and-handoff-protocol.md` | Writing handoff state |
 
 ## Handoff and exit
 - Normal forward handoff: `beo-plan`
-- Backward / pause outcome: `ReturnToUser(...)` when awaiting clarification
+- Backward / pause outcome: `next: "user"` when awaiting clarification
 - Explore must not load `beo-plan` directly; it writes state and yields.
 
 ## Context budget

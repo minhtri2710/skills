@@ -70,27 +70,31 @@ These top-level fields are valid when present but not required in every write:
 
 ```json
 {
+  "reason": "awaiting-planning-approval",
+  "content": "planning approval is required before continuing",
   "origin_skill": "beo-review",
   "return_to": "beo-review",
   "reactive_fix": true
 }
 ```
 
+- **reason** — Canonical routing or wait-state reason when the writer needs to explain why the current `next` target was chosen.
+- **content** — Concise human-facing pause, checkpoint, or handoff content when the writer needs more than `status` and `tasks` to make the next step clear.
 - **origin_skill** — The skill that initiated a reactive-fix or debugging transition. Set when entering `beo-debug` or routing a reactive fix through `beo-execute`.
 - **return_to** — The skill to return to after the fix or debug session completes.
 - **reactive_fix** — `true` when the transition is a reactive fix from review; `false` or absent otherwise.
 
-Clear all three fields after successful return to the origin skill. Downstream skills must preserve these fields when writing `STATE.json` until cleared. When checkpointing to `HANDOFF.json`, include these fields if they are set.
+Clear `origin_skill`, `return_to`, and `reactive_fix` after successful return to the origin skill. Preserve `reason` / `content` only while they still describe the current `next` target. When checkpointing to `HANDOFF.json`, include these fields if they are set.
 
 ### Field semantics
 
 - **schema_version** — Always `1`. Increment only for incompatible schema changes.
-- **phase** — Record the skill that wrote the state, such as `"planning"` or `"executing"`.
+- **phase** — Record the skill that wrote the state, such as `"router"` or `"planning"`.
 - **status** — Use the canonical routing state from the state routing table, such as `"exploring"`, `"ready-to-validate"`, or `"executing"`. Use paused pre-execution planning states such as `"awaiting-planning-approval"` when the user must approve the multi-phase sequence before validation begins.
 - **feature** — Record the epic ID, such as `"pe-abc"`.
 - **feature_slug** — Record the stable feature slug / artifact-path identifier, such as `"feedback-flow"`.
 - **tasks** — Summarize task state for the current phase, such as `"4 planned for current phase"` or `"3/5 complete, 1 blocked"`.
-- **next** — Record the next skill or action, such as `"beo-validate"` or `"beo-compound"`.
+- **next** — Record the direct next target, such as `"beo-validate"`, `"user"`, or `"done"`.
 - **planning_mode** — Use `"single-phase"` when one current phase covers execution scope, `"multi-phase"` when the feature spans meaningful phases and only the current phase is prepared now, and `"unknown"` only during exploring and early planning before `approach.md` is finalized.
 - **has_phase_plan** — Set `true` when `.beads/artifacts/<feature>/phase-plan.md` exists and is part of the active planning model. Set `false` when no whole-feature phase sequencing artifact exists; this is normal for single-phase work.
 - **current_phase** — Record the selected current phase number. Use `1` for single-phase work.
@@ -110,13 +114,15 @@ Note: `feature_name` is the historical field name, but in beo it carries the sta
   "skill": "beo-<skill-name>",
   "feature": "<epic-id>",
   "feature_name": "<feature-slug>",
-  "next_action": "<what to do next>",
+  "next": "<beo-skill | user | done>",
+  "reason": "<canonical routing or checkpoint reason>",
+  "content": "<optional concise checkpoint or pause content>",
   "in_flight_beads": ["<bead-ids>"],
   "timestamp": "<iso8601>"
 }
 ```
 
-Use `[]` when there are no in-flight beads.
+Use `[]` when there are no in-flight beads. Use `content: ""` when no extra checkpoint content is needed.
 
 ## Planning-Aware HANDOFF.json Extension Fields
 
@@ -147,7 +153,7 @@ Go-mode checkpoints may add an optional top-level `mode` field:
 Rules:
 
 - Allow only `"go"` or field absence.
-- Use `"go"` to resume the saved `skill` and `next_action` inside go-mode instead of normal feature routing.
+- Use `"go"` to resume the saved `skill` and `next` inside go-mode instead of normal feature routing.
 - Keep planning-aware fields at their normal meaning when `mode = "go"`.
 - Do not invent additional mode values without updating this canonical protocol first.
 
@@ -210,7 +216,7 @@ When `HANDOFF.json` exists:
 1. Read it before normal routing.
 2. Verify the saved state against the live graph and current files.
 3. Load the saved skill.
-4. Follow `next_action`.
+4. Follow `next` and any supporting `reason` / `content`.
 
 ### Planning-aware resume notes
 
@@ -305,7 +311,9 @@ Same as Example A with these field changes:
   "skill": "beo-plan",
   "feature": "pe-abc",
   "feature_name": "feedback-flow",
-  "next_action": "Finish phase-contract.md, then write story-map.md and create current-phase beads.",
+  "next": "beo-plan",
+  "reason": "planning-checkpoint",
+  "content": "Finish phase-contract.md, then write story-map.md and create current-phase beads.",
   "in_flight_beads": [],
   "timestamp": "2026-03-31T12:00:00Z",
   "planning_mode": "single-phase",
@@ -331,7 +339,7 @@ Same as Example C with: `"planning_mode": "multi-phase"`, `"has_phase_plan": tru
 
 ### Example E — HANDOFF.json for go-mode resume
 
-Same as Example C base fields plus top-level `"mode": "go"` and `"in_flight_beads": ["pe-ghi.2"]`.
+Same as Example C base fields plus top-level `"mode": "go"`, `"next": "beo-plan"`, and `"in_flight_beads": ["pe-ghi.2"]`.
 
 ### Example F — STATE.json after exploring completes (handoff to planning)
 

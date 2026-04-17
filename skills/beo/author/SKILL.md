@@ -1,7 +1,8 @@
 ---
 name: beo-author
 description: |
-  Use when creating, revising, or pressure-testing beo skill definitions themselves. Author refines `SKILL.md` contracts, sharpens single-responsibility boundaries, removes overlap and hidden dependencies, and runs pressure tests before release. Do not use for feature delivery, repo onboarding, reference lookup, or any operational pipeline phase for product work.
+  Create, revise, or pressure-test beo skill definitions and their supporting references when the skill system itself must be changed, clarified, or evaluated. Use it only for skill-system authoring, not for live feature delivery or operational pipeline execution.
+
 ---
 
 > **HARD-GATE: SKILL-REPO-CONTEXT** — Author operates on beo skill definitions and their supporting references, not on feature-delivery artifacts.
@@ -11,7 +12,7 @@ description: |
 # beo-author
 
 ## Atomic purpose
-Create, refine, and pressure-test beo skill definitions so the system stays coherent and non-overlapping.
+Modify the skill system itself.
 
 ## When to use
 - a beo skill must be created or rewritten
@@ -21,16 +22,17 @@ Create, refine, and pressure-test beo skill definitions so the system stays cohe
 ## Inputs
 **Required**
 - target skill change request
-- existing `SKILL.md` contracts and any relevant local references
+- existing `SKILL.md` files and relevant supporting references
 - pressure-test scenarios
 
 **Optional**
-- prior review findings or optimization notes about the target skill definitions
+- prior findings or optimization notes about the target skill definitions
 
 ## Outputs
 **Allowed writes**
 - new or revised `SKILL.md` files
-- pressure-test logs or creation logs defined by the local author references
+- updated supporting author or reference artifacts required for the skill definition
+- pressure-test logs or creation logs
 - `.beads/STATE.json` only if this meta-work is being routed back through beo state
 - `.beads/HANDOFF.json` only when checkpoint or resume protocol requires it
 
@@ -40,9 +42,11 @@ Create, refine, and pressure-test beo skill definitions so the system stays cohe
 - onboarding bootstrap state except through `beo-onboard`
 
 ## Boundary rules
-- Author owns beo skill-definition quality, not feature work.
-- Author must not execute product-feature requirements, planning, validation, execution, review, debugging, or learning work.
-- Author uses pressure tests to prove boundaries instead of compensating with vague instructions.
+- Author owns skill creation and modification only.
+- Author must not perform product feature work, execute operational pipeline phases on behalf of delivery skills, or do onboarding except by routing to `beo-onboard`.
+- Author must not substitute for route, explore, plan, validate, execute, review, debug, compound, dream, or onboard in live delivery.
+- Author must remove overlap through explicit contract clarity rather than vague instructions.
+- Author must not leave hidden dependencies or undefined contracts in authored skills.
 
 ## Minimum hard gates
 - **CANONICAL-CONTRACT-COMPLETE** — Every authored skill must define purpose, inputs, outputs, boundaries, minimum hard gates, references, and handoff behavior.

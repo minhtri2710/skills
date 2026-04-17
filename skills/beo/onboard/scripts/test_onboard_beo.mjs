@@ -116,7 +116,9 @@ test('installed beo_status script reports onboarding, state, and optional handof
         skill: 'beo-execute',
         feature: 'br-123',
         feature_name: 'status-check',
-        next_action: 'Resume the worker loop',
+        next: 'beo-execute',
+        reason: 'execution-checkpoint',
+        content: 'Resume the worker loop',
         in_flight_beads: ['br-123.1'],
         timestamp: '2026-04-07T00:00:00.000Z',
       },
@@ -138,6 +140,9 @@ test('installed beo_status script reports onboarding, state, and optional handof
   assert.equal(status.state_json.status, 'needs-onboarding')
   assert.equal(status.handoff.exists, true)
   assert.equal(status.handoff.skill, 'beo-execute')
+  assert.equal(status.handoff.next, 'beo-execute')
+  assert.equal(status.handoff.reason, 'execution-checkpoint')
+  assert.equal(status.handoff.content, 'Resume the worker loop')
   assert.ok(status.next_reads.includes('AGENTS.md'))
   assert.ok(status.next_reads.includes('.beads/STATE.json'))
   assert.ok(status.next_reads.includes('.beads/HANDOFF.json'))

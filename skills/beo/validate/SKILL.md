@@ -1,7 +1,8 @@
 ---
 name: beo-validate
 description: |
-  Use when current-phase planning artifacts exist and execution readiness needs a binary gate before implementation begins. Validate reads the locked context, current-phase contract, story map, and current-phase bead graph, then either approves execution or returns an ordered remediation list. Only validate may add the `approved` label. Do not use to repair planning artifacts, write code, review completed work, or diagnose blockers.
+  Decide whether the current phase is executable by checking the locked context, current-phase contract, story map, and bead graph for pre-execution completeness. Use it only for the readiness gate and execution-mode selection, not for repairing the plan or implementing the work.
+
 ---
 
 > **HARD-GATE: ONBOARDING** — Before any work, verify `br` and `bv` are accessible and `.beads/` is initialized (`beo-reference` → `references/shared-hard-gates.md`). If stale or missing, load `beo-onboard` and stop.
@@ -11,30 +12,30 @@ description: |
 # beo-validate
 
 ## Atomic purpose
-Gate current-phase execution readiness with one decision: approve or remediate.
+Gate execution readiness only.
 
 ## When to use
-- current-phase planning artifacts are present and execution must be approved or rejected
-- approved scope may have become stale and needs a fresh gate
-- quick-path intake has produced the minimum planning artifacts required for validation
+- current-phase planning artifacts exist and execution readiness must be checked
+- an earlier approval may be stale and needs a fresh gate
+- the next step depends on whether the current phase is sufficiently specified to implement
 
 ## Inputs
 **Required**
 - locked `.beads/artifacts/<feature_slug>/CONTEXT.md`
 - current-phase `.beads/artifacts/<feature_slug>/phase-contract.md`
 - current-phase `.beads/artifacts/<feature_slug>/story-map.md`
-- current-phase bead graph and details from `br` / `bv`
+- current-phase bead graph and bead details from `br` and `bv`
 
 **Optional**
-- `.beads/artifacts/<feature_slug>/plan.md`
-- `.beads/artifacts/<feature_slug>/approach.md`
+- supporting planning artifacts when needed
 
 ## Outputs
 **Allowed writes**
 - `approved` label management on the active epic
+- one readiness verdict: approved or remediation required
+- ordered remediation list in the validation response
 - `.beads/STATE.json`
 - `.beads/HANDOFF.json` only when checkpoint or resume protocol requires it
-- ordered remediation report in the validation response
 
 **Must not write**
 - planning artifacts
@@ -42,9 +43,10 @@ Gate current-phase execution readiness with one decision: approve or remediate.
 - implementation code
 
 ## Boundary rules
-- Validate is a read-only gate over current-phase planning quality.
-- Validate does not repair failures itself; it only decides readiness.
-- Validate owns the execution-readiness decision and validates only the current phase.
+- Validate owns the pre-execution correctness gate only.
+- Validate must not repair or rewrite planning artifacts, bead specs, or dependencies.
+- Validate must not write code, coordinate execution, perform post-execution review, or debug failures.
+- Validate decides readiness for the current phase only.
 
 ## Minimum hard gates
 - **READ-ONLY-VALIDATION** — The only mutable state owned here is approval state and canonical handoff state.
@@ -74,7 +76,7 @@ Gate current-phase execution readiness with one decision: approve or remediate.
 ## Handoff and exit
 - Forward handoff: `beo-execute` or `beo-swarm` after approval
 - Backward handoff: `beo-plan` for remediation
-- Pause: `ReturnToUser(...)` when explicit execution approval is required
+- Pause: `next: "user"` when explicit execution approval is required
 - Validate never repairs artifacts itself.
 
 ## Context budget

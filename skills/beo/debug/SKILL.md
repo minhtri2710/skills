@@ -1,7 +1,8 @@
 ---
 name: beo-debug
 description: |
-  Use when a concrete blocker or failure is stopping execution or review and the cause is not obvious enough for execute’s local retry loop. Debug isolates root cause, applies the smallest unblock when appropriate, verifies the result, and returns control to the correct origin or upstream back-edge. Do not use for normal execution retries, requirements clarification, general quality review, or long-term learning synthesis.
+  Isolate one non-obvious blocker that is stopping execution or review, then apply the smallest verified unblock or route back with root-cause evidence. Use it only for concrete diagnosis-driven unblock work, not for normal feature implementation or general review.
+
 ---
 
 > **HARD-GATE: ONBOARDING** — Before any work, verify `br` and `bv` are accessible and `.beads/` is initialized (`beo-reference` → `references/shared-hard-gates.md`). If stale or missing, load `beo-onboard` and stop.
@@ -11,29 +12,30 @@ description: |
 # beo-debug
 
 ## Atomic purpose
-Diagnose one non-obvious blocker and either unblock it minimally or route it back with verified evidence.
+Diagnose one blocker and unblock it minimally.
 
 ## When to use
-- execute or swarm encountered a blocker that is not solvable via an obvious local retry
-- review or execution needs a verified root-cause determination before the pipeline can proceed
-- a standalone debug request clearly targets a specific failure rather than open-ended feature work
+- execution or review is blocked by a failure that is not solvable through an obvious local retry
+- the pipeline needs verified root-cause analysis before work can proceed
+- a standalone request clearly targets a specific failure rather than open-ended feature delivery
 
 ## Inputs
 **Required**
 - failure or blocker identifier
-- failure evidence: logs, errors, comments, or reproduction state
-- origin skill / return target from canonical state when available
-- relevant code or artifacts needed to diagnose the issue
+- failure evidence such as logs, errors, comments, or reproduction state
+- origin skill and return target when available
+- relevant code and artifacts needed for diagnosis
 
 **Optional**
-- bead ID and current execution status
-- existing debug comments or prior failed attempts
+- bead ID and current execution state
+- existing debug history
 
 ## Outputs
 **Allowed writes**
+- root-cause determination
 - minimal unblock fix when the issue is local and bounded
 - verification evidence
-- blocker / resolution comments
+- blocker or resolution comments
 - `.beads/STATE.json`
 - `.beads/HANDOFF.json` only when checkpoint or resume protocol requires it
 
@@ -43,9 +45,10 @@ Diagnose one non-obvious blocker and either unblock it minimally or route it bac
 - review or learning artifacts
 
 ## Boundary rules
-- Debug owns non-obvious diagnosis and minimal unblock work.
-- Debug does not absorb normal execution work, planning, review, or learning capture.
-- If the root cause invalidates upstream scope or planning, debug reports that and routes back; it does not silently redesign the work.
+- Debug owns diagnosis-driven unblock work only.
+- Debug must not absorb normal implementation work, redesign requirements or plans except by routing back with evidence, perform general quality review, or extract or consolidate learnings.
+- Debug must preserve the correct return path to the originating skill.
+- Debug must not continue once the blocker is resolved or escalated.
 
 ## Minimum hard gates
 - **ORIGIN-TRACKING** — Preserve or recover the correct return target via the canonical state protocol.

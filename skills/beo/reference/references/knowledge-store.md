@@ -1,6 +1,6 @@
 # Knowledge Store Protocol
 
-Shared protocol for reading and writing project learnings. Used by `beo-compound`, `beo-debug`, `beo-dream`, `beo-explore`, `beo-plan`, and `beo-route`.
+Shared protocol for reading and writing project learnings. Use it only from skills that explicitly call for learnings lookup or learnings writes, such as `beo-compound`, `beo-debug`, `beo-dream`, `beo-explore`, and `beo-plan`.
 
 **Preference order:** `.beads/learnings/` and `.beads/critical-patterns.md` are the canonical durable write surfaces. For reads, **prefer Obsidian CLI and QMD when available**; fall back to flat-file search only when they are unavailable.
 
@@ -16,7 +16,7 @@ Shared protocol for reading and writing project learnings. Used by `beo-compound
 
 ## Tool Detection
 
-Run at Phase 0 of any skill that uses the knowledge store:
+Run only when the active skill or task explicitly needs knowledge-store lookup or learnings writes:
 
 ```bash
 obsidian help 2>/dev/null   # Check Obsidian CLI availability
@@ -29,7 +29,7 @@ Both tools are optional on writes. On reads, prefer them and fall back to flat-f
 
 Learnings write governance:
 - redact or generalize PII, secrets, customer data, internal URLs, and credentials before any write
-- never append to `.beads/critical-patterns.md` without explicit user approval per `approval-gates.md`
+- never write to `.beads/critical-patterns.md` without explicit user approval per `approval-gates.md`
 - refresh QMD after writes when available so later reads see the latest state
 
 ### Canonical: Flat Files
@@ -54,10 +54,10 @@ Use the `silent` flag to avoid interactive prompts. The vault copy is a convenie
 
 ### Critical Patterns
 
-`.beads/critical-patterns.md` is the distilled subset of learnings that every planning and exploring Phase 0 reads. Promote patterns here only when they are supported by multi-feature evidence and explicit approval (see `beo-dream` and `approval-gates.md`).
+`.beads/critical-patterns.md` is the distilled subset of learnings that planning, exploration, validation, debugging, or dream work may read when relevant. `beo-compound` may promote feature-backed reusable patterns here after review acceptance and explicit approval, and `beo-dream` may later consolidate or retire them during long-horizon maintenance (see `beo-compound`, `beo-dream`, and `approval-gates.md`).
 
 ```bash
-# Canonical: use your file editing tool to append to .beads/critical-patterns.md
+# Canonical: use your file editing tool to update .beads/critical-patterns.md
 
 # Optional mirror: Obsidian vault append
 obsidian append "beo-learnings/critical-patterns.md" --content "<pattern>" --silent 2>/dev/null  # Vault mirror only; canonical repo path remains .beads/critical-patterns.md
@@ -136,5 +136,5 @@ This is safe even when QMD is unavailable because `2>/dev/null` suppresses error
 | **Write learnings** | Write to `.beads/learnings/` using file writing tool | N/A (always write to canonical) | N/A |
 | **Mirror learnings** | N/A | N/A | Mirror to Obsidian vault via `obsidian create/append` |
 | **Read learnings** | N/A | `qmd query/search` + Obsidian vault search | Read `.beads/learnings/` using file reading and content search tools |
-| **Critical patterns** | Append to `.beads/critical-patterns.md` | Same file (always read directly) | Same file |
+| **Critical patterns** | Write to `.beads/critical-patterns.md` | Same file (always read directly) | Same file |
 | **Dedup check** | N/A | `qmd query "<title>"` | Search `.beads/learnings/` for `<title>` using content search tool |

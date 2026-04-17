@@ -1,7 +1,8 @@
 ---
 name: beo-plan
 description: |
-  Use when `CONTEXT.md` is locked and the work needs technical design and current-phase decomposition. Plan reads the codebase, selects the implementation approach, writes planning artifacts, and creates the current-phase execution contract and bead graph. Do not use while requirements are still ambiguous, when only execution readiness must be checked, or for implementation, review, debugging, or learning work.
+  Convert a locked `CONTEXT.md` into the current-phase solution design and execution contract when implementation needs an explicit technical plan. Use it only for solution design and current-phase decomposition; not for relocking requirements or approving execution.
+
 ---
 
 > **HARD-GATE: ONBOARDING** — Before any work, verify `br` and `bv` are accessible and `.beads/` is initialized (`beo-reference` → `references/shared-hard-gates.md`). If stale or missing, load `beo-onboard` and stop.
@@ -11,44 +12,46 @@ description: |
 # beo-plan
 
 ## Atomic purpose
-Convert one locked feature into technical design artifacts and a current-phase bead plan.
+Design the solution and specify the current phase.
 
 ## When to use
-- `CONTEXT.md` is locked and technical design must be chosen
-- later phases remain and the next current phase must be prepared
-- validation or execution invalidated approved scope and the work must be replanned
+- `CONTEXT.md` is locked and the work needs technical design
+- the next current phase must be prepared for validation and execution
+- approved or planned work must be replanned because the solution definition changed
 
 ## Inputs
 **Required**
 - `.beads/artifacts/<feature_slug>/CONTEXT.md`
 - relevant codebase context
-- feature identifier / slug
+- feature slug or identifier
 
 **Optional**
-- existing planning artifacts for the same feature
-- current bead graph and epic state from `br` / `bv`
+- existing planning artifacts for the feature
+- current bead graph and epic state from `br` and `bv`
 
 ## Outputs
 **Allowed writes**
 - `.beads/artifacts/<feature_slug>/discovery.md`
 - `.beads/artifacts/<feature_slug>/approach.md`
 - `.beads/artifacts/<feature_slug>/plan.md`
-- `.beads/artifacts/<feature_slug>/phase-plan.md` when multi-phase work is required
+- `.beads/artifacts/<feature_slug>/phase-plan.md` when needed
 - `.beads/artifacts/<feature_slug>/phase-contract.md`
 - `.beads/artifacts/<feature_slug>/story-map.md`
 - current-phase beads and dependency wiring via `br`
+- removal of stale `approved` state when replanning invalidates a prior approval cycle
 - `.beads/STATE.json`
 - `.beads/HANDOFF.json` only when checkpoint or resume protocol requires it
 
 **Must not write**
 - implementation code
-- validation verdicts or `approved` labels
+- validation verdicts or approval state except by routing onward
 - review or learning artifacts
 
 ## Boundary rules
-- Plan owns technical design and decomposition for the current phase.
-- Plan does not gather requirements, approve execution, coordinate workers, implement code, review outcomes, debug blockers, or write learnings.
-- Multi-phase planning is allowed, but only the current phase gets executable beads.
+- Plan owns solution design only.
+- Plan must not define or relock requirements except by routing back to `beo-explore`.
+- Plan must create only current-phase executable specifications.
+- Plan must not validate or approve work, implement code, review outcomes, debug blockers, or write learnings.
 
 ## Minimum hard gates
 - **LOCKED-CONTEXT-REQUIRED** — Start only from a fully locked `CONTEXT.md`.
@@ -87,7 +90,7 @@ Convert one locked feature into technical design artifacts and a current-phase b
 ## Handoff and exit
 - Normal forward handoff: `beo-validate`
 - Normal backward handoff: `beo-explore` when locked requirements prove insufficient or contradictory
-- Planning pauses with `ReturnToUser(...)` when explicit planning approval is required
+- Planning pauses with `next: "user"` when explicit planning approval is required
 - Plan never starts validation itself; it writes state and yields.
 
 ## Context budget

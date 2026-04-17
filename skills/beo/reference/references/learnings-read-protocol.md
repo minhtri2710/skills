@@ -1,24 +1,24 @@
 # Learnings Read Protocol
 
-Canonical protocol for reading prior learnings and critical patterns before planning, validation, debugging, dreaming, or other knowledge-sensitive work.
+Canonical protocol for reading prior learnings and critical patterns before planning, debugging, dreaming, or other explicitly knowledge-sensitive work that cites this reference.
 
 ## Why This Exists
 
-Many beo skills need the same behavior:
+Some beo skills need the same behavior:
 - query indexed learnings with QMD and Obsidian when available
 - read `.beads/critical-patterns.md`
 - fall back to flat-file search only when richer tools are unavailable
 
 This file centralizes that read-side behavior.
 
-`beo-compound` is the primary write-side producer for the learnings files and critical patterns this protocol reads.
+`beo-compound` is the primary write-side producer for feature learnings and initial critical-pattern entries, while `beo-dream` consolidates that shared guidance over time.
 
-## Mandatory Read-Side Workflow
+## Read-Side Workflow
 
-### 1. Read Critical Patterns
+### 1. Read Critical Patterns When Relevant
 
-1. Read `.beads/critical-patterns.md` with your file reading tool. Skip if absent.
-2. Treat relevant entries as mandatory context.
+1. Read `.beads/critical-patterns.md` with your file reading tool when the current skill explicitly cites this protocol or the request is likely to repeat prior patterns. Skip if absent.
+2. Treat relevant entries as mandatory context once loaded.
 
 ### 2. Query Indexed Learnings (Preferred Path)
 
@@ -51,6 +51,6 @@ To detect optional tooling first, see `knowledge-store.md` § Tool Detection.
 
 - `.beads/learnings/` and `.beads/critical-patterns.md` remain the authoritative write surfaces.
 - **QMD and Obsidian are the preferred read path** when available; flat-file search is the fallback.
-- Critical patterns must always be checked (Step 1), even when QMD returns results.
+- Skills that explicitly cite this protocol should check critical patterns before concluding that no prior guidance applies.
 - If a learning is relevant, incorporate it explicitly rather than silently noting it.
-- Do not skip prior learnings for "obvious" work; that is how repeat failures happen.
+- Do not turn this protocol into a universal preflight for unrelated skills.

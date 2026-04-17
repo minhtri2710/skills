@@ -1,7 +1,8 @@
 ---
 name: beo-reference
 description: |
-  Use when another beo skill needs one specific canonical support document such as a protocol, contract, convention, gate, status map, scheduling rule, recovery rule, knowledge-store rule, communication standard, or CLI reference. Reference resolves and exposes only the targeted file. Do not use as a pipeline phase, routing target, or behavioral skill.
+  Provide one targeted canonical beo reference document when another skill needs a specific shared protocol, convention, CLI rule, or system-wide standard.
+
 ---
 
 # beo-reference
@@ -11,15 +12,19 @@ Canonical shared reference corpus for beo skills.
 This skill is lookup-only. It exists so other beo skills can cite `beo-reference` → `references/<file>` and load exactly the protocol document they need.
 
 ## Atomic purpose
-Provide one targeted canonical reference document to a beo skill.
+Expose one authoritative reference, read-only.
+
+## When to use
+- another beo skill needs one specific shared protocol, rule, convention, contract, or CLI reference
+- authoritative guidance is required without any behavioral work or state changes
 
 ## Inputs
 **Required**
-- the specific reference document path or name needed by the calling skill
+- one explicit reference request identifying the needed document
 
 ## Outputs
 **Allowed reads only**
-- targeted reference resolution from `references/<file>`
+- the targeted reference document from `references/<file>`
 
 **Must not write**
 - `STATE.json`
@@ -28,9 +33,10 @@ Provide one targeted canonical reference document to a beo skill.
 - implementation code
 
 ## Boundary rules
-- `beo-reference` is not a routing destination.
-- `beo-reference` does not make decisions, write state, edit artifacts, or perform feature work.
-- Callers should load only the specific reference file they need, not the full corpus.
+- `beo-reference` is read-only and is not a routing destination.
+- `beo-reference` must not make decisions, write state, edit artifacts, or execute feature work.
+- Callers must load only the specific reference file they need, not the full corpus.
+- `beo-reference` must not function as an operational skill.
 
 ## Reference index
 ### CLI references

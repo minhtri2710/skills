@@ -61,8 +61,8 @@ Checklist:
 - Format every bead description as Markdown.
 - Exempt reactive fix beads created by `beo-review` or `beo-debug` from Story Context.
 - Keep reactive fix beads on the shared reactive template.
-- Use the Planned Task Bead Template for instant-path beads created by `beo-route`.
-- Allow abbreviated Story Context for instant-path beads.
+- Use the Planned Task Bead Template for normal planned execution beads.
+- Use the abbreviated Story Context only where the referenced bead template explicitly allows it.
 
 ```bash
 # Write spec
@@ -205,12 +205,13 @@ See `pipeline-contracts.md` → **Feature Slug** for derivation rules and invari
 
 ### When To Create
 
-Only the router creates the slug, at epic creation time.
+Create the slug during new-feature intake when the active feature epic is first created and before feature artifacts or learnings depend on it.
 
 ### Creation Procedure
 
-1. Derive the slug from the epic title using the pipeline-contract rules.
-2. Write it as the first line of the epic description.
+1. Create the feature epic during intake if it does not already exist.
+2. Derive the slug from the epic title using the pipeline-contract rules.
+3. Write it as the first line of the epic description.
 
 ```bash
 br update <EPIC_ID> --description "slug: <feature_slug>"
@@ -290,7 +291,7 @@ Store all feature artifacts under:
 .beads/artifacts/<feature_slug>/
 ```
 
-`<feature_slug>` is the immutable slug created by the router.
+`<feature_slug>` is the immutable slug recorded on the epic description.
 
 See `pipeline-contracts.md` → Feature Slug for derivation rules.
 
@@ -335,19 +336,19 @@ See `state-and-handoff-protocol.md` → Planning-Aware Field Transition Cleanup 
 |------|-----------|---------|---------|
 | `.beads/artifacts/<feature_slug>/review-findings.md` | beo-review | beo-compound | P1/P2/P3 severity findings from specialist reviewers for one feature |
 | `.beads/learnings/YYYYMMDD-<feature_slug>.md` | beo-compound | all skills when relevant | Finalized learnings from one completed feature |
-| `.beads/critical-patterns.md` | beo-dream | beo-explore, beo-plan, beo-validate, beo-debug, beo-dream | Promoted high-value patterns consolidated from multiple features with explicit approval |
+| `.beads/critical-patterns.md` | beo-compound, beo-dream | beo-explore, beo-plan, beo-validate, beo-debug, beo-dream | Promoted reusable patterns and long-horizon consolidated guidance with explicit approval |
 
 ### Knowledge Store
 
 Use this canonical knowledge-store order:
 
 1. Flat files under `.beads/learnings/` and `.beads/critical-patterns.md` (authoritative)
-2. QMD retrieval over indexed learnings (optional enhancement)
-3. Obsidian CLI reads/writes in the vault (optional mirror)
+2. QMD retrieval over indexed learnings for preferred read-side lookup when available
+3. Obsidian CLI reads/writes in the vault (optional mirror or read enhancement)
 
 | Operation | Canonical | Optional enhancement |
 |-----------|-----------|----------------------|
 | Write learnings | Flat file to `.beads/learnings/` | Mirror to Obsidian vault via `obsidian create/append` |
-| Search learnings | `grep` over `.beads/learnings/` and `.beads/critical-patterns.md` | QMD query/search plus vault context |
+| Search learnings | QMD query/search plus direct read of `.beads/critical-patterns.md` when available | Flat-file content search over `.beads/learnings/` and `.beads/critical-patterns.md` |
 
 See `knowledge-store.md` for full integration details.

@@ -118,7 +118,7 @@ If both write surfaces are available and a vault copy is useful, mirror the fina
 qmd update 2>/dev/null && qmd embed 2>/dev/null
 ```
 
-A feature learning may note candidate reusable patterns, including severe ones, but compound does not promote or append anything to `.beads/critical-patterns.md`. Cross-feature promotion belongs to `beo-dream` after explicit evidence-backed consolidation.
+A feature learning may promote reusable patterns from the accepted feature into `.beads/critical-patterns.md`, but only after explicit approval and only when the pattern is traceable to that feature's evidence. Long-horizon merging, retirement, and corpus-wide consolidation remain owned by `beo-dream`.
 
 ## 4. State Update and Checkpointing
 

@@ -23,7 +23,7 @@ br dep list <EPIC_ID> --direction up --type parent-child --json
 Read these artifacts with your file reading tool:
 
 - `.beads/artifacts/<feature_slug>/CONTEXT.md` (required)
-- `.beads/artifacts/<feature_slug>/plan.md` (required)
+- `.beads/artifacts/<feature_slug>/plan.md` (optional but useful when it exists)
 - `.beads/artifacts/<feature_slug>/approach.md` (optional but strongly recommended when it exists)
 - `.beads/artifacts/<feature_slug>/phase-plan.md` (optional)
 - `.beads/artifacts/<feature_slug>/phase-contract.md` (required)
@@ -41,7 +41,7 @@ br dep list <EPIC_ID> --direction up --type parent-child --json
 | --- | --- |
 | Open/in-progress tasks | Route back to `beo-execute` |
 | Cancelled/failed tasks | Pause and present options: re-queue, accept, or re-plan |
-| Missing required artifacts (`plan.md`, `phase-contract.md`, `story-map.md`) | Route to planning |
+| Missing required artifacts (`phase-contract.md`, `story-map.md`) | Route to planning |
 | Blocked/partial tasks | Use approval rules in `beo-reference` → `references/approval-gates.md` |
 | Multi-phase | See `beo-reference` → `references/shared-hard-gates.md` § Multi-Phase Completion Routing |
 
@@ -103,7 +103,11 @@ For each locked decision and each exit-state line:
 
 ## 5. Completion Handoff
 
-After all P1 issues are resolved and UAT is complete:
+After aggregation, write `review-findings.md` and emit exactly one verdict.
+
+### `accept`
+
+After all P1 issues are resolved and any required UAT is complete:
 
 1. run full build/test/lint
 2. write review comments to the epic with severity labels and concrete fixes
@@ -112,7 +116,24 @@ After all P1 issues are resolved and UAT is complete:
 5. write a fresh `.beads/STATE.json` using `beo-reference` → `references/state-and-handoff-protocol.md`; set `status: "learnings-pending"` and `next: "beo-compound"`; include planning-aware fields when known
 6. remove `.beads/HANDOFF.json` only after the fresh state write succeeds
 
-Close the epic before writing learnings-pending state. Compounding rejects an open epic.
+Close the epic before writing learnings-pending state.
+
+### `fix`
+
+1. run the review-specific verification needed to support the finding set
+2. write review comments and `.beads/artifacts/<feature_slug>/review-findings.md`
+3. remove `approved` if the work is routing backward per `approval-gates.md`
+4. write `.beads/STATE.json` for the canonical reactive-fix or backward path
+
+Do not close the epic on `fix`.
+
+### `reject`
+
+1. write review comments and `.beads/artifacts/<feature_slug>/review-findings.md`
+2. remove `approved`
+3. write `.beads/STATE.json` for `beo-plan`
+
+Do not close the epic on `reject`.
 
 ## 6. Quick Mode
 

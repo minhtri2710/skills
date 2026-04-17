@@ -1,7 +1,8 @@
 ---
 name: beo-onboard
 description: |
-  Use when beo tooling, bootstrap files, or repository operating state are missing, stale, or must be verified before any other beo skill can run safely. Onboard checks required tooling, creates only missing bootstrap structure, safely updates shared onboarding guidance when necessary, and reports readiness. Do not use for feature delivery, routing logic, or destructive rewrites of existing repo state.
+  Verify and minimally repair beo operating readiness when required tooling, bootstrap files, directories, or shared hard-gate prerequisites are missing, stale, or invalid. Use it only for beo environment/bootstrap readiness, not for product delivery, routing decisions, or general project setup.
+
 ---
 
 > **HARD-GATE: IDEMPOTENT** — Onboard is safe to re-run. It checks existing state first and only creates or updates the minimum missing bootstrap state.
@@ -11,27 +12,28 @@ description: |
 # beo-onboard
 
 ## Atomic purpose
-Bring the repository into a valid beo operating state with minimal safe changes.
+Establish safe beo readiness.
 
 ## When to use
-- `.beads/` bootstrap state is missing or stale
-- required beo tooling is missing, outdated, or unverified
+- required beo bootstrap files or directories are missing or stale
+- required beo tooling or runtime prerequisites are missing, outdated, or unverified
 - another beo skill cannot safely start until environment readiness is confirmed
 
 ## Inputs
 **Required**
 - repository root state
-- installed tool versions for Node, `br`, and `bv`
+- required tool availability and versions
 - existing `.beads/` structure and onboarding artifacts when present
 
 **Optional**
 - existing `AGENTS.md`
-- repo-specific bootstrap templates or scripts referenced by local onboarding docs
+- repo-specific bootstrap templates or scripts referenced by onboarding docs
 
 ## Outputs
 **Allowed writes**
-- missing beo bootstrap directories / files
-- safe updates to `AGENTS.md` when onboarding guidance must be merged
+- readiness result
+- missing bootstrap files or directories created only as needed
+- safe onboarding guidance merges when explicitly required
 - `.beads/STATE.json`
 - `.beads/HANDOFF.json` only when checkpoint or resume protocol requires it
 
@@ -41,9 +43,10 @@ Bring the repository into a valid beo operating state with minimal safe changes.
 - destructive overwrites of user-authored content
 
 ## Boundary rules
-- Onboard owns environment and bootstrap readiness only.
-- Onboard does not perform routing, requirements, planning, validation, execution, review, debugging, learning, or authoring work.
-- Onboard should make the smallest safe change that enables the rest of the beo system to function.
+- Onboard owns environment and bootstrap validation only.
+- Onboard must not act as general project setup, perform routing or feature delivery work, create feature artifacts, implement code, review work, debug blockers, extract learnings, or author skills.
+- Onboard should make only the smallest safe changes needed for beo readiness.
+- Onboard must not overwrite user-authored content destructively.
 
 ## Minimum hard gates
 - **TOOLING-VERIFICATION** — Confirm the required toolchain and minimum versions before continuing.
@@ -53,7 +56,7 @@ Bring the repository into a valid beo operating state with minimal safe changes.
 
 ## Default loop
 1. Inspect the repo for beo bootstrap readiness and current onboarding artifacts.
-2. Verify Node, `br`, and `bv` against the onboarding requirements.
+2. Verify the runtime and tooling prerequisites required by onboarding, including Node for the local onboarding scripts plus `br` and `bv`.
 3. If tooling is missing or too old, report the exact gap and stop.
 4. Summarize the minimum bootstrap changes required and obtain any needed approval.
 5. Create only the missing beo structure and safely merge shared onboarding guidance when necessary.

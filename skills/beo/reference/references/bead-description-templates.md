@@ -1,86 +1,62 @@
 # Bead Description Templates
 
-## Contents
+Canonical Markdown templates for beo task descriptions.
 
-- [Rules](#rules)
+## Table of Contents
+
 - [Planned Task Bead Template](#planned-task-bead-template)
 - [Reactive Fix Bead Template](#reactive-fix-bead-template)
 - [Follow-Up Bead Template](#follow-up-bead-template)
 
-Shared templates for all bead description types in the Beo workflow. Use these templates as the single source of truth whenever a skill creates or updates bead descriptions.
+## Usage Rules
 
-## Rules
-
-- Every bead description must be written in Markdown format.
-- Keep file paths exact and verification steps runnable.
 - Planned execution beads use the **Planned Task Bead Template**.
-- Reactive fix beads use the **Reactive Fix Bead Template**.
-- Review/debugging follow-up beads use the **Follow-Up Bead Template**.
-
----
+- Reactive repair work uses the **Reactive Fix Bead Template**.
+- Review/debug follow-up work uses the **Follow-Up Bead Template**.
+- Keep bead descriptions self-sufficient enough that a fresh worker can act from the bead plus referenced artifacts.
+- Do not duplicate whole artifacts into the bead when references are sufficient.
 
 ## Planned Task Bead Template
 
-Use for beads created during `beo-plan` and other planned execution paths.
+Use for normal planned execution beads created during planning.
 
 ```markdown
-## Story Context
-
-Story: <Story Name>
-Purpose: <what this story makes true>
-Contributes To: <phase exit-state statement>
-Unlocks: <what the next story or phase can now do>
-
-## Planning Context
-
-From plan.md: <specific approach decision that applies here>
-
-## Decisions
-
-Locked decisions from CONTEXT.md that constrain this bead:
-- D<N>: <decision summary>
-
-If none apply:
-- No locked decisions constrain this bead.
-
-## Institutional Learnings
-
-From .beads/learnings/<file> or .beads/critical-patterns.md:
-- <key gotcha or pattern>
-
-If none apply:
-- No prior learnings for this domain.
-
 ## Objective
 
-<what this bead is responsible for delivering>
+<specific deliverable for this bead>
+
+## Story Context
+
+- Story: <story name>
+- Why this exists now: <current-phase reason>
 
 ## Files
 
 - <exact file path>
 - <exact file path>
 
-## Steps
+## Implementation
 
-1. <implementation step>
-2. <implementation step>
-3. <implementation step>
+- <required change>
+- <required change>
+
+## Acceptance Criteria
+
+- <observable condition>
+- <observable condition>
 
 ## Verification
 
-- <runnable check>
-- <test command>
-- <observable result>
+- <command or check>
+- <command or check>
 
-## Rollback
+## References
 
-<only required for HIGH-risk beads: how to revert safely if this work fails>
+- `CONTEXT.md`: <relevant decision IDs or sections>
+- `<artifact>`: <relevant section>
 ```
 
-### Notes
-
-- `## Rollback` is required only for HIGH-risk planned beads.
-- Include `## Decisions` with relevant D-IDs when `CONTEXT.md` has a Locked Decisions table.
+Checklist:
 - Do not copy all of `CONTEXT.md` into the bead. Reference the relevant decision(s).
 - Write the bead so a fresh worker can build from it alone.
 
@@ -88,7 +64,7 @@ If none apply:
 
 ## Reactive Fix Bead Template
 
-Use for beads created by `beo-review`, `beo-debug`, or reactive repair flows, including router instant-path fixes. These beads do not need Story Context but still require a complete Markdown spec.
+Use for beads created by `beo-review`, `beo-debug`, or other canonical reactive repair flows. These beads do not need Story Context but still require a complete Markdown spec.
 
 ```markdown
 ## Objective
@@ -102,65 +78,56 @@ Use for beads created by `beo-review`, `beo-debug`, or reactive repair flows, in
 
 ## What To Fix
 
-- <failing behavior>
-- <root cause>
-- <constraints or non-goals>
+- <broken behavior>
+- <required correction>
+
+## Acceptance Criteria
+
+- <condition proving the defect is fixed>
+- <condition proving no intended scope drift>
 
 ## Verification
 
-- <runnable check>
-- <test command>
-- <observable result>
+- <command or check>
+- <command or check>
+
+## Traceability
+
+- Origin bead: <bead id>
+- Trigger: <review finding or debug root cause>
 ```
-
-### Notes
-
-- Keep the scope narrow and directly tied to the defect.
-- Prove the bug is fixed, not just that the code changed.
 
 ---
 
 ## Follow-Up Bead Template
 
-Use for independent follow-up beads created from review findings, deferred UAT adjustments, or non-blocking improvements.
+Use for non-blocking review/debug follow-up work that is intentionally deferred.
 
 ```markdown
-## External Reference
+## Objective
 
-- Epic: <EPIC_ID>
-- Source: <review finding | UAT note | debug note | other>
+<follow-up improvement>
 
-## Issue
+## Why Deferred
 
-<what was found or deferred>
-
-## Why Follow-Up
-
-<why this should not block the current epic, and why it still matters>
-
-## Expected Outcome
-
-<what should be true after this follow-up is completed>
+<why this is not blocking the current acceptance path>
 
 ## Files
 
-- <exact file path, if known>
-- <or write: To be determined during execution>
+- <exact file path>
+- <exact file path>
 
-## Suggested Next Steps
+## Acceptance Criteria
 
-1. <first action>
-2. <second action>
-3. <verification or handoff action>
+- <observable condition>
+- <observable condition>
 
 ## Verification
 
-- <runnable or observable check>
-- <success condition>
+- <command or check>
+- <command or check>
+
+## Traceability
+
+- Source: <review finding, debug note, or decision>
 ```
-
-### Notes
-
-- Follow-up beads are not children of the current epic unless explicitly re-planned.
-- If file scope is unknown, say so explicitly instead of guessing.
-- Include enough context for a future worker to act without reopening the full review.

@@ -1,7 +1,8 @@
 ---
 name: beo-review
 description: |
-  Use when all current-phase beads are terminal and the completed implementation needs a post-execution quality decision. Review runs the specialist review pass, writes `review-findings.md`, and emits exactly one verdict: `accept`, `fix`, or `reject`. Do not use before implementation completes, during active execution, for requirements or planning work, or to apply fixes directly.
+  Assess completed current-phase implementation against the locked contract and verification evidence after execution reaches canonical terminal states, then issue exactly one verdict: `accept`, `fix`, or `reject`. Use it only for post-execution quality decisions, not for coding fixes, replanning, or root-cause debugging.
+
 ---
 
 > **HARD-GATE: ONBOARDING** — Before any work, verify `br` and `bv` are accessible and `.beads/` is initialized (`beo-reference` → `references/shared-hard-gates.md`). If stale or missing, load `beo-onboard` and stop.
@@ -11,12 +12,12 @@ description: |
 # beo-review
 
 ## Atomic purpose
-Assess completed current-phase work and issue one post-implementation verdict.
+Make the post-execution quality decision.
 
 ## When to use
-- all current-phase beads are in canonical terminal states
-- execution has finished and quality must be assessed before compounding or rework
-- a reactive fix returned to review and the phase needs another review decision
+- current-phase execution has reached canonical terminal bead states
+- implementation is complete enough for post-execution quality assessment
+- a reactive fix has landed and the phase needs a fresh review decision
 
 ## Inputs
 **Required**
@@ -26,12 +27,15 @@ Assess completed current-phase work and issue one post-implementation verdict.
 - current-phase `.beads/artifacts/<feature_slug>/phase-contract.md`
 
 **Optional**
+- prior `.beads/artifacts/<feature_slug>/review-findings.md`
 - `.beads/artifacts/<feature_slug>/plan.md`
-- prior `review-findings.md` for resumed review work
+- `.beads/artifacts/<feature_slug>/approach.md`
+- `.beads/artifacts/<feature_slug>/phase-plan.md`
 
 ## Outputs
 **Allowed writes**
 - `.beads/artifacts/<feature_slug>/review-findings.md`
+- exactly one verdict: `accept`, `fix`, or `reject`
 - approval-label removal when verdict is `fix` or `reject`
 - `.beads/STATE.json`
 - `.beads/HANDOFF.json` only when checkpoint or resume protocol requires it
@@ -42,9 +46,10 @@ Assess completed current-phase work and issue one post-implementation verdict.
 - learnings artifacts
 
 ## Boundary rules
-- Review is a pure post-implementation gate.
-- Review does not edit code, debug root causes, redesign plans, or write learnings.
-- Review may specify remediation targets, but remediation work is performed elsewhere.
+- Review owns post-execution quality only.
+- Review must not edit code, redesign requirements or plans, diagnose root causes, or write learnings or consolidated patterns.
+- Review may specify remediation targets, but remediation work happens elsewhere.
+- Review must not emit multiple verdicts or vague remediation.
 
 ## Minimum hard gates
 - **ALL-BEADS-TERMINAL** — Start only when current-phase execution is complete enough to review.
@@ -77,7 +82,7 @@ Assess completed current-phase work and issue one post-implementation verdict.
 - `accept` → `beo-compound`
 - `fix` → `beo-execute` only when the reactive-fix contract permits it
 - `reject` → `beo-plan`
-- `ReturnToUser(...)` when explicit UAT confirmation is required
+- `next: "user"` when explicit UAT confirmation is required
 - Review stops after writing handoff state.
 
 ## Context budget

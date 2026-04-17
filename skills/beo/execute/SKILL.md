@@ -1,7 +1,8 @@
 ---
 name: beo-execute
 description: |
-  Use when exactly one approved bead is ready for implementation, either in single-worker mode or assigned by swarm. Execute claims the bead, makes only the required changes, runs the bead’s verification steps, and reports success or blocker. Only obvious local retries belong here; non-obvious diagnosis belongs to debug. Do not use for worker coordination, planning, validation, post-implementation review, or cross-feature learning work.
+  Implement exactly one approved ready bead, run its required verification, and report the result when scoped delivery work is ready to be performed or assigned by swarm. Use it only for bounded implementation delivery, not for planning, approval, multi-bead coordination, or diagnosis-heavy investigation.
+
 ---
 
 > **HARD-GATE: ONBOARDING** — Before any work, verify `br` and `bv` are accessible and `.beads/` is initialized (`beo-reference` → `references/shared-hard-gates.md`). If stale or missing, load `beo-onboard` and stop.
@@ -11,29 +12,29 @@ description: |
 # beo-execute
 
 ## Atomic purpose
-Implement, verify, and report exactly one approved bead.
+Deliver one approved implementation unit.
 
 ## When to use
 - a single approved ready bead must be executed
-- swarm assigned one specific bead to a worker
-- a reactive fix has already been judged safe for direct execution by the canonical pipeline contract
+- `beo-swarm` assigned one specific bead to a worker
+- an allowed reactive-fix path requires direct implementation work
 
 ## Inputs
 **Required**
-- one bead ID and its specification
-- acceptance criteria and verification steps for that bead
+- one bead ID and bead specification
+- acceptance criteria and verification steps
 - active epic approval state
 - relevant source files
 
 **Optional**
 - swarm assignment metadata
-- origin / return fields in `.beads/STATE.json` for reactive-fix execution
+- reactive-fix origin or return fields in `.beads/STATE.json`
 
 ## Outputs
 **Allowed writes**
-- implementation changes required by the assigned bead
+- implementation changes required for the assigned bead
 - verification evidence
-- bead comments / status updates allowed by `beo-reference` → `references/status-mapping.md`
+- allowed bead status updates and comments
 - `.beads/STATE.json`
 - `.beads/HANDOFF.json` only when checkpoint or resume protocol requires it
 
@@ -43,9 +44,10 @@ Implement, verify, and report exactly one approved bead.
 - review verdicts
 
 ## Boundary rules
-- Execute owns only one bead at a time.
-- Execute does not redesign scope, approve execution, coordinate multiple workers, perform post-phase review, or do broad root-cause analysis.
-- If the blocker is not obvious and local, execute stops escalating through the proper edge instead of guessing.
+- Execute owns scoped implementation delivery only, one bead at a time.
+- Execute must not redesign scope or plan, validate or approve work, coordinate multiple workers, perform diagnosis-heavy root-cause investigation beyond bounded local retries, or do post-execution review or learning extraction.
+- Execute must not work on more than one bead at a time.
+- When a blocker is not obvious and local, execute must stop and route through the canonical escalation path.
 
 ## Minimum hard gates
 - **APPROVED-ONLY** — Verify the active epic has the `approved` label before starting.

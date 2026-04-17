@@ -2,9 +2,7 @@
 
 Detailed operational playbook for `beo-route`.
 
-Load this file when you need exact bootstrap steps, new-feature creation details, quick-path scaffolding, resume validation, planning-aware routing, or doctor-mode commands.
-
-> **Intake scaffolding authorization:** The quick-path bootstrap steps in this file are a narrow exception to route's NO-IMPLEMENTATION gate. They are authorized only as intake scaffolding for new work: creating the epic/task structure, artifact directory, and minimal draft/stub artifacts that downstream skills will complete or overwrite.
+Load this file when you need exact bootstrap checks, intake classification rules, resume validation, planning-aware routing, or doctor-mode commands.
 
 ## Intent Short-Circuit Rule
 
@@ -16,13 +14,13 @@ Examples:
 
 If explicit user intent clearly selects one of these paths, honor it unless live state proves the request is impossible, stale, or aimed at the wrong feature.
 
-Conversational phrasing is **not** a valid short-circuit. Requests like "research X with me", "let's explore X", or "help me think through X" imply non-trivial work and must route through the state table normally — they are feature intake, not freeform chat. Only simple lookups, quick explanations, and single-fact questions may be answered directly.
+Conversational phrasing is **not** a valid short-circuit. Requests like "research X with me", "let's explore X", or "help me think through X" imply non-trivial work and must route through the state table normally. Route emits a next target only; if the session should pause for a human answer or a simple lookup, route must still emit `next: "user"` or `next: "done"` rather than answering directly.
 
 ## Table of Contents
 
 - [1. Workspace Bootstrap](#1-workspace-bootstrap)
-- [2. New Feature Creation](#2-new-feature-creation)
-- [3. Quick Path Scaffold](#3-quick-path-scaffold)
+- [2. New Feature Intake Classification](#2-new-feature-intake-classification)
+- [3. Quick Scope Handling](#3-quick-scope-handling)
 - [4. Artifact Inspection Order](#4-artifact-inspection-order)
 - [5. Planning-Aware Routing Rules](#5-planning-aware-routing-rules)
 - [6. Resume From Handoff](#6-resume-from-handoff)
@@ -47,161 +45,36 @@ qmd status 2>/dev/null
 
 If workspace repair is needed, use the doctor-mode commands in section 7 rather than treating bootstrap repair as normal routing work.
 
-## 2. New Feature Creation
+## 2. New Feature Intake Classification
 
-This section covers intake scaffolding for brand-new features, not general artifact creation during normal routing.
+Use this section to classify brand-new requests before deeper routing.
 
-### Create the Epic
+### New Debug Intake
 
-```bash
-br create "<feature-name>" -t epic -p 1 --json
-```
+If the request is clearly for root-cause analysis of a concrete failure, classify it as `new-debug-intake` and route to `beo-debug`.
 
-Save the returned epic ID for all downstream operations.
+Do not create epics, tasks, or artifacts in route. Any intake bootstrap required by the chosen downstream flow is owned downstream or must be surfaced as a user-facing prerequisite.
 
-### Debug Intake Bootstrap
+### New Feature Intake
 
-If the request matches the `new-debug-intake` route from the state table, create a minimal debug epic and one debug task bead before routing to `beo-debug`.
+If the request is feature delivery work, classify it as either:
+- `new-quick-intake` when it satisfies the quick-scope definition in `beo-reference` → `references/pipeline-contracts.md`
+- `new-feature-intake` otherwise
 
-```bash
-br create "Debug: <issue summary>" -t epic -p 1 --json
-br create "Investigate: <issue summary>" -t task --parent <EPIC_ID> -p 1 --json
-```
+Both classifications route to `beo-explore`. Route records the correct next target and stops; it does not create epics, tasks, slugs, or artifact directories. Feature-intake bootstrap belongs to the downstream intake skill.
 
-This gives `beo-debug` the epic/task context it needs for fix beads, debug labels, and comments.
+## 3. Quick Scope Handling
 
-### Store the Immutable Slug
+Quick scope is a routing signal, not a route-owned execution shortcut.
 
-Derive the `feature_slug` from the epic title using `beo-reference` → `references/artifact-conventions.md#slug-lifecycle`. Store it in the epic description with the canonical slug-first shape.
+When a request is quick-scoped:
+- preserve the `new-quick-intake` classification in `STATE.json`
+- route to `beo-explore`
+- let downstream skills decide how lightweight the requirement and planning artifacts can be while preserving canonical ownership
 
-## 3. Quick Path Scaffold
-
-Use for **quick** work only: single file change, well-scoped, <30 minutes.
-Quick uses the stricter intake bar here. When work qualifies, the router may use the quick path only at intake. Once an epic already exists or the scope expands beyond that strict quick bar, fall back to the normal Quick-aware pipeline.
-
-> **Ownership exception:** The quick path creates minimal intake scaffolds for artifacts that normally belong to `beo-explore` (CONTEXT.md) and `beo-plan` (approach.md, plan.md, phase-contract.md, story-map.md). This is an intentional shortcut — these files are draft/stub placeholders, not full-depth artifacts, and they exist only to let quick work skip directly to validation. If the work outgrows quick scope, the promotion guard below routes to the normal pipeline owners, which must complete or overwrite these drafts.
-
-### Create the Task
-
-Use the shared Markdown bead templates from `beo-reference` → `references/bead-description-templates.md`.
-
-```bash
-br create "<task-name>" -t task --parent <EPIC_ID> -p 1 --json
-br update <TASK_ID> --description "<Markdown content that follows the shared bead template>"
-```
-
-After scaffolding the minimal draft artifacts, route to `beo-validate`. Do not set the `approved` label here; only `beo-validate` grants approval.
-
-### Create Minimal Draft Artifacts
-
-```bash
-mkdir -p .beads/artifacts/<feature_slug>
-```
-
-Write these minimal draft/stub files with file editing tools. Each file should remain obviously incomplete so downstream skills can complete or overwrite it as needed.
-
-#### CONTEXT.md
-
-```markdown
-# CONTEXT Template: <name>
-
-## Feature Boundary
-
-- Scope: <one-sentence statement of what this feature changes>
-- Domain Type: <SEE | CALL | RUN | READ | ORGANIZE>
-
-## Locked Decisions
-
-| D-ID | Decision | Rationale | Source |
-|------|----------|-----------|--------|
-| D1 | Quick-path: no exploration needed | Single bounded change, ≤1 file | agent default |
-
-### Agent's Discretion
-
-- Implementation details follow existing codebase patterns
-
-## Existing Code Context
-
-- Reusable assets: <inferred from request>
-- Established patterns: <inferred from request>
-- Integration points: <inferred from request>
-
-_Sections omitted for quick-path stub: Specific Ideas, Canonical References, Outstanding Questions, Deferred Ideas — all N/A._
-
-## Handoff Note
-
-- `beo-plan` reads: Feature Boundary, Locked Decisions
-- `beo-validate` reads: Locked Decisions
-- `beo-execute` reads: Locked Decisions, Existing Code Context
-- `beo-review` reads: Feature Boundary
-```
-
-#### approach.md
-
-```markdown
-# Approach: <name>
-
-## Problem Shape
-Quick-path: single bounded change.
-
-## Recommended Approach
-Implement the smallest change that satisfies the request while preserving existing patterns.
-
-## Planning Mode Decision
-- Mode: single-phase
-```
-
-#### plan.md
-
-```markdown
-# Plan: <name>
-
-## Approach
-Single-task quick implementation.
-
-## Tasks
-### 1. <task-name>
-See bead description for spec.
-```
-
-#### phase-contract.md
-
-```markdown
-# Phase Contract: <name>
-
-## Exit State
-- Feature works as described in request.
-
-## Demo Story
-Quick-path: single-task feature, no deeper phase structure needed.
-```
-
-#### story-map.md
-
-```markdown
-# Story Map: <name>
-
-## Story Table
-
-| Story | Purpose | Done Looks Like |
-|-------|---------|-----------------|
-| Story 1: Implement | Single-task implementation | Task complete and verified |
-
-## Story-To-Bead Mapping
-
-| Story | Beads |
-|-------|-------|
-| Story 1 | <TASK_ID> |
-```
-
-### Promotion Guard
-
-If the work grows beyond quick scope:
-- stop implementation
-- route to `beo-explore` or `beo-plan`
-- treat the existing quick task bead as planning input
-
-> **Hard gate**: After quick-path promotion, the stub CONTEXT.md and any placeholder artifacts MUST be treated as incomplete drafts. The exploring or planning skill must re-derive them from scratch or overwrite them as needed — never treat promoted stubs as validated artifacts.
+If quick-scoped work later expands:
+- keep the normal pipeline ownership (`beo-explore` for unlocked requirements, `beo-plan` for solution redesign)
+- do not treat earlier quick classification as permission to skip planning or validation
 
 ## 4. Artifact Inspection Order
 
@@ -275,7 +148,7 @@ Also re-check the artifact set in the canonical inspection order.
 
 If `has_phase_plan = true`, verify that `phase-plan.md` still exists.
 
-If `mode = "go"`, resume within go-mode rather than normal routing. Preserve the saved `skill` and `next_action`, and continue using go-mode semantics at the next human gate unless live state clearly invalidates the checkpoint.
+If `mode = "go"`, resume within go-mode rather than normal routing. Preserve the saved `skill`, `next`, and any supporting `reason` / `content`, and continue using go-mode semantics at the next human gate unless live state clearly invalidates the checkpoint.
 
 ### Clean Up Only After Fresh Checkpoint
 
