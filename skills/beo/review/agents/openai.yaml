@@ -1,4 +1,4 @@
 interface:
   display_name: "Beo Review"
-  short_description: "Multi-specialist review and quality gate"
-  default_prompt: "Use $beo-review to run multi-specialist review on the completed feature, classify findings by severity, then run human UAT against locked decisions."
+  short_description: "Issue the post-execution quality verdict"
+  default_prompt: "Use $beo-review to assess completed current-phase implementation against the locked contract and verification evidence, then issue exactly one verdict: accept, fix, or reject."

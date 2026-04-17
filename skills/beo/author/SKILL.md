@@ -1,7 +1,7 @@
 ---
 name: beo-author
 description: |
-  Create, revise, or pressure-test beo skill definitions and their supporting references when the skill system itself must be changed, clarified, or evaluated. Use it only for skill-system authoring, not for live feature delivery or operational pipeline execution.
+  Create, revise, or pressure-test beo skill definitions and their supporting references when the skill system itself must be changed, clarified, or evaluated. Use it only for skill-system authoring, not for live feature delivery, operational pipeline execution, or bootstrap repair.
 
 ---
 

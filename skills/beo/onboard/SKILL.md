@@ -1,7 +1,7 @@
 ---
 name: beo-onboard
 description: |
-  Verify and minimally repair beo operating readiness when required tooling, bootstrap files, directories, or shared hard-gate prerequisites are missing, stale, or invalid. Use it only for beo environment/bootstrap readiness, not for product delivery, routing decisions, or general project setup.
+  Verify and minimally repair beo operating readiness when required tooling, bootstrap files, directories, or shared hard-gate prerequisites are missing, stale, or invalid. Use it only for beo environment/bootstrap readiness, not for product delivery, routing decisions, or general project setup beyond beo readiness.
 
 ---
 

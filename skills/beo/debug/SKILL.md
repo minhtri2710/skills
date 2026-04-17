@@ -1,7 +1,7 @@
 ---
 name: beo-debug
 description: |
-  Isolate one non-obvious blocker that is stopping execution or review, then apply the smallest verified unblock or route back with root-cause evidence. Use it only for concrete diagnosis-driven unblock work, not for normal feature implementation or general review.
+  Isolate one non-obvious blocker that is stopping execution or review, then apply the smallest verified unblock or route back with root-cause evidence. Use it only for concrete diagnosis-driven unblock work, not for normal feature delivery, broad exploratory investigation, or general review.
 
 ---
 

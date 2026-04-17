@@ -1,7 +1,7 @@
 ---
 name: beo-execute
 description: |
-  Implement exactly one approved ready bead, run its required verification, and report the result when scoped delivery work is ready to be performed or assigned by swarm. Use it only for bounded implementation delivery, not for planning, approval, multi-bead coordination, or diagnosis-heavy investigation.
+  Implement exactly one approved ready bead, run its required verification, and record the result when bounded delivery work is ready to be performed or has been assigned by swarm. Use it only for bounded implementation delivery, not for planning, approval, multi-bead coordination, or diagnosis-heavy investigation.
 
 ---
 

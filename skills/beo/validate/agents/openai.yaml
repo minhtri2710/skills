@@ -1,4 +1,4 @@
 interface:
   display_name: "Beo Validate"
-  short_description: "Verify plan soundness before execution begins"
-  default_prompt: "Use $beo-validate to verify the current phase plan is structurally sound, all beads are well-specified, and the execution scope is ready to build."
+  short_description: "Gate current-phase execution readiness"
+  default_prompt: "Use $beo-validate to decide whether the current phase is executable, manage approval state, and choose execute or swarm when the phase is ready."

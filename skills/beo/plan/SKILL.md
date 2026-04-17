@@ -1,7 +1,7 @@
 ---
 name: beo-plan
 description: |
-  Convert a locked `CONTEXT.md` into the current-phase solution design and execution contract when implementation needs an explicit technical plan. Use it only for solution design and current-phase decomposition; not for relocking requirements or approving execution.
+  Convert a locked `CONTEXT.md` into the current-phase technical design and execution contract when implementation needs an explicit solution plan. Use it only for solution design and current-phase decomposition, not for relocking requirements, approving readiness, delivering code, or performing review.
 
 ---
 

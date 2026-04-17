@@ -1,7 +1,7 @@
 ---
 name: beo-validate
 description: |
-  Decide whether the current phase is executable by checking the locked context, current-phase contract, story map, and bead graph for pre-execution completeness. Use it only for the readiness gate and execution-mode selection, not for repairing the plan or implementing the work.
+  Decide whether the current phase is executable by checking the locked context, current-phase contract, story map, and bead graph for pre-execution completeness and by choosing execution mode when approved. Use it only for the readiness gate, not for repairing the plan, rewriting beads, or implementing work.
 
 ---
 

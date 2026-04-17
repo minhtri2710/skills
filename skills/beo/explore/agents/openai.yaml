@@ -1,4 +1,4 @@
 interface:
   display_name: "Beo Explore"
-  short_description: "Socratic dialogue to lock decisions before planning"
-  default_prompt: "Use $beo-explore to gather requirements through focused questions, locking behavioral decisions before planning begins."
+  short_description: "Lock product requirements before solution design"
+  default_prompt: "Use $beo-explore to lock scope, behavior, constraints, interfaces, and acceptance boundaries into CONTEXT.md before planning begins."

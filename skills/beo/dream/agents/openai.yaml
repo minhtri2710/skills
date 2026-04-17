@@ -1,4 +1,4 @@
 interface:
   display_name: "Beo Dream"
-  short_description: "Consolidate learnings across completed features"
-  default_prompt: "Use $beo-dream to run a consolidation pass over accumulated learnings, deduplicating entries, merging matches, and updating provenance."
+  short_description: "Maintain the shared learning corpus"
+  default_prompt: "Use $beo-dream to consolidate accumulated learnings into stable corpus-level guidance, handling deduplication, conflicts, and staleness with explicit evidence."

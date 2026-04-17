@@ -13,7 +13,7 @@ Bootstrap gate: `beo-onboard` runs first when onboarding is missing or stale.
 
 ```text
 beo-route -> beo-explore -> beo-plan -> beo-validate ->
-beo-swarm -> beo-execute -> beo-review -> beo-compound
+(beo-execute | beo-swarm -> beo-execute) -> beo-review -> beo-compound
 ```
 
 Support skills: `beo-debug`, `beo-dream`, `beo-author`
@@ -22,6 +22,8 @@ Support skills: `beo-debug`, `beo-dream`, `beo-author`
 
 - Never execute without passing validation.
 - `CONTEXT.md` is the source of truth for locked decisions.
+- `beo-route` selects exactly one next target and must not do downstream work.
+- `beo-execute` delivers one approved bead at a time; `beo-swarm` coordinates parallel workers and does not implement code as the coordinator.
 - 65% context usage triggers a `HANDOFF.json` checkpoint and a clean pause.
 - Keep `STATE.json` current with the active phase and next action.
 - After context compaction, re-read `AGENTS.md`, rerun `node .beads/beo_status.mjs --json` if available, then reopen `STATE.json`, `HANDOFF.json` if present, and the active feature artifacts before more work.

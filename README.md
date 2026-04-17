@@ -1,6 +1,6 @@
 # beo
 
-Thirteen AI agent skills for structured, plan-first feature development. Uses [`br`](https://github.com/Dicklesworthstone/beads_rust) (beads_rust) for issue tracking and [`bv`](https://github.com/Dicklesworthstone/beads_viewer) (Beads Viewer) for graph analytics. Pure Markdown skill definitions -- no application code.
+Twelve operational beo skills plus a shared reference corpus for structured, contract-driven feature development. Uses [`br`](https://github.com/Dicklesworthstone/beads_rust) (beads_rust) for issue tracking and [`bv`](https://github.com/Dicklesworthstone/beads_viewer) (Beads Viewer) for graph analytics. Pure Markdown skill definitions -- no application code.
 
 ---
 
@@ -8,20 +8,20 @@ Thirteen AI agent skills for structured, plan-first feature development. Uses [`
 
 ```mermaid
 flowchart LR
-    bootstrap[beo-using-beo] -.->|onboarding gate| router[beo-router]
-    router --> exploring[beo-exploring]
-    exploring --> planning[beo-planning]
-    planning --> validating[beo-validating]
+    bootstrap[beo-onboard] -.->|onboarding gate| router[beo-route]
+    router --> exploring[beo-explore]
+    exploring --> planning[beo-plan]
+    planning --> validating[beo-validate]
 
-    validating -->|approve current phase| swarming[beo-swarming]
-    validating -->|single worker| executing[beo-executing]
+    validating -->|approve current phase| swarming[beo-swarm]
+    validating -->|single worker| executing[beo-execute]
     swarming --> executing
 
-    executing -->|final execution scope complete| reviewing[beo-reviewing]
+    executing -->|final execution scope complete| reviewing[beo-review]
     executing -. later phases remain .-> planning
-    reviewing --> compounding[beo-compounding]
+    reviewing --> compounding[beo-compound]
 
-    executing -. blocker / failure .-> debugging[beo-debugging]
+    executing -. blocker / failure .-> debugging[beo-debug]
     debugging -. fix / retry .-> executing
 
     compounding --> critical[.beads/critical-patterns.md]
@@ -32,20 +32,20 @@ flowchart LR
 
 | Skill | Purpose |
 | --- | --- |
-| **beo-router** | Detects project state via `br`/`bv` and routes to the correct phase |
-| **beo-exploring** | Socratic dialogue to lock requirements into `CONTEXT.md` |
-| **beo-planning** | Research + synthesis into discovery, approach, plan, and current-phase artifacts |
-| **beo-validating** | 8-dimension verification gate before any code is written |
-| **beo-swarming** | Parallel worker orchestration via Agent Mail |
-| **beo-executing** | Per-worker implementation loop: claim, build, verify, report |
-| **beo-reviewing** | 5 specialist review agents with P1/P2/P3 severity |
-| **beo-compounding** | Captures learnings, promotes critical patterns |
+| **beo-route** | Resolves canonical beo state and selects exactly one next target |
+| **beo-explore** | Locks product requirements into `CONTEXT.md` before solution design |
+| **beo-plan** | Converts locked context into current-phase technical design and executable beads |
+| **beo-validate** | Gates current-phase execution readiness and selects `beo-execute` or `beo-swarm` |
+| **beo-swarm** | Coordinates parallel workers for approved, independent beads |
+| **beo-execute** | Implements and verifies exactly one approved bead |
+| **beo-review** | Assesses completed current-phase work and issues `accept`, `fix`, or `reject` |
+| **beo-compound** | Captures durable learnings from one accepted feature |
 
-**Support skills** (invoked on demand): `beo-debugging` (root-cause analysis), `beo-dream` (periodic learnings consolidation), `beo-writing-skills` (TDD for new skills).
+**Support skills** (invoked on demand): `beo-debug` (single-blocker diagnosis and minimal unblock), `beo-dream` (cross-feature learning consolidation), `beo-author` (skill-system authoring and pressure testing).
 
-**Bootstrap**: `beo-using-beo` -- onboarding gate that ensures `.beads/` structure and managed `AGENTS.md` block exist before any other skill proceeds.
+**Bootstrap**: `beo-onboard` -- readiness gate that verifies beo tooling and bootstrap state before any other skill proceeds.
 
-**Shared reference**: `beo-reference` -- canonical CLI refs, status mapping, approval gates, artifact protocol.
+**Shared reference**: `beo-reference` -- canonical shared protocol docs, CLI refs, status mapping, approval gates, and artifact rules.
 
 ---
 
@@ -59,7 +59,7 @@ flowchart LR
 | [`qmd`](https://github.com/tobi/qmd) | No | Optional search enhancement |
 
 
-The host environment needs shell execution, filesystem access, and skill/instruction loading. Subagent dispatch is recommended for planning and reviewing. Swarming requires Agent Mail; without it, falls back to sequential `beo-executing`.
+The host environment needs shell execution, filesystem access, and skill/instruction loading. Subagent dispatch is recommended for planning and review. Swarming requires Agent Mail; without it, work falls back to sequential `beo-execute`.
 
 ---
 
@@ -71,7 +71,7 @@ npx skills add https://github.com/minhtri2710/skills/tree/main/skills/beo
 
 Verify: `br --version` (0.1.28+), `bv --version` (0.15.2+).
 
-Or load skills manually by reading `skills/beo/router/SKILL.md` as the entry point.
+Or load skills manually by reading `skills/beo/route/SKILL.md` as the entry point.
 
 ---
 

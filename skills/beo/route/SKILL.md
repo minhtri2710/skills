@@ -1,7 +1,7 @@
 ---
 name: beo-route
 description: |
-  Determine the single correct next beo skill from canonical session state when a session starts, resumes, or no active handoff already fixes the next step. Use it only for state detection and next-target selection, not for doing the downstream work.
+  Determine the single correct next pipeline target from canonical session state when a session starts, resumes, or the next step is not already fixed by an active handoff. Use it only for state detection and next-target selection, not for clarification, design, validation, delivery, review, debugging, learning, or authoring.
 
 ---
 

@@ -1,4 +1,4 @@
 interface:
   display_name: "Beo Debug"
-  short_description: "Systematic debugging for blockers and failures"
-  default_prompt: "Use $beo-debug to diagnose the root cause of this failure, check known patterns, reproduce, then apply a verified fix."
+  short_description: "Diagnose one blocker and unblock it minimally"
+  default_prompt: "Use $beo-debug to isolate one non-obvious blocker, apply the smallest verified unblock when appropriate, and return through the correct pipeline path."

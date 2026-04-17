@@ -1,4 +1,4 @@
 interface:
   display_name: "Beo Execute"
-  short_description: "Per-worker implementation loop for task beads"
-  default_prompt: "Use $beo-execute to implement the next approved current-phase task bead, verify the result, and update bead status."
+  short_description: "Implement and verify one approved bead"
+  default_prompt: "Use $beo-execute to implement exactly one approved ready bead, run its required verification, and record the result without taking on planning or multi-bead coordination."
