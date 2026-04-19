@@ -84,7 +84,7 @@ If `phase-plan.md` exists, also verify:
 
 ### Run the Plan Checker
 
-Load `plan-checker-prompt.md`. Spawn an isolated subagent with:
+Load `plan-checker-prompt.md`. Run an isolated plan-check pass with the following package. Spawn a subagent only when the current runtime supports delegation for the session; otherwise perform the pass locally with the same isolated inputs:
 
 1. all current-phase task beads for the epic (`br show <TASK_ID> --json` for each)
 2. `CONTEXT.md`
@@ -213,11 +213,13 @@ If prior spike results already exist, incorporate them into validation. If a req
 
 ## 6. Fresh-Eyes Review
 
-For deep-complexity features or features with 5+ tasks, load `bead-reviewer-prompt.md` and spawn an isolated subagent with:
+For deep-complexity features or features with 5+ tasks, load `bead-reviewer-prompt.md` and run a fresh-eyes pass with:
 
 1. only the current bead descriptions
 2. no implementation history
 3. no broad conversation context
+
+Spawn a subagent only when the current runtime supports delegation for the session; otherwise perform the same pass locally with the same isolated package.
 
 If issues are found, flag the affected bead descriptions for `beo-plan` to rewrite before validation can pass.
 

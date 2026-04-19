@@ -1,7 +1,7 @@
 ---
 name: beo-swarm
 description: |
-  Coordinate parallel delivery when approved current-phase work contains at least three independent ready beads with non-overlapping file scopes and parallelism is worth the coordination overhead. Use it only for orchestration, not for code delivery, replanning, approval, or review.
+  Coordinate parallel delivery when approved current-phase work contains at least three independent ready beads with non-overlapping file scopes and parallelism is worth the coordination overhead. Use it only for orchestration, not for code delivery, replanning, approval, review, debugging, or learning work.
 
 ---
 
@@ -12,7 +12,7 @@ description: |
 # beo-swarm
 
 ## Atomic purpose
-Orchestrate parallel workers only.
+Assign and coordinate parallel workers for approved independent beads.
 
 ## When to use
 - approved current-phase work contains at least 3 independent ready beads

@@ -1,4 +1,4 @@
 interface:
   display_name: "Beo Route"
-  short_description: "Detect canonical state and choose one next target"
-  default_prompt: "Use $beo-route to determine canonical session state from artifacts and the live bead graph, then choose exactly one next target without doing downstream work."
+  short_description: "Select one next target from canonical session state"
+  default_prompt: "Use $beo-route to determine canonical session state from artifacts and the live bead graph, then choose exactly one next target without doing downstream work or onboarding repair."

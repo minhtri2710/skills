@@ -31,11 +31,13 @@ Conversational phrasing is **not** a valid short-circuit. Requests like "researc
 
 Run once per session when onboarding is missing or stale, or when `.beads/` is missing or unhealthy.
 
-Before normal bootstrap, check `.beads/onboarding.json`.
-If it is missing, unreadable, or stale, stop and route to `beo-onboard`.
-Only continue deeper workspace interpretation after onboarding is current.
+Before normal bootstrap, run the live `beo-onboard` repo check against the current skill install.
+If the live check reports onboarding missing, unreadable, stale, or otherwise unhealthy, stop and route to `beo-onboard`.
 
-If `.beads/beo_status.mjs` exists, run `node .beads/beo_status.mjs --json` as a read-only quick scout before reading deeper state files individually.
+If the live check reports onboarding current and `.beads/beo_status.mjs` exists, run `node .beads/beo_status.mjs --json` as a read-only quick scout for repo-local state, handoff, and recorded onboarding metadata.
+Do not use `.beads/onboarding.json` or repo-local `beo_status` output as the source of truth for startup freshness, managed startup contract mismatch, or managed `AGENTS.md` block drift.
+
+Only continue deeper workspace interpretation after onboarding is current.
 
 Optional knowledge-search availability check:
 
@@ -119,8 +121,8 @@ Read `.beads/HANDOFF.json` with your file reading tool.
 
 Use the canonical schema from `beo-reference` → `references/state-and-handoff-protocol.md`.
 
-Before trusting the handoff, confirm `.beads/onboarding.json` still exists and is current.
-If onboarding is missing or stale, route to `beo-onboard` before resuming the saved skill.
+Before trusting the handoff, run the live `beo-onboard` repo check again against the current skill install.
+If the live check reports onboarding missing, unreadable, stale, or otherwise unhealthy, route to `beo-onboard` before resuming the saved skill.
 
 ### Read planning-aware fields when present
 

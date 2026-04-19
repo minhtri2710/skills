@@ -138,7 +138,7 @@ Do not close the epic on `reject`.
 ## 6. Quick Mode
 
 For Quick-scope work, see `beo-reference` → `references/pipeline-contracts.md` for the canonical definition. When the feature qualifies as Quick:
-1. skip specialist subagents
+1. skip specialist review dispatch entirely
 2. do a quick manual artifact check
 3. do a quick user confirmation
 4. run build/test/lint and prepare the compounding handoff

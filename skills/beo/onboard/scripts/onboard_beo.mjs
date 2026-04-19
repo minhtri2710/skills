@@ -1,4 +1,5 @@
 import path from 'node:path'
+import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import {
   mkdir,
@@ -7,13 +8,16 @@ import {
   writeFile,
 } from 'node:fs/promises'
 
-const VERSION = '1.1.0'
 const MANAGED_START = '<!-- BEO:START -->'
 const MANAGED_END = '<!-- BEO:END -->'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const SKILL_ROOT = path.resolve(__dirname, '..')
 const TEMPLATE_PATH = path.join(SKILL_ROOT, 'assets', 'AGENTS.template.md')
+const METADATA_PATH = path.join(SKILL_ROOT, 'assets', 'onboarding-metadata.json')
+const ONBOARDING_METADATA = JSON.parse(readFileSync(METADATA_PATH, 'utf8'))
+const VERSION = ONBOARDING_METADATA.version
+const MANAGED_STARTUP_CONTRACT_VERSION = ONBOARDING_METADATA.managed_startup_contract_version
 
 function parseArgs(argv) {
   const args = { repoRoot: '', apply: false }
@@ -71,6 +75,7 @@ async function readJsonIfExists(targetPath) {
 }
 
 function normalizeManagedBlock(content) {
+  if (!content) return null
   const match = content.match(/<!-- BEO:START -->[\s\S]*?<!-- BEO:END -->/)
   return match ? match[0].trim() : null
 }
@@ -92,8 +97,6 @@ function statusScriptContent() {
     "import { fileURLToPath } from 'node:url'",
     "import { readFileSync, existsSync } from 'node:fs'",
     '',
-    `const ONBOARDING_VERSION = '${VERSION}'`,
-    '',
     'function readTextIfExists(targetPath) {',
     '  try {',
     "    return readFileSync(targetPath, 'utf8')",
@@ -112,13 +115,18 @@ function statusScriptContent() {
     '  }',
     '}',
     '',
+    normalizeManagedBlock.toString(),
+    '',
     'function buildStatus(repoRoot) {',
+    "  const agentsPath = path.join(repoRoot, 'AGENTS.md')",
     "  const beadsRoot = path.join(repoRoot, '.beads')",
     "  const onboardingPath = path.join(beadsRoot, 'onboarding.json')",
     "  const statePath = path.join(beadsRoot, 'STATE.json')",
     "  const handoffPath = path.join(beadsRoot, 'HANDOFF.json')",
     "  const criticalPatternsPath = path.join(beadsRoot, 'critical-patterns.md')",
     '',
+    '  const agentsContent = readTextIfExists(agentsPath)',
+    '  const managedBlock = normalizeManagedBlock(agentsContent)',
     '  const onboarding = readJsonIfExists(onboardingPath)',
     '  const stateJson = readJsonIfExists(statePath)',
     '  const handoff = readJsonIfExists(handoffPath)',
@@ -132,9 +140,10 @@ function statusScriptContent() {
     '    repo_root: repoRoot,',
     '    onboarding: {',
     '      exists: Boolean(onboarding),',
-    `      current: onboarding?.plugin === 'beo' && onboarding?.plugin_version === ONBOARDING_VERSION,`,
     "      plugin: onboarding?.plugin ?? null,",
     "      plugin_version: onboarding?.plugin_version ?? null,",
+    "      managed_startup_contract_version: onboarding?.managed_startup_contract_version ?? null,",
+    '      managed_block_present: Boolean(managedBlock),',
     '    },',
     '    state_json: {',
     '      exists: Boolean(stateJson),',
@@ -172,7 +181,7 @@ function statusScriptContent() {
     '} else {',
     '  const lines = [',
     '    `repo_root: ${status.repo_root}`,',
-    "    `onboarding: ${status.onboarding.exists ? (status.onboarding.current ? 'current' : 'stale') : 'missing'}` ,",
+    "    `onboarding: ${status.onboarding.exists ? (status.onboarding.managed_block_present ? 'present' : 'incomplete') : 'missing'}` ,",
     "    `state: ${status.state_json.exists ? (status.state_json.phase ?? 'present') : 'missing'}` ,",
     "    `handoff: ${status.handoff.exists ? (status.handoff.skill ?? 'present') : 'none'}` ,",
     "    `next_reads: ${status.next_reads.join(', ')}` ,",
@@ -183,22 +192,73 @@ function statusScriptContent() {
   ].join('\n')
 }
 
-function buildActions(details, blockIsCurrent) {
+function matchesStateSnapshot(stateJson, expected) {
+  if (!stateJson || typeof stateJson !== 'object') return false
+  return Object.entries(expected).every(([key, value]) => stateJson[key] === value)
+}
+
+function isRefreshableBootstrapState(stateJson) {
+  return (
+    matchesStateSnapshot(stateJson, {
+      schema_version: 1,
+      phase: 'using-beo',
+      status: 'onboarding-complete',
+      feature: 'none',
+      feature_slug: '',
+      tasks: 'bootstrap complete',
+      next: 'beo-route',
+      planning_mode: 'unknown',
+      has_phase_plan: false,
+      current_phase: 1,
+      total_phases: 1,
+      phase_name: '',
+    }) ||
+    matchesStateSnapshot(stateJson, {
+      schema_version: 1,
+      phase: 'router',
+      status: 'needs_onboarding',
+      feature: 'none',
+      feature_slug: '',
+      tasks: 'none',
+      next: 'beo-route',
+      planning_mode: 'unknown',
+      has_phase_plan: false,
+      current_phase: 1,
+      total_phases: 1,
+      phase_name: '',
+    })
+  )
+}
+
+function buildActions(details) {
   const actions = []
 
   if (!details.agents_md_exists) {
     actions.push('create_AGENTS.md')
   } else if (!details.has_beo_managed_block) {
     actions.push('append_beo_managed_block')
-  } else if (!blockIsCurrent || !details.onboarding_version_match) {
+  } else if (!details.managed_block_current) {
     actions.push('update_beo_managed_block')
   }
 
-  if (!details.onboarding_json_exists || !details.onboarding_version_match) {
+  const needsOnboardingRefresh =
+    !details.onboarding_json_exists ||
+    !details.plugin_match ||
+    !details.plugin_version_match ||
+    !details.managed_startup_contract_version_match
+
+  if (needsOnboardingRefresh) {
     actions.push('create_.beads/onboarding.json')
   }
-  if (!details.status_script_exists) actions.push('create_.beads/beo_status.mjs')
-  if (!details.state_json_exists) actions.push('create_.beads/STATE.json')
+
+  if (!details.status_script_exists || !details.plugin_match || !details.plugin_version_match) {
+    actions.push('create_.beads/beo_status.mjs')
+  }
+
+  if (!details.state_json_exists || (needsOnboardingRefresh && details.state_json_refreshable_bootstrap)) {
+    actions.push('create_.beads/STATE.json')
+  }
+
   if (!details.critical_patterns_exists) actions.push('create_.beads/critical-patterns.md')
   if (!details.artifacts_dir_exists) actions.push('create_.beads/artifacts/')
   if (!details.learnings_dir_exists) actions.push('create_.beads/learnings/')
@@ -220,23 +280,28 @@ export async function checkRepo(repoRoot) {
 
   const agentsContent = await readTextIfExists(agentsPath)
   const onboarding = await readOnboardingJson(absoluteRepoRoot)
+  const stateJson = await readJsonIfExists(statePath)
   const templateBlock = normalizeManagedBlock(template)
   const currentBlock = agentsContent ? normalizeManagedBlock(agentsContent) : null
 
   const details = {
-      agents_md_exists: Boolean(agentsContent),
-      has_beo_managed_block: Boolean(currentBlock),
-      onboarding_json_exists: Boolean(onboarding),
-      onboarding_version_match: onboarding?.plugin_version === VERSION,
-      status_script_exists: await pathExists(statusScriptPath),
-      state_json_exists: await pathExists(statePath),
-      critical_patterns_exists: await pathExists(criticalPatternsPath),
-      artifacts_dir_exists: await isDirectory(artifactsDir),
-      learnings_dir_exists: await isDirectory(learningsDir),
-    }
+    agents_md_exists: Boolean(agentsContent),
+    has_beo_managed_block: Boolean(currentBlock),
+    managed_block_current: currentBlock === templateBlock,
+    onboarding_json_exists: Boolean(onboarding),
+    plugin_match: onboarding?.plugin === 'beo',
+    plugin_version_match: onboarding?.plugin_version === VERSION,
+    managed_startup_contract_version_match:
+      onboarding?.managed_startup_contract_version === MANAGED_STARTUP_CONTRACT_VERSION,
+    status_script_exists: await pathExists(statusScriptPath),
+    state_json_exists: await pathExists(statePath),
+    state_json_refreshable_bootstrap: isRefreshableBootstrapState(stateJson),
+    critical_patterns_exists: await pathExists(criticalPatternsPath),
+    artifacts_dir_exists: await isDirectory(artifactsDir),
+    learnings_dir_exists: await isDirectory(learningsDir),
+  }
 
-  const blockIsCurrent = currentBlock === templateBlock
-  const actions = buildActions(details, blockIsCurrent)
+  const actions = buildActions(details)
 
   return {
     status: actions.length === 0 ? 'up_to_date' : 'needs_onboarding',
@@ -263,11 +328,11 @@ function replaceManagedBlock(existingContent, template) {
 function defaultStateContent() {
   return JSON.stringify({
     schema_version: 1,
-    phase: 'router',
-    status: 'needs-onboarding',
+    phase: 'using-beo',
+    status: 'onboarding-complete',
     feature: 'none',
     feature_slug: '',
-    tasks: 'none',
+    tasks: 'bootstrap complete',
     next: 'beo-route',
     planning_mode: 'unknown',
     has_phase_plan: false,
@@ -286,6 +351,23 @@ function defaultCriticalPatternsContent() {
   ].join('\n')
 }
 
+const AGENTS_ACTIONS = new Set([
+  'create_AGENTS.md',
+  'append_beo_managed_block',
+  'update_beo_managed_block',
+])
+
+const VALID_AGENTS_MODES = new Set([
+  'created_from_template',
+  'updated_managed_block',
+  'appended_managed_block',
+  'retained_existing_managed_block',
+])
+
+function normalizeAgentsMode(value) {
+  return VALID_AGENTS_MODES.has(value) ? value : 'retained_existing_managed_block'
+}
+
 export async function applyRepo(repoRoot) {
   const absoluteRepoRoot = path.resolve(repoRoot)
   const currentState = await checkRepo(absoluteRepoRoot)
@@ -293,7 +375,9 @@ export async function applyRepo(repoRoot) {
     return readOnboardingJson(absoluteRepoRoot)
   }
 
-  const template = await loadTemplate()
+  const currentOnboarding = await readOnboardingJson(absoluteRepoRoot)
+  const actions = new Set(currentState.actions)
+  const needsAgentsUpdate = currentState.actions.some((action) => AGENTS_ACTIONS.has(action))
   const agentsPath = path.join(absoluteRepoRoot, 'AGENTS.md')
   const beadsDir = path.join(absoluteRepoRoot, '.beads')
   const artifactsDir = path.join(beadsDir, 'artifacts')
@@ -302,23 +386,32 @@ export async function applyRepo(repoRoot) {
   const statePath = path.join(beadsDir, 'STATE.json')
   const criticalPatternsPath = path.join(beadsDir, 'critical-patterns.md')
   const onboardingPath = path.join(beadsDir, 'onboarding.json')
+  let agentsMode = currentState.details.plugin_match
+    ? normalizeAgentsMode(currentOnboarding?.managed_assets?.agents_mode)
+    : 'retained_existing_managed_block'
 
   await mkdir(absoluteRepoRoot, { recursive: true })
 
-  const existingAgents = await readTextIfExists(agentsPath)
-  const mergedAgents = replaceManagedBlock(existingAgents, template)
-  await writeFile(agentsPath, mergedAgents.content, 'utf8')
-
-    await mkdir(beadsDir, { recursive: true })
-    await mkdir(artifactsDir, { recursive: true })
-    await mkdir(learningsDir, { recursive: true })
-    await writeFile(statusScriptPath, statusScriptContent(), 'utf8')
-
-    if (!(await pathExists(statePath))) {
-      await writeFile(statePath, defaultStateContent(), 'utf8')
+  if (needsAgentsUpdate) {
+    const template = await loadTemplate()
+    const existingAgents = await readTextIfExists(agentsPath)
+    const mergedAgents = replaceManagedBlock(existingAgents, template)
+    await writeFile(agentsPath, mergedAgents.content, 'utf8')
+    agentsMode = mergedAgents.mode
   }
 
-  if (!(await pathExists(criticalPatternsPath))) {
+  await mkdir(beadsDir, { recursive: true })
+  await mkdir(artifactsDir, { recursive: true })
+  await mkdir(learningsDir, { recursive: true })
+  if (actions.has('create_.beads/beo_status.mjs')) {
+    await writeFile(statusScriptPath, statusScriptContent(), 'utf8')
+  }
+
+  if (actions.has('create_.beads/STATE.json')) {
+    await writeFile(statePath, defaultStateContent(), 'utf8')
+  }
+
+  if (actions.has('create_.beads/critical-patterns.md')) {
     await writeFile(criticalPatternsPath, defaultCriticalPatternsContent(), 'utf8')
   }
 
@@ -326,14 +419,15 @@ export async function applyRepo(repoRoot) {
     schema_version: '1.0',
     plugin: 'beo',
     plugin_version: VERSION,
+    managed_startup_contract_version: MANAGED_STARTUP_CONTRACT_VERSION,
     installed_at: new Date().toISOString(),
-      status: 'complete',
-      managed_assets: {
-        agents_mode: mergedAgents.mode,
-        status_script: '.beads/beo_status.mjs',
-        state_json: '.beads/STATE.json',
-        critical_patterns: '.beads/critical-patterns.md',
-      },
+    status: 'complete',
+    managed_assets: {
+      agents_mode: agentsMode,
+      status_script: '.beads/beo_status.mjs',
+      state_json: '.beads/STATE.json',
+      critical_patterns: '.beads/critical-patterns.md',
+    },
   }
 
   await writeFile(onboardingPath, `${JSON.stringify(onboarding, null, 2)}\n`, 'utf8')

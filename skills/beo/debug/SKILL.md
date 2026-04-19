@@ -1,7 +1,7 @@
 ---
 name: beo-debug
 description: |
-  Isolate one non-obvious blocker that is stopping execution or review, then apply the smallest verified unblock or route back with root-cause evidence. Use it only for concrete diagnosis-driven unblock work, not for normal feature delivery, broad exploratory investigation, or general review.
+  Isolate one non-obvious blocker that is stopping execution or review, then apply the smallest verified unblock or route back with root-cause evidence. Use it only for concrete diagnosis-driven unblock work, not for normal feature delivery, broad exploratory investigation, general review, or learning capture.
 
 ---
 
@@ -12,7 +12,7 @@ description: |
 # beo-debug
 
 ## Atomic purpose
-Diagnose one blocker and unblock it minimally.
+Find one blocker’s root cause and unblock it minimally.
 
 ## When to use
 - execution or review is blocked by a failure that is not solvable through an obvious local retry

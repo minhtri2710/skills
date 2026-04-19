@@ -76,14 +76,14 @@ Measure silence thresholds here and in `message-templates.md` in cycles, not wal
 
 ## 3. Spawn Workers
 
-Spawn worker subagents in parallel using the canonical worker contract. Default max workers = `min(independent ready tasks, 5)`. Override only with explicit user approval. Default maximum 5 concurrent workers to limit coordination overhead and merge conflict risk.
+Launch workers in parallel using the runtime's available worker orchestration mechanism and the canonical worker contract. If worker spawning is unavailable or not authorized in the current session, degrade to `beo-execute`. Default max workers = `min(independent ready tasks, 5)`. Override only with explicit user approval. Default maximum 5 concurrent workers to limit coordination overhead and merge conflict risk.
 
 Each worker must receive:
 - Agent Mail identity
 - epic ID / feature name
 - planning mode and current phase context when known
 - instruction to load `beo-execute`
-- optional startup hint (clearly marked as a hint)
+- optional startup hint (clearly marked as non-authoritative context)
 - scoped task context by default
 
 Coordinator assignment flow:

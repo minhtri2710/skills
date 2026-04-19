@@ -40,8 +40,8 @@ Use three artifact types for tasks: **spec** (what to do), **report** (what was 
 | Artifact | Storage | Read Command | Write Command |
 |----------|---------|-------------|---------------|
 | `spec` | Bead description | `br show <id> --json` → `.description` | `br update <id> --description "<content>"` |
-| `report` | Bead comment (latest) | `br comments list <id> --json` → scan for header | `br comments add <id> --no-daemon --message "<formatted>"` |
-| `task_state` | Bead comment (latest) | `br comments list <id> --json` → scan for header | `br comments add <id> --no-daemon --message "<formatted>"` |
+| `report` | Bead comment (latest) | `br comments list <id> --json --no-daemon` → scan for header | `br comments add <id> --no-daemon --message "<formatted>"` |
+| `task_state` | Bead comment (latest) | `br comments list <id> --json --no-daemon` → scan for header | `br comments add <id> --no-daemon --message "<formatted>"` |
 
 ### Spec (Bead Description)
 
@@ -96,7 +96,7 @@ Implemented auth middleware with JWT validation.
 ## Verification
 - All 156 tests pass
 - Manual test: unauthenticated request returns 401
----END_ARTIFACT---" --no-daemon
+---END_ARTIFACT---"
 
 # For large reports, write to a temp file first using your file writing tool,
 # then attach it:
@@ -147,7 +147,7 @@ claimed_at: 2026-03-15T10:30:00Z
 blocked_by:
 blocker_type:
 context_pct: 35
----END_ARTIFACT---" --no-daemon
+---END_ARTIFACT---"
 ```
 
 Checklist:
@@ -279,6 +279,7 @@ Use these canonical locations for pipeline artifacts and state files.
 |------|-----------|---------|---------|
 | `.beads/STATE.json` | beo-route, beo-explore, beo-plan, beo-validate, beo-swarm, beo-execute, beo-review, beo-compound | Next skill in pipeline | Intra-session skill-to-skill handoff state (see `state-and-handoff-protocol.md` for canonical schema) |
 | `.beads/HANDOFF.json` | Any skill (at 65% context budget) | beo-route (Phase 3) | Cross-session resume; survives context resets (see `state-and-handoff-protocol.md` for canonical schema) |
+| `.beads/onboarding.json` | beo-onboard | All beo skills during onboarding checks | Bootstrap readiness, managed assets, and managed startup contract freshness |
 | `.beads/beo_status.mjs` | beo-onboard | Humans and agents | Read-only scout command summarizing onboarding, state, and optional handoff status |
 
 **Rule**: Use `state-and-handoff-protocol.md` as the canonical source for `STATE.json` and `HANDOFF.json` semantics and schemas.

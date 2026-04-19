@@ -1,4 +1,4 @@
 interface:
   display_name: "Beo Onboard"
-  short_description: "Establish safe beo operating readiness"
-  default_prompt: "Use $beo-onboard to verify beo tooling and bootstrap readiness, make only the minimum safe repairs needed, then hand back to beo-route."
+  short_description: "Establish safe beo operating readiness and managed startup contract freshness"
+  default_prompt: "Use $beo-onboard to verify beo tooling, bootstrap readiness, and managed startup contract freshness, make only the minimum safe repairs needed, then hand back to beo-route."

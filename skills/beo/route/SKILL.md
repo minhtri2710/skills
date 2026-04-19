@@ -1,7 +1,7 @@
 ---
 name: beo-route
 description: |
-  Determine the single correct next pipeline target from canonical session state when a session starts, resumes, or the next step is not already fixed by an active handoff. Use it only for state detection and next-target selection, not for clarification, design, validation, delivery, review, debugging, learning, or authoring.
+  Determine exactly one next pipeline target from canonical session state when a session starts, resumes, or the next step is not already fixed by an active handoff. Use it only for state detection and next-target selection, not for clarification, design, validation, delivery, review, debugging, learning, onboarding repair, or authoring.
 
 ---
 
@@ -12,7 +12,7 @@ description: |
 # beo-route
 
 ## Atomic purpose
-Select the next skill only.
+Select the single correct next skill.
 
 ## When to use
 - session start
@@ -48,6 +48,7 @@ Select the next skill only.
 - Route owns state detection and next-step selection only.
 - Route must not clarify requirements, design solutions, validate readiness, implement code, review outcomes, debug failures, extract learnings, or rewrite skills.
 - Route must not create feature artifacts, planning artifacts, review artifacts, learning artifacts, or implementation code.
+- Route must not repair onboarding; it routes to `beo-onboard` when readiness is stale.
 - Route must not override a canonical downstream handoff that already determines the next skill.
 - Route must stop after writing the next target and required handoff state.
 

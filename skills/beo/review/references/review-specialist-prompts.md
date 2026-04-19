@@ -23,7 +23,7 @@
 
 ## Dispatch Strategy
 
-- Launch all 5 specialists in parallel via the session's normal subagent/task-dispatch mechanism.
+- Run all 5 specialist lenses. Launch them in parallel only when the current runtime supports delegation for the session; otherwise run them sequentially.
 - Regression risk concerns are reviewed within the Architecture specialist rather than as a separate specialist.
 
 ## Specialist Prompt Template

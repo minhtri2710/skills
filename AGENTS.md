@@ -154,6 +154,19 @@ Support/meta skills (invoked on demand): `beo-debug`, `beo-dream`, `beo-author`
 | `obsidian` CLI | *(optional)* | Knowledge store write operations |
 | `qmd` | *(optional)* | Knowledge store search/query operations |
 
+## Onboarding Versioning
+
+`skills/beo/onboard/assets/onboarding-metadata.json` is the source of truth for the onboarder version metadata used by `skills/beo/onboard/scripts/onboard_beo.mjs`:
+
+- `VERSION` is the version of the onboarder implementation itself. It is written to `.beads/onboarding.json` as `plugin_version` and used to decide whether onboarding metadata still matches the installed onboarder logic.
+- `MANAGED_STARTUP_CONTRACT_VERSION` is the version of the managed startup contract installed into `AGENTS.md` and related onboarding state. It is written to `.beads/onboarding.json` as `managed_startup_contract_version` and used to decide whether the startup contract expected by the onboarder still matches the repo.
+
+Bump `VERSION` when the onboarder's logic, generated bootstrap files, or onboarding-state semantics change.
+
+Bump `MANAGED_STARTUP_CONTRACT_VERSION` when the managed startup contract changes, especially the `AGENTS.md` managed block or the rules used to decide whether onboarding is current.
+
+These constants intentionally serve different purposes. `plugin_version` alone is not enough to prove startup-contract freshness, and the repo-local `beo_status` scout is only a repo-state summary. The live `checkRepo` logic in `skills/beo/onboard/scripts/onboard_beo.mjs` is the sole source of truth for onboarding freshness.
+
 
 ## Editing Skills
 
@@ -162,6 +175,6 @@ When editing any `SKILL.md` file:
 - All `br` and `bv` commands must match the CLI help output exactly (verify with `br <subcommand> --help`)
 - Child beads use dotted IDs: `<parent-id>.<number>` (e.g., `pe-jju.13` is child of `pe-jju`)
 - Use `br label add/remove <ID> -l <label>` for label operations (not `br update --add-label`)
-- Always include `--no-daemon` on `br comments add` commands
+- Always include `--no-daemon` on `br comments add` and `br comments list` commands
 - Artifact end markers use underscores: `---END_ARTIFACT---` (not hyphens)
 - Status mapping must match `beo/reference/references/status-mapping.md` as the authoritative source

@@ -2,12 +2,21 @@
 
 Template, data gathering, and budget rules for Worker Prompt Assembly in `beo-execute`.
 
-For the canonical worker subagent spawn template (identity, Agent Mail, operating model), see `beo-reference` → `references/worker-template.md`. This guide covers the task-level prompt built for each bead.
+For the canonical worker launch template (identity, Agent Mail, operating model), see `beo-reference` → `references/worker-template.md`. This guide covers the task-level prompt built for each bead.
+When `beo-execute` launches a worker directly, this assembled prompt is the worker's full assignment package and must explicitly identify standalone dispatch, the coordination surface, the assigned bead, and the file scope.
 
 ## Prompt Template
 
 ```markdown
 # Task: <task title>
+
+## Dispatch Contract
+- Dispatch mode: <standalone-beo-execute | beo-swarm>
+- Coordination surface: <agent-mail | runtime-only>
+- Assigned bead: <TASK_ID>
+- File scope:
+  - <path-or-glob-1>
+  - <path-or-glob-2>
 
 ## Context
 Implementing a task for feature "<feature-name>" in the currently approved phase.
@@ -56,7 +65,7 @@ Multi-phase: later phases remain deferred and out of scope.
 ```bash
 br show <TASK_ID> --json                          # Task spec (.description)
 br dep list <TASK_ID> --direction down --type blocks --json  # Completed deps
-br comments list <DEP_ID> --json                  # Dep report artifacts
+br comments list <DEP_ID> --json --no-daemon      # Dep report artifacts
 ```
 
 Read and extract from artifacts:

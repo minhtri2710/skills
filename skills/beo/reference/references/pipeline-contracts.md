@@ -57,7 +57,7 @@ Quick scope is a classification signal for later planning, validation, execution
 
 | # | Condition | State | Next | Content |
 |---|-----------|-------|------|---------|
-| 1 | `.beads/onboarding.json` is missing, unreadable, or stale | **needs-onboarding** | `beo-onboard` | — |
+| 1 | The live `beo-onboard` repo check reports onboarding missing, unreadable, stale, or otherwise unhealthy, including managed startup contract mismatch or managed `AGENTS.md` block drift | **needs_onboarding** | `beo-onboard` | — |
 | 2 | Skill creation or editing requested | **meta-skill** | `beo-author` | — |
 | 3 | User explicitly requests learnings consolidation / dream work and the request is not impossible or stale | **consolidation-requested** | `beo-dream` | — |
 | 4 | No active epic exists and the new request is clearly debug work | **new-debug-intake** | `beo-debug` | — |

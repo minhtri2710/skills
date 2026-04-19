@@ -122,19 +122,21 @@ If `phase-plan.md` exists and the bead clearly belongs to a later phase:
 
 ### File Coordination Rule
 
-Use the canonical reservation signatures and identity rules from `beo-reference` → `references/agent-mail-coordination.md`.
+If the dispatch contract says `Coordination surface: agent-mail`, use the canonical reservation signatures and identity rules from `beo-reference` → `references/agent-mail-coordination.md`.
+If the dispatch contract says `Coordination surface: runtime-only`, skip Agent Mail reservations and stay strictly inside the declared file scope.
 
 ### Worker / Agent-Mail mode
 
-Before implementation, reserve the files the bead will touch using the `file_reservation_paths` API from the canonical reference above.
+When the coordination surface is `agent-mail`, reserve the files the bead will touch using the `file_reservation_paths` API from the canonical reference above.
+When the coordination surface is `runtime-only`, do not call reservation APIs; if the file scope is insufficient or uncertain, stop and report `blocked` through the runtime result channel.
 
-If `conflicts` are returned:
+If Agent Mail `conflicts` are returned:
 
 1. Do not edit through the conflict.
 2. Send a `[FILE CONFLICT]` message to the coordinator using `beo-swarm` → `references/message-templates.md`.
 3. Poll inbox until the coordinator resolves the conflict.
 
-After bead close, release held paths using the `release_file_reservations` API from the same reference.
+After bead close, release held paths using the `release_file_reservations` API from the same reference when the coordination surface is `agent-mail`.
 
 `[FILE CONFLICT]` and `[FILE CONFLICT RESOLUTION]` messages remain the coordination layer above the reservation API.
 
@@ -146,7 +148,7 @@ If Agent Mail / reservation APIs are unavailable and execution is running in sta
 1. Do not attempt reservations.
 2. Do not assume any parallel beo workers exist.
 3. Execute exactly one bead at a time.
-4. Read current local changes before editing, and if unrelated concurrent edits are present, pause and ask the user instead of guessing ownership.
+4. Read current local changes before editing. If unrelated concurrent edits are present and the coordination surface is `runtime-only`, stop and return `blocked` through the runtime result channel instead of guessing ownership. Only direct user-facing standalone execution should pause and ask the user.
 5. Keep file scope narrow and explicit in the bead report.
 
 Once file coordination is clear, transition the task:
@@ -182,12 +184,14 @@ Include, when relevant:
 
 ### Standalone Dispatch
 
-Use the session's standard subagent or task-execution tool. Required payload:
+Use the session's standard worker-launch or task-execution mechanism. Required payload:
 
 1. implementation-focused task title or description
 2. assembled worker prompt
-3. worker/subagent type capable of implementation
+3. worker type capable of implementation
 4. blocking wait for the result before post-worker updates
+
+In standalone dispatch, the worker prompt itself is the assignment package. Use the `Dispatch Contract` section from `worker-prompt-guide.md` so the prompt explicitly declares standalone dispatch, the coordination surface, the target bead, and the file scope. If the coordination surface is `runtime-only`, do not make the worker wait for Agent Mail setup or a later Agent Mail assignment.
 
 Abstract contract:
 
@@ -279,8 +283,8 @@ br sync --flush-only
 
 1. Verify `br show <BEAD_ID> --json` maps to canonical status `done` (backed by `br` status `closed`).
 2. Verify the completion report includes bead ID, files changed, tests added or modified, and verification result.
-3. Release all held file reservations with `release_file_reservations(project_key, agent_name, paths=[...])` when Agent Mail mode is active.
-4. Send the `[DONE]` Agent Mail report with the full completion summary.
+3. Release all held file reservations with `release_file_reservations(project_key, resolved_agent_mail_name, paths=[...])` when Agent Mail mode is active.
+4. If the coordination surface is `agent-mail`, send the `[DONE]` Agent Mail report with the full completion summary. If the coordination surface is `runtime-only`, return the completion payload through the runtime result channel instead.
 5. Re-check the graph with `bv --robot-plan --graph-root <EPIC_ID> --format json` to confirm no orphaned dependencies.
 
 Frequency rules:
@@ -302,7 +306,7 @@ bv --robot-next --format json 2>/dev/null || br ready --json
 | more ready current-phase tasks | loop |
 | all remaining tasks blocked | report blockers |
 | all current-phase tasks in terminal states (`done`, `cancelled`, or `failed`) | complete current phase |
-| a task failed | report and ask user |
+| a task failed | if `agent-mail`, report to the coordinator; if `runtime-only`, return failure through the runtime result channel; ask the user directly only in direct user-facing standalone execution |
 | context budget >65% | checkpoint and pause |
 
 ### Completion

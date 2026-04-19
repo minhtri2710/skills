@@ -1,7 +1,7 @@
 ---
 name: beo-plan
 description: |
-  Convert a locked `CONTEXT.md` into the current-phase technical design and execution contract when implementation needs an explicit solution plan. Use it only for solution design and current-phase decomposition, not for relocking requirements, approving readiness, delivering code, or performing review.
+  Convert a locked `CONTEXT.md` into the current-phase technical design and execution contract when implementation needs explicit solution design or replanning. Use it only for solution design and current-phase decomposition, not for relocking requirements, approving readiness, delivering code, performing review, or capturing learnings.
 
 ---
 
@@ -12,7 +12,7 @@ description: |
 # beo-plan
 
 ## Atomic purpose
-Design the solution and specify the current phase.
+Define the current-phase solution and executable bead set.
 
 ## When to use
 - `CONTEXT.md` is locked and the work needs technical design
@@ -21,7 +21,7 @@ Design the solution and specify the current phase.
 
 ## Inputs
 **Required**
-- `.beads/artifacts/<feature_slug>/CONTEXT.md`
+- locked `.beads/artifacts/<feature_slug>/CONTEXT.md`
 - relevant codebase context
 - feature slug or identifier
 
@@ -58,7 +58,7 @@ Design the solution and specify the current phase.
 - **CURRENT-PHASE-ONLY** — Create executable beads only for the current phase.
 - **NO-CODE** — Do not write implementation code.
 - **APPROVAL-REMOVAL-ON-REPLAN** — If replanning invalidates a prior approval cycle, remove `approved` per `beo-reference` → `references/approval-gates.md`.
-- **STRUCTURED-APPROVALS-ONLY** — Use the structured question tool for planning approvals when `phase-plan.md` requires them.
+- **CANONICAL-APPROVAL-PROTOCOL** — Use the runtime's canonical user-interaction mechanism for planning approvals when `phase-plan.md` requires them.
 - **TERMINATE-ON-HANDOFF** and **FRESH-LOAD-REQUIRED** — Follow the shared session-boundary rules.
 
 ## Default loop

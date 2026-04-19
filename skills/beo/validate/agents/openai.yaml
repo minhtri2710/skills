@@ -1,4 +1,4 @@
 interface:
   display_name: "Beo Validate"
-  short_description: "Gate current-phase execution readiness"
-  default_prompt: "Use $beo-validate to decide whether the current phase is executable, manage approval state, and choose execute or swarm when the phase is ready."
+  short_description: "Gate current-phase readiness and choose execution mode"
+  default_prompt: "Use $beo-validate to decide whether the current phase is executable, manage approval state, and choose execute or swarm when the current phase is ready."

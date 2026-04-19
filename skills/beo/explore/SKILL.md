@@ -1,7 +1,7 @@
 ---
 name: beo-explore
 description: |
-  Lock ambiguous product requirements into `CONTEXT.md` when scope, behavior, constraints, interfaces, compatibility, or acceptance boundaries are still unclear, and establish the active feature thread only if it does not yet exist. Use it only for requirement definition and intake bootstrap, not for architecture, decomposition, sequencing, validation, or implementation planning.
+  Lock ambiguous product requirements into `CONTEXT.md` when scope, behavior, constraints, interfaces, compatibility, or acceptance boundaries remain unresolved, and establish the active feature thread only if it does not yet exist. Use it only for requirement definition and intake bootstrap, not for architecture, decomposition, sequencing, validation, or implementation planning.
 
 ---
 
@@ -12,7 +12,7 @@ description: |
 # beo-explore
 
 ## Atomic purpose
-Define the requirement contract and establish intake bootstrap when missing.
+Produce the locked requirement contract for one feature.
 
 ## When to use
 - a feature or change request still has missing, conflicting, or ambiguous requirements
@@ -46,13 +46,14 @@ Define the requirement contract and establish intake bootstrap when missing.
 - Explore must define user-visible scope, constraints, interfaces, compatibility, and acceptance boundaries without choosing architecture, decomposition, sequencing, or implementation strategy.
 - Explore may establish the feature epic and canonical `feature_slug` only when missing for a new feature intake.
 - Explore must not create plans or beads, validate readiness, implement code, review work, debug failures, or consolidate learnings.
+- Explore must not choose execution mode or implementation strategy.
 - Any unresolved scope, behavior, contract, UX, or compatibility decision must be locked here or routed back here.
 
 ## Minimum hard gates
 - **INTAKE-BOOTSTRAP-ONLY-WHEN-MISSING** — Create the feature epic and canonical `feature_slug` only for new-feature intake or recovery when they do not already exist.
 - **LOCK-BEFORE-PLAN** — Do not hand off while any scope-affecting decision remains unlocked.
 - **NO-PLANNING** — Do not create planning artifacts or beads.
-- **STRUCTURED-QUESTIONS-ONLY** — Use the structured question tool for clarification or approvals per `beo-reference` → `references/shared-hard-gates.md`.
+- **CANONICAL-QUESTION-PROTOCOL** — Use the runtime's canonical user-interaction mechanism for clarification or approvals per `beo-reference` → `references/shared-hard-gates.md`.
 - **GO-MODE** — If the user explicitly requests go mode, switch to `references/go-mode.md`.
 - **TERMINATE-ON-HANDOFF** — After writing `CONTEXT.md` and handoff state, stop immediately.
 - **FRESH-LOAD-REQUIRED** — Explore must run as a fresh invocation.

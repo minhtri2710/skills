@@ -1,7 +1,7 @@
 ---
 name: beo-onboard
 description: |
-  Verify and minimally repair beo operating readiness when required tooling, bootstrap files, directories, or shared hard-gate prerequisites are missing, stale, or invalid. Use it only for beo environment/bootstrap readiness, not for product delivery, routing decisions, or general project setup beyond beo readiness.
+  Verify and minimally repair beo operating readiness when required tooling, bootstrap files, directories, managed startup contract state, or shared hard-gate prerequisites are missing, stale, or invalid. Use it only for beo environment/bootstrap readiness, not for product delivery, routing decisions, or general project setup beyond beo readiness.
 
 ---
 
@@ -12,11 +12,12 @@ description: |
 # beo-onboard
 
 ## Atomic purpose
-Establish safe beo readiness.
+Establish and refresh safe beo readiness.
 
 ## When to use
 - required beo bootstrap files or directories are missing or stale
 - required beo tooling or runtime prerequisites are missing, outdated, or unverified
+- the managed startup contract in `AGENTS.md` is stale or mismatched with onboarding metadata
 - another beo skill cannot safely start until environment readiness is confirmed
 
 ## Inputs
@@ -24,6 +25,7 @@ Establish safe beo readiness.
 - repository root state
 - required tool availability and versions
 - existing `.beads/` structure and onboarding artifacts when present
+- onboarding freshness metadata, including managed startup contract state
 
 **Optional**
 - existing `AGENTS.md`
@@ -33,8 +35,13 @@ Establish safe beo readiness.
 **Allowed writes**
 - readiness result
 - missing bootstrap files or directories created only as needed
-- safe onboarding guidance merges when explicitly required
+- safe managed startup contract updates to `AGENTS.md`
+- `.beads/onboarding.json`
+- `.beads/beo_status.mjs`
 - `.beads/STATE.json`
+- `.beads/critical-patterns.md` when missing
+- `.beads/artifacts/` when missing
+- `.beads/learnings/` when missing
 - `.beads/HANDOFF.json` only when checkpoint or resume protocol requires it
 
 **Must not write**
@@ -47,11 +54,12 @@ Establish safe beo readiness.
 - Onboard must not act as general project setup, perform routing or feature delivery work, create feature artifacts, implement code, review work, debug blockers, extract learnings, or author skills.
 - Onboard should make only the smallest safe changes needed for beo readiness.
 - Onboard must not overwrite user-authored content destructively.
+- Onboard must treat managed startup contract freshness as explicit state, not as an implied side effect of plugin version alone.
 
 ## Minimum hard gates
 - **TOOLING-VERIFICATION** — Confirm the required toolchain and minimum versions before continuing.
 - **NO-DESTRUCTIVE-WRITES** — Never overwrite existing managed or user-authored content without an explicit safe merge path.
-- **STRUCTURED-APPROVALS-ONLY** — Use the structured question tool before applying bootstrap changes that affect shared repo guidance.
+- **CANONICAL-APPROVAL-PROTOCOL** — Use the runtime's canonical user-interaction mechanism before applying bootstrap changes that affect shared repo guidance.
 - **TERMINATE-ON-HANDOFF** and **FRESH-LOAD-REQUIRED** — Follow the shared session-boundary rules.
 
 ## Default loop

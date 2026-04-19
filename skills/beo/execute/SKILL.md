@@ -1,7 +1,7 @@
 ---
 name: beo-execute
 description: |
-  Implement exactly one approved ready bead, run its required verification, and record the result when bounded delivery work is ready to be performed or has been assigned by swarm. Use it only for bounded implementation delivery, not for planning, approval, multi-bead coordination, or diagnosis-heavy investigation.
+  Implement exactly one approved ready bead, run its required verification, and record the result when bounded delivery work is ready to be performed or has been assigned by swarm. Use it only for single-bead implementation delivery, not for planning, approval, multi-bead coordination, diagnosis-heavy investigation, review, or learning capture.
 
 ---
 
@@ -12,7 +12,7 @@ description: |
 # beo-execute
 
 ## Atomic purpose
-Deliver one approved implementation unit.
+Deliver one approved bead and verify it.
 
 ## When to use
 - a single approved ready bead must be executed

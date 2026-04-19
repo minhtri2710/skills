@@ -1,4 +1,4 @@
 interface:
   display_name: "Beo Compound"
-  short_description: "Extract learnings from one accepted feature"
-  default_prompt: "Use $beo-compound to capture durable learnings from one accepted feature and propose reusable pattern promotion only when the evidence supports it."
+  short_description: "Extract and store learnings for one accepted feature"
+  default_prompt: "Use $beo-compound to capture durable learnings from one accepted feature and propose reusable pattern promotion only when the evidence supports it, without merging evidence across features."

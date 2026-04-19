@@ -1,4 +1,4 @@
 interface:
   display_name: "Beo Explore"
-  short_description: "Lock product requirements before solution design"
-  default_prompt: "Use $beo-explore to lock scope, behavior, constraints, interfaces, and acceptance boundaries into CONTEXT.md before planning begins."
+  short_description: "Lock one feature's requirements before solution design"
+  default_prompt: "Use $beo-explore to lock scope, behavior, constraints, interfaces, and acceptance boundaries into CONTEXT.md for one feature before planning begins."

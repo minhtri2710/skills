@@ -6,7 +6,7 @@ Protocol for handling blocked tasks during `beo-execute`.
 
 ```bash
 br show <TASK_ID> --json
-br comments list <TASK_ID> --json
+br comments list <TASK_ID> --json --no-daemon
 ```
 
 ## Step 2: Classify and Act
@@ -14,14 +14,18 @@ br comments list <TASK_ID> --json
 | Blocker Type | Action |
 |-------------|--------|
 | Missing dependency output | Check if dependency completed; worker may need clearer input |
-| External service unavailable | Report to user — cannot resolve automatically |
+| External service unavailable | In `runtime-only` standalone dispatch, return `blocked` through the runtime result channel. In `agent-mail` dispatch, send a blocker alert to the parent/coordinator thread. Only direct user-facing `beo-execute` runs should route to user — cannot resolve automatically |
 | Scope exceeds task boundary | Strip `approved` (`br label remove <EPIC_ID> -l approved`), route to `beo-plan` |
-| Ambiguous requirement | Route to user for clarification |
+| Ambiguous requirement | In `runtime-only` standalone dispatch, return `blocked` through the runtime result channel for parent/orchestrator clarification. In `agent-mail` dispatch, send a blocker alert to the parent/coordinator thread for clarification. Only direct user-facing `beo-execute` runs should route to user |
 | Technical issue (build/test failure) | Route to `beo-debug` if not resolvable in-context |
 
-## Step 3: Ask User for Decision
+## Step 3: Ask User or Return Blocker
 
-Use the structured question tool to present the blocker and available options, such as: provide missing info, skip/cancel task, re-plan task, or unblock manually.
+If `beo-execute` is running with a direct user-facing channel, use the runtime's canonical user-interaction mechanism to present the blocker and available options, such as: provide missing info, skip/cancel task, re-plan task, or unblock manually.
+
+If the current worker is using `agent-mail`, do not ask the user directly. Post the blocker to the coordinator / launching parent using the canonical blocker alert path, then wait for reassignment, clarification, or stop instructions.
+
+If the current worker is `runtime-only` standalone dispatch, do not pause for direct user input. Return `blocked` through the runtime result channel and let the parent/orchestrator request the needed decision.
 
 ## Step 4: Resume
 

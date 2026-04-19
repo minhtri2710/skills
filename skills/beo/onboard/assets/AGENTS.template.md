@@ -2,10 +2,13 @@
 ## Beo Startup Rules
 
 1. Read this file at session start and again after any context compaction.
-2. Check `.beads/onboarding.json` exists and is current. If it is missing or stale, stop and load `beo-onboard`.
-3. If `.beads/beo_status.mjs` exists, run `node .beads/beo_status.mjs --json` as the first quick scout step.
-4. If `.beads/HANDOFF.json` exists, read it before normal routing and verify it against live state before resuming.
-5. Read `.beads/critical-patterns.md` before planning or execution.
+2. Run the live `beo-onboard` repo check against this repo before any downstream skill work. Canonical command pattern:
+   `node <installed-beo-onboard-root>/scripts/onboard_beo.mjs --repo-root "<absolute-path-to-repo-root>"`
+   Resolve `<installed-beo-onboard-root>` from the current runtime's installed `beo-onboard` skill path. Resolve `<absolute-path-to-repo-root>` to the directory containing this `AGENTS.md`, not the transient shell cwd. If the check reports onboarding missing or stale, stop and load `beo-onboard`.
+3. Treat onboarding as current only when that live repo check confirms the metadata in `.beads/onboarding.json` matches the installed startup contract and this managed block still matches that contract.
+4. If `.beads/beo_status.mjs` exists, run `node .beads/beo_status.mjs --json` as the first quick scout step after the live repo check passes.
+5. If `.beads/HANDOFF.json` exists, read it before normal routing and verify it against live state before resuming.
+6. Read `.beads/critical-patterns.md` before planning or execution.
 
 ## Beo Skill Chain
 
@@ -26,14 +29,16 @@ Support skills: `beo-debug`, `beo-dream`, `beo-author`
 - `beo-execute` delivers one approved bead at a time; `beo-swarm` coordinates parallel workers and does not implement code as the coordinator.
 - 65% context usage triggers a `HANDOFF.json` checkpoint and a clean pause.
 - Keep `STATE.json` current with the active phase and next action.
-- After context compaction, re-read `AGENTS.md`, rerun `node .beads/beo_status.mjs --json` if available, then reopen `STATE.json`, `HANDOFF.json` if present, and the active feature artifacts before more work.
+- After context compaction, re-read `AGENTS.md`, rerun `node <installed-beo-onboard-root>/scripts/onboard_beo.mjs --repo-root "<absolute-path-to-repo-root>"`, rerun `node .beads/beo_status.mjs --json` if available, then reopen `STATE.json`, `HANDOFF.json` if present, and the active feature artifacts before more work.
 - P1 review findings block merge or feature completion.
+- Managed startup contract freshness must be reflected in onboarding metadata; plugin version alone is not enough.
+- Do not use `node .beads/beo_status.mjs --json` as the source of truth for startup freshness; it is a repo-local scout only after the live check passes.
 - Never disturb concurrent work from other agents; work around existing edits unless the user explicitly tells you otherwise.
 
 ## Working Files
 
 - `.beads/onboarding.json` - onboarding state and managed asset version
-- `.beads/beo_status.mjs` - read-only scout command for onboarding, state, and handoff summary
+- `.beads/beo_status.mjs` - read-only scout command for recorded onboarding metadata, state, and handoff summary
 - `.beads/STATE.json` - current phase and feature narrative
 - `.beads/HANDOFF.json` - optional resume checkpoint when a session must pause
 - `.beads/artifacts/<feature_slug>/` - per-feature artifacts such as `CONTEXT.md`, `discovery.md`, `approach.md`, `plan.md`, `phase-contract.md`, and `story-map.md`

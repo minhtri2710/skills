@@ -1,7 +1,7 @@
 ---
 name: beo-compound
 description: |
-  Capture durable learnings from one accepted feature and optionally promote reusable patterns when review has already accepted that single feature. Use it only for single-feature learning extraction after acceptance, not for corpus-wide consolidation, multi-feature synthesis, or delivery work.
+  Capture durable learnings from one accepted feature and optionally promote reusable patterns when review has already accepted that single feature. Use it only for single-feature learning extraction after acceptance, not for corpus-wide consolidation, multi-feature synthesis, implementation, or review.
 
 ---
 
@@ -12,7 +12,7 @@ description: |
 # beo-compound
 
 ## Atomic purpose
-Extract durable learnings from one accepted feature only.
+Extract and store learnings for one accepted feature.
 
 ## When to use
 - review has accepted a feature and its lessons have not yet been captured
@@ -49,7 +49,7 @@ Extract durable learnings from one accepted feature only.
 ## Minimum hard gates
 - **POST-REVIEW-ONLY** — Start only after review acceptance.
 - **SINGLE-FEATURE-SCOPE** — Write learnings for exactly one feature.
-- **EXPLICIT-PROMOTION-APPROVAL** — Any write to `critical-patterns.md` requires explicit approval via the structured question tool.
+- **EXPLICIT-PROMOTION-APPROVAL** — Any write to `critical-patterns.md` requires explicit approval via the runtime's canonical user-interaction mechanism.
 - **GENERALIZE-BEFORE-PROMOTION** — Promoted patterns must be evidence-backed and traceable to the accepted feature.
 - **TERMINATE-ON-HANDOFF** and **FRESH-LOAD-REQUIRED** — Follow the shared session-boundary rules.
 

@@ -119,7 +119,7 @@ Do not create beads until both files exist.
 
 Only for high-stakes features: multiple HIGH-risk components, core architecture changes, auth flows, data model changes, broad blast radius, external dependency risk.
 
-Spawn a fresh subagent with: approach.md, plan.md, phase-plan.md (if exists), phase-contract.md, story-map.md.
+Run a fresh isolated review pass with: approach.md, plan.md, phase-plan.md (if exists), phase-contract.md, story-map.md. Spawn a subagent only when the current runtime supports delegation for the session; otherwise perform the same narrowed pass locally.
 
 **Prompt:**
 

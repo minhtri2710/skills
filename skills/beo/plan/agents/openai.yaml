@@ -1,4 +1,4 @@
 interface:
   display_name: "Beo Plan"
-  short_description: "Design the solution and current execution phase"
-  default_prompt: "Use $beo-plan to turn a locked CONTEXT.md into discovery, approach, plan, current-phase contract, story map, and current-phase beads without validating or implementing."
+  short_description: "Define the current-phase solution and bead set"
+  default_prompt: "Use $beo-plan to turn a locked CONTEXT.md into discovery, approach, plan, current-phase contract, story map, and current-phase beads without validating, approving, or implementing."

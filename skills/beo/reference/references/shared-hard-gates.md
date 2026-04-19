@@ -7,7 +7,7 @@ Universal gates and protocols referenced by all beo skills. Skills point here in
 ## Onboarding Check
 
 <HARD-GATE>
-If `br` or `bv` is unavailable, or the `.beads/` bootstrap state is missing or stale, stop and load `beo-onboard` before continuing. `.beads/onboarding.json` may inform the check, but it is not sufficient on its own.
+If `br` or `bv` is unavailable, or the `.beads/` bootstrap state is missing or stale, stop and load `beo-onboard` before continuing. `.beads/onboarding.json` may inform the check, including managed startup contract freshness, but it is not sufficient on its own and does not override managed `AGENTS.md` block drift.
 </HARD-GATE>
 
 ---
@@ -69,13 +69,13 @@ Each skill's inline FRESH-LOAD-REQUIRED gate names the most common predecessor t
 
 ## User Interaction Protocol
 
-When a skill needs to ask the user a question, present choices, or request approval, it **MUST** use the structured question tool rather than inline plain text. This ensures:
+When a skill needs to ask the user a question, present choices, or request approval, it **MUST** use the runtime's canonical user-interaction mechanism. Prefer a structured question tool when it is available in the current runtime. If it is unavailable, pause with `next: "user"` and ask an explicit yes/no or bounded-choice plain-text question. This ensures:
 
 - Questions are clearly structured with labeled options
 - User responses are unambiguous and machine-readable
 - Approval gates produce explicit, trackable decisions
 
-All approval gates defined in `approval-gates.md` **MUST** be presented via the structured question tool.
+All approval gates defined in `approval-gates.md` **MUST** use the most structured interaction mechanism available in the current runtime and must never rely on silence or implied approval.
 
 ---
 

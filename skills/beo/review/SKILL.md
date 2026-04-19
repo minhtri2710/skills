@@ -1,7 +1,7 @@
 ---
 name: beo-review
 description: |
-  Assess completed current-phase implementation against the locked contract and verification evidence after execution reaches canonical terminal states, then issue exactly one verdict: `accept`, `fix`, or `reject`. Use it only for post-execution quality decisions, not for coding fixes, replanning, or root-cause debugging.
+  Assess completed current-phase implementation against the locked contract and verification evidence after execution reaches canonical terminal states, then issue exactly one verdict: `accept`, `fix`, or `reject`. Use it only for post-execution quality decisions, not for coding fixes, replanning, root-cause debugging, or learning extraction.
 
 ---
 
@@ -12,7 +12,7 @@ description: |
 # beo-review
 
 ## Atomic purpose
-Make the post-execution quality decision.
+Make the single post-execution quality verdict.
 
 ## When to use
 - current-phase execution has reached canonical terminal bead states
@@ -56,7 +56,7 @@ Make the post-execution quality decision.
 - **NO-CODE-CHANGES** — Review does not implement fixes.
 - **P1-BLOCKS-ACCEPT** — Any P1 finding blocks acceptance.
 - **APPROVAL-REMOVAL-ON-FIX-OR-REJECT** — Remove `approved` when the verdict sends work backward.
-- **STRUCTURED-UAT-ONLY** — If user-facing UAT approval is required, request it via the structured question tool.
+- **CANONICAL-UAT-PROTOCOL** — If user-facing UAT approval is required, request it via the runtime's canonical user-interaction mechanism.
 - **TERMINATE-ON-HANDOFF** and **FRESH-LOAD-REQUIRED** — Follow the shared session-boundary rules.
 
 ## Default loop

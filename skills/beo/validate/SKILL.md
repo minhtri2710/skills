@@ -1,7 +1,7 @@
 ---
 name: beo-validate
 description: |
-  Decide whether the current phase is executable by checking the locked context, current-phase contract, story map, and bead graph for pre-execution completeness and by choosing execution mode when approved. Use it only for the readiness gate, not for repairing the plan, rewriting beads, or implementing work.
+  Decide whether the current phase is executable by checking locked requirements, current-phase contract artifacts, and bead readiness, then choose execution mode when approved. Use it only for the pre-execution correctness gate, not for repairing the plan, rewriting beads, or implementing work.
 
 ---
 
@@ -12,7 +12,7 @@ description: |
 # beo-validate
 
 ## Atomic purpose
-Gate execution readiness only.
+Gate current-phase readiness and choose execution mode.
 
 ## When to use
 - current-phase planning artifacts exist and execution readiness must be checked
@@ -34,6 +34,7 @@ Gate execution readiness only.
 - `approved` label management on the active epic
 - one readiness verdict: approved or remediation required
 - ordered remediation list in the validation response
+- execution-mode selection (`beo-execute` or `beo-swarm`) when approved
 - `.beads/STATE.json`
 - `.beads/HANDOFF.json` only when checkpoint or resume protocol requires it
 
@@ -54,7 +55,7 @@ Gate execution readiness only.
 - **NO-CODE-BEFORE-APPROVAL** — If implementation already exists for unapproved current-phase work, fail validation and route back appropriately.
 - **UNDERSPECIFIED-BEAD-FAILS-THE-GATE** — Missing acceptance criteria, verification steps, or clear deliverables block approval.
 - **APPROVAL-OWNERSHIP** — Only validate adds `approved`.
-- **STRUCTURED-APPROVALS-ONLY** — If human execution approval is required, request it via the structured question tool before adding `approved`.
+- **CANONICAL-APPROVAL-PROTOCOL** — If human execution approval is required, request it via the runtime's canonical user-interaction mechanism before adding `approved`.
 - **TERMINATE-ON-HANDOFF** and **FRESH-LOAD-REQUIRED** — Follow the shared session-boundary rules.
 
 ## Default loop

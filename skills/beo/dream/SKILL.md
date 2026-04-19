@@ -1,7 +1,7 @@
 ---
 name: beo-dream
 description: |
-  Consolidate multiple accepted-feature learnings into stable corpus-level guidance when repeated patterns, duplication, conflicts, or stale guidance require long-term maintenance. Use it only for corpus maintenance, not for single-feature learning capture or immediate post-review promotion.
+  Consolidate multiple accepted-feature learnings into stable corpus-level guidance when repeated patterns, duplication, conflicts, or stale guidance require long-term maintenance. Use it only for corpus maintenance, not for single-feature learning capture, immediate post-review promotion, implementation, or operational delivery.
 
 ---
 
@@ -12,7 +12,7 @@ description: |
 # beo-dream
 
 ## Atomic purpose
-Maintain the shared learning corpus.
+Maintain and consolidate the shared learning corpus.
 
 ## When to use
 - accumulated learnings or promoted patterns need deduplication, retirement, or restructuring
@@ -50,7 +50,7 @@ Maintain the shared learning corpus.
 ## Minimum hard gates
 - **CORPUS-LEVEL-ONLY** — Operate on the accumulated learnings and pattern corpus, never a single accepted feature in isolation.
 - **NO-INVENTION** — Every promoted pattern must trace back to source learnings.
-- **EXPLICIT-PROMOTION-APPROVAL** — Any update to `critical-patterns.md` requires explicit approval via the structured question tool.
+- **EXPLICIT-PROMOTION-APPROVAL** — Any update to `critical-patterns.md` requires explicit approval via the runtime's canonical user-interaction mechanism.
 - **ARCHIVE-INSTEAD-OF-DELETE** — Retire stale guidance by archiving per the local dream references.
 - **TERMINATE-ON-HANDOFF** and **FRESH-LOAD-REQUIRED** — Follow the shared session-boundary rules.
 
