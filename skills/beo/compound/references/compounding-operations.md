@@ -128,7 +128,9 @@ Before writing the final state, verify that the bead graph reflects completion. 
 
 ```bash
 br dep list <EPIC_ID> --direction up --type parent-child --json
-# Check: every bead should have status "closed" (done) or "deferred" with "cancelled"/"failed" label; epic should be "closed"
+# Check: every bead should have status "closed" (done) or "deferred" with the "cancelled" + "cancelled_accepted" labels; epic should be "closed"
+# Note: br uses status "deferred" + "cancelled" label for cancelled work — there is no bare "cancelled" status value.
+# Note: upstream guards (execute pre-completion gate, review pre-review checks, and routing rows 8, 10a, 10b for re-routing scenarios) ensure failed and unaccepted-cancelled tasks never reach compounding.
 ```
 
 If any bead is still open, stop and report the inconsistency to the user. Do not auto-close. Route back to `beo-review` if the open beads represent unfinished work. If this is the second consecutive compounding→reviewing loop for the same feature, escalate to the user instead of routing back automatically.

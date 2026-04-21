@@ -60,6 +60,8 @@ Onboarding manages:
       "managed_startup_contract_version_match": false,
       "status_script_exists": false,
     "state_json_exists": false,
+    "state_json_parseable": false,
+    "state_json_refreshable_bootstrap": false,
     "critical_patterns_exists": false,
     "artifacts_dir_exists": false,
     "learnings_dir_exists": false
@@ -67,7 +69,7 @@ Onboarding manages:
 }
 ```
 
-`plugin_match` is true when onboarding metadata is owned by the `beo` plugin. `plugin_version_match` is true when onboarding metadata matches the current onboarder implementation. `managed_startup_contract_version_match` is true when onboarding metadata matches the current managed startup contract. `managed_block_current` is true only when the managed `AGENTS.md` block still matches the live startup contract template.
+`plugin_match` is true when onboarding metadata is owned by the `beo` plugin. `plugin_version_match` is true when onboarding metadata matches the current onboarder implementation. `managed_startup_contract_version_match` is true when onboarding metadata matches the current managed startup contract. `managed_block_current` is true only when the managed `AGENTS.md` block still matches the live startup contract template. `state_json_parseable` is true when `STATE.json` exists and parses as valid JSON; false when the file exists but cannot be parsed (corrupt). When `state_json_exists` is false this field is also false — the two fields together distinguish a missing file from a corrupt one. `state_json_refreshable_bootstrap` is true when `STATE.json` matches one of the known bootstrap snapshots (initial onboarding-complete or needs-onboarding state), indicating it is safe to overwrite during re-onboarding without losing active feature state.
 
 ## `applyRepo` Behavior
 

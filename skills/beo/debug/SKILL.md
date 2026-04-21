@@ -1,7 +1,7 @@
 ---
 name: beo-debug
 description: |
-  Isolate one non-obvious blocker that is stopping execution or review, then apply the smallest verified unblock or route back with root-cause evidence. Use it only for concrete diagnosis-driven unblock work, not for normal feature delivery, broad exploratory investigation, general review, or learning capture.
+  Isolate one non-obvious blocker that is stopping execution or review, then apply the smallest verified unblock or route back with root-cause evidence. Use only for concrete diagnosis-driven unblock work, not for normal feature delivery, broad exploratory investigation, general review, or learning capture.
 
 ---
 
@@ -23,10 +23,10 @@ Find one blocker’s root cause and unblock it minimally.
 **Required**
 - failure or blocker identifier
 - failure evidence such as logs, errors, comments, or reproduction state
-- origin skill and return target when available
 - relevant code and artifacts needed for diagnosis
 
 **Optional**
+- origin skill and return target (required when invoked from another pipeline skill; omit for standalone debug requests)
 - bead ID and current execution state
 - existing debug history
 

@@ -1,7 +1,7 @@
 ---
 name: beo-compound
 description: |
-  Capture durable learnings from one accepted feature and optionally promote reusable patterns when review has already accepted that single feature. Use it only for single-feature learning extraction after acceptance, not for corpus-wide consolidation, multi-feature synthesis, implementation, or review.
+  Capture durable learnings from one accepted feature and optionally promote reusable patterns when review has already accepted that single feature. Use only for single-feature learning extraction after acceptance, not for corpus-wide consolidation, multi-feature synthesis, implementation, or review.
 
 ---
 

@@ -1,7 +1,7 @@
 ---
 name: beo-route
 description: |
-  Determine exactly one next pipeline target from canonical session state when a session starts, resumes, or the next step is not already fixed by an active handoff. Use it only for state detection and next-target selection, not for clarification, design, validation, delivery, review, debugging, learning, onboarding repair, or authoring.
+  Resolve canonical pipeline state and select exactly one next skill target when a session starts, resumes, or the next step must be determined. Use only for state detection and target selection, not for any operational work including requirement definition, solution design, validation, implementation, review, debugging, learning capture, or bootstrap repair.
 
 ---
 

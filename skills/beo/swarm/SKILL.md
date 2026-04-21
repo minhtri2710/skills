@@ -1,7 +1,7 @@
 ---
 name: beo-swarm
 description: |
-  Coordinate parallel delivery when approved current-phase work contains at least three independent ready beads with non-overlapping file scopes and parallelism is worth the coordination overhead. Use it only for orchestration, not for code delivery, replanning, approval, review, debugging, or learning work.
+  Coordinate parallel worker delivery for approved current-phase beads when parallelism provides material benefit over serial execution. Use only for orchestration, not for code delivery, replanning, approval, review, debugging, or learning work.
 
 ---
 
@@ -34,6 +34,7 @@ Assign and coordinate parallel workers for approved independent beads.
 - worker-to-bead assignments
 - coordination and progress messages
 - orchestration metadata or state updates allowed by protocol
+- `swarming` label on epic (added on swarm start, removed on swarm exit or degradation)
 - `.beads/STATE.json`
 - `.beads/HANDOFF.json` only when checkpoint or resume protocol requires it
 
@@ -54,6 +55,7 @@ Assign and coordinate parallel workers for approved independent beads.
 - **APPROVED-ONLY** — Swarm runs only on approved current-phase work.
 - **AGENT-MAIL-REQUIRED** — Coordination requires Agent Mail; otherwise degrade.
 - **NO-CODE-EDITING** — The coordinator does not edit implementation code.
+- **SWARMING-LABEL** — Add `swarming` label on swarm start; remove it on completion, degradation, or handoff.
 - **TERMINATE-ON-HANDOFF** and **FRESH-LOAD-REQUIRED** — Follow the shared session-boundary rules.
 
 ## Default loop

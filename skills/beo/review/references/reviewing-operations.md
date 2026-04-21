@@ -40,7 +40,9 @@ br dep list <EPIC_ID> --direction up --type parent-child --json
 | State | Action |
 | --- | --- |
 | Open/in-progress tasks | Route back to `beo-execute` |
-| Cancelled/failed tasks | Pause and present options: re-queue, accept, or re-plan |
+| Cancelled tasks (user-accepted via `cancelled_accepted` label) | Proceed with review; document accepted cancellations in findings |
+| Cancelled tasks (no `cancelled_accepted` label) | Should not reach review — routing table catches these as `cancelled-needs-decision`. If encountered, route to `user` for acceptance before continuing. |
+| Failed tasks | Should not reach review — routing table catches these via the debugging pathway (`needs-debugging` → `beo-debug`). If encountered, route back to debugging. |
 | Missing required artifacts (`phase-contract.md`, `story-map.md`) | Route to planning |
 | Blocked/partial tasks | Use approval rules in `beo-reference` → `references/approval-gates.md` |
 | Multi-phase | See `beo-reference` → `references/shared-hard-gates.md` § Multi-Phase Completion Routing |

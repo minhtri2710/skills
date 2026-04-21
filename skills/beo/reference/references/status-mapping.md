@@ -6,7 +6,7 @@ Beo uses richer task states than br's native model. This table maps each Beo sta
 
 | Beo State | br Status | br Labels | Commands (in order) |
 |---------------|-----------|-----------|-------------------|
-| `pending` | `open` | (none) | `br update <id> -s open` then remove stale labels: `br label remove <id> -l blocked`, `br label remove <id> -l failed`, `br label remove <id> -l partial`, `br label remove <id> -l cancelled`, `br label remove <id> -l dispatch_prepared`, `br label remove <id> -l in_progress` |
+| `pending` | `open` | (none) | `br update <id> -s open` then remove stale labels: `br label remove <id> -l blocked`, `br label remove <id> -l failed`, `br label remove <id> -l partial`, `br label remove <id> -l cancelled`, `br label remove <id> -l cancelled_accepted`, `br label remove <id> -l dispatch_prepared`, `br label remove <id> -l in_progress` |
 | `dispatch_prepared` | `open` | `dispatch_prepared` | `br label add <id> -l dispatch_prepared` |
 | `in_progress` | `in_progress` | `in_progress` | `br update <id> --claim` then `br label remove <id> -l dispatch_prepared` then `br label add <id> -l in_progress` |
 | `done` | `closed` | (none) | `br label remove <id> -l in_progress` then `br close <id>` |
@@ -63,10 +63,13 @@ When shared routing docs say "all tasks are in canonical terminal states," they 
 
 ### Advancement Semantics
 
-Only `done`/`closed` tasks advance cleanly through the pipeline. If a feature reaches the review gate with `cancelled` or `failed` tasks, the reviewing skill must pause and request user direction before proceeding. The user may choose to:
-- re-queue the task (reset to `pending`)
-- accept the outcome and proceed with review
-- re-plan the affected scope
+Only `done`/`closed` tasks advance cleanly through the pipeline. Non-success terminal outcomes are handled differently:
+
+- **`failed` tasks** are caught by the routing table's debugging pathway (`needs-debugging` → `beo-debug`) before reaching review. They do not appear at the review gate under normal routing.
+- **`cancelled` tasks** require explicit user acceptance before phase advancement or review. The routing table's `cancelled-needs-decision` state pauses for user direction. The user may choose to:
+  - re-queue the task (reset to `pending`)
+  - accept the outcome and proceed with review
+  - re-plan the affected scope
 
 Do not silently advance a feature through review when non-success terminal states are present.
 
@@ -77,7 +80,20 @@ Do not silently advance a feature through review when non-success terminal state
 | `planning` | `open` | (none) | Default immediately after epic creation |
 | `approved` | `open` | `approved` | `br label add <epic> -l approved` |
 | `executing` | `in_progress` | `approved` | `br update <epic> --claim` |
+| `swarming` | `in_progress` | `approved`, `swarming` | `br label add <epic> -l swarming` (added when swarm coordination starts; removed on completion, degradation, or handoff; assumes epic is already claimed via `br update <epic> --claim`) |
 | `completed` | `closed` | `approved` | `br close <epic>` |
+
+## Cancelled-Outcome Acceptance
+
+The `cancelled_accepted` label is the canonical persistence mechanism for tracking user acceptance of cancelled task outcomes:
+
+- **Set:** `br label add <TASK_ID> -l cancelled_accepted` — when the user explicitly accepts a cancelled task's outcome for phase advancement or review.
+- **Scope:** Per-task, not per-epic. Each cancelled task requires individual acceptance.
+- **Durability:** The label persists across context resets and session resumes, making acceptance state queryable by any skill.
+- **Query:** After listing cancelled tasks, check each for `cancelled_accepted` in `br show <TASK_ID> --json` labels array.
+- **Removal:** Remove only when the task is re-queued to `pending` (the stale label cleanup sequence below already covers this).
+
+A phase or feature is ready to advance past cancelled tasks only when every `cancelled` task in the active scope also carries the `cancelled_accepted` label.
 
 ## Stale Label Cleanup
 
@@ -89,6 +105,7 @@ br label remove <id> -l blocked
 br label remove <id> -l failed
 br label remove <id> -l partial
 br label remove <id> -l cancelled
+br label remove <id> -l cancelled_accepted
 br label remove <id> -l dispatch_prepared
 br label remove <id> -l in_progress
 

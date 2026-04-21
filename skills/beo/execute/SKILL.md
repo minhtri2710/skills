@@ -1,7 +1,7 @@
 ---
 name: beo-execute
 description: |
-  Implement exactly one approved ready bead, run its required verification, and record the result when bounded delivery work is ready to be performed or has been assigned by swarm. Use it only for single-bead implementation delivery, not for planning, approval, multi-bead coordination, diagnosis-heavy investigation, review, or learning capture.
+  Implement exactly one approved ready bead, run its required verification, and record the result when bounded delivery work is ready. Use only for single-bead implementation delivery, not for planning, approval, multi-bead coordination, diagnosis-heavy investigation, review, or learning capture.
 
 ---
 
@@ -47,14 +47,14 @@ Deliver one approved bead and verify it.
 - Execute owns scoped implementation delivery only, one bead at a time.
 - Execute must not redesign scope or plan, validate or approve work, coordinate multiple workers, perform diagnosis-heavy root-cause investigation beyond bounded local retries, or do post-execution review or learning extraction.
 - Execute must not work on more than one bead at a time.
-- When a blocker is not obvious and local, execute must stop and route through the canonical escalation path.
+- When a failure exceeds the bounded retry limit or requires investigation beyond the assigned bead's scope, execute must stop and route through the canonical escalation path.
 
 ## Minimum hard gates
 - **APPROVED-ONLY** — Verify the active epic has the `approved` label before starting.
 - **ONE-BEAD-AT-A-TIME** — Never parallelize within a worker.
 - **STATUS-TRANSITIONS-ONLY** — Use only allowed bead transitions from `beo-reference` → `references/status-mapping.md`.
 - **VERIFICATION-REQUIRED** — Never mark `done` without the bead's required verification evidence.
-- **OBVIOUS-RETRIES-ONLY** — Keep retries local and bounded; non-obvious blockers escalate.
+- **BOUNDED-LOCAL-RETRIES** — Keep retries local and within the configured limit; failures exceeding the limit escalate.
 - **TERMINATE-ON-HANDOFF** and **FRESH-LOAD-REQUIRED** — Follow the shared session-boundary rules for transitions to other skills.
 
 ## Default loop
@@ -63,8 +63,8 @@ Deliver one approved bead and verify it.
 3. Implement only the changes required for that bead.
 4. Run the specified verification.
 5. If verification passes, mark the bead `done` and record evidence.
-6. If verification fails in an obvious local way, retry within the local limit.
-7. If the issue is structural or non-obvious, record the blocker and hand off through the canonical pipeline (`beo-debug`, `beo-plan`, or `beo-review` path as appropriate), then stop.
+6. If verification fails within bounded local retry scope, retry within the configured limit.
+7. If the failure exceeds the retry limit or requires cross-bead investigation, record the blocker and hand off through the canonical pipeline (`beo-debug`, `beo-plan`, or `beo-review` path as appropriate), then stop.
 
 ## References
 | File | Use when |
@@ -80,7 +80,7 @@ Deliver one approved bead and verify it.
 - Normal self-loop: another ready bead in single-worker mode
 - Forward handoff: `beo-review` when the final execution scope is complete
 - Backward handoff: `beo-plan` when later phases remain or approved scope is invalidated
-- Escalation handoff: `beo-debug` for non-obvious blockers
+- Escalation handoff: `beo-debug` for failures exceeding the bounded retry limit
 - Execute stops after writing an inter-skill handoff.
 
 ## Context budget

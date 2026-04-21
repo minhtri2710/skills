@@ -26,6 +26,9 @@ function parseArgs(argv) {
     const value = argv[i]
     if (value === '--repo-root') {
       args.repoRoot = argv[i + 1] || ''
+      if (args.repoRoot.startsWith('--')) {
+        throw new Error(`Invalid --repo-root value: "${args.repoRoot}" looks like a flag, not a path`)
+      }
       i += 1
     } else if (value === '--apply') {
       args.apply = true
@@ -43,24 +46,27 @@ async function pathExists(targetPath) {
   try {
     await stat(targetPath)
     return true
-  } catch {
-    return false
+  } catch (error) {
+    if (error.code === 'ENOENT') return false
+    throw error
   }
 }
 
 async function isDirectory(targetPath) {
   try {
     return (await stat(targetPath)).isDirectory()
-  } catch {
-    return false
+  } catch (error) {
+    if (error.code === 'ENOENT') return false
+    throw error
   }
 }
 
 async function readTextIfExists(targetPath) {
   try {
     return await readFile(targetPath, 'utf8')
-  } catch {
-    return null
+  } catch (error) {
+    if (error.code === 'ENOENT') return null
+    throw error
   }
 }
 
@@ -258,6 +264,10 @@ function buildActions(details) {
   if (!details.state_json_exists || (needsOnboardingRefresh && details.state_json_refreshable_bootstrap)) {
     actions.push('create_.beads/STATE.json')
   }
+  // If STATE.json exists but is not parseable, do NOT auto-recreate it.
+  // A malformed STATE.json may contain an in-flight feature; overwriting it would
+  // destroy active feature state that state_json_refreshable_bootstrap was designed
+  // to protect.  Leave the file in place and let the human repair it manually.
 
   if (!details.critical_patterns_exists) actions.push('create_.beads/critical-patterns.md')
   if (!details.artifacts_dir_exists) actions.push('create_.beads/artifacts/')
@@ -266,8 +276,32 @@ function buildActions(details) {
   return actions
 }
 
+function validateSentinels(content) {
+  const startCount = (content.match(/<!-- BEO:START -->/g) || []).length
+  const endCount = (content.match(/<!-- BEO:END -->/g) || []).length
+  if (startCount !== endCount || startCount > 1) {
+    throw new Error(
+      `AGENTS.md has ${startCount} start and ${endCount} end sentinel(s). Expected 0 or exactly 1 of each. Manual repair required.`
+    )
+  }
+  return { startCount, endCount }
+}
+
+/**
+ * Inspect a repository and return the current onboarding status without writing any files.
+ *
+ * @param {string} repoRoot - Absolute or relative path to the repository root.
+ * @returns {Promise<{status: string, actions: string[], details: object}>}
+ * @throws {Error} If `repoRoot` is not a directory, or if `AGENTS.md` contains mismatched
+ *   or duplicate BEO sentinel comments (manual repair required before onboarding can proceed).
+ */
 export async function checkRepo(repoRoot) {
   const absoluteRepoRoot = path.resolve(repoRoot)
+
+  if (!(await isDirectory(absoluteRepoRoot))) {
+    throw new Error(`Repository root does not exist or is not a directory: ${absoluteRepoRoot}`)
+  }
+
   const template = await loadTemplate()
 
   const agentsPath = path.join(absoluteRepoRoot, 'AGENTS.md')
@@ -279,8 +313,16 @@ export async function checkRepo(repoRoot) {
   const learningsDir = path.join(absoluteRepoRoot, '.beads', 'learnings')
 
   const agentsContent = await readTextIfExists(agentsPath)
+
+  if (agentsContent) {
+    validateSentinels(agentsContent)
+  }
+
   const onboarding = await readOnboardingJson(absoluteRepoRoot)
-  const stateJson = await readJsonIfExists(statePath)
+  // Compute file existence before parsing so state_json_parseable is false only
+  // when the file exists but cannot be parsed (not when it is simply absent).
+  const stateFileExists = await pathExists(statePath)
+  const stateJson = stateFileExists ? await readJsonIfExists(statePath) : null
   const templateBlock = normalizeManagedBlock(template)
   const currentBlock = agentsContent ? normalizeManagedBlock(agentsContent) : null
 
@@ -294,7 +336,11 @@ export async function checkRepo(repoRoot) {
     managed_startup_contract_version_match:
       onboarding?.managed_startup_contract_version === MANAGED_STARTUP_CONTRACT_VERSION,
     status_script_exists: await pathExists(statusScriptPath),
-    state_json_exists: await pathExists(statePath),
+    state_json_exists: stateFileExists,
+    // true when STATE.json is present and parsed successfully; false only when the
+    // file exists but contains invalid JSON (corrupt).  When state_json_exists is
+    // false this field is also false, but the two together distinguish the cases.
+    state_json_parseable: stateFileExists && stateJson !== null,
     state_json_refreshable_bootstrap: isRefreshableBootstrapState(stateJson),
     critical_patterns_exists: await pathExists(criticalPatternsPath),
     artifacts_dir_exists: await isDirectory(artifactsDir),
@@ -315,7 +361,12 @@ function replaceManagedBlock(existingContent, template) {
     return { content: `${template.trimEnd()}\n`, mode: 'created_from_template' }
   }
 
-  if (existingContent.includes(MANAGED_START) && existingContent.includes(MANAGED_END)) {
+  const { startCount, endCount } = validateSentinels(existingContent)
+
+  const hasStart = startCount === 1
+  const hasEnd = endCount === 1
+
+  if (hasStart && hasEnd) {
     const content = existingContent.replace(/<!-- BEO:START -->[\s\S]*?<!-- BEO:END -->/, template.trim())
     return { content: content.endsWith('\n') ? content : `${content}\n`, mode: 'updated_managed_block' }
   }
@@ -370,6 +421,7 @@ function normalizeAgentsMode(value) {
 
 export async function applyRepo(repoRoot) {
   const absoluteRepoRoot = path.resolve(repoRoot)
+
   const currentState = await checkRepo(absoluteRepoRoot)
   if (currentState.status === 'up_to_date') {
     return readOnboardingJson(absoluteRepoRoot)
@@ -440,7 +492,7 @@ async function main() {
   process.stdout.write(`${JSON.stringify(result, null, 2)}\n`)
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
   main().catch((error) => {
     process.stderr.write(`${error.message}\n`)
     process.exitCode = 1

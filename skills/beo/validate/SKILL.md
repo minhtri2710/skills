@@ -1,7 +1,7 @@
 ---
 name: beo-validate
 description: |
-  Decide whether the current phase is executable by checking locked requirements, current-phase contract artifacts, and bead readiness, then choose execution mode when approved. Use it only for the pre-execution correctness gate, not for repairing the plan, rewriting beads, or implementing work.
+  Decide whether the current phase is executable by checking locked requirements, current-phase contract artifacts, and bead readiness, then choose execution mode when approved. Use only for the pre-execution correctness gate, not for repairing the plan, rewriting beads, or implementing work.
 
 ---
 

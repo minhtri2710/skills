@@ -1,7 +1,7 @@
 ---
 name: beo-review
 description: |
-  Assess completed current-phase implementation against the locked contract and verification evidence after execution reaches canonical terminal states, then issue exactly one verdict: `accept`, `fix`, or `reject`. Use it only for post-execution quality decisions, not for coding fixes, replanning, root-cause debugging, or learning extraction.
+  Assess completed current-phase implementation against the locked contract and verification evidence, then issue exactly one verdict: `accept`, `fix`, or `reject`. Use only for post-execution quality decisions, not for coding fixes, replanning, root-cause debugging, or learning extraction.
 
 ---
 
@@ -36,7 +36,7 @@ Make the single post-execution quality verdict.
 **Allowed writes**
 - `.beads/artifacts/<feature_slug>/review-findings.md`
 - exactly one verdict: `accept`, `fix`, or `reject`
-- approval-label removal when verdict is `fix` or `reject`
+- approval-label removal when verdict is `fix` or `reject` and work routes backward
 - `.beads/STATE.json`
 - `.beads/HANDOFF.json` only when checkpoint or resume protocol requires it
 

@@ -43,6 +43,12 @@ bv --robot-triage --graph-root <EPIC_ID> --format json
 br update <EPIC_ID> --claim
 ```
 
+7. Add the `swarming` label to signal active coordination:
+
+```bash
+br label add <EPIC_ID> -l swarming
+```
+
 ### Scheduling Cascade
 
 Use `beo-reference` → `references/dependency-and-scheduling.md` § Scheduling Cascade. Use the highest-available tier. Do not invent separate runtime planning artifacts. If the graph and Agent Mail disagree about readiness, pause spawning and reconcile before adding workers.
@@ -76,7 +82,7 @@ Measure silence thresholds here and in `message-templates.md` in cycles, not wal
 
 ## 3. Spawn Workers
 
-Launch workers in parallel using the runtime's available worker orchestration mechanism and the canonical worker contract. If worker spawning is unavailable or not authorized in the current session, degrade to `beo-execute`. Default max workers = `min(independent ready tasks, 5)`. Override only with explicit user approval. Default maximum 5 concurrent workers to limit coordination overhead and merge conflict risk.
+Launch workers in parallel using the runtime's available worker orchestration mechanism and the canonical worker contract. If worker spawning is unavailable or not authorized in the current session, remove the `swarming` label (`br label remove <EPIC_ID> -l swarming`) and degrade to `beo-execute`. Default max workers = `min(independent ready tasks, 5)`. Override only with explicit user approval. Default maximum 5 concurrent workers to limit coordination overhead and merge conflict risk.
 
 Each worker must receive:
 - Agent Mail identity
@@ -160,10 +166,10 @@ After each completion:
 | --- | --- |
 | >50% beads open | Continue normally |
 | <50% beads open | Consider reducing workers |
-| All current-phase beads done/cancelled/failed | Complete swarm |
+| All current-phase beads in terminal states | evaluate completion readiness (see § 5 pre-completion gate) |
 | No progress for 3+ cycles | Diagnose mail, reservations, or worker health |
 
-If coordination overhead starts exceeding useful progress, stop expanding the swarm and degrade the remainder to `beo-execute`.
+If coordination overhead starts exceeding useful progress, stop expanding the swarm, remove the `swarming` label (`br label remove <EPIC_ID> -l swarming`), and degrade the remainder to `beo-execute`.
 
 ## 5. Swarm Completion
 
@@ -175,12 +181,23 @@ When no beads remain `in_progress` and no executable current-phase work remains:
 bv --robot-triage --graph-root <EPIC_ID> --format json
 ```
 
-2. If orphaned or blocked beads remain, report them and get user direction.
-3. If all current-phase beads are in terminal states (`done`, `cancelled`, or `failed`), run final build/test commands.
-4. Choose the next route:
-   - remove `approved` first (`br label remove <EPIC_ID> -l approved`), then `beo-plan` if `planning_mode = multi-phase` and later phases remain
+2. If orphaned or blocked beads remain, remove the `swarming` label (`br label remove <EPIC_ID> -l swarming`), report the remaining work, and get user direction.
+3. If all current-phase beads are in terminal states, continue only after the pre-completion gate passes, then run final build/test commands.
+3a. **Pre-completion gate.** Before proceeding to build/test verification:
+   - If any current-phase bead is `failed`: remove the `swarming` label (`br label remove <EPIC_ID> -l swarming`), write `status: "needs-debugging"` to STATE.json and hand off to `beo-route`. Do not proceed to completion.
+   - If any current-phase bead is `cancelled` without the `cancelled_accepted` label: remove the `swarming` label (`br label remove <EPIC_ID> -l swarming`), write `status: "cancelled-needs-decision"` to STATE.json and hand off to `beo-route`. Do not proceed to completion.
+   - Only proceed when all current-phase beads are `done`, or a mix of `done` and `cancelled` where every cancelled bead has the `cancelled_accepted` label.
+4. Remove the `swarming` label first (prevents a transient `swarming`-without-`approved` state):
+
+```bash
+br label remove <EPIC_ID> -l swarming
+```
+
+5. Choose the next route:
+   - remove `approved` (`br label remove <EPIC_ID> -l approved`), then route to `beo-plan` if `planning_mode = multi-phase` and later phases remain
    - `beo-review` if this was the final execution scope
-5. Update `.beads/STATE.json`, clear active workers, run `br sync --flush-only`, and send the completion message using `message-templates.md`:
+
+6. Update `.beads/STATE.json`, clear active workers, run `br sync --flush-only`, and send the completion message using `message-templates.md`:
    - set `"status"` to `"phase-complete-needs-replan"` when later phases remain, or `"ready-to-review"` when this was the final scope
    - set `"next"` to the chosen route
 

@@ -305,18 +305,25 @@ bv --robot-next --format json 2>/dev/null || br ready --json
 | --- | --- |
 | more ready current-phase tasks | loop |
 | all remaining tasks blocked | report blockers |
-| all current-phase tasks in terminal states (`done`, `cancelled`, or `failed`) | complete current phase |
-| a task failed | if `agent-mail`, report to the coordinator; if `runtime-only`, return failure through the runtime result channel; ask the user directly only in direct user-facing standalone execution |
+| all current-phase tasks `done` (or `done` + `cancelled` with `cancelled_accepted` label) | complete current phase |
+| any current-phase task `failed` | **stop** — write `"needs-debugging"` to STATE.json `status` field, hand off to `beo-route` |
+| any current-phase task `cancelled` without `cancelled_accepted` label | **stop** — write `"cancelled-needs-decision"` to STATE.json `status` field, hand off to `beo-route` |
 | context budget >65% | checkpoint and pause |
 
 ### Completion
 
-When all current-phase tasks under the epic are in canonical terminal states (`done`, `cancelled`, or `failed`):
+When all current-phase tasks under the epic are in terminal states, evaluate completion readiness:
 
 ```bash
 br dep list <EPIC_ID> --direction up --type parent-child --json
 # Filter for any current-phase task not in a canonical terminal state; should return empty for the current-phase execution scope
 ```
+
+**Pre-completion gate.** Before writing the completion STATE.json, verify:
+1. No current-phase tasks are `failed`. If any are, write `status: "needs-debugging"` and hand off to `beo-route` instead of completing.
+2. No current-phase tasks are `cancelled` without the `cancelled_accepted` label. If any are, write `status: "cancelled-needs-decision"` and hand off to `beo-route` instead of completing.
+
+Only proceed to completion when all current-phase tasks are `done`, or a mix of `done` and `cancelled` where every cancelled task has the `cancelled_accepted` label.
 
 Then run project-specific build/tests.
 
@@ -341,7 +348,7 @@ Update `.beads/STATE.json`:
   "has_phase_plan": false,
   "current_phase": 1,
   "total_phases": 1,
-  "phase_name": "<name>"
+  "phase_name": "<phase name from phase-contract.md>"
 }
 ```
 

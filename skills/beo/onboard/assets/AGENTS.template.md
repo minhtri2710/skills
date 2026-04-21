@@ -19,7 +19,12 @@ beo-route -> beo-explore -> beo-plan -> beo-validate ->
 (beo-execute | beo-swarm -> beo-execute) -> beo-review -> beo-compound
 ```
 
-Support skills: `beo-debug`, `beo-dream`, `beo-author`
+Support skills (loaded via `beo-route` outside the main pipeline):
+- `beo-debug`: when tasks are blocked or failed and automated diagnosis has not been attempted
+- `beo-dream`: when user explicitly requests learnings consolidation
+- `beo-author`: when skill creation or editing is requested
+
+Reference skill: `beo-reference` (loadable by any skill for canonical protocol documents; not a pipeline stage)
 
 ## Critical Rules
 
@@ -33,6 +38,8 @@ Support skills: `beo-debug`, `beo-dream`, `beo-author`
 - P1 review findings block merge or feature completion.
 - Managed startup contract freshness must be reflected in onboarding metadata; plugin version alone is not enough.
 - Do not use `node .beads/beo_status.mjs --json` as the source of truth for startup freshness; it is a repo-local scout only after the live check passes.
+- When multiple active epics exist, `beo-route` pauses for user selection before deeper routing.
+- Cancelled outcomes require explicit user acceptance before phase advancement or review.
 - Never disturb concurrent work from other agents; work around existing edits unless the user explicitly tells you otherwise.
 
 ## Working Files

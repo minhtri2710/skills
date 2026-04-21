@@ -47,6 +47,30 @@ qmd status 2>/dev/null
 
 If workspace repair is needed, use the doctor-mode commands in section 7 rather than treating bootstrap repair as normal routing work.
 
+## 1b. Multi-Epic and Label-Aware Detection
+
+Before classifying new requests or resuming active features, check for these conditions:
+
+### Multi-Epic Ambiguity
+
+Query all epics and filter for active ones:
+
+```bash
+br list --type epic -a --json
+```
+
+Filter the results for epics that are `open` or `in_progress`. If more than one active epic exists, route to `user` with state `multi-epic-ambiguity` and ask which epic to continue. Do not silently pick one.
+
+### Swarming Label Detection
+
+When resuming an active epic, check whether it carries the `swarming` label (via `br show <EPIC_ID> --json` and inspecting labels). If `swarming` and `approved` are both present, route to `beo-swarm` for coordinator resume (matching state routing table row 18). This includes the window after the coordinator adds the `swarming` label but before any worker has claimed a bead — requiring `in_progress` tasks would cause the router to fall through to ready-to-swarm and initialise a duplicate swarm. If `swarming` is present without `approved`, treat it as a stale label — it will be cleaned up on the next validation pass.
+
+### Cancelled-Needs-Decision
+
+When current-scope tasks include `cancelled` outcomes, check whether each cancelled task carries the `cancelled_accepted` label (`br show <TASK_ID> --json`, inspect labels array). If any cancelled task lacks `cancelled_accepted`, route to `user` with state `cancelled-needs-decision`. Do not silently advance past unaccepted cancelled outcomes.
+
+When the user accepts a cancelled task's outcome, persist the decision: `br label add <TASK_ID> -l cancelled_accepted`. See `status-mapping.md` → Cancelled-Outcome Acceptance for full label semantics.
+
 ## 2. New Feature Intake Classification
 
 Use this section to classify brand-new requests before deeper routing.

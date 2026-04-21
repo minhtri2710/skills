@@ -2,7 +2,7 @@
 
 Operational playbook for `beo-validate`.
 
-`beo-validate` is a read-only quality gate for planning artifacts. It inspects, evaluates, and reports. It does not repair planning artifacts, edit dependency graphs, create or close spikes, rewrite bead descriptions, or otherwise mutate planned scope. Its only write actions are `approved` label management, `HANDOFF.json`, and minimal `.beads/STATE.json` updates needed for handoff.
+`beo-validate` is a read-only quality gate for planning artifacts. It inspects, evaluates, and reports. It does not repair planning artifacts, edit dependency graphs, create or close spikes, rewrite bead descriptions, or otherwise mutate planned scope. Its only write actions are `approved` label management, stale `swarming` label cleanup, `HANDOFF.json`, and minimal `.beads/STATE.json` updates needed for handoff.
 
 ## Table of Contents
 
@@ -38,10 +38,14 @@ Read artifacts in this order:
 
 Stop and route back to `beo-plan` if tasks, `approach.md`, `phase-contract.md`, or `story-map.md` are missing.
 
-Interpretation rules:
+Artifact interpretation rules:
 
-- if `phase-plan.md` exists, treat the feature as multi-phase unless current artifacts prove the model stale or invalid
-- `phase-contract.md` and `story-map.md` always describe the **current phase**
+- If `phase-plan.md` exists, treat the feature as multi-phase unless current artifacts prove the model stale or invalid.
+- `phase-contract.md` and `story-map.md` always describe the **current phase**.
+
+Before evaluating plan readiness, perform stale label cleanup:
+
+1. If the epic has a `swarming` label but no `approved` label, remove `swarming` (`br label remove <EPIC_ID> -l swarming`). This is a transient state from interrupted swarm operations; the label is not needed for validation.
 
 ## 2. Learnings Retrieval + Current-Phase Orientation
 

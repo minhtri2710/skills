@@ -60,38 +60,45 @@ Quick scope is a classification signal for later planning, validation, execution
 | 1 | The live `beo-onboard` repo check reports onboarding missing, unreadable, stale, or otherwise unhealthy, including managed startup contract mismatch or managed `AGENTS.md` block drift | **needs_onboarding** | `beo-onboard` | — |
 | 2 | Skill creation or editing requested | **meta-skill** | `beo-author` | — |
 | 3 | User explicitly requests learnings consolidation / dream work and the request is not impossible or stale | **consolidation-requested** | `beo-dream` | — |
-| 4 | No active epic exists and the new request is clearly debug work | **new-debug-intake** | `beo-debug` | — |
-| 5 | No active epic exists and the new request is clearly quick-scoped work | **new-quick-intake** | `beo-explore` | quick-scoped intake |
-| 6 | No active epic exists and the request is normal feature intake | **new-feature-intake** | `beo-explore` | normal feature intake |
-| 7 | Any tasks in the active execution scope have `blocked` or `failed` labels, `debug_attempted` label absent | **needs-debugging** | `beo-debug` | — |
-| 8 | Any tasks in the active execution scope have `blocked` or `failed` labels, `debug_attempted` label present | **blocked** | `user` | blockers need a decision |
-| 9 | Epic is closed, any child task NOT closed | **invalid-epic-closure** | `user` | epic closure is inconsistent and open tasks must be resolved |
-| 10 | All tasks in the final execution scope are in canonical terminal states (`done`, `cancelled`, or `failed`), epic closed, no learnings file | **learnings-pending** | `beo-compound` | — |
-| 11 | Epic is closed | **completed** | `done` | epic complete |
-| 12 | Any tasks in the active execution scope have `partial` or `cancelled` labels, epic still open | **partial-completion** | `user` | partial completion requires a decision |
-| 13 | Any tasks in the current execution scope have `failed` labels, or have `cancelled` labels that the user has not explicitly accepted for review/phase advancement, epic still open | **non-success-terminal-needs-decision** | `user` | non-success terminal outcomes require a decision |
-| 14 | Epic exists, all tasks for the current phase are `done`, epic still open, and later phases remain | **phase-complete-needs-replan** | `beo-plan` | — |
-| 15 | Epic exists, all tasks for the final execution scope are `done`, epic still open, and no later phases remain | **ready-to-review** | `beo-review` | — |
-| 16 | Epic exists, current-phase tasks exist, no `approved` label, and some current-phase tasks are already `in_progress` or `closed` | **approval-invalidated** | `beo-plan` | — |
-| 17 | Epic exists, current-phase tasks exist, `approved` label on epic, and some current-phase tasks are `in_progress` or `closed` (and no blocked/failed) | **executing** | `beo-execute` | — |
-| 18 | Epic exists, current-phase tasks exist, `approved` label on epic, all tasks open, 3+ independent tasks | **ready-to-swarm** | `beo-swarm` | — |
-| 19 | Epic exists, current-phase tasks exist, `approved` label on epic, all tasks open, ≤2 independent tasks | **ready-to-execute** | `beo-execute` | — |
-| 20 | Epic exists, current-phase tasks exist, no `approved` label, `phase-contract.md` AND `story-map.md` exist, and execution approval has not yet been granted or was removed on a back-edge | **ready-to-validate** | `beo-validate` | — |
-| 21 | Epic exists, planning mode is `multi-phase`, `phase-plan.md` exists, phase sequence/current phase approval is still pending, and execution has not been approved | **awaiting-planning-approval** | `user` | planning approval is required before continuing |
-| 22 | Epic exists, `approach.md` exists, no `approved` label, current-phase artifacts missing or incomplete | **planning-current-phase** | `beo-plan` | — |
-| 23 | Epic exists, `CONTEXT.md` exists, no `approach.md` | **planning-needs-approach** | `beo-plan` | — |
-| 24 | Epic exists, no tasks, no `approved` label | **exploring** | `beo-explore` | intake bootstrap or requirement definition |
+| 4 | Multiple active epics exist | **multi-epic-ambiguity** | `user` | select the intended epic before continuing |
+| 5 | No active epic exists and the new request is clearly debug work | **new-debug-intake** | `beo-debug` | — |
+| 6 | No active epic exists and the new request is clearly quick-scoped work | **new-quick-intake** | `beo-explore` | quick-scoped intake |
+| 7 | No active epic exists and the request is normal feature intake | **new-feature-intake** | `beo-explore` | normal feature intake |
+| 8 | Any tasks in the active execution scope have `blocked` or `failed` labels, `debug_attempted` label absent | **needs-debugging** | `beo-debug` | — |
+| 9 | Any tasks in the active execution scope have `blocked` or `failed` labels, `debug_attempted` label present | **blocked** | `user` | blockers need a decision |
+| 10 | Epic is closed, any child task in a non-terminal state (pending, dispatch_prepared, in_progress, blocked, or partial) | **invalid-epic-closure** | `user` | epic closure is inconsistent; non-terminal tasks must be resolved before compounding |
+| 10a | Epic is closed, any child task is `failed` | **invalid-epic-closure-failed** | `user` | epic closed with failed tasks; failed work must go through debugging before compounding. Note: additional issues (e.g. unaccepted-cancelled tasks) may exist and will surface on subsequent routing passes after failed tasks are resolved. Note: if non-terminal tasks (row 10) also exist alongside failed tasks, the non-terminal-task row fires first and failed tasks will not surface until those are resolved. |
+| 10b | Epic is closed, any child task is `cancelled` without `cancelled_accepted` label | **invalid-epic-closure-cancelled** | `user` | epic closed with unaccepted cancelled tasks; cancelled outcomes must be explicitly accepted |
+| 11 | All tasks in the final execution scope are in canonical terminal states (`done` or `cancelled` with `cancelled_accepted`), epic closed, no learnings file | **learnings-pending** | `beo-compound` | — |
+| 12 | Epic is closed | **completed** | `done` | epic complete |
+| 13 | Any tasks in the active execution scope have `partial` labels, epic still open | **partial-completion** | `user` | partial completion requires a decision |
+| 14 | Any tasks in the active execution scope have `cancelled` labels without `cancelled_accepted` label, epic still open | **cancelled-needs-decision** | `user` | cancelled outcomes require explicit user acceptance before advancing |
+| 15 | Epic exists, all tasks for the current phase are `done` (or `done` + `cancelled` with `cancelled_accepted`), epic still open, and later phases remain | **phase-complete-needs-replan** | `beo-plan` | — |
+| 16 | Epic exists, all tasks for the final execution scope are `done` (or `done` + `cancelled` with `cancelled_accepted`), epic still open, and no later phases remain | **ready-to-review** | `beo-review` | — |
+| 17 | Epic exists, current-phase tasks exist, no `approved` label, and some current-phase tasks are already `in_progress` or `closed` | **approval-invalidated** | `beo-plan` | — |
+| 18 | Epic exists, current-phase tasks exist, `approved` and `swarming` labels on epic | **swarming** | `beo-swarm` | coordinator resume |
+| 19 | Epic exists, current-phase tasks exist, `approved` label on epic, and some current-phase tasks are `in_progress` or `closed` (and no blocked/failed) | **executing** | `beo-execute` | — |
+| 20 | Epic exists, current-phase tasks exist, `approved` label on epic, all tasks open, 3+ independent tasks | **ready-to-swarm** | `beo-swarm` | — |
+| 21 | Epic exists, current-phase tasks exist, `approved` label on epic, all tasks open, ≤2 independent tasks | **ready-to-execute** | `beo-execute` | — |
+| 22 | Epic exists, current-phase tasks exist, no `approved` label, `phase-contract.md` AND `story-map.md` exist, and execution approval has not yet been granted or was removed on a back-edge | **ready-to-validate** | `beo-validate` | — |
+| 23 | Epic exists, planning mode is `multi-phase`, `phase-plan.md` exists, phase sequence/current phase approval is still pending, and execution has not been approved | **awaiting-planning-approval** | `user` | planning approval is required before continuing |
+| 24 | Epic exists, `approach.md` exists, no `approved` label, current-phase artifacts missing or incomplete | **planning-current-phase** | `beo-plan` | — |
+| 25 | Epic exists, `CONTEXT.md` exists, no `approach.md` | **planning-needs-approach** | `beo-plan` | — |
+| 26 | Epic exists, no tasks, no `approved` label | **exploring** | `beo-explore` | intake bootstrap or requirement definition |
 
 Ordering notes:
 1. Keep the onboarding row first; stale or missing onboarding blocks deeper routing.
 2. Keep explicit user-intent rows near the top; let meta-skill work and explicit dream requests short-circuit feature-state routing when actionable.
-3. Keep new-feature intake rows above active-feature rows; classify quick/debug/normal feature requests before normal active-feature routing applies.
-4. Keep `invalid-epic-closure` (row 9) above `learnings-pending` and `completed`; catch prematurely closed epics with open child tasks before treating them as finished.
-5. Keep `learnings-pending` above `completed`; route closed epics to compounding before treating them as fully complete.
-6. Keep `non-success-terminal-needs-decision` above phase advancement and review rows; failed or user-unaccepted cancelled outcomes must pause instead of silently advancing.
-7. Keep `phase-complete-needs-replan` above review and execution rows; do not misclassify multi-phase advancement as generic execution.
-8. Keep `awaiting-planning-approval` above `planning-current-phase` and `ready-to-validate`; do not skip explicit planning-approval pauses on resume.
-9. Treat `exploring` as the fallback after the context and planning-artifact rows fail: epic exists, but planning has not started.
+3. Keep the multi-epic row between user-intent rows and new-feature intake rows; resolve epic ambiguity before classifying new requests against a specific epic.
+4. Keep new-feature intake rows above active-feature rows; classify quick/debug/normal feature requests before normal active-feature routing applies.
+5. Keep `invalid-epic-closure` (row 10) and its sub-rows (10a, 10b) above `learnings-pending` and `completed`; catch prematurely closed epics with non-terminal child tasks, failed tasks, or unaccepted cancelled tasks before treating them as finished.
+6. Keep `learnings-pending` above `completed`; route closed epics to compounding before treating them as fully complete. Row 11 now requires all tasks to be `done` or accepted-cancelled (no `failed` tasks reach compounding).
+7. Keep `cancelled-needs-decision` above phase advancement and review rows; unaccepted cancelled outcomes must pause instead of silently advancing.
+8. Keep `phase-complete-needs-replan` above review and execution rows; do not misclassify multi-phase advancement as generic execution.
+9. Keep `awaiting-planning-approval` above `planning-current-phase` and `ready-to-validate`; do not skip explicit planning-approval pauses on resume.
+10. Keep the `swarming` row above the general `executing` row; active swarm coordination takes priority over single-worker routing.
+11. If `swarming` is present without `approved`, treat it as a stale label from a crash or interrupted degradation. No routing row explicitly matches this state; it will fall through to planning/validation rows, which is self-healing. The stale `swarming` label will be cleaned up when the next validation pass runs. A brief `swarming` without `approved` is not a routing defect — it is a transient artifact of label-removal ordering. Row 18 intentionally matches on `swarming + approved` alone, without requiring `in_progress` tasks. This covers the window between swarm start (step 7 adds `swarming`) and the first worker claiming a task; without this, a mid-window session interruption would fall through to row 20 and trigger a duplicate swarm setup.
+12. Treat `exploring` as the fallback after the context and planning-artifact rows fail: epic exists, but planning has not started.
 
 ### Planning Artifact Hierarchy
 
@@ -139,13 +146,13 @@ Optional handoff content carries concise context for the next target when needed
 | `beo-route` | `beo-plan` | — | epic exists with CONTEXT.md, needs planning |
 | `beo-route` | `beo-validate` | — | plan artifacts ready |
 | `beo-route` | `beo-execute` | — | approved epic with ready execution work or execution already in progress |
-| `beo-route` | `beo-swarm` | — | approved epic with 3+ independent ready tasks |
+| `beo-route` | `beo-swarm` | — | approved epic with 3+ independent ready tasks, or active swarm coordinator resume (per state routing table row 18) |
 | `beo-route` | `beo-review` | — | final execution scope in terminal states |
 | `beo-route` | `beo-compound` | — | epic closed, learnings pending |
 | `beo-route` | `beo-debug` | — | blocked/failed beads or new-debug-intake |
 | `beo-route` | `beo-author` | — | skill creation/editing requested |
 | `beo-route` | `beo-dream` | — | explicit consolidation request |
-| `beo-route` | `user` | ambiguity, blockers needing decision, planning approval required, invalid epic closure, or partial completion requiring decision | ambiguity, blockers needing decision, planning approval required, invalid epic closure, or partial completion requiring decision |
+| `beo-route` | `user` | ambiguity, blockers needing decision, planning approval required, invalid epic closure, multi-epic ambiguity, partial completion requiring decision, or cancelled outcomes requiring decision | ambiguity, blockers needing decision, planning approval required, invalid epic closure, multi-epic ambiguity, partial completion requiring decision, or cancelled outcomes requiring decision |
 | `beo-route` | `done` | epic complete, compounding done | epic complete, compounding done |
 | `beo-explore` | `beo-plan` | — | all gray areas resolved, CONTEXT.md written |
 | `beo-explore` | `user` | awaiting user answer to current question (`awaiting-exploration-answer`) | awaiting user answer to current question (`awaiting-exploration-answer`) |
@@ -162,7 +169,7 @@ Optional handoff content carries concise context for the next target when needed
 | `beo-execute` | `user` | all remaining work blocked or needs user decision (`blocked-awaiting-user`) | all remaining work blocked or needs user decision (`blocked-awaiting-user`) |
 | `beo-swarm` | `beo-review` | — | final execution scope complete |
 | `beo-swarm` | `beo-plan` | — | current phase complete, later phases remain |
-| `beo-swarm` | `beo-execute` | degradation: parallel tasks drop below 3, Agent Mail failure, serial tail work, or coordination overhead exceeding useful progress | degradation: parallel tasks drop below 3, Agent Mail failure, serial tail work, or coordination overhead exceeding useful progress |
+| `beo-swarm` | `beo-execute` | degradation: parallel tasks drop below 3, Agent Mail failure, serial tail work, or coordination overhead exceeding useful progress; remove `swarming` label before degrading | degradation: parallel tasks drop below 3, Agent Mail failure, serial tail work, or coordination overhead exceeding useful progress; remove `swarming` label before degrading |
 | `beo-swarm` | `user` | all remaining tasks blocked or user-dependent | all remaining tasks blocked or user-dependent |
 | `beo-review` | `beo-compound` | — | review passed, UAT confirmed, epic closed |
 | `beo-review` | `beo-execute` | — | P1 reactive fix needed (see Reactive Fix Contract) |
@@ -326,6 +333,16 @@ Back-edge removal invariant for `approved`:
 - Remove it via `br label remove <EPIC_ID> -l approved` whenever routing back to planning or exploring.
 - Leave it on the closed epic on normal completion as historical state.
 - See `approval-gates.md` → Approved Label Ownership for the per-skill responsibility matrix.
+
+Lifecycle for `swarming`:
+- Add via `br label add <EPIC_ID> -l swarming` when swarm coordination starts.
+- Remove via `br label remove <EPIC_ID> -l swarming` when swarm completes, degrades to serial, or hands off.
+- The label is a routing signal only; it does not affect task states.
+
+Lifecycle for `cancelled_accepted`:
+- Add via `br label add <TASK_ID> -l cancelled_accepted` when the user explicitly accepts a cancelled task's outcome.
+- Per-task label; see `status-mapping.md` → Cancelled-Outcome Acceptance for full semantics.
+- The label is the canonical source of truth for cancelled-outcome acceptance, durable across context resets.
 
 ---
 

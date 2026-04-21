@@ -1,7 +1,7 @@
 ---
 name: beo-explore
 description: |
-  Lock ambiguous product requirements into `CONTEXT.md` when scope, behavior, constraints, interfaces, compatibility, or acceptance boundaries remain unresolved, and establish the active feature thread only if it does not yet exist. Use it only for requirement definition and intake bootstrap, not for architecture, decomposition, sequencing, validation, or implementation planning.
+  Lock ambiguous product requirements into `CONTEXT.md` when any requirement-level decision remains unresolved before planning can begin, and establish the active feature thread when it does not yet exist. Use only for requirement definition and intake bootstrap, not for architecture, decomposition, sequencing, validation, or implementation planning.
 
 ---
 

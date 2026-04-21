@@ -1,7 +1,7 @@
 ---
 name: beo-dream
 description: |
-  Consolidate multiple accepted-feature learnings into stable corpus-level guidance when repeated patterns, duplication, conflicts, or stale guidance require long-term maintenance. Use it only for corpus maintenance, not for single-feature learning capture, immediate post-review promotion, implementation, or operational delivery.
+  Consolidate multiple accepted-feature learnings into stable corpus-level guidance when repeated patterns, duplication, conflicts, or stale guidance require long-term maintenance. Use only for corpus maintenance, not for single-feature learning capture, immediate post-review promotion, implementation, or operational delivery.
 
 ---
 

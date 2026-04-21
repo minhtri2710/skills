@@ -62,7 +62,7 @@ Every skill must write `.beads/STATE.json` with all fields present.
 }
 ```
 
-The complete `STATE.json` combines both blocks above (12 fields total).
+The complete `STATE.json` combines both blocks above (12 required fields).
 
 ### Optional extension fields
 
@@ -245,8 +245,8 @@ rm .beads/HANDOFF.json
 | `beo-explore` | `"exploring"` | `"planning-needs-approach"` on completion; `"awaiting-exploration-answer"` when paused for user | `"beo-plan"` on completion; current skill on pause |
 | `beo-plan` | `"planning"` | planning state from the routing table, including `"awaiting-planning-approval"` and `"ready-to-validate"` | next required skill or action |
 | `beo-validate` | `"validating"` | validation result state; `"awaiting-execution-approval"` when waiting for user approval | next required skill or action |
-| `beo-swarm` | `"swarming"` | swarming/execution routing state from the routing table | next required skill or action |
-| `beo-execute` | `"executing"` | execution state; `"blocked-awaiting-user"` or `"blocked-external"` when paused | next required skill or action |
+| `beo-swarm` | `"swarming"` | swarming/execution routing state from the routing table; `"needs-debugging"` or `"cancelled-needs-decision"` when redirecting to route | next required skill or action |
+| `beo-execute` | `"executing"` | execution state; `"blocked-awaiting-user"` or `"blocked-external"` when paused; `"needs-debugging"` or `"cancelled-needs-decision"` when redirecting to route | next required skill or action |
 | `beo-review` | `"reviewing"` | review result state; `"awaiting-uat"` when waiting for human UAT | `"beo-compound"` or other required next action |
 | `beo-debug` | `"debugging"` | debugging state; `"debug-findings-ready"` or `"blocked-external"` when paused | origin skill via `return_to`, or `"beo-route"` for standalone |
 | `beo-compound` | `"compounding"` | final post-review state from the routing table | next required skill or action |
