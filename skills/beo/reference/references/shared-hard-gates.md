@@ -6,6 +6,12 @@ Shared gates used by all beo skills.
 
 <HARD-GATE>
 If `br` or `bv` is unavailable, or `.beads/` bootstrap state is missing or stale, stop and load `beo-onboard`. `.beads/onboarding.json` may inform the check, including managed startup freshness, but it is never sufficient on its own and does not override managed `AGENTS.md` drift.
+
+To verify `bv` is installed and callable without launching the TUI, use:
+```bash
+bv --version
+```
+Never invoke bare `bv` in agent sessions; it requires a TTY and will fail in non-interactive environments. For `bv` data queries, always use `--robot-*` flags with `--format json`.
 </HARD-GATE>
 
 ## Approval Verification

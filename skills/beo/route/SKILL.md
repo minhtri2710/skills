@@ -5,7 +5,7 @@ description: |
 
 ---
 
-> **HARD-GATE: ONBOARDING** — Before any routing work, verify `br` and `bv` are accessible and `.beads/` is initialized (`beo-reference` → `references/shared-hard-gates.md`). If stale or missing, load `beo-onboard` and stop.
+> **HARD-GATE: ONBOARDING** — Before any routing work, verify `br` is accessible, verify `bv` with `bv --version` only, and confirm `.beads/` is initialized (`beo-reference` → `references/shared-hard-gates.md`). Never invoke bare `bv`; it requires a TTY. If onboarding is stale or missing, load `beo-onboard` and stop.
 
 > **Protocol References** — Shared protocol rules live in `beo-reference` → `references/<file>`.
 
@@ -25,7 +25,7 @@ Choose the single next skill.
 - current user request or resume signal
 - onboarding readiness state
 - `.beads/STATE.json`
-- live bead and epic state from `br` and `bv`
+- live bead and epic state from `br` (for example `br list`, `br show`) and from `bv` via `--robot-* --format json` only
 
 **Optional**
 - `.beads/HANDOFF.json`

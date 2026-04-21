@@ -5,7 +5,7 @@ Use this file when the short onboarding contract in `SKILL.md` is not enough.
 ## Prerequisites
 
 1. verify `node --version` is `>=18` before running `scripts/onboard_beo.mjs`
-2. verify `br` and `bv` are installed, callable, and compatible
+2. verify `br` and `bv` are installed and callable; check `bv` with `bv --version` only (never invoke bare `bv`, which requires a TTY and fails in non-interactive agent sessions)
 3. if Node, `br`, or `bv` is unavailable or broken, stop and ask the user to repair tooling before proceeding
 
 ## Decision Matrix
