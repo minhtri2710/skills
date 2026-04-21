@@ -5,7 +5,7 @@ description: |
 
 ---
 
-> **HARD-GATE: ONBOARDING** — Before any routing work, verify `br` is accessible, verify `bv` with `bv --version` only, and confirm `.beads/` is initialized (`beo-reference` → `references/shared-hard-gates.md`). Never invoke bare `bv`; it requires a TTY. If onboarding is stale or missing, load `beo-onboard` and stop.
+> **HARD-GATE: ONBOARDING** — Before any routing work: (1) verify `br` is accessible, (2) verify `bv` with `bv --version` only — never invoke bare `bv`, it requires a TTY, and (3) run the live onboarding check exactly as defined in `beo-reference` → `references/shared-hard-gates.md`. If that check does not return `"status": "up_to_date"`, load `beo-onboard` and stop.
 
 > **Protocol References** — Shared protocol rules live in `beo-reference` → `references/<file>`.
 
@@ -60,7 +60,7 @@ Choose the single next skill.
 - **FRESH-LOAD-REQUIRED** — Route must run as a fresh invocation, not as a continuation of another skill's session (`beo-reference` → `references/shared-hard-gates.md`).
 
 ## Default loop
-1. Verify onboarding readiness.
+1. Run the live onboarding check exactly as defined in `beo-reference` → `references/shared-hard-gates.md`. If the result is not `"status": "up_to_date"`, load `beo-onboard` and stop. Then, if `.beads/beo_status.mjs` exists, run `node .beads/beo_status.mjs --json` as a read-only scout.
 2. Read `.beads/HANDOFF.json` first when present, then `.beads/STATE.json`, using the canonical resume protocol.
 3. If no active handoff already fixes the next step, inspect the live bead / epic state and current request, then match the first applicable routing row in `pipeline-contracts.md`.
 4. Emit exactly one direct next target and write `.beads/STATE.json` for the selected transition.
@@ -88,3 +88,5 @@ If context exceeds 65%, checkpoint using the shared protocol in `beo-reference` 
 - doing exploration, planning, validation, execution, review, debug, or learning work after selecting a route
 - creating feature artifacts not explicitly owned by route in the routing table
 - continuing after writing `STATE.json`
+- treating `.beads/` directory existence or file presence as sufficient onboarding verification without running `onboard_beo.mjs`
+- running `node .beads/beo_status.mjs --json` in place of the live `onboard_beo.mjs` check — the scout is read-only and never the source of truth for freshness
