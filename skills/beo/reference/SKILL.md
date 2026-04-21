@@ -1,7 +1,7 @@
 ---
 name: beo-reference
 description: |
-  Provide one targeted canonical beo reference document when another skill needs a specific shared protocol, convention, CLI rule, or system-wide standard.
+  Return one targeted canonical reference document when another skill needs a shared protocol, convention, contract, or CLI rule. Read-only; not a routing or execution skill.
 
 ---
 
@@ -33,9 +33,9 @@ Expose one authoritative reference, read-only.
 - implementation code
 
 ## Boundary rules
-- `beo-reference` is read-only and is not a routing destination.
+- `beo-reference` is read-only and not a routing destination.
 - `beo-reference` must not make decisions, write state, edit artifacts, or execute feature work.
-- Callers must load only the specific reference file they need, not the full corpus.
+- Callers must load only the needed reference file, not the full corpus.
 - `beo-reference` must not function as an operational skill.
 
 ## Reference index

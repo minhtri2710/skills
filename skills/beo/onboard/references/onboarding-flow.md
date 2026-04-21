@@ -1,23 +1,23 @@
 # Onboarding Flow
 
-Use this file when the short onboarding summary in `SKILL.md` is not enough.
+Use this file when the short onboarding contract in `SKILL.md` is not enough.
 
 ## Prerequisites
 
-1. Verify `node --version` is `>=18` before running `scripts/onboard_beo.mjs`.
-2. Verify `br` and `bv` are installed, callable, and compatible with the repo's onboarding requirements.
-3. If Node.js, `br`, or `bv` is unavailable or broken, stop and ask the user to install or repair the missing tooling before proceeding.
+1. verify `node --version` is `>=18` before running `scripts/onboard_beo.mjs`
+2. verify `br` and `bv` are installed, callable, and compatible
+3. if Node, `br`, or `bv` is unavailable or broken, stop and ask the user to repair tooling before proceeding
 
 ## Decision Matrix
 
-The `checkRepo` return value contains a script-level `status` field, not a routing state. Treat a repo as ready only when the bootstrap state is present enough for beo operation and the required tooling checks pass.
+The `checkRepo` return value contains a script-level `status`, not a routing state.
 
 | `status` | Action |
 | --- | --- |
-| `"up_to_date"` | Verify tool readiness, report that onboarding is current, and hand back to `beo-route`. |
-| `"needs_onboarding"` | Summarize the actions, ask for approval only when shared repo guidance will be created or merged, then apply the minimum safe bootstrap changes. |
+| `"up_to_date"` | verify tool readiness, report onboarding current, return to `beo-route` |
+| `"needs_onboarding"` | summarize needed actions, ask for approval only when shared repo guidance changes, then apply the minimum safe bootstrap changes |
 
-> **Note:** These are script return values, not STATE.json routing states. `needs_onboarding` is the pre-onboarding detection state; after successful onboarding, the repository returns to normal routing for its actual project state.
+These are script results, not `STATE.json` statuses.
 
 ## What Onboarding Installs
 
@@ -25,14 +25,14 @@ Onboarding manages:
 
 | Asset | Purpose |
 | --- | --- |
-| `AGENTS.md` merge with the `<!-- BEO:START -->` / `<!-- BEO:END -->` block | Install or update the managed beo instructions. |
-| `.beads/` | Create the beo workspace root. |
-| `.beads/artifacts/` | Store artifacts. |
-| `.beads/learnings/` | Store learnings. |
-| `.beads/beo_status.mjs` | Install the repo-local scout command. |
-| `.beads/STATE.json` | Initialize bootstrap state. |
-| `.beads/critical-patterns.md` | Initialize the canonical shared-guidance file when the repo bootstrap expects it. This is bootstrap plumbing, not pattern promotion. |
-| `.beads/onboarding.json` | Record onboarding completion and managed asset versions for the live onboarder check. |
+| `AGENTS.md` managed block | install or update managed beo instructions |
+| `.beads/` | workspace root |
+| `.beads/artifacts/` | feature artifacts |
+| `.beads/learnings/` | learnings |
+| `.beads/beo_status.mjs` | repo-local scout |
+| `.beads/STATE.json` | bootstrap state |
+| `.beads/critical-patterns.md` | bootstrap shared-guidance file |
+| `.beads/onboarding.json` | onboarding metadata |
 
 ## `checkRepo` JSON Schema
 
@@ -50,15 +50,15 @@ Onboarding manages:
     "create_.beads/artifacts/",
     "create_.beads/learnings/"
   ],
-    "details": {
-      "agents_md_exists": true,
-      "has_beo_managed_block": false,
-      "managed_block_current": false,
-      "onboarding_json_exists": false,
-      "plugin_match": false,
-      "plugin_version_match": false,
-      "managed_startup_contract_version_match": false,
-      "status_script_exists": false,
+  "details": {
+    "agents_md_exists": true,
+    "has_beo_managed_block": false,
+    "managed_block_current": false,
+    "onboarding_json_exists": false,
+    "plugin_match": false,
+    "plugin_version_match": false,
+    "managed_startup_contract_version_match": false,
+    "status_script_exists": false,
     "state_json_exists": false,
     "state_json_parseable": false,
     "state_json_refreshable_bootstrap": false,
@@ -69,25 +69,27 @@ Onboarding manages:
 }
 ```
 
-`plugin_match` is true when onboarding metadata is owned by the `beo` plugin. `plugin_version_match` is true when onboarding metadata matches the current onboarder implementation. `managed_startup_contract_version_match` is true when onboarding metadata matches the current managed startup contract. `managed_block_current` is true only when the managed `AGENTS.md` block still matches the live startup contract template. `state_json_parseable` is true when `STATE.json` exists and parses as valid JSON; false when the file exists but cannot be parsed (corrupt). When `state_json_exists` is false this field is also false — the two fields together distinguish a missing file from a corrupt one. `state_json_refreshable_bootstrap` is true when `STATE.json` matches one of the known bootstrap snapshots (initial onboarding-complete or needs-onboarding state), indicating it is safe to overwrite during re-onboarding without losing active feature state.
+Key meaning:
+- `plugin_match` → onboarding metadata belongs to `beo`
+- `plugin_version_match` → metadata matches the current onboarder implementation
+- `managed_startup_contract_version_match` → metadata matches the current managed startup contract
+- `managed_block_current` → the managed `AGENTS.md` block still matches the live template
+- `state_json_parseable` + `state_json_exists` together distinguish missing vs corrupt state
+- `state_json_refreshable_bootstrap` means it is safe to overwrite bootstrap state during re-onboarding
 
 ## `applyRepo` Behavior
 
 When onboarding is needed, apply only the actions returned by `checkRepo`, in this order:
+1. merge `AGENTS.md` by create, replace-managed-block, or append-managed-block strategy
+2. create `.beads/` if missing
+3. create `.beads/artifacts/` if missing
+4. create `.beads/learnings/` if missing
+5. write `.beads/beo_status.mjs` only when requested
+6. write `.beads/STATE.json` with canonical bootstrap defaults only when requested
+7. initialize `.beads/critical-patterns.md` only when requested
+8. write `.beads/onboarding.json`
 
-1. If `checkRepo` requested an `AGENTS.md` action, merge it using one of three strategies:
-   - create from template when no `AGENTS.md` exists
-   - replace the existing managed block when sentinels already exist
-   - append the managed block when `AGENTS.md` exists but has no sentinels
-2. Create `.beads/` if missing
-3. Create `.beads/artifacts/` if missing
-4. Create `.beads/learnings/` if missing
-5. Write `.beads/beo_status.mjs` only when `checkRepo` requested it
-6. Write `.beads/STATE.json` with canonical bootstrap defaults only when `checkRepo` requested it (`phase: "using-beo"`, `status: "onboarding-complete"`, `next: "beo-route"`, `planning_mode: "unknown"`)
-7. Initialize `.beads/critical-patterns.md` only when `checkRepo` requested it
-8. Write `.beads/onboarding.json`
-
-The generated `.beads/beo_status.mjs` is a repo-local scout for recorded onboarding metadata, `STATE.json`, and optional `HANDOFF.json`. It is not the source of truth for startup freshness; only the live `checkRepo` logic in `scripts/onboard_beo.mjs` decides whether onboarding is current.
+The generated `.beads/beo_status.mjs` is a repo-local scout only. The live `checkRepo` logic in `scripts/onboard_beo.mjs` is the source of truth for onboarding freshness.
 
 ## `onboarding.json` Schema
 
@@ -100,7 +102,7 @@ The generated `.beads/beo_status.mjs` is a repo-local scout for recorded onboard
   "installed_at": "<ISO-8601>",
   "status": "complete",
   "managed_assets": {
-      "agents_mode": "created_from_template" | "updated_managed_block" | "appended_managed_block" | "retained_existing_managed_block",
+    "agents_mode": "created_from_template" | "updated_managed_block" | "appended_managed_block" | "retained_existing_managed_block",
     "status_script": ".beads/beo_status.mjs",
     "state_json": ".beads/STATE.json",
     "critical_patterns": ".beads/critical-patterns.md"
@@ -108,9 +110,9 @@ The generated `.beads/beo_status.mjs` is a repo-local scout for recorded onboard
 }
 ```
 
-Treat onboarding as current only when the live `checkRepo` logic sees both metadata checks pass and the managed `AGENTS.md` block still matches the installed startup contract.
-Use `.beads/beo_status.mjs` only for repo-local state summary after that gate has already passed.
-Use `retained_existing_managed_block` when onboarding refreshed metadata without touching the already-current managed `AGENTS.md` block.
+Treat onboarding as current only when live `checkRepo` sees both metadata checks pass and the managed `AGENTS.md` block still matches the installed startup contract.
+
+Use `retained_existing_managed_block` when onboarding refreshed metadata without changing an already-current managed block.
 
 ## Approval Boundary
 
@@ -118,4 +120,4 @@ Use explicit approval before:
 - creating or merging the managed `AGENTS.md` block
 - applying any onboarding change that modifies shared repo guidance
 
-Do not introduce extra approval gates for purely local bootstrap state such as `.beads/` directories or checkpoint files when the user has already asked onboarding to proceed.
+Do not add extra approval gates for purely local bootstrap state once the user has asked onboarding to proceed.

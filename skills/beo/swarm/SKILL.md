@@ -1,7 +1,7 @@
 ---
 name: beo-swarm
 description: |
-  Coordinate parallel worker delivery for approved current-phase beads when parallelism provides material benefit over serial execution. Use only for orchestration, not for code delivery, replanning, approval, review, debugging, or learning work.
+  Coordinate parallel workers across approved independent current-phase beads when concurrency is safe and materially better than serial execution. Use only for orchestration, not for implementation, replanning, approval, review, debugging, or learning work.
 
 ---
 
@@ -12,7 +12,7 @@ description: |
 # beo-swarm
 
 ## Atomic purpose
-Assign and coordinate parallel workers for approved independent beads.
+Coordinate parallel workers for approved independent beads.
 
 ## When to use
 - approved current-phase work contains at least 3 independent ready beads
@@ -45,9 +45,9 @@ Assign and coordinate parallel workers for approved independent beads.
 
 ## Boundary rules
 - Swarm owns parallel coordination only.
-- Swarm must not implement code as the coordinator, redesign plans, approve work, perform review, debug root causes, or write learnings.
-- Swarm must not assign overlapping file scopes or claim bead completion except as reflected from worker results and orchestration metadata.
-- Swarm must degrade to `beo-execute` when safe parallelism no longer applies.
+- The coordinator must not implement code, redesign plans, approve work, review outcomes, debug root causes, or write learnings.
+- Swarm must not assign overlapping file scopes or claim completion beyond worker evidence and orchestration state.
+- Swarm must degrade to `beo-execute` when safe parallelism stops applying.
 
 ## Minimum hard gates
 - **THREE-PLUS-INDEPENDENT** — Start only when at least 3 independent ready beads exist.

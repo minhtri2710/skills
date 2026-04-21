@@ -1,7 +1,7 @@
 ---
 name: beo-compound
 description: |
-  Capture durable learnings from one accepted feature and optionally promote reusable patterns when review has already accepted that single feature. Use only for single-feature learning extraction after acceptance, not for corpus-wide consolidation, multi-feature synthesis, implementation, or review.
+  Extract durable learnings from one accepted feature and optionally promote a reusable pattern with explicit approval. Use only for single-feature learning extraction after acceptance, not for corpus-wide consolidation, implementation, or review.
 
 ---
 
@@ -41,9 +41,9 @@ Extract and store learnings for one accepted feature.
 - planning, implementation, or review artifacts
 
 ## Boundary rules
-- Compound owns learning extraction and pattern promotion for one accepted feature only.
+- Compound owns learning extraction for one accepted feature only.
 - Compound must not run before review acceptance, merge evidence across multiple features, modify code or plans, or perform corpus-wide consolidation, retirement, or restructuring.
-- Promoted patterns must remain traceable to the accepted feature.
+- Any promoted pattern must be traceable to that accepted feature.
 - Compound must not create or rewrite review artifacts.
 
 ## Minimum hard gates

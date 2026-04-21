@@ -1,7 +1,7 @@
 ---
 name: beo-onboard
 description: |
-  Verify and minimally repair beo operating readiness when required tooling, bootstrap files, directories, or managed startup contract state is missing, stale, or invalid. Use only for environment and bootstrap readiness, not for product delivery, routing decisions, or general project setup beyond beo readiness.
+  Verify and minimally repair beo operating readiness when required tooling, bootstrap files, or managed startup state is missing, stale, or invalid. Use only for environment and bootstrap readiness, not for routing, feature work, or general repo setup beyond beo readiness.
 
 ---
 
@@ -50,11 +50,11 @@ Establish and refresh safe beo readiness.
 - destructive overwrites of user-authored content
 
 ## Boundary rules
-- Onboard owns environment and bootstrap validation only.
+- Onboard owns environment and bootstrap readiness only.
 - Onboard must not act as general project setup, perform routing or feature delivery work, create feature artifacts, implement code, review work, debug blockers, extract learnings, or author skills.
-- Onboard should make only the smallest safe changes needed for beo readiness.
+- Onboard makes only the smallest safe changes needed for beo readiness.
 - Onboard must not overwrite user-authored content destructively.
-- Onboard must treat managed startup contract freshness as explicit state, not as an implied side effect of plugin version alone.
+- Onboard treats managed startup freshness as explicit state, not as an implied side effect of plugin version alone.
 
 ## Minimum hard gates
 - **TOOLING-VERIFICATION** — Confirm the required toolchain and minimum versions before continuing.

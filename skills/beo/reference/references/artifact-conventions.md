@@ -1,132 +1,87 @@
 # Artifact Conventions
 
-Reference for artifact storage protocols, slug lifecycle, and file layout conventions.
-Follow these rules for all beo pipeline artifacts.
-
-## Table of Contents
-
-- [Artifact Protocol](#artifact-protocol)
-  - [Locations](#locations)
-  - [Spec (Bead Description)](#spec-bead-description)
-  - [Report (Comment-Backed)](#report-comment-backed)
-  - [Task State (Comment-Backed)](#task-state-comment-backed)
-  - [Version Semantics](#version-semantics)
-  - [Batch Sync Rule](#batch-sync-rule)
-- [Slug Lifecycle](#slug-lifecycle)
-  - [Why This Exists](#why-this-exists)
-  - [Source of Truth](#source-of-truth)
-  - [Creation Procedure](#creation-procedure)
-  - [Read Procedure](#read-procedure)
-  - [Safe Update Procedure](#safe-update-procedure)
-  - [Hard Rules](#hard-rules)
-  - [Recovery Procedure](#recovery-procedure)
-- [File Layout](#file-layout)
-  - [State Files](#state-files)
-  - [Feature Artifact Root](#feature-artifact-root)
-  - [Feature Artifacts](#feature-artifacts)
-  - [Artifact Semantics](#artifact-semantics)
-  - [Artifact Cleanup on Replanning](#artifact-cleanup-on-replanning)
-  - [Pipeline-Level Files](#pipeline-level-files)
-  - [Knowledge Store](#knowledge-store)
-
----
+Use these rules for all beo pipeline artifacts.
 
 ## Artifact Protocol
 
-Use three artifact types for tasks: **spec** (what to do), **report** (what was done), and **task_state** (machine-readable status snapshot).
+Task artifacts come in three kinds:
+- `spec` — what to do
+- `report` — what was done
+- `task_state` — machine-readable status snapshot
 
 ### Locations
 
 | Artifact | Storage | Read Command | Write Command |
 |----------|---------|-------------|---------------|
 | `spec` | Bead description | `br show <id> --json` → `.description` | `br update <id> --description "<content>"` |
-| `report` | Bead comment (latest) | `br comments list <id> --json --no-daemon` → scan for header | `br comments add <id> --no-daemon --message "<formatted>"` |
-| `task_state` | Bead comment (latest) | `br comments list <id> --json --no-daemon` → scan for header | `br comments add <id> --no-daemon --message "<formatted>"` |
+| `report` | Latest bead comment artifact | `br comments list <id> --json --no-daemon` → scan for header | `br comments add <id> --no-daemon --message "<formatted>"` |
+| `task_state` | Latest bead comment artifact | `br comments list <id> --json --no-daemon` → scan for header | `br comments add <id> --no-daemon --message "<formatted>"` |
 
-### Spec (Bead Description)
+### Spec
 
-Store the task specification in the bead description. Write it during task creation or planning. Format it as Markdown.
-
-#### Required Spec Structure
-
-Use `bead-description-templates.md` as the single source of truth.
+Store task specifications in the bead description as Markdown. Write them during task creation or planning. Use `bead-description-templates.md` as the source of truth.
 
 | Bead type | Required template |
 |-----------|-------------------|
-| Planned execution beads | **Planned Task Bead Template** |
-| Reactive fix beads | **Reactive Fix Bead Template** |
-| Review/debug follow-up beads | **Follow-Up Bead Template** |
+| Planned execution beads | Planned Task Bead Template |
+| Reactive fix beads | Reactive Fix Bead Template |
+| Review/debug follow-up beads | Follow-Up Bead Template |
 
-Checklist:
+Rules:
 - Format every bead description as Markdown.
 - Exempt reactive fix beads created by `beo-review` or `beo-debug` from Story Context.
 - Keep reactive fix beads on the shared reactive template.
-- Use the Planned Task Bead Template for normal planned execution beads.
-- Use the abbreviated Story Context only where the referenced bead template explicitly allows it.
+- Use abbreviated Story Context only where the chosen template explicitly allows it.
 
 ```bash
-# Write spec
-br update <id> --description "<Markdown content using the appropriate shared bead template>"
+br update <id> --description "<Markdown content using the shared bead template>"
 ```
 
-### Report (Comment-Backed)
+### Report
 
-Append the worker report as a bead comment with the required header format.
+Store worker reports as comment-backed artifacts:
 
-#### Format
-
-```
+```text
 ---ARTIFACT:report:v<version>---
 <markdown content>
 ---END_ARTIFACT---
 ```
 
-#### Writing a Report
+Short report example:
 
 ```bash
-# For short reports (< 32KB)
 br comments add <id> --no-daemon --message "---ARTIFACT:report:v1---
 ## Summary
 Implemented auth middleware with JWT validation.
 
 ## Changes
-- Created src/middleware/auth.ts (new file, 45 lines)
-- Added tests in src/middleware/auth.test.ts (3 test cases)
+- Created src/middleware/auth.ts
+- Added tests in src/middleware/auth.test.ts
 
 ## Verification
 - All 156 tests pass
-- Manual test: unauthenticated request returns 401
 ---END_ARTIFACT---"
+```
 
-# For large reports, write to a temp file first using your file writing tool,
-# then attach it:
+Large reports may be attached from a temp file:
+
+```bash
 br comments add <id> --file /tmp/report.md --no-daemon
 ```
 
-#### Reading the Latest Report
+Read the latest report by scanning `br comments list <id> --json --no-daemon` backward for the newest report artifact header.
 
-```bash
-# List all comments, find the latest report artifact
-br comments list <id> --json --no-daemon
-# Inspect the returned comments and scan backwards for the last report artifact header
-# The latest version wins (v2 supersedes v1)
-```
-
-#### Completion Report Minimum Fields
-
-When execution policy requires close-time validation, include:
+Close-time report minimum fields:
 - bead ID
 - files changed
 - tests added or modified
 - verification result
 
-### Task State (Comment-Backed)
+### Task State
 
-Use `task_state` for a machine-readable status snapshot. Store it as a comment-backed artifact with the same format pattern as reports.
+Store `task_state` as a comment-backed artifact with this shape:
 
-#### Format
-
-```
+```text
 ---ARTIFACT:task_state:v<version>---
 beo_status: <pending | dispatch_prepared | in_progress | done | blocked | failed | partial | cancelled>
 worker: <agent-name or empty>
@@ -137,7 +92,7 @@ context_pct: <estimated context usage percentage>
 ---END_ARTIFACT---
 ```
 
-#### Writing a Task State
+Example:
 
 ```bash
 br comments add <id> --no-daemon --message "---ARTIFACT:task_state:v1---
@@ -150,48 +105,34 @@ context_pct: 35
 ---END_ARTIFACT---"
 ```
 
-Checklist:
+Rules:
 - Treat task state as optional and informational only.
-- Treat `br` status as authoritative. See `status-mapping.md` → Reading Beo State from br.
+- Treat `br` status as authoritative. See `status-mapping.md`.
 - Update `task_state` when claiming, blocking, or completing beads.
-- Read the latest version to build the swarm status view.
+- Read the latest version when building swarm status.
 - Do not treat `beo_status: done` as bead closure.
-- Run `br close <id>` to close the bead, per `status-mapping.md`.
-- Write `task_state: done` only after `br close` succeeds.
+- Run `br close <id>` before writing `task_state: done`.
+- If a worker records `task_state: done`, write the completion report first.
 - Keep reservation release and swarm coordination in execution flow and Agent Mail protocols, not new artifact kinds.
-- If workers record `beo_status: done`, do it only after `br close` succeeds and after writing the completion report.
 
 ### Version Semantics
 
-- Use monotonically increasing integer versions: v1, v2, v3...
-- Read the latest (highest version number) artifact of each kind.
-- Increment the version when updating an existing artifact.
-- Allow multiple versions of the same artifact kind in comments. Only the latest matters.
+- Use monotonically increasing integer versions: `v1`, `v2`, `v3`, ...
+- Read the highest version of each artifact kind.
+- Increment the version when updating an artifact.
+- Multiple versions may coexist in comments; only the latest matters.
 
 ### Batch Sync Rule
 
-After writing multiple artifacts or making multiple br mutations:
+After multiple artifact writes or multiple `br` mutations:
 
 ```bash
-br sync --flush-only   # Export DB to JSONL for git
+br sync --flush-only
 ```
-
----
 
 ## Slug Lifecycle
 
-Use this protocol to create, read, preserve, and recover the immutable `feature_slug` across the beo pipeline.
-
-### Why This Exists
-
-The `feature_slug` ties together:
-- the epic bead description
-- `.beads/artifacts/<feature-slug>/`
-- `STATE.json`
-- `HANDOFF.json`
-- learnings file naming
-
-Do not let it drift after creation.
+Use this protocol to create, read, preserve, and recover the immutable `feature_slug`.
 
 ### Source of Truth
 
@@ -201,16 +142,21 @@ Store the canonical slug in the first line of the epic description:
 slug: <feature_slug>
 ```
 
-See `pipeline-contracts.md` → **Feature Slug** for derivation rules and invariants.
+The slug ties together:
+- the epic description
+- `.beads/artifacts/<feature_slug>/`
+- `STATE.json`
+- `HANDOFF.json`
+- learnings file naming
 
 ### When To Create
 
-Create the slug during new-feature intake when the active feature epic is first created and before feature artifacts or learnings depend on it.
+Create the slug during new-feature intake, before any artifact or learning depends on it.
 
 ### Creation Procedure
 
-1. Create the feature epic during intake if it does not already exist.
-2. Derive the slug from the epic title using the pipeline-contract rules.
+1. Create the feature epic if it does not already exist.
+2. Derive the slug from the epic title using pipeline rules.
 3. Write it as the first line of the epic description.
 
 ```bash
@@ -219,22 +165,20 @@ br update <EPIC_ID> --description "slug: <feature_slug>"
 
 ### Read Procedure
 
-Read the epic description. Extract the first-line slug. Use it for:
+Extract the first-line slug from the epic description and use it for:
 - `.beads/artifacts/<feature_slug>/...`
-- `feature_name` in `HANDOFF.json` (historical field name; value is still the slug)
+- `feature_name` in `HANDOFF.json`
 - `feature_slug` in `STATE.json`
 - learnings file slug components
 
 ### Safe Update Procedure
 
-When updating the epic description for summaries or planning content:
+When updating the epic description:
 
 1. Read the current description first.
-2. Extract and preserve the first line.
+2. Preserve the first line.
 3. Replace only the body below the slug line.
 4. Rewrite the full description with the slug first.
-
-Canonical shape:
 
 ```bash
 br update <EPIC_ID> --description "slug: <feature_slug>\n<rest of description>"
@@ -251,38 +195,34 @@ br update <EPIC_ID> --description "slug: <feature_slug>\n<rest of description>"
 
 If the slug line is missing:
 
-#### Case 1: No tasks yet
+Case 1: no tasks yet
 - recover the slug from the epic title
 - rewrite the epic description with the slug first line
 
-#### Case 2: Tasks or artifacts already exist
-- STOP
+Case 2: tasks or artifacts already exist
+- stop
 - inspect `.beads/artifacts/` to identify the existing feature directory
 - restore that slug to the epic description
 - do not guess between multiple plausible directories without user confirmation
 
-### Example Summary Update
+Example summary update:
 
 ```bash
 br update <EPIC_ID> --description "slug: <feature_slug>\nFeature: <name>\n\nScope: <summary>\nDecisions: <count> locked\nDomains: <list>"
 ```
 
----
-
 ## File Layout
-
-Use these canonical locations for pipeline artifacts and state files.
 
 ### State Files
 
 | File | Written By | Read By | Purpose |
 |------|-----------|---------|---------|
-| `.beads/STATE.json` | beo-route, beo-explore, beo-plan, beo-validate, beo-swarm, beo-execute, beo-review, beo-compound | Next skill in pipeline | Intra-session skill-to-skill handoff state (see `state-and-handoff-protocol.md` for canonical schema) |
-| `.beads/HANDOFF.json` | Any skill (at 65% context budget) | beo-route (Phase 3) | Cross-session resume; survives context resets (see `state-and-handoff-protocol.md` for canonical schema) |
-| `.beads/onboarding.json` | beo-onboard | All beo skills during onboarding checks | Bootstrap readiness, managed assets, and managed startup contract freshness |
-| `.beads/beo_status.mjs` | beo-onboard | Humans and agents | Read-only scout command summarizing onboarding, state, and optional handoff status |
+| `.beads/STATE.json` | `beo-route`, `beo-explore`, `beo-plan`, `beo-validate`, `beo-swarm`, `beo-execute`, `beo-review`, `beo-compound` | Next skill in pipeline | Intra-session handoff state |
+| `.beads/HANDOFF.json` | Any skill at context checkpoint | `beo-route` on resume | Cross-session resume |
+| `.beads/onboarding.json` | `beo-onboard` | All beo skills during onboarding checks | Bootstrap readiness and startup-contract freshness |
+| `.beads/beo_status.mjs` | `beo-onboard` | Humans and agents | Read-only scout summary |
 
-**Rule**: Use `state-and-handoff-protocol.md` as the canonical source for `STATE.json` and `HANDOFF.json` semantics and schemas.
+Use `state-and-handoff-protocol.md` as the canonical source for `STATE.json` and `HANDOFF.json` schema and semantics.
 
 ### Feature Artifact Root
 
@@ -292,64 +232,57 @@ Store all feature artifacts under:
 .beads/artifacts/<feature_slug>/
 ```
 
-`<feature_slug>` is the immutable slug recorded on the epic description.
-
-See `pipeline-contracts.md` → Feature Slug for derivation rules.
-
 ### Feature Artifacts
 
 | File | Written By | Read By | Purpose |
 |------|-----------|---------|---------|
-| `CONTEXT.md` | beo-explore | beo-plan, beo-validate, beo-execute, beo-review, beo-compound | Locked decisions: the source of truth |
-| `discovery.md` | beo-plan | beo-validate, beo-compound | Research findings from discovery work |
-| `approach.md` | beo-plan | beo-validate, beo-execute, beo-review, beo-compound, future planning cycles | Chosen implementation strategy, alternatives, and risk map |
-| `plan.md` | beo-plan | beo-validate, beo-execute, beo-review, beo-compound | Human-readable planning summary |
-| `phase-plan.md` | beo-plan | beo-route, beo-validate, future planning cycles | Optional whole-feature sequencing artifact for multi-phase work |
-| `phase-contract.md` | beo-plan | beo-route, beo-validate, beo-execute, beo-review, beo-compound | Current phase as a closed loop: entry/exit state, demo story, scope, pivot signals |
-| `story-map.md` | beo-plan | beo-route, beo-validate, beo-execute, beo-review, beo-compound | Current phase story sequence, closure check, story-to-bead mapping |
+| `CONTEXT.md` | `beo-explore` | downstream skills | Locked decisions; source of truth |
+| `discovery.md` | `beo-plan` | validation and later planning | Research findings |
+| `approach.md` | `beo-plan` | validation, execution, review, later planning | Chosen strategy and risk map |
+| `plan.md` | `beo-plan` | validation, execution, review, compounding | Human-readable plan summary |
+| `phase-plan.md` | `beo-plan` | routing, validation, later planning | Optional whole-feature sequencing for multi-phase work |
+| `phase-contract.md` | `beo-plan` | routing, validation, execution, review, compounding | Current-phase entry/exit state, demo story, scope, pivot signals |
+| `story-map.md` | `beo-plan` | routing, validation, execution, review, compounding | Current-phase story order and story-to-bead mapping |
 
 ### Artifact Semantics
 
 | Artifact | Role | Key Rule |
 |----------|------|----------|
-| `CONTEXT.md` | Feature definition: locked decisions, scope boundaries, out-of-scope, open questions | All downstream must honor it |
-| `discovery.md` | Research findings: architecture topology, existing patterns, constraints, external deps | Evidence, not the final plan |
-| `approach.md` | Strategy: goal, existing state, gaps/risks, chosen direction, alternatives, risk map, single/multi-phase decision | Canonical strategy artifact |
-| `plan.md` | Human-readable plan summary for quick consumption | Not a replacement for structured artifacts |
-| `phase-plan.md` | Optional multi-phase sequencing: whole-feature goal, 2-4 phases, ordering rationale, current phase selection | Absent for single-phase work |
-| `phase-contract.md` | **Current phase only**: entry/exit state, demo story, scope, pivot signals | Never whole-feature in multi-phase |
-| `story-map.md` | **Current phase only**: story sequence, closure check, story-to-bead mapping | Future phases deferred in `phase-plan.md` |
+| `CONTEXT.md` | Feature definition | All downstream work must honor it |
+| `discovery.md` | Research findings | Evidence, not the final plan |
+| `approach.md` | Strategy and risk map | Canonical strategy artifact |
+| `plan.md` | Plan summary | Not a replacement for structured artifacts |
+| `phase-plan.md` | Whole-feature sequencing | Absent for single-phase work |
+| `phase-contract.md` | Current phase only | Never whole-feature in multi-phase work |
+| `story-map.md` | Current phase only | Future phases stay deferred in `phase-plan.md` |
 
-**Planning mode rules** — see `pipeline-contracts.md` → Planning Artifact Hierarchy for full details:
-- `phase-plan.md` present → multi-phase; `phase-contract.md` and `story-map.md` describe only the current phase
+Planning mode rules:
+- `phase-plan.md` present → multi-phase
 - `phase-plan.md` absent → single-phase
-- Current-phase completion ≠ whole-feature completion when multi-phase
+- current-phase completion is not whole-feature completion in multi-phase work
 
-### Artifact Cleanup on Replanning
+### Artifact Cleanup On Replanning
 
-See `state-and-handoff-protocol.md` → Planning-Aware Field Transition Cleanup for canonical replanning cleanup rules, including single-phase conversion, multi-phase re-sequencing, and phase advancement procedures.
-
-**Hard rule:** Delete stale `phase-plan.md`; do not mark it invalid. Keep current-phase artifacts (`phase-contract.md`, `story-map.md`) aligned to the actual current phase.
+Use `state-and-handoff-protocol.md` for canonical replanning cleanup. Hard rule: delete stale `phase-plan.md`; do not mark it invalid. Keep `phase-contract.md` and `story-map.md` aligned to the real current phase.
 
 ### Pipeline-Level Files
 
 | File | Written By | Read By | Purpose |
 |------|-----------|---------|---------|
-| `.beads/artifacts/<feature_slug>/review-findings.md` | beo-review | beo-compound | P1/P2/P3 severity findings from specialist reviewers for one feature |
-| `.beads/learnings/YYYYMMDD-<feature_slug>.md` | beo-compound | all skills when relevant | Finalized learnings from one completed feature |
-| `.beads/critical-patterns.md` | beo-compound, beo-dream | beo-explore, beo-plan, beo-validate, beo-debug, beo-dream | Promoted reusable patterns and long-horizon consolidated guidance with explicit approval |
+| `.beads/artifacts/<feature_slug>/review-findings.md` | `beo-review` | `beo-compound` | Review findings for one feature |
+| `.beads/learnings/YYYYMMDD-<feature_slug>.md` | `beo-compound` | all skills when relevant | Finalized learnings for one feature |
+| `.beads/critical-patterns.md` | `beo-compound`, `beo-dream` | relevant skills | Promoted reusable patterns and long-horizon consolidated guidance |
 
 ### Knowledge Store
 
-Use this canonical knowledge-store order:
-
-1. Flat files under `.beads/learnings/` and `.beads/critical-patterns.md` (authoritative)
-2. QMD retrieval over indexed learnings for preferred read-side lookup when available
-3. Obsidian CLI reads/writes in the vault (optional mirror or read enhancement)
+Precedence:
+1. `.beads/learnings/` and `.beads/critical-patterns.md` as authoritative flat files
+2. QMD retrieval over indexed learnings when available
+3. Obsidian CLI reads or writes as optional mirror or read enhancement
 
 | Operation | Canonical | Optional enhancement |
 |-----------|-----------|----------------------|
 | Write learnings | Flat file to `.beads/learnings/` | Mirror to Obsidian vault via `obsidian create/append` |
-| Search learnings | QMD query/search plus direct read of `.beads/critical-patterns.md` when available | Flat-file content search over `.beads/learnings/` and `.beads/critical-patterns.md` |
+| Search learnings | QMD query/search plus direct read of `.beads/critical-patterns.md` | Flat-file content search |
 
 See `knowledge-store.md` for full integration details.

@@ -1,212 +1,123 @@
 # Creation Log: [Skill Name]
 
-<!-- Copy this template to your skill directory as CREATION-LOG.md -->
-<!-- Complete every section. Use this as evidence that TDD was followed -->
+Copy to the skill directory as `CREATION-LOG.md`. Use it to record source extraction, failing-test-first evidence, and the iteration trail.
 
-## Table of Contents
-1. [Source Material](#source-material)
-2. [Extraction Decisions](#extraction-decisions)
-3. [Structure Decisions](#structure-decisions)
-4. [Bulletproofing Elements](#bulletproofing-elements)
-5. [RED Phase: Baseline Testing](#red-phase-baseline-testing)
-6. [GREEN Phase: Initial Skill](#green-phase-initial-skill)
-7. [REFACTOR Phase: Iterations](#refactor-phase-iterations)
-8. [Final Outcome](#final-outcome)
+## 1. Source Material
 
----
+**Origin:** [source framework, repo, or internal practice]
 
-## Source Material
+**What the source does:** [1-3 sentences]
 
-**Origin:** [Where the technique/process came from: Flywheel, GSD, Superpowers, internal, etc.]
+**Beo context:** [which beo skill or reference this supports]
 
-**What the source does:** [Core behavior of the source framework, 1-3 sentences]
+## 2. Extraction Decisions
 
-**Beo context:** [Which beo skill(s) this supports or enables]
+**Keep**
+- [item]: [why it survives extraction]
+- [item]: [why]
 
----
+**Drop**
+- [item]: [why it is project-specific, redundant, or already canonical elsewhere]
+- [item]: [why]
 
-## Extraction Decisions
+## 3. Structure Decisions
 
-**What to include:**
-- [Item 1]: because [reason: addresses observed failure / enforces critical constraint / etc.]
-- [Item 2]: because [reason]
-- [Item 3]: because [reason]
+1. [decision]: [reason]
+2. [decision]: [reason]
+3. [decision]: [reason]
 
-**What to leave out:**
-- [Item A]: [reason: project-specific, repetitive, agent already knows this, etc.]
-- [Item B]: [reason]
+## 4. Bulletproofing
 
----
+**Language choices**
+- "[exact phrase]" instead of "[weaker phrase]": [what failure it blocks]
+- [choice]: [what failure it blocks]
 
-## Structure Decisions
+**Structural defenses**
+- [mechanism]: [what shortcut or rationalization it blocks]
+- [mechanism]: [what it blocks]
 
-1. [Structural decision + rationale]: e.g., "HARD-GATE before Phase 2 because baseline testing is the most commonly skipped step"
-2. [Structural decision + rationale]
-3. [Structural decision + rationale]
+## 5. RED: Baseline Tests Without The Skill
 
----
+Repeat this block for each scenario.
 
-## Bulletproofing Elements
+### Scenario: [name]
 
-### Language Choices
-- "[Specific phrase used]" instead of "[softer alternative]", because [prevents rationalization X]
-- hard prohibitions only where failure is costly or irreversible
-- explanation-first guidance where judgment is required
-- implementation intention format: "When X, IMMEDIATELY do Y"
-
-### Structural Defenses
-- [Defense mechanism + what it prevents]: e.g., "Rationalization table with pre-refuted excuses prevents 'I'm being pragmatic' escape hatch"
-- [Defense mechanism + what it prevents]
-
----
-
-## RED Phase: Baseline Testing
-
-<!-- Run these scenarios WITHOUT the skill loaded. Record results verbatim. -->
-
-### Scenario 1: [Name]
-
-**Setup:**
-```
-[Full scenario text: include concrete options A/B/C]
+**Setup**
+```text
+[full scenario with concrete options]
 ```
 
-**Combined pressures:** [List: Time + Authority + Sunk Cost, etc.]
+**Combined pressures:** [time, authority, sunk cost, etc.]
 
-**Agent choice:** [Option A / B / C]
+**Agent choice:** [A | B | C]
 
-**Exact rationalization (verbatim):**
-> "[Agent's exact words: quote it precisely]"
+**Exact rationalization**
+> "[verbatim response]"
 
-**Verdict:** FAIL / PASS
+**Verdict:** PASS | FAIL
 
----
+### RED Summary
 
-### Scenario 2: [Name]
+**Observed failure patterns**
+- [pattern]
+- [pattern]
 
-**Setup:**
-```
-[Full scenario text]
-```
+**Target rationalizations for GREEN**
+1. "[exact quote]"
+2. "[exact quote]"
+3. "[exact quote]"
 
-**Combined pressures:** [List]
+## 6. GREEN: First Skill Version
 
-**Agent choice:** [Option]
+**Initial `SKILL.md` changes**
+- [change]: [which rationalization it targets]
+- [change]: [which rationalization it targets]
 
-**Exact rationalization (verbatim):**
-> "[Agent's exact words]"
-
-**Verdict:** FAIL / PASS
-
----
-
-### Scenario 3: [Name]
-
-**Setup:**
-```
-[Full scenario text]
-```
-
-**Combined pressures:** [List]
-
-**Agent choice:** [Option]
-
-**Exact rationalization (verbatim):**
-> "[Agent's exact words]"
-
-**Verdict:** FAIL / PASS
-
----
-
-### RED Phase Summary
-
-**Patterns identified:**
-- [Pattern 1: e.g., "Agent consistently invoked time pressure to justify skipping"]
-- [Pattern 2]
-
-**Target rationalizations for GREEN phase:**
-1. "[Exact quote 1]"
-2. "[Exact quote 2]"
-3. "[Exact quote 3]"
-
----
-
-## GREEN Phase: Initial Skill
-
-**First SKILL.md addressed:**
-- [Which specific rationalization it targeted]
-- [Which specific rationalization it targeted]
-
-**Re-ran same scenarios WITH skill:**
+**Re-run the same scenarios with the skill loaded**
 
 | Scenario | Result | Notes |
-|---|---|---|
-| Scenario 1 | PASS / FAIL | [Notes if still failing] |
-| Scenario 2 | PASS / FAIL | [Notes] |
-| Scenario 3 | PASS / FAIL | [Notes] |
+| --- | --- | --- |
+| [name] | PASS | [note] |
+| [name] | FAIL | [note] |
 
-**Overall GREEN result:** All pass / Required iteration [N]
+**GREEN result:** all pass | needs iteration [N]
 
----
+## 7. REFACTOR: Iterations
 
-## REFACTOR Phase: Iterations
+Repeat as needed.
 
-### Iteration 1 (if needed)
+### Iteration [N]
 
-**New rationalization discovered:**
-> "[Agent's exact words during GREEN testing]"
+**New rationalization**
+> "[verbatim response]"
 
-**Fix applied:**
-- [What was added/changed in SKILL.md]
-- [Why this addresses the specific rationalization]
+**Fix applied**
+- [change]
+- [why it addresses the failure]
 
-**Re-test result:** PASS / required another iteration
+**Retest result:** PASS | iterate again
 
----
+### Final Rationalization Table
 
-### Iteration 2 (if needed)
+| Excuse | Counter-framing |
+| --- | --- |
+| "[verbatim rationalization]" | [direct rebuttal] |
+| "[verbatim rationalization]" | [direct rebuttal] |
 
-**New rationalization discovered:**
-> "[Agent's exact words]"
+## 8. Final Outcome
 
-**Fix applied:**
-- [Change description]
+- [pressure type]: [rule now holds]
+- agent cites the right skill sections when justifying the decision
+- manual validation passes: structure, references, pressure-test coverage
+- `SKILL.md` remains compact
 
-**Re-test result:** PASS / required another iteration
+**Total iterations:** [N]
 
----
+**Meta-test result**
+> "[answer to 'how could this skill be clearer?']"
 
-### Rationalization Table (Final: accumulated across all iterations)
-
-| Excuse | Reality |
-|---|---|
-| "[Exact rationalization from testing]" | [Counter-framing] |
-| "[Exact rationalization from testing]" | [Counter-framing] |
-| "[Exact rationalization from testing]" | [Counter-framing] |
-
----
-
-## Final Outcome
-
-- Agent follows core rule under [pressure type] pressure
-- Agent cites skill sections when justifying choices
-- [Other passing criteria]
-- Manual validation passes: structure, references, pressure-test coverage
-- SKILL.md < 500 lines
-
-**Total iterations required:** [N]
-
-**Meta-test result:**
-> "[Agent's response to 'how could this skill be clearer?']"
-
----
-
-## Key Insight
-
-[The most important lesson from this skill's creation: the one thing future skill authors must know]
-
----
+**Key insight:** [the one lesson future authors should keep]
 
 *Created: [DATE]*
 *Skill version: 1.0*
-*Purpose: [Why this skill exists / what beo phase it supports]*
+*Purpose: [why this skill exists]*

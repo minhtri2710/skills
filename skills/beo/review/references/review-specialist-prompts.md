@@ -1,87 +1,64 @@
 # Review Specialist Prompts
 
-## Table of Contents
+Canonical specialist lenses for `beo-review`.
 
-- [5 Review Specialists](#5-review-specialists)
-- [Dispatch Strategy](#dispatch-strategy)
-- [Specialist Prompt Template](#specialist-prompt-template)
-- [Processing Review Results](#processing-review-results)
-- [Creating P1 Fix Beads](#creating-p1-fix-beads)
-- [Creating P2/P3 Follow-Up Beads](#creating-p2p3-follow-up-beads)
+Run all 5 lenses. Run them in parallel only when the runtime supports delegation. Regression risk stays inside Architecture; do not create a separate regression specialist.
 
----
+## Specialist Lenses
 
-## 5 Review Specialists
-
-| # | Specialist | Focus | Key Questions |
-|---|-----------|-------|---------------|
-| 1 | **Code Quality** | Implementation correctness, readability, maintainability | Does the code follow project conventions? Any dead code, confusing naming, or unnecessary complexity? |
-| 2 | **Architecture** | Structural alignment with plan, dependency correctness, integration points, regression risk | Does the implementation respect planned structure? Are boundaries, contracts, integrations, and regression risks handled correctly? |
-| 3 | **Testing** | Test coverage, test quality, edge cases, verification completeness | Are the acceptance criteria actually verified? Are tests meaningful and are edge cases covered? |
-| 4 | **UX/Performance** | User-facing behavior, performance characteristics, accessibility | Does the feature behave correctly for users? Any responsiveness, accessibility, or resource-usage concerns? |
-| 5 | **Security** | Vulnerability assessment, auth/authz, data handling, input validation | Any security vulnerabilities, trust-boundary issues, unsanitized inputs, or exposed data? |
-
-## Dispatch Strategy
-
-- Run all 5 specialist lenses. Launch them in parallel only when the current runtime supports delegation for the session; otherwise run them sequentially.
-- Regression risk concerns are reviewed within the Architecture specialist rather than as a separate specialist.
+| Specialist | Focus | Ask |
+| --- | --- | --- |
+| Code Quality | Correctness, readability, maintainability | Is the implementation clear, direct, and convention-aligned? |
+| Architecture | Planned structure, dependency correctness, integration, regression risk | Does the change fit the planned shape and preserve boundaries? |
+| Testing | Coverage, test quality, verification completeness | Do the tests and checks prove the acceptance criteria? |
+| UX/Performance | User-facing behavior, accessibility, performance | Does the feature behave correctly and efficiently for real users? |
+| Security | Trust boundaries, auth, data handling, input validation | Does the change introduce security or exposure risk? |
 
 ## Specialist Prompt Template
 
-Each specialist receives:
-
 ```markdown
-# Review: <specialist-type> for <feature-name>
+# Review: <specialist> for <feature-name>
 
-## Your Role
-You are reviewing the implementation of "<feature-name>" from a <specialist-type> perspective.
+## Role
+Review "<feature-name>" from the <specialist> lens.
 
 ## Scope
-Review ONLY the changes made for this feature. Do NOT review pre-existing code unless it was modified.
+Review only files changed for this feature. Ignore untouched pre-existing code.
 
 ## Files Changed
-<list of files modified by all tasks: gathered from task reports>
+<paths from task reports>
 
-## CONTEXT.md Decisions
-<relevant decisions that should be reflected in the implementation>
+## Locked Decisions
+<relevant CONTEXT.md decisions that implementation must honor>
 
 ## Instructions
-1. Read each changed file
-2. Evaluate against your specialist criteria
-3. Report findings with severity:
-   - P1 (BLOCKS MERGE): Must fix before the feature can ship
-   - P2 (SHOULD FIX): Important but can be a follow-up task
-   - P3 (NICE TO HAVE): Minor improvements, style nits
+1. Read every changed file.
+2. Check only your specialist concerns.
+3. Report findings as:
+   - `P1`: blocks acceptance
+   - `P2`: should fix later
+   - `P3`: minor improvement
 
-## Output Format
-For each finding:
+## Output
 - File: <path>
 - Line: <number or range>
 - Severity: P1 | P2 | P3
-- Finding: <description>
-- Suggestion: <how to fix>
+- Finding: <problem>
+- Suggestion: <specific fix>
 ```
 
-## Processing Review Results
+## Result Handling
 
-Collect all findings from all specialists. Categorize:
+| Severity | Meaning | Action |
+| --- | --- | --- |
+| `P1` | Blocks acceptance | Record a blocking remediation target and route through the canonical reactive-fix path |
+| `P2` | Important follow-up | Record a non-blocking recommendation |
+| `P3` | Minor improvement | Record only; do not create work unless requested |
 
-| Severity | Action |
-|----------|--------|
-| **P1** (blocks merge) | Record a blocking remediation target and route through the canonical reactive-fix path |
-| **P2** (should fix) | Record a non-blocking follow-up recommendation for later triage |
-| **P3** (nice to have) | Record but do not create work unless user requests |
+Conflict rules:
+- Any substantiated `P1` blocks until fixed or disproved.
+- Substantiated `P2` and `P3` findings are unioned, not voted away.
+- Discard unsupported claims.
+- Re-verify contradictory blocking claims; never resolve them by majority vote.
 
-### Conflict Resolution
-
-When specialists disagree:
-- any substantiated P1 finding blocks completion until re-verified or fixed
-- substantiated P2/P3 findings are unioned rather than voted against each other
-- evidence-free claims should be discarded or downgraded
-- contradictory blocking claims require targeted re-verification or user escalation; never resolve them by majority vote alone
-
-## Reactive Fix and Follow-Up Handling
-
-For P1 findings, use `reviewing-operations.md` and the canonical reactive-fix contract to send work back through the correct downstream skill. Review identifies the fix target; it does not create or implement the fix directly.
-
-For P2/P3 findings, record follow-up recommendations using the shared follow-up template and leave creation of later work to the appropriate downstream phase or explicit user request.
+Review identifies fixes. It does not create or implement them.

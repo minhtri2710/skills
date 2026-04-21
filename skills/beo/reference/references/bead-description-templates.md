@@ -1,20 +1,16 @@
 # Bead Description Templates
 
-Canonical Markdown templates for beo task descriptions.
+Canonical task-description templates for beo beads.
 
-## Table of Contents
+Use:
+- planned execution work -> `Planned Task Bead Template`
+- reactive repair work -> `Reactive Fix Bead Template`
+- deferred non-blocking follow-up work -> `Follow-Up Bead Template`
 
-- [Planned Task Bead Template](#planned-task-bead-template)
-- [Reactive Fix Bead Template](#reactive-fix-bead-template)
-- [Follow-Up Bead Template](#follow-up-bead-template)
-
-## Usage Rules
-
-- Planned execution beads use the **Planned Task Bead Template**.
-- Reactive repair work uses the **Reactive Fix Bead Template**.
-- Review/debug follow-up work uses the **Follow-Up Bead Template**.
-- Keep bead descriptions self-sufficient enough that a fresh worker can act from the bead plus referenced artifacts.
-- Do not duplicate whole artifacts into the bead when references are sufficient.
+Rules:
+- keep the bead self-sufficient enough for a fresh worker
+- reference the relevant decisions and artifacts; do not paste whole artifacts into the bead
+- include exact file scope, acceptance criteria, and verification
 
 ## Planned Task Bead Template
 
@@ -56,15 +52,9 @@ Use for normal planned execution beads created during planning.
 - `<artifact>`: <relevant section>
 ```
 
-Checklist:
-- Do not copy all of `CONTEXT.md` into the bead. Reference the relevant decision(s).
-- Write the bead so a fresh worker can build from it alone.
-
----
-
 ## Reactive Fix Bead Template
 
-Use for beads created by `beo-review`, `beo-debug`, or other canonical reactive repair flows. These beads do not need Story Context but still require a complete Markdown spec.
+Use for beads created by `beo-review`, `beo-debug`, or another canonical reactive-fix path. Story context is optional, but the spec still must be complete.
 
 ```markdown
 ## Objective
@@ -97,11 +87,9 @@ Use for beads created by `beo-review`, `beo-debug`, or other canonical reactive 
 - Trigger: <review finding or debug root cause>
 ```
 
----
-
 ## Follow-Up Bead Template
 
-Use for non-blocking review/debug follow-up work that is intentionally deferred.
+Use for non-blocking review or debug follow-up work that is intentionally deferred.
 
 ```markdown
 ## Objective

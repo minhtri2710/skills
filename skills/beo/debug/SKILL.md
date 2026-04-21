@@ -1,7 +1,7 @@
 ---
 name: beo-debug
 description: |
-  Isolate one non-obvious blocker that is stopping execution or review, then apply the smallest verified unblock or route back with root-cause evidence. Use only for concrete diagnosis-driven unblock work, not for normal feature delivery, broad exploratory investigation, general review, or learning capture.
+  Isolate one non-obvious blocker stopping execution or review, then apply the smallest verified unblock or route back with root-cause evidence. Use only for diagnosis-driven unblock work, not for normal delivery, broad investigation, general review, or learning capture.
 
 ---
 
@@ -17,7 +17,7 @@ Find one blocker’s root cause and unblock it minimally.
 ## When to use
 - execution or review is blocked by a failure that is not solvable through an obvious local retry
 - the pipeline needs verified root-cause analysis before work can proceed
-- a standalone request clearly targets a specific failure rather than open-ended feature delivery
+- a standalone request clearly targets a specific failure rather than open-ended delivery
 
 ## Inputs
 **Required**
@@ -48,7 +48,7 @@ Find one blocker’s root cause and unblock it minimally.
 - Debug owns diagnosis-driven unblock work only.
 - Debug must not absorb normal implementation work, redesign requirements or plans except by routing back with evidence, perform general quality review, or extract or consolidate learnings.
 - Debug must preserve the correct return path to the originating skill.
-- Debug must not continue once the blocker is resolved or escalated.
+- Debug stops as soon as the blocker is resolved or escalated.
 
 ## Minimum hard gates
 - **ORIGIN-TRACKING** — Preserve or recover the correct return target via the canonical state protocol.

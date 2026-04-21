@@ -1,7 +1,7 @@
 ---
 name: beo-plan
 description: |
-  Convert a locked `CONTEXT.md` into the current-phase technical design and execution contract when implementation needs explicit solution design or replanning. Use only for solution design and current-phase decomposition, not for relocking requirements, approving readiness, delivering code, performing review, or capturing learnings.
+  Turn a locked `CONTEXT.md` into current-phase design artifacts and executable bead specs when work needs solution design or replanning. Use only for solution design and current-phase decomposition, not for requirement locking, readiness gating, implementation, review, or learning.
 
 ---
 
@@ -17,7 +17,7 @@ Define the current-phase solution and executable bead set.
 ## When to use
 - `CONTEXT.md` is locked and the work needs technical design
 - the next current phase must be prepared for validation and execution
-- approved or planned work must be replanned because the solution definition changed
+- approved or planned work must be replanned because the solution changed
 
 ## Inputs
 **Required**
@@ -44,14 +44,14 @@ Define the current-phase solution and executable bead set.
 
 **Must not write**
 - implementation code
-- validation verdicts or approval state except by routing onward
+- validation verdicts or execution approval state
 - review or learning artifacts
 
 ## Boundary rules
 - Plan owns solution design only.
-- Plan must not define or relock requirements except by routing back to `beo-explore`.
-- Plan must create only current-phase executable specifications.
-- Plan must not validate or approve work, implement code, review outcomes, debug blockers, or write learnings.
+- Plan must route to `beo-explore` if requirements are not locked.
+- Plan creates only current-phase executable specifications.
+- Plan must not validate readiness, grant execution approval, implement code, review work, debug blockers, or write learnings.
 
 ## Minimum hard gates
 - **LOCKED-CONTEXT-REQUIRED** — Start only from a fully locked `CONTEXT.md`.

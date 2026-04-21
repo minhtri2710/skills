@@ -1,56 +1,55 @@
 # Dream Consolidation Rubric
 
-Use this rubric to classify each candidate signal as `clear match`, `ambiguous`, `no match`, or `no durable signal`.
+Classify each candidate as `clear match`, `ambiguous`, `no match`, or `no durable signal`.
 
-## 1) Clear Match
+## `clear match`
 
-Choose `clear match` only when all are true:
-- Exactly one existing learning file owns the same durable lesson.
-- The candidate strengthens or corrects that lesson without changing domain scope.
-- No competing target file has similar ownership strength.
-
-Action:
-- Merge or rewrite that one justified target.
-- Keep durable guidance and remove contradicted details.
-- Preserve any existing file format instead of inventing new metadata fields during consolidation.
-
-## 2) Ambiguous
-
-Choose `ambiguous` when any are true:
-- Two or more candidate learnings files have plausible ownership.
-- The best target file cannot be justified confidently.
-- The lesson overlaps adjacent domains and ownership is unclear.
+Use only when all are true:
+- exactly one existing learning file owns the same durable lesson
+- the candidate strengthens or corrects that lesson without expanding domain scope
+- no competing target has comparable ownership strength
 
 Action:
-- Show candidate learnings files and reasons.
-- Offer plain-chat labeled choices:
+- merge or rewrite that one justified target
+- keep durable guidance, drop contradicted details
+- preserve the existing file format; do not invent new metadata during consolidation
+
+## `ambiguous`
+
+Use when:
+- 2 or more files plausibly own the lesson
+- the best target cannot be justified confidently
+- the lesson overlaps adjacent domains and ownership is unclear
+
+Action:
+- show the candidate files and why each is plausible
+- offer labeled choices:
   - `merge -> <target file>`
-  - `merge -> <target file>` for each plausible target file
+  - `merge -> <target file>`
   - `create new`
   - `skip`
-- Wait for user choice before writing.
+- wait for user choice before writing
 
-## 3) No Match
+## `no match`
 
-Choose `no match` when no existing file is a good owner and the signal is durable.
+Use when the signal is durable but no existing file is a justified owner.
 
 Action:
-- Do not create a new shared-guidance file unless the canonical dream workflow explicitly requires one.
-- Keep the candidate out of shared guidance until enough multi-feature evidence exists.
-- Add durable synthesis only when there is a justified target to update.
+- do not create new shared guidance unless the dream workflow explicitly calls for it
+- keep the candidate out of shared guidance until enough multi-feature evidence exists
 
-## 4) No Durable Signal
+## `no durable signal`
 
-Choose `no durable signal` when the candidate is transient, noisy, or not reusable.
+Use when the signal is transient, noisy, or not reusable.
 
 Examples:
-- Temporary command output without reusable lesson
-- One-off failure details with no general prevention rule
-- Ephemeral environment state not expected to recur
+- temporary command output with no reusable lesson
+- one-off failure details with no general prevention rule
+- ephemeral environment state unlikely to recur
 
 Action:
-- Skip write for this candidate.
+- skip the write
 
-## Exact-One-Owner Rewrite Rule
+## Rewrite Rule
 
-Rewrite existing content only when exactly one owner is clear. If more than one target file is plausible, treat as ambiguous and require user choice.
+Rewrite only when exactly one owner is clear. If more than one target is plausible, treat it as `ambiguous`.

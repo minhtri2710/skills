@@ -1,7 +1,7 @@
 ---
 name: beo-author
 description: |
-  Create, revise, or pressure-test beo skill definitions and their supporting references when the skill system itself must be changed, clarified, or evaluated. Use only for skill-system authoring, not for live feature delivery, operational pipeline execution, bootstrap repair, or product-code implementation.
+  Create, revise, or pressure-test beo skill definitions and supporting references when the skill system itself needs change. Use only for skill-system authoring, not for live pipeline execution, onboarding repair, or product work.
 
 ---
 
@@ -12,7 +12,7 @@ description: |
 # beo-author
 
 ## Atomic purpose
-Modify and pressure-test the beo skill system itself.
+Modify and pressure-test the beo skill system.
 
 ## When to use
 - a beo skill must be created or rewritten
@@ -42,11 +42,11 @@ Modify and pressure-test the beo skill system itself.
 - onboarding bootstrap state except through `beo-onboard`
 
 ## Boundary rules
-- Author owns skill creation and modification only.
-- Author must not perform product feature work, execute operational pipeline phases on behalf of delivery skills, or do onboarding except by routing to `beo-onboard`.
+- Author owns skill-system authoring only.
+- Author must not perform product feature work, execute pipeline phases on behalf of delivery skills, or do onboarding except by routing to `beo-onboard`.
 - Author must not substitute for route, explore, plan, validate, execute, review, debug, compound, dream, or onboard in live delivery.
-- Author must not change canonical skill order, topology, or control flow accidentally; any such change must be explicit in the request and propagated consistently through the canonical pipeline references.
-- Author must remove overlap through explicit contract clarity rather than vague instructions.
+- Author must not change canonical skill order, topology, or control flow unless the request explicitly requires it and the canonical references are updated consistently.
+- Author removes overlap by tightening contracts, not by adding vague guidance.
 - Author must not leave hidden dependencies or undefined contracts in authored skills.
 
 ## Minimum hard gates

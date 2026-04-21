@@ -1,49 +1,47 @@
 # Planning Prerequisites
 
-Operational reference for prerequisites, learnings retrieval, and planning mode selection.
+Use before writing any planning artifact.
 
-## 0. Refactoring Sequencing Rule
+## 1. Refactoring Order
 
-When planning structural refactoring, sequence steps in this order:
+For structural refactors, plan in this order:
+1. fix dependency violations
+2. remove dead artifacts
+3. tighten visibility or access
 
-1. **Fix** dependency violations (wrong-direction imports, DAG breaks)
-2. **Remove** dead artifacts (unused code, stale modules)
-3. **Restrict** access control (tighten visibility, lock down APIs)
+This order avoids rework: wrong-direction imports can keep dead code artificially alive, and visibility changes are easiest after the surface is already minimal.
 
-This is the only rework-free order. Fixing the DAG first means dead-code analysis isn't confused by items kept alive through wrong-direction imports. Removing dead code before visibility tightening means the visibility pass operates on the minimal item set.
+## 2. Required Inputs
 
-## 1. Prerequisites
-
-Verify the epic exists:
+Verify the epic:
 
 ```bash
 br show <EPIC_ID> --json
 ```
 
-Read these artifacts:
-
-- `.beads/artifacts/<feature_slug>/CONTEXT.md` — **required**; if absent, stop and route back to `beo-explore`
+Read:
+- `.beads/artifacts/<feature_slug>/CONTEXT.md` — required; if missing, route to `beo-explore`
 - `.beads/critical-patterns.md` — optional
 
-Planning assumes decisions are already locked. Do not reopen product-definition questions unless planning reveals contradictions or gaps.
+Planning assumes requirements are already locked. Reopen product questions only when planning finds a contradiction or an actual gap.
 
-## 2. Learnings Retrieval
+## 3. Learnings Read
 
-Run this step before research. Use `beo-reference` → `references/learnings-read-protocol.md` as the canonical workflow.
+Use `beo-reference` → `references/learnings-read-protocol.md`.
 
-If relevant patterns exist:
-- Note them in `discovery.md`
-- Apply them in `approach.md`
-- Carry them into affected bead descriptions
-- Let them influence single-phase vs. multi-phase selection
+If relevant learnings exist:
+- record them in `discovery.md`
+- apply them in `approach.md`
+- carry them into affected bead descriptions
+- let them influence single-phase vs. multi-phase choice
 
-If no relevant prior learnings exist, record that explicitly.
+If none apply, say so explicitly.
 
-## 3. Decide Planning Mode
+## 4. Planning Mode
 
 | Mode | Choose when |
-|------|-------------|
-| `single-phase` | ALL: one believable closed loop; 1–4 stories; no obvious deferred capability sequence; one phase stays focused |
-| `multi-phase` | ANY: 2+ meaningful capability slices; current work mainly unlocks later work; one phase would be vague or oversized; story count likely exceeds 4; later work should stay intentionally deferred |
+| --- | --- |
+| `single-phase` | one believable closed loop, usually 1-4 stories, with no meaningful deferred capability sequence |
+| `multi-phase` | the work naturally splits into 2 or more real capability slices, or one phase would be vague, oversized, or mainly unlock later work |
 
-Record the decision in `approach.md`. Do not choose `multi-phase` just because the work is moderately large — use the simplest mode that keeps the work understandable and execution-safe.
+Record the choice in `approach.md`. Choose the simplest mode that keeps execution clear and safe.

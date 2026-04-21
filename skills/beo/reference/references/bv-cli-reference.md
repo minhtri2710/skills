@@ -1,69 +1,114 @@
 # bv CLI Reference
 
-`bv` (Beads Viewer) provides graph analytics over the bead dependency graph. All robot-mode commands output JSON.
+Canonical `bv` robot-mode commands for graph analytics. Robot-mode outputs use JSON.
 
-## Scheduling & Triage
+## Scheduling And Triage
 
 ```bash
-bv --robot-plan --format json       # Parallel execution tracks (task ordering)
-bv --robot-next --format json       # Single top-pick next task recommendation
-bv --robot-triage --format json     # Full triage with recommendations
+bv --robot-plan --format json
+bv --robot-next --format json
+bv --robot-triage --format json
 ```
 
 ## Graph Health
 
 ```bash
-bv --robot-insights --format json   # Graph health: cycles, articulation points, critical path, bottlenecks
-bv --robot-suggest --format json    # Suggest missing dependencies, detect duplicates
-bv --robot-priority --format json   # Priority misalignment detection
-bv --robot-alerts --format json     # Stale issues, blocking cascades
+bv --robot-insights --format json
+bv --robot-suggest --format json
+bv --robot-priority --format json
+bv --robot-alerts --format json
 ```
 
 ## Per-Bead Analysis
 
 ```bash
-bv --robot-blocker-chain <id> --format json   # Blocker chain for a specific bead
-bv --robot-causality <id> --format json       # Causality analysis for a specific bead
+bv --robot-blocker-chain <id> --format json
+bv --robot-causality <id> --format json
 ```
 
 ## Scoped Queries
 
-`--graph-root <epic-id>` scopes any robot command to the subgraph under a specific epic. Use it to avoid noise from other epics.
+`--graph-root <epic-id>` scopes any robot command to one epic subgraph.
 
 ```bash
-bv --robot-triage --graph-root <epic-id> --format json     # Triage scoped to one epic
-bv --robot-plan --graph-root <epic-id> --format json       # Plan scoped to one epic
-bv --robot-insights --graph-root <epic-id> --format json   # Insights scoped to one epic
-bv --robot-plan --label <label> --format json              # Plan scoped to label subgraph
+bv --robot-triage --graph-root <epic-id> --format json
+bv --robot-plan --graph-root <epic-id> --format json
+bv --robot-insights --graph-root <epic-id> --format json
+bv --robot-plan --label <label> --format json
 ```
 
-## Recipes (Pre-Filtered)
+## Recipes
 
 ```bash
-bv --recipe actionable --robot-plan --format json      # Only actionable beads
-bv --recipe high-impact --robot-triage --format json   # Only high-impact beads
+bv --recipe actionable --robot-plan --format json
+bv --recipe high-impact --robot-triage --format json
 ```
 
-## Interpreting bv Output
+## Output Notes
 
-### robot-plan
-Returns `{ plan: { tracks: [{ items: [{ id, unblocks, ... }] }], total_actionable, total_blocked, summary } }`. Each track is a parallel execution lane. Items within a track must be executed sequentially. Access via `jq '.plan.tracks[0].items | map(.id)'`. When no tasks are actionable, `tracks` is `null`.
+### `robot-plan`
 
-### robot-next
-Returns `{ pick: { id, title, reason } }` when a task is available. Returns `{ message: "No actionable items available" }` when nothing is ready. The single best next task to work on.
+Returns:
 
-### robot-insights
-Returns analytics including `cycles`, `articulation_points`, `k_core`, `slack`, and `advanced_insights`. Key fields:
-- `cycles`: Array of circular dependency chains (MUST be resolved before execution)
-- `articulation_points`: Beads whose removal would disconnect the graph (high-risk)
-- `slack`: Tasks with scheduling flexibility vs. those on the critical path
-- `advanced_insights`: PageRank, betweenness, HITS rankings (when computed)
+```text
+{ plan: { tracks: [{ items: [{ id, unblocks, ... }] }], total_actionable, total_blocked, summary } }
+```
 
-### robot-triage
-Returns `{ quick_ref, recommendations, health }` with metrics, per-bead advisories, and actionable recommendations.
+Each track is one parallel execution lane. Items inside a track execute sequentially. When nothing is actionable, `tracks` is `null`.
 
-### robot-suggest
-Returns suggestions for missing dependencies, duplicates, label hygiene, and cycles. Filter with `--suggest-type <type>`.
+### `robot-next`
 
-### robot-alerts
-Returns `{ alerts: [...], summary: { total, critical, warning, info } }`. Detects stale issues and blocking cascades. Filter with `--alert-type` and `--severity`.
+Returns:
+
+```text
+{ pick: { id, title, reason } }
+```
+
+When nothing is ready, returns:
+
+```text
+{ message: "No actionable items available" }
+```
+
+### `robot-insights`
+
+Returns analytics including `cycles`, `articulation_points`, `k_core`, `slack`, and `advanced_insights`.
+
+Key fields:
+- `cycles`: circular dependencies that must be resolved before execution
+- `articulation_points`: high-risk beads whose removal disconnects the graph
+- `slack`: scheduling flexibility versus critical-path work
+- `advanced_insights`: PageRank, betweenness, and HITS rankings when computed
+
+### `robot-triage`
+
+Returns:
+
+```text
+{
+  data_hash,
+  generated_at,
+  triage: {
+    quick_ref,
+    recommendations,
+    quick_wins,
+    blockers_to_clear,
+    project_health
+  },
+  usage_hints
+}
+```
+
+### `robot-suggest`
+
+Returns missing-dependency, duplicate, label-hygiene, and cycle suggestions. Filter with `--suggest-type <type>`.
+
+### `robot-alerts`
+
+Returns:
+
+```text
+{ alerts: [...], summary: { total, critical, warning, info } }
+```
+
+Filter with `--alert-type` and `--severity`.

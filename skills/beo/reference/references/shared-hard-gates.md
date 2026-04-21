@@ -1,28 +1,22 @@
 # Shared Hard Gates
 
-Universal gates and protocols referenced by all beo skills. Skills point here instead of duplicating these blocks inline.
-
----
+Shared gates used by all beo skills.
 
 ## Onboarding Check
 
 <HARD-GATE>
-If `br` or `bv` is unavailable, or the `.beads/` bootstrap state is missing or stale, stop and load `beo-onboard` before continuing. `.beads/onboarding.json` may inform the check, including managed startup contract freshness, but it is not sufficient on its own and does not override managed `AGENTS.md` block drift.
+If `br` or `bv` is unavailable, or `.beads/` bootstrap state is missing or stale, stop and load `beo-onboard`. `.beads/onboarding.json` may inform the check, including managed startup freshness, but it is never sufficient on its own and does not override managed `AGENTS.md` drift.
 </HARD-GATE>
-
----
 
 ## Approval Verification
 
 <HARD-GATE>
 If the epic does not have the `approved` label, do not treat planning artifacts as implicit approval.
-First verify the label was not accidentally removed or the wrong epic was selected.
-If approval is genuinely missing, do not execute:
+First verify the label was not removed accidentally and the correct epic is selected.
+If approval is genuinely missing:
 - if current-phase tasks have already advanced, treat approval as invalidated and route to `beo-plan`
 - otherwise route to `beo-validate`
 </HARD-GATE>
-
----
 
 ## Multi-Phase Completion Routing
 
@@ -31,8 +25,6 @@ If the planning mode is `multi-phase` and later phases remain after the current 
 - Remove the `approved` label if present (`br label remove <EPIC_ID> -l approved`).
 - Route back to `beo-plan` to prepare the next phase.
 - Never describe current-phase completion as full feature completion when multi-phase work remains.
-
----
 
 ## Context Budget Protocol
 
@@ -44,8 +36,6 @@ If context usage exceeds **65%**, checkpoint state before continuing:
 4. Resume from the checkpoint after context is restored.
 
 Exception: `beo-onboard` uses a **30%** threshold since it is a lightweight bootstrap skill.
-
----
 
 ## Session Boundary Protocol
 
@@ -65,20 +55,10 @@ The next skill must be loaded fresh by `beo-route` or by the orchestrator loadin
 Each skill's inline FRESH-LOAD-REQUIRED gate names the most common predecessor to watch for, but the rule applies universally to all prior-skill contexts.
 </HARD-GATE>
 
----
-
 ## User Interaction Protocol
 
-When a skill needs to ask the user a question, present choices, or request approval, it **MUST** use the runtime's canonical user-interaction mechanism. Prefer a structured question tool when it is available in the current runtime. If it is unavailable, pause with `next: "user"` and ask an explicit yes/no or bounded-choice plain-text question. This ensures:
-
-- Questions are clearly structured with labeled options
-- User responses are unambiguous and machine-readable
-- Approval gates produce explicit, trackable decisions
-
-All approval gates defined in `approval-gates.md` **MUST** use the most structured interaction mechanism available in the current runtime and must never rely on silence or implied approval.
-
----
+When a skill needs a question, choice, or approval, it **must** use the runtime's canonical user-interaction mechanism. Prefer a structured question tool when available. Otherwise pause with `next: "user"` and ask an explicit yes/no or bounded-choice plain-text question. Never rely on silence or implied approval.
 
 ## Shared References Convention
 
-> **Shared references** — beo skills reference specific `beo-reference` docs by path. Do not co-load the full `beo-reference` skill; read individual reference docs as needed. Use `communication-standard.md` for structured findings output (validation, review, and debugging reports).
+Load only the specific `beo-reference` file needed for the current step. Do not co-load the full reference corpus. Use `communication-standard.md` for structured findings output.

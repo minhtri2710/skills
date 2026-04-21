@@ -1,6 +1,6 @@
 # Task Status Mapping
 
-Beo uses richer task states than br's native model. This table maps each Beo state to the exact br CLI commands required.
+Map beo task states to exact `br` state and label mutations.
 
 ## Beo States → br Commands
 
@@ -24,7 +24,7 @@ pending → dispatch_prepared → in_progress → done
                                           → partial → cancelled → pending
 ```
 
-**Forbidden transitions**:
+Forbidden:
 - `done → in_progress` (NEVER reopen a completed task; create a new one)
 - `done → pending` (same reason)
 - Any skip of `dispatch_prepared` (always goes pending → dispatch_prepared → in_progress)
@@ -48,16 +48,15 @@ if status == "open":
 
 ## Canonical Terminal-State Semantics
 
-For routing and completion decisions, treat these Beo task states as terminal outcomes:
+For routing and completion decisions, terminal outcomes are:
 
 - `done`
 - `cancelled`
 - `failed`
 
-Notes:
 - `done` is the only successful terminal state and maps to `br status = "closed"`
-- `cancelled` and `failed` are terminal but non-success states and map to `br status = "deferred"` plus their label
-- `blocked` and `partial` are **not** terminal for routing/completion purposes
+- `cancelled` and `failed` are non-success terminal states and map to `br status = "deferred"` plus their label
+- `blocked` and `partial` are not terminal
 
 When shared routing docs say "all tasks are in canonical terminal states," they mean every task resolves to one of the three states above after applying this mapping.
 
@@ -71,7 +70,7 @@ Only `done`/`closed` tasks advance cleanly through the pipeline. Non-success ter
   - accept the outcome and proceed with review
   - re-plan the affected scope
 
-Do not silently advance a feature through review when non-success terminal states are present.
+Do not silently advance through review when non-success terminal states are present.
 
 ## Feature States
 
@@ -85,7 +84,7 @@ Do not silently advance a feature through review when non-success terminal state
 
 ## Cancelled-Outcome Acceptance
 
-The `cancelled_accepted` label is the canonical persistence mechanism for tracking user acceptance of cancelled task outcomes:
+`cancelled_accepted` is the canonical persistence mechanism for accepted cancelled outcomes:
 
 - **Set:** `br label add <TASK_ID> -l cancelled_accepted` — when the user explicitly accepts a cancelled task's outcome for phase advancement or review.
 - **Scope:** Per-task, not per-epic. Each cancelled task requires individual acceptance.
@@ -97,7 +96,7 @@ A phase or feature is ready to advance past cancelled tasks only when every `can
 
 ## Stale Label Cleanup
 
-Before setting a new state, always remove conflicting labels. The safe cleanup sequence:
+Before setting a new state, remove conflicting labels:
 
 ```bash
 # Before marking pending (removes all status labels)

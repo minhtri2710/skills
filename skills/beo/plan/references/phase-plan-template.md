@@ -1,22 +1,20 @@
 # Phase Plan: <feature-name>
 
+```markdown
+# Phase Plan: <feature-name>
+
 ## Whole Feature Goal
-
-What becomes true when the full feature is complete.
-
-- Final user/system outcome:
-- What a real demo of the complete feature would show:
-- What "done" means at the whole-feature level:
+- Final user or system outcome:
+- What a real full-feature demo would show:
+- What whole-feature done means:
 
 ## Why This Needs Multiple Phases
-
 - Why one phase would be too large, risky, or vague:
-- Why the work is better understood as a sequence:
-- What would become unclear or unsafe if everything were planned as one loop:
+- Why the work is easier to reason about as a sequence:
+- What would become unsafe or unclear in one loop:
 
 ## Phase List
-
-Use 2–4 phases. Every phase must describe a real capability slice, not a work bucket.
+Use 2-4 phases. Every phase must be a real capability slice, not a work bucket.
 
 ### Phase 1: <name>
 - Outcome:
@@ -46,33 +44,29 @@ Use 2–4 phases. Every phase must describe a real capability slice, not a work 
 - Unlocks:
 - Explicitly out of scope:
 
-> Remove unused phase sections. Do not keep empty phase headings.
+Remove unused phase sections.
 
 ## Why This Order Makes Sense
-
 - What must become true before later work matters:
-- What risk is reduced by this order:
-- What would break if the order were reversed:
+- What risk this order reduces:
+- What would break if the order reversed:
 
 ## Current Phase To Prepare Now
-
 - Selected phase:
-- Why this is the right first / next phase:
-- What concrete value this phase delivers on its own:
+- Why this is the right first or next phase:
+- What concrete value this phase delivers by itself:
 - What later phases are intentionally deferred:
 
 ## Deferred Work
-
-- Deferred capability A:
-- Deferred capability B:
-- Deferred hardening / polish / scale work:
+- Deferred capability:
+- Deferred hardening, polish, or scale work:
 - Deferred integrations or edge cases:
+```
 
-## Review Check
-
-- [ ] The whole feature is understandable as a sequence
-- [ ] Each phase describes a real capability slice
-- [ ] Phase 1 feels obviously first
-- [ ] Later phases are intentionally deferred, not forgotten
-- [ ] The selected current phase is the right slice to prepare now
-- [ ] Forcing everything into one phase would clearly make the plan worse
+Checklist:
+- the whole feature is understandable as a sequence
+- each phase is a real capability slice
+- Phase 1 feels obviously first
+- later phases are intentionally deferred, not forgotten
+- the selected current phase is the right slice to prepare now
+- forcing everything into one phase would clearly make the plan worse

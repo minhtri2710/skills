@@ -1,7 +1,7 @@
 ---
 name: beo-execute
 description: |
-  Implement exactly one approved ready bead, run its required verification, and record the result when bounded delivery work is ready. Use only for single-bead implementation delivery, not for planning, approval, multi-bead coordination, diagnosis-heavy investigation, review, or learning capture.
+  Implement one approved ready bead, run its required verification, and record the result. Use only for single-bead implementation delivery, not for planning, approval, multi-bead coordination, broad debugging, review, or learning capture.
 
 ---
 
@@ -44,10 +44,10 @@ Deliver one approved bead and verify it.
 - review verdicts
 
 ## Boundary rules
-- Execute owns scoped implementation delivery only, one bead at a time.
-- Execute must not redesign scope or plan, validate or approve work, coordinate multiple workers, perform diagnosis-heavy root-cause investigation beyond bounded local retries, or do post-execution review or learning extraction.
+- Execute owns scoped implementation only, one bead at a time.
+- Execute must not redesign scope or plan, validate or approve work, coordinate multiple workers, perform broad diagnosis beyond bounded local retries, or do review or learning work.
 - Execute must not work on more than one bead at a time.
-- When a failure exceeds the bounded retry limit or requires investigation beyond the assigned bead's scope, execute must stop and route through the canonical escalation path.
+- If a failure exceeds the bounded retry limit or the bead boundary, execute must stop and route through the canonical escalation path.
 
 ## Minimum hard gates
 - **APPROVED-ONLY** — Verify the active epic has the `approved` label before starting.

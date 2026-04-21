@@ -2,22 +2,6 @@
 
 Canonical pipeline-level rules for all skills: back-edge responsibilities, artifact write rules, and slug protocol. Use `status-mapping.md` for task-state transitions and label semantics, and `approval-gates.md` for approval grant rules.
 
-## Table of Contents
-
-1. [State Routing Table](#state-routing-table)
-2. [Canonical Skill Transition Table](#canonical-skill-transition-table)
-3. [Reactive Fix Contract](#reactive-fix-contract)
-4. [Cross-Skill Invariants](#cross-skill-invariants)
-5. [HANDOFF.json Schema](#handoffjson-schema)
-6. [STATE.json Schema](#statejson-schema)
-7. [Label Lifecycle](#label-lifecycle)
-8. [Task Enumeration](#task-enumeration)
-9. [Epic Lifecycle](#epic-lifecycle)
-10. [Shared Artifact Write Rules](#shared-artifact-write-rules)
-11. [Feature Slug](#feature-slug)
-
----
-
 ## State Routing Table
 
 Evaluate **top-to-bottom; first match wins**.
@@ -67,7 +51,7 @@ Quick scope is a classification signal for later planning, validation, execution
 | 8 | Any tasks in the active execution scope have `blocked` or `failed` labels, `debug_attempted` label absent | **needs-debugging** | `beo-debug` | — |
 | 9 | Any tasks in the active execution scope have `blocked` or `failed` labels, `debug_attempted` label present | **blocked** | `user` | blockers need a decision |
 | 10 | Epic is closed, any child task in a non-terminal state (pending, dispatch_prepared, in_progress, blocked, or partial) | **invalid-epic-closure** | `user` | epic closure is inconsistent; non-terminal tasks must be resolved before compounding |
-| 10a | Epic is closed, any child task is `failed` | **invalid-epic-closure-failed** | `user` | epic closed with failed tasks; failed work must go through debugging before compounding. Note: additional issues (e.g. unaccepted-cancelled tasks) may exist and will surface on subsequent routing passes after failed tasks are resolved. Note: if non-terminal tasks (row 10) also exist alongside failed tasks, the non-terminal-task row fires first and failed tasks will not surface until those are resolved. |
+| 10a | Epic is closed, any child task is `failed` | **invalid-epic-closure-failed** | `user` | epic closed with failed tasks; failed work must go through debugging before compounding |
 | 10b | Epic is closed, any child task is `cancelled` without `cancelled_accepted` label | **invalid-epic-closure-cancelled** | `user` | epic closed with unaccepted cancelled tasks; cancelled outcomes must be explicitly accepted |
 | 11 | All tasks in the final execution scope are in canonical terminal states (`done` or `cancelled` with `cancelled_accepted`), epic closed, no learnings file | **learnings-pending** | `beo-compound` | — |
 | 12 | Epic is closed | **completed** | `done` | epic complete |
@@ -86,19 +70,19 @@ Quick scope is a classification signal for later planning, validation, execution
 | 25 | Epic exists, `CONTEXT.md` exists, no `approach.md` | **planning-needs-approach** | `beo-plan` | — |
 | 26 | Epic exists, no tasks, no `approved` label | **exploring** | `beo-explore` | intake bootstrap or requirement definition |
 
-Ordering notes:
-1. Keep the onboarding row first; stale or missing onboarding blocks deeper routing.
-2. Keep explicit user-intent rows near the top; let meta-skill work and explicit dream requests short-circuit feature-state routing when actionable.
-3. Keep the multi-epic row between user-intent rows and new-feature intake rows; resolve epic ambiguity before classifying new requests against a specific epic.
-4. Keep new-feature intake rows above active-feature rows; classify quick/debug/normal feature requests before normal active-feature routing applies.
-5. Keep `invalid-epic-closure` (row 10) and its sub-rows (10a, 10b) above `learnings-pending` and `completed`; catch prematurely closed epics with non-terminal child tasks, failed tasks, or unaccepted cancelled tasks before treating them as finished.
-6. Keep `learnings-pending` above `completed`; route closed epics to compounding before treating them as fully complete. Row 11 now requires all tasks to be `done` or accepted-cancelled (no `failed` tasks reach compounding).
-7. Keep `cancelled-needs-decision` above phase advancement and review rows; unaccepted cancelled outcomes must pause instead of silently advancing.
-8. Keep `phase-complete-needs-replan` above review and execution rows; do not misclassify multi-phase advancement as generic execution.
-9. Keep `awaiting-planning-approval` above `planning-current-phase` and `ready-to-validate`; do not skip explicit planning-approval pauses on resume.
-10. Keep the `swarming` row above the general `executing` row; active swarm coordination takes priority over single-worker routing.
-11. If `swarming` is present without `approved`, treat it as a stale label from a crash or interrupted degradation. No routing row explicitly matches this state; it will fall through to planning/validation rows, which is self-healing. The stale `swarming` label will be cleaned up when the next validation pass runs. A brief `swarming` without `approved` is not a routing defect — it is a transient artifact of label-removal ordering. Row 18 intentionally matches on `swarming + approved` alone, without requiring `in_progress` tasks. This covers the window between swarm start (step 7 adds `swarming`) and the first worker claiming a task; without this, a mid-window session interruption would fall through to row 20 and trigger a duplicate swarm setup.
-12. Treat `exploring` as the fallback after the context and planning-artifact rows fail: epic exists, but planning has not started.
+Ordering rules:
+1. Keep onboarding first.
+2. Keep explicit user-intent rows above feature-state rows.
+3. Resolve multi-epic ambiguity before classifying intake.
+4. Keep new-feature intake rows above active-feature rows.
+5. Keep invalid-closure rows above `learnings-pending` and `completed`.
+6. Keep `learnings-pending` above `completed`.
+7. Keep `cancelled-needs-decision` above phase advancement and review.
+8. Keep `phase-complete-needs-replan` above review and execution.
+9. Keep `awaiting-planning-approval` above `planning-current-phase` and `ready-to-validate`.
+10. Keep `swarming` above generic `executing`.
+11. If `swarming` exists without `approved`, treat it as stale and let planning/validation rows self-heal.
+12. Treat `exploring` as the fallback once context and planning-artifact rows fail.
 
 ### Planning Artifact Hierarchy
 
@@ -114,11 +98,7 @@ Planning produces up to seven artifacts in this order:
 | `phase-contract.md` | Current phase as closed loop: entry/exit state, demo, scope | Yes (planning → validating gate) |
 | `story-map.md` | Current-phase story sequence, closure check, story-to-bead mapping | Yes (planning → validating gate) |
 
-Validation requires `phase-contract.md` AND `story-map.md` for the **current phase**.
-
-Create `phase-plan.md` only for multi-phase work.
-
----
+Validation requires `phase-contract.md` and `story-map.md` for the current phase. Create `phase-plan.md` only for multi-phase work.
 
 ## Canonical Skill Transition Table
 
@@ -212,7 +192,7 @@ A reactive fix may go directly to `beo-execute` (bypassing planning and validati
 | File scope within phase | All affected files are within the already-approved current phase |
 | No new decomposition | No new bead decomposition is needed |
 
-If **any** condition fails, the fix is **not** a reactive fix. Route to `beo-plan` instead, then `beo-validate` before execution resumes.
+If any condition fails, the fix is not reactive. Route to `beo-plan`, then `beo-validate`, before execution resumes.
 
 ### Reactive Fix Routing
 
@@ -264,8 +244,6 @@ Checklist:
 
 ### Validation Approval Ownership
 
-Execution approval belongs to `beo-validate`.
-
 Checklist:
 - Add `approved` in `beo-validate` only after explicit user approval.
 - Do not let any other skill add `approved`.
@@ -275,16 +253,12 @@ See `approval-gates.md` for the per-skill ownership matrix.
 
 ### Validating -> Executing / Swarming Mode Selection
 
-Do not treat validation as complete until the next execution mode is chosen.
-
 Checklist:
 - Route to `beo-swarm` if 3+ independent ready tasks exist with isolated file scope and no serial bottleneck.
 - Otherwise route to `beo-execute`.
 - Treat "swarming not justified" as a mode-selection outcome, not a planning defect.
 
 ### Execution and Review Back-Edges
-
-Preserve planning integrity when scope changes.
 
 Checklist:
 - If implementation or UAT reveals a planning-level intent change, update `CONTEXT.md`, remove `approved`, and route back to `beo-plan`.
@@ -293,8 +267,6 @@ Checklist:
 
 ### Phase Advancement and Closure
 
-Treat current-phase completion and feature completion as different states.
-
 Checklist:
 - If later phases remain, route current-phase completion back to `beo-plan` and keep the feature open.
 - If no later phases remain and the final execution scope is terminal, route to `beo-review`.
@@ -302,8 +274,6 @@ Checklist:
 - Move state to `learnings-pending` after closure and before compounding begins.
 
 ### Resume and HANDOFF Precedence
-
-Use both checkpoint files and live graph state when resuming.
 
 Checklist:
 - Let a valid, current `HANDOFF.json` drive resume.
@@ -315,15 +285,11 @@ Checklist:
 
 ## HANDOFF.json Schema
 
-Use `state-and-handoff-protocol.md` as the canonical source for the base `HANDOFF.json` schema, resume semantics, cleanup rule, and `STATE.json` header requirements.
-
----
+Use `state-and-handoff-protocol.md` as the canonical source for `HANDOFF.json` and `STATE.json` schema, resume semantics, and cleanup rules.
 
 ## STATE.json Schema
 
-Use `state-and-handoff-protocol.md` as the canonical source for the `STATE.json` schema, field definitions, and write semantics.
-
----
+Use `state-and-handoff-protocol.md` as the canonical source for `STATE.json` schema, field definitions, and write semantics.
 
 ## Label Lifecycle
 
@@ -344,11 +310,9 @@ Lifecycle for `cancelled_accepted`:
 - Per-task label; see `status-mapping.md` → Cancelled-Outcome Acceptance for full semantics.
 - The label is the canonical source of truth for cancelled-outcome acceptance, durable across context resets.
 
----
-
 ## Task Enumeration
 
-**Canonical command** to list tasks under an epic:
+Canonical command to list tasks under an epic:
 
 ```bash
 br dep list <EPIC_ID> --direction up --type parent-child --json
@@ -360,20 +324,16 @@ Interpret task enumeration against the active planning mode:
 - for single-phase work, the epic task set is the current execution scope
 - for multi-phase work, only the current-phase subset is executable now; later phases remain deferred in `phase-plan.md`
 
----
-
 ## Epic Lifecycle
 
 The canonical Feature States table (planning → approved → executing → completed) lives in `status-mapping.md` → Feature States.
 
 | Topic | Contract |
 |------|----------|
-| Summary | Start epics as `open` with no labels (planning), add `approved` via validation, transition to `in_progress` when execution claims them, and close when the feature completes. Closed epics normally retain `approved` as the historical marker that validated execution completed without a planning/exploring back-edge. See `status-mapping.md` for the full state table and exact commands. |
+| Summary | Start epics as `open` with no labels, add `approved` in validation, transition to `in_progress` when execution claims them, and close in review. Closed epics normally retain `approved` as historical state. See `status-mapping.md` for exact commands. |
 | Who transitions to executing | Run `br update <EPIC_ID> --claim` in the first skill that starts execution (executing or swarming) before dispatching any workers. |
 | Router epic query | Use `br list --type epic -a --json` to find all epics, including `in_progress` and `closed`. Filter in application logic. |
 | Who closes the epic | Let `beo-review` close the epic via `br close <EPIC_ID>` as part of the completion handoff, after all P1 fixes are resolved and UAT passes. Do this before writing `learnings-pending` state. Do not let any other skill close the epic during normal pipeline flow. |
-
----
 
 ## Shared Artifact Write Rules
 
@@ -394,14 +354,12 @@ Use `--parent` for graph visibility and reference the affected bead ID in the de
 br create "Fix: <root cause summary>" -t task --parent <EPIC_ID> -p 1 --json
 ```
 
-Do not use `--deps blocks:<closed-bead>`; the original bead is typically already closed, so the blocking dependency is a no-op.
-Reference the affected bead ID in the fix bead description instead, using the Reactive Fix Bead Template from `bead-description-templates.md`.
+Do not use `--deps blocks:<closed-bead>`; the original bead is usually already closed, so the dependency is a no-op.
+Reference the affected bead ID in the fix bead description instead, using the Reactive Fix Bead Template.
 
 ### Task Creation During Validation
 
 Validation is a read-only gate over current-phase planning quality. Do not create beads during validation, including spikes. If exploratory work or missing tasks are needed, return an ordered remediation list and route back to `beo-plan`. 
-
----
 
 ## Feature Slug
 

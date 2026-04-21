@@ -4,32 +4,29 @@
 # Plan: <feature name>
 
 ## Goal
-<one-paragraph summary of what the feature needs to achieve>
+<one paragraph describing the verifiable feature outcome>
 
 ## Implementation Direction
-<chosen approach in human-readable terms; reference the approach.md rationale>
+<human-readable summary of the chosen path; point to `approach.md` for detail>
 
 ## Main Risks
-- <risk: what could go wrong and the mitigation or acceptance strategy>
-- <risk: what could go wrong and the mitigation or acceptance strategy>
+- <risk + handling: mitigate | accept | defer>
+- <risk + handling: mitigate | accept | defer>
 
 ## Phase Shape
-<single-phase or multi-phase; if multi-phase, state the total count and the boundary criteria between phases>
+<single-phase or multi-phase; if multi-phase, state total phases and the boundary between them>
 
 ## Current Phase
-<the phase that will be validated next; include phase name and one-line goal>
+<phase to validate next, with name and one-line goal>
 
-## Story and Task Overview
-- <story or task group: brief description with estimated complexity (S/M/L)>
-- <story or task group: brief description with estimated complexity (S/M/L)>
+## Story And Task Overview
+- <story or task group + brief description + S/M/L complexity>
+- <story or task group + brief description + S/M/L complexity>
 ```
 
-## Field Guidance
-
-| Field | Rule |
-|-------|------|
-| **Goal** | Must be verifiable — a reader should be able to tell whether the goal was achieved |
-| **Implementation Direction** | Summarize the chosen path; do not repeat `approach.md` — link to it for detail |
-| **Main Risks** | Include at least 2; each must state the threat and handling strategy (mitigate, accept, or defer) |
-| **Phase Shape** | If single-phase, say so explicitly; if multi-phase, state why phasing is needed |
-| **Story and Task Overview** | These become beads; each item should map to one bead or one small group of beads |
+Rules:
+- `Goal` must be verifiable
+- `Implementation Direction` summarizes; it does not replace `approach.md`
+- `Main Risks` must include both the threat and the handling choice
+- `Phase Shape` must say explicitly why phasing is or is not needed
+- each story or task overview item should map to one bead or one small bead group

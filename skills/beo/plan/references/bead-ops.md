@@ -1,34 +1,35 @@
 # Bead Operations
 
-Canonical operational guide for creating and maintaining current-phase beads during planning.
+Current-phase bead creation and maintenance rules for `beo-plan`.
 
 ## Preconditions
 
-- `CONTEXT.md` is locked.
-- `approach.md` exists or is being finalized in the same planning cycle.
-- `phase-contract.md` and `story-map.md` are being written for the current phase.
-- Planning owns bead creation; execution, validation, review, and route do not create planned execution beads.
+- `CONTEXT.md` is locked
+- `approach.md` exists or is being finalized in the same planning cycle
+- `phase-contract.md` and `story-map.md` are being written for the current phase
+- planning owns planned execution beads; route, validate, execute, and review do not create them
 
-## Description Template Rule
+## Description Rule
 
-Every bead description must use Markdown format with the shared templates from `beo-reference` → `references/bead-description-templates.md`. If no institutional learnings apply, write: "No prior learnings for this domain."
+Every bead description must use the shared templates in `beo-reference` → `references/bead-description-templates.md`.
 
-## Bead Completeness Gate
+If no institutional learnings apply, write: `No prior learnings for this domain.`
 
-After creating or updating current-phase beads, read each bead back before handoff and verify it includes:
-- a non-empty Markdown description using the planned task template
+## Completeness Gate
+
+Before handing off to `beo-validate`, read every bead back and confirm it has:
+- a non-empty Markdown description
 - clear file scope
 - acceptance criteria
 - verification steps
 - references to the relevant locked decisions or planning artifacts
-- enough context for a fresh worker to execute it without reopening planning
+- enough context for a fresh worker to execute without reopening planning
 
-Fix incomplete beads immediately before routing to `beo-validate`.
+Fix incomplete beads before handoff.
 
 ## Quick-Scoped Planning
 
-For quick-scoped work, planning may keep artifacts smaller and the current phase narrower, but it still must:
-
+Quick scope still must:
 1. write `approach.md`
 2. write `plan.md`
 3. write `phase-contract.md`
@@ -36,53 +37,39 @@ For quick-scoped work, planning may keep artifacts smaller and the current phase
 5. create the current-phase bead set
 6. route to `beo-validate`
 
-Quick mode reduces ceremony with smaller artifacts and faster cycles, but it does not skip validation or review.
+Quick mode reduces ceremony. It does not skip validation or review.
 
----
+If quick-scoped work grows:
+1. gather existing tasks with `br dep list <EPIC_ID> --direction up --type parent-child --json`
+2. write the plan around the existing tasks
+3. create only the missing beads
+4. wire dependencies for all current-phase work
+5. route to `beo-validate`
 
-## Promotion Flow
+## Creation Operations
 
-When quick-scoped work grows beyond its initial envelope:
-
-1. **Gather existing tasks:** `br dep list <EPIC_ID> --direction up --type parent-child --json`
-2. **Write plan around them:** Create `plan.md` incorporating existing tasks plus any new tasks needed
-3. **Create missing beads:** Only for tasks that do not already exist. Wire dependencies for all current-phase work
-4. **Proceed to validation:** Route to `beo-validate`. Expanded plans need the same rigor as fresh plans
-
----
-
-## Task Bead Creation Operations
-
-### Create task beads
+Create task beads:
 
 ```bash
 br create "<Task Name>" -t task --parent <EPIC_ID> -p <priority> --json
 ```
 
-### Write bead descriptions
-
-Use the **Planned Task Bead Template** from `beo-reference` → `references/bead-description-templates.md`.
-
-Checklist:
+After creation:
+- write the description using the planned-task template
 - include exact file paths when known
-- include acceptance criteria
-- include verification steps
+- include acceptance criteria and verification
 - reference the relevant locked decisions or planning artifacts
 - keep the bead independently executable by a fresh worker
 
-### Dependency wiring
-
-Use `beo-reference` → `references/dependency-and-scheduling.md` for canonical dependency rules.
-
-### Story-map sync
+Use `beo-reference` → `references/dependency-and-scheduling.md` for dependency rules.
 
 After bead creation, fill `Story-To-Bead Mapping` in `.beads/artifacts/<feature_slug>/story-map.md`.
 
 ## Hard Rules
 
-- Do not create future-phase executable beads.
-- Do not rely on route to create planned execution beads.
-- Do not create beads during validation.
-- Do not hand off beads that fail the bead completeness gate.
-- Do not leave bead descriptions without acceptance criteria or verification.
-- Do not skip dependency wiring when ordering matters.
+- do not create future-phase executable beads
+- do not rely on route to create planned execution beads
+- do not create beads during validation
+- do not hand off beads that fail the completeness gate
+- do not omit acceptance criteria or verification
+- do not skip dependency wiring when order matters

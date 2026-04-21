@@ -1,9 +1,8 @@
 # Worker Prompt Guide
 
-Template, data gathering, and budget rules for Worker Prompt Assembly in `beo-execute`.
+Task-level prompt assembly for `beo-execute`.
 
-For the canonical worker launch template (identity, Agent Mail, operating model), see `beo-reference` → `references/worker-template.md`. This guide covers the task-level prompt built for each bead.
-When `beo-execute` launches a worker directly, this assembled prompt is the worker's full assignment package and must explicitly identify standalone dispatch, the coordination surface, the assigned bead, and the file scope.
+For runtime identity, Agent Mail setup, and the canonical worker shell, use `beo-reference` → `references/worker-template.md`. This file defines the bead-specific payload.
 
 ## Prompt Template
 
@@ -19,72 +18,72 @@ When `beo-execute` launches a worker directly, this assembled prompt is the work
   - <path-or-glob-2>
 
 ## Context
-Implementing a task for feature "<feature-name>" in the currently approved phase.
-Multi-phase: later phases remain deferred and out of scope.
+Implementing feature "<feature-name>" in the current approved phase only. Later phases are out of scope.
 
 ## Planning Mode
 - Mode: <single-phase | multi-phase>
 - Current phase: <number>/<total or unknown> - <phase name>
 
 ## Strategy Context
-<From approach.md: chosen approach, constraints, risks, why this task exists>
+<chosen approach, constraints, risks, and why this bead exists>
 
 ## Phase Exit State
-<From phase-contract.md: what the current phase must achieve>
+<exit state from phase-contract.md>
 
 ## Story Context
-<From bead description: story name, purpose, contributes to, unlocks>
+<story name, purpose, contributes to, unlocks>
 
 ## Plan Summary
-<Abbreviated plan.md summary for this task's place in the current phase>
+<short task-local summary from plan.md>
 
 ## Your Task
-<Full task description from bead>
+<full bead description>
 
 ## CONTEXT.md Decisions
-<Relevant decisions affecting this task>
+<only decisions that constrain this bead>
 
 ## Previous Task Results
-<Summaries from completed dependency tasks>
+<summaries from completed dependency beads>
 
 ## Verification
-<Verification criteria from the task spec>
+<verification from the bead>
 
 ## Rules
-- Implement ONLY what the task spec describes
-- Respect chosen strategy unless task spec explicitly says otherwise
-- Do NOT modify files outside listed file scope
-- Do NOT pull future-phase work into current task
+- Implement only the assigned bead
+- Respect the chosen strategy unless the bead explicitly overrides it
+- Do not edit outside the declared file scope
+- Do not pull future-phase work into the bead
 - Run verification before reporting completion
-- If blocked, report the blocker — do not guess or workaround
-- If task grows beyond scope, report it — do not scope-creep
+- If blocked, report the blocker; do not guess
+- If scope expands, report it; do not scope-creep
 ```
 
-## Gathering Prompt Data
+## Data Gathering
 
 ```bash
-br show <TASK_ID> --json                          # Task spec (.description)
-br dep list <TASK_ID> --direction down --type blocks --json  # Completed deps
-br comments list <DEP_ID> --json --no-daemon      # Dep report artifacts
+br show <TASK_ID> --json
+br dep list <TASK_ID> --direction down --type blocks --json
+br comments list <DEP_ID> --json --no-daemon
 ```
 
-Read and extract from artifacts:
+Read and extract:
 
-| Artifact | Extract |
-|----------|---------|
-| `approach.md` (optional) | Recommended approach, planning mode, relevant constraints/risks |
-| `plan.md` | Summary relevant to this task's place in current phase |
-| `phase-contract.md` | Exit State section |
-| `story-map.md` | Story details for this bead's story |
-| `CONTEXT.md` | Full content |
+| Source | Include |
+| --- | --- |
+| `approach.md` | chosen approach, relevant constraints, relevant risks, planning mode |
+| `plan.md` | short summary of this bead's place in the current phase |
+| `phase-contract.md` | exit state |
+| `story-map.md` | only the story that owns this bead |
+| `CONTEXT.md` | only decisions that constrain this bead |
+| dependency reports | only results that change implementation or verification |
 
-## Budget Truncation
+## Truncation Order
 
-If assembled prompt is too large (in priority order):
-1. Reduce `approach.md` to relevant strategy, constraints, risks only
-2. Reduce `plan.md` to short summary of this task's role
-3. Truncate `phase-contract.md` to exit state only
-4. Truncate `story-map.md` to relevant story only
-5. Include only directly relevant CONTEXT.md decisions
-6. Summarize previous task results instead of full reports
-7. **Never** truncate the task spec itself — that is the core payload
+If the assembled prompt is too large, cut in this order:
+1. reduce `approach.md` to task-relevant strategy, constraints, and risks
+2. reduce `plan.md` to a short task-local summary
+3. truncate `phase-contract.md` to exit state only
+4. truncate `story-map.md` to the owning story only
+5. include only directly relevant `CONTEXT.md` decisions
+6. summarize previous task results instead of pasting full reports
+7. never truncate the task spec itself

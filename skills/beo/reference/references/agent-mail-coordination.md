@@ -1,10 +1,10 @@
 # Agent Mail Coordination
 
-Shared canonical reference for Agent Mail coordination used by `beo-execute` and `beo-swarm`.
+Shared Agent Mail protocol for `beo-execute` and `beo-swarm`.
 
 ## Core Runtime Surface
 
-The beo workflow assumes this Agent Mail surface exists when swarming is enabled:
+This surface is required for swarming:
 
 - `ensure_project(...)`
 - `register_agent(...)`
@@ -17,9 +17,9 @@ The beo workflow assumes this Agent Mail surface exists when swarming is enabled
 
 If this surface is not available, do not start `beo-swarm`. Route to solo execution instead.
 
-## Project / Session Initialization
+## Session Setup
 
-Initialize a project before coordinator or worker messaging:
+Initialize the project before coordinator or worker messaging:
 
 ```text
 ensure_project(
@@ -27,7 +27,7 @@ ensure_project(
 )
 ```
 
-Register the coordinator when using explicit coordinator startup:
+Register the coordinator when startup is explicit:
 
 ```text
 register_agent(
@@ -50,16 +50,16 @@ macro_start_session(
 )
 ```
 
-`macro_start_session(...)` returns the canonical Agent Mail identity at `startup.agent.name`. Use that value for all worker `sender_name` and inbox calls.
+Use `startup.agent.name` from `macro_start_session(...)` as the worker identity for messaging, inbox reads, and reservations.
 
 ## Identity Model
 
-Workers often have two names:
+Workers may have two names:
 - an orchestrator-assigned nickname for human readability
 - an Agent Mail identity returned by Agent Mail startup or registration calls
 
 Use the Agent Mail identity for all `sender_name`, inbox, and reservation calls.
-If both names are shown, format them as:
+If both are shown, format them as:
 
 ```text
 Nickname: <NICKNAME> | Agent Mail: <AGENT_MAIL_NAME>
@@ -127,13 +127,13 @@ reply_message(
 )
 ```
 
-Use `send_message(...)` for `[ONLINE]`, `[DONE]`, `[BLOCKED]`, and coordinator broadcasts.
-Use `reply_message(...)` for direct responses such as `[FILE CONFLICT RESOLUTION]`.
+Use:
+- `send_message(...)` for `[ONLINE]`, `[DONE]`, `[BLOCKED]`, and coordinator broadcasts
+- `reply_message(...)` for direct thread responses such as `[FILE CONFLICT RESOLUTION]`
 
 ## Conflict Semantics
 
-If `file_reservation_paths(...)` returns conflicts, treat that as an active coordination event.
-Expected conflict details include, when available:
+If `file_reservation_paths(...)` returns conflicts, treat that as an active coordination event. Expected details include, when available:
 - conflicting path or path pattern
 - current holder identity
 - reservation reason
@@ -148,8 +148,8 @@ Agent Mail messages own conflict resolution, status reporting, and handoff commu
 
 In practice:
 1. use reservation APIs to claim or release paths
-2. use `[FILE CONFLICT]` and `[FILE CONFLICT RESOLUTION]` messages to coordinate who should wait, release, reassign, or defer
-3. use inbox/message APIs for worker liveness, completion reports, blocker escalation, and pause/resume coordination
+2. use `[FILE CONFLICT]` and `[FILE CONFLICT RESOLUTION]` messages to coordinate wait/release/reassign/defer
+3. use inbox and message APIs for liveness, completion, blockers, and pause/resume
 
 ## Cycle Vocabulary
 

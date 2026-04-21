@@ -1,7 +1,7 @@
 ---
 name: beo-review
 description: |
-  Assess completed current-phase implementation against the locked contract and verification evidence, then issue exactly one verdict: `accept`, `fix`, or `reject`. Use only for post-execution quality decisions, not for coding fixes, replanning, root-cause debugging, or learning extraction.
+  Assess completed current-phase delivery against locked contracts and verification evidence, then issue exactly one verdict: `accept`, `fix`, or `reject`. Use only for post-execution quality decisions, not for coding, replanning, debugging, or learning extraction.
 
 ---
 
@@ -46,10 +46,10 @@ Make the single post-execution quality verdict.
 - learnings artifacts
 
 ## Boundary rules
-- Review owns post-execution quality only.
+- Review owns the post-execution verdict only.
 - Review must not edit code, redesign requirements or plans, diagnose root causes, or write learnings or consolidated patterns.
-- Review may specify remediation targets, but remediation work happens elsewhere.
-- Review must not emit multiple verdicts or vague remediation.
+- Review may specify remediation targets, but remediation happens elsewhere.
+- Review must emit exactly one verdict and explicit findings.
 
 ## Minimum hard gates
 - **ALL-BEADS-TERMINAL** — Start only when current-phase execution is complete enough to review.

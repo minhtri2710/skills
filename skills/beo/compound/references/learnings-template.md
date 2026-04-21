@@ -1,130 +1,64 @@
 # Learnings File Template
 
-Use this template when writing `.beads/learnings/YYYYMMDD-<slug>.md`.
+Use for `.beads/learnings/YYYYMMDD-<feature_slug>.md`.
 
-Use one file per feature. Multiple learnings can appear in one file. Separate them with `---`. Start each file with the YAML frontmatter below, then add individual learning entries.
+Write one file per feature. A file may contain multiple learning entries separated by `---`.
 
-## Table of Contents
+## Frontmatter
 
-- [YAML Frontmatter](#yaml-frontmatter-required-line-1-of-file)
-- [Learning Entry Format](#learning-entry-format)
-- [Complete Example File](#complete-example-file)
-- [Slug Naming Rules](#slug-naming-rules)
-- [critical-patterns.md Entry Format](#critical-patternsmd-entry-format)
-
----
-
-## YAML Frontmatter (required, line 1 of file)
+Required first block:
 
 ```yaml
 ---
 date: YYYY-MM-DD
 feature: <feature-name>
-categories: [pattern, decision, failure, anti-pattern]   # include only categories present
-severity: routine | useful | critical       # use highest severity of ANY entry
-tags: [tag1, tag2, tag3]                   # domains covered (e.g., auth, testing, beads)
+categories: [pattern, decision, failure, anti-pattern]
+severity: routine | useful | critical
+tags: [tag1, tag2, tag3]
 ---
 ```
 
----
+Rules:
+- include only categories that appear in the file
+- set `severity` to the highest severity used by any entry
+- use domain tags, not prose
 
-## Learning Entry Format
+## Entry Format
 
-Repeat this block for each distinct learning. Separate entries with `---`.
+Repeat for each learning:
 
 ```markdown
-# Learning: <Concise Title>
+# Learning: <concise title>
 
 **Category:** pattern | decision | failure | anti-pattern
 **Severity:** routine | useful | critical
 **Tags:** [tag1, tag2]
-**Applicable-when:** <one sentence: under what conditions should future agents use this?>
+**Applicable-when:** <one sentence>
 
 ## What Happened
-
-<2-4 sentences describing the situation: what was being built, what went wrong or right, what surprised the team. Be specific: name files, functions, tools, or commands involved.>
+<2-4 concrete sentences; name files, tools, commands, or surfaces when useful>
 
 ## Root Cause / Key Insight
-
-<The underlying reason this happened. For failures: what assumption was wrong, what was missing, what interaction wasn't understood. For patterns: what property makes this approach better than alternatives. For decisions: what information made this the right call.>
+<why this happened or why this approach worked>
 
 ## Recommendation for Future Work
-
-<Concrete, imperative advice. Start with a verb: "Always...", "Never...", "When X, do Y...", "Check Z before starting...". Specific enough that a future agent can follow it without additional context.>
+<imperative advice a later agent can follow directly>
 ```
 
----
+## Filename Rules
 
-## Complete Example File
+- format: `YYYYMMDD-<feature_slug>.md`
+- use the immutable feature slug, not a topic nickname
+- lowercase, hyphens only
 
-```markdown
----
-date: 2026-03-15
-feature: user-auth-refresh
-categories: [pattern, failure]
-severity: critical
-tags: [auth, database, testing]
----
+Examples:
+- `20260315-auth-token-refresh.md`
+- `20260320-bead-scope-isolation.md`
+- `20260318-db-migration-ordering.md`
 
-# Learning: Token Refresh Race Condition
+## `critical-patterns.md` Promotion Format
 
-**Category:** failure
-**Severity:** critical
-**Tags:** [auth, concurrency]
-**Applicable-when:** Implementing any token refresh or session renewal logic with parallel requests
-
-## What Happened
-
-When implementing the JWT refresh endpoint, two simultaneous requests would both pass the "token not yet expired" check, both issue new tokens, and both invalidate the old token. The second response would arrive with a token already invalidated. Discovered during load testing, not in unit tests.
-
-## Root Cause / Key Insight
-
-The check-then-act sequence was not atomic. Database read + write happened in two separate operations with no locking. Unit tests mock the database and never simulate concurrency, so this class of bug is invisible to standard test suites.
-
-## Recommendation for Future Work
-
-When implementing any token rotation or session state mutation, use a database-level atomic operation (SELECT FOR UPDATE, optimistic locking, or a transaction with conflict detection). Always add a concurrency integration test that fires 10 parallel requests and asserts only one succeeds.
-
----
-
-# Learning: useAuthToken Composable Pattern
-
-**Category:** pattern
-**Severity:** useful
-**Tags:** [auth, frontend]
-**Applicable-when:** Any component that needs to access or refresh authentication state
-
-## What Happened
-
-During auth implementation, three different components each wrote their own token retrieval logic. Consolidated into a single `useAuthToken()` composable that handles expiry checks, automatic refresh, and error states.
-
-## Root Cause / Key Insight
-
-Auth state has enough complexity (expiry logic, refresh timing, error handling) that inline implementations diverge and accumulate subtle bugs. A single composable centralizes the contract and makes auth behavior consistent across the app.
-
-## Recommendation for Future Work
-
-Always reach for `useAuthToken()` in components that need auth state. Do not access the token store directly. If the composable doesn't cover your use case, extend it rather than writing parallel logic.
-```
-
----
-
-## Slug Naming Rules
-
-- Format: `YYYYMMDD-<feature_slug>.md`
-- Use the immutable feature slug from the epic (not a topic-based name)
-- Use lowercase, hyphens only
-- Examples:
-  - `20260315-auth-token-refresh.md`
-  - `20260320-bead-scope-isolation.md`
-  - `20260318-db-migration-ordering.md`
-  - `20260322-agent-coordination-handoff.md`
-
----
-
-## critical-patterns.md Entry Format
-
-When promoting a critical learning to `.beads/critical-patterns.md`, use this condensed format:
+When promoting a critical learning, use:
 
 ```markdown
 ## [YYYYMMDD] <Learning Title>
@@ -132,7 +66,7 @@ When promoting a critical learning to `.beads/critical-patterns.md`, use this co
 **Feature:** <feature-name>
 **Tags:** [tag1, tag2]
 
-<2-4 sentence summary. What happened, root cause, and what to do differently. Enough context that a reader doesn't need to open the full file to act on it.>
+<2-4 sentence summary: what happened, why it mattered, what to do next time>
 
-**Full entry:** .beads/learnings/YYYYMMDD-<slug>.md
+**Full entry:** .beads/learnings/YYYYMMDD-<feature_slug>.md
 ```

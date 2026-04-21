@@ -1,7 +1,7 @@
 ---
 name: beo-validate
 description: |
-  Decide whether the current phase is executable by checking locked requirements, current-phase contract artifacts, and bead readiness, then choose execution mode when approved. Use only for the pre-execution correctness gate, not for repairing the plan, rewriting beads, or implementing work.
+  Gate current-phase execution readiness from locked requirements, current-phase contracts, and bead specs, then choose `beo-execute` or `beo-swarm` when approved. Use only for the pre-execution gate, not for planning repair, bead rewriting, or implementation.
 
 ---
 
@@ -12,12 +12,12 @@ description: |
 # beo-validate
 
 ## Atomic purpose
-Gate current-phase readiness and choose execution mode.
+Decide whether the current phase is ready and pick the execution mode.
 
 ## When to use
 - current-phase planning artifacts exist and execution readiness must be checked
 - an earlier approval may be stale and needs a fresh gate
-- the next step depends on whether the current phase is sufficiently specified to implement
+- the next step depends on whether the current phase is specified well enough to implement
 
 ## Inputs
 **Required**
@@ -27,7 +27,7 @@ Gate current-phase readiness and choose execution mode.
 - current-phase bead graph and bead details from `br` and `bv`
 
 **Optional**
-- supporting planning artifacts when needed
+- supporting planning artifacts only when the gate needs more context
 
 ## Outputs
 **Allowed writes**
@@ -44,9 +44,9 @@ Gate current-phase readiness and choose execution mode.
 - implementation code
 
 ## Boundary rules
-- Validate owns the pre-execution correctness gate only.
-- Validate must not repair or rewrite planning artifacts, bead specs, or dependencies.
-- Validate must not write code, coordinate execution, perform post-execution review, or debug failures.
+- Validate owns the pre-execution gate only.
+- Validate is read-only except for approval state and canonical handoff state.
+- Validate must not repair artifacts, rewrite bead specs or dependencies, write code, coordinate execution, review outcomes, or debug failures.
 - Validate decides readiness for the current phase only.
 
 ## Minimum hard gates

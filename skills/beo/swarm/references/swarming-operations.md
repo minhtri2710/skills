@@ -2,119 +2,108 @@
 
 Operational playbook for `beo-swarm`.
 
-## Table of Contents
-
-- [1. Confirm Swarm Readiness](#1-confirm-swarm-readiness)
-- [2. Initialize Agent Mail](#2-initialize-agent-mail)
-- [3. Spawn Workers](#3-spawn-workers)
-- [4. Monitor and Tend](#4-monitor-and-tend)
-- [5. Swarm Completion](#5-swarm-completion)
-- [6. Context-Budget Checkpoint](#6-context-budget-checkpoint)
-
 ## 1. Confirm Swarm Readiness
 
 Prerequisites:
-- beads are `open` and approved for execution
+- beads are open and approved for execution
 - `EPIC_ID` is known
-- Agent Mail server is reachable
+- Agent Mail is reachable
 
 If Agent Mail is unavailable, degrade to single-worker mode and route to `beo-execute`.
 
 Also verify planning-aware scope:
 - read `.beads/STATE.json` when present
 - read `phase-plan.md` when present
-- confirm the swarm will execute the **current phase** only
+- confirm the swarm will execute the current phase only
 
-### Readiness Steps
-
-1. Get `EPIC_ID` from `.beads/STATE.json` or user input.
-2. Read `.beads/STATE.json` and current-phase artifacts if scope is unclear.
-3. Inspect the live graph:
+Readiness steps:
+1. get `EPIC_ID`
+2. read `.beads/STATE.json` and current-phase artifacts if scope is unclear
+3. inspect the live graph:
 
 ```bash
 bv --robot-triage --graph-root <EPIC_ID> --format json
 ```
 
-4. Verify executable work exists, dependencies are acyclic, and no unresolved validation blockers remain.
-5. Update `.beads/STATE.json` with current swarm intent and epic ID.
-6. Claim the epic if not already in progress:
+4. verify executable work exists, dependencies are acyclic, and no validation blockers remain
+5. update `.beads/STATE.json` with swarm intent and epic ID
+6. claim the epic if needed:
 
 ```bash
 br update <EPIC_ID> --claim
 ```
 
-7. Add the `swarming` label to signal active coordination:
+7. add the `swarming` label:
 
 ```bash
 br label add <EPIC_ID> -l swarming
 ```
 
-### Scheduling Cascade
-
-Use `beo-reference` → `references/dependency-and-scheduling.md` § Scheduling Cascade. Use the highest-available tier. Do not invent separate runtime planning artifacts. If the graph and Agent Mail disagree about readiness, pause spawning and reconcile before adding workers.
+Use the scheduling cascade from `dependency-and-scheduling.md`. If graph state and Agent Mail disagree about readiness, pause spawning and reconcile first.
 
 ## 2. Initialize Agent Mail
 
-1. Register the coordinator and bootstrap the epic thread using `ensure_project` and `register_agent` from `beo-reference` → `references/agent-mail-coordination.md`.
-2. Apply file-reservation discipline from `beo-reference` → `references/worker-template.md` to every worker contract.
-3. Create the first thread message using `message-templates.md`.
+1. register the coordinator and bootstrap the epic thread using `agent-mail-coordination.md`
+2. apply file-reservation discipline from `worker-template.md` to every worker contract
+3. create the first thread message using `message-templates.md`
 
 ### Dual-Identity Contract
 
 Each worker has:
+- a coordinator-assigned nickname for humans
+- an Agent Mail identity from `macro_start_session`
 
-| Identity | Source | Use |
-| --- | --- | --- |
-| Nickname | coordinator-assigned | Human-readable worker label |
-| Agent Mail | `macro_start_session` | `sender_name` after first message |
-
-Workers post both in `[ONLINE]` as `Nickname: <X> | Agent Mail: <Y>`. See `beo-reference` → `references/worker-template.md` for the full startup sequence.
+Workers post both in `[ONLINE]` as `Nickname: <X> | Agent Mail: <Y>`.
 
 ### Cycle Definition
 
-A `cycle` is one complete monitor-and-tend iteration:
+A `cycle` is one full monitor-and-tend pass:
 - fetch mail for all workers
 - run graph oversight
 - tend events
 - check progress
 
-Measure silence thresholds here and in `message-templates.md` in cycles, not wall-clock time.
+Measure silence in cycles, not wall-clock time.
 
 ## 3. Spawn Workers
 
-Launch workers in parallel using the runtime's available worker orchestration mechanism and the canonical worker contract. If worker spawning is unavailable or not authorized in the current session, remove the `swarming` label (`br label remove <EPIC_ID> -l swarming`) and degrade to `beo-execute`. Default max workers = `min(independent ready tasks, 5)`. Override only with explicit user approval. Default maximum 5 concurrent workers to limit coordination overhead and merge conflict risk.
+Launch workers in parallel using the runtime worker-orchestration mechanism and the canonical worker contract.
+
+If worker spawning is unavailable or unauthorized:
+1. remove `swarming`
+2. degrade to `beo-execute`
+
+Default max workers: `min(independent ready tasks, 5)`. Override only with explicit user approval.
 
 Each worker must receive:
 - Agent Mail identity
-- epic ID / feature name
+- epic ID or feature name
 - planning mode and current phase context when known
 - instruction to load `beo-execute`
-- optional startup hint (clearly marked as non-authoritative context)
+- optional startup hint marked as non-authoritative
 - scoped task context by default
 
 Coordinator assignment flow:
-1. Identify ready beads from the live graph.
-2. Assign exactly one bead per worker via Agent Mail.
-3. Require the worker to confirm readiness by validating the bead is still ready and the file scope is still safe.
-4. Have the worker execute the assigned bead only.
-5. Require completion or failure reporting via Agent Mail.
+1. identify ready beads from the live graph
+2. assign exactly one bead per worker via Agent Mail
+3. require readiness confirmation against live graph and file scope
+4. require the worker to execute that bead only
+5. require completion or failure reporting via Agent Mail
 
-### Worker startup acknowledgment
+### Worker Startup Acknowledgment
 
-A worker startup is valid when `[ONLINE]` arrives with both nickname and Agent Mail identity. After `[ONLINE]`, send a bead assignment and wait for the worker's readiness confirmation before treating the worker as active on that bead. See `beo-reference` → `references/worker-template.md` for the full startup sequence.
+A worker startup is valid only after `[ONLINE]` arrives with both nickname and Agent Mail identity. Then send the bead assignment and wait for readiness confirmation.
 
 Recovery ladder:
-1. After 2 cycles without `[ONLINE]`, send `[STARTUP REMINDER]`.
-2. After 3 cycles, send `[STATUS CHECK]`.
-3. After 5 cycles, escalate to the user and consider respawn.
+1. after 2 cycles without `[ONLINE]`, send `[STARTUP REMINDER]`
+2. after 3 cycles, send `[STATUS CHECK]`
+3. after 5 cycles, escalate to the user and consider respawn
 
-Mark active workers in `.beads/STATE.json`.
+Record active workers in `.beads/STATE.json`.
 
 ## 4. Monitor and Tend
 
-Check Agent Mail on the epic thread and use live graph checks for oversight.
-
-### Fetch Mail
+Fetch coordinator mail:
 
 ```text
 fetch_inbox(
@@ -123,40 +112,34 @@ fetch_inbox(
 )
 ```
 
-### Graph Oversight
+Run graph oversight:
 
 ```bash
 bv --robot-triage --graph-root <EPIC_ID> --format json
 ```
 
-### Tend These Event Types
-
+Tend these event types:
 - worker startup acknowledgments
-- bead completion reports
+- completion reports
 - blocker alerts
 - file conflict requests
-- reservation conflict detections
-- overseer broadcasts
+- reservation conflicts
+- coordinator broadcasts
 
-For reservation conflicts, read returned `file_reservation_paths(...)` conflict data using `beo-reference` → `references/agent-mail-coordination.md`, then choose:
-
-| Option | Action |
-| --- | --- |
-| Release | Ask the current holder to release at the next safe checkpoint |
-| Reassign | Reassign the bead |
-| Defer | Defer the work into a follow-up bead |
+For reservation conflicts, choose:
+- release
+- reassign
+- defer
 
 Send the decision with `[FILE CONFLICT RESOLUTION]` via `reply_message`.
 
 ### Silence Escalation Protocol
 
-Treat silence deterministically:
-
 | Quiet cycles | Action |
 | --- | --- |
-| 2 | Send `[STARTUP REMINDER]` if `[ONLINE]` was never received; otherwise send `[STATUS CHECK]` |
-| 3 | Send a direct status query |
-| 5 | Escalate to the user with worker identity and last known state |
+| 2 | `[STARTUP REMINDER]` if `[ONLINE]` never arrived; otherwise `[STATUS CHECK]` |
+| 3 | direct status query |
+| 5 | escalate to user with worker identity and last known state |
 
 ### Progress Check Heuristics
 
@@ -164,48 +147,47 @@ After each completion:
 
 | Condition | Action |
 | --- | --- |
-| >50% beads open | Continue normally |
-| <50% beads open | Consider reducing workers |
-| All current-phase beads in terminal states | evaluate completion readiness (see § 5 pre-completion gate) |
-| No progress for 3+ cycles | Diagnose mail, reservations, or worker health |
+| >50% beads still open | continue normally |
+| <50% beads still open | consider reducing workers |
+| all current-phase beads terminal | evaluate completion readiness |
+| no progress for 3+ cycles | diagnose mail, reservations, or worker health |
 
-If coordination overhead starts exceeding useful progress, stop expanding the swarm, remove the `swarming` label (`br label remove <EPIC_ID> -l swarming`), and degrade the remainder to `beo-execute`.
+If coordination overhead exceeds useful progress, stop expanding the swarm, remove `swarming`, and degrade the remainder to `beo-execute`.
 
 ## 5. Swarm Completion
 
 When no beads remain `in_progress` and no executable current-phase work remains:
-
-1. Verify the graph:
+1. verify the graph:
 
 ```bash
 bv --robot-triage --graph-root <EPIC_ID> --format json
 ```
 
-2. If orphaned or blocked beads remain, remove the `swarming` label (`br label remove <EPIC_ID> -l swarming`), report the remaining work, and get user direction.
-3. If all current-phase beads are in terminal states, continue only after the pre-completion gate passes, then run final build/test commands.
-3a. **Pre-completion gate.** Before proceeding to build/test verification:
-   - If any current-phase bead is `failed`: remove the `swarming` label (`br label remove <EPIC_ID> -l swarming`), write `status: "needs-debugging"` to STATE.json and hand off to `beo-route`. Do not proceed to completion.
-   - If any current-phase bead is `cancelled` without the `cancelled_accepted` label: remove the `swarming` label (`br label remove <EPIC_ID> -l swarming`), write `status: "cancelled-needs-decision"` to STATE.json and hand off to `beo-route`. Do not proceed to completion.
-   - Only proceed when all current-phase beads are `done`, or a mix of `done` and `cancelled` where every cancelled bead has the `cancelled_accepted` label.
-4. Remove the `swarming` label first (prevents a transient `swarming`-without-`approved` state):
+2. if orphaned or blocked beads remain, remove `swarming`, report remaining work, and get user direction
+3. if all current-phase beads are terminal, apply the pre-completion gate
+
+Pre-completion gate:
+- any `failed` bead → remove `swarming`, write `needs-debugging`, hand off to `beo-route`
+- any `cancelled` bead without `cancelled_accepted` → remove `swarming`, write `cancelled-needs-decision`, hand off to `beo-route`
+- otherwise proceed only when all current-phase beads are `done` or accepted-cancelled
+
+Before final routing, remove `swarming`:
 
 ```bash
 br label remove <EPIC_ID> -l swarming
 ```
 
-5. Choose the next route:
-   - remove `approved` (`br label remove <EPIC_ID> -l approved`), then route to `beo-plan` if `planning_mode = multi-phase` and later phases remain
-   - `beo-review` if this was the final execution scope
+Then choose the next route:
+- remove `approved` and route to `beo-plan` if `planning_mode = multi-phase` and later phases remain
+- route to `beo-review` if this was the final execution scope
 
-6. Update `.beads/STATE.json`, clear active workers, run `br sync --flush-only`, and send the completion message using `message-templates.md`:
-   - set `"status"` to `"phase-complete-needs-replan"` when later phases remain, or `"ready-to-review"` when this was the final scope
-   - set `"next"` to the chosen route
+Update `.beads/STATE.json`, clear active workers, run `br sync --flush-only`, and send the completion message.
 
 ## 6. Context-Budget Checkpoint
 
 If context usage exceeds 65%:
-1. Write `.beads/HANDOFF.json` using the canonical base fields from `beo-reference` → `references/state-and-handoff-protocol.md`.
-2. Include swarming-specific extension fields (`session`, `swarm`, `graph_status`, `active_workers`, `open_blockers`, `resume_instructions`, `context_at_pause`).
-3. Include planning-aware fields per `beo-reference` → `references/state-and-handoff-protocol.md` § Planning-Aware HANDOFF.json Extension Fields when relevant.
-4. Broadcast a pause notification on the epic thread.
-5. Report to the user how to resume.
+1. write `.beads/HANDOFF.json` using the canonical schema
+2. include swarming-specific resume detail such as session, active workers, graph status, blockers, resume instructions, and context at pause
+3. include planning-aware fields when relevant
+4. broadcast a pause notification on the epic thread
+5. report to the user how to resume

@@ -1,6 +1,6 @@
 # Communication Standard
 
-Use this standard for validation and review outputs. All skills that produce human-facing findings should follow these rules.
+Use this standard for human-facing findings.
 
 ## Rules
 
@@ -9,12 +9,9 @@ Use this standard for validation and review outputs. All skills that produce hum
 3. Describe a concrete failure scenario if the issue is not fixed.
 4. Propose the smallest fix that resolves the issue.
 
-## Adoption
+## Applies To
 
-This standard applies to all skills that produce structured findings:
-
-- **beo-validate**: plan-checker and bead-reviewer prompts must follow rules 1-4 when reporting dimension failures.
-- **beo-review**: specialist review prompts must follow rules 1-4 when classifying P1/P2/P3 findings.
-- **beo-debug**: diagnostic reports should follow rules 2-4 (evidence, failure scenario, minimal fix) when presenting root cause analysis.
-
-Other skills may adopt this standard for any human-facing output where evidence and actionability matter.
+- `beo-validate` findings
+- `beo-review` findings
+- `beo-debug` root-cause reports
+- any other beo output that claims a problem and a next action

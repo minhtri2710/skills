@@ -1,7 +1,7 @@
 ---
 name: beo-dream
 description: |
-  Consolidate multiple accepted-feature learnings into stable corpus-level guidance when repeated patterns, duplication, conflicts, or stale guidance require long-term maintenance. Use only for corpus maintenance, not for single-feature learning capture, immediate post-review promotion, implementation, or operational delivery.
+  Consolidate multiple accepted-feature learnings into stable corpus guidance when repeated patterns, duplication, conflicts, or stale guidance require maintenance. Use only for corpus maintenance, not for single-feature extraction, immediate post-review promotion, implementation, or delivery work.
 
 ---
 
@@ -42,10 +42,10 @@ Maintain and consolidate the shared learning corpus.
 - invented patterns lacking source evidence
 
 ## Boundary rules
-- Dream owns long-term consolidation only.
+- Dream owns long-term corpus consolidation only.
 - Dream must not handle a single accepted feature in isolation or perform immediate post-review promotion that belongs to `beo-compound`.
-- Dream must not create or rewrite a single feature learning artifact except for archive bookkeeping, modify code, plans, or pipeline behavior, or invent patterns without traceable source evidence.
-- Dream operates on the accumulated corpus, not one accepted feature in isolation.
+- Dream must not create or rewrite a single-feature learning artifact except archive bookkeeping, modify code or plans, or invent patterns without traceable source evidence.
+- Dream operates on accumulated corpus evidence, not one accepted feature.
 
 ## Minimum hard gates
 - **CORPUS-LEVEL-ONLY** — Operate on the accumulated learnings and pattern corpus, never a single accepted feature in isolation.

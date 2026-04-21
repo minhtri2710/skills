@@ -1,46 +1,46 @@
 # Failure Recovery
 
-Canonical recovery guidance for cross-skill failures that are not specific to one execution mode. Keep skill-local blocker logic in local references; use this file for shared recovery classes only.
+Shared recovery rules for failures that cross skill boundaries.
 
 ## Shared Failure Classes
 
 ### `br` unavailable
 
-1. Confirm the exact command and error output.
-2. Do not guess graph state from memory or stale artifacts.
-3. Report that beo cannot safely continue without `br`.
-4. Ask whether to restore the tool, inspect PATH/install state, or pause the pipeline.
+- record the exact command and error
+- do not infer graph state from memory or stale artifacts
+- report that beo cannot continue safely without `br`
+- ask whether to restore the tool, inspect install state, or pause
 
 ### `bv` unavailable
 
-1. Continue only if the current skill can safely fall back to `br`-only checks.
-2. If the skill requires graph analytics or dependency inspection that `br` alone cannot replace, stop and surface the limitation.
-3. Do not fabricate graph-health conclusions without tool evidence.
+- continue only if the current skill has a safe `br`-only fallback
+- otherwise stop and surface the missing graph capability
+- do not fabricate graph-health conclusions
 
 ### Agent Mail or reservation system unavailable
 
-1. If the current skill is in solo or non-swarm mode, continue with local bookkeeping and note that Agent Mail is not expected.
-2. If swarm coordination is required, stop parallel dispatch, preserve current state, and either downgrade to a safe non-swarm path or ask how to proceed.
-3. Do not leave ambiguous reservations unaddressed.
+- in solo or non-swarm work, continue and note the limitation
+- in swarm work, stop parallel dispatch, preserve state, and degrade or ask
+- do not leave ambiguous reservations unresolved
 
 ### State file malformed
 
-1. Treat malformed `.beads/STATE.json` or `.beads/HANDOFF.json` as untrusted input.
-2. Prefer reconstruction from live graph state plus canonical artifacts.
-3. Preserve the malformed file for inspection unless a canonical recovery flow explicitly replaces it.
-4. State which file is malformed and which source of truth you used instead.
+- treat malformed `.beads/STATE.json` or `.beads/HANDOFF.json` as untrusted
+- reconstruct from live graph state and canonical artifacts
+- preserve the malformed file unless canonical recovery replaces it
+- state which file failed and which source of truth replaced it
 
 ### Artifact write failure
 
-1. Do not claim the phase advanced if the canonical artifact was not written successfully.
-2. Surface the failing path and underlying filesystem or tool error.
-3. Keep routing at the last confirmed safe state until the write succeeds.
+- do not claim phase advancement
+- surface the failing path and underlying error
+- keep routing at the last confirmed safe state
 
 ### Resume corruption
 
-1. If resume artifacts, graph state, and conversation disagree, treat the resume as corrupted.
-2. Prefer live graph state and canonical artifacts over stale checkpoint text.
-3. Summarize the contradiction before continuing so the user can confirm the recovery path.
+- if resume artifacts, graph state, and conversation disagree, treat resume as corrupted
+- prefer live graph state and canonical artifacts over stale checkpoint text
+- summarize the contradiction before continuing
 
 ## Recovery Rule
 

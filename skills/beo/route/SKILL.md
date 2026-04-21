@@ -1,7 +1,7 @@
 ---
 name: beo-route
 description: |
-  Resolve canonical pipeline state and select exactly one next skill target when a session starts, resumes, or the next step must be determined. Use only for state detection and target selection, not for any operational work including requirement definition, solution design, validation, implementation, review, debugging, learning capture, or bootstrap repair.
+  Detect canonical beo state and choose exactly one next target when a session starts, resumes, or no active handoff already fixes the next step. Use only for state detection and next-step selection, not for onboarding repair or any operational phase.
 
 ---
 
@@ -12,13 +12,13 @@ description: |
 # beo-route
 
 ## Atomic purpose
-Select the single correct next skill.
+Choose the single next skill.
 
 ## When to use
 - session start
 - session resume
-- the next step is not already fixed by an active canonical handoff
-- multiple beo skills could plausibly apply and routing must decide
+- the next step is unknown
+- multiple beo skills could apply and one must be selected
 
 ## Inputs
 **Required**
@@ -29,10 +29,10 @@ Select the single correct next skill.
 
 **Optional**
 - `.beads/HANDOFF.json`
-- current feature artifacts only as needed to classify state
+- current feature artifacts only if canonical state is insufficient
 
 ## Outputs
-**Decisions**
+**Decision**
 - exactly one canonical next target: `beo-onboard`, `beo-explore`, `beo-plan`, `beo-validate`, `beo-swarm`, `beo-execute`, `beo-review`, `beo-debug`, `beo-compound`, `beo-dream`, `beo-author`, `user`, or `done`
 
 **Allowed writes**
@@ -46,11 +46,11 @@ Select the single correct next skill.
 
 ## Boundary rules
 - Route owns state detection and next-step selection only.
-- Route must not clarify requirements, design solutions, validate readiness, implement code, review outcomes, debug failures, extract learnings, or rewrite skills.
-- Route must not create feature artifacts, planning artifacts, review artifacts, learning artifacts, or implementation code.
-- Route must not repair onboarding; it routes to `beo-onboard` when readiness is stale.
-- Route must not override a canonical downstream handoff that already determines the next skill.
-- Route must stop after writing the next target and required handoff state.
+- Route must not clarify requirements, design solutions, validate readiness, implement code, review work, debug failures, extract learnings, or rewrite skills.
+- Route must not create artifacts other than canonical state and handoff files.
+- Route must route to `beo-onboard` when readiness is stale.
+- Route must honor an active canonical handoff that already fixes the next skill.
+- Route stops after writing the next target and any required handoff state.
 
 ## Minimum hard gates
 - **HANDOFF-PRECEDENCE** — If `.beads/HANDOFF.json` exists, honor the saved `skill` and `next` per `beo-reference` → `references/state-and-handoff-protocol.md` before normal state detection.

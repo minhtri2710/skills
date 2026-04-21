@@ -1,23 +1,8 @@
 # Approval Gates
 
-## Contents
-
-- [Why This Exists](#why-this-exists)
-- [Approval-Requiring Moments](#approval-requiring-moments)
-- [Approval Presentation Guidance](#approval-presentation-guidance)
-- [Planning-Specific Guidance](#planning-specific-guidance)
-- [Rejection / Withheld Approval Handling](#rejection--withheld-approval-handling)
-- [Hard Rules](#hard-rules)
-
 Canonical wording and protocol for human approval requirements in the beo pipeline.
 
-## Why This Exists
-
-Several beo skills require explicit user confirmation before irreversible or shared-state-changing actions.
-
-This file centralizes those rules so all beo skills ask consistently and stop at the same gates.
-
-## Approval-Requiring Moments
+## Required Gates
 
 ### 1. Planning Approval for Multi-Phase Work
 
@@ -36,7 +21,7 @@ Canonical rule:
 
 Apply this gate in `beo-plan` when `phase-plan.md` exists.
 
-#### Canonical approval prompt for multi-phase planning
+Prompt:
 
 ```text
 Whole-feature phase plan is ready.
@@ -53,8 +38,6 @@ Approve this phase sequence and current phase selection before validation?
 
 In go mode, get user approval of `CONTEXT.md` after exploring and before planning.
 
-Do **not** apply this gate in normal pipeline flow, where exploring hands off directly to planning.
-
 Canonical rule:
 
 > In go mode, present `CONTEXT.md` and obtain explicit user approval before invoking planning.
@@ -64,8 +47,6 @@ Apply this gate only in `beo-route` when go mode is active.
 See `beo-route` → `references/go-mode.md` for the full go-mode gate sequence.
 
 ### 2. Validation Approval
-
-Before execution begins, get user approval.
 
 Canonical rule:
 
@@ -87,7 +68,7 @@ Validation approval means:
 - later phases remain deferred
 - current-phase approval must never be interpreted as approval for the whole feature
 
-#### Canonical approval prompt for validation
+Prompt:
 
 ```text
 Current phase validation is complete.
@@ -125,55 +106,20 @@ Use this gate in `beo-compound` and `beo-dream`.
 
 If `beo-dream` finds multiple plausible owners for a candidate learning, ask the user to choose merge / create / skip.
 
-Do not silently choose a target file when ownership is ambiguous.
-
 ### 6. Partial or Deferred Review Outcomes
 
 If `beo-review` encounters blocked, failed, or partial tasks before closure, report them and get explicit user direction before proceeding, deferring, or re-planning.
 
-Do not close the feature or proceed to compounding while the outcome remains ambiguous.
-
-## Approval Presentation Guidance
-
-When asking for approval:
+## Asking For Approval
 
 - summarize what is being approved
-- summarize relevant unresolved concerns
-- make the next step explicit
-- ask for a clear yes / no or a structured choice
+- summarize unresolved concerns
+- state what becomes allowed if approved
+- state what remains deferred if approved
+- state the next step
+- ask for a clear yes/no or bounded choice
 
-Make the consequence of approval clear.
-
-Prefer:
-
-- what becomes allowed if approved
-- what remains deferred if approved
-- what will happen next
-
-Avoid vague prompts like:
-
-- "Looks good?"
-- "Can I continue?"
-- "Should I proceed?"
-
-## Planning-Specific Guidance
-
-### Single-phase planning
-
-Do not require separate planning approval just because planning artifacts exist.
-
-For single-phase work, planning normally hands off to `beo-validate`. The key irreversible approval remains the validation gate before execution.
-
-### Multi-phase planning
-
-For multi-phase work, planning approval is required because choosing the whole-feature sequence and current phase shapes downstream work.
-
-That approval does **not** replace validation approval.
-
-Use this distinction:
-
-- planning approval = "Is this the right feature sequence and current phase to prepare?"
-- validation approval = "Is this current phase safe to execute now?"
+Avoid vague prompts such as "Looks good?" or "Can I continue?"
 
 ## Rejection / Withheld Approval Handling
 
@@ -184,7 +130,7 @@ If the user rejects or withholds approval:
 - route back to the artifact or decision layer that must change
 - summarize what must be revised before asking again
 
-### Typical route-back patterns
+Typical route-backs:
 
 1. rejects phase sequencing -> revise `phase-plan.md`
 2. rejects current phase choice -> revise `phase-plan.md` and current-phase artifacts
@@ -198,6 +144,7 @@ If the user rejects or withholds approval:
 - Never convert a required approval into an implicit default.
 - Never write shared artifacts gated by approval without first asking.
 - Never continue execution if the user rejects or withholds approval.
+- Never require separate planning approval for single-phase work.
 - Never treat current-phase approval as whole-feature approval when planning mode is `multi-phase`.
 - Never skip the validation approval gate just because the user already approved the phase sequence.
 

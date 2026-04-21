@@ -1,7 +1,7 @@
 ---
 name: beo-explore
 description: |
-  Lock ambiguous product requirements into `CONTEXT.md` when any requirement-level decision remains unresolved before planning can begin, and establish the active feature thread when it does not yet exist. Use only for requirement definition and intake bootstrap, not for architecture, decomposition, sequencing, validation, or implementation planning.
+  Lock unresolved feature requirements into `CONTEXT.md` before planning. Use when scope, behavior, constraints, interfaces, compatibility, or acceptance bounds are still unclear. Not for solution design, decomposition, sequencing, validation, or implementation.
 
 ---
 
@@ -12,26 +12,26 @@ description: |
 # beo-explore
 
 ## Atomic purpose
-Produce the locked requirement contract for one feature.
+Lock requirements for one feature.
 
 ## When to use
-- a feature or change request still has missing, conflicting, or ambiguous requirements
-- planning would otherwise have to guess scope, behavior, constraints, interfaces, compatibility, or acceptance boundaries
-- replanning reveals that requirement-level decisions are still unlocked
+- a feature request still has missing, conflicting, or ambiguous requirements
+- planning would have to guess scope, behavior, constraints, interfaces, compatibility, or acceptance bounds
+- replanning exposes unlocked requirement decisions
 
 ## Inputs
 **Required**
 - current feature or change request
-- feature slug or identifier
 - user clarification responses
 
 **Optional**
 - existing `.beads/artifacts/<feature_slug>/CONTEXT.md`
-- relevant prior learnings only as requirement-shaping context
+- existing feature slug or identifier
+- relevant prior learnings only as requirement context
 
 ## Outputs
 **Allowed writes**
-- feature-intake bootstrap required to establish the active feature thread, including the feature epic and canonical `feature_slug` when they do not already exist
+- missing feature-thread bootstrap needed to anchor `CONTEXT.md`, including the feature epic and canonical `feature_slug`
 - `.beads/artifacts/<feature_slug>/CONTEXT.md`
 - `.beads/STATE.json`
 - `.beads/HANDOFF.json` only when checkpoint or resume protocol requires it
@@ -42,12 +42,11 @@ Produce the locked requirement contract for one feature.
 - implementation code
 
 ## Boundary rules
-- Explore owns requirement definition and new-feature intake bootstrap only.
-- Explore must define user-visible scope, constraints, interfaces, compatibility, and acceptance boundaries without choosing architecture, decomposition, sequencing, or implementation strategy.
-- Explore may establish the feature epic and canonical `feature_slug` only when missing for a new feature intake.
-- Explore must not create plans or beads, validate readiness, implement code, review work, debug failures, or consolidate learnings.
-- Explore must not choose execution mode or implementation strategy.
-- Any unresolved scope, behavior, contract, UX, or compatibility decision must be locked here or routed back here.
+- Explore owns requirement definition only.
+- Explore defines scope, behavior, constraints, interfaces, compatibility, and acceptance bounds without choosing architecture, decomposition, sequencing, or implementation strategy.
+- Explore may create the feature epic and canonical `feature_slug` only when missing and only to anchor the requirement artifact.
+- Explore must not create plans or beads, validate readiness, choose execution mode, implement code, review work, debug blockers, or consolidate learnings.
+- Any unresolved requirement-level decision belongs here and nowhere downstream.
 
 ## Minimum hard gates
 - **INTAKE-BOOTSTRAP-ONLY-WHEN-MISSING** — Create the feature epic and canonical `feature_slug` only for new-feature intake or recovery when they do not already exist.
