@@ -5,7 +5,23 @@ Shared gates used by all beo skills.
 ## Onboarding Check
 
 <HARD-GATE>
-If `br` or `bv` is unavailable, or `.beads/` bootstrap state is missing or stale, stop and load `beo-onboard`. `.beads/onboarding.json` may inform the check, including managed startup freshness, but it is never sufficient on its own and does not override managed `AGENTS.md` drift.
+If `br` or `bv` is unavailable, or onboarding is missing or stale, stop and load `beo-onboard`.
+
+**Verification requires running the live script** — file or directory existence is never sufficient:
+```bash
+node <installed-beo-onboard-root>/scripts/onboard_beo.mjs --repo-root "<absolute-repo-root>"
+```
+Resolve `<installed-beo-onboard-root>` from the runtime's installed `beo-onboard` skill path. Resolve `<absolute-repo-root>` to the repository root, not the transient shell cwd.
+
+The result must be `"status": "up_to_date"`. Any other result means onboarding is needed.
+
+`.beads/onboarding.json` and `node .beads/beo_status.mjs --json` may be used as read-only scouts but are never the source of truth. They do not detect managed `AGENTS.md` drift and do not override a failed live check.
+
+To verify `bv` is installed and callable without launching the TUI, use:
+```bash
+bv --version
+```
+Never invoke bare `bv` in agent sessions; it requires a TTY and will fail in non-interactive environments. For `bv` data queries, always use `--robot-*` flags with `--format json`.
 </HARD-GATE>
 
 ## Approval Verification
