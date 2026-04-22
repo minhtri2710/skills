@@ -14,6 +14,7 @@ Select the feature domain first, then use the matching probe set. Skip categorie
 - Mobile as well as desktop requirements?
 - Permission-based visibility differences?
 - Accessibility or keyboard expectations?
+- Does this feature change how navigation, routing, or import primitives work? Which existing components currently import the affected modules (e.g. `next/link`, `next/navigation`, router hooks) and will need updating?
 - What is explicitly out of scope?
 
 ## CALL (API / Service)

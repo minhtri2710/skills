@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Opening Quote</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    width: 1920px;
+    height: 1080px;
+    overflow: hidden;
+    font-family: Georgia, "Times New Roman", serif;
+    background: #f5f1ea;
+    color: #18181b;
+  }
+  body {
+    display: grid;
+    grid-template-columns: 1.2fr 0.8fr;
+    gap: 64px;
+    padding: 96px;
+  }
+  .quote {
+    align-self: center;
+    font-size: 78px;
+    line-height: 1.08;
+    letter-spacing: -0.04em;
+  }
+  .quote em {
+    font-style: normal;
+    color: #7c3aed;
+  }
+  .meta {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    gap: 20px;
+    border-left: 1px solid rgba(24, 24, 27, 0.12);
+    padding-left: 40px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  .label {
+    font-size: 22px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: rgba(24, 24, 27, 0.55);
+  }
+  .source {
+    font-size: 34px;
+    line-height: 1.3;
+  }
+</style>
+</head>
+<body>
+  <div class="quote">“Good presentations make the <em>next action</em> obvious before the meeting ends.”</div>
+  <aside class="meta">
+    <div class="label">Prompt</div>
+    <div class="source">Replace this slide with a customer quote, design principle, or framing statement for the story you want to tell.</div>
+  </aside>
+</body>
+</html>

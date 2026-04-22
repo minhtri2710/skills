@@ -63,11 +63,11 @@ Define the current-phase solution and executable bead set.
 
 ## Default loop
 1. Read `CONTEXT.md`, existing artifacts, and the relevant code paths.
-2. Write `discovery.md` to capture constraints, existing patterns, and important files.
+2. Write `discovery.md` to capture constraints, existing patterns, and important files. For features that restructure routing, move files, or change import primitives (e.g. navigation libraries, module paths), explicitly list all consuming files across ALL directories — not only the files being moved — as integration points requiring update.
 3. Choose and record the implementation strategy in `approach.md`.
 4. If the feature spans meaningful phases, write `phase-plan.md` and obtain the required planning approval before preparing the current phase.
 5. Write `plan.md`, `phase-contract.md`, and `story-map.md`.
-6. Create and wire current-phase beads via `br`, using the dependency rules from the shared references.
+6. Create and wire current-phase beads via `br`, using the dependency rules from the shared references. Beads involving structural changes (file moves, routing restructure, import-primitive migration) must explicitly include acceptance criteria for auditing all consuming code — not just the files being moved.
 7. Write `.beads/STATE.json` for `beo-validate` or, if requirements were found to be insufficient, back-edge to `beo-explore`.
 8. Stop.
 
@@ -103,3 +103,4 @@ If context exceeds 65%, checkpoint via the shared protocol in `beo-reference` �
 - writing implementation details that belong in execute
 - validating or reviewing the plan inside the planning skill
 - continuing after handoff state is written
+- structural-change beads (routing restructure, file moves, library migration) that list only target files without auditing consuming code across the full codebase
