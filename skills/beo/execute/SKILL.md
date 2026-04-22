@@ -61,7 +61,7 @@ Deliver one approved bead and verify it.
 1. Confirm the epic is approved and the bead is ready.
 2. Claim the bead, move through the allowed status transitions, and load the relevant code and acceptance criteria.
 3. Implement only the changes required for that bead.
-4. Run the specified verification.
+4. Run the specified verification. For beads involving structural changes (file moves, routing restructure, import-primitive migration): before marking done, grep for the old pattern across all consuming directories to confirm no stragglers remain (e.g. `grep -r 'from "next/link"' src/components/` after a next-intl routing restructure).
 5. If verification passes, mark the bead `done` and record evidence.
 6. If verification fails within bounded local retry scope, retry within the configured limit.
 7. If the failure exceeds the retry limit or requires cross-bead investigation, record the blocker and hand off through the canonical pipeline (`beo-debug`, `beo-plan`, or `beo-review` path as appropriate), then stop.
@@ -92,3 +92,4 @@ If context exceeds 65%, checkpoint via the shared protocol in `beo-reference` â†
 - marking work complete without verification evidence
 - using execute to diagnose broad or unclear failures
 - continuing after writing inter-skill handoff state
+- marking a structural-change bead done without grepping for stale consumers of the old import/route pattern

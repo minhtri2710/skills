@@ -1,0 +1,4 @@
+interface:
+  display_name: "Design"
+  short_description: "Create high-fidelity HTML-based visual design artifacts, direction explorations, and critiques"
+  default_prompt: "Use $design for polished HTML-based visual design work such as prototypes, decks, motion demos, infographics, or critiques. Verify named product and brand facts first, ground the work in existing design context when available, avoid generic AI design tropes, and do not use this for production frontend implementation."
