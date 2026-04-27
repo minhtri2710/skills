@@ -151,25 +151,33 @@ function statusScriptContent() {
     "      managed_startup_contract_version: onboarding?.managed_startup_contract_version ?? null,",
     '      managed_block_present: Boolean(managedBlock),',
     '    },',
+    '    agent_mail: {',
+    "      available: onboarding?.agent_mail?.available ?? null,",
+    "      checked_at: onboarding?.agent_mail?.checked_at ?? null,",
+    "      evidence: onboarding?.agent_mail?.evidence ?? null,",
+    '    },',
     '    state_json: {',
     '      exists: Boolean(stateJson),',
-    "      phase: stateJson?.phase ?? null,",
+    "      current_owner: stateJson?.current_owner ?? null,",
     "      status: stateJson?.status ?? null,",
-    "      feature: stateJson?.feature ?? null,",
-    "      next: stateJson?.next ?? null,",
-    "      planning_mode: stateJson?.planning_mode ?? null,",
+    "      feature_slug: stateJson?.feature_slug ?? null,",
     "      current_phase: stateJson?.current_phase ?? null,",
-    "      tasks: stateJson?.tasks ?? null,",
+    "      readiness: stateJson?.readiness ?? null,",
+    "      execution_mode: stateJson?.execution_mode ?? null,",
+    "      approval_ref: stateJson?.approval_ref ?? null,",
+    "      route_selected_owner: stateJson?.route_decision?.selected_owner ?? null,",
+    "      go_mode: stateJson?.go_mode ?? null,",
+    "      debug_return: stateJson?.debug_return ?? null,",
     '    },',
     '    handoff: {',
     '      exists: Boolean(handoff),',
-    "      skill: handoff?.skill ?? null,",
-    "      next: handoff?.next ?? null,",
+    "      from_owner: handoff?.from_owner ?? null,",
+    "      to_owner: handoff?.to_owner ?? null,",
     "      reason: handoff?.reason ?? null,",
-    "      content: handoff?.content ?? null,",
-    "      feature: handoff?.feature ?? null,",
+    "      resume_instructions: handoff?.resume_instructions ?? null,",
+    "      feature_slug: handoff?.feature_slug ?? null,",
     "      feature_name: handoff?.feature_name ?? null,",
-    "      timestamp: handoff?.timestamp ?? null,",
+    "      updated_at: handoff?.updated_at ?? null,",
     '    },',
     '    critical_patterns: {',
     `      exists: existsSync(criticalPatternsPath),`,
@@ -188,52 +196,15 @@ function statusScriptContent() {
     '  const lines = [',
     '    `repo_root: ${status.repo_root}`,',
     "    `onboarding: ${status.onboarding.exists ? (status.onboarding.managed_block_present ? 'present' : 'incomplete') : 'missing'}` ,",
-    "    `state: ${status.state_json.exists ? (status.state_json.phase ?? 'present') : 'missing'}` ,",
-    "    `handoff: ${status.handoff.exists ? (status.handoff.skill ?? 'present') : 'none'}` ,",
+    "    `agent_mail: ${status.agent_mail.available === null ? 'unknown' : status.agent_mail.available ? 'available' : 'unavailable'}` ,",
+    "    `state: ${status.state_json.exists ? (status.state_json.current_owner ?? status.state_json.route_selected_owner ?? 'present') : 'missing'}` ,",
+    "    `handoff: ${status.handoff.exists ? (status.handoff.to_owner ?? status.handoff.from_owner ?? 'present') : 'none'}` ,",
     "    `next_reads: ${status.next_reads.join(', ')}` ,",
     '  ]',
     "  process.stdout.write(`${lines.join('\\n')}\\n`)",
     '}',
     '',
   ].join('\n')
-}
-
-function matchesStateSnapshot(stateJson, expected) {
-  if (!stateJson || typeof stateJson !== 'object') return false
-  return Object.entries(expected).every(([key, value]) => stateJson[key] === value)
-}
-
-function isRefreshableBootstrapState(stateJson) {
-  return (
-    matchesStateSnapshot(stateJson, {
-      schema_version: 1,
-      phase: 'using-beo',
-      status: 'onboarding-complete',
-      feature: 'none',
-      feature_slug: '',
-      tasks: 'bootstrap complete',
-      next: 'beo-route',
-      planning_mode: 'unknown',
-      has_phase_plan: false,
-      current_phase: 1,
-      total_phases: 1,
-      phase_name: '',
-    }) ||
-    matchesStateSnapshot(stateJson, {
-      schema_version: 1,
-      phase: 'router',
-      status: 'needs_onboarding',
-      feature: 'none',
-      feature_slug: '',
-      tasks: 'none',
-      next: 'beo-route',
-      planning_mode: 'unknown',
-      has_phase_plan: false,
-      current_phase: 1,
-      total_phases: 1,
-      phase_name: '',
-    })
-  )
 }
 
 function buildActions(details) {
@@ -261,13 +232,12 @@ function buildActions(details) {
     actions.push('create_.beads/beo_status.mjs')
   }
 
-  if (!details.state_json_exists || (needsOnboardingRefresh && details.state_json_refreshable_bootstrap)) {
+  if (!details.state_json_exists) {
     actions.push('create_.beads/STATE.json')
   }
   // If STATE.json exists but is not parseable, do NOT auto-recreate it.
-  // A malformed STATE.json may contain an in-flight feature; overwriting it would
-  // destroy active feature state that state_json_refreshable_bootstrap was designed
-  // to protect.  Leave the file in place and let the human repair it manually.
+  // A malformed STATE.json may contain in-flight feature state. Leave the file
+  // in place and let the human repair it manually.
 
   if (!details.critical_patterns_exists) actions.push('create_.beads/critical-patterns.md')
   if (!details.artifacts_dir_exists) actions.push('create_.beads/artifacts/')
@@ -291,7 +261,10 @@ function validateSentinels(content) {
  * Inspect a repository and return the current onboarding status without writing any files.
  *
  * @param {string} repoRoot - Absolute or relative path to the repository root.
- * @returns {Promise<{status: string, actions: string[], details: object}>}
+ * @returns {Promise<{status: 'up_to_date'|'needs_onboarding'|'invalid_state_json', actions: string[], details: object}>}
+ *   status: 'up_to_date' — all managed surfaces are current
+ *   status: 'needs_onboarding' — one or more actions required
+ *   status: 'invalid_state_json' — STATE.json exists but is not parseable; manual repair required
  * @throws {Error} If `repoRoot` is not a directory, or if `AGENTS.md` contains mismatched
  *   or duplicate BEO sentinel comments (manual repair required before onboarding can proceed).
  */
@@ -319,8 +292,6 @@ export async function checkRepo(repoRoot) {
   }
 
   const onboarding = await readOnboardingJson(absoluteRepoRoot)
-  // Compute file existence before parsing so state_json_parseable is false only
-  // when the file exists but cannot be parsed (not when it is simply absent).
   const stateFileExists = await pathExists(statePath)
   const stateJson = stateFileExists ? await readJsonIfExists(statePath) : null
   const templateBlock = normalizeManagedBlock(template)
@@ -337,17 +308,24 @@ export async function checkRepo(repoRoot) {
       onboarding?.managed_startup_contract_version === MANAGED_STARTUP_CONTRACT_VERSION,
     status_script_exists: await pathExists(statusScriptPath),
     state_json_exists: stateFileExists,
-    // true when STATE.json is present and parsed successfully; false only when the
-    // file exists but contains invalid JSON (corrupt).  When state_json_exists is
-    // false this field is also false, but the two together distinguish the cases.
     state_json_parseable: stateFileExists && stateJson !== null,
-    state_json_refreshable_bootstrap: isRefreshableBootstrapState(stateJson),
     critical_patterns_exists: await pathExists(criticalPatternsPath),
     artifacts_dir_exists: await isDirectory(artifactsDir),
     learnings_dir_exists: await isDirectory(learningsDir),
   }
 
   const actions = buildActions(details)
+
+  // A parseable STATE.json is required for safe downstream routing.
+  // If the file exists but cannot be parsed, declare invalid_state_json so
+  // beo-route stops and surfaces the problem rather than proceeding on corrupt state.
+  if (details.state_json_exists && !details.state_json_parseable) {
+    return {
+      status: 'invalid_state_json',
+      actions,
+      details,
+    }
+  }
 
   return {
     status: actions.length === 0 ? 'up_to_date' : 'needs_onboarding',
@@ -378,18 +356,11 @@ function replaceManagedBlock(existingContent, template) {
 
 function defaultStateContent() {
   return JSON.stringify({
-    schema_version: 1,
-    phase: 'using-beo',
-    status: 'onboarding-complete',
-    feature: 'none',
-    feature_slug: '',
-    tasks: 'bootstrap complete',
-    next: 'beo-route',
-    planning_mode: 'unknown',
-    has_phase_plan: false,
-    current_phase: 1,
-    total_phases: 1,
-    phase_name: ''
+    schema_version: '1.0',
+    current_owner: 'beo-route',
+    status: 'needs_onboarding',
+    evidence: {},
+    updated_at: new Date().toISOString(),
   }, null, 2) + '\n'
 }
 
@@ -426,6 +397,12 @@ export async function applyRepo(repoRoot) {
   if (currentState.status === 'up_to_date') {
     return readOnboardingJson(absoluteRepoRoot)
   }
+  if (currentState.status === 'invalid_state_json') {
+    throw new Error(
+      '.beads/STATE.json exists but contains invalid JSON. Manual repair is required before onboarding can proceed. ' +
+      'Do not overwrite STATE.json automatically — it may contain in-flight feature state.'
+    )
+  }
 
   const currentOnboarding = await readOnboardingJson(absoluteRepoRoot)
   const actions = new Set(currentState.actions)
@@ -453,8 +430,12 @@ export async function applyRepo(repoRoot) {
   }
 
   await mkdir(beadsDir, { recursive: true })
-  await mkdir(artifactsDir, { recursive: true })
-  await mkdir(learningsDir, { recursive: true })
+  if (actions.has('create_.beads/artifacts/')) {
+    await mkdir(artifactsDir, { recursive: true })
+  }
+  if (actions.has('create_.beads/learnings/')) {
+    await mkdir(learningsDir, { recursive: true })
+  }
   if (actions.has('create_.beads/beo_status.mjs')) {
     await writeFile(statusScriptPath, statusScriptContent(), 'utf8')
   }
@@ -474,6 +455,11 @@ export async function applyRepo(repoRoot) {
     managed_startup_contract_version: MANAGED_STARTUP_CONTRACT_VERSION,
     installed_at: new Date().toISOString(),
     status: 'complete',
+    agent_mail: {
+      available: null,
+      checked_at: null,
+      evidence: 'Set by onboarding/runtime capability check when Agent Mail probing is available.',
+    },
     managed_assets: {
       agents_mode: agentsMode,
       status_script: '.beads/beo_status.mjs',

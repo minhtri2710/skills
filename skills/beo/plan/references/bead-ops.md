@@ -1,75 +1,86 @@
-# Bead Operations
+# bead-ops
 
-Current-phase bead creation and maintenance rules for `beo-plan`.
+Role: APPENDIX
+Allowed content only: exact bead mutation commands and dependency-field constraints
 
-## Preconditions
+## Bead mutation command forms
 
-- `CONTEXT.md` is locked
-- `approach.md` exists or is being finalized in the same planning cycle
-- `phase-contract.md` and `story-map.md` are being written for the current phase
-- planning owns planned execution beads; route, validate, execute, and review do not create them
+| Purpose | Command form |
+| --- | --- |
+| create bead | `br create --title <title> --type task --priority <n> --no-daemon` |
+| update description | `br update <id> --description <text> --no-daemon` |
+| add comment / scope evidence | `br comments add <id> --message <text> --no-daemon` |
+| update status | `br update <id> --status <status> --no-daemon` |
+| add dependency | `br dep add <child-id> <parent-id> --no-daemon` |
+| flush bead DB | `br sync --flush-only` |
 
-## Description Rule
+## Required bead description block
 
-Every bead description must use the shared templates in `beo-reference` → `references/bead-description-templates.md`.
-
-If no institutional learnings apply, write: `No prior learnings for this domain.`
-
-## Completeness Gate
-
-Before handing off to `beo-validate`, read every bead back and confirm it has:
-- a non-empty Markdown description
-- clear file scope
-- acceptance criteria
-- verification steps
-- references to the relevant locked decisions or planning artifacts
-- enough context for a fresh worker to execute without reopening planning
-
-Fix incomplete beads before handoff.
-
-## Quick-Scoped Planning
-
-Quick scope still must:
-1. write `approach.md`
-2. write `plan.md`
-3. write `phase-contract.md`
-4. write `story-map.md`
-5. create the current-phase bead set
-6. route to `beo-validate`
-
-Quick mode reduces ceremony. It does not skip validation or review.
-
-If quick-scoped work grows:
-1. gather existing tasks with `br dep list <EPIC_ID> --direction up --type parent-child --json`
-2. write the plan around the existing tasks
-3. create only the missing beads
-4. wire dependencies for all current-phase work
-5. route to `beo-validate`
-
-## Creation Operations
-
-Create task beads:
-
-```bash
-br create "<Task Name>" -t task --parent <EPIC_ID> -p <priority> --json
+```md
+Goal:
+Scope:
+Acceptance:
+File scope:
+Forbidden paths:
+Dependencies:
+Verification:
+Swarm eligibility:
 ```
 
-After creation:
-- write the description using the planned-task template
-- include exact file paths when known
-- include acceptance criteria and verification
-- reference the relevant locked decisions or planning artifacts
-- keep the bead independently executable by a fresh worker
+## Dependency constraints
 
-Use `beo-reference` → `references/dependency-and-scheduling.md` for dependency rules.
+- No dependency cycles.
+- No child bead is ready before parent completion.
+- No concurrent swarm dispatch when a dependency edge exists between beads.
+- No overlapping mutable file scopes unless the overlap is explicitly read-only.
+- Cross-phase dependencies must name the phase boundary and blocking predecessor.
 
-After bead creation, fill `Story-To-Bead Mapping` in `.beads/artifacts/<feature_slug>/story-map.md`.
+## File scope constraints
 
-## Hard Rules
+- Every mutable path must be explicit.
+- Directory globs are allowed only when narrower file enumeration is impossible and the reason is recorded.
+- Generated files require explicit allowance in file scope or generated outputs.
+- Migrations, auth, billing, permissions, data deletion, security, and privacy surfaces require explicit constraint evidence.
+- Formatting-only changes outside declared file scope are scope violations unless approved in the bead.
 
-- do not create future-phase executable beads
-- do not rely on route to create planned execution beads
-- do not create beads during validation
-- do not hand off beads that fail the completeness gate
-- do not omit acceptance criteria or verification
-- do not skip dependency wiring when order matters
+## Linear steps
+
+| Step | Action |
+| --- | --- |
+| 1 | Confirm owner has already been selected as `beo-plan`. |
+| 2 | Read locked `CONTEXT.md` and current `PLAN.md` when present. |
+| 3 | Draft current-phase design, dependencies, file scopes, and verification plan. |
+| 4 | Create or update beads with the required description block. |
+| 5 | Add dependency edges after all bead ids exist. |
+| 6 | Record file scope and swarm eligibility evidence on each bead. |
+| 7 | Update `PLAN.md` with bead ids, dependency graph summary, file scope summary, and verification plan. |
+| 8 | Invalidate approval if any contract-bearing plan content or bead graph changed. |
+| 9 | Run `br sync --flush-only` after bead DB mutations. |
+| 10 | Record planning exit evidence in `STATE.json`. |
+
+## Planning exit evidence
+
+Use this appendix to describe the evidence `beo-plan` should record; approval invalidation and next-owner doctrine remain canonical in `beo-plan` and `beo-references -> approval.md`.
+
+| Evidence | Required |
+| --- | --- |
+| `PLAN.md` path | yes |
+| bead ids | yes |
+| dependency graph summary | yes |
+| file scope summary | yes |
+| verification plan | yes |
+| approval invalidated | yes/no |
+
+Non-normative scope comment:
+
+```md
+File scope:
+- src/auth/session.ts
+- tests/auth/session.test.ts
+Forbidden paths:
+- src/billing/**
+- migrations/**
+Generated outputs:
+- none
+Swarm eligibility: no; depends on auth-session-parent
+```

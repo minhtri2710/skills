@@ -1,127 +1,62 @@
 <!-- BEO:START -->
-## Beo Startup Rules
+## Beo Startup
 
-1. Read this file at session start and again after any context compaction.
-2. Run the live `beo-onboard` repo check against this repo before any downstream skill work. Canonical command pattern:
-   `node <installed-beo-onboard-root>/scripts/onboard_beo.mjs --repo-root "<absolute-path-to-repo-root>"`
-   Resolve `<installed-beo-onboard-root>` from the current runtime's installed `beo-onboard` skill path. Resolve `<absolute-path-to-repo-root>` to the directory containing this `AGENTS.md`, not the transient shell cwd. If the check reports onboarding missing or stale, stop and load `beo-onboard`.
-3. Treat onboarding as current only when that live repo check confirms the metadata in `.beads/onboarding.json` matches the installed startup contract and this managed block still matches that contract.
-4. If `.beads/beo_status.mjs` exists, run `node .beads/beo_status.mjs --json` as the first quick scout step after the live repo check passes.
-5. If `.beads/HANDOFF.json` exists, read it before normal routing and verify it against live state before resuming.
-6. Read `.beads/critical-patterns.md` before planning or execution.
+1. At session start and after every context compaction, rerun this startup sequence from step 2.
+2. Run the live onboarding check before downstream skill work:
+   `node <installed-beo-onboard-root>/scripts/onboard_beo.mjs --repo-root "<absolute-repo-root>"`
+3. Resolve `<installed-beo-onboard-root>` from the installed `beo-onboard` skill path.
+4. Resolve `<absolute-repo-root>` to the directory containing this `AGENTS.md`, not the transient shell cwd.
+5. If the check result is not `up_to_date`, stop and load `beo-onboard`.
+6. If `.beads/beo_status.mjs` exists, run `node .beads/beo_status.mjs --json` after the live check passes.
+7. Reopen `.beads/STATE.json` and `.beads/HANDOFF.json` when present; verify `HANDOFF.json` against live state before routing.
+8. Reopen the selected active feature artifacts under `.beads/artifacts/<feature_slug>/` before acting on that feature.
+9. Read `.beads/critical-patterns.md` before `beo-plan`, `beo-execute`, or `beo-swarm`.
 
 ## Beo Skill Chain
-
-Bootstrap gate: `beo-onboard` runs first when onboarding is missing or stale.
-
+Startup orientation only:
 ```text
-beo-route -> beo-explore -> beo-plan -> beo-validate ->
-(beo-execute | beo-swarm -> beo-execute) -> beo-review -> beo-compound
+core runtime: beo-route -> beo-explore -> beo-plan -> beo-validate -> beo-execute/beo-swarm -> beo-review -> done
+optional closure: beo-review -> beo-compound -> beo-dream/done
 ```
 
-Support skills (loaded via `beo-route` outside the main pipeline):
-- `beo-debug`: when tasks are blocked or failed and automated diagnosis has not been attempted
-- `beo-dream`: when user explicitly requests learnings consolidation
-- `beo-author`: when skill creation or editing is requested
+Support skills: `beo-debug`, `beo-dream`, `beo-author`  
+Reference skill: `beo-reference`
 
-Reference skill: `beo-reference` (loadable by any skill for canonical protocol documents; not a pipeline stage)
+Legal owner transitions are canonical in `beo-references -> pipeline.md`.
+Approval refresh/invalidation is canonical in `beo-references -> approval.md`.
+Learning closure split is canonical in `beo-references -> learning.md`.
+Use this chain as a startup orientation only, not as an alternative routing source.
 
-## Critical Rules
-
-- Never execute without passing validation.
-- `CONTEXT.md` is the source of truth for locked decisions.
-- `beo-route` selects exactly one next target and must not do downstream work.
-- `beo-execute` delivers one approved bead at a time; `beo-swarm` coordinates parallel workers and does not implement code as the coordinator.
-- 65% context usage triggers a `HANDOFF.json` checkpoint and a clean pause.
-- Keep `STATE.json` current with the active phase and next action.
-- After context compaction, re-read `AGENTS.md`, rerun `node <installed-beo-onboard-root>/scripts/onboard_beo.mjs --repo-root "<absolute-path-to-repo-root>"`, rerun `node .beads/beo_status.mjs --json` if available, then reopen `STATE.json`, `HANDOFF.json` if present, and the active feature artifacts before more work.
-- P1 review findings block merge or feature completion.
-- Managed startup contract freshness must be reflected in onboarding metadata; plugin version alone is not enough.
-- Do not use `node .beads/beo_status.mjs --json` as the source of truth for startup freshness; it is a repo-local scout only after the live check passes.
-- When multiple active epics exist, `beo-route` pauses for user selection before deeper routing.
-- Cancelled outcomes require explicit user acceptance before phase advancement or review.
-- Never disturb concurrent work from other agents; work around existing edits unless the user explicitly tells you otherwise.
+## Runtime Rules
+- never execute without validation approval
+- `CONTEXT.md` owns locked decisions
+- `beo-route` selects exactly one next owner; legal transitions are canonical in `beo-references -> pipeline.md`
+- `beo-swarm` coordinates; it does not implement as coordinator
+- swarm never self-downgrades to serial; reclassification must return through `beo-validate`
+- use `HANDOFF.json` only for real checkpoints
+- keep `STATE.json` current under `beo-references -> state.md`
+- review severity and acceptance blocking are canonical in `beo-review` and `beo-references -> artifacts.md`
+- `review -> done` is the default accepted-work closure when obvious `no-learning` applies; durable or unclear learning routes to `beo-compound`
+- managed startup freshness comes from the live onboarding check, not file presence alone
+- multiple active feature candidates require user selection
+- do not disturb concurrent work from other agents
+- never run bare `bv`; use robot commands from `beo-references -> cli.md`
+- after bead DB mutations, flush with `br sync --flush-only` before committing
 
 ## Working Files
+- `.beads/onboarding.json`
+- `.beads/beo_status.mjs`
+- `.beads/STATE.json`
+- `.beads/HANDOFF.json`
+- `.beads/artifacts/<feature_slug>/`
+- `.beads/critical-patterns.md`
+- `.beads/learnings/`
 
-- `.beads/onboarding.json` - onboarding state and managed asset version
-- `.beads/beo_status.mjs` - read-only scout command for recorded onboarding metadata, state, and handoff summary
-- `.beads/STATE.json` - current phase and feature narrative
-- `.beads/HANDOFF.json` - optional resume checkpoint when a session must pause
-- `.beads/artifacts/<feature_slug>/` - per-feature artifacts such as `CONTEXT.md`, `discovery.md`, `approach.md`, `plan.md`, `phase-contract.md`, and `story-map.md`
-- `.beads/critical-patterns.md` - promoted learnings approved for broad reuse
-- `.beads/learnings/` - per-feature learnings files
+## Session End
+1. update or close the active bead only when the current owner owns bead status/evidence mutation; otherwise record that no bead mutation was performed
+2. update `STATE.json` only for fields owned by the current owner
+3. run `br sync --flush-only` after bead DB mutations
+4. write or update `HANDOFF.json` only when pausing or transferring ownership
+5. record blockers, questions, and next action
 
-## Session Finish
-
-1. Update or close the active bead.
-2. Leave `STATE.json` current. If the session is pausing under context pressure or interruption, write or update `HANDOFF.json` too.
-3. Mention blockers, open questions, and next actions explicitly.
-
----
-
-## Tooling Quick Reference
-
-### br (beads_rust) — Issue Tracking
-
-`br` manages tasks, dependencies, and status. It never runs git commands automatically.
-
-```bash
-br ready --json                  # Unblocked, ready-to-work beads
-br list --json                   # All open beads
-br show <id> --json              # Full bead details
-br create "<title>" -t task --parent <epic-id> -p <priority> --json
-br update <id> --claim           # Claim bead (assignee + in_progress)
-br close <id>                    # Mark done
-br comments add <id> --no-daemon --message "<msg>"   # Add comment
-br sync --flush-only             # Export DB to JSONL for git commit
-```
-
-**Shared CLI rules:**
-- Always use `--no-daemon` on `br comments add` and `br comments list`.
-- Always run `br sync --flush-only` after mutations before committing to git.
-- Priority: 0=critical, 1=high, 2=normal, 3=low, 4=backlog.
-
-For full CLI reference, load `beo-reference` and see `br-cli-reference.md`.
-
-### bv (Beads Viewer) — Graph Triage
-
-**CRITICAL: Always use `--robot-*` flags. Bare `bv` launches an interactive TUI that blocks your session.**
-
-```bash
-bv --robot-triage --format json                        # Full triage (start here)
-bv --robot-next --format json                          # Single top pick
-bv --robot-plan --graph-root <EPIC_ID> --format json   # Parallel execution tracks
-```
-
-For full command reference, load `beo-reference` and see `bv-cli-reference.md`.
-
-### MCP Agent Mail — Multi-Agent Coordination
-
-> Minimal subset. For full API surface, identity model, and conflict semantics, load `beo-reference` and see `agent-mail-coordination.md`.
-
-Used for swarming. Provides agent identities, threaded messaging, and file reservations.
-
-```text
-ensure_project(project_key=<abs-path>)
-register_agent(project_key, program, model)
-macro_start_session(human_key, model, program, task_description, agent_name)
-send_message(project_key, sender_name, to, thread_id, subject, body_md)
-reply_message(project_key, message_id, sender_name, body_md)
-fetch_inbox(project_key, agent_name)
-file_reservation_paths(project_key, agent_name, paths, ttl_seconds, exclusive)
-release_file_reservations(project_key, agent_name, paths)
-```
-
-For full Agent Mail reference, load `beo-reference` and see `agent-mail-coordination.md`.
-
-### Session Completion Checklist
-
-```bash
-git status              # Check what changed
-git add <files>         # Stage code changes
-br sync --flush-only    # Export beads to JSONL
-git add .beads/         # Stage beads changes
-git commit -m "..."     # Commit everything together
-```
 <!-- BEO:END -->

@@ -1,4 +1,4 @@
 interface:
   display_name: "Beo Swarm"
-  short_description: "Coordinate parallel workers for approved beads"
-  default_prompt: "Use $beo-swarm to coordinate parallel workers for approved current-phase beads with non-overlapping scopes, without doing implementation as the coordinator."
+  short_description: "Coordinate parallel bead execution"
+  default_prompt: "Use $beo-swarm to coordinate approved independent current-phase beads with isolated file scopes without implementing as coordinator."

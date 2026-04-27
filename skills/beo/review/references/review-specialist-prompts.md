@@ -1,64 +1,72 @@
-# Review Specialist Prompts
+Non-normative asset.
 
-Canonical specialist lenses for `beo-review`.
+# review-specialist-prompts
 
-Run all 5 lenses. Run them in parallel only when the runtime supports delegation. Regression risk stays inside Architecture; do not create a separate regression specialist.
+Role: ASSET
+Allowed content only: prompt text only; no verdict or routing rules
 
-## Specialist Lenses
+## Review specialist prompt
 
-| Specialist | Focus | Ask |
-| --- | --- | --- |
-| Code Quality | Correctness, readability, maintainability | Is the implementation clear, direct, and convention-aligned? |
-| Architecture | Planned structure, dependency correctness, integration, regression risk | Does the change fit the planned shape and preserve boundaries? |
-| Testing | Coverage, test quality, verification completeness | Do the tests and checks prove the acceptance criteria? |
-| UX/Performance | User-facing behavior, accessibility, performance | Does the feature behave correctly and efficiently for real users? |
-| Security | Trust boundaries, auth, data handling, input validation | Does the change introduce security or exposure risk? |
+You are reviewing terminal execution evidence for a beo feature. Assess the evidence against the locked contracts and approval scope. Do not implement fixes.
 
-## Specialist Prompt Template
+Inputs to inspect:
+- locked `CONTEXT.md`
+- current `PLAN.md`
+- `approval-record.json`
+- changed files list
+- verification evidence
+- execution notes and bead ids
 
-```markdown
-# Review: <specialist> for <feature-name>
+Procedure:
+1. Check approval scope against every changed file.
+2. Check locked acceptance criteria against implementation evidence.
+3. Check non-goals and compatibility constraints for overreach.
+4. Check required verification evidence is present and relevant.
+5. Check generated files, snapshots, lockfiles, and side effects are approved or explained.
+6. Classify every finding as P0, P1, P2, or P3 using `beo-review` severity definitions.
+7. Return evidence for `beo-review` to classify; do not treat this prompt as a canonical verdict or routing source.
 
-## Role
-Review "<feature-name>" from the <specialist> lens.
+Output shape:
 
-## Scope
-Review only files changed for this feature. Ignore untouched pre-existing code.
+```md
+Verdict signal: accept|fix|reject
 
-## Files Changed
-<paths from task reports>
+Approval scope check:
+- approval_ref: <path/hash/summary>
+- changed_files_in_scope: yes|no
+- out_of_scope_files: <list-or-none>
 
-## Locked Decisions
-<relevant CONTEXT.md decisions that implementation must honor>
+Acceptance coverage:
+- <criterion>: covered|missing|unclear, evidence=<summary>
 
-## Instructions
-1. Read every changed file.
-2. Check only your specialist concerns.
-3. Report findings as:
-   - `P1`: blocks acceptance
-   - `P2`: should fix later
-   - `P3`: minor improvement
+Verification evidence:
+- command: <command>
+  result: pass|fail|missing
+  output_ref: <summary-or-log-ref>
 
-## Output
-- File: <path>
-- Line: <number or range>
-- Severity: P1 | P2 | P3
-- Finding: <problem>
-- Suggestion: <specific fix>
+Findings:
+- id: <finding-id>
+  severity: P0|P1|P2|P3
+  evidence: <fact>
+  blocks_accept: true|false
+  coordination_hint: in-scope-fix|plan-repair-suspected|debug-suspected|external-input-suspected|none
+
+Evidence gaps:
+- <gap or none>
+
+Reactive-fix bead:
+- parent_finding: <id>
+- in_scope_files: <list>
+- verification: <commands>
+- omit when verdict is not `fix`
+
+Learning disposition hint:
+- learning|no-learning|defer
 ```
 
-## Result Handling
+Verdict calibration prompts:
+- `accept`: no open P0/P1, required verification complete, approval scope matches changed files, and remaining findings are only P2/P3 if any.
+- `fix`: issue appears repairable inside approved scope or a valid reactive-fix bead scope.
+- `reject`: requirements, plan, approval, or safety assumptions appear invalid enough that patching would be unsafe.
 
-| Severity | Meaning | Action |
-| --- | --- | --- |
-| `P1` | Blocks acceptance | Record a blocking remediation target and route through the canonical reactive-fix path |
-| `P2` | Important follow-up | Record a non-blocking recommendation |
-| `P3` | Minor improvement | Record only; do not create work unless requested |
-
-Conflict rules:
-- Any substantiated `P1` blocks until fixed or disproved.
-- Substantiated `P2` and `P3` findings are unioned, not voted away.
-- Discard unsupported claims.
-- Re-verify contradictory blocking claims; never resolve them by majority vote.
-
-Review identifies fixes. It does not create or implement them.
+Canonical verdict and next-owner selection remain in `beo-review`, `beo-references -> artifacts.md`, and `beo-references -> pipeline.md`.

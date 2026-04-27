@@ -1,4 +1,4 @@
 interface:
   display_name: "Beo Review"
-  short_description: "Make the single post-execution quality verdict"
-  default_prompt: "Use $beo-review to assess completed current-phase implementation against the locked contract and verification evidence, then issue exactly one verdict: accept, fix, or reject, without implementing fixes."
+  short_description: "Issue the post-execution verdict"
+  default_prompt: "Use $beo-review to assess terminal execution evidence against locked contracts and emit accept, fix, or reject without implementing remediation."

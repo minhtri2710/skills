@@ -1,4 +1,4 @@
 interface:
   display_name: "Beo Author"
-  short_description: "Modify and pressure-test the beo skill system"
-  default_prompt: "Use $beo-author to create, revise, or pressure-test beo skill definitions and supporting references without drifting into live delivery work or making unintended pipeline-topology changes."
+  short_description: "Author and harden beo contracts"
+  default_prompt: "Use $beo-author to create, rewrite, simplify, dedupe, normalize, review, audit, harden, or pressure-test beo skill contracts and skill-local writing guidance without changing runtime topology, adding checker scripts, adding fixture suites, or doing product delivery."

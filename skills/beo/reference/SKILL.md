@@ -1,71 +1,43 @@
 ---
 name: beo-reference
 description: |
-  Return one targeted canonical reference document when another skill needs a shared protocol, convention, contract, or CLI rule. Read-only; not a routing or execution skill.
-
+  Return canonical references. Use when the request is a read-only lookup of an existing rule, schema, template, mapping, protocol, or command form. Do not use when routing or edits are requested.
 ---
 
 # beo-reference
 
-Canonical shared reference corpus for beo skills.
+## Purpose
+Return canonical references.
 
-This skill is lookup-only. It exists so other beo skills can cite `beo-reference` → `references/<file>` and load exactly the protocol document they need.
+## Primary owned decision
+Return the exact canonical reference surface for a read-only lookup.
 
-## Atomic purpose
-Expose one authoritative reference, read-only.
+## Enter when
+- the request is a read-only lookup of an existing canonical rule, schema, template, mapping, protocol, or command form
+- no edits, routing, or owner selection are requested
 
-## When to use
-- another beo skill needs one specific shared protocol, rule, convention, contract, or CLI reference
-- authoritative guidance is required without any behavioral work or state changes
+## Writable surfaces
+- none
 
-## Inputs
-**Required**
-- one explicit reference request identifying the needed document
+## Allowed next owners
+- done
 
-## Outputs
-**Allowed reads only**
-- the targeted reference document from `references/<file>`
+## Local hard stops
+- Do not mutate `STATE.json`.
+- Do not mutate `HANDOFF.json`.
+- Do not turn a read-only lookup into routing or contract editing.
+- Before routing to `done`, inherit the terminal done rule from `beo-references -> state.md`.
 
-**Must not write**
-- `STATE.json`
-- `HANDOFF.json`
-- feature artifacts
-- implementation code
-
-## Boundary rules
-- `beo-reference` is read-only and not a routing destination.
-- `beo-reference` must not make decisions, write state, edit artifacts, or execute feature work.
-- Callers must load only the needed reference file, not the full corpus.
-- `beo-reference` must not function as an operational skill.
-
-## Reference index
-### CLI references
-- `references/br-cli-reference.md` — canonical `br` command usage
-- `references/bv-cli-reference.md` — canonical `bv` command usage
-
-### Status and state
-- `references/status-mapping.md` — canonical bead states and transitions
-- `references/state-and-handoff-protocol.md` — `STATE.json` and `HANDOFF.json` schema and resume rules
-
-### Artifacts
-- `references/artifact-conventions.md` — artifact paths, ownership, and naming
-- `references/bead-description-templates.md` — standard bead description formats
-
-### Workflow protocols
-- `references/pipeline-contracts.md` — routing table, allowed transitions, cross-skill invariants
-- `references/approval-gates.md` — approval timing and label ownership
-- `references/dependency-and-scheduling.md` — dependency reconciliation and scheduling cascade
-- `references/failure-recovery.md` — failure classes and recovery rules
-- `references/shared-hard-gates.md` — shared onboarding, session-boundary, and interaction rules
-- `references/worker-template.md` — standard worker prompt template
-
-### Knowledge and communication
-- `references/knowledge-store.md` — knowledge-store rules and integration
-- `references/learnings-read-protocol.md` — reading learnings and critical patterns safely
-- `references/communication-standard.md` — communication rules for beo outputs
-- `references/agent-mail-coordination.md` — coordinator / worker messaging protocol
-
-## Red flags
-- routing to `beo-reference`
-- loading the entire corpus instead of one needed file
-- treating reference docs as permission to change pipeline ownership
+## References
+- `beo-references -> doctrine-map.md`
+- `beo-references -> operator-card.md`
+- `beo-references -> approval.md`
+- `beo-references -> artifacts.md`
+- `beo-references -> authoring.md`
+- `beo-references -> cli.md`
+- `beo-references -> complexity.md`
+- `beo-references -> coordination.md`
+- `beo-references -> learning.md`
+- `beo-references -> pipeline.md`
+- `beo-references -> state.md`
+- `beo-references -> status-mapping.md`

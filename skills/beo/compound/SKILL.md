@@ -1,83 +1,48 @@
 ---
 name: beo-compound
 description: |
-  Extract durable learnings from one accepted feature and optionally promote a reusable pattern with explicit approval. Use only for single-feature learning extraction after acceptance, not for corpus-wide consolidation, implementation, or review.
-
+  Record one accepted feature learning outcome. Use when verdict=`accept`, acceptance evidence is complete, and learning disposition is missing. Do not use when cross-feature consolidation is requested.
 ---
-
-> **HARD-GATE: ONBOARDING** — Before any work, verify `br` and `bv` are accessible and `.beads/` is initialized (`beo-reference` → `references/shared-hard-gates.md`). If stale or missing, load `beo-onboard` and stop.
-
-> **Protocol References** — Shared protocol rules live in `beo-reference` → `references/<file>`.
 
 # beo-compound
 
-## Atomic purpose
-Extract and store learnings for one accepted feature.
+## Purpose
+Record one accepted feature learning outcome.
 
-## When to use
-- review has accepted a feature and its lessons have not yet been captured
-- a completed feature needs its durable learnings preserved before the pipeline closes
+## Primary owned decision
+Record durable or unclear accepted-work learning for one feature.
 
-## Inputs
-**Required**
-- accepted feature slug or identifier
-- `.beads/artifacts/<feature_slug>/review-findings.md`
-- feature bead history and comments
-- relevant implementation artifacts for that feature
+## Enter when
+- one feature has `REVIEW.md` verdict=`accept`
+- acceptance evidence is complete
+- durable learning exists or the learning disposition is still unclear
 
-**Optional**
-- prior feature learning artifacts for deduplication only
-- existing `.beads/critical-patterns.md` only for deduplication or promotion checks
+## Writable surfaces
+- `.beads/learnings/<feature_slug>.md` or equivalent feature learning record described by `beo-references -> learning.md`
+- learning disposition marker for the accepted feature
+- shared `STATE/HANDOFF` surfaces under `beo-references -> skill-contract-common.md`
 
-## Outputs
-**Allowed writes**
-- `.beads/learnings/YYYYMMDD-<feature_slug>.md`
-- updates to `.beads/critical-patterns.md` only with explicit approval
-- `.beads/STATE.json`
-- `.beads/HANDOFF.json` only when checkpoint or resume protocol requires it
+## Decision packet
+- shared decision packet under `beo-references -> skill-contract-common.md`
+- local learning details belong in the feature learning record or inline disposition marker
 
-**Must not write**
-- learnings for other features
-- planning, implementation, or review artifacts
+## Learning rule
 
-## Boundary rules
-- Compound owns learning extraction for one accepted feature only.
-- Compound must not run before review acceptance, merge evidence across multiple features, modify code or plans, or perform corpus-wide consolidation, retirement, or restructuring.
-- Any promoted pattern must be traceable to that accepted feature.
-- Compound must not create or rewrite review artifacts.
+Use the durable-learning and consolidation thresholds in `beo-references -> learning.md`.
+Default to inline `no-learning` when no durable reusable decision impact exists.
+Do not revisit a review-recorded obvious `no-learning` unless new accepted-work evidence contradicts it.
 
-## Minimum hard gates
-- **POST-REVIEW-ONLY** — Start only after review acceptance.
-- **SINGLE-FEATURE-SCOPE** — Write learnings for exactly one feature.
-- **EXPLICIT-PROMOTION-APPROVAL** — Any write to `critical-patterns.md` requires explicit approval via the runtime's canonical user-interaction mechanism.
-- **GENERALIZE-BEFORE-PROMOTION** — Promoted patterns must be evidence-backed and traceable to the accepted feature.
-- **TERMINATE-ON-HANDOFF** and **FRESH-LOAD-REQUIRED** — Follow the shared session-boundary rules.
+## Allowed next owners
+- beo-dream
+- user
+- done
 
-## Default loop
-1. Read the accepted feature's review findings, bead history, and implementation evidence.
-2. Extract what worked, what failed, what surprised the team, and what should be remembered.
-3. Separate feature-local observations from reusable patterns supported by that feature.
-4. Write `.beads/learnings/YYYYMMDD-<feature_slug>.md` using the local learning template.
-5. If reusable patterns are warranted, present the proposed `critical-patterns.md` updates, obtain explicit approval, apply the approved promotions, and stop after writing handoff state to `beo-route`.
+## Local hard stops
+- Do not create a standalone learning file for isolated accepted work with no durable reusable signal.
+- Do not perform cross-feature consolidation here.
+- Before routing to `done`, inherit the terminal done rule from `beo-references -> state.md`.
 
 ## References
-| File | Use when |
-|------|----------|
-| `references/compounding-operations.md` | Running the extraction and writing flow |
-| `references/learnings-template.md` | Structuring the feature learning artifact |
-| `beo-reference` → `references/knowledge-store.md` | Syncing feature learnings into the knowledge store when available |
-| `beo-reference` → `references/learnings-read-protocol.md` | Reading other learnings for deduplication without turning compound into dream |
-
-## Handoff and exit
-- Normal completion handoff: `beo-route`
-- Compound does not branch into dream automatically; route decides any later long-horizon consolidation work.
-
-## Context budget
-If context exceeds 65%, checkpoint via the shared protocol in `beo-reference` → `references/shared-hard-gates.md`.
-
-## Red flags
-- running before review acceptance
-- merging evidence from multiple features inside compound
-- promoting a pattern that is not traceable to the accepted feature
-- producing empty or content-free learnings
-- continuing after writing handoff state
+- `beo-references -> learning.md`
+- `beo-references -> pipeline.md`
+- `beo-references -> state.md`

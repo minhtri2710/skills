@@ -1,92 +1,99 @@
 ---
 name: beo-route
 description: |
-  Detect canonical beo state and choose exactly one next target when a session starts, resumes, or no active handoff already fixes the next step. Use only for state detection and next-step selection, not for onboarding repair or any operational phase.
-
+  Select exactly one beo owner. Use when owner state is missing, invalid, contradictory, or colliding. Do not use when exactly one non-route owner predicate is true.
 ---
-
-> **HARD-GATE: ONBOARDING** — Before any routing work: (1) verify `br` is accessible, (2) verify `bv` with `bv --version` only — never invoke bare `bv`, it requires a TTY, and (3) run the live onboarding check exactly as defined in `beo-reference` → `references/shared-hard-gates.md`. If that check does not return `"status": "up_to_date"`, load `beo-onboard` and stop.
-
-> **Protocol References** — Shared protocol rules live in `beo-reference` → `references/<file>`.
 
 # beo-route
 
-## Atomic purpose
-Choose the single next skill.
+## Purpose
+Select exactly one beo owner.
 
-## When to use
-- session start
-- session resume
-- the next step is unknown
-- multiple beo skills could apply and one must be selected
+## Primary owned decision
+Select exactly one next owner from user intent, trusted state, and live evidence.
 
-## Inputs
-**Required**
-- current user request or resume signal
-- onboarding readiness state
-- `.beads/STATE.json`
-- live bead and epic state from `br` (for example `br list`, `br show`) and from `bv` via `--robot-* --format json` only
+## Enter when
+- startup, resume, re-entry, stale or invalid handoff, explicit support/meta intent, or owner collision is present
+- owner is missing, invalid, contradictory, or more than one non-route owner predicate matches
 
-**Optional**
-- `.beads/HANDOFF.json`
-- current feature artifacts only if canonical state is insufficient
+## Writable surfaces
+- `.beads/STATE.json` under the shared STATE write baseline plus `route_decision`
+- shared `STATE/HANDOFF` surfaces under `beo-references -> skill-contract-common.md`
 
-## Outputs
-**Decision**
-- exactly one canonical next target: `beo-onboard`, `beo-explore`, `beo-plan`, `beo-validate`, `beo-swarm`, `beo-execute`, `beo-review`, `beo-debug`, `beo-compound`, `beo-dream`, `beo-author`, `user`, or `done`
+## Route suppression rule
+- Preserve the current valid owner when exactly one current owner remains valid and no new contradiction, stale handoff, stale approval, or owner collision exists.
+- Avoid route churn.
 
-**Allowed writes**
-- `.beads/STATE.json`
-- `.beads/HANDOFF.json` only when checkpoint or resume protocol requires it
+## Owner decision ladder
 
-**Must not write**
-- feature artifacts under `.beads/artifacts/<feature_slug>/`
-- planning, review, or learning artifacts
-- implementation code
+Evaluate in order. Stop at the first decisive match.
 
-## Boundary rules
-- Route owns state detection and next-step selection only.
-- Route must not clarify requirements, design solutions, validate readiness, implement code, review work, debug failures, extract learnings, or rewrite skills.
-- Route must not create artifacts other than canonical state and handoff files.
-- Route must route to `beo-onboard` when readiness is stale.
-- Route must honor an active canonical handoff that already fixes the next skill.
-- Route stops after writing the next target and any required handoff state.
+1. support/meta intent -> `beo-reference`, `beo-author`, or `beo-onboard`
+2. onboarding invalid -> `beo-onboard`
+3. multiple active feature candidates with no selected feature -> `user`
+4. stale or invalid handoff -> ignore handoff and route from live artifacts
+5. `CONTEXT.md` missing, unlocked, contradicted, or requirement-changing clarification exists -> `beo-explore`
+6. `PLAN.md`, phase shape, bead graph, dependencies, file scope, or verification plan missing/invalid -> `beo-plan`
+7. artifacts current but approval, readiness, or execution mode missing/stale/invalid -> `beo-validate`
+8. readiness=`PASS_SERIAL` -> `beo-execute`
+9. readiness=`PASS_SWARM` -> `beo-swarm`
+10. execution bundle complete and review evidence ready -> `beo-review`
+11. accepted-work closure -> inherit closure split from `beo-references -> learning.md`
+12. blocker exists and root cause is unproven -> `beo-debug`, unless an earlier canonical owner already wins with proven requirement, plan, or approval invalidity
+13. terminal no-work state -> `done`; external clarification, access, or approval needed -> `user`
 
-## Minimum hard gates
-- **HANDOFF-PRECEDENCE** — If `.beads/HANDOFF.json` exists, honor the saved `skill` and `next` per `beo-reference` → `references/state-and-handoff-protocol.md` before normal state detection.
-- **CANONICAL-FIELDS-ONLY** — Use the canonical `STATE.json` and `HANDOFF.json` field names from `beo-reference` → `references/state-and-handoff-protocol.md`. Do not invent aliases such as `NextSkill` or `STATE.skill`.
-- **FIRST-MATCH-WINS** — Match live state against the routing table in `beo-reference` → `references/pipeline-contracts.md` top-to-bottom.
-- **TERMINATE-ON-HANDOFF** — After writing handoff state, stop immediately (`beo-reference` → `references/shared-hard-gates.md`).
-- **FRESH-LOAD-REQUIRED** — Route must run as a fresh invocation, not as a continuation of another skill's session (`beo-reference` → `references/shared-hard-gates.md`).
+## Route determinism rule
+- Do not emit a next owner as `A or B`.
+- When more than one owner appears plausible, apply the ladder and collision rules until exactly one remains.
+- If evidence is still insufficient, choose the earliest owner that can legally clarify by reading or writing its owned surface, or `user` only for external missing input.
 
-## Default loop
-1. Run the live onboarding check exactly as defined in `beo-reference` → `references/shared-hard-gates.md`. If the result is not `"status": "up_to_date"`, load `beo-onboard` and stop. Then, if `.beads/beo_status.mjs` exists, run `node .beads/beo_status.mjs --json` as a read-only scout.
-2. Read `.beads/HANDOFF.json` first when present, then `.beads/STATE.json`, using the canonical resume protocol.
-3. If no active handoff already fixes the next step, inspect the live bead / epic state and current request, then match the first applicable routing row in `pipeline-contracts.md`.
-4. Emit exactly one direct next target and write `.beads/STATE.json` for the selected transition.
-5. Stop. Never begin the downstream skill in the same session.
+## Collision rules
+
+Use these only when the ladder leaves more than one plausible owner after disqualification.
+
+| Collision | Winner |
+| --- | --- |
+| explore + plan | `beo-explore` |
+| plan + validate | `beo-plan` if content or bead graph repair is needed; otherwise `beo-validate` |
+| validate + execute | `beo-validate` |
+| execute + debug | `beo-debug` when root cause is unproven |
+| execute + review | `beo-review` only when terminal evidence is complete |
+| review + compound | `beo-review` until verdict exists |
+| compound + dream | `beo-compound` for one feature; `beo-dream` for cross-feature consolidation |
+
+## Decision packet
+- shared decision packet under `beo-references -> skill-contract-common.md`
+- local extensions: `matched_condition`, `disqualified_owners`
+
+## STATE.json fields written
+- inherits shared STATE write baseline from `beo-references -> skill-contract-common.md`
+- `route_decision`
+
+## Allowed next owners
+- beo-onboard
+- beo-reference
+- beo-author
+- beo-dream
+- beo-debug
+- beo-explore
+- beo-plan
+- beo-validate
+- beo-execute
+- beo-swarm
+- beo-review
+- beo-compound
+- user
+- done
+
+## Local hard stops
+- Do not hide routing precedence or collision doctrine in references.
+- Do not restate legal transitions, approval semantics, or artifact schemas beyond what local routing readability requires.
 
 ## References
-| File | Use when |
-|------|----------|
-| `references/router-operations.md` | Applying route-specific detection and intake mechanics |
-| `references/go-mode.md` | A fresh request explicitly enters compressed go-mode intake |
-| `beo-reference` → `references/pipeline-contracts.md` | Selecting the canonical next target |
-| `beo-reference` → `references/state-and-handoff-protocol.md` | Reading or writing `STATE.json` / `HANDOFF.json` |
-| `beo-reference` → `references/shared-hard-gates.md` | Enforcing onboarding and session-boundary rules |
-
-## Handoff and exit
-- Allowed direct next targets: `beo-onboard`, `beo-explore`, `beo-plan`, `beo-validate`, `beo-execute`, `beo-swarm`, `beo-review`, `beo-compound`, `beo-debug`, `beo-dream`, `beo-author`, `user`, `done`.
-- Every route decision must match an allowed edge in `beo-reference` → `references/pipeline-contracts.md`.
-
-## Context budget
-If context exceeds 65%, checkpoint using the shared protocol in `beo-reference` → `references/shared-hard-gates.md`.
-
-## Red flags
-- using non-canonical handoff field names
-- clearing or rewriting handoff state outside the canonical protocol
-- doing exploration, planning, validation, execution, review, debug, or learning work after selecting a route
-- creating feature artifacts not explicitly owned by route in the routing table
-- continuing after writing `STATE.json`
-- treating `.beads/` directory existence or file presence as sufficient onboarding verification without running `onboard_beo.mjs`
-- running `node .beads/beo_status.mjs --json` in place of the live `onboard_beo.mjs` check — the scout is read-only and never the source of truth for freshness
+- `beo-references -> operator-card.md`
+- `beo-references -> doctrine-map.md`
+- `beo-references -> pipeline.md`
+- `beo-references -> approval.md`
+- `beo-references -> learning.md`
+- `beo-references -> state.md`
+- `references/router-operations.md`

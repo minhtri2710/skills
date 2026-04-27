@@ -1,175 +1,50 @@
-# Router Operations
+# router-operations
 
-Operational playbook for `beo-route`.
+Role: APPENDIX
+Allowed content only: live onboarding gate command, feature detection command, route evidence capture steps, and local operational mechanics.
 
-## Intent Short-Circuit Rule
+This appendix is operational only. Routing precedence, the owner decision ladder, and collision doctrine are canonical in `beo-route`.
 
-Before full feature-state routing, check whether explicit user intent already selects a meta path:
-- creating or editing a beo skill → `beo-author`
-- root-cause analysis of blocked or failing work → `beo-debug`
-- explicit learnings consolidation → `beo-dream`
+## Live onboarding gate
 
-Honor explicit intent unless live state proves the request impossible, stale, or aimed at the wrong feature.
+Run before downstream owner selection when the installed onboarding skill path is known:
 
-Conversational phrasing is not a short-circuit. Requests like "explore this with me" still route through the state table. Route emits a next target only; if the correct outcome is pause or completion, emit `next: "user"` or `next: "done"`.
-
-## 1. Workspace Bootstrap
-
-Run the live `beo-onboard` repo check before deeper routing. If onboarding is missing, unreadable, stale, or otherwise unhealthy, route to `beo-onboard`.
-
-If onboarding is current and `.beads/beo_status.mjs` exists, run:
-
-```bash
-node .beads/beo_status.mjs --json
+```sh
+node <installed-beo-onboard-root>/scripts/onboard_beo.mjs --repo-root "<absolute-repo-root>"
 ```
 
-Use it only as a read-only scout. Do not treat `.beads/onboarding.json` or repo-local scout output as the source of truth for startup freshness or managed `AGENTS.md` drift.
+If the result is not `up_to_date`, route to `beo-onboard` unless the user explicitly requested `beo-reference` read-only lookup or `beo-author` contract-only work that does not depend on repo runtime state.
 
-Optional knowledge-search availability check:
+## Minimum inspection set
 
-```bash
-qmd status 2>/dev/null
+| Surface | Use |
+| --- | --- |
+| `.beads/STATE.json` | current owner, status, route decision, phase |
+| `.beads/HANDOFF.json` | resume checkpoint only when fresh |
+| `.beads/artifacts/<feature_slug>/CONTEXT.md` | requirement lock and contradictions |
+| `.beads/artifacts/<feature_slug>/PLAN.md` | current phase, bead graph, file scopes |
+| `.beads/artifacts/<feature_slug>/approval-record.json` | approval freshness and scope |
+| `.beads/artifacts/<feature_slug>/execution-bundle.json` | execution completion evidence |
+| `.beads/artifacts/<feature_slug>/REVIEW.md` | verdict and learning disposition |
+
+## Feature candidate detection
+
+```sh
+tilth ".beads/artifacts/*" --scope .beads
 ```
 
-## 1b. Multi-Epic and Label-Aware Detection
+If more than one active feature can satisfy the request and no explicit feature is selected, route to `user` with the candidate feature slugs.
 
-### Multi-Epic Ambiguity
+## Operational checklist
 
-Query all epics:
+| Step | Action |
+| --- | --- |
+| 1 | Run the live onboarding gate and record status evidence. |
+| 2 | Inspect `STATE.json` and ignore stale or contradictory state against live artifacts. |
+| 3 | Inspect `HANDOFF.json` only if freshness in `beo-references -> state.md` passes. |
+| 4 | Detect active feature candidates and require user selection when ambiguous. |
+| 5 | Apply the owner decision ladder and collision rules in `beo-route`. |
+| 6 | Write `route_decision` with selected owner, disqualified owners, evidence, and timestamp. |
+| 7 | Update `current_owner`, `status`, and `evidence` in `STATE.json`. |
 
-```bash
-br list --type epic -a --json
-```
-
-If more than one epic is active (`open` or `in_progress`), route to `user` with `multi-epic-ambiguity`. Do not silently pick one.
-
-### Swarming Label Detection
-
-When resuming an active epic, inspect labels via `br show <EPIC_ID> --json`:
-- `swarming` + `approved` → route to `beo-swarm`
-- `swarming` without `approved` → treat as stale; validation will clean it up
-
-### Cancelled-Needs-Decision
-
-When current-scope tasks include `cancelled` outcomes, inspect each cancelled task for `cancelled_accepted`:
-- if any cancelled task lacks `cancelled_accepted`, route to `user` with `cancelled-needs-decision`
-- if the user accepts a cancelled outcome, persist it with `br label add <TASK_ID> -l cancelled_accepted`
-
-See `status-mapping.md` for full label semantics.
-
-## 2. New Feature Intake Classification
-
-### New Debug Intake
-
-If the request is clearly for root-cause analysis of a concrete failure, classify it as `new-debug-intake` and route to `beo-debug`.
-
-Route does not create epics, tasks, slugs, or artifacts.
-
-### New Feature Intake
-
-If the request is feature work:
-- `new-quick-intake` when it matches the quick-scope definition in `pipeline-contracts.md`
-- `new-feature-intake` otherwise
-
-Both route to `beo-explore`. Intake bootstrap belongs downstream.
-
-## 3. Quick Scope Handling
-
-Quick scope is a routing signal, not a route-owned shortcut.
-
-When work is quick-scoped:
-- preserve `new-quick-intake` in `STATE.json`
-- route to `beo-explore`
-- let downstream skills decide how lightweight the artifacts can be
-
-If quick work expands later, keep normal ownership: unlocked requirements go to `beo-explore`; redesign goes to `beo-plan`.
-
-## 4. Artifact Inspection Order
-
-For an active feature, inspect artifacts in this order:
-
-1. `CONTEXT.md`
-2. `discovery.md`
-3. `approach.md`
-4. `plan.md`
-5. `phase-plan.md` if present
-6. `phase-contract.md`
-7. `story-map.md`
-
-Interpretation:
-- `phase-plan.md` present → potentially multi-phase
-- `phase-plan.md` absent → usually single-phase unless other evidence contradicts it
-- `phase-contract.md` and `story-map.md` always describe the current phase only
-
-## 5. Planning-Aware Routing Rules
-
-| Rule | Condition | Route |
-|---|---|---|
-| A | `CONTEXT.md` exists, no `approach.md` | `beo-plan` |
-| B | `approach.md` exists, missing `phase-contract.md` or `story-map.md` | `beo-plan` |
-| C | `phase-plan.md` exists | treat as multi-phase unless clearly stale |
-| D | Current phase complete and later phases remain | `beo-plan` |
-| E | Execution complete and no later phases remain | `beo-review` |
-
-## 6. Resume From Handoff
-
-Read `.beads/HANDOFF.json` with the canonical schema from `state-and-handoff-protocol.md`.
-
-Before trusting it, run the live onboarding check again. If onboarding is stale, route to `beo-onboard`.
-
-When present, trust these fields unless live artifacts clearly contradict them:
-- `planning_mode`
-- `has_phase_plan`
-- `current_phase`
-- `total_phases`
-- `phase_name`
-- `artifacts`
-- `mode`
-
-Verify saved state with:
-
-```bash
-br show <feature_epic_id> --json
-br dep list <feature_epic_id> --direction up --type parent-child --json
-```
-
-Also re-check artifacts in canonical order. If `has_phase_plan = true`, verify `phase-plan.md` still exists.
-
-If `mode = "go"`, resume within go mode rather than normal routing.
-
-Clean up `HANDOFF.json` only after the resumed skill writes fresh canonical state.
-
-## 7. Doctor Mode
-
-Use doctor mode only when asked to inspect project health or workflow issues.
-
-```bash
-bv --robot-insights --format json
-br stale --days 7 --json
-br dep cycles --json
-br blocked --json
-```
-
-Also report:
-- whether `approach.md` exists
-- whether `phase-plan.md` exists
-- whether current-phase artifacts exist
-- whether the feature appears single-phase or multi-phase
-
-| Finding | Severity | Action |
-|---------|----------|--------|
-| Dependency cycles | HIGH | report exact cycle and ask user to break it |
-| Tasks blocked >24h | MEDIUM | report blockers and likely resolution |
-| Tasks in progress >4h with no commits | MEDIUM | may be abandoned; check with user |
-| Epic with no tasks and no plan | LOW | stale feature; suggest cleanup or activation |
-| Closed tasks with open dependencies | HIGH | investigate inconsistent state |
-| `phase-plan.md` exists but current-phase artifacts do not | MEDIUM | route back to planning |
-| Current phase complete but later phases remain | MEDIUM | route back to planning |
-
-## 8. STATE.json on Handoff
-
-After classifying state and before yielding, write `.beads/STATE.json` using the complete canonical schema from `state-and-handoff-protocol.md`.
-
-All 12 required fields must be present:
-- base: `schema_version`, `phase`, `status`, `feature`, `feature_slug`, `tasks`, `next`
-- planning-aware: `planning_mode`, `has_phase_plan`, `current_phase`, `total_phases`, `phase_name`
+For route decision shape, use `beo-references -> state.md` and local route evidence extensions in `beo-route`.

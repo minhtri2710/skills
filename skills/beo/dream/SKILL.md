@@ -1,86 +1,46 @@
 ---
 name: beo-dream
 description: |
-  Consolidate multiple accepted-feature learnings into stable corpus guidance when repeated patterns, duplication, conflicts, or stale guidance require maintenance. Use only for corpus maintenance, not for single-feature extraction, immediate post-review promotion, implementation, or delivery work.
-
+  Consolidate cross-feature learning. Use when at least two accepted features support shared learning or corpus-level consolidation is requested. Do not use when only one feature provides evidence.
 ---
-
-> **HARD-GATE: ONBOARDING** — Before any work, verify `br` and `bv` are accessible and `.beads/` is initialized (`beo-reference` → `references/shared-hard-gates.md`). If stale or missing, load `beo-onboard` and stop.
-
-> **Protocol References** — Shared protocol rules live in `beo-reference` → `references/<file>`.
 
 # beo-dream
 
-## Atomic purpose
-Maintain and consolidate the shared learning corpus.
+## Purpose
+Consolidate cross-feature learning.
 
-## When to use
-- accumulated learnings or promoted patterns need deduplication, retirement, or restructuring
-- `critical-patterns.md` needs an evidence-backed refresh, merge, or retirement pass
-- the user explicitly requests long-term pattern consolidation
+## Primary owned decision
+Consolidate cross-feature learning evidence into a shared conclusion or explicit non-promotion.
 
-## Inputs
-**Required**
-- current `.beads/critical-patterns.md`
-- relevant feature learning artifacts from `.beads/learnings/`
+## Enter when
+- at least two accepted features provide shared learning evidence
+- the user explicitly requests corpus-level learning consolidation
 
-**Optional**
-- archive or staleness metadata
-- historical attribution context allowed by policy
+## Writable surfaces
+- shared learning guidance surfaces explicitly approved by the user or already designated auto-writable by `beo-references -> learning.md`
+- consolidation records described by `beo-references -> learning.md`
+- shared `STATE/HANDOFF` surfaces under `beo-references -> skill-contract-common.md`
 
-## Outputs
-**Allowed writes**
-- updated `.beads/critical-patterns.md` only with explicit approval
-- archived or consolidated learning records defined by protocol
-- consolidation summary
-- `.beads/STATE.json`
-- `.beads/HANDOFF.json` only when checkpoint or resume protocol requires it
+## Decision packet
+- shared decision packet under `beo-references -> skill-contract-common.md`
+- no local packet extensions beyond consolidation evidence in owned learning surfaces
 
-**Must not write**
-- feature-specific learning artifacts that belong to `beo-compound`
-- code or planning artifacts
-- invented patterns lacking source evidence
+## Decision rule
+- use the consolidation threshold in `beo-references -> learning.md`
+- conflicting evidence blocks promotion and records a non-promotion rationale
+- actual shared guidance mutation requires explicit user approval unless the surface is designated auto-writable by `beo-references -> learning.md`
 
-## Boundary rules
-- Dream owns long-term corpus consolidation only.
-- Dream must not handle a single accepted feature in isolation or perform immediate post-review promotion that belongs to `beo-compound`.
-- Dream must not create or rewrite a single-feature learning artifact except archive bookkeeping, modify code or plans, or invent patterns without traceable source evidence.
-- Dream operates on accumulated corpus evidence, not one accepted feature.
+## Allowed next owners
+- user
+- done
 
-## Minimum hard gates
-- **CORPUS-LEVEL-ONLY** — Operate on the accumulated learnings and pattern corpus, never a single accepted feature in isolation.
-- **NO-INVENTION** — Every promoted pattern must trace back to source learnings.
-- **EXPLICIT-PROMOTION-APPROVAL** — Any update to `critical-patterns.md` requires explicit approval via the runtime's canonical user-interaction mechanism.
-- **ARCHIVE-INSTEAD-OF-DELETE** — Retire stale guidance by archiving per the local dream references.
-- **TERMINATE-ON-HANDOFF** and **FRESH-LOAD-REQUIRED** — Follow the shared session-boundary rules.
-
-## Default loop
-1. Read the current `critical-patterns.md` and the relevant supporting learnings corpus.
-2. Group recurring guidance, trace it back to source learnings, and identify duplicates, conflicts, or stale entries.
-3. Prepare evidence-backed consolidation, retirement, or restructuring updates using the consolidation rubric.
-4. Request explicit approval for the proposed `critical-patterns.md` changes.
-5. Apply approved changes, archive superseded guidance as needed, write handoff state to `beo-route`, and stop.
+## Local hard stops
+- Do not promote a single accepted feature into corpus-level consolidation without explicit user request.
+- Do not treat feature-local `no-learning` as shared evidence.
+- Before routing to `done`, inherit the terminal done rule from `beo-references -> state.md`.
 
 ## References
-| File | Use when |
-|------|----------|
-| `references/dream-operations.md` | Running consolidation and long-horizon maintenance work |
-| `references/consolidation-rubric.md` | Deciding promote / retain / merge / archive |
-| `references/agent-history-source-policy.md` | Constraining acceptable synthesis inputs |
-| `references/pressure-scenarios.md` | Testing edge cases for dream decisions |
-| `beo-reference` → `references/learnings-read-protocol.md` | Reading learnings and critical patterns consistently |
-| `beo-reference` → `references/approval-gates.md` | User approval requirements for promotion |
-
-## Handoff and exit
-- Normal completion handoff: `beo-route`
-- Dream is a support skill, not a mainline phase; route decides the next operational step.
-
-## Context budget
-If context exceeds 65%, checkpoint via the shared protocol in `beo-reference` → `references/shared-hard-gates.md`.
-
-## Red flags
-- running dream on a single accepted feature that belongs in compound
-- promoting a pattern without traceable source learnings
-- updating `critical-patterns.md` without explicit approval
-- deleting stale guidance instead of archiving it
-- continuing after writing handoff state
+- `beo-references -> operator-card.md`
+- `beo-references -> learning.md`
+- `beo-references -> pipeline.md`
+- `beo-references -> state.md`

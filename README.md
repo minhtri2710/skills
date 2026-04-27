@@ -1,6 +1,6 @@
 # beo
 
-A skill repository for structured, contract-driven feature delivery with `br` (beads_rust) and `bv` (Beads Viewer). The repo contains twelve operational beo skills, one shared reference corpus, onboarding scripts, and managed startup templates. It is primarily Markdown and support assets rather than product application code.
+A skill repository for structured, contract-driven feature delivery with `br` (beads_rust) and `bv` (Beads Viewer). The repo contains 13 canonical beo skills, a shared reference corpus, onboarding scripts, and managed startup templates. It is primarily Markdown and support assets rather than product application code.
 
 ---
 
@@ -13,21 +13,30 @@ flowchart LR
     exploring --> planning[beo-plan]
     planning --> validating[beo-validate]
 
-    validating -->|approve current phase| swarming[beo-swarm]
-    validating -->|single worker| executing[beo-execute]
-    swarming --> executing
+    validating -->|PASS_SWARM| swarming[beo-swarm]
+    validating -->|PASS_SERIAL| executing[beo-execute]
 
-    executing -->|final execution scope complete| reviewing[beo-review]
+    swarming -. serial remainder requires reclassification .-> validating
+    swarming -->|worker reports complete| reviewing[beo-review]
+
+    executing -->|terminal execution scope complete| reviewing[beo-review]
     executing -. later phases remain .-> planning
-    reviewing --> compounding[beo-compound]
+
+    reviewing -->|accept + durable/unclear learning| compounding[beo-compound]
+    reviewing -->|accept + obvious no-learning| done[done]
 
     executing -. blocker / failure .-> debugging[beo-debug]
-    debugging -. fix / retry .-> executing
+    swarming -. blocker / failure .-> debugging
+    debugging -. safe unblock / diagnosis return .-> executing
+
+    compounding -->|cross-feature threshold met| dream[beo-dream]
+    compounding -->|feature learning complete| done
+    dream -->|consolidation complete| done
 
     compounding --> critical[.beads/critical-patterns.md]
     critical -. read by future planning .-> planning
     compounding --> learnings[.beads/learnings/*.md]
-    dream[beo-dream] -. periodic consolidation .-> learnings
+    dream -. periodic consolidation .-> learnings
 ```
 
 | Category | Skill | Purpose |
@@ -36,7 +45,7 @@ flowchart LR
 | Mainline | **beo-explore** | Locks product requirements into `CONTEXT.md` before solution design |
 | Mainline | **beo-plan** | Converts locked context into current-phase technical design and executable beads |
 | Mainline | **beo-validate** | Gates current-phase execution readiness and selects `beo-execute` or `beo-swarm` |
-| Mainline | **beo-swarm** | Coordinates parallel workers for approved, independent beads |
+| Strategy | **beo-swarm** | Coordinates parallel workers for approved, independent beads |
 | Mainline | **beo-execute** | Implements and verifies exactly one approved bead |
 | Mainline | **beo-review** | Assesses completed current-phase work and issues `accept`, `fix`, or `reject` |
 | Mainline | **beo-compound** | Captures durable learnings from one accepted feature |
@@ -46,15 +55,33 @@ flowchart LR
 | Meta | **beo-author** | Creates, revises, and pressure-tests beo skills and supporting references |
 | Reference | **beo-reference** | Provides one targeted canonical reference document without doing operational work |
 
-The canonical mainline is `beo-route -> beo-explore -> beo-plan -> beo-validate -> (beo-execute | beo-swarm -> beo-execute) -> beo-review -> beo-compound`.
+The minimal core runtime is `beo-route -> beo-explore -> beo-plan -> beo-validate -> beo-execute/beo-swarm -> beo-review -> done`.
+Optional closure is `beo-review -> beo-compound -> beo-dream/done`.
+`beo-swarm` is an execution strategy selected by validation, not a core delivery phase.
+`review -> done` is the default accepted-work closure when `learning_disposition=no-learning` is obvious.
 
 ---
+
+## Operator View
+
+Use `skills/beo/reference/references/operator-card.md` as the first-pass operator view.
+Its owner boundary matrix is the shortest reliable summary of:
+- who decides what
+- which surfaces each owner may write
+- what each owner must not do
+
+Canonical shared doctrine is split deliberately:
+- owner selection, collision precedence, route suppression -> `skills/beo/route/SKILL.md`
+- legal transitions -> `skills/beo/reference/references/pipeline.md`
+- approval, grant/refresh/invalidation -> `skills/beo/reference/references/approval.md`
+- state/handoff freshness and terminal done rule -> `skills/beo/reference/references/state.md`
+- no-learning and consolidation thresholds -> `skills/beo/reference/references/learning.md`
 
 ## Repository Layout
 
 ```text
 skills/beo/
-  route/       phase detection and next-skill routing
+  route/       state reconstruction and next-skill routing
   explore/     requirements locking
   plan/        current-phase technical planning and bead creation
   validate/    readiness gate and execution-mode selection
@@ -83,7 +110,7 @@ Generated `*-workspace/` directories under `skills/beo/` are audit artifacts, no
 | [`qmd`](https://github.com/tobi/qmd) | No | Optional search enhancement |
 
 
-The host environment needs shell execution, filesystem access, and skill/instruction loading. Delegation is optional and runtime-dependent: planning and review can run parallel isolated passes when the runtime supports worker spawning, but they must fall back to sequential passes when it does not. Swarming requires Agent Mail plus worker orchestration support; without both, approved work falls back to sequential `beo-execute`.
+The host environment needs shell execution, filesystem access, and skill/instruction loading. Delegation is optional and runtime-dependent: planning and review can run parallel isolated passes when the runtime supports worker spawning, but they must fall back to sequential passes when it does not. Swarming requires Agent Mail plus worker orchestration support; without both, work must return through `beo-validate` for serial reclassification rather than silently falling into `beo-execute`.
 
 ---
 

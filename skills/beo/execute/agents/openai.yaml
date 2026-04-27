@@ -1,4 +1,4 @@
 interface:
   display_name: "Beo Execute"
-  short_description: "Implement and verify one approved bead"
-  default_prompt: "Use $beo-execute to implement exactly one approved ready bead, run its required verification, and record the result without taking on planning or multi-bead coordination."
+  short_description: "Deliver one approved bead"
+  default_prompt: "Use $beo-execute to implement and verify exactly one approved ready bead within declared scope."
