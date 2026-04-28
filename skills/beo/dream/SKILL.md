@@ -30,6 +30,26 @@ Consolidate cross-feature learning evidence into a shared conclusion or explicit
 - conflicting evidence blocks promotion and records a non-promotion rationale
 - explicit skill invocation authorizes analysis; concrete shared guidance mutation still requires approval of the proposed change unless the surface is designated auto-writable by `beo-references -> learning.md`
 
+## Consolidation decision matrix
+
+| Evidence | Action |
+| --- | --- |
+| one accepted feature only, no explicit corpus request | no promotion |
+| one accepted feature + explicit user corpus request | analyze, but require override reason |
+| two accepted features, same pattern, same future decision impact | consolidation candidate |
+| conflicting evidence | non-promotion rationale |
+| multiple plausible owner files | ask user with candidate-specific options |
+| no existing owner file | create/propose new consolidation record if threshold met |
+
+## Critical shared guidance rule
+
+Concrete shared guidance mutation requires:
+- threshold met, or explicit user corpus request with override reason
+- conflict check
+- owner file identified
+- provenance update
+- approval if surface is not auto-writable
+
 ## Allowed next owners
 - user
 - done
@@ -38,6 +58,7 @@ Consolidate cross-feature learning evidence into a shared conclusion or explicit
 - Do not promote a single accepted feature into corpus-level consolidation without explicit user request.
 - Do not treat feature-local `no-learning` as shared evidence.
 - Do not write feature-level learning records; that belongs to `beo-compound`.
+- Do not mutate shared guidance without the threshold or explicit corpus-request override evidence required by `beo-references -> learning.md`.
 - Before routing to `done`, inherit the terminal done rule from `beo-references -> state.md`.
 
 ## References

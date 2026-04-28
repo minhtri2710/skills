@@ -51,7 +51,7 @@ Use `beo-route` for owner selection when multiple predicates compete.
 | beo-execute | beo-review, beo-debug, beo-plan, beo-validate, user |
 | beo-swarm | beo-review, beo-validate, beo-plan, beo-debug, user |
 | beo-review | beo-compound, beo-execute, beo-plan, beo-explore, beo-debug, user, done |
-| beo-debug | beo-execute, beo-swarm, beo-review, beo-plan, beo-validate, user |
+| beo-debug | beo-execute, beo-swarm, beo-review, beo-plan, beo-validate, beo-explore, user |
 | beo-compound | beo-dream, user, done |
 | beo-dream | user, done |
 
@@ -84,6 +84,7 @@ Representative legal transitions only:
 | execution terminal | review bundle complete | beo-review |
 | execute requires mutation outside approved scope | plan/approval repair needed | beo-plan |
 | execute hits blocker with unproven root cause | diagnostic needed | beo-debug |
+| debug proves requirements are contradicted | requirements repair needed | beo-explore |
 | review verdict=`accept` and learning disposition=`no-learning` is obvious | terminal closure allowed | done |
 | review verdict=`accept` and durable or unclear learning remains | learning disposition needed | beo-compound |
 | review verdict=`reject` | requirements invalid or contradicted | beo-explore |

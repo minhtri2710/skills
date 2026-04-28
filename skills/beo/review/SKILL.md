@@ -25,12 +25,62 @@ Emit exactly one verdict: `accept`, `fix`, or `reject`.
 - shared decision packet under `beo-references -> skill-contract-common.md`
 - local review fields remain in `REVIEW.md` and reactive-fix records
 
+## Severity rubric
+
+P0:
+- catastrophic correctness, security, privacy, data loss, or irreversible damage
+
+P1:
+- acceptance blocker
+- approval/scope mismatch
+- required verification missing or failing
+- security/privacy issue that blocks release
+- locked `CONTEXT.md` decision violated
+- migration/data/integration risk unresolved
+
+P2:
+- meaningful quality issue
+- maintainability issue
+- missing non-critical test
+- follow-up needed but acceptance still satisfied
+
+P3:
+- polish
+- naming
+- cleanup
+- optional improvement
+
 ## Verdict rule
 
 Accept requires all of the following:
 - no open P0 or P1 findings
 - complete required verification evidence
 - approval scope matching executed changes
+- acceptance-critical `CONTEXT.md` decisions verified or explicitly marked `N/A`
+
+## Severity-to-verdict mapping
+
+- Any open P0/P1 blocks `accept`.
+- P0/P1 with bounded known fix inside approval envelope may produce verdict=`fix` and a reactive-fix bead.
+- P0/P1 with unproven root cause routes `beo-debug`.
+- P0/P1 requiring requirements change routes `beo-explore`.
+- P0/P1 requiring plan/scope/verification change routes `beo-plan`.
+- P2/P3 may be accepted if acceptance, approval scope, and verification are complete.
+
+## Decision verification rule
+
+For each user-visible or acceptance-critical `CONTEXT.md` decision:
+- verify by `SEE`, `CALL`, `RUN`, `INSPECT`, or explicit `N/A`
+- cite evidence
+- mark pass/fail/blocked
+
+Do not accept when an acceptance-critical decision is unverified.
+Do not treat implementation-agent or worker claims as verification evidence.
+
+If decision verification is `blocked`:
+- route to `user` when external evidence, access, or approval is missing
+- route to `beo-plan` when a verification command, artifact, or mapping is missing
+- route to `beo-debug` when behavior is present but the mismatch root cause is unproven
 
 ## Learning closure rule
 
@@ -72,6 +122,7 @@ Otherwise route to `beo-plan` or `beo-debug`.
 - Do not emit full durable learning; only record obvious `no-learning` inline here.
 - Do not convert a review finding into execution work unless the fix is already bounded inside the current approved envelope.
 - Do not accept agent or worker completion claims as verification evidence; verify file state directly.
+- Do not accept when an acceptance-critical locked decision is unverified.
 - Before routing to `done`, inherit the terminal done rule from `beo-references -> state.md`.
 
 ## References

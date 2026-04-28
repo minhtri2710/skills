@@ -33,6 +33,19 @@ Use the durable-learning and consolidation thresholds in `beo-references -> lear
 Default to inline `no-learning` when no durable reusable decision impact exists.
 Do not revisit a review-recorded obvious `no-learning` unless new accepted-work evidence contradicts it.
 
+## Feature learning taxonomy rule
+
+When a feature learning record is warranted, classify evidence into the BEO learning schema:
+- `Patterns`
+- `Decisions`
+- `Failures / blockers`
+- `Applicability`
+- `Provenance`
+- `Promotion status`
+
+A single feature may mark a learning as a promotion candidate, but it must also record whether second-feature evidence is still needed.
+Do not auto-promote feature learning into shared guidance.
+
 ## Allowed next owners
 - beo-dream
 - user
@@ -42,9 +55,11 @@ Do not revisit a review-recorded obvious `no-learning` unless new accepted-work 
 - Do not create a standalone learning file for isolated accepted work with no durable reusable signal.
 - Do not perform cross-feature consolidation here.
 - Do not write to shared consolidation surfaces; that belongs to `beo-dream`.
+- Do not auto-promote a single feature into `.beads/critical-patterns.md` or other shared guidance.
 - Before routing to `done`, inherit the terminal done rule from `beo-references -> state.md`.
 
 ## References
+- `beo-references -> artifacts.md`
 - `beo-references -> learning.md`
 - `beo-references -> pipeline.md`
 - `beo-references -> state.md`

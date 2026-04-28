@@ -1,6 +1,8 @@
 # Complexity
 
-## Mode selection
+## Ceremony modes
+
+Ceremony modes describe presentation compactness. They do not change owner routing, approval, verification, or review obligations.
 
 | Predicate | Mode |
 | --- | --- |
@@ -8,14 +10,85 @@
 | single phase, one subsystem, 1-3 beads, no migration, no security/privacy boundary change | compact |
 | multi-phase, migration, architecture change, security/privacy risk, cross-subsystem work, uncertain sequencing, or swarm candidate | expanded |
 
+## Planning depth classes
+
+Planning depth classes describe how much discovery, phase mapping, risk proof, and story mapping the plan must carry. They are not route modes and must not bypass `beo-validate`.
+
+### small_change
+
+Use when all are true:
+- <= 3 files expected
+- no new API or data model
+- no migration, security, or privacy surface
+- LOW risk
+- no gray-area requirement
+- one current phase is enough
+
+Required `PLAN.md` sections:
+- context binding
+- minimal approach
+- current phase contract
+- bead graph
+- execution envelope proposal
+
+Rules:
+- still requires `beo-validate`
+- never skips approval/readiness classification
+- may use `micro-compact` or `compact` ceremony when the required sections remain explicit
+
+### standard_feature
+
+Use when any are true:
+- normal feature or refactor
+- moderate scope
+- multiple stories or files
+- bounded MED risk exists
+
+Required `PLAN.md` sections:
+- context binding
+- applicable prior learning consulted
+- discovery facts when needed
+- approach
+- risk map
+- current phase contract
+- current phase story map
+- bead graph
+- execution envelope proposal
+
+### high_risk_feature
+
+Use when any are true:
+- cross-cutting architecture
+- migration, data, security, or privacy impact
+- high blast radius
+- uncertain integration
+- multi-phase delivery likely
+- HIGH risk remains after initial exploration
+
+Required `PLAN.md` sections:
+- all standard sections
+- whole-feature phase map when feature cannot safely ship in one phase
+- explicit proof/spike requirements for HIGH risks
+- rollback expectation and pivot signals
+- deeper review expectations captured through verification and UAT evidence needs
+
+## Hard stops
+
+- Complexity class must not bypass owner routing.
+- Complexity class must not bypass `beo-validate`.
+- Complexity class only changes required planning depth and review intensity.
+- Do not treat `small_change` as permission to omit file scope, forbidden paths when relevant, verification, approval, or review.
+- Do not treat `high_risk_feature` as permission to add release gates or new owner skills.
+
 ## Decision matrix
 
-| Condition | Mode |
-| --- | --- |
-| 1 file, 1 bead, 1 verification path, no ambiguity, low risk | `micro-compact` |
-| 1 subsystem, 1-3 beads, no migration/security | `compact` |
-| multi-phase, migration, architecture, security/privacy, cross-subsystem | `expanded` |
-| at least 2 isolated approved beads plus dependency proof | swarm candidate after `beo-validate` |
+| Condition | Ceremony | Planning depth |
+| --- | --- | --- |
+| 1 file, 1 bead, 1 verification path, no ambiguity, LOW risk | `micro-compact` | `small_change` |
+| <= 3 files, bounded file scope, no API/data/security/privacy impact | `compact` | `small_change` |
+| 1 subsystem, 1-3 beads, bounded MED risk, no migration/security/privacy | `compact` or `expanded` | `standard_feature` |
+| multi-phase, migration, architecture, security/privacy, cross-subsystem, HIGH risk | `expanded` | `high_risk_feature` |
+| at least 2 isolated approved beads plus dependency proof | `expanded` if needed | swarm candidate after `beo-validate` |
 
 ## Micro-compact default
 
@@ -42,25 +115,42 @@ If acceptance, non-goals, compatibility, constraints, or user-visible scope rema
 A valid micro-compact plan must still keep one current phase, one bead id, `Goal`, `Scope`, `Acceptance`, `Dependencies`, `File scope`, and `Verification` explicit.
 
 ### Canonical micro-compact template
-```md
-## Current phase
-- Ship one tiny approved change.
 
-## Bead B1
-- Goal:
-- Scope:
-- Acceptance:
-- Dependencies: none
-- File scope:
-- Forbidden paths:
-- Verification:
+```md
+## 0. Context binding
+- context_hash:
+- locked decision IDs covered:
+- planning depth class: small_change
+
+## 3. Approach
+- chosen approach:
+
+## 6. Current phase contract
+- phase id:
+- entry state:
+- exit state:
+- demo:
+- explicit out of scope:
+
+## 8. Bead graph
+| Bead | Goal | Scope | Acceptance | File scope | Dependencies | Verification |
+| --- | --- | --- | --- | --- | --- | --- |
+| B1 |  |  |  |  | none |  |
+
+## 9. Execution envelope proposal
+- candidate mode: serial
+- candidate approved beads: B1
+- approved file scope proposal:
+- forbidden paths:
+- verification commands:
+- scope source refs:
 ```
 
 ## Tiny-work happy path
 
 For tiny work with locked requirements, one bead, one file scope, and one verification path:
 
-`beo-explore -> beo-plan(micro-compact) -> beo-validate(PASS_SERIAL) -> beo-execute -> beo-review -> done(no-learning)`
+`beo-explore -> beo-plan(micro-compact/small_change) -> beo-validate(PASS_SERIAL) -> beo-execute -> beo-review -> done(no-learning)`
 
 This path reduces prose only. It does not relax approval, scope, forbidden-path, or verification requirements.
 
@@ -78,6 +168,7 @@ CONTEXT.md
 - constraints: only `config/app.yaml`
 
 PLAN.md
+- planning depth class: small_change
 - current phase: ship one isolated config fix
 - bead B1
   - Goal: correct the default value

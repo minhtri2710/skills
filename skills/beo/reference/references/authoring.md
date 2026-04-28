@@ -68,7 +68,7 @@ Use `beo-references -> doctrine-map.md` as the short source-of-truth registry fo
 | artifact layout and schemas | `beo-references -> artifacts.md` | Artifact schemas |
 | shared contract boilerplate | `beo-references -> skill-contract-common.md` | Shared contract doctrine |
 | exact `br` / `bv` command syntax | `beo-references -> cli.md` | Exact command forms |
-| compact/expanded ceremony | `beo-references -> complexity.md` | Mode selection |
+| compact/expanded ceremony and planning depth classes | `beo-references -> complexity.md` | Ceremony modes / Planning depth classes |
 | Agent Mail reservation/report protocol | `beo-references -> coordination.md` | Coordination protocols |
 | deletion and merge criteria | `beo-references -> deletion-policy.md` | Deletion policy |
 | learning and consolidation schemas | `beo-references -> learning.md` | Learning schemas |

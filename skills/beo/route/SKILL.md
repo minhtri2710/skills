@@ -33,7 +33,7 @@ Evaluate in order. Stop at the first decisive match.
 3. multiple active feature candidates with no selected feature -> `user`
 4. stale or invalid handoff -> ignore handoff and route from live artifacts
 5. `CONTEXT.md` missing, unlocked, contradicted, or requirement-changing clarification exists -> `beo-explore`
-6. `PLAN.md`, phase shape, bead graph, dependencies, file scope, or verification plan missing/invalid -> `beo-plan`
+6. `PLAN.md`, planning-depth-required sections for the active complexity class, phase shape, current phase contract, bead graph, dependencies, file scope, forbidden paths, decision mapping, or verification plan missing/invalid -> `beo-plan`
 7. artifacts current but approval, readiness, or execution mode missing/stale/invalid -> `beo-validate`
 8. execution bundle complete and review evidence ready -> `beo-review`
 9. readiness=`PASS_SERIAL` -> `beo-execute`

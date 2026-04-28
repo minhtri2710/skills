@@ -24,32 +24,47 @@ Canonical state and handoff semantics remain in `beo-references -> state.md`; th
 ## CONTEXT.md template
 
 ```md
-# <feature name>
+# CONTEXT.md
 
-feature_slug: <slug>
-locked: false
-locked_at:
+## Feature
+- slug: <slug>
+- request: <user request or ticket summary>
+- owner-visible goal: <what the next owner is trying to make true>
+
+## Locked decisions
+
+| ID | Decision | Source | Verification intent | User-visible? |
+| --- | --- | --- | --- | --- |
+| D1 | <locked requirement or choice> | user / repo / policy | SEE / CALL / RUN / INSPECT / N/A | yes/no |
 
 ## Acceptance
-- <observable behavior that proves done>
+
+| ID | Acceptance criterion | Linked decisions | Verification |
+| --- | --- | --- | --- |
+| A1 | <observable behavior that proves done> | D1 | <how to verify> |
 
 ## Non-goals
-- <explicitly excluded adjacent work>
 
-## Compatibility
-- <existing behavior/API/data/config that must remain compatible>
+| ID | Non-goal | Reason |
+| --- | --- | --- |
+| N1 | <explicitly excluded adjacent work> | <why excluded> |
 
-## Constraints
-- <performance/security/privacy/cost/dependency/platform constraints>
+## Compatibility / constraints
 
-## Interfaces
-- <entrypoints, public APIs, commands, files, events, or UI surfaces>
+| ID | Constraint | Applies to | Verification |
+| --- | --- | --- | --- |
+| C1 | <compatibility or constraint> | <surface or subsystem> | <how to preserve/check it> |
 
-## Open questions
-- <blocking question or none>
+## Open external dependencies
 
-## Evidence
-- <user request, inspected files, decisions>
+| Dependency | Needed from | Blocks |
+| --- | --- | --- |
+| none or <dependency> | <person/system> | <what cannot proceed> |
+
+## Lock status
+- locked: false
+- locked_at:
+- context_hash:
 ```
 
 ## Go-mode assumption ledger

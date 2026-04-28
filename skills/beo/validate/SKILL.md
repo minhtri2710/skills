@@ -32,13 +32,59 @@ Do not continue once artifact content repair is required.
 
 Validation ladder:
 1. requirements contradicted, unlocked, or stale? -> `FAIL_EXPLORE`
-2. plan, bead graph, file scope, forbidden paths, or verification incomplete? -> `FAIL_PLAN`
+2. plan, phase contract, story map, risk proof, bead graph, file scope, forbidden paths, or verification incomplete? -> `FAIL_PLAN`
 3. required external approval, access, secret, or clarification missing? -> `BLOCK_USER`
 4. execution envelope unchanged? -> approval action `refresh`; otherwise `new_grant`
 5. one approved ready bead? -> `PASS_SERIAL`
 6. isolated approved bead set? -> `PASS_SWARM`
 
 If plan or requirements content must change, stop classification and route to the artifact owner. Do not write repair plans here.
+
+## PLAN completeness checklist
+
+Before `PASS_SERIAL` or `PASS_SWARM`, confirm `PLAN.md` has the sections required for its planning depth.
+
+Required for all planning depths:
+- context binding
+- `minimal approach` for `small_change`, or `approach` for `standard_feature` / `high_risk_feature`
+- current phase contract
+- bead graph
+- file scope
+- forbidden paths when relevant
+- verification commands
+- execution envelope proposal
+
+For `small_change`, the current phase contract may be compact but must still identify:
+- intended exit state
+- selected bead
+- file scope
+- verification
+- explicit out-of-scope boundaries when relevant
+
+Required for `standard_feature` and `high_risk_feature`:
+- applicable prior learning consulted
+- discovery facts when needed
+- current phase story map
+- risk map
+
+Required for `high_risk_feature`:
+- proof/spike/manual evidence for HIGH risks, or an explicit non-execution route for missing proof
+- rollback expectation or pivot signal
+- multi-phase boundary when the feature cannot safely ship in one phase
+
+Missing required planning-depth content is `FAIL_PLAN`.
+If this checklist conflicts with `beo-references -> complexity.md`, `complexity.md` owns planning-depth section requirements.
+
+## Decision mapping checklist
+
+Before `PASS_SERIAL` or `PASS_SWARM`, each acceptance-critical decision in `CONTEXT.md` must map to at least one of:
+- bead acceptance
+- verification command
+- review/UAT check
+- explicit `N/A` reason
+
+If acceptance-critical decisions are unmapped, emit `FAIL_PLAN`.
+Decision mapping checks coverage only; do not rewrite decisions, acceptance, beads, or verification here.
 
 ## Writable surfaces
 - `.beads/artifacts/<feature_slug>/approval-record.json` only when granting, refreshing, or invalidating execution approval
@@ -96,14 +142,20 @@ Do not reuse swarm approval as serial approval.
 
 ## Local hard stops
 - Do not repair artifact content.
+- Do not create missing `PLAN.md` sections.
+- Do not polish bead descriptions.
+- Do not write spike outputs.
 - Do not continue classification after a failure already proves artifact repair is required.
 - Do not treat an execution-envelope change as a refresh-only case.
+- Do not convert swarm approval to serial approval without a fresh `PASS_SERIAL` verdict.
 - Do not grant or refresh execution approval when required user authorization, external approval, access, secret, or clarification is missing; emit `BLOCK_USER`.
 - Do not expand into route-collision handling beyond emitting the matching next owner for the validated verdict.
 
 ## References
 - `beo-references -> operator-card.md`
 - `beo-references -> approval.md`
+- `beo-references -> artifacts.md`
+- `beo-references -> complexity.md`
 - `beo-references -> pipeline.md`
 - `beo-references -> state.md`
 - `references/readiness-review-prompt.md`

@@ -20,7 +20,7 @@ If the result is not `up_to_date`, route to `beo-onboard` unless the user explic
 | Surface | Use |
 | --- | --- |
 | `.beads/STATE.json` | current owner, status, route decision, phase |
-| `.beads/HANDOFF.json` | resume checkpoint only when fresh |
+| `.beads/HANDOFF.json` | resume checkpoint when fresh; stale/invalid handoff evidence and ignored-reason input when not fresh |
 | `.beads/artifacts/<feature_slug>/CONTEXT.md` | requirement lock and contradictions |
 | `.beads/artifacts/<feature_slug>/PLAN.md` | current phase, bead graph, file scopes |
 | `.beads/artifacts/<feature_slug>/approval-record.json` | approval freshness and scope |
@@ -41,7 +41,7 @@ If more than one active feature can satisfy the request and no explicit feature 
 | --- | --- |
 | 1 | Run the live onboarding gate and record status evidence. |
 | 2 | Inspect `STATE.json` and ignore stale or contradictory state against live artifacts. |
-| 3 | Inspect `HANDOFF.json` only if freshness in `beo-references -> state.md` passes. |
+| 3 | Inspect `HANDOFF.json` when present, evaluate freshness in `beo-references -> state.md`, and record `handoff_used=false` plus `handoff_ignored_reason` when the handoff is stale or invalid. |
 | 4 | Detect active feature candidates and require user selection when ambiguous. |
 | 5 | Apply the owner decision ladder and collision rules in `beo-route`. |
 | 6 | Write `route_decision` with selected owner, disqualified owners, evidence, and timestamp. |

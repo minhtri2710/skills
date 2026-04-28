@@ -168,6 +168,12 @@ Do not write narrative summaries into `STATE.json`; keep state limited to routin
 | --- | --- |
 | `handoff_fresh` | required fields present AND `updated_at >= last owning mutation` AND `from_owner` matches prior owner AND to_owner allowed by pipeline AND reason/status consistent with artifacts |
 
+Handoff hygiene:
+- stale or invalid handoff data is ignored and recorded in `route_decision.handoff_ignored_reason` when it affects owner selection
+- a fresh valid handoff may surface resume context before mutation
+- handoff data never overrides fresher live artifacts, approval records, or locked contract surfaces
+- do not introduce duplicate state or handoff trees; `.beads/STATE.json` and `.beads/HANDOFF.json` remain canonical
+
 ## HANDOFF.json schema
 
 | Field | Required | Rule |

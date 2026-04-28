@@ -6,6 +6,7 @@ Shared gates used by all beo skills.
 
 <HARD-GATE>
 If `br` or `bv` is unavailable, or onboarding is missing or stale, stop and load `beo-onboard`.
+When `br` or `bv` is unavailable, `beo-onboard` is loaded only to verify and report startup readiness. If the dependency remains unavailable after that check, route to `user`; do not imply onboarding can install or repair missing external tools.
 
 **Verification requires running the live script** — file or directory existence is never sufficient:
 ```bash
@@ -15,7 +16,7 @@ Resolve `<installed-beo-onboard-root>` from the runtime's installed `beo-onboard
 
 The result must be `"status": "up_to_date"`. Any other result means onboarding is needed.
 
-`.beads/onboarding.json` and `node .beads/beo_status.mjs --json` may be used as read-only scouts but are never the source of truth. They do not detect managed `AGENTS.md` drift and do not override a failed live check.
+`.beads/onboarding.json` and `node .beads/beo_status.mjs --json` may be used as read-only scouts but are never the source of truth. They do not detect managed `AGENTS.md` drift and do not override a failed live check. Do not copy or introduce duplicate startup/state trees; keep scout and handoff hygiene in the existing `.beads/` surfaces.
 
 To verify `bv` is installed and callable without launching the TUI, use:
 ```bash

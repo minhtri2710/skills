@@ -43,6 +43,8 @@ Label alone is never enough for execution approval.
 | `approval_refresh` | freshness-only renewal when approved scope and contract remain unchanged |
 | `new_approval_grant` | a new execution approval required when bead set, mode, file scope, or verification contract changes |
 
+Do not introduce separate `phase_approval`, `story_approval`, `merge_approval`, `beo-go`, `beo-uat`, or external gate records. BEO keeps one execution approval envelope and one review verdict.
+
 ## Execution envelope invariant
 
 One approval record binds exactly one execution envelope:
@@ -55,6 +57,20 @@ One approval record binds exactly one execution envelope:
 - current `CONTEXT.md` / `PLAN.md` / bead graph hashes
 
 Any execution-envelope change invalidates prior execution approval. A freshness-only refresh is legal only when the full envelope is unchanged and artifacts remain content-complete.
+
+## Contract-bearing PLAN.md content
+
+The following `PLAN.md` sections are contract-bearing when present:
+- current phase contract
+- current phase story map
+- risk map entries marked MED or HIGH
+- bead graph
+- file scope
+- forbidden paths
+- verification commands
+- execution envelope proposal
+
+Any mutation to these sections after approval makes execution approval stale unless `beo-validate` grants or refreshes approval against the updated hashes according to the execution envelope invariant.
 
 ## ApprovalCurrent predicate
 
@@ -76,7 +92,7 @@ Any execution-envelope change invalidates prior execution approval. A freshness-
 
 Any mutation to the following makes execution approval stale:
 - locked requirement content in `CONTEXT.md`
-- design, bead graph, file scope, or verification content in `PLAN.md`
+- design, current phase contract, current phase story map, any MED/HIGH risk-map row, risk proof requirement, bead graph, file scope, forbidden paths, verification content, or execution envelope proposal content in `PLAN.md`
 - approved bead dependency or file-scope metadata
 - locked acceptance, compatibility, or constraint content
 
@@ -97,6 +113,8 @@ Use these short cases during manual review:
 - blocker plus stale approval before mutation -> if artifact or approval invalidity is already proven, `beo-validate` or `beo-plan` wins before `beo-debug`
 - blocker plus unknown root cause during execution -> `beo-debug` wins
 - review finding plus unknown root cause -> `beo-debug` before verdict-driven repair routing
+- phase/story/risk mutation after approval -> approval stale, not a separate gate
+- swarm-to-serial fallback -> fresh `PASS_SERIAL`, never reused swarm approval
 
 ## Short approval block example
 
@@ -114,6 +132,7 @@ Use these short cases during manual review:
 ```
 
 ## Canonical usage note
+
 - `beo-validate` grants or refreshes execution approval according to this file.
 - `beo-plan` invalidates stale approval only when contract-bearing planning edits require it.
 - `beo-execute` and `beo-swarm` should point here rather than restating approval schema or approval law.

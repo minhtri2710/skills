@@ -29,6 +29,24 @@ Deliver exactly one approved bead inside approved scope.
 - shared decision packet under `beo-references -> skill-contract-common.md`
 - no local packet extensions beyond execution evidence carried in owned artifact surfaces
 
+## Serial execution loop
+
+1. Confirm readiness=`PASS_SERIAL`.
+2. Confirm approval is current.
+3. Confirm exactly one selected bead.
+4. Read relevant `CONTEXT.md` decision IDs.
+5. Read `PLAN.md` current phase/story refs.
+6. Confirm approved file scope and forbidden paths.
+7. Mutate only product files inside approved scope.
+8. Run verification commands exactly as approved.
+9. Record changed files, commands, results, and evidence in the execution bundle/status surfaces.
+10. If root cause is unproven, route `beo-debug`.
+11. If scope must widen, route `beo-plan`.
+12. If approval becomes stale before mutation, route `beo-validate` or `beo-plan` per approval doctrine.
+13. If approval becomes stale after mutation, route according to approval invalidation doctrine.
+
+The loop is a checklist for serial execution only. It does not authorize file-scope expansion, verification changes, or mode changes.
+
 ## Exit routing
 
 Use `beo-references -> approval.md` for approval invalidation routing details.
@@ -53,14 +71,18 @@ Use `beo-route` for collision precedence when more than one owner appears plausi
 
 ## Local hard stops
 - Do not widen file scope.
+- Do not mutate product files outside the selected bead's approved scope; required evidence and handoff surfaces remain limited to this skill's writable surfaces.
+- Do not change approved verification commands by execution judgment.
 - Do not continue execution after approval or scope drift with unresolved changed files.
 - Do not commit bead state changes without running `br sync --flush-only` first.
 - Do not reclassify tokens, symbols, or definitions as legacy or undefined without reading the authoritative definition source first.
 - Do not diagnose unknown blockers by mutation.
+- Do not treat a tiny or obvious fix as safe when the approval envelope would change.
 
 ## References
 - `beo-references -> operator-card.md`
 - `beo-references -> approval.md`
+- `beo-references -> artifacts.md`
 - `beo-references -> pipeline.md`
 - `beo-references -> state.md`
 - `beo-references -> status-mapping.md`

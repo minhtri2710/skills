@@ -20,12 +20,14 @@ Inputs to inspect:
 
 Checklist:
 1. Confirm `CONTEXT.md` is locked and required sections are present.
-2. Confirm `PLAN.md` has current phase, design, bead graph, dependencies, file scopes, and verification plan.
-3. Confirm every bead has Goal, Scope, Acceptance, File scope, Dependencies, and Verification.
-4. Check dependency graph for cycles and ambiguous ordering.
-5. Check file scopes for missing mutable paths, broad globs, generated outputs, and forbidden paths.
-6. Check serial/swarm mode evidence is supportable by dependency and file-scope isolation.
-7. Identify contract-bearing mutations that would require approval invalidation.
+2. Confirm `PLAN.md` declares its context binding and planning depth class.
+3. Confirm `PLAN.md` contains the sections required for its planning depth: minimal approach or approach, prior learning and discovery facts when required, risk map, current phase contract, current phase story map when required, bead graph, file scopes, verification commands, and execution envelope proposal.
+4. Confirm every bead has Goal, Scope, Acceptance, File scope, Dependencies, and Verification.
+5. Check dependency graph for cycles and ambiguous ordering.
+6. Check file scopes for missing mutable paths, broad globs, generated outputs, and forbidden paths.
+7. Check the execution envelope proposal for candidate mode, approved beads, scope refs, and verification coverage consistent with the bead graph.
+8. Check serial/swarm mode evidence is supportable by dependency and file-scope isolation.
+9. Identify contract-bearing mutations that would require approval invalidation.
 
 Return shape:
 

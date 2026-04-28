@@ -1,4 +1,4 @@
 interface:
   display_name: "Beo Explore"
   short_description: "Lock one feature's requirements"
-  default_prompt: "Use $beo-explore to lock one feature's scope, behavior, constraints, interfaces, compatibility, acceptance, and non-goals into CONTEXT.md before planning."
+  default_prompt: "Use $beo-explore to lock one feature's scope, behavior, acceptance, non-goals, compatibility/constraints, and interface-affecting decisions into CONTEXT.md before planning."

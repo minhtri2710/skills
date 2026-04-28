@@ -10,7 +10,7 @@
 6. If `.beads/beo_status.mjs` exists, run `node .beads/beo_status.mjs --json` after the live check passes.
 7. Reopen `.beads/STATE.json` and `.beads/HANDOFF.json` when present; verify `HANDOFF.json` against live state before routing.
 8. Reopen the selected active feature artifacts under `.beads/artifacts/<feature_slug>/` before acting on that feature.
-9. Read `.beads/critical-patterns.md` before `beo-plan`, `beo-execute`, or `beo-swarm`.
+9. Read `.beads/critical-patterns.md` before `beo-plan`, `beo-execute`, or `beo-swarm` only when it exists and `beo-references -> learning.md` records a repo-policy designation that makes it startup-critical; otherwise use targeted prior-learning consultation.
 
 ## Beo Skill Chain
 Startup orientation only:

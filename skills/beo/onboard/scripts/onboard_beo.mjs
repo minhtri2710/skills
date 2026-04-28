@@ -138,7 +138,6 @@ function statusScriptContent() {
     '  const handoff = readJsonIfExists(handoffPath)',
     '',
     '  const nextReads = [\'AGENTS.md\']',
-    "  if (existsSync(criticalPatternsPath)) nextReads.push('.beads/critical-patterns.md')",
     "  if (stateJson) nextReads.push('.beads/STATE.json')",
     "  if (handoff) nextReads.push('.beads/HANDOFF.json')",
     '',
@@ -367,6 +366,9 @@ function defaultStateContent() {
 function defaultCriticalPatternsContent() {
   return [
     '# Critical Patterns',
+    '',
+    'This file is not startup-critical unless `beo-references -> learning.md` records a repo-policy designation.',
+    'Use targeted consultation by default.',
     '',
     'Approved cross-feature patterns belong here.',
     '',
