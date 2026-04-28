@@ -1,7 +1,7 @@
 ---
 name: beo-compound
 description: |
-  Record one accepted feature learning outcome. Use when verdict=`accept`, acceptance evidence is complete, and learning disposition is missing. Do not use when cross-feature consolidation is requested.
+  Record one accepted feature learning outcome. Use when verdict=`accept` and acceptance evidence is complete, or when an existing feature learning file lacks a finalized disposition. Do not use when cross-feature consolidation is requested.
 ---
 
 # beo-compound
@@ -16,6 +16,7 @@ Record durable or unclear accepted-work learning for one feature.
 - one feature has `REVIEW.md` verdict=`accept`
 - acceptance evidence is complete
 - durable learning exists or the learning disposition is still unclear
+- an existing feature learning file lacks a finalized disposition
 
 ## Writable surfaces
 - `.beads/learnings/<feature_slug>.md` or equivalent feature learning record described by `beo-references -> learning.md`
@@ -40,6 +41,7 @@ Do not revisit a review-recorded obvious `no-learning` unless new accepted-work 
 ## Local hard stops
 - Do not create a standalone learning file for isolated accepted work with no durable reusable signal.
 - Do not perform cross-feature consolidation here.
+- Do not write to shared consolidation surfaces; that belongs to `beo-dream`.
 - Before routing to `done`, inherit the terminal done rule from `beo-references -> state.md`.
 
 ## References

@@ -54,6 +54,8 @@ Use `beo-route` for collision precedence when more than one owner appears plausi
 ## Local hard stops
 - Do not widen file scope.
 - Do not continue execution after approval or scope drift with unresolved changed files.
+- Do not commit bead state changes without running `br sync --flush-only` first.
+- Do not reclassify tokens, symbols, or definitions as legacy or undefined without reading the authoritative definition source first.
 - Do not diagnose unknown blockers by mutation.
 
 ## References

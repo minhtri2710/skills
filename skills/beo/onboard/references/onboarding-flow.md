@@ -3,6 +3,22 @@
 Role: APPENDIX
 Allowed content only: `checkRepo` schema, managed surfaces, exact check/apply commands, apply order
 
+## Preflight
+
+1. verify `node --version` is `>=18` before running `scripts/onboard_beo.mjs`
+2. verify `br` and `bv` are installed and callable; check `bv` with `bv --version` only (never invoke bare `bv`, which requires a TTY and fails in non-interactive agent sessions)
+3. if Node, `br`, or `bv` is unavailable or broken, stop and ask the user to repair tooling before proceeding
+
+## Decision Matrix
+
+The `checkRepo` return value contains a script-level `status`, not a routing state.
+
+| `status` | Action |
+| --- | --- |
+| `up_to_date` | no managed repair needed; record freshness evidence |
+| `needs_onboarding` | run apply once, then re-check |
+| `invalid_state_json` | stop; parseable live state cannot be guessed |
+
 ## Managed surfaces
 
 | Surface | Rule |

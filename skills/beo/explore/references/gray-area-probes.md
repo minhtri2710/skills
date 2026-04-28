@@ -7,6 +7,19 @@ Allowed content only: probe axes / question prompts only
 
 ## Acceptance probes
 
+- What should the user see before the feature has any data?
+- What should the user see on success? On failure?
+- Which states must be visually distinct?
+- What is visible without interaction vs hidden until interaction?
+- How dense should the layout feel?
+- What interaction starts/ends the flow?
+- What happens on slow loading, empty results, partial results?
+- Mobile as well as desktop requirements?
+- Permission-based visibility differences?
+- Accessibility or keyboard expectations?
+- Does this feature change how navigation, routing, or import primitives work? Which existing components currently import the affected modules (for example, `next/link`, `next/navigation`, router hooks) and will need updating?
+- What is explicitly out of scope?
+
 - What observable behavior proves this is done?
 - What inputs, outputs, UI states, or commands define success?
 - What failure mode should no longer occur?

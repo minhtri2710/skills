@@ -60,6 +60,8 @@ Use `beo-references -> approval.md`, `beo-references -> pipeline.md`, and `beo-r
 - Do not implement product changes.
 - Do not reclassify swarm work to serial in place.
 - Do not normalize overlap or scope drift by coordinator judgment.
+- Do not dispatch workers before confirming all planned beads exist in the br DB.
+- Do not record worker completion without verifying file evidence directly; worker reports are hypotheses, not evidence.
 - Do not reuse swarm approval as serial approval.
 
 ## References

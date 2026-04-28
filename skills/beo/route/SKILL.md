@@ -35,9 +35,9 @@ Evaluate in order. Stop at the first decisive match.
 5. `CONTEXT.md` missing, unlocked, contradicted, or requirement-changing clarification exists -> `beo-explore`
 6. `PLAN.md`, phase shape, bead graph, dependencies, file scope, or verification plan missing/invalid -> `beo-plan`
 7. artifacts current but approval, readiness, or execution mode missing/stale/invalid -> `beo-validate`
-8. readiness=`PASS_SERIAL` -> `beo-execute`
-9. readiness=`PASS_SWARM` -> `beo-swarm`
-10. execution bundle complete and review evidence ready -> `beo-review`
+8. execution bundle complete and review evidence ready -> `beo-review`
+9. readiness=`PASS_SERIAL` -> `beo-execute`
+10. readiness=`PASS_SWARM` -> `beo-swarm`
 11. accepted-work closure -> inherit closure split from `beo-references -> learning.md`
 12. blocker exists and root cause is unproven -> `beo-debug`, unless an earlier canonical owner already wins with proven requirement, plan, or approval invalidity
 13. terminal no-work state -> `done`; external clarification, access, or approval needed -> `user`
@@ -88,6 +88,7 @@ Use these only when the ladder leaves more than one plausible owner after disqua
 ## Local hard stops
 - Do not hide routing precedence or collision doctrine in references.
 - Do not restate legal transitions, approval semantics, or artifact schemas beyond what local routing readability requires.
+- Do not treat `.beads/` directory existence, file presence, or `.beads/beo_status.mjs --json` as sufficient onboarding verification without running the live onboarding check.
 
 ## References
 - `beo-references -> operator-card.md`

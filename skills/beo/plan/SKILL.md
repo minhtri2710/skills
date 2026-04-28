@@ -29,6 +29,7 @@ Convert locked requirements into a current executable phase and bead graph.
 ## Local hard stops
 - Do not plan from unlocked or contradicted requirements.
 - Do not preserve stale approval assumptions after a contract-bearing planning edit.
+- Do not hand off to `beo-validate` before all planned beads have been created in the br DB via `br create`.
 - Do not omit explicit file scope, forbidden paths when needed, or verification for a ready bead.
 
 ## Allowed next owners

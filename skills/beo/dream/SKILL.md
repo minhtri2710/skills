@@ -1,7 +1,7 @@
 ---
 name: beo-dream
 description: |
-  Consolidate cross-feature learning. Use when at least two accepted features support shared learning or corpus-level consolidation is requested. Do not use when only one feature provides evidence.
+  Consolidate cross-feature learning. Use when at least two accepted features support shared learning, or when the user explicitly requests corpus-level consolidation. Do not use when only one feature provides evidence and no explicit user request exists.
 ---
 
 # beo-dream
@@ -28,7 +28,7 @@ Consolidate cross-feature learning evidence into a shared conclusion or explicit
 ## Decision rule
 - use the consolidation threshold in `beo-references -> learning.md`
 - conflicting evidence blocks promotion and records a non-promotion rationale
-- actual shared guidance mutation requires explicit user approval unless the surface is designated auto-writable by `beo-references -> learning.md`
+- explicit skill invocation authorizes analysis; concrete shared guidance mutation still requires approval of the proposed change unless the surface is designated auto-writable by `beo-references -> learning.md`
 
 ## Allowed next owners
 - user
@@ -37,6 +37,7 @@ Consolidate cross-feature learning evidence into a shared conclusion or explicit
 ## Local hard stops
 - Do not promote a single accepted feature into corpus-level consolidation without explicit user request.
 - Do not treat feature-local `no-learning` as shared evidence.
+- Do not write feature-level learning records; that belongs to `beo-compound`.
 - Before routing to `done`, inherit the terminal done rule from `beo-references -> state.md`.
 
 ## References

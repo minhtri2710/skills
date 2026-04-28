@@ -71,6 +71,7 @@ Otherwise route to `beo-plan` or `beo-debug`.
 - Do not repair code or planning artifacts while reviewing.
 - Do not emit full durable learning; only record obvious `no-learning` inline here.
 - Do not convert a review finding into execution work unless the fix is already bounded inside the current approved envelope.
+- Do not accept agent or worker completion claims as verification evidence; verify file state directly.
 - Before routing to `done`, inherit the terminal done rule from `beo-references -> state.md`.
 
 ## References

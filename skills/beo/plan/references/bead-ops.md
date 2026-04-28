@@ -38,6 +38,7 @@ Swarm eligibility:
 ## File scope constraints
 
 - Every mutable path must be explicit.
+- Structural-change beads must include acceptance criteria for auditing all consuming code across the full codebase.
 - Directory globs are allowed only when narrower file enumeration is impossible and the reason is recorded.
 - Generated files require explicit allowance in file scope or generated outputs.
 - Migrations, auth, billing, permissions, data deletion, security, and privacy surfaces require explicit constraint evidence.
@@ -49,7 +50,7 @@ Swarm eligibility:
 | --- | --- |
 | 1 | Confirm owner has already been selected as `beo-plan`. |
 | 2 | Read locked `CONTEXT.md` and current `PLAN.md` when present. |
-| 3 | Draft current-phase design, dependencies, file scopes, and verification plan. |
+| 3 | Draft current-phase design, dependencies, file scopes, and verification plan. For structural changes (file moves, routing restructure, import-primitive migration), list consuming files across all directories as integration points, not only files being moved. |
 | 4 | Create or update beads with the required description block. |
 | 5 | Add dependency edges after all bead ids exist. |
 | 6 | Record file scope and swarm eligibility evidence on each bead. |

@@ -21,7 +21,7 @@ Use this as the first-pass operational view. It does not replace canonical doctr
 | `beo-swarm` | coordinate approved parallel beads | coordination and aggregation surfaces | implement product changes |
 | `beo-review` | emit one terminal verdict | `REVIEW.md`, bounded reactive-fix record | fix code |
 | `beo-compound` | record one feature learning outcome | feature learning record | cross-feature consolidation |
-| `beo-dream` | consolidate cross-feature learning | shared learning guidance | treat one feature as corpus evidence |
+| `beo-dream` | consolidate cross-feature learning | shared learning guidance | treat one feature as corpus evidence by default |
 
 ## When unsure
 

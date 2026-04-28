@@ -12,3 +12,7 @@
 | --- | --- |
 | dispatch worker | Agent Mail send with bead id, payload, reservation, return channel |
 | worker report | Agent Mail reply with status, files, tests, blockers |
+
+## Swarm availability fallback
+
+If Agent Mail is not available, do not start `beo-swarm`; route to `beo-validate` for serial reclassification.

@@ -18,7 +18,7 @@ For each scenario, inspect:
 
 ### 1. Tiny typo, one file, one verification
 - Pressure: tiny work should not trigger expanded ceremony.
-- Expected route: `beo-explore -> beo-plan(micro-compact) -> beo-validate(PASS_SERIAL) -> beo-execute -> beo-review -> done(no-learning)`
+- Expected route: `beo-explore -> beo-plan(compact current-phase plan) -> beo-validate(PASS_SERIAL) -> beo-execute -> beo-review -> done(no-learning)`
 - Expected wrong behavior: forcing a durable-learning hop for an obviously isolated accepted fix.
 - Likely rationalization: “all accepts must go through compound for consistency.”
 - Required wording change: let review close obvious `no-learning` inline without weakening durable-learning capture.

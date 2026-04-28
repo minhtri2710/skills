@@ -77,7 +77,7 @@ When `go_mode` is used, record each non-blocking assumption with:
 | 6 | Record non-blocking assumptions only when `go_mode` permits them. |
 | 7 | Set `locked=true` and `locked_at` only when required sections are complete and no blocking questions remain. |
 | 8 | Update `STATE.json` with feature slug, status, and evidence. |
-| 9 | Defer successor-owner selection to `beo-explore`; this appendix only names the observable locked vs blocked outcomes. |
+| 9 | Successor-owner selection remains in `beo-explore`; this appendix only names locked vs blocked outcomes. |
 
 ## Exact commands
 

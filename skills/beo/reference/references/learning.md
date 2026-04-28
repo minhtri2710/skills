@@ -48,14 +48,15 @@ Promote to `beo-dream` only when one of the following is true:
 - a cross-feature decision rule needs explicit consolidation
 - the user explicitly requests corpus-level consolidation
 
-Do not run `beo-dream` for a single accepted feature.
-Cross-feature consolidation requires at least two accepted features showing the same reusable pattern and the same future decision impact.
+Do not run `beo-dream` for a single accepted feature unless the user explicitly requests corpus-level consolidation.
+By default, cross-feature consolidation requires at least two accepted features showing the same reusable pattern and the same future decision impact.
 
 ## Consolidation record schema
 
 | Field | Required |
 | --- | --- |
-| source features | at least two accepted features |
+| source features | at least two accepted features, unless explicit user-requested corpus consolidation applies |
+| override reason | required when fewer than two source features are used |
 | owner file | yes |
 | change summary | yes |
 | provenance update | yes |

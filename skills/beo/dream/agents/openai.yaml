@@ -1,4 +1,4 @@
 interface:
   display_name: "Beo Dream"
   short_description: "Consolidate shared learnings"
-  default_prompt: "Use $beo-dream to consolidate repeated accepted-feature learnings into approved shared guidance without treating one feature as corpus evidence."
+  default_prompt: "Use $beo-dream to consolidate repeated accepted-feature learnings into approved shared guidance, or handle explicit user-requested corpus consolidation, without treating one feature as corpus evidence by default."

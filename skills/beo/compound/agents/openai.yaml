@@ -1,4 +1,4 @@
 interface:
   display_name: "Beo Compound"
   short_description: "Write one accepted feature's learnings"
-  default_prompt: "Use $beo-compound to capture durable learnings from one accepted feature and promote patterns only with traceable evidence and explicit approval."
+  default_prompt: "Use $beo-compound to capture durable learnings from one accepted feature, record its learning disposition, and route shared-promotion candidates to beo-dream without writing shared consolidation surfaces."

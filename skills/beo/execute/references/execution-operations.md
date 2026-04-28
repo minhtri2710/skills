@@ -24,12 +24,12 @@ Allowed content only: claim / dispatch / complete command sequence for an alread
 | 5 | Confirm selected bead file scope is fully inside the explicit approved scope from `approval-record.json`. |
 | 6 | Claim the bead and record reservation evidence. |
 | 7 | Implement only inside the selected bead's declared file scope. |
-| 8 | Run verification commands from the bead description or explicit approved verification commands. |
+| 8 | Run verification commands from the bead description or explicit approved verification commands. For structural changes (file moves, routing restructure, import-primitive migration), search all consuming directories for stale old import or route patterns before completion. |
 | 9 | Record changed files, verification commands, outputs, and approval reference in `.beads/artifacts/<feature_slug>/execution-bundle.json`. |
 | 10 | Mark the bead done when verification passes, or blocked when progress stops safely. |
 | 11 | Run `br sync --flush-only` after bead DB mutations. |
 | 12 | Update `STATE.json` with status/evidence and next owner evidence. |
-|
+
 Routing, approval law, and scope law remain canonical in `beo-execute`, `beo-references -> approval.md`, and `beo-references -> artifacts.md`.
 
 ## Dirty worktree and concurrent work policy
