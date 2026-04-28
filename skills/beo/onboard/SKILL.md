@@ -12,13 +12,13 @@ metadata:
     - id: beads-cli
       kind: command
       command: br
-      missing_effect: unavailable
-      reason: Required by the shared onboarding hard gate.
+      missing_effect: degraded
+      reason: Missing `br` blocks live bead verification but onboarding can still report and repair managed startup surfaces.
     - id: beads-viewer
       kind: command
       command: bv
-      missing_effect: unavailable
-      reason: Required by the shared onboarding hard gate.
+      missing_effect: degraded
+      reason: Missing `bv` blocks viewer-backed inspection but onboarding can still report and repair managed startup surfaces.
 ---
 
 # beo-onboard

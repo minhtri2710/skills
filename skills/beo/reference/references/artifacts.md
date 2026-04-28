@@ -208,13 +208,18 @@ Required shape:
 
 ## Lens Findings
 
+Minimum lens evidence shape:
+| Lens | Evidence | Result | Verdict impact |
+| --- | --- | --- | --- |
+
 ### Acceptance Lens
 | Decision | Evidence | Result |
 | --- | --- | --- |
 
 ### Approval / Scope Lens
-| Changed file | Approved? | Evidence |
-| --- | --- | --- |
+List every changed file, including generated or auxiliary files.
+| Changed file | Approved? | Evidence | Verdict impact |
+| --- | --- | --- | --- |
 
 ### Verification Lens
 | Check | Required? | Result | Evidence |

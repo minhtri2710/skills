@@ -270,7 +270,8 @@ When writing STATE:
 - No skill may infer `go_mode` from silence, approval, prior successful execution, or route confidence.
 - `go_mode` must include `active`, `authorized_by`, `authorized_at`, `feature_slug`, `operator_assumption`, `last_gate_passed`, `next_gate`, `human_action_needed`, `scope`, and `persists_across_owner_handoffs=true`.
 - `go_mode` applies only to non-blocking clarification and conservative implementation-detail assumptions.
-- `go_mode` may persist across legal owner handoffs within the same authorized feature scope; it expires when feature scope changes, approval invalidates, or the recorded operator assumption is no longer safe.
+- `go_mode` may persist across legal owner handoffs within the same authorized feature scope.
+- Clear `go_mode` when feature slug changes, user authorization changes, CONTEXT contradiction appears, approval envelope changes, handoff is stale or invalid, external access/secret/legal decision is needed, or the recorded operator assumption is no longer safe.
 - `go_mode` never bypasses approval, file scope, P0/P1 review findings, or security/privacy constraints.
 - `go_mode` is an operator macro, not an owner.
 

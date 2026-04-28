@@ -104,6 +104,11 @@ Unless a skill says otherwise, `STATE.json fields written` should be:
 - `status`
 - `evidence`
 
+Any owner writing `.beads/STATE.json` must either update `operator_view` to match
+the canonical fields and the owner decision being recorded, or explicitly set
+`operator_view.stale=true` with a short reason. The mirror is never canonical,
+but stale operator-facing claims must not be left unmarked.
+
 Only list extra state fields when that owner writes more than the baseline.
 In `Writable surfaces`, prefer the short form: shared `STATE/HANDOFF` surfaces under `beo-references -> skill-contract-common.md` unless the skill adds extra state fields or exceptions.
 When stale optional fields are removed, record them in `evidence.cleared_fields` using `beo-references -> state.md`.

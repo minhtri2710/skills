@@ -6,8 +6,9 @@ Allowed content only: `checkRepo` schema, managed surfaces, exact check/apply co
 ## Preflight
 
 1. verify `node --version` is `>=18` before running `scripts/onboard_beo.mjs`
-2. verify `br` and `bv` are installed and callable; check `bv` with `bv --version` only (never invoke bare `bv`, which requires a TTY and fails in non-interactive agent sessions)
-3. if Node, `br`, or `bv` is unavailable or broken, stop and ask the user to repair tooling before proceeding
+2. check `br` and `bv` availability when possible; check `bv` with `bv --version` only (never invoke bare `bv`, which requires a TTY and fails in non-interactive agent sessions)
+3. if Node is unavailable or broken, stop and ask the user to repair tooling before proceeding
+4. if `br` or `bv` is unavailable or broken, continue managed startup repair in degraded mode and report the missing tooling as a blocker for live bead or viewer-backed verification
 
 ## Decision Matrix
 
@@ -69,10 +70,10 @@ validate onboarding freshness, authorize execution, or replace live routing.
 - onboarding freshness summary plus the live check command
 - `state.current_owner`, `state.schema_version`, and `state.operator_view` when present
 - handoff existence plus freshness signal
-- approval/readiness summary when present
+- approval/readiness summary when present; approval pointers must be reported as `referenced_unverified`, never `current`, unless the live approval doctrine has been verified outside the scout
 - `reads.required` vs `reads.conditional`
 - dependency posture when known
-- `recommended_next` as a hint only
+- `orientation.state_owner` as a hint only, plus `route_required_if` conditions; the scout must not emit a final recommended owner
 
 ## Apply order
 
