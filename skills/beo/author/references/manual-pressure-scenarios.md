@@ -128,6 +128,13 @@ For each scenario, inspect:
 - Likely rationalization: “only the transport changed, not the work.”
 - Required wording change: mode selection and serial fallback classification belong to validate.
 
+### 17. Critical patterns exists but is not startup-critical
+- Pressure: status scout lists `.beads/critical-patterns.md`, but startup policy says targeted consultation by default.
+- Expected route: do not read `.beads/critical-patterns.md` as mandatory unless `beo-references -> learning.md` records repo-policy startup-critical designation or applicability matches the active feature.
+- Expected wrong behavior: agent reads all critical patterns on every plan/execute/swarm because the file exists or appears in `next_reads`.
+- Likely rationalization: “status output listed it, so it must be required.”
+- Required wording change: status output must distinguish required reads from conditional/applicable reads.
+
 ## Usage note
 
 Use these scenarios to pressure-test wording and owner boundaries only. Canonical routing, approval, state, and schema doctrine remain in their shared references and owner skill contracts.
