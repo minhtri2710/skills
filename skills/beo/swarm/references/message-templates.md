@@ -10,15 +10,20 @@ Allowed content only: non-normative message text only
 ```text
 [DISPATCH]
 bead_id: <id>
-reservation_id: <reservation>
+reservation: <reservation>
 approval_ref: <path>
 goal: <goal>
 approved_file_scope:
 - <path>
+approved_generated_outputs:
+- <path-or-none>
+dependency_constraints:
+- <constraint-or-none>
 forbidden_paths:
 - <path-or-glob>
 verification_commands:
 - <command>
+reporting_format: DONE | BLOCKED | FAILED | CONFLICT
 return_channel: <channel>
 reservation_owner: <coordinator>
 report_deadline: <timestamp>
@@ -27,11 +32,11 @@ Rules:
 - acknowledge before editing
 - confirm clean working tree for in-scope files or report pre-existing dirty paths
 - confirm reservation matches approved_file_scope
-- edit only approved_file_scope
+- edit only approved_file_scope plus approved_generated_outputs
 - stop if intended edit touches forbidden_paths
 - stop if generated, lockfile, or snapshot changes are not explicitly approved
 - report blocked instead of expanding scope
-- include changed_files, in_scope yes/no, and verification evidence in terminal report
+- include changed_files, scope_respected yes/no, handoff_needed yes/no, and verification evidence in terminal report
 - release reservation only after terminal report
 ```
 
@@ -68,16 +73,17 @@ blockers: <none-or-text>
 [DONE]
 bead_id: <id>
 reservation_id: <reservation>
+approval_ref: <path>
 changed_files:
 - <path>
-in_scope: true|false
 generated_files:
 - <path-or-none>
-verification_commands:
-- <command>
-verification_result: pass|fail
-verification_output: <summary-or-log-ref>
-approval_ref: <path>
+verification:
+- command: <command>
+  result: pass|fail
+  output_ref: <summary-or-log-ref>
+scope_respected: true|false
+handoff_needed: true|false
 diff_summary: <short summary>
 notes: <none-or-text>
 released_reservation: true|false

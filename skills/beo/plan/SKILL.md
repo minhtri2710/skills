@@ -2,6 +2,18 @@
 name: beo-plan
 description: |
   Create or repair current-phase design and bead graph. Use when locked requirements exist and planning artifacts need creation or repair. Do not use when requirements are unlocked or contradicted.
+metadata:
+  dependencies:
+    - id: beads-cli
+      kind: command
+      command: br
+      missing_effect: unavailable
+      reason: Required to create and update the canonical bead graph.
+    - id: beads-viewer
+      kind: command
+      command: bv
+      missing_effect: degraded
+      reason: Useful for read-only bead inspection but not required for every planning write.
 ---
 
 # beo-plan
@@ -51,6 +63,7 @@ A story must describe a user-visible or system-visible change.
 A bead is an executable unit under a story.
 Do not substitute a list of implementation chores for a story map.
 Small changes may keep the story/phase expression compact, but the executable phase and bead scope must remain explicit.
+For `standard_feature` and `high_risk_feature`, keep story map, file scope, verification plan, and risk map explicit.
 
 ## Risk proof rule
 

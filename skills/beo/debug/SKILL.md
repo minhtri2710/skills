@@ -2,6 +2,18 @@
 name: beo-debug
 description: |
   Prove one blocker root cause. Use when progress is blocked by unproven root cause or root-cause analysis is requested. Do not use when scope or decomposition needs redesign.
+metadata:
+  dependencies:
+    - id: beads-cli
+      kind: command
+      command: br
+      missing_effect: degraded
+      reason: Helpful for bead context, but exact failure evidence can still allow diagnosis.
+    - id: beads-viewer
+      kind: command
+      command: bv
+      missing_effect: degraded
+      reason: Helpful for read-only inspection, but not required when exact failing artifacts are already known.
 ---
 
 # beo-debug

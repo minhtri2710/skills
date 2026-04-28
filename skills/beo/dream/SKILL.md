@@ -2,6 +2,8 @@
 name: beo-dream
 description: |
   Consolidate cross-feature learning. Use when at least two accepted features support shared learning, or when the user explicitly requests corpus-level consolidation. Do not use when only one feature provides evidence and no explicit user request exists.
+metadata:
+  dependencies: []
 ---
 
 # beo-dream

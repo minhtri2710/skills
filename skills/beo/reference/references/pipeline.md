@@ -34,6 +34,9 @@ Minimal shape only:
 - core runtime -> `beo-route -> beo-explore -> beo-plan -> beo-validate -> beo-execute/beo-swarm -> beo-review -> done`
 - optional closure -> `beo-review -> beo-compound -> beo-dream/done`
 
+Go mode is an operator macro over this pipeline, not a new owner.
+See `beo-references -> go-mode.md`.
+
 Use `beo-references -> operator-card.md` as the first operator view.
 Use `beo-route` for owner selection when multiple predicates compete.
 
@@ -59,6 +62,7 @@ Use `beo-route` for owner selection when multiple predicates compete.
 
 Quick index only:
 - owner selection, collision, and route suppression -> `beo-route`
+- go-mode happy path and assumption rule -> `beo-references -> go-mode.md`
 - core runtime owner contracts -> `skills/beo/{explore,plan,validate,execute,swarm,review}/SKILL.md`
 - optional closure owner contracts -> `skills/beo/{compound,dream}/SKILL.md`
 - support/meta owner contracts -> `skills/beo/{onboard,reference,author,debug}/SKILL.md`

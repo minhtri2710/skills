@@ -11,6 +11,7 @@ Allowed content only: coordinator loop, swarm proof schema, worker payload schem
 | `mode` | yes | `swarm` |
 | `beads[]` | yes | at least two ready bead ids |
 | `file_scopes` | yes | no overlapping write paths unless read-only |
+| `approved_generated_outputs` | yes | no overlapping generated outputs unless read-only or deterministically verification-owned |
 | `dependencies` | yes | no dependency edge between concurrently dispatched beads |
 | `reservation_owner` | yes | coordinator identity or session id |
 
@@ -29,14 +30,16 @@ This appendix defines the transport payload only. Worker boundaries, mode classi
 | return_channel | yes |
 | reservation | yes |
 | approval_ref | yes |
+| dependency_constraints | yes |
+| reporting_format | yes |
 
 ## Coordinator loop
 
 | Step | Action |
 | --- | --- |
 | 1 | Confirm owner has already been selected as `beo-swarm`. |
-| 2 | Build swarm proof from current approval record, bead graph, file scopes, and dependencies. |
-| 3 | Reserve each bead and file scope before dispatch. |
+| 2 | Build swarm proof from current approval record, bead graph, file scopes, approved generated outputs, and dependencies. |
+| 3 | Reserve each bead, file scope, and approved generated-output scope before dispatch. |
 | 4 | Dispatch one worker payload per ready isolated bead through Agent Mail. |
 | 5 | Require each worker to acknowledge clean/dirty state, reservation match, and intended in-scope edit before mutation. |
 | 6 | Track worker heartbeat or report status until each bead reaches done, blocked, or failed. |
@@ -46,6 +49,20 @@ This appendix defines the transport payload only. Worker boundaries, mode classi
 | 10 | Release reservations for terminal beads only after terminal report is recorded. |
 | 11 | Update bead status labels and run `br sync --flush-only` after bead DB mutations. |
 | 12 | Stop at the aggregated result; successor-owner selection remains canonical in `beo-swarm`. |
+
+## Worker loop
+
+A worker executes exactly one assigned approved bead.
+
+1. Read worker payload.
+2. Acknowledge `bead_id`, `approval_ref`, `reservation`, `approved_file_scope`, `forbidden_paths`, and `verification_commands`.
+3. Confirm local clean/dirty state for in-scope files and report pre-existing dirty paths.
+4. Mutate only approved file scope and approved generated outputs.
+5. Do not add new file scope or generated-output scope.
+6. Run approved verification commands.
+7. Report exactly one terminal shape: `DONE`, `BLOCKED`, `FAILED`, or `CONFLICT`.
+8. Release reservation only through the coordinator-approved path.
+9. Stop. Do not choose the next owner.
 
 ## Resume / reassignment rules
 
@@ -59,7 +76,47 @@ This appendix defines the transport payload only. Worker boundaries, mode classi
 
 For serial fallback or mode reclassification, return to `beo-validate` rather than deciding here.
 
-Non-normative worker report:
+## Worker report contract
+
+```text
+[DONE]
+bead_id:
+reservation_id:
+approval_ref:
+changed_files:
+generated_files:
+verification:
+scope_respected: true|false
+handoff_needed: true|false
+
+[BLOCKED]
+bead_id:
+reservation_id:
+blocker:
+smallest_repro:
+evidence:
+scope_expansion_needed:
+generated_change_unapproved:
+coordination_hint:
+
+[FAILED]
+bead_id:
+reservation_id:
+failure:
+last_safe_state:
+changed_files:
+recovery_hint:
+
+[CONFLICT]
+bead_id:
+reservation_id:
+conflicting_scope:
+conflicting_worker_or_bead:
+observed_write:
+action_taken:
+```
+
+Non-normative worker report example:
 
 ```json
 {

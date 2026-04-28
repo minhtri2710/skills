@@ -2,6 +2,13 @@
 name: beo-execute
 description: |
   Deliver one approved serial bead. Use when exactly one approved ready bead is selected with mode=`serial` and mutation stays in approved scope. Do not use when root cause is unproven or parallel coordination is required.
+metadata:
+  dependencies:
+    - id: beads-cli
+      kind: command
+      command: br
+      missing_effect: unavailable
+      reason: Required to claim bead progress and keep canonical bead state in sync.
 ---
 
 # beo-execute

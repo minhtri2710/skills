@@ -2,6 +2,18 @@
 name: beo-route
 description: |
   Select exactly one beo owner. Use when owner state is missing, invalid, contradictory, or colliding. Do not use when exactly one non-route owner predicate is true.
+metadata:
+  dependencies:
+    - id: beads-cli
+      kind: command
+      command: br
+      missing_effect: degraded
+      reason: Helpful for live bead context, but some routing decisions can proceed from artifacts and state.
+    - id: beads-viewer
+      kind: command
+      command: bv
+      missing_effect: degraded
+      reason: Helpful for read-only inspection, but not required for every route decision.
 ---
 
 # beo-route
@@ -23,6 +35,7 @@ Select exactly one next owner from user intent, trusted state, and live evidence
 ## Route suppression rule
 - Preserve the current valid owner when exactly one current owner remains valid and no new contradiction, stale handoff, stale approval, or owner collision exists.
 - Avoid route churn.
+- Go mode suppresses unnecessary user questions, not owner selection.
 
 ## Owner decision ladder
 
@@ -89,6 +102,7 @@ Use these only when the ladder leaves more than one plausible owner after disqua
 - Do not hide routing precedence or collision doctrine in references.
 - Do not restate legal transitions, approval semantics, or artifact schemas beyond what local routing readability requires.
 - Do not treat `.beads/` directory existence, file presence, or `.beads/beo_status.mjs --json` as sufficient onboarding verification without running the live onboarding check.
+- Do not trust `operator_view` or scout recommendations over fresher canonical fields or live artifacts.
 
 ## References
 - `beo-references -> operator-card.md`

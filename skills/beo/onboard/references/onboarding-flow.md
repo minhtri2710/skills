@@ -25,7 +25,7 @@ The `checkRepo` return value contains a script-level `status`, not a routing sta
 | --- | --- |
 | `AGENTS.md` managed block | create, append, or replace only between BEO sentinels |
 | `.beads/onboarding.json` | write current plugin and managed startup contract versions |
-| `.beads/beo_status.mjs` | write generated status helper when missing or stale |
+| `.beads/beo_status.mjs` | write generated read-only scout helper when missing or stale |
 | `.beads/STATE.json` | create only when absent; never overwrite parseable live state with guessed values |
 | `.beads/critical-patterns.md` | create when absent or repair managed header/marker only |
 | `.beads/artifacts/` | create directory when absent; do not mutate feature-specific artifact content |
@@ -51,6 +51,9 @@ Status helper after onboarding:
 node .beads/beo_status.mjs --json
 ```
 
+The scout output is orientation only. It must remain read-only and cannot
+validate onboarding freshness, authorize execution, or replace live routing.
+
 ## `checkRepo` result schema
 
 | Field | Meaning |
@@ -59,6 +62,18 @@ node .beads/beo_status.mjs --json
 | `actions[]` | managed repair actions required |
 | `details` | booleans for managed surface freshness and parseability |
 
+## Scout contract
+
+`node .beads/beo_status.mjs --json` should expose:
+- `read_only: true`
+- onboarding freshness summary plus the live check command
+- `state.current_owner`, `state.schema_version`, and `state.operator_view` when present
+- handoff existence plus freshness signal
+- approval/readiness summary when present
+- `reads.required` vs `reads.conditional`
+- dependency posture when known
+- `recommended_next` as a hint only
+
 ## Apply order
 
 | Step | Action |
@@ -66,10 +81,10 @@ node .beads/beo_status.mjs --json
 | 1 | Resolve `<absolute-repo-root>` to the repository root, not transient shell cwd. |
 | 2 | Run check-only command and capture `status`, `actions`, and `details`. |
 | 3 | If `status=invalid_state_json`, stop and record that escalation is required; owner routing remains canonical in `beo-onboard`. |
-| 4 | If `status=up_to_date`, run `.beads/beo_status.mjs --json` when present and capture the status output. |
+| 4 | If `status=up_to_date`, run `.beads/beo_status.mjs --json` when present and capture the scout output. |
 | 5 | If `status=needs_onboarding`, run apply command once. |
 | 6 | Re-run check-only command; require `status=up_to_date`. |
-| 7 | Run `.beads/beo_status.mjs --json` and record next reads. |
+| 7 | Run `.beads/beo_status.mjs --json` and record required vs conditional reads. |
 | 8 | Ensure the managed `AGENTS.md` session-end block preserves owner-specific write boundaries for bead/status/handoff surfaces. |
 | 9 | Record actions applied and freshness evidence; successor-owner selection remains canonical in `beo-onboard`. |
 

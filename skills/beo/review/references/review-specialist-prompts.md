@@ -18,13 +18,14 @@ Inputs to inspect:
 - execution notes and bead ids
 
 Procedure:
-1. Check approval scope against every changed file.
-2. Check locked acceptance criteria against implementation evidence.
-3. Check non-goals and compatibility constraints for overreach.
-4. Check required verification evidence is present and relevant.
-5. Check generated files, snapshots, lockfiles, and side effects are approved or explained.
-6. Classify every finding as P0, P1, P2, or P3 using `beo-review` severity definitions.
-7. Return evidence for `beo-review` to classify; do not treat this prompt as a canonical verdict or routing source.
+1. Run an acceptance lens against locked decisions and acceptance criteria.
+2. Run an approval/scope lens against every changed file.
+3. Run a verification lens against required commands and outputs.
+4. Run a regression lens for likely adjacent breakage.
+5. Run a security/privacy lens for data, auth, secret, permission, and irreversible-damage concerns.
+6. Run a maintainability lens for non-blocking quality issues.
+7. Classify every finding as P0, P1, P2, or P3 using `beo-review` severity definitions.
+8. Return evidence for `beo-review` to classify; do not treat this prompt as a canonical verdict or routing source.
 
 Output shape:
 
@@ -61,7 +62,7 @@ Reactive-fix bead:
 - omit when verdict is not `fix`
 
 Learning disposition hint:
-- learning|no-learning|defer
+- no-learning|durable-candidate|unclear
 ```
 
 Verdict calibration prompts:

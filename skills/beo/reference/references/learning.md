@@ -22,6 +22,11 @@ When accepted work is clearly isolated and no durable reusable signal exists:
 - `review -> beo-compound` is the exception, used only when durable learning exists or the disposition is unclear
 - `beo-dream` applies only after the consolidation threshold below is met
 
+Before terminal `done`, classify learning disposition as:
+- `no-learning`
+- `durable-candidate`
+- `unclear`
+
 Default no-learning shape:
 
 ```md
@@ -38,7 +43,7 @@ Use this full feature-learning record only when durable learning exists or dispo
 # Feature Learning: <feature_slug>
 
 ## Disposition
-- durable-learning | no-learning | unclear
+- durable | no-promotion | promotion-candidate
 - reason:
 - recorded_at:
 
@@ -71,8 +76,9 @@ Use this full feature-learning record only when durable learning exists or dispo
 - review refs:
 
 ## Promotion status
-- promotion_candidate: yes/no
-- needs second feature evidence: yes/no
+- second-feature evidence needed: yes/no
+- candidate shared owner:
+- conflict check:
 - explicit user corpus request: yes/no
 ```
 
@@ -81,6 +87,7 @@ Rules:
 - `Applicability` must include both applies and does-not-apply guidance when a durable lesson is recorded.
 - `Promotion status` must say whether a second accepted feature is still required before shared consolidation.
 - Feature-local `no-learning` records are not evidence for `beo-dream`.
+- `beo-compound` may record a promotion candidate, but it must not mutate shared guidance.
 
 ## Consolidation threshold
 

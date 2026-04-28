@@ -15,10 +15,11 @@ Use this file only as supporting material when authoring beo skill contracts.
 2. Identify failure modes without the skill.
 3. Write 3-5 manual pressure scenarios.
 4. Start with the baseline pressure set: happy path, owner collision, stale approval/handoff, forbidden-surface temptation, debug return/rollback, and user-clarification vs go-mode.
-5. Write the smallest SKILL.md that blocks observed failure modes.
-6. Remove hypothetical content not tied to observed pressure.
-7. Re-read the contract for overlap with existing skills.
-8. Keep references non-normative unless they are canonical shared references.
+5. Add scenario coverage for any new human-readable mirror, scout helper, dependency gate, or worker-report protocol you introduce.
+6. Write the smallest SKILL.md that blocks observed failure modes.
+7. Remove hypothetical content not tied to observed pressure.
+8. Re-read the contract for overlap with existing skills.
+9. Keep references non-normative unless they are canonical shared references.
 
 ## Skill contract checklist
 

@@ -2,6 +2,13 @@
 name: beo-compound
 description: |
   Record one accepted feature learning outcome. Use when verdict=`accept` and acceptance evidence is complete, or when an existing feature learning file lacks a finalized disposition. Do not use when cross-feature consolidation is requested.
+metadata:
+  dependencies:
+    - id: beads-cli
+      kind: command
+      command: br
+      missing_effect: degraded
+      reason: Helpful for feature provenance, but accepted artifact bundles can still support the learning write.
 ---
 
 # beo-compound
@@ -45,6 +52,7 @@ When a feature learning record is warranted, classify evidence into the BEO lear
 
 A single feature may mark a learning as a promotion candidate, but it must also record whether second-feature evidence is still needed.
 Do not auto-promote feature learning into shared guidance.
+Do not write shared guidance from this owner.
 
 ## Allowed next owners
 - beo-dream

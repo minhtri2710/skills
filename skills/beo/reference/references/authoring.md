@@ -37,6 +37,32 @@ For audits and hardening, prefer manual pressure scenarios over checker scripts,
 | `APPENDIX` | exact commands or linear steps after owner is already chosen |
 | `ASSET` | prompts, checklists, message templates, non-normative examples |
 
+## Dependency declaration doctrine
+
+Every packaged BEO skill must declare `metadata.dependencies`, including `[]`
+when the skill is intentionally dependency-free.
+
+Dependency item shape:
+
+```yaml
+metadata:
+  dependencies:
+    - id: beads-cli
+      kind: command
+      command: br
+      missing_effect: unavailable
+      reason: Required to inspect and update bead graph.
+```
+
+Supported `missing_effect` values:
+- `degraded`
+- `unavailable`
+- `unavailable_for_swarm`
+
+Missing dependencies must never silently downgrade safety. If a skill can still
+proceed in degraded mode, it must say so explicitly in its contract and record
+the fallback evidence.
+
 ## Manual pressure doctrine
 
 For beo contract audits/hardening, default to manual pressure scenarios instead of executable validation surfaces.
@@ -75,6 +101,7 @@ Use `beo-references -> doctrine-map.md` as the short source-of-truth registry fo
 | delivery order and allowed handoffs | `beo-references -> pipeline.md` | Allowed handoffs |
 | state, handoff freshness, route evidence, go-mode marker | `beo-references -> state.md` | State schemas |
 | bead/status/label mapping | `beo-references -> status-mapping.md` | Status mapping |
+| go-mode macro behavior | `beo-references -> go-mode.md` | Operator behavior |
 
 ## Canonical-source discipline
 

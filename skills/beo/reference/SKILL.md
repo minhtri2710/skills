@@ -2,6 +2,8 @@
 name: beo-reference
 description: |
   Return canonical references. Use when the request is a read-only lookup of an existing rule, schema, template, mapping, protocol, or command form. Do not use when routing or edits are requested.
+metadata:
+  dependencies: []
 ---
 
 # beo-reference

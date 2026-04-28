@@ -2,6 +2,19 @@
 name: beo-validate
 description: |
   Decide execution readiness and serial/swarm mode. Use when artifacts need no content edits but approval, readiness, remediation class, or mode is absent or invalid. Do not use when artifact content edits or execution are required.
+metadata:
+  dependencies:
+    - id: beads-cli
+      kind: command
+      command: br
+      missing_effect: unavailable
+      reason: Required to prove bead graph readiness and approved execution units.
+    - id: agent-mail
+      kind: mcp_server
+      server_names: [mcp_agent_mail]
+      config_sources: [repo_config, global_config]
+      missing_effect: unavailable_for_swarm
+      reason: Required before PASS_SWARM can be emitted.
 ---
 
 # beo-validate
@@ -51,7 +64,7 @@ Required for all planning depths:
 - bead graph
 - file scope
 - forbidden paths when relevant
-- verification commands
+- verification plan
 - execution envelope proposal
 
 For `small_change`, the current phase contract may be compact but must still identify:
@@ -64,7 +77,7 @@ For `small_change`, the current phase contract may be compact but must still ide
 Required for `standard_feature` and `high_risk_feature`:
 - applicable prior learning consulted
 - discovery facts when needed
-- current phase story map
+- story map
 - risk map
 
 Required for `high_risk_feature`:
@@ -122,6 +135,7 @@ Choose execution mode only after requirements, plan, approval prerequisites, fil
 Swarm fallback classification belongs here.
 A failed or unavailable swarm path may become serial only through a fresh `PASS_SERIAL` verdict.
 Do not reuse swarm approval as serial approval.
+Missing `agent-mail` dependency may degrade classification to `PASS_SERIAL` only when one explicitly approved serial bead remains valid under the current envelope; otherwise it blocks `PASS_SWARM`.
 
 ## Exit routing
 

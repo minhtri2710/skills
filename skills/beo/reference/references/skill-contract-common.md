@@ -68,6 +68,16 @@ Route to `user` only when the answer can change one of the following:
 
 Do not ask the user for an implementation detail that is already inside locked approved scope.
 
+## Go-mode default assumption rule
+
+When `go_mode.active=true`, do not route to `user` for design-only or
+implementation-detail ambiguity that does not change acceptance, non-goals,
+compatibility, external approval, secret/access, legal/business decision,
+approved file scope, or verification.
+
+Proceed with a conservative assumption and record it in the owning artifact or
+`STATE.json.operator_view` according to `beo-references -> go-mode.md`.
+
 ## Shared forbidden surfaces baseline
 Unless a skill explicitly lists an exception in `Writable surfaces`, treat the following as forbidden by default:
 - artifacts, refs, fixtures, or product files owned by another skill
@@ -114,6 +124,7 @@ Keep `Writable surfaces` owner-specific.
 ## Shared state/handoff doctrine pointers
 - First-pass operator view is in `beo-references -> operator-card.md`.
 - State lifecycle, STATE field groups, stale-field cleanup, and handoff freshness are canonical in `beo-references -> state.md`.
+- Go-mode macro behavior and operator assumption discipline are canonical in `beo-references -> go-mode.md`.
 - Delivery order and legal owner transitions are canonical in `beo-references -> pipeline.md`.
 - Routing precedence and owner collision doctrine are canonical in `beo-route`.
 - Approval grant/refresh/invalidation doctrine is canonical in `beo-references -> approval.md`.

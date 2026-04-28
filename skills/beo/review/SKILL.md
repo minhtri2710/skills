@@ -2,6 +2,8 @@
 name: beo-review
 description: |
   Emit one terminal verdict. Use when execution scope and review evidence bundle are complete. Do not use when fixes must be implemented or root cause must be proven.
+metadata:
+  dependencies: []
 ---
 
 # beo-review
@@ -82,12 +84,27 @@ If decision verification is `blocked`:
 - route to `beo-plan` when a verification command, artifact, or mapping is missing
 - route to `beo-debug` when behavior is present but the mismatch root cause is unproven
 
+## Review lenses
+
+`beo-review` may organize evidence through lenses, but verdict authority remains local.
+
+Required lenses:
+- acceptance lens
+- approval/scope lens
+- verification lens
+- regression lens
+- security/privacy lens
+- maintainability lens
+
+Lens findings are evidence, not separate verdicts.
+
 ## Learning closure rule
 
 `review -> done` is the default accepted-work closure when the accepted work is clearly isolated and no durable reusable signal exists.
 In that case `beo-review` may record inline `learning_disposition: no-learning` and route to `done`.
 `beo-review` must not decide durable learning content.
 Route to `beo-compound` only when a durable learning candidate exists or the disposition is not obvious.
+Classify accepted closure as `no-learning`, `durable-candidate`, or `unclear` before routing.
 
 ## Review fix rule
 

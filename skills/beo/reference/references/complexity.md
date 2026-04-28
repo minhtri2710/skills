@@ -29,6 +29,8 @@ Required `PLAN.md` sections:
 - minimal approach
 - current phase contract
 - bead graph
+- file scope
+- verification plan
 - execution envelope proposal
 
 Rules:
@@ -51,8 +53,10 @@ Required `PLAN.md` sections:
 - approach
 - risk map
 - current phase contract
-- current phase story map
+- story map
 - bead graph
+- file scope
+- verification plan
 - execution envelope proposal
 
 ### high_risk_feature
@@ -117,33 +121,41 @@ A valid micro-compact plan must still keep one current phase, one bead id, `Goal
 ### Canonical micro-compact template
 
 ```md
-## 0. Context binding
-- context_hash:
-- locked decision IDs covered:
-- planning depth class: small_change
+## Context Binding
+- Feature:
+- CONTEXT ref:
+- Locked decision IDs:
+- Planning depth: small_change
 
-## 3. Approach
-- chosen approach:
+## Approach
+- Minimal approach:
 
-## 6. Current phase contract
-- phase id:
+## Current Phase Contract
 - entry state:
 - exit state:
-- demo:
-- explicit out of scope:
+- demo or inspectable result:
+- explicit out-of-scope:
 
-## 8. Bead graph
+## Bead Graph
 | Bead | Goal | Scope | Acceptance | File scope | Dependencies | Verification |
 | --- | --- | --- | --- | --- | --- | --- |
 | B1 |  |  |  |  | none |  |
 
-## 9. Execution envelope proposal
-- candidate mode: serial
-- candidate approved beads: B1
-- approved file scope proposal:
+## File Scope
+- approved candidate write scope:
 - forbidden paths:
-- verification commands:
-- scope source refs:
+
+## Verification Plan
+| Command/check | Owner | Required for | Pass signal |
+| --- | --- | --- | --- |
+| <command> | beo-validate | selected bead | passing output |
+
+## Execution Envelope Proposal
+- Selected bead or isolated bead set: B1
+- Proposed mode: serial
+- Approval subject:
+- Approval invalidation triggers:
+- forbidden paths:
 ```
 
 ## Tiny-work happy path
@@ -168,8 +180,8 @@ CONTEXT.md
 - constraints: only `config/app.yaml`
 
 PLAN.md
-- planning depth class: small_change
-- current phase: ship one isolated config fix
+- Planning depth: small_change
+- current phase contract: ship one isolated config fix
 - bead B1
   - Goal: correct the default value
   - Scope: one config edit only

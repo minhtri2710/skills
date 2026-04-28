@@ -85,67 +85,78 @@ Required shape:
 ```md
 # PLAN.md
 
-## 0. Context binding
-- context_hash:
-- locked decision IDs covered:
-- requirement contradictions checked: yes/no
-- planning depth class: small_change / standard_feature / high_risk_feature
+## Context Binding
+- Feature:
+- CONTEXT ref:
+- Locked decision IDs:
+- Planning depth: small_change | standard_feature | high_risk_feature
 
-## 1. Prior learning consulted
+## Prior Learning Consulted
 | Learning source | Applicable? | Why |
 | --- | --- | --- |
 | .beads/learnings/... | yes/no |  |
 
-## 2. Discovery facts
+## Discovery Facts
 | Fact | Evidence | Impact |
 | --- | --- | --- |
 
-## 3. Approach
-- chosen approach:
+## Current Phase Contract
+- Entry state:
+- Exit state:
+- Demo or inspectable result:
+- Rollback expectation:
+- Pivot signals:
+- Explicit out-of-scope:
+
+## Approach
+- Minimal approach:
 - alternatives rejected:
-- reason for rejection:
 - compatibility notes:
 
-## 4. Risk map
+## Story Map
+### Story 1: <user/system-visible result>
+- Why visible:
+- Beads:
+  - br-123: <goal>
+
+## Bead Graph
+| Bead | Story | Depends on | File scope | Verification | Ready? |
+| --- | --- | --- | --- | --- | --- |
+
+## File Scope
+### Approved candidate write scope
+- path/glob
+
+### Forbidden paths
+- path/glob
+
+### Generated outputs
+- path/glob or none
+
+## Verification Plan
+| Command/check | Owner | Required for | Pass signal |
+| --- | --- | --- | --- |
+
+## Risk Map
 | Risk | Severity | Proof required before execution | Owner |
 | --- | --- | --- | --- |
 |  | LOW/MED/HIGH | command/spike/manual evidence | beo-plan/beo-validate/user |
 
-## 5. Whole-feature phase map
+## Whole-feature Phase Map
 | Phase | User/system-visible outcome | Demo | Unlocks | Out of scope |
 | --- | --- | --- | --- | --- |
 
-## 6. Current phase contract
-- phase id:
-- entry state:
-- exit state:
-- demo:
-- rollback expectation:
-- pivot signals:
-- explicit out of scope:
-
-## 7. Current phase story map
-| Story | User/system-visible change | Acceptance | Beads |
-| --- | --- | --- | --- |
-
-## 8. Bead graph
-| Bead | Goal | Scope | Acceptance | File scope | Dependencies | Verification |
-| --- | --- | --- | --- | --- | --- | --- |
-
-## 9. Execution envelope proposal
-- candidate mode: serial/swarm
-- candidate approved beads:
-- approved file scope proposal:
-- approved generated outputs:
-- forbidden paths:
-- verification commands:
-- scope source refs:
+## Execution Envelope Proposal
+- Selected bead or isolated bead set:
+- Proposed mode: serial | swarm
+- Approval subject:
+- Approval invalidation triggers:
 ```
 
 Planning-depth note:
 - The template above is the canonical full shape and ordering reference.
 - `beo-references -> complexity.md` defines which sections are required for `small_change`, `standard_feature`, and `high_risk_feature`.
-- `small_change` may omit sections that `complexity.md` does not require, but it must still keep its minimal approach, current phase contract, bead graph, and execution envelope proposal explicit.
+- `small_change` may omit sections that `complexity.md` does not require, but it must still keep its context binding, minimal approach, current phase contract, bead graph, file scope, verification plan, and execution envelope proposal explicit.
 
 Rules:
 - `PLAN.md` is the single canonical home for phase/story/risk planning. Do not introduce parallel phase-plan or history artifacts as canonical BEO state.
@@ -195,13 +206,38 @@ Required shape:
 | --- | --- | --- | --- | --- |
 | R1 | P0/P1/P2/P3 | acceptance/security/verification/etc. |  | beo-debug/beo-plan/beo-execute/user |
 
-## Specialist review sections
-### Code quality
-### Architecture
-### Security / privacy
-### Test coverage
-### Product / UAT
-### Learning candidates
+## Lens Findings
+
+### Acceptance Lens
+| Decision | Evidence | Result |
+| --- | --- | --- |
+
+### Approval / Scope Lens
+| Changed file | Approved? | Evidence |
+| --- | --- | --- |
+
+### Verification Lens
+| Check | Required? | Result | Evidence |
+| --- | --- | --- | --- |
+
+### Security / Privacy Lens
+| Finding | Severity | Verdict impact |
+| --- | --- | --- |
+
+### Regression Lens
+| Finding | Severity | Verdict impact |
+| --- | --- | --- |
+
+### Maintainability Lens
+| Finding | Severity | Verdict impact |
+| --- | --- | --- |
+
+## Open Findings
+| ID | Severity | Owner route | Reason |
+| --- | --- | --- | --- |
+
+## Learning Disposition
+- no-learning | durable-candidate | unclear
 
 ## Reactive fix eligibility
 - eligible: yes/no

@@ -76,7 +76,7 @@ When `go_mode` is used, record each non-blocking assumption with:
 - why it is non-blocking
 - affected scope
 - authorization source
-- expiry on owner exit
+- persistence condition and invalidation trigger
 
 `go_mode` assumptions must never stand in for missing acceptance, hidden file scope, missing approval, or unresolved security/privacy constraints.
 

@@ -2,6 +2,14 @@
 name: beo-swarm
 description: |
   Coordinate approved independent beads in parallel. Use when mode=`swarm`, approval is current, Agent Mail is available, and at least two ready beads are isolated. Do not use when implementation is required.
+metadata:
+  dependencies:
+    - id: agent-mail
+      kind: mcp_server
+      server_names: [mcp_agent_mail]
+      config_sources: [repo_config, global_config]
+      missing_effect: unavailable
+      reason: Required for worker dispatch, reservations, and return-channel coordination.
 ---
 
 # beo-swarm
@@ -31,7 +39,7 @@ Coordinate approved independent beads in parallel without implementing.
 
 ## Worker boundary
 - coordinate only
-- workers inherit approved scope, forbidden paths, verification contract, and approval reference
+- workers inherit approved file scope, approved generated outputs, forbidden paths, verification contract, and approval reference
 - workers are execution delegates, not route owners
 - overlap or scope drift stops coordination
 - serial fallback requires `beo-validate`
@@ -43,6 +51,7 @@ Each worker receives:
 - relevant `CONTEXT.md` decision IDs
 - relevant `PLAN.md` current phase/story refs
 - approved file scope
+- approved generated outputs
 - forbidden paths
 - verification commands
 - dependency constraints
@@ -55,7 +64,7 @@ Do not give workers permission to reinterpret approval.
 ## Worker stop conditions
 
 A worker must stop and report when:
-- required mutation falls outside approved file scope
+- required mutation falls outside approved file scope plus approved generated outputs
 - forbidden path is needed
 - dependency is incomplete
 - file reservation conflicts with another worker

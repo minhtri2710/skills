@@ -16,7 +16,7 @@ Resolve `<installed-beo-onboard-root>` from the runtime's installed `beo-onboard
 
 The result must be `"status": "up_to_date"`. Any other result means onboarding is needed.
 
-`.beads/onboarding.json` and `node .beads/beo_status.mjs --json` may be used as read-only scouts but are never the source of truth. They do not detect managed `AGENTS.md` drift and do not override a failed live check. Do not copy or introduce duplicate startup/state trees; keep scout and handoff hygiene in the existing `.beads/` surfaces.
+`.beads/onboarding.json` and `node .beads/beo_status.mjs --json` may be used as read-only scouts but are never the source of truth. They may surface likely managed-surface drift, including managed `AGENTS.md` block drift, as advisory orientation only; they do not override a failed live check or replace live onboarding freshness. The scout may recommend reads or actions, but it cannot validate onboarding freshness, grant approval, select a final owner when live artifacts contradict state, convert conditional reads into required reads, or authorize execution. Do not copy or introduce duplicate startup/state trees; keep scout and handoff hygiene in the existing `.beads/` surfaces.
 
 To verify `bv` is installed and callable without launching the TUI, use:
 ```bash
@@ -47,10 +47,11 @@ If the planning mode is `multi-phase` and later phases remain after the current 
 
 If context usage exceeds **65%**, checkpoint state before continuing:
 
-1. Write `.beads/STATE.json` and `.beads/HANDOFF.json` using the canonical schemas in `state-and-handoff-protocol.md`.
-2. Include planning-aware fields (`planning_mode`, `has_phase_plan`, `current_phase`, `total_phases`, `phase_name`) when known.
-3. Add the skill-specific checkpoint items listed in each skill's Context Budget section.
-4. Resume from the checkpoint after context is restored.
+1. Write `.beads/STATE.json` and `.beads/HANDOFF.json` using `beo-references -> state.md`.
+2. Include current owner, feature slug, approval ref, selected bead(s), changed files, verification status, blockers, and next legal owner when known.
+3. Update `STATE.json.operator_view` before stopping.
+4. Add the skill-specific checkpoint items listed in each skill's Context Budget section.
+5. Resume from the checkpoint after context is restored.
 
 Exception: `beo-onboard` uses a **30%** threshold since it is a lightweight bootstrap skill.
 

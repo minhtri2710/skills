@@ -2,6 +2,8 @@
 name: beo-author
 description: |
   Author, audit, or harden beo skill contracts. Use when creating, rewriting, simplifying, deduping, normalizing, reviewing, or pressure-testing beo skill definitions and skill-local writing guidance. Do not use for runtime delivery, checker scripts, fixture suites, release gates, governance validation, topology changes, or product implementation.
+metadata:
+  dependencies: []
 ---
 
 # beo-author

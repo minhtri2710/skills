@@ -15,6 +15,7 @@ If an example restates decision law from another file, delete it.
 | Artifact schemas, writer boundaries, provenance chain | `beo-references -> artifacts.md` |
 | Approval model, approval schema, grant/refresh/invalidation rules | `beo-references -> approval.md` |
 | State lifecycle, stale/live field discipline, handoff freshness | `beo-references -> state.md` |
+| Go-mode macro behavior and operator assumption rule | `beo-references -> go-mode.md` |
 | Complexity modes and planning depth classes | `beo-references -> complexity.md` |
 | Learning thresholds, no-learning, consolidation thresholds | `beo-references -> learning.md` |
 | Shared contract boilerplate and decision packet | `beo-references -> skill-contract-common.md` |

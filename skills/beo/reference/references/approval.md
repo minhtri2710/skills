@@ -62,12 +62,12 @@ Any execution-envelope change invalidates prior execution approval. A freshness-
 
 The following `PLAN.md` sections are contract-bearing when present:
 - current phase contract
-- current phase story map
+- story map
 - risk map entries marked MED or HIGH
 - bead graph
 - file scope
 - forbidden paths
-- verification commands
+- verification plan
 - execution envelope proposal
 
 Any mutation to these sections after approval makes execution approval stale unless `beo-validate` grants or refreshes approval against the updated hashes according to the execution envelope invariant.
@@ -92,7 +92,7 @@ Any mutation to these sections after approval makes execution approval stale unl
 
 Any mutation to the following makes execution approval stale:
 - locked requirement content in `CONTEXT.md`
-- design, current phase contract, current phase story map, any MED/HIGH risk-map row, risk proof requirement, bead graph, file scope, forbidden paths, verification content, or execution envelope proposal content in `PLAN.md`
+- design, current phase contract, story map, any MED/HIGH risk-map row, risk proof requirement, bead graph, file scope, forbidden paths, verification-plan content, or execution-envelope proposal content in `PLAN.md`
 - approved bead dependency or file-scope metadata
 - locked acceptance, compatibility, or constraint content
 

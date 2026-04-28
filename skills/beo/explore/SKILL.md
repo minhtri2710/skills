@@ -2,6 +2,8 @@
 name: beo-explore
 description: |
   Lock feature requirements. Use when a missing answer can change acceptance, non-goals, compatibility, constraints, or user-visible scope. Do not use when work is design-only choices.
+metadata:
+  dependencies: []
 ---
 
 # beo-explore
@@ -30,6 +32,7 @@ Lock feature requirements into `CONTEXT.md`.
 ## Local hard stops
 - Do not lock requirements while acceptance, non-goals, compatibility, constraints, or user-visible scope remain materially ambiguous.
 - Do not turn design-only choices into requirement churn.
+- When `go_mode.active=true`, prefer conservative assumptions for implementation-detail ambiguity that does not change locked requirement meaning.
 
 ## Allowed next owners
 - beo-plan

@@ -2,6 +2,23 @@
 name: beo-onboard
 description: |
   Verify and repair managed beo startup surfaces. Use when onboarding freshness is false, managed bootstrap surfaces are missing/invalid, or repair is requested. Do not use when doctrine edits are requested.
+metadata:
+  dependencies:
+    - id: node
+      kind: command
+      command: node
+      missing_effect: unavailable
+      reason: Required to run the managed onboarding script.
+    - id: beads-cli
+      kind: command
+      command: br
+      missing_effect: unavailable
+      reason: Required by the shared onboarding hard gate.
+    - id: beads-viewer
+      kind: command
+      command: bv
+      missing_effect: unavailable
+      reason: Required by the shared onboarding hard gate.
 ---
 
 # beo-onboard
