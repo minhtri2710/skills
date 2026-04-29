@@ -1,7 +1,3 @@
-<!-- owner: beo-reference -->
-<!-- version: 2026-04-29 -->
-<!-- last-reviewed: 2026-04-29 -->
-
 # Doctrine map
 
 ## Canonical source-of-truth registry
@@ -61,15 +57,4 @@ When reducing duplicate wording:
 
 ## Deletion rules
 
-Delete or merge obsolete doctrine only after migrating unique surviving rules to their canonical owner and confirming no inbound references remain. Prefer canonical owner files over small duplicate references.
-
-## Legacy removal policy
-
-A legacy surface may be removed only after:
-1. replacement canonical owner is identified
-2. all inbound references are migrated
-3. onboarding or runtime migration path is defined when persisted repo state may contain the legacy form
-4. grep audit shows no live references
-5. at least one pressure scenario covers the removal
-
-Do not keep compatibility aliases as hidden doctrine. Compatibility may exist only in migration code and must not be emitted by current templates.
+Delete or merge superseded doctrine only after migrating unique surviving rules to their canonical owner and confirming no inbound references remain. Prefer canonical owner files over small duplicate references.

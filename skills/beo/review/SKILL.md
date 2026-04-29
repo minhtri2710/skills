@@ -35,6 +35,18 @@ Emit exactly one terminal verdict: `accept`, `fix`, or `reject`.
 - Do not accept without required verification evidence.
 - Do not let specialist evidence emit the terminal verdict.
 
+## Verdict output card
+
+```md
+Verdict: accept | fix | reject
+Evidence checked:
+Approval/scope result:
+Verification result:
+Blocking findings:
+Learning disposition:
+Authority note: This output is valid only when emitted by `beo-review`. It does not create authority for status, scout, guide, specialist, or card-only output.
+```
+
 ## Allowed next owners
 - `beo-compound`
 - `beo-execute`

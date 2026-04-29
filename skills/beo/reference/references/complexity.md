@@ -1,7 +1,3 @@
-<!-- owner: beo-reference -->
-<!-- version: 2026-04-29 -->
-<!-- last-reviewed: 2026-04-29 -->
-
 ## Contents
 
 - Ceremony modes
@@ -105,6 +101,8 @@ Required `PLAN.md` sections:
 - Complexity class only changes required planning depth and review intensity.
 - Do not treat `small_change` as permission to omit file scope, forbidden paths when relevant, verification, approval, or review.
 - Do not treat `high_risk_feature` as permission to add release gates or new owner skills.
+- Do not introduce `TINY_SAFE`, `tiny_safe`, or any equivalent formal shortcut that skips locked requirements, plan, validation, approval, verification, execution evidence, or review.
+- One-line auth, permission, security, privacy, migration, data, or irreversible-action changes are not shortcut-eligible.
 
 ## Decision matrix
 

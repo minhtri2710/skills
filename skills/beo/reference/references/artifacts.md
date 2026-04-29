@@ -1,7 +1,3 @@
-<!-- owner: beo-reference -->
-<!-- version: 2026-04-29 -->
-<!-- last-reviewed: 2026-04-29 -->
-
 ## Contents
 
 - Artifact layout
@@ -296,6 +292,7 @@ Rules:
 
 Provenance note:
 - `execution-bundle.json` should reference the exact approval record used and enough plan/bead context to show which approved execution unit produced the bundle.
+- Gate, status, scout, Go Mode, or advisory cards cannot create artifacts, approval state, or writer authority. They may only point to the canonical owner/reference.
 
 ## Feature slug schema
 
@@ -387,6 +384,8 @@ Minimum feature-learning sections when a record is created:
 Do not create a feature learning record for obvious isolated accepted work with `no-learning`; record the inline disposition shape from `beo-reference -> learning.md` instead.
 
 ## Surface writer map
+
+The writer map is canonical for artifact ownership. Per-file writer-map evidence used during a specific hardening upgrade is implementation evidence only and must not become future runtime ceremony for unrelated edits.
 
 | Surface | Create | Modify | Invalidate approval? |
 | --- | --- | --- | --- |

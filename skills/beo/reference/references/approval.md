@@ -1,7 +1,3 @@
-<!-- owner: beo-reference -->
-<!-- version: 2026-04-29 -->
-<!-- last-reviewed: 2026-04-29 -->
-
 ## Contents
 
 - Approval model
@@ -62,7 +58,7 @@ Label alone is never enough for execution approval.
 | `approval_refresh` | freshness-only renewal when approved scope and contract remain unchanged |
 | `new_approval_grant` | a new execution approval required when bead set, mode, file scope, or verification contract changes |
 
-Do not introduce separate `phase_approval`, `story_approval`, `merge_approval`, `beo-go`, `beo-uat`, or external gate records. BEO keeps one execution approval envelope and one review verdict.
+Do not introduce separate approval records, gate records, card approval, or guide approval. BEO keeps one execution approval envelope and one review verdict.
 
 ## Execution envelope invariant
 

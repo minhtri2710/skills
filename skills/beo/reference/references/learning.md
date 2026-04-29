@@ -1,7 +1,3 @@
-<!-- owner: beo-reference -->
-<!-- version: 2026-04-29 -->
-<!-- last-reviewed: 2026-04-29 -->
-
 ## Contents
 
 - Durable learning threshold
@@ -163,5 +159,7 @@ Do not auto-promote single-feature learning into shared guidance. Do not mutate 
 Planning and validation may consult applicable feature/shared learnings before making decisions. This is targeted consultation, not a requirement to read the full corpus for every skill invocation.
 
 Applicable learnings are those whose `Applicability` matches the active feature's domain, risk, failure mode, approval shape, or verification concern.
+
+Targeted lookup does not authorize one-feature shared-doctrine mutation. Shared guidance changes remain governed by the consolidation threshold and critical shared guidance mutation rule above.
 
 `.beads/critical-patterns.md`, when present, is startup-critical only when `beo-reference -> learning.md` records a repo-policy designation. Otherwise treat it like any other shared learning surface and consult it only when its applicability matches the active feature.

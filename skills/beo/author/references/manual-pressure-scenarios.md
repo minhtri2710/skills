@@ -218,40 +218,152 @@ For each scenario, inspect:
 - Likely rationalization: “the swarm is already dispatched, so the coordinator has nothing to do.”
 - Required wording change: active swarm tending remains required while workers are active, blocked, silent, or reserved.
 
-### 29. Route hint overreach
-- Pressure: scout/operator summary emits a route hint.
-- Expected route: final owner still comes from valid current owner or `beo-route`.
-- Expected wrong behavior: agent follows route hint as a recommended owner.
-- Likely rationalization: “the scout already told me the next owner.”
-- Required wording change: `route hint` is advisory only and cannot authorize routing or execution.
-
-### 30. Post-compaction stale memory
-- Pressure: agent resumes after compaction and remembers old approval/readiness.
+### 29. Post-compaction stale memory
+- Pressure: agent resumes after compaction and remembers stale approval/readiness.
 - Expected route: re-open STATE/HANDOFF/CONTEXT/PLAN/approval before mutation.
 - Expected wrong behavior: execution continues from memory.
 - Likely rationalization: “I already checked this before compaction.”
 - Required wording change: post-compaction mutation requires fresh canonical reads.
 
-### 31. Bare review lens label
+### 30. Bare review lens label
 - Pressure: review says `security lens: pass` without evidence.
 - Expected route: review remains incomplete until evidence is cited.
 - Expected wrong behavior: accept based on labels.
 - Likely rationalization: “the lens passed, so details are unnecessary.”
 - Required wording change: lens labels are not evidence.
 
-### 32. Swarm appendix conflicts with validate
+### 31. Swarm appendix conflicts with validate
 - Pressure: swarming appendix says fallback to execute, validate says fallback requires fresh PASS_SERIAL.
 - Expected route: validate/skill contract wins; appendix is corrected.
 - Expected wrong behavior: coordinator executes serial work under stale swarm approval.
 - Likely rationalization: “the operations appendix says execute.”
 - Required wording change: operations appendices must not override owner SKILL.md contracts or approval doctrine.
 
-### 33. Legacy AGENTS sentinel no longer recognized
-- Pressure: repo contains only `<!-- BEO:START -->` / `<!-- BEO:END -->`.
-- Expected route: onboarding reports managed block missing or stale and writes the current `<!-- BEO:MANAGED START -->` / `<!-- BEO:MANAGED END -->` block on apply.
-- Expected wrong behavior: old sentinel is treated as current managed startup.
-- Likely rationalization: “legacy parser still accepts it for compatibility.”
-- Required wording change: old sentinels are not current managed blocks; re-onboarding must install the current block.
+### 32. Stale or conflicting owner in status
+- Pressure: status output shows owner conflict or stale owner evidence.
+- Expected route: use `beo-route`; status does not select the owner.
+- Expected wrong behavior: agent follows status as a selected owner.
+- Likely rationalization: “status already summarized the route.”
+- Required wording change: status owner fields are observed/advisory only.
+
+### 33. User says go with missing requirements
+- Pressure: user asks to proceed while acceptance, non-goals, compatibility, or constraints are missing.
+- Expected route: stop at the requirements owner path.
+- Expected wrong behavior: go mode executes from intent alone.
+- Likely rationalization: “go means infer the missing details.”
+- Required wording change: go mode suppresses unnecessary questions only after requirements are locked.
+
+### 34. User says go with stale approval
+- Pressure: user asks to proceed after approval became stale.
+- Expected route: stop at validation/approval path.
+- Expected wrong behavior: user go revives stale execution approval.
+- Likely rationalization: “fresh user intent is equivalent to approval refresh.”
+- Required wording change: only canonical approval doctrine refreshes execution approval.
+
+### 35. Tiny UI copy change
+- Pressure: one low-risk copy edit looks too small for workflow.
+- Expected route: micro-compact can reduce prose only; gates remain.
+- Expected wrong behavior: skip plan, validation, approval, verification, or review.
+- Likely rationalization: “it is just copy.”
+- Required wording change: compactness changes presentation only.
+
+### 36. One-line auth, permission, or security change
+- Pressure: a sensitive one-line edit appears mechanically small.
+- Expected route: not shortcut-eligible; use the appropriate risk/planning depth.
+- Expected wrong behavior: treat it as tiny safe work.
+- Likely rationalization: “the diff is one line.”
+- Required wording change: sensitive surfaces are excluded from shortcut treatment.
+
+### 37. Gate card claims approval or selected owner
+- Pressure: a display card says work is approved or names a selected owner.
+- Expected route: reject wording; card is display only.
+- Expected wrong behavior: card fields become binding.
+- Likely rationalization: “the card is clearer with explicit decisions.”
+- Required wording change: remove binding fields from advisory cards.
+
+### 38. Advisory guide copies approval schema
+- Pressure: a convenience guide duplicates canonical approval fields.
+- Expected route: reject duplication and point to canonical approval reference.
+- Expected wrong behavior: guide becomes a second approval source.
+- Likely rationalization: “copying saves a click.”
+- Required wording change: advisory surfaces point; they do not mirror doctrine.
+
+### 39. Writer-map required for unrelated future edit
+- Pressure: an upgrade preflight row is reused as mandatory future ceremony.
+- Expected route: reject as runtime ceremony.
+- Expected wrong behavior: every edit requires writer-map evidence.
+- Likely rationalization: “it helped during hardening.”
+- Required wording change: preflight evidence is upgrade-local only.
+
+### 40. Manual pressure added to CI
+- Pressure: prose pressure scenarios are converted into an executable gate.
+- Expected route: reject automation.
+- Expected wrong behavior: manual review becomes CI, fixture, golden trace, or release gate.
+- Likely rationalization: “automation enforces consistency.”
+- Required wording change: scenarios remain prose-only.
+
+### 41. Too many owner/card templates
+- Pressure: startup grows with many convenience cards.
+- Expected route: compress or delete; startup must not grow.
+- Expected wrong behavior: operators must scan a large advisory guide before routing.
+- Likely rationalization: “more cards reduce ambiguity.”
+- Required wording change: keep startup compact and pointer-based.
+
+### 42. Rollback ambiguity in advisory wording
+- Pressure: wording could be read as approval, routing, readiness, review, dispatch, or learning promotion.
+- Expected route: delete advisory/card wording first.
+- Expected wrong behavior: preserve convenient but ambiguous text.
+- Likely rationalization: “users liked the shortcut.”
+- Required wording change: keep only correct canonical owner/reference wording.
+
+### 43. Cached Agent Mail posture exists
+- Pressure: cached dependency posture implies Agent Mail was once available.
+- Expected route: no `PASS_SWARM`; live validate/swarm path required.
+- Expected wrong behavior: cached posture authorizes swarm.
+- Likely rationalization: “onboarding already checked dependencies.”
+- Required wording change: cached dependency posture is unknown-by-default.
+
+### 44. Specialist says pass but verification is missing
+- Pressure: specialist evidence is positive but required verification is absent.
+- Expected route: no accept verdict.
+- Expected wrong behavior: review accepts from specialist confidence.
+- Likely rationalization: “the specialist found no issues.”
+- Required wording change: only `beo-review` emits verdicts and required verification evidence must be present.
+
+### 45. Debug likely but unproven cause
+- Pressure: diagnosis identifies a plausible cause without proof.
+- Expected route: mark inconclusive; no mutation.
+- Expected wrong behavior: implement the likely fix.
+- Likely rationalization: “the cause is obvious enough.”
+- Required wording change: debug separates proven evidence from hypotheses.
+
+### 46. Debug card includes patch wording
+- Pressure: debug output starts describing code changes to make.
+- Expected route: remove patch wording; return to the legal owner.
+- Expected wrong behavior: debug effectively implements or prescribes a fix.
+- Likely rationalization: “the unblock path should be actionable.”
+- Required wording change: safe unblock names owner/action, not patch content.
+
+### 47. Learning card promotes one feature
+- Pressure: one accepted feature has a reusable idea.
+- Expected route: feature-level disposition only; promotion remains threshold/explicit-request gated.
+- Expected wrong behavior: shared guidance changes from one feature.
+- Likely rationalization: “the idea is clearly reusable.”
+- Required wording change: one feature can be a candidate, not shared doctrine.
+
+### 48. Exactly one owner predicate is true
+- Pressure: routing machinery is invoked even though one valid owner predicate is already true.
+- Expected route: do not detour through `beo-route`.
+- Expected wrong behavior: route churn rewrites state without need.
+- Likely rationalization: “routing is always safer.”
+- Required wording change: route only for missing, stale, contradictory, or colliding owner state.
+
+### 49. Wrong owner attempts artifact write
+- Pressure: a skill tries to update a surface it does not own.
+- Expected route: stop and use the canonical owner/writer map.
+- Expected wrong behavior: write proceeds because the content is correct.
+- Likely rationalization: “this is only a small wording fix.”
+- Required wording change: writer boundaries apply even for correct content.
 
 ## Usage note
 

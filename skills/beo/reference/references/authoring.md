@@ -1,7 +1,3 @@
-<!-- owner: beo-reference -->
-<!-- version: 2026-04-29 -->
-<!-- last-reviewed: 2026-04-29 -->
-
 ## Contents
 
 - Placement rules
@@ -148,8 +144,7 @@ Startup templates, onboarding surfaces, and skill-local appendices should stay p
 | `references/message-templates.md` | debug output message shapes | `references/diagnostic-checklist.md` | Message shape prompts | merged to reduce local asset count |
 | `references/dream-operations.md` | consolidation flow | `beo-dream`; `beo-reference -> learning.md` | Primary decision; Consolidation record schema | local runtime doctrine merged |
 | `references/consolidation-rubric.md` | evidence threshold and owner clarity | `beo-dream`; `beo-reference -> learning.md` | Ownership test; Provenance schema | rubric merged |
-| legacy author operations reference | authoring severity, placement, version bump | `beo-author`; `beo-reference -> authoring.md` | Must not; Placement rules | skill-writing doctrine merged |
-| `references/escalation.md` | escalation doctrine | `beo-reference -> pipeline.md` | Allowed handoffs / wait statuses | obsolete split owner |
+| `references/escalation.md` | escalation doctrine | `beo-reference -> pipeline.md` | Allowed handoffs / wait statuses | split owner merged |
 | `references/bead-description-templates.md` | bead description template | `beo-reference -> artifacts.md` | Bead description schema | duplicate template |
 | `references/go-mode.md` | go-mode route state | `beo-reference -> state.md` | Go-mode marker | duplicate state protocol |
 | `references/context-template.md` | CONTEXT schema | `beo-reference -> artifacts.md` | CONTEXT.md schema | duplicate schema |

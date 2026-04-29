@@ -35,6 +35,17 @@ Decide whether accepted feature evidence supports a shared learning update or an
 - Do not implement product changes or reopen review.
 - Do not infer shared doctrine from isolated evidence.
 
+## Corpus consolidation card
+
+```md
+Candidate:
+Source features checked:
+Threshold evidence:
+Conflict check:
+Decision: consolidate | do-not-promote | needs-user
+Authority note: This output is valid only when emitted by `beo-dream`. Consolidation requires threshold evidence or an explicit corpus-level user request.
+```
+
 ## Allowed next owners
 - `user`
 - done

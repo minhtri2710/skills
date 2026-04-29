@@ -8,9 +8,6 @@ import {
   writeFile,
 } from 'node:fs/promises'
 
-const MANAGED_START = '<!-- BEO:MANAGED START -->'
-const MANAGED_END = '<!-- BEO:MANAGED END -->'
-
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const SKILL_ROOT = path.resolve(__dirname, '..')
 const TEMPLATE_PATH = path.join(SKILL_ROOT, 'assets', 'AGENTS.template.md')
@@ -18,6 +15,9 @@ const METADATA_PATH = path.join(__dirname, 'onboarding-metadata.json')
 const ONBOARDING_METADATA = JSON.parse(readFileSync(METADATA_PATH, 'utf8'))
 const VERSION = ONBOARDING_METADATA.version
 const MANAGED_STARTUP_CONTRACT_VERSION = ONBOARDING_METADATA.managed_startup_contract_version
+const MANAGED_START = '<!-- BEO:MANAGED START -->'
+const MANAGED_END = '<!-- BEO:MANAGED END -->'
+const MANAGED_BLOCK_PATTERN = new RegExp(`${MANAGED_START}[\\s\\S]*?${MANAGED_END}`)
 
 function parseArgs(argv) {
   const args = { repoRoot: '', apply: false }
@@ -82,7 +82,7 @@ async function readJsonIfExists(targetPath) {
 
 function normalizeManagedBlock(content) {
   if (!content) return null
-  const match = content.match(/<!-- BEO:MANAGED START -->[\s\S]*?<!-- BEO:MANAGED END -->/)
+  const match = content.match(MANAGED_BLOCK_PATTERN)
   return match ? match[0].trim() : null
 }
 
@@ -103,6 +103,10 @@ function statusScriptContent() {
     "import path from 'node:path'",
     "import { fileURLToPath } from 'node:url'",
     "import { readFileSync, existsSync } from 'node:fs'",
+    '',
+    `const MANAGED_START = ${JSON.stringify(MANAGED_START)}`,
+    `const MANAGED_END = ${JSON.stringify(MANAGED_END)}`,
+    "const MANAGED_BLOCK_PATTERN = new RegExp(`${MANAGED_START}[\\\\s\\\\S]*?${MANAGED_END}`)",
     '',
     'function readTextIfExists(targetPath) {',
     '  try {',
@@ -154,7 +158,6 @@ function statusScriptContent() {
     '  }',
     "  const managedBlockCurrent = Boolean(managedBlock) && managedBlock === expectedManagedBlock",
     "  const onboardingStatus = !onboarding ? 'missing' : onboarding.plugin === 'beo' && onboarding.plugin_version === " + JSON.stringify(VERSION) + " && onboarding.managed_startup_contract_version === " + JSON.stringify(MANAGED_STARTUP_CONTRACT_VERSION) + " && managedBlockCurrent ? 'up_to_date' : 'stale'",
-    "  const approvalStatus = stateJson?.approval_ref ? 'referenced_unverified' : 'missing'",
     "  const handoffFreshness = handoffExists ? 'present_unverified' : 'none'",
     "  const handoffVerificationRequired = handoffExists",
     "  const dependencyPosture = {",
@@ -165,10 +168,20 @@ function statusScriptContent() {
     "    beads_viewer: onboarding?.tooling?.bv ?? 'unknown',",
     "    agent_mail: 'unknown',",
     '  }',
+    "  const stateConflicts = []",
+    "  if (handoffExists) stateConflicts.push('handoff_present_unverified')",
+    "  if (stateJson?.approval_ref) stateConflicts.push('approval_ref_observed_unverified')",
+    "  const advisoryNextActions = [",
+    "    'run live onboarding check before trusting managed startup freshness',",
+    "    'read canonical state and active feature artifacts before owner selection',",
+    "    ...(stateConflicts.length ? ['use beo-route if live artifacts confirm missing, stale, contradictory, or colliding owner state'] : []),",
+    "  ]",
     '',
     '  return {',
     "    scout_schema_version: '1.0',",
     '    read_only: true,',
+    "    authority_notice: 'status is advisory/display only; it cannot route, approve, validate readiness, emit review verdicts, dispatch swarm work, or promote learning',",
+    '    not_live_checked: true,',
     '    onboarding: {',
     '      status: onboardingStatus,',
     '      live_check_required: true,',
@@ -177,7 +190,7 @@ function statusScriptContent() {
     '    state: {',
     '      exists: Boolean(stateJson),',
     "      schema_version: stateJson?.schema_version ?? null,",
-    "      current_owner: stateJson?.current_owner ?? null,",
+    "      observed_current_owner: stateJson?.current_owner ?? null,",
     "      operator_view: stateJson?.operator_view ?? null,",
     '    },',
     '    handoff: {',
@@ -186,26 +199,14 @@ function statusScriptContent() {
     '      verification_required: handoffVerificationRequired,',
     '      auto_resume_allowed: false,',
     '    },',
-    '    approval: {',
-    '      status: approvalStatus,',
-    "      approval_ref: stateJson?.approval_ref ?? null,",
-    "      current_claim: false,",
-    "      verification_required: Boolean(stateJson?.approval_ref),",
-    '    },',
-    '    readiness: {',
-    "      value: stateJson?.readiness ?? null,",
-    "      execution_mode: stateJson?.execution_mode ?? null,",
-    '    },',
+    "    observed_approval_ref: stateJson?.approval_ref ? 'referenced_unverified' : null,",
+    '    state_conflicts: stateConflicts,',
+    '    advisory_next_actions: advisoryNextActions,',
     '    reads: {',
     '      required: requiredReads,',
     '      conditional: conditionalReads,',
     '    },',
-    '    dependencies: dependencyPosture,',
-    '    orientation: {',
-    "      state_owner: stateJson?.current_owner ?? null,",
-    "      route_hint: stateJson?.current_owner ? 'state owner is an advisory route signal only; route from live artifacts when anything contradicts it' : 'owner missing; route from live artifacts',",
-    "      route_required_if: ['stale handoff', 'artifact contradiction', 'approval stale'],",
-    '    },',
+    '    dependency_posture: dependencyPosture,',
     '    warnings: [',
     "      ...(managedBlockCurrent ? [] : ['managed AGENTS.md block missing or stale']),",
     "      ...(dependencyPosture.stale_possible ? ['dependency posture is cached orientation; rerun live onboarding check for current capability'] : []),",
@@ -223,8 +224,9 @@ function statusScriptContent() {
     '  const lines = [',
     "    `read_only: ${status.read_only}` ,",
     "    `onboarding: ${status.onboarding.status}` ,",
-    "    `state: ${status.state.current_owner ?? 'missing'}` ,",
+    "    `state.observed_current_owner: ${status.state.observed_current_owner ?? 'missing'}` ,",
     "    `handoff: ${status.handoff.exists ? status.handoff.freshness : 'none'}` ,",
+    "    `authority: advisory/display only` ,",
     "    `reads.required: ${status.reads.required.join(', ') || 'none'}` ,",
     "    `reads.conditional: ${status.reads.conditional.join(', ') || 'none'}` ,",
     '  ]',
@@ -258,6 +260,7 @@ function buildActions(details) {
 
   if (
     !details.status_script_exists ||
+    !details.status_script_current ||
     !details.plugin_match ||
     !details.plugin_version_match ||
     !details.managed_startup_contract_version_match ||
@@ -317,6 +320,7 @@ export async function checkRepo(repoRoot) {
   const stateJson = stateFileExists ? await readJsonIfExists(statePath) : null
   const templateBlock = normalizeManagedBlock(template)
   const currentBlock = agentsContent ? normalizeManagedBlock(agentsContent) : null
+  const statusScriptContentCurrent = await readTextIfExists(statusScriptPath)
 
   const details = {
     agents_md_exists: Boolean(agentsContent),
@@ -328,6 +332,7 @@ export async function checkRepo(repoRoot) {
     managed_startup_contract_version_match:
       onboarding?.managed_startup_contract_version === MANAGED_STARTUP_CONTRACT_VERSION,
     status_script_exists: await pathExists(statusScriptPath),
+    status_script_current: statusScriptContentCurrent === statusScriptContent(),
     state_json_exists: stateFileExists,
     state_json_parseable: stateFileExists && stateJson !== null,
     critical_patterns_exists: await pathExists(criticalPatternsPath),
@@ -364,7 +369,7 @@ function replaceManagedBlock(existingContent, template) {
   const hasEnd = endCount === 1
 
   if (hasStart && hasEnd) {
-    const content = existingContent.replace(/<!-- BEO:MANAGED START -->[\s\S]*?<!-- BEO:MANAGED END -->/, template.trim())
+    const content = existingContent.replace(MANAGED_BLOCK_PATTERN, template.trim())
     return { content: content.endsWith('\n') ? content : `${content}\n`, mode: 'updated_managed_block' }
   }
 

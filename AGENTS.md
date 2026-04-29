@@ -46,7 +46,7 @@ A collection of 13 canonical beo skills and shared references for structured, co
 3. If `.beads/beo_status.mjs` exists, run `node .beads/beo_status.mjs --json` after the live check passes.
 4. Reopen `.beads/STATE.json` and `.beads/HANDOFF.json` when present; verify handoff freshness before routing.
 5. Reopen active feature artifacts under `.beads/artifacts/<feature_slug>/` before acting on that feature.
-6. Treat cached dependency posture as advisory and unknown-by-default; only live `beo-validate` / `beo-swarm` checks can authorize `PASS_SWARM`.
+6. Treat status output and cached dependency posture as advisory/display only; canonical owners and references remain binding.
 
 ## Beo Skill Chain
 
@@ -62,16 +62,11 @@ Canonical pointers:
 - state and handoff freshness: `beo-reference -> state.md`
 - commands: `beo-reference -> cli.md`
 
-## Runtime Rules
+## Advisory Status Rule
 
-- Never execute without validation approval.
-- `CONTEXT.md` owns locked decisions.
-- `beo-route` selects exactly one next owner.
-- `beo-swarm` coordinates and never implements as coordinator.
-- Swarm never self-downgrades to serial; reclassification returns through `beo-validate`.
-- Managed startup freshness comes from the live onboarding check, not file presence.
-- Do not disturb concurrent work from other agents.
-- After bead DB mutations, flush with `br sync --flush-only` before committing.
+Startup and status surfaces are orientation only. They do not approve execution,
+select routes, validate readiness, emit review verdicts, dispatch swarm work, or
+promote learning.
 
 ## Working Files
 

@@ -9,6 +9,11 @@ metadata:
       command: br
       missing_effect: unavailable
       reason: Required to prove bead graph readiness and approved execution units.
+    - id: beads-viewer
+      kind: command
+      command: bv
+      missing_effect: degraded
+      reason: Useful for viewer-backed bead inspection; missing `bv` does not replace live bead graph proof from `br`.
     - id: agent-mail
       kind: mcp_server
       server_names: [mcp_agent_mail]
@@ -33,6 +38,19 @@ Emit exactly one readiness verdict: `PASS_SERIAL`, `PASS_SWARM`, `FAIL_EXPLORE`,
 ## Dependencies
 Machine-readable dependency posture lives in frontmatter. When `agent-mail` is unavailable, this owner cannot emit `PASS_SWARM`.
 
+## Readiness classification order
+
+Evaluate mode readiness in this order:
+
+1. Missing or contradicted requirements -> `FAIL_EXPLORE`.
+2. Missing, incomplete, stale, or scope-invalid plan/bead graph -> `FAIL_PLAN`.
+3. Missing external authorization, access, secret, or required clarification -> `BLOCK_USER`.
+4. Stale, missing, or changed execution approval envelope -> grant or refresh through canonical approval doctrine before pass verdict.
+5. Two or more approved ready beads with isolation proof and live Agent Mail -> `PASS_SWARM`.
+6. Exactly one approved ready bead, or a fresh serial fallback explicitly valid against the current approval envelope -> `PASS_SERIAL`.
+
+Do not emit `PASS_SERIAL` merely because at least one bead is ready when multiple approved ready beads exist. Multiple ready beads must evaluate swarm eligibility before serial fallback.
+
 ## Writable surfaces
 - Readiness, approval reference, and execution-mode fields in shared state surfaces.
 - Bead readiness/status fields only as allowed by canonical bead/status mapping.
@@ -49,6 +67,7 @@ Machine-readable dependency posture lives in frontmatter. When `agent-mail` is u
 > - Route content repair to artifact owners.
 > - Grant or refresh approval only through canonical approval doctrine.
 > - Emit `BLOCK_USER` when required external authorization, access, secret, or clarification is missing.
+> - Status, onboarding, and Go Mode displays cannot substitute for readiness or mode classification.
 
 ## Hard stops
 - Do not edit `CONTEXT.md`, `PLAN.md`, or implementation files.

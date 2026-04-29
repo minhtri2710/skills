@@ -1,7 +1,3 @@
-<!-- owner: beo-reference -->
-<!-- version: 2026-04-29 -->
-<!-- last-reviewed: 2026-04-29 -->
-
 ## Contents
 
 - Core flow
@@ -26,10 +22,14 @@ Use this as the first-pass operational view. It does not replace canonical doctr
 
 Go mode is a macro over this flow, not a separate owner. See `beo-reference -> go-mode.md`.
 
+First move: run managed startup, read the minimum canonical state/artifacts, then continue with the single current owner when fresh and uncontradicted. Use `beo-route` only when owner state is missing, stale, contradictory, or colliding.
+
 ## Session scout summary
 
 Use this shape for first-pass operator orientation. It is presentation only and
 must not authorize execution, replace routing, or create approval.
+Status and scout output are advisory/display only; they cannot select owners,
+approve readiness, emit review verdicts, dispatch swarm work, or promote learning.
 
 | Field | Source | Meaning |
 | --- | --- | --- |
@@ -40,14 +40,10 @@ must not authorize execution, replace routing, or create approval.
 | plan | `PLAN.md` + bead graph | missing, incomplete, current, or invalidated |
 | approval | `approval-record.json` + approval doctrine | missing, referenced-unverified, current, or stale |
 | readiness | `STATE.json.readiness` | absent, `PASS_SERIAL`, `PASS_SWARM`, or failure class |
-| route hint | `beo-route`-relevant evidence | advisory route signal only; not a final owner decision |
 | blockers | live artifacts | external input, access, root cause, or artifact repair |
 | next reads | required vs conditional | minimum files to confirm the route |
 
-`route hint` is not a recommendation, approval, or owner decision.
 Only a valid current owner or `beo-route` may select the next owner.
-If `route hint` conflicts with canonical artifacts, ignore the hint and route
-from live evidence.
 
 If the scout output conflicts with canonical artifacts, trust canonical artifacts
 and route through `beo-route`.
@@ -66,12 +62,11 @@ Current state:
 - Next legal action:
 - Must read:
 - Must not touch:
-- Route hint:
 - Route required if:
 ```
 
 `Route required if` may name missing, stale, contradictory, or ambiguous evidence.
-It must not say "recommended owner" or authorize execution.
+It must not authorize execution.
 
 ## Communication contract
 
@@ -96,12 +91,15 @@ These checkpoints are user-facing summaries, not gate records.
 
 | Checkpoint | Show | Authority remains |
 | --- | --- | --- |
-| explore complete | locked decisions, acceptance, non-goals, compatibility, constraints | `CONTEXT.md` |
-| plan complete | phase exit state, bead set, file scope, forbidden paths, verification | `PLAN.md` + bead graph |
-| validate complete | approved beads, mode, approval ref, invalidation triggers | `approval-record.json` |
-| review complete | verdict, P0/P1 status, verification evidence, learning disposition | `REVIEW.md` |
+| startup / route sanity | onboarding freshness, required reads, current-owner conflicts | live onboarding check + `STATE.json`; `beo-route` when needed |
+| requirements | locked decisions, acceptance, non-goals, compatibility, constraints | `CONTEXT.md` |
+| plan / approval | phase exit state, bead set, file scope, forbidden paths, verification, approval ref | `PLAN.md` + bead graph + `approval-record.json` |
+| serial execution | executed bead, changed files, verification evidence, scope match | `beo-execute` + `execution-bundle.json` |
+| swarm dispatch | isolated approved beads, live coordination evidence, aggregation status | `beo-swarm` + live coordination checks |
+| review | verdict, P0/P1 status, verification evidence | `REVIEW.md` |
+| learning | no-learning, feature learning, or consolidation candidate | `beo-reference -> learning.md`, `beo-compound`, `beo-dream` |
 
-Do not create separate phase, story, merge, or UAT approval records from these summaries.
+Do not create separate phase, story, merge, or UAT approval records from these summaries. Display checkpoints must not approve, route, validate, dispatch, accept, reject, or promote.
 
 ## Optional closure
 
@@ -138,7 +136,7 @@ Use `STATE.json.operator_view` for quick orientation, but trust canonical fields
 
 ## Exit packet
 
-Return only:
+Return only from the canonical owner that owns the decision:
 - decision
 - evidence
 - changed surfaces

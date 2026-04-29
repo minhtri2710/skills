@@ -39,6 +39,17 @@ Decide whether one accepted feature has durable learning, unclear learning, or e
 - Do not write feature learning without accepted-review evidence.
 - Do not reopen implementation or review findings.
 
+## Feature learning disposition card
+
+```md
+Feature:
+Accepted evidence checked:
+Disposition: no-learning | durable-candidate | unclear
+Promotion status: none | candidate-only
+Continue via:
+Authority note: This output is valid only when emitted by `beo-compound`. It records one feature-level outcome only and does not promote shared guidance.
+```
+
 ## Allowed next owners
 - `beo-dream`
 - `user`

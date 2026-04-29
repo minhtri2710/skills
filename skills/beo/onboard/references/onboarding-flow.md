@@ -33,9 +33,6 @@ The `checkRepo` return value contains a script-level `status`, not a routing sta
 
 ## Managed surfaces
 
-Legacy sentinels `<!-- BEO:START -->` / `<!-- BEO:END -->` are not recognized as current managed blocks. Re-onboarding writes the current `<!-- BEO:MANAGED START -->` / `<!-- BEO:MANAGED END -->` block.
-
-
 | Surface | Rule |
 | --- | --- |
 | `AGENTS.md` managed block | create, append, or replace only between BEO sentinels |
@@ -80,15 +77,14 @@ validate onboarding freshness, authorize execution, or replace live routing.
 `node .beads/beo_status.mjs --json` should expose:
 - `read_only: true`
 - onboarding freshness summary plus the live check command
-- `state.current_owner`, `state.schema_version`, and `state.operator_view` when present
+- observed current owner, state schema version, and operator view when present
 - handoff existence plus freshness signal
-- approval/readiness summary when present; approval pointers must be reported as `referenced_unverified`, never `current`, unless the live approval doctrine has been verified outside the scout
+- approval reference observations only when present; approval pointers must be reported as `referenced_unverified`, never `current`, unless the live approval doctrine has been verified outside the scout
 - `reads.required` vs `reads.conditional`
-- dependency posture when known
-- `orientation.state_owner` as a display of canonical `STATE.json.current_owner` only
-- `orientation.route_hint` as advisory only; not a final recommended owner
-- `orientation.route_required_if` conditions that require `beo-route`
-- do not emit a recommended owner field
+- advisory dependency posture when known
+- state conflicts and advisory next actions when observed
+- an authority notice that status is display-only and cannot route, approve, validate, review, dispatch, or promote
+- no `next_owner`, `recommended_owner`, `selected_owner`, `approved`, `ready`, `PASS_SERIAL`, `PASS_SWARM`, terminal verdict, or promotion decision fields
 
 ## Apply order
 

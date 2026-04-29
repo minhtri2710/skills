@@ -39,6 +39,7 @@ Turn locked requirements into an executable current-phase plan and bead graph.
 > - Select the smallest safe planning depth.
 > - Include required sections for that depth.
 > - Let `beo-validate` classify readiness after planning writes.
+> - Compact planning reduces prose only; it never bypasses validation or approval.
 
 ## Hard stops
 - Do not execute implementation.

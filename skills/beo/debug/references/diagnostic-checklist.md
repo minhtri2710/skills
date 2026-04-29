@@ -16,6 +16,19 @@ Allowed content only: diagnostic checklist and output message shapes; no owner m
 ## Message shape prompts
 
 - Finding: `<root cause or inconclusive>`
-- Evidence: `<commands/artifacts observed>`
+- Evidence: `<commands/artifacts observed and exact contradicted expectation>`
+- Proof status: `proven | inconclusive`
+- Hypotheses not proven: `<list-or-none>`
 - Safe unblock: `<smallest in-scope action or none>`
 - Return evidence: `<origin-facing summary>`
+
+Inconclusive shape:
+
+```md
+Finding: inconclusive
+Evidence checked:
+First contradicted expectation:
+Hypotheses not proven:
+Why mutation is unsafe:
+Return evidence:
+```

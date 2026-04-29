@@ -1,7 +1,3 @@
-<!-- owner: beo-reference -->
-<!-- version: 2026-04-29 -->
-<!-- last-reviewed: 2026-04-29 -->
-
 ## Contents
 
 - Purpose
@@ -101,7 +97,7 @@ Proceed with a conservative assumption and record it in the owning artifact or
 ## Shared forbidden surfaces baseline
 Unless a skill explicitly lists an exception in `Writable surfaces`, treat the following as forbidden by default:
 - artifacts, refs, fixtures, or product files owned by another skill
-- deleted or merged legacy reference files
+- deleted or merged reference files
 - runtime capability or pipeline topology
 
 ## Shared forbidden behaviors

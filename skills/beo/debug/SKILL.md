@@ -37,6 +37,18 @@ Establish a single root cause and return the smallest safe unblock path.
 - Do not implement the fix unless ownership routes back through an execution owner.
 - Do not redesign scope or decomposition.
 - Do not present speculation as root cause.
+- Do not include patch wording in diagnostic output; return proven cause and legal unblock owner/action only.
+
+## Output card
+
+```md
+Finding:
+Evidence checked:
+Proof status: proven | inconclusive
+Safe unblock:
+Return evidence:
+Authority note: This output is valid only when emitted by `beo-debug`. It proves diagnosis only and does not authorize mutation.
+```
 
 ## Allowed next owners
 - `beo-execute`

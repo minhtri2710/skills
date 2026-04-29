@@ -45,12 +45,12 @@ Machine-readable dependency posture lives in frontmatter. Missing `br` or `bv` d
 > Canonical: `beo-reference -> coordination.md`
 > Locally enforced as:
 > - Agent Mail posture from onboarding is advisory and unknown-by-default.
-> - Onboarding never authorizes `PASS_SWARM`.
+> - Onboarding never authorizes `PASS_SERIAL` or `PASS_SWARM`.
 > - Live `beo-validate` / `beo-swarm` checks decide swarm readiness.
 
 ## Hard stops
 - Do not edit doctrine as onboarding repair.
-- Do not create approvals, route decisions, or execution readiness.
+- Do not create approvals, route decisions, execution readiness, or live Agent Mail readiness.
 - Do not add Agent Mail probing to onboarding.
 
 ## Allowed next owners

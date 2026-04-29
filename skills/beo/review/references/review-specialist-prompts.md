@@ -8,7 +8,7 @@ Allowed content only: prompt text only; no verdict or routing rules
 ## Review specialist prompt
 
 You are reviewing terminal execution evidence for a beo feature. Assess the evidence against the locked contracts and approval scope. Do not implement fixes.
-Specialist lenses produce evidence, not verdicts.
+Specialist lenses produce evidence, not verdicts; lens labels cannot accept work.
 Only `beo-review` emits the terminal verdict.
 
 Inputs to inspect:
