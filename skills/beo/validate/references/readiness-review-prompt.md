@@ -28,6 +28,12 @@ Checklist:
 7. Check the execution envelope proposal for candidate mode, approved beads, scope refs, and verification coverage consistent with the bead graph.
 8. Check serial/swarm mode evidence is supportable by dependency and file-scope isolation.
 9. Identify contract-bearing mutations that would require approval invalidation.
+10. Count ready beads:
+   - exactly one ready bead
+   - two or more ready beads with isolation proof
+   - two or more ready beads without isolation proof
+11. Confirm whether Agent Mail availability supports swarm dispatch.
+12. Confirm whether any serial fallback would require a fresh serial approval envelope.
 
 Return shape:
 
@@ -39,8 +45,11 @@ Readiness concerns:
 - <concern or none>
 
 Mode considerations:
-- serial: <evidence>
-- swarm: <evidence>
+- ready bead count: <number and ids>
+- serial eligibility: <evidence or none>
+- swarm eligibility: <evidence or none>
+- Agent Mail dependency: <available/unavailable/unknown>
+- fallback approval note: <fresh serial envelope required? yes/no/N/A>
 
 Approval freshness inputs:
 - context_hash source: <path>

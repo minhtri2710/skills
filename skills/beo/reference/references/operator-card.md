@@ -8,6 +8,75 @@ Use this as the first-pass operational view. It does not replace canonical doctr
 
 Go mode is a macro over this flow, not a separate owner. See `beo-references -> go-mode.md`.
 
+## Session scout summary
+
+Use this shape for first-pass operator orientation. It is presentation only and
+must not authorize execution, replace routing, or create approval.
+
+| Field | Source | Meaning |
+| --- | --- | --- |
+| onboarding freshness | live onboard check or scout hint | whether managed startup needs `beo-onboard` |
+| active feature | canonical `STATE.json` plus live artifacts | selected feature slug or ambiguity |
+| current owner | canonical `STATE.json.current_owner` | trusted only when not contradicted |
+| requirements | `CONTEXT.md` | missing, unlocked, locked, or contradicted |
+| plan | `PLAN.md` + bead graph | missing, incomplete, current, or invalidated |
+| approval | `approval-record.json` + approval doctrine | missing, referenced-unverified, current, or stale |
+| readiness | `STATE.json.readiness` | absent, `PASS_SERIAL`, `PASS_SWARM`, or failure class |
+| likely next owner | `beo-route` evidence | route candidate, not a final scout decision |
+| blockers | live artifacts | external input, access, root cause, or artifact repair |
+| next reads | required vs conditional | minimum files to confirm the route |
+
+If the scout output conflicts with canonical artifacts, trust canonical artifacts
+and route through `beo-route`.
+
+### Operator summary shape
+
+When presenting first-pass orientation to a human or freshly resumed agent, use
+this concise shape. It is advisory only; `beo-route` remains the owner selector.
+
+```md
+Current state:
+- Feature:
+- Current owner:
+- Why this owner:
+- Blocking evidence:
+- Next legal action:
+- Must read:
+- Must not touch:
+- Route required if:
+```
+
+`Route required if` may name missing, stale, contradictory, or ambiguous evidence.
+It must not say "recommended owner" or authorize execution.
+
+## Communication contract
+
+For route decisions, validation failures, blockers, review findings, and
+handoffs, report in this order:
+
+1. Plain-language summary
+2. Current evidence
+3. Why it matters
+4. Concrete scenario
+5. Next legal owner/action
+
+Translate decision ids, invariants, and owner rules into user-visible meaning.
+Do not say only "violates D5"; explain what D5 requires and what would break in
+the workflow or delivered behavior.
+
+## Go-mode display checkpoints
+
+These checkpoints are user-facing summaries, not gate records.
+
+| Checkpoint | Show | Authority remains |
+| --- | --- | --- |
+| explore complete | locked decisions, acceptance, non-goals, compatibility, constraints | `CONTEXT.md` |
+| plan complete | phase exit state, bead set, file scope, forbidden paths, verification | `PLAN.md` + bead graph |
+| validate complete | approved beads, mode, approval ref, invalidation triggers | `approval-record.json` |
+| review complete | verdict, P0/P1 status, verification evidence, learning disposition | `REVIEW.md` |
+
+Do not create separate phase, story, merge, or UAT approval records from these summaries.
+
 ## Optional closure
 
 `review -> compound -> dream/done`

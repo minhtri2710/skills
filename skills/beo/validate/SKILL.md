@@ -48,8 +48,15 @@ Validation ladder:
 2. plan, phase contract, story map, risk proof, bead graph, file scope, forbidden paths, or verification incomplete? -> `FAIL_PLAN`
 3. required external approval, access, secret, or clarification missing? -> `BLOCK_USER`
 4. execution envelope unchanged? -> approval action `refresh`; otherwise `new_grant`
-5. one approved ready bead? -> `PASS_SERIAL`
-6. isolated approved bead set? -> `PASS_SWARM`
+5. exactly one approved ready bead under a serial execution envelope? -> `PASS_SERIAL`
+6. at least two approved ready beads have recorded isolation and dependency proof, and Agent Mail is available? -> `PASS_SWARM`
+7. multiple ready beads exist but swarm is unavailable or invalid? -> `PASS_SERIAL` only when one explicitly approved serial bead remains valid under a fresh serial execution envelope; otherwise `FAIL_PLAN` or `BLOCK_USER` by the blocking evidence
+
+Mode precedence rule:
+Do not emit `PASS_SERIAL` merely because at least one ready bead exists.
+When two or more ready beads are present, first evaluate swarm eligibility.
+Serial fallback from a failed, unavailable, or stale swarm path requires a fresh
+`PASS_SERIAL` verdict and must not reuse swarm approval.
 
 If plan or requirements content must change, stop classification and route to the artifact owner. Do not write repair plans here.
 
@@ -79,11 +86,18 @@ Required for `standard_feature` and `high_risk_feature`:
 - discovery facts when needed
 - story map
 - risk map
+- proof or accepted mitigation for every MED risk that can affect acceptance, scope, verification, rollback, security, privacy, migration behavior, or compatibility
 
 Required for `high_risk_feature`:
 - proof/spike/manual evidence for HIGH risks, or an explicit non-execution route for missing proof
 - rollback expectation or pivot signal
 - multi-phase boundary when the feature cannot safely ship in one phase
+
+Before approving execution, confirm:
+- proof type is recorded for each required MED/HIGH risk
+- spike-required risks have a passed spike result or route back to `beo-plan`
+- phase exit state is observable by command, inspection, runtime behavior, or explicit UAT
+- bead acceptance maps to the story or current-phase exit state
 
 Missing required planning-depth content is `FAIL_PLAN`.
 If this checklist conflicts with `beo-references -> complexity.md`, `complexity.md` owns planning-depth section requirements.
@@ -124,18 +138,20 @@ Choose execution mode only after requirements, plan, approval prerequisites, fil
 
 | Evidence | Verdict |
 | --- | --- |
-| exactly one approved ready bead | `PASS_SERIAL` |
-| multiple beads exist but only one is currently ready | `PASS_SERIAL` for the selected ready bead |
+| exactly one approved ready bead under an explicit serial execution envelope | `PASS_SERIAL` |
+| multiple beads exist but only one is currently ready and the selected ready bead is covered by an explicit serial execution envelope | `PASS_SERIAL` for the selected ready bead |
 | at least two approved ready beads have recorded isolation and dependency proof, and Agent Mail is available | `PASS_SWARM` |
 | at least two beads could be parallel but isolation proof is missing | `FAIL_PLAN` |
 | ready beads have overlapping file scope or dependency conflict | `FAIL_PLAN` |
-| Agent Mail is unavailable before dispatch but one safe serial bead remains under the same valid envelope | `PASS_SERIAL` only if serial mode is explicitly valid under current approval; otherwise `FAIL_PLAN` |
+| Agent Mail is unavailable before dispatch and the existing envelope is swarm | no `PASS_SWARM`; route through fresh serial classification, never reuse swarm approval |
+| Agent Mail is unavailable before dispatch and one explicitly approved serial bead remains under a fresh serial envelope | `PASS_SERIAL` |
+| Agent Mail is unavailable before dispatch and no fresh serial envelope is valid | `FAIL_PLAN` or `BLOCK_USER` by the blocking evidence |
 | external approval, access, secret, or clarification is missing | `BLOCK_USER` |
 
 Swarm fallback classification belongs here.
 A failed or unavailable swarm path may become serial only through a fresh `PASS_SERIAL` verdict.
 Do not reuse swarm approval as serial approval.
-Missing `agent-mail` dependency may degrade classification to `PASS_SERIAL` only when one explicitly approved serial bead remains valid under the current envelope; otherwise it blocks `PASS_SWARM`.
+Missing `agent-mail` dependency may degrade classification to `PASS_SERIAL` only when one explicitly approved serial bead remains valid under a fresh serial envelope; otherwise it blocks `PASS_SWARM`.
 
 ## Exit routing
 

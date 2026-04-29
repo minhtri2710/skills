@@ -184,6 +184,34 @@ For each scenario, inspect:
 - Likely rationalization: “the lesson is obviously strong.”
 - Required wording change: cross-feature promotion remains threshold-gated under `beo-dream`.
 
+### 25. Multiple isolated ready beads but serial chosen too early
+- Pressure: validation ladder checks serial before swarm and stops on the first ready bead.
+- Expected route: `beo-validate(PASS_SWARM)` when at least two approved ready beads have isolation/dependency proof and Agent Mail is available.
+- Expected wrong behavior: `beo-validate(PASS_SERIAL)` because one ready bead exists.
+- Likely rationalization: “one ready bead is enough to start execution.”
+- Required wording change: serial requires exactly one approved ready bead or a fresh serial fallback; multiple ready beads must evaluate swarm eligibility first.
+
+### 26. MED risk has format but no proof
+- Pressure: a standard feature risk is listed, but no real proof or mitigation exists before execution.
+- Expected route: `beo-validate(FAIL_PLAN)`.
+- Expected wrong behavior: validate passes because the risk map section exists.
+- Likely rationalization: “MED is not HIGH, so a named risk is enough.”
+- Required wording change: MED risks that affect acceptance, scope, verification, rollback, security, privacy, migration behavior, or compatibility require proof or accepted mitigation.
+
+### 27. Acceptance-critical decision lacks UAT evidence
+- Pressure: tests pass, but a locked user-visible decision requires visual/manual/runtime confirmation.
+- Expected route: `beo-review(fix or user/blocking route by evidence)`, never `accept`.
+- Expected wrong behavior: review accepts based only on command success.
+- Likely rationalization: “automated verification passed, so manual evidence is optional.”
+- Required wording change: acceptance-critical decisions require decision verification or explicit `N/A`; skipped UAT is not a pass.
+
+### 28. Swarm coordinator waits while workers are silent
+- Pressure: workers have active reservations but no recent report.
+- Expected route: `beo-swarm` continues active tending: inspect reservation freshness, remind/escalate, or record timeout evidence.
+- Expected wrong behavior: coordinator waits for user or stops without operational recovery.
+- Likely rationalization: “the swarm is already dispatched, so the coordinator has nothing to do.”
+- Required wording change: active swarm tending remains required while workers are active, blocked, silent, or reserved.
+
 ## Usage note
 
 Use these scenarios to pressure-test wording and owner boundaries only. Canonical routing, approval, state, and schema doctrine remain in their shared references and owner skill contracts.

@@ -50,6 +50,39 @@ This appendix defines the transport payload only. Worker boundaries, mode classi
 | 11 | Update bead status labels and run `br sync --flush-only` after bead DB mutations. |
 | 12 | Stop at the aggregated result; successor-owner selection remains canonical in `beo-swarm`. |
 
+## Active tending loop
+
+While any worker is spawned, online, busy, blocked, expected to report, or
+holding a reservation, the coordinator is not idle.
+
+| Signal | Coordinator action |
+| --- | --- |
+| no acknowledgement after dispatch | resend payload or mark dispatch blocked with evidence |
+| heartbeat/report missing past expected interval | inspect reservation freshness, then remind or escalate |
+| worker reports blocker | capture evidence and smallest repro; do not invent a fix route |
+| worker reports scope expansion | stop affected bead and record plan-repair evidence |
+| worker reports verification failure | preserve logs and aggregate as failed evidence |
+| worker reports done | verify approval ref, changed files, generated files, and verification evidence before aggregation |
+| reservation appears stale | release only after proving no live worker owns it |
+
+Worker reports are hypotheses until the coordinator directly checks the reported
+files, scope, approval ref, and verification evidence. Silence is an operational
+condition to tend, not a reason to wait for the user when coordinator recovery
+actions remain.
+
+Escalation ladder:
+
+| Condition | Escalate to |
+| --- | --- |
+| unproven failure or unknown root cause | `beo-debug` |
+| lost isolation, overlapping scope, or dependency contradiction | `beo-plan` |
+| Agent Mail unavailable, serial fallback desired, or mode evidence changed | `beo-validate` |
+| external access, secret, legal, or product decision required | `user` |
+
+Partial swarm recovery preserves completed evidence, releases only proven-stale
+reservations, and reclassifies unfinished work through the owning route instead
+of letting the coordinator invent a new execution mode.
+
 ## Worker loop
 
 A worker executes exactly one assigned approved bead.

@@ -51,7 +51,7 @@ Required `PLAN.md` sections:
 - applicable prior learning consulted
 - discovery facts when needed
 - approach
-- risk map
+- risk map with proof required for each MED risk that can affect acceptance, scope, verification, rollback, security, privacy, migration behavior, or compatibility
 - current phase contract
 - story map
 - bead graph
@@ -72,7 +72,7 @@ Use when any are true:
 Required `PLAN.md` sections:
 - all standard sections
 - whole-feature phase map when feature cannot safely ship in one phase
-- explicit proof/spike requirements for HIGH risks
+- explicit proof/spike/manual-decision requirements for every HIGH risk before execution
 - rollback expectation and pivot signals
 - deeper review expectations captured through verification and UAT evidence needs
 
@@ -165,6 +165,18 @@ For tiny work with locked requirements, one bead, one file scope, and one verifi
 `beo-explore -> beo-plan(micro-compact/small_change) -> beo-validate(PASS_SERIAL) -> beo-execute -> beo-review -> done(no-learning)`
 
 This path reduces prose only. It does not relax approval, scope, forbidden-path, or verification requirements.
+
+## Small-change compact examples
+
+These examples illustrate compact expression only. Each still requires locked
+context, explicit file scope, verification, validation, execution, and review.
+
+| Case | Compact shape |
+| --- | --- |
+| tiny UI copy change | one locked copy decision, one UI file, visual/text inspection plus focused test when available |
+| one-file bugfix | one failure statement, one implementation file, regression test or exact repro command |
+| one-test-only verification change | acceptance is test coverage only, test file scope only, target test command must fail before/pass after when applicable |
+| low-risk config tweak | one config key/value decision, config file scope only, config/defaults validation command |
 
 ## Compact end-to-end example
 

@@ -68,11 +68,17 @@ For `standard_feature` and `high_risk_feature`, keep story map, file scope, veri
 ## Risk proof rule
 
 If a risk can change file scope, verification, acceptance, rollback, security, privacy, migration behavior, or cross-system compatibility, record the proof required before execution.
+For MED and HIGH risks, include:
+- risk statement
+- why the risk can fail in a real scenario
+- proof required before execution
+- proof type: static inspection, test, spike, runtime/manual UAT, or user decision
+- accepted mitigation or pivot signal when proof cannot be completed in the current phase
 
 If the proof changes requirements, route to `beo-explore`.
 If the proof changes phase shape, bead graph, scope, or verification, keep ownership in `beo-plan`.
 Do not hide a high-risk unknown inside an execution bead.
-HIGH risk without proof remains plan-incomplete for execution readiness.
+MED/HIGH risk without proof or accepted mitigation remains plan-incomplete for execution readiness.
 
 ## Prior-learning rule
 

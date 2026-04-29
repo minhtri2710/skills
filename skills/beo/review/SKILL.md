@@ -96,6 +96,18 @@ Required lenses:
 - security/privacy lens
 - maintainability lens
 
+When writing `REVIEW.md`, use the minimum evidence shape from
+`beo-references -> artifacts.md`, including:
+- evidence reviewed
+- decision verification / UAT checks
+- approval/scope lens with one row per changed file
+- verification lens with required command/check results
+- open findings with severity and route owner
+- learning disposition
+- reactive-fix eligibility when applicable
+
+Do not replace lens evidence with bare labels like `pass` or `looks good`.
+
 Lens findings are evidence, not separate verdicts.
 
 ## Learning closure rule

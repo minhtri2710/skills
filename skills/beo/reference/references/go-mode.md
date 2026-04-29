@@ -20,6 +20,23 @@ Use `beo-dream` only when the cross-feature consolidation threshold is met.
 | terminal verdict | `beo-review` | `REVIEW.md` |
 | learning disposition | `beo-review` / `beo-compound` / `beo-dream` | inline no-learning or learning record |
 
+Gate names are display labels only. They must not create separate
+`phase_approval`, `story_approval`, `merge_approval`, `beo-go`, or `beo-uat`
+records.
+
+## Operator sequence
+
+Use the smallest safe ceremony from `beo-references -> complexity.md`.
+
+| Step | Operator display | Required owner evidence |
+| --- | --- | --- |
+| intake | "requirements are locked" | `CONTEXT.md` has acceptance, non-goals, compatibility, constraints |
+| planning | "current phase is executable" | `PLAN.md` has phase, beads, scope, verification, and risk proof required by planning depth |
+| validation | "execution is approved" | approval envelope binds beads, mode, scope, forbidden paths, verification, and freshness inputs |
+| execution | "approved work is being delivered" | serial bead or swarm proof remains inside the approval envelope |
+| review | "terminal verdict is ready" | evidence bundle proves acceptance, scope, verification, and decision/UAT coverage |
+| closure | "learning disposition is settled" | `no-learning`, feature learning, or cross-feature consolidation threshold is recorded |
+
 ## Operator behavior
 
 - Go mode suppresses unnecessary user questions; it does not suppress owner selection.

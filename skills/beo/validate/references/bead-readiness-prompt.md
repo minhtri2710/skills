@@ -24,6 +24,9 @@ Checklist:
 5. Confirm verification commands are concrete and runnable.
 6. Confirm dependency edges prevent unsafe ordering.
 7. Confirm swarm eligibility is denied when scopes overlap or dependency edges exist.
+8. Count ready beads and list ids that are operationally ready.
+9. Distinguish serial eligibility from merely having at least one ready bead.
+10. Record whether Agent Mail availability is known for swarm dispatch.
 
 Return shape:
 
@@ -42,4 +45,10 @@ Verification concerns:
 
 Swarm isolation notes:
 - <note or none>
+
+Mode readiness notes:
+- ready bead count: <number and ids>
+- serial eligibility: <evidence or none>
+- swarm eligibility: <evidence or none>
+- Agent Mail dependency: <available/unavailable/unknown>
 ```

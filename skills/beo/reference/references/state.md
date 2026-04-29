@@ -277,7 +277,12 @@ When writing STATE:
 
 ## Context budget handoff
 
-If context budget is high before mutation, owner transfer, or terminal review:
+Context pressure means the live session may no longer reliably preserve the
+current owner decision, approval envelope, blockers, or next legal action through
+continued work or compaction.
+
+If context budget is high before mutation, owner transfer, external wait, or
+terminal review:
 - write `.beads/HANDOFF.json`
 - include current owner, feature slug, approval ref, selected bead(s), changed files,
   verification status, blockers, and next legal owner
@@ -290,6 +295,9 @@ After compaction or resume:
 3. inspect `.beads/HANDOFF.json` if present
 4. verify handoff freshness against live artifacts
 5. route through `beo-route` when owner is stale, missing, or contradictory
+
+Do not write `.beads/HANDOFF.json` merely because routine same-session routing
+continues from fresh canonical artifacts.
 
 ## Debug return metadata
 
