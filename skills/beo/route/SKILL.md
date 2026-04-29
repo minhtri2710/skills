@@ -34,11 +34,11 @@ Resolve missing, invalid, contradictory, or colliding owner state into one next 
 - Route evidence and owner fields in shared state/handoff surfaces.
 - No feature artifact content except route metadata explicitly owned by canonical state doctrine.
 
-> Canonical: `beo-reference -> pipeline.md`
+> Canonical: `beo-reference -> pipeline.md` and `beo-reference -> state.md`
 > Locally enforced as:
 > - Select exactly one legal next owner.
 > - Treat handoff and cached state as advisory when live artifacts contradict them.
-> - Use `artifacts.md` for decision mapping fields instead of redefining them.
+> - Use `beo-reference -> state.md` for route decision mapping fields instead of redefining them.
 
 ## Hard stops
 - Do not perform the selected owner’s work.

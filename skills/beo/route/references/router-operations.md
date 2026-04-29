@@ -3,7 +3,7 @@
 Role: APPENDIX
 Allowed content only: live onboarding gate command, feature detection command, route evidence capture steps, and local operational mechanics.
 
-This appendix is operational only. Routing precedence, the owner decision ladder, and collision doctrine are canonical in `beo-route`.
+This appendix is operational only. Owner selection and collision doctrine are canonical in `beo-route`, legal transitions are canonical in `beo-reference -> pipeline.md`, and route evidence shape is canonical in `beo-reference -> state.md`.
 
 ## Live onboarding gate
 
@@ -13,7 +13,7 @@ Run before downstream owner selection when the installed onboarding skill path i
 node <installed-beo-onboard-root>/scripts/onboard_beo.mjs --repo-root "<absolute-repo-root>"
 ```
 
-If the result is not `up_to_date`, route to `beo-onboard` unless the user explicitly requested `beo-reference` read-only lookup or `beo-author` contract-only work that does not depend on repo runtime state.
+If the result is not `up_to_date`, record onboarding freshness evidence and continue through canonical owner selection. This appendix does not choose between `beo-onboard`, `beo-reference`, `beo-author`, or another legal owner.
 
 ## Minimum inspection set
 
@@ -31,7 +31,7 @@ If the result is not `up_to_date`, route to `beo-onboard` unless the user explic
 
 Enumerate directories under `.beads/artifacts/` with repo-supported file listing, or inspect known artifact paths from `STATE.json`.
 
-If more than one active feature can satisfy the request and no explicit feature is selected, route to `user` with the candidate feature slugs.
+If more than one active feature can satisfy the request and no explicit feature is selected, record the candidate feature slugs and ambiguity evidence. Canonical owner selection decides whether the next owner is `user` or another legal owner.
 
 ## Operational checklist
 
@@ -40,9 +40,9 @@ If more than one active feature can satisfy the request and no explicit feature 
 | 1 | Run the live onboarding gate and record status evidence. |
 | 2 | Inspect `STATE.json` and ignore stale or contradictory state against live artifacts. |
 | 3 | Inspect `HANDOFF.json` when present, evaluate freshness in `beo-reference -> state.md`, and record `handoff_used=false` plus `handoff_ignored_reason` when the handoff is stale or invalid. |
-| 4 | Detect active feature candidates and require user selection when ambiguous. |
+| 4 | Detect active feature candidates and record ambiguity evidence when explicit feature selection may be required. |
 | 5 | Apply the owner decision ladder and collision rules in `beo-route`. |
 | 6 | Write `route_decision` with selected owner, disqualified owners, evidence, and timestamp. |
 | 7 | Update `current_owner`, `status`, and `evidence` in `STATE.json`. |
 
-For route evidence shape, use `beo-reference -> state.md`; this appendix does not own routing decisions.
+For route evidence shape, use `beo-reference -> state.md`; this appendix records evidence only and does not own routing decisions.

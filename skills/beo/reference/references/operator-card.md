@@ -120,7 +120,7 @@ Do not create separate phase, story, merge, or UAT approval records from these s
 
 ## When unsure
 
-Use `beo-route`.
+Use `beo-route` only when owner state is missing, stale, contradictory, or colliding. Do not re-route merely because a downstream owner found content to repair.
 
 ## Read first
 
@@ -133,6 +133,43 @@ Use `beo-route`.
 7. `.beads/artifacts/<feature_slug>/REVIEW.md` when closure evidence is relevant
 
 Use `STATE.json.operator_view` for quick orientation, but trust canonical fields when they differ.
+
+## Owner-specific minimum reads
+
+These are minimum confirmation reads only. They do not bypass the canonical gates or allow skipping owner-specific checks.
+
+| Owner | Minimum additional reads after `STATE.json` / fresh `HANDOFF.json` |
+| --- | --- |
+| `beo-explore` | `CONTEXT.md` when present plus applicable constraint/policy surfaces |
+| `beo-plan` | `CONTEXT.md`, current `PLAN.md`, bead graph evidence |
+| `beo-validate` | `CONTEXT.md`, `PLAN.md`, `approval-record.json` when present, bead readiness evidence |
+| `beo-execute` | `PLAN.md`, selected bead scope, `approval-record.json`, required verification contract |
+| `beo-swarm` | `PLAN.md`, isolated bead set, `approval-record.json`, live coordination posture |
+| `beo-review` | `CONTEXT.md`, `PLAN.md`, `approval-record.json`, `execution-bundle.json` |
+| `beo-debug` | failing artifact or command, current blocker evidence, `debug_return` fields when present |
+
+## Route precheck
+
+Before re-entering `beo-route`, confirm all are true:
+1. the current owner is missing, stale, contradictory, colliding, or absent in canonical state
+2. the problem is owner selection, not ordinary artifact repair
+3. the contradiction comes from canonical artifacts, not scout output alone
+4. any present handoff is stale, invalid, or no longer sufficient
+5. no fresher evidence already supports continuing with the current owner
+
+## Common failure -> owner quick map
+
+Quick index only. Canonical routing remains in `beo-route`, `beo-reference -> pipeline.md`, `beo-reference -> approval.md`, and `beo-reference -> state.md`.
+
+| Condition | Canonical owner |
+| --- | --- |
+| requirements missing or contradicted | `beo-explore` |
+| plan or file-scope content incomplete/stale | `beo-plan` |
+| stale approval before mutation | `beo-validate` |
+| stale approval after mutation with changed files | `beo-review` or `beo-plan`, per canonical approval evidence |
+| unproven root cause | `beo-debug` |
+| owner state missing, stale, contradictory, or colliding | `beo-route` |
+| multiple active feature candidates | `user` |
 
 ## Exit packet
 

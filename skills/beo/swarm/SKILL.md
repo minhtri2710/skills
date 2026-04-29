@@ -51,7 +51,7 @@ Machine-readable dependency posture lives in frontmatter. If live Agent Mail is 
 - `beo-plan`
 - `beo-debug`
 - `user`
-- `beo-route` — only when owner state is missing, stale, contradictory, or colliding.
+- `beo-route` — only for exceptional owner-state resolution under canonical route doctrine.
 
 ## References
 - `beo-reference -> approval.md` — read when checking approval freshness for worker scope.

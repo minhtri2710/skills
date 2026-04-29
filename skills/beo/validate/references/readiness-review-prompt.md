@@ -7,7 +7,7 @@ Allowed content only: prompt text only; no pass/fail doctrine
 
 ## Readiness review prompt
 
-Review the current planning artifacts for execution readiness. Do not grant approval, deny approval, or edit artifacts; return observations for `beo-validate` to classify.
+Review the current planning artifacts for execution readiness. This prompt is assistive only: it cannot grant approval, deny approval, choose serial vs swarm, or replace canonical approval, coordination, or routing doctrine. Do not edit artifacts; return observations for `beo-validate` to classify.
 
 Inputs to inspect:
 - locked `CONTEXT.md`

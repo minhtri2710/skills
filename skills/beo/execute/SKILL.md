@@ -35,6 +35,8 @@ Implement exactly one selected ready bead inside the current approval envelope.
 - Do not broaden scope beyond the selected bead or approval envelope.
 - Do not self-approve readiness or swarm fallback.
 - Do not continue after unproven root cause blocks safe implementation.
+- If approval becomes stale before mutation, stop and return to the canonical validate/approval flow before any pass or implementation continues.
+- If approval becomes stale after mutation begins, stop immediately and hand off through canonical approval doctrine; do not keep implementing to finish first.
 
 ## Allowed next owners
 - `beo-review`
@@ -42,7 +44,7 @@ Implement exactly one selected ready bead inside the current approval envelope.
 - `beo-plan`
 - `beo-validate`
 - `user`
-- `beo-route` — only when owner state is missing, stale, contradictory, or colliding.
+- `beo-route` — only for exceptional owner-state resolution under canonical route doctrine.
 
 ## References
 - `beo-reference -> approval.md` — read when checking execution envelope or invalidation.

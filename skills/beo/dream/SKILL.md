@@ -42,7 +42,7 @@ Candidate:
 Source features checked:
 Threshold evidence:
 Conflict check:
-Decision: consolidate | do-not-promote | needs-user
+Decision: consolidation-candidate | no-promotion | needs-user
 Authority note: This output is valid only when emitted by `beo-dream`. Consolidation requires threshold evidence or an explicit corpus-level user request.
 ```
 

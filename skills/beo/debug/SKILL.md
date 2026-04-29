@@ -38,6 +38,8 @@ Establish a single root cause and return the smallest safe unblock path.
 - Do not redesign scope or decomposition.
 - Do not present speculation as root cause.
 - Do not include patch wording in diagnostic output; return proven cause and legal unblock owner/action only.
+- Do not change `debug_return.return_to` by habit; override it only when canonical debug-return evidence proves the recorded return owner invalid.
+- Do not authorize rollback or repair mutation from debug output; return rollback or repair evidence to the legal owner chosen by canonical state and pipeline doctrine.
 
 ## Output card
 
@@ -58,7 +60,7 @@ Authority note: This output is valid only when emitted by `beo-debug`. It proves
 - `beo-validate`
 - `beo-explore`
 - `user`
-- `beo-route` — only when owner state is missing, stale, contradictory, or colliding.
+- `beo-route` — only for exceptional owner-state resolution under canonical route doctrine.
 
 ## References
 - `beo-reference -> operator-card.md` — read when reporting diagnostic findings.

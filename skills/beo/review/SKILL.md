@@ -55,7 +55,7 @@ Authority note: This output is valid only when emitted by `beo-review`. It does 
 - `beo-debug`
 - `user`
 - done
-- `beo-route` — only when owner state is missing, stale, contradictory, or colliding.
+- `beo-route` — only for exceptional owner-state resolution under canonical route doctrine.
 
 ## References
 - `beo-reference -> operator-card.md` — read when formatting verdict output.

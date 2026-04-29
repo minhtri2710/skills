@@ -50,7 +50,7 @@ Turn locked requirements into an executable current-phase plan and bead graph.
 - `beo-validate`
 - `beo-explore`
 - `user`
-- `beo-route` — only when owner state is missing, stale, contradictory, or colliding.
+- `beo-route` — only for exceptional owner-state resolution under canonical route doctrine.
 
 ## References
 - `beo-reference -> artifacts.md` — read when writing `PLAN.md` and bead schema fields.

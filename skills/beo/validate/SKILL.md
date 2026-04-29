@@ -45,7 +45,7 @@ Evaluate mode readiness in this order:
 1. Missing or contradicted requirements -> `FAIL_EXPLORE`.
 2. Missing, incomplete, stale, or scope-invalid plan/bead graph -> `FAIL_PLAN`.
 3. Missing external authorization, access, secret, or required clarification -> `BLOCK_USER`.
-4. Stale, missing, or changed execution approval envelope -> grant or refresh through canonical approval doctrine before pass verdict.
+4. Stale, missing, or changed execution approval envelope -> obtain or record the required approval action only through canonical approval doctrine before any pass verdict.
 5. Two or more approved ready beads with isolation proof and live Agent Mail -> `PASS_SWARM`.
 6. Exactly one approved ready bead, or a fresh serial fallback explicitly valid against the current approval envelope -> `PASS_SERIAL`.
 
@@ -65,7 +65,7 @@ Do not emit `PASS_SERIAL` merely because at least one bead is ready when multipl
 > Canonical: `beo-reference -> pipeline.md` and `beo-reference -> approval.md`
 > Locally enforced as:
 > - Route content repair to artifact owners.
-> - Grant or refresh approval only through canonical approval doctrine.
+> - Write or refresh approval records only as permitted by canonical approval doctrine.
 > - Emit `BLOCK_USER` when required external authorization, access, secret, or clarification is missing.
 > - Status, onboarding, and Go Mode displays cannot substitute for readiness or mode classification.
 
@@ -80,7 +80,7 @@ Do not emit `PASS_SERIAL` merely because at least one bead is ready when multipl
 - `beo-plan`
 - `beo-explore`
 - `user`
-- `beo-route` — only when owner state is missing, stale, contradictory, or colliding.
+- `beo-route` — only for exceptional owner-state resolution under canonical route doctrine.
 
 ## References
 - `beo-reference -> approval.md` — read when checking approval freshness, invalidation, or execution envelope rules.

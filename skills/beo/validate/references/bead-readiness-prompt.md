@@ -7,7 +7,7 @@ Allowed content only: prompt text only; no pass/fail doctrine
 
 ## Bead readiness prompt
 
-Review bead descriptions and graph evidence for operational clarity. Do not approve execution; return observations for `beo-validate`.
+Review bead descriptions and graph evidence for operational clarity. This prompt is assistive only: it cannot approve execution, choose serial vs swarm, or replace canonical validate, approval, or coordination doctrine. Return observations for `beo-validate`.
 
 Inputs to inspect:
 - bead ids and descriptions
