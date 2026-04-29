@@ -1,3 +1,15 @@
+## Contents
+
+- Swarm proof schema
+- Worker payload schema
+- Coordinator loop
+- Active tending loop
+- Silence / stale reservation ladder
+- Worker completion verification
+- Worker loop
+- Resume / reassignment rules
+- Worker report contract
+
 # swarming-operations
 
 Role: APPENDIX
@@ -55,6 +67,15 @@ This appendix defines the transport payload only. Worker boundaries, mode classi
 While any worker is spawned, online, busy, blocked, expected to report, or
 holding a reservation, the coordinator is not idle.
 
+While any worker is active, reserved, blocked, silent, or expected to report:
+
+1. Poll Agent Mail for `[ONLINE]`, `[DONE]`, `[BLOCKED]`, `[CONFLICT]`, evidence reports, and silence.
+2. Inspect bead status and reservation records.
+3. Confirm every active worker has either a fresh report, fresh reservation evidence, or a bounded blocker.
+4. Verify `[DONE]` reports against file evidence, bead status, and approved verification output.
+5. Aggregate completed evidence into the review evidence bundle without claiming review verdict.
+6. Classify canonical evidence without selecting the successor owner: unproven failure, isolation loss, mode staleness, external blocker, or completed evidence.
+
 | Signal | Coordinator action |
 | --- | --- |
 | no acknowledgement after dispatch | resend payload or mark dispatch blocked with evidence |
@@ -70,14 +91,38 @@ files, scope, approval ref, and verification evidence. Silence is an operational
 condition to tend, not a reason to wait for the user when coordinator recovery
 actions remain.
 
-Escalation ladder:
+Escalation evidence shapes, not routing decisions:
 
-| Condition | Escalate to |
+| Condition | Evidence to record |
 | --- | --- |
-| unproven failure or unknown root cause | `beo-debug` |
-| lost isolation, overlapping scope, or dependency contradiction | `beo-plan` |
-| Agent Mail unavailable, serial fallback desired, or mode evidence changed | `beo-validate` |
-| external access, secret, legal, or product decision required | `user` |
+| unproven failure or unknown root cause | failing command, smallest repro, why root cause is unproven |
+| lost isolation, overlapping scope, or dependency contradiction | affected beads, scopes, dependency evidence, reservation state |
+| Agent Mail unavailable, serial fallback desired, or mode evidence changed | live Agent Mail result, stale mode evidence, unfinished bead set |
+| external access, secret, legal, or product decision required | blocker, requested external input, affected bead or feature scope |
+
+Swarm fallback authority remains canonical in `beo-swarm`, `beo-validate`, and `beo-reference -> pipeline.md`; this appendix records evidence only.
+
+## Silence / stale reservation ladder
+
+| Signal | Action |
+| --- | --- |
+| missing startup ack | send one reminder / status request |
+| quiet inbox but fresh reservations | keep tending; do not exit |
+| stale worker report | request status and inspect bead/reservation evidence |
+| stale reservation with no fresh progress evidence | reconcile before release/reassign |
+| repeated silence blocks progress | record timeout evidence and unresolved cause |
+| stale reservation causes overlap risk | stop dispatch and record overlap evidence |
+| Agent Mail unavailable | stop coordination and record live Agent Mail unavailability |
+
+## Worker completion verification
+
+A worker `[DONE]` report is not completion evidence by itself.
+Before aggregating a bead as complete, verify:
+- changed files are inside approved scope
+- forbidden paths were not touched
+- required verification command/check ran or blocker is recorded
+- bead status/evidence surfaces match the report
+- no dependency or reservation conflict remains
 
 Partial swarm recovery preserves completed evidence, releases only proven-stale
 reservations, and reclassifies unfinished work through the owning route instead

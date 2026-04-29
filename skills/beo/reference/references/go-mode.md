@@ -1,3 +1,7 @@
+<!-- owner: beo-reference -->
+<!-- version: 2026-04-29 -->
+<!-- last-reviewed: 2026-04-29 -->
+
 # BEO Go Mode
 
 Go mode is an operator macro for running the normal BEO pipeline from feature
@@ -26,7 +30,7 @@ records.
 
 ## Operator sequence
 
-Use the smallest safe ceremony from `beo-references -> complexity.md`.
+Use the smallest safe ceremony from `beo-reference -> complexity.md`.
 
 | Step | Operator display | Required owner evidence |
 | --- | --- | --- |

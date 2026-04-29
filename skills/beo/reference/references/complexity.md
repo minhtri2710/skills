@@ -1,3 +1,22 @@
+<!-- owner: beo-reference -->
+<!-- version: 2026-04-29 -->
+<!-- last-reviewed: 2026-04-29 -->
+
+## Contents
+
+- Ceremony modes
+- Planning depth classes
+- Hard stops
+- Decision matrix
+- Micro-compact default
+- Context Binding
+- Approach
+- Current Phase Contract
+- Bead Graph
+- File Scope
+- Verification Plan
+- Execution Envelope Proposal
+
 # Complexity
 
 ## Ceremony modes
@@ -78,6 +97,9 @@ Required `PLAN.md` sections:
 
 ## Hard stops
 
+- Ceremony modes affect presentation compactness only.
+- Planning depth classes affect required `PLAN.md` content only.
+- Neither ceremony mode nor planning depth may bypass `beo-validate`, execution approval, verification, or `beo-review`.
 - Complexity class must not bypass owner routing.
 - Complexity class must not bypass `beo-validate`.
 - Complexity class only changes required planning depth and review intensity.
@@ -116,7 +138,7 @@ It must still preserve:
 - review verdict
 
 If acceptance, non-goals, compatibility, constraints, or user-visible scope remain ambiguous, do not use `micro-compact` even when implementation size is tiny.
-A valid micro-compact plan must still keep one current phase, one bead id, `Goal`, `Scope`, `Acceptance`, `Dependencies`, `File scope`, and `Verification` explicit.
+A valid micro-compact plan must still keep one current phase, one bead id, `Goal`, `Scope`, `Acceptance`, `File scope`, `Forbidden paths`, `Dependencies`, `Verification`, and `Swarm eligibility` explicit.
 
 ### Canonical micro-compact template
 

@@ -27,6 +27,9 @@ Checklist:
 8. Count ready beads and list ids that are operationally ready.
 9. Distinguish serial eligibility from merely having at least one ready bead.
 10. Record whether Agent Mail availability is known for swarm dispatch.
+11. Flag missing or overly broad file scope.
+12. Flag acceptance-critical decisions that are unmapped.
+13. Flag swarm eligibility that lacks isolation or dependency proof.
 
 Return shape:
 

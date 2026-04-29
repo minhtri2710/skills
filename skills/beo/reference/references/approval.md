@@ -1,3 +1,22 @@
+<!-- owner: beo-reference -->
+<!-- version: 2026-04-29 -->
+<!-- last-reviewed: 2026-04-29 -->
+
+## Contents
+
+- Approval model
+- Approval record schema
+- Approval taxonomy
+- Execution envelope invariant
+- Contract-bearing PLAN.md content
+- ApprovalCurrent predicate
+- Grant / invalidate write order
+- Contract-bearing mutation
+- Invalidation protocol
+- Manual pressure tie-breakers
+- Short approval block example
+- Canonical usage note
+
 # Approval
 
 ## Approval model
@@ -136,3 +155,7 @@ Use these short cases during manual review:
 - `beo-validate` grants or refreshes execution approval according to this file.
 - `beo-plan` invalidates stale approval only when contract-bearing planning edits require it.
 - `beo-execute` and `beo-swarm` should point here rather than restating approval schema or approval law.
+
+## Stale approval gate
+
+Stale approval must be refreshed before execution; owner handoff or cached state cannot revive an invalidated approval.

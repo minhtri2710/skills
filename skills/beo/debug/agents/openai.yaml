@@ -1,4 +1,4 @@
 interface:
   display_name: "Beo Debug"
   short_description: "Diagnose one blocker"
-  default_prompt: "Use $beo-debug to prove one root cause, apply the smallest safe verified unblock when eligible, or route with evidence."
+  default_prompt: "Use $beo-debug to prove one blocker root cause, identify the smallest safe unblock path, and return evidence to the legal next owner without implementing delivery work."

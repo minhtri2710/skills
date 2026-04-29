@@ -1,3 +1,22 @@
+<!-- owner: beo-reference -->
+<!-- version: 2026-04-29 -->
+<!-- last-reviewed: 2026-04-29 -->
+
+## Contents
+
+- State surfaces
+- STATE.json shape
+- Minimal STATE.json schema
+- Operator view
+- STATUS vocabulary
+- user_reason enum
+- done_reason enum
+- Operational write discipline
+- STATE field groups
+- Owner handoff clearing rule
+- Shared decision packet
+- route_decision schema
+
 # State
 
 ## State surfaces
@@ -212,7 +231,7 @@ Handoff hygiene:
 | --- | --- | --- |
 | `schema_version` | yes | current handoff schema version |
 | `created_by_owner` | yes | owner writing the handoff |
-| `intended_resume_owner` | yes | target owner allowed by `beo-references -> pipeline.md` |
+| `intended_resume_owner` | yes | target owner allowed by `beo-reference -> pipeline.md` |
 | `feature_slug` | yes when a feature is active | current feature slug |
 | `approval_ref` | yes when approval is current | approval surface tied to the paused execution/review state |
 | `selected_beads` | yes when execution selection exists | selected approved bead ids |
@@ -280,6 +299,44 @@ When writing STATE:
 Context pressure means the live session may no longer reliably preserve the
 current owner decision, approval envelope, blockers, or next legal action through
 continued work or compaction.
+
+## Context pressure and resume rule
+
+When context pressure threatens reliable continuation, or a compaction/resume
+boundary is expected, preserve only the state needed to resume safely.
+
+Write `HANDOFF.json` only when one of these is true:
+- pause/resume must survive beyond the live session
+- external wait is required
+- owner transfer must survive beyond live context
+- compaction would otherwise lose blocker, approval, or next-action evidence
+
+Do not write `HANDOFF.json` for routine same-session owner transitions.
+
+## HANDOFF minimum fields
+
+A persisted handoff should include:
+- feature_slug
+- current_owner
+- approval_ref, when applicable
+- artifact references and known hashes, when available
+- last completed action
+- blocking evidence
+- next legal action
+- must read
+- must not touch
+- route_required_if
+
+## Post-compaction / resume recovery
+
+Before mutating after compaction or resumed handoff:
+1. Run onboarding/scout when available.
+2. Re-open canonical `STATE.json`.
+3. Re-open `HANDOFF.json` when present.
+4. Re-open active `CONTEXT.md`.
+5. Re-open active `PLAN.md` when planning or later.
+6. Re-check approval reference before execution or swarm.
+7. Route from live artifacts if handoff is stale, contradictory, or incomplete.
 
 If context budget is high before mutation, owner transfer, external wait, or
 terminal review:

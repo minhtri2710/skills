@@ -5,159 +5,50 @@ description: |
 metadata:
   dependencies: []
 ---
-
 # beo-review
 
 ## Purpose
 Emit one terminal verdict.
 
 ## Primary owned decision
-Emit exactly one verdict: `accept`, `fix`, or `reject`.
+Emit exactly one terminal verdict: `accept`, `fix`, or `reject`.
 
-## Enter when
-- terminal execution scope is complete
-- the review evidence bundle contains locked requirements, current plan, changed files, verification evidence, and approval reference
+## Ownership predicate
+- Execution scope is complete for the current feature or bead set.
+- Review evidence includes locked requirements, plan, changed files, verification, and approval reference.
+- The requested work is assessment, not implementation or root-cause diagnosis.
+- A terminal verdict is needed before closure, learning, or reactive-fix routing.
 
 ## Writable surfaces
-- `.beads/artifacts/<feature_slug>/REVIEW.md` while recording the terminal verdict and evidence assessment
-- reactive-fix bead descriptions described by `beo-references -> artifacts.md`, only when verdict=`fix` and the reactive-fix approval rule is satisfied; otherwise route to `beo-plan`
-- shared `STATE/HANDOFF` surfaces under `beo-references -> skill-contract-common.md`
+- `.beads/artifacts/<feature_slug>/REVIEW.md`.
+- Reactive-fix bead descriptions only when canonical approval and artifact rules allow them.
+- Shared `STATE/HANDOFF` surfaces under the common contract baseline.
 
-## Decision packet
-- shared decision packet under `beo-references -> skill-contract-common.md`
-- local review fields remain in `REVIEW.md` and reactive-fix records
+> Canonical: `beo-reference -> artifacts.md`
+> Locally enforced as:
+> - Use the canonical `REVIEW.md` minimum template.
+> - Keep specialist prompts evidence-only.
+> - Create reactive-fix beads only when the canonical approval rule is satisfied.
 
-## Severity rubric
-
-P0:
-- catastrophic correctness, security, privacy, data loss, or irreversible damage
-
-P1:
-- acceptance blocker
-- approval/scope mismatch
-- required verification missing or failing
-- security/privacy issue that blocks release
-- locked `CONTEXT.md` decision violated
-- migration/data/integration risk unresolved
-
-P2:
-- meaningful quality issue
-- maintainability issue
-- missing non-critical test
-- follow-up needed but acceptance still satisfied
-
-P3:
-- polish
-- naming
-- cleanup
-- optional improvement
-
-## Verdict rule
-
-Accept requires all of the following:
-- no open P0 or P1 findings
-- complete required verification evidence
-- approval scope matching executed changes
-- acceptance-critical `CONTEXT.md` decisions verified or explicitly marked `N/A`
-
-## Severity-to-verdict mapping
-
-- Any open P0/P1 blocks `accept`.
-- P0/P1 with bounded known fix inside approval envelope may produce verdict=`fix` and a reactive-fix bead.
-- P0/P1 with unproven root cause routes `beo-debug`.
-- P0/P1 requiring requirements change routes `beo-explore`.
-- P0/P1 requiring plan/scope/verification change routes `beo-plan`.
-- P2/P3 may be accepted if acceptance, approval scope, and verification are complete.
-
-## Decision verification rule
-
-For each user-visible or acceptance-critical `CONTEXT.md` decision:
-- verify by `SEE`, `CALL`, `RUN`, `INSPECT`, or explicit `N/A`
-- cite evidence
-- mark pass/fail/blocked
-
-Do not accept when an acceptance-critical decision is unverified.
-Do not treat implementation-agent or worker claims as verification evidence.
-
-If decision verification is `blocked`:
-- route to `user` when external evidence, access, or approval is missing
-- route to `beo-plan` when a verification command, artifact, or mapping is missing
-- route to `beo-debug` when behavior is present but the mismatch root cause is unproven
-
-## Review lenses
-
-`beo-review` may organize evidence through lenses, but verdict authority remains local.
-
-Required lenses:
-- acceptance lens
-- approval/scope lens
-- verification lens
-- regression lens
-- security/privacy lens
-- maintainability lens
-
-When writing `REVIEW.md`, use the minimum evidence shape from
-`beo-references -> artifacts.md`, including:
-- evidence reviewed
-- decision verification / UAT checks
-- approval/scope lens with one row per changed file
-- verification lens with required command/check results
-- open findings with severity and route owner
-- learning disposition
-- reactive-fix eligibility when applicable
-
-Do not replace lens evidence with bare labels like `pass` or `looks good`.
-
-Lens findings are evidence, not separate verdicts.
-
-## Learning closure rule
-
-`review -> done` is the default accepted-work closure when the accepted work is clearly isolated and no durable reusable signal exists.
-In that case `beo-review` may record inline `learning_disposition: no-learning` and route to `done`.
-`beo-review` must not decide durable learning content.
-Route to `beo-compound` only when a durable learning candidate exists or the disposition is not obvious.
-Classify accepted closure as `no-learning`, `durable-candidate`, or `unclear` before routing.
-
-## Review fix rule
-
-Reactive fix may route to `beo-execute` only when `beo-references -> artifacts.md` reactive-fix approval rule is fully satisfied.
-Otherwise route to `beo-plan` or `beo-debug`.
-
-## Exit routing
-
-| Observation | Next owner |
-| --- | --- |
-| verdict=`accept` and `learning_disposition=no-learning` is obvious | done |
-| verdict=`accept` and durable or unclear learning remains | beo-compound |
-| verdict=`fix` and reactive-fix approval rule is fully satisfied | beo-execute |
-| verdict=`fix` and requirements must change or be reinterpreted | beo-explore |
-| verdict=`fix` and root cause is still unproven | beo-debug |
-| verdict=`fix` otherwise | beo-plan |
-| verdict=`reject` because requirements are wrong, unlocked, or contradicted | beo-explore |
-| external decision or approval is required to resolve findings | user |
+## Hard stops
+- Do not implement fixes.
+- Do not accept without required verification evidence.
+- Do not let specialist evidence emit the terminal verdict.
 
 ## Allowed next owners
-- beo-compound
-- beo-execute
-- beo-plan
-- beo-explore
-- beo-debug
-- user
+- `beo-compound`
+- `beo-execute`
+- `beo-plan`
+- `beo-explore`
+- `beo-debug`
+- `user`
 - done
-
-## Local hard stops
-- Do not perform mutation-led diagnosis; route to `beo-debug` when root cause must be proven.
-- Do not repair code or planning artifacts while reviewing.
-- Do not emit full durable learning; only record obvious `no-learning` inline here.
-- Do not convert a review finding into execution work unless the fix is already bounded inside the current approved envelope.
-- Do not accept agent or worker completion claims as verification evidence; verify file state directly.
-- Do not accept when an acceptance-critical locked decision is unverified.
-- Before routing to `done`, inherit the terminal done rule from `beo-references -> state.md`.
+- `beo-route` — only when owner state is missing, stale, contradictory, or colliding.
 
 ## References
-- `beo-references -> operator-card.md`
-- `beo-references -> artifacts.md`
-- `beo-references -> approval.md`
-- `beo-references -> pipeline.md`
-- `beo-references -> learning.md`
-- `references/review-specialist-prompts.md`
+- `beo-reference -> operator-card.md` — read when formatting verdict output.
+- `beo-reference -> artifacts.md` — read when writing `REVIEW.md` and reactive-fix bead fields.
+- `beo-reference -> approval.md` — read when checking reactive-fix approval retention.
+- `beo-reference -> pipeline.md` — read when routing after verdict.
+- `beo-reference -> learning.md` — read when splitting accepted-work closure.
+- `references/review-specialist-prompts.md` — read when gathering specialist evidence without verdict authority.

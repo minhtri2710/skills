@@ -1,4 +1,4 @@
 interface:
   display_name: "Beo Review"
   short_description: "Issue the post-execution verdict"
-  default_prompt: "Use $beo-review to assess terminal execution evidence against locked contracts and emit accept, fix, or reject without implementing remediation."
+  default_prompt: "Use $beo-review to verify execution evidence, decision/UAT coverage, approval scope, and required checks, then emit exactly one terminal verdict without repairing code or planning artifacts."

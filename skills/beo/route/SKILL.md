@@ -15,100 +15,58 @@ metadata:
       missing_effect: degraded
       reason: Helpful for read-only inspection, but not required for every route decision.
 ---
-
 # beo-route
 
 ## Purpose
 Select exactly one beo owner.
 
 ## Primary owned decision
-Select exactly one next owner from user intent, trusted state, and live evidence.
+Resolve missing, invalid, contradictory, or colliding owner state into one next owner.
 
-## Enter when
-- startup, resume, re-entry, stale or invalid handoff, explicit support/meta intent, or owner collision is present
-- owner is missing, invalid, contradictory, or more than one non-route owner predicate matches
+## Ownership predicate
+- Current owner state is missing, stale, contradictory, or colliding.
+- User intent conflicts with state, handoff, approval, or live artifact evidence.
+- Multiple owner predicates appear true or no non-route owner predicate is true.
+- The user explicitly asks to debug a failure and no current owner already validly owns that diagnostic work.
+- Zero, multiple, stale, or contradictory non-route owner predicates require owner selection.
 
 ## Writable surfaces
-- `.beads/STATE.json` under the shared STATE write baseline plus `route_decision`
-- shared `STATE/HANDOFF` surfaces under `beo-references -> skill-contract-common.md`
+- Route evidence and owner fields in shared state/handoff surfaces.
+- No feature artifact content except route metadata explicitly owned by canonical state doctrine.
 
-## Route suppression rule
-- Preserve the current valid owner when exactly one current owner remains valid and no new contradiction, stale handoff, stale approval, or owner collision exists.
-- Avoid route churn.
-- Go mode suppresses unnecessary user questions, not owner selection.
+> Canonical: `beo-reference -> pipeline.md`
+> Locally enforced as:
+> - Select exactly one legal next owner.
+> - Treat handoff and cached state as advisory when live artifacts contradict them.
+> - Use `artifacts.md` for decision mapping fields instead of redefining them.
 
-## Owner decision ladder
-
-Evaluate in order. Stop at the first decisive match.
-
-1. support/meta intent -> `beo-reference`, `beo-author`, or `beo-onboard`
-2. onboarding invalid -> `beo-onboard`
-3. multiple active feature candidates with no selected feature -> `user`
-4. stale or invalid handoff -> ignore handoff and route from live artifacts
-5. `CONTEXT.md` missing, unlocked, contradicted, or requirement-changing clarification exists -> `beo-explore`
-6. `PLAN.md`, planning-depth-required sections for the active complexity class, phase shape, current phase contract, bead graph, dependencies, file scope, forbidden paths, decision mapping, or verification plan missing/invalid -> `beo-plan`
-7. artifacts current but approval, readiness, or execution mode missing/stale/invalid -> `beo-validate`
-8. execution bundle complete and review evidence ready -> `beo-review`
-9. readiness=`PASS_SERIAL` -> `beo-execute`
-10. readiness=`PASS_SWARM` -> `beo-swarm`
-11. accepted-work closure -> inherit closure split from `beo-references -> learning.md`
-12. blocker exists and root cause is unproven -> `beo-debug`, unless an earlier canonical owner already wins with proven requirement, plan, or approval invalidity
-13. terminal no-work state -> `done`; external clarification, access, or approval needed -> `user`
-
-## Route determinism rule
-- Do not emit a next owner as `A or B`.
-- When more than one owner appears plausible, apply the ladder and collision rules until exactly one remains.
-- If evidence is still insufficient, choose the earliest owner that can legally clarify by reading or writing its owned surface, or `user` only for external missing input.
-
-## Collision rules
-
-Use these only when the ladder leaves more than one plausible owner after disqualification.
-
-| Collision | Winner |
-| --- | --- |
-| explore + plan | `beo-explore` |
-| plan + validate | `beo-plan` if content or bead graph repair is needed; otherwise `beo-validate` |
-| validate + execute | `beo-validate` |
-| execute + debug | `beo-debug` when root cause is unproven |
-| execute + review | `beo-review` only when terminal evidence is complete |
-| review + compound | `beo-review` until verdict exists |
-| compound + dream | `beo-compound` for one feature; `beo-dream` for cross-feature consolidation |
-
-## Decision packet
-- shared decision packet under `beo-references -> skill-contract-common.md`
-- local extensions: `matched_condition`, `disqualified_owners`
-
-## STATE.json fields written
-- inherits shared STATE write baseline from `beo-references -> skill-contract-common.md`
-- `route_decision`
+## Hard stops
+- Do not perform the selected owner’s work.
+- Do not invent new owners or transitions.
+- Do not route around stale approval or contradicted requirements.
 
 ## Allowed next owners
-- beo-onboard
-- beo-reference
-- beo-author
-- beo-dream
-- beo-debug
-- beo-explore
-- beo-plan
-- beo-validate
-- beo-execute
-- beo-swarm
-- beo-review
-- beo-compound
-- user
+- `beo-explore`
+- `beo-plan`
+- `beo-validate`
+- `beo-execute`
+- `beo-swarm`
+- `beo-review`
+- `beo-debug`
+- `beo-compound`
+- `beo-dream`
+- `beo-onboard`
+- `beo-author`
+- `beo-reference`
+- `user`
 - done
 
-## Local hard stops
-- Do not hide routing precedence or collision doctrine in references.
-- Do not restate legal transitions, approval semantics, or artifact schemas beyond what local routing readability requires.
-- Do not treat `.beads/` directory existence, file presence, or `.beads/beo_status.mjs --json` as sufficient onboarding verification without running the live onboarding check.
-- Do not trust `operator_view` or scout recommendations over fresher canonical fields or live artifacts.
-
 ## References
-- `beo-references -> operator-card.md`
-- `beo-references -> doctrine-map.md`
-- `beo-references -> pipeline.md`
-- `beo-references -> approval.md`
-- `beo-references -> learning.md`
-- `beo-references -> state.md`
-- `references/router-operations.md`
+- `beo-reference -> operator-card.md` — read when presenting the selected owner and evidence.
+- `beo-reference -> doctrine-map.md` — read when ownership of a rule is unclear.
+- `beo-reference -> pipeline.md` — read when checking legal owner transitions.
+- `beo-reference -> approval.md` — read when stale approval affects routing.
+- `beo-reference -> learning.md` — read when accepted-work closure affects routing.
+- `beo-reference -> state.md` — read when evaluating state, handoff freshness, and route evidence fields.
+- `beo-reference -> artifacts.md` — read when interpreting decision mapping and artifact provenance.
+- `references/router-operations.md` — read when inspecting current route evidence without unsupported commands.

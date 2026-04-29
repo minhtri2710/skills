@@ -1,3 +1,17 @@
+## Contents
+
+- Worker dispatch
+- Worker acknowledge
+- Worker heartbeat
+- Status request
+- Evidence request
+- Worker done report
+- Worker blocked report
+- Worker failed report
+- Conflict report
+- Reservation release
+- Swarm partial
+
 Non-normative asset.
 
 # message-templates
@@ -67,6 +81,29 @@ changed_files_so_far:
 blockers: <none-or-text>
 ```
 
+## Status request
+
+```text
+[STATUS REQUEST]
+bead_id: <id>
+reservation: <path-or-claim>
+last_seen: <time-or-evidence>
+need: reply with status, blocker, or release within this coordination cycle
+```
+
+## Evidence request
+
+```text
+[EVIDENCE REQUEST]
+bead_id: <id>
+reason: worker reported done, but coordinator needs evidence
+required:
+- changed files
+- verification output
+- blocker status
+- approval reference
+```
+
 ## Worker done report
 
 ```text
@@ -91,7 +128,7 @@ released_reservation: true|false
 
 ## Worker blocked report
 
-Canonical owner selection after a blocked report remains in `beo-swarm`, `beo-debug`, `beo-plan`, and `beo-references -> pipeline.md`.
+Canonical owner selection after a blocked report remains in `beo-swarm`, `beo-debug`, `beo-plan`, and `beo-reference -> pipeline.md`.
 
 ```text
 [BLOCKED]
@@ -107,7 +144,7 @@ coordination_hint: debug-suspected|plan-repair-suspected|external-input-suspecte
 
 ## Worker failed report
 
-Canonical successor-owner selection remains in `beo-swarm` and `beo-references -> pipeline.md`.
+Canonical successor-owner selection remains in `beo-swarm` and `beo-reference -> pipeline.md`.
 
 ```text
 [FAILED]
@@ -135,10 +172,24 @@ action_taken: stopped|blocked|released|needs-coordinator
 ## Reservation release
 
 ```text
-[RELEASE]
+[RESERVATION RELEASE]
 bead_id: <id>
 reservation_id: <reservation>
 reason: done|blocked|failed|stale|conflict
 released_by: <worker-or-coordinator>
 released_at: <timestamp>
+continue_mutation_allowed: false
+```
+
+## Swarm partial
+
+```text
+[SWARM PARTIAL]
+feature: <feature>
+complete:
+- <bead-id>
+blocked:
+- <bead-id>
+evidence: <summary>
+canonical_next_owner_note: selected by BEO routing/fallback doctrine
 ```

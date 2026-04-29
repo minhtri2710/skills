@@ -29,9 +29,7 @@ If the result is not `up_to_date`, route to `beo-onboard` unless the user explic
 
 ## Feature candidate detection
 
-```sh
-tilth ".beads/artifacts/*" --scope .beads
-```
+Enumerate directories under `.beads/artifacts/` with repo-supported file listing, or inspect known artifact paths from `STATE.json`.
 
 If more than one active feature can satisfy the request and no explicit feature is selected, route to `user` with the candidate feature slugs.
 
@@ -41,10 +39,10 @@ If more than one active feature can satisfy the request and no explicit feature 
 | --- | --- |
 | 1 | Run the live onboarding gate and record status evidence. |
 | 2 | Inspect `STATE.json` and ignore stale or contradictory state against live artifacts. |
-| 3 | Inspect `HANDOFF.json` when present, evaluate freshness in `beo-references -> state.md`, and record `handoff_used=false` plus `handoff_ignored_reason` when the handoff is stale or invalid. |
+| 3 | Inspect `HANDOFF.json` when present, evaluate freshness in `beo-reference -> state.md`, and record `handoff_used=false` plus `handoff_ignored_reason` when the handoff is stale or invalid. |
 | 4 | Detect active feature candidates and require user selection when ambiguous. |
 | 5 | Apply the owner decision ladder and collision rules in `beo-route`. |
 | 6 | Write `route_decision` with selected owner, disqualified owners, evidence, and timestamp. |
 | 7 | Update `current_owner`, `status`, and `evidence` in `STATE.json`. |
 
-For route decision shape, use `beo-references -> state.md` and local route evidence extensions in `beo-route`.
+For route evidence shape, use `beo-reference -> state.md`; this appendix does not own routing decisions.

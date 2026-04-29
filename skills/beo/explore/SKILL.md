@@ -5,43 +5,38 @@ description: |
 metadata:
   dependencies: []
 ---
-
 # beo-explore
 
 ## Purpose
 Lock feature requirements.
 
 ## Primary owned decision
-Lock feature requirements into `CONTEXT.md`.
+Produce or repair locked `CONTEXT.md` requirements before design or implementation.
 
-## Enter when
-- feature intake starts
-- `CONTEXT.md` is absent
-- a required requirement section is missing
-- the artifact is unlocked
-- newer explicit user clarification contradicts locked requirements
+## Ownership predicate
+- Feature intake starts and `CONTEXT.md` is absent.
+- Required requirements, constraints, compatibility, non-goals, or acceptance criteria are missing.
+- New explicit user clarification contradicts locked requirements.
+- A missing answer can change user-visible scope or acceptance.
+- Work is not only a design-style choice.
 
 ## Writable surfaces
-- `.beads/artifacts/<feature_slug>/CONTEXT.md` while locking or repairing requirements
-- shared `STATE/HANDOFF` surfaces under `beo-references -> skill-contract-common.md`
+- `.beads/artifacts/<feature_slug>/CONTEXT.md` while locking or repairing requirements.
+- Shared `STATE/HANDOFF` surfaces under the common contract baseline.
 
-## Decision packet
-- shared decision packet under `beo-references -> skill-contract-common.md`
-- no local packet extensions beyond requirement-lock evidence in `CONTEXT.md`
-
-## Local hard stops
-- Do not lock requirements while acceptance, non-goals, compatibility, constraints, or user-visible scope remain materially ambiguous.
-- Do not turn design-only choices into requirement churn.
-- When `go_mode.active=true`, prefer conservative assumptions for implementation-detail ambiguity that does not change locked requirement meaning.
+## Hard stops
+- Do not plan or implement while requirements are unlocked or contradicted.
+- Do not ask for clarification when the answer cannot affect acceptance or scope.
+- Do not duplicate artifact schemas locally.
 
 ## Allowed next owners
-- beo-plan
-- user
+- `beo-plan`
+- `user`
 
 ## References
-- `beo-references -> operator-card.md`
-- `beo-references -> artifacts.md`
-- `beo-references -> pipeline.md`
-- `beo-references -> state.md`
-- `references/intake-bootstrap.md`
-- `references/gray-area-probes.md`
+- `beo-reference -> operator-card.md` — read when presenting requirement questions or locked scope.
+- `beo-reference -> artifacts.md` — read when writing `CONTEXT.md` shape and provenance.
+- `beo-reference -> pipeline.md` — read when handing off after requirements lock.
+- `beo-reference -> state.md` — read when updating feature state and handoff freshness.
+- `references/intake-bootstrap.md` — read when creating a feature slug or first `CONTEXT.md`.
+- `references/gray-area-probes.md` — read when choosing non-normative clarification prompts.

@@ -1,3 +1,22 @@
+<!-- owner: beo-reference -->
+<!-- version: 2026-04-29 -->
+<!-- last-reviewed: 2026-04-29 -->
+
+## Contents
+
+- Artifact layout
+- Artifact provenance chain
+- CONTEXT.md schema
+- Feature
+- Locked decisions
+- Acceptance
+- Non-goals
+- Compatibility / constraints
+- Open external dependencies
+- Lock status
+- PLAN.md schema
+- Context Binding
+
 # Artifacts
 
 ## Artifact layout
@@ -12,9 +31,9 @@
 | `.beads/learnings/<feature_slug>.md` | feature-local learning record when durable or unclear learning exists |
 
 Canonical ownership notes:
-- `beo-references -> artifacts.md` owns artifact schemas, provenance shape, and writer boundaries.
-- `beo-references -> learning.md` owns durable-learning thresholds, no-learning, and cross-feature consolidation thresholds.
-- For owner selection, handoff freshness, and approval freshness, point to `beo-references -> pipeline.md`, `beo-references -> state.md`, and `beo-references -> approval.md` rather than restating those doctrines here.
+- `beo-reference -> artifacts.md` owns artifact schemas, provenance shape, and writer boundaries.
+- `beo-reference -> learning.md` owns durable-learning thresholds, no-learning, and cross-feature consolidation thresholds.
+- For owner selection, handoff freshness, and approval freshness, point to `beo-reference -> pipeline.md`, `beo-reference -> state.md`, and `beo-reference -> approval.md` rather than restating those doctrines here.
 
 ## Artifact provenance chain
 
@@ -120,8 +139,8 @@ Required shape:
   - br-123: <goal>
 
 ## Bead Graph
-| Bead | Story | Depends on | File scope | Verification | Ready? |
-| --- | --- | --- | --- | --- | --- |
+| Bead | Story | Depends on | File scope | Forbidden paths | Verification | Swarm eligibility | Ready? |
+| --- | --- | --- | --- | --- | --- | --- | --- |
 
 ## File Scope
 ### Approved candidate write scope
@@ -155,7 +174,7 @@ Required shape:
 
 Planning-depth note:
 - The template above is the canonical full shape and ordering reference.
-- `beo-references -> complexity.md` defines which sections are required for `small_change`, `standard_feature`, and `high_risk_feature`.
+- `beo-reference -> complexity.md` defines which sections are required for `small_change`, `standard_feature`, and `high_risk_feature`.
 - `small_change` may omit sections that `complexity.md` does not require, but it must still keep its context binding, minimal approach, current phase contract, bead graph, file scope, verification plan, and execution envelope proposal explicit.
 
 Rules:
@@ -164,12 +183,12 @@ Rules:
 - Discovery facts are facts only, not plan decisions. Do not include speculative implementation advice without evidence.
 - A phase is not a bucket of technical chores; it must produce an inspectable user/system-visible state.
 - Stories sequence value delivery. Beads implement stories; beads are not the story map itself.
-- Each bead must satisfy the BEO bead description schema: `Goal`, `Scope`, `Acceptance`, `File scope`, `Dependencies`, and `Verification`.
+- Each bead must satisfy the BEO bead description schema: `Goal`, `Scope`, `Acceptance`, `File scope`, `Forbidden paths`, `Dependencies`, `Verification`, and `Swarm eligibility`.
 - A HIGH risk without required proof blocks `PASS_SERIAL` and `PASS_SWARM` until the planning/validation owner records the required evidence or routes appropriately.
 - The execution envelope proposal is not execution approval. Approval remains the `approval-record.json` written by `beo-validate`.
 
 Micro-compact note:
-- A micro-compact `PLAN.md` may compress prose, but it must still preserve explicit current phase, one bead identifier, `Goal`, `Scope`, `Acceptance`, `Dependencies`, `File scope`, and `Verification`.
+- A micro-compact `PLAN.md` may compress prose, but it must still preserve explicit current phase, one bead identifier, `Goal`, `Scope`, `Acceptance`, `File scope`, `Forbidden paths`, `Dependencies`, `Verification`, and `Swarm eligibility`.
 - Micro-compact is a presentation shape only; it does not relax approval, scope, or verification schema.
 
 ## REVIEW.md schema
@@ -257,6 +276,8 @@ Rules:
 - Decision verification/UAT checks locked decisions from `CONTEXT.md`, especially user-visible or acceptance-critical decisions.
 - Findings use P0/P1/P2/P3 severity labels; verdict mapping lives in `beo-review`.
 - Implementation-agent or worker claims are not sufficient verification evidence; `REVIEW.md` records assessed evidence, not trust in claims.
+- Bare labels such as `pass`, `looks good`, or `security lens passed` are not evidence.
+- `N/A` decision verification entries must include the reason the decision is not applicable.
 
 ## execution-bundle.json schema
 
@@ -311,8 +332,10 @@ Canonical surface: `.beads/artifacts/<feature_slug>/execution-bundle.json`
 | Scope | yes |
 | Acceptance | yes |
 | File scope | yes |
+| Forbidden paths | yes |
 | Dependencies | yes |
 | Verification | yes |
+| Swarm eligibility | yes |
 
 ## Reactive-fix bead schema
 
@@ -326,7 +349,14 @@ Canonical surface: `.beads/artifacts/<feature_slug>/execution-bundle.json`
 
 ## Reactive-fix approval rule
 
-A reactive-fix bead written by `beo-review` does not stale approval only when all of the following remain true:
+A review-created reactive-fix bead may route to `beo-execute` only when all are true:
+- verdict is `fix`
+- root cause is proven
+- fix is bounded to current approved file scope
+- verification command/check remains unchanged or already approved
+- acceptance and requirements do not change
+- approval envelope remains current for the bounded fix
+- reactive-fix record names changed files, acceptance target, and verification evidence required
 - source finding is named
 - exact bounded fix objective is named
 - affected approved bead or bounded reactive-fix bead id is named
@@ -342,7 +372,7 @@ If root cause is not proven enough to classify the fix, route to `beo-debug`.
 
 ## Feature learning record artifact shape
 
-Feature learning records are feature-local artifacts. Durable-learning thresholds and consolidation thresholds live in `beo-references -> learning.md`.
+Feature learning records are feature-local artifacts. Durable-learning thresholds and consolidation thresholds live in `beo-reference -> learning.md`.
 
 Minimum feature-learning sections when a record is created:
 - `Disposition`
@@ -354,7 +384,7 @@ Minimum feature-learning sections when a record is created:
 - `Provenance`
 - `Promotion status`
 
-Do not create a feature learning record for obvious isolated accepted work with `no-learning`; record the inline disposition shape from `beo-references -> learning.md` instead.
+Do not create a feature learning record for obvious isolated accepted work with `no-learning`; record the inline disposition shape from `beo-reference -> learning.md` instead.
 
 ## Surface writer map
 

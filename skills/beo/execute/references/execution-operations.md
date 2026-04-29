@@ -1,17 +1,11 @@
 # execution-operations
 
 Role: APPENDIX
-Allowed content only: claim / dispatch / complete command sequence for an already-selected bead; no approval or routing rules
+Allowed content only: claim / dispatch / complete command sequence and exit evidence shapes for an already-selected bead; no approval or routing decisions
 
 ## Claim command forms
 
-| Purpose | Command form |
-| --- | --- |
-| claim selected bead | `br update <id> --status in_progress --label reserved --no-daemon` |
-| record execution comment | `br comments add <id> --message <text> --no-daemon` |
-| mark blocked | `br update <id> --status blocked --label blocked --no-daemon` |
-| mark done | `br update <id> --status done --no-daemon` |
-| flush bead DB | `br sync --flush-only` |
+Use canonical `br update`, `br comments add`, and `br sync --flush-only` forms from `beo-reference -> cli.md`. This appendix owns when `beo-execute` uses them, not their reusable syntax.
 
 ## Linear steps
 
@@ -30,11 +24,11 @@ Allowed content only: claim / dispatch / complete command sequence for an alread
 | 11 | Run `br sync --flush-only` after bead DB mutations. |
 | 12 | Update `STATE.json` with status/evidence and next owner evidence. |
 
-Routing, approval law, and scope law remain canonical in `beo-execute`, `beo-references -> approval.md`, and `beo-references -> artifacts.md`.
+Routing, approval law, and scope law remain canonical in `beo-execute`, `beo-reference -> approval.md`, and `beo-reference -> artifacts.md`.
 
 ## Dirty worktree and concurrent work policy
 
-- If an in-scope file is already dirty before execution and the current owner did not create that diff, stop and route to `user` or `beo-plan`; do not merge unowned work by assumption.
+- If an in-scope file is already dirty before execution and the current owner did not create that diff, stop and record evidence for canonical owner selection; do not merge unowned work by assumption.
 - If an out-of-scope file is dirty, do not touch it; record it as pre-existing state only.
 - Pre-existing dirty generated files must not be claimed as outputs of the current bead.
 - When execution proceeds with recorded pre-existing dirty paths, execution evidence must distinguish pre-existing diffs from current-bead changes.
@@ -42,7 +36,7 @@ Routing, approval law, and scope law remain canonical in `beo-execute`, `beo-ref
 ## Generated side-effect policy
 
 - Generated files may change only when explicitly listed in bead file scope, listed under approved generated outputs, or deterministically updated by a verification command with recorded evidence.
-- Unexpected generated changes outside scope require stopping and routing to `beo-plan` or `user`.
+- Unexpected generated changes outside scope require stopping and recording scope-drift evidence; successor owner remains canonical in `beo-execute` / `pipeline.md`.
 - Lockfile changes require explicit dependency-change approval.
 - Snapshot changes require acceptance evidence that the UI or output change is intended.
 - Formatting changes outside approved file scope are scope violations unless the bead explicitly allows them.
@@ -61,9 +55,9 @@ Write the canonical execution bundle to `.beads/artifacts/<feature_slug>/executi
 - `blockers`
 - `ready_for_review`
 
-## Exit evidence
+## Exit evidence shapes, not routing decisions
 
-Use this appendix to name the evidence that `beo-execute` should emit; owner routing remains canonical in `beo-execute`.
+Use this appendix to name the evidence that `beo-execute` should emit; successor-owner selection remains canonical in `beo-execute` and `beo-reference -> pipeline.md`.
 
 | Exit shape | Required evidence |
 | --- | --- |

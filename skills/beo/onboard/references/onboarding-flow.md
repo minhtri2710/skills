@@ -1,3 +1,14 @@
+## Contents
+
+- Preflight
+- Decision Matrix
+- Managed surfaces
+- Exact commands
+- `checkRepo` result schema
+- Scout contract
+- Apply order
+- Migrated startup gates
+
 # onboarding-flow
 
 Role: APPENDIX
@@ -22,15 +33,16 @@ The `checkRepo` return value contains a script-level `status`, not a routing sta
 
 ## Managed surfaces
 
+Legacy sentinels `<!-- BEO:START -->` / `<!-- BEO:END -->` are not recognized as current managed blocks. Re-onboarding writes the current `<!-- BEO:MANAGED START -->` / `<!-- BEO:MANAGED END -->` block.
+
+
 | Surface | Rule |
 | --- | --- |
 | `AGENTS.md` managed block | create, append, or replace only between BEO sentinels |
 | `.beads/onboarding.json` | write current plugin and managed startup contract versions |
 | `.beads/beo_status.mjs` | write generated read-only scout helper when missing or stale |
-| `.beads/STATE.json` | create only when absent; never overwrite parseable live state with guessed values |
-| `.beads/critical-patterns.md` | create when absent or repair managed header/marker only |
-| `.beads/artifacts/` | create directory when absent; do not mutate feature-specific artifact content |
-| `.beads/learnings/` | create directory when absent; do not mutate feature-specific learning content |
+
+Read-only orientation may report `.beads/STATE.json` parseability and `.beads/critical-patterns.md` presence, but onboarding does not create or repair runtime artifacts.
 
 ## Exact commands
 
@@ -73,7 +85,10 @@ validate onboarding freshness, authorize execution, or replace live routing.
 - approval/readiness summary when present; approval pointers must be reported as `referenced_unverified`, never `current`, unless the live approval doctrine has been verified outside the scout
 - `reads.required` vs `reads.conditional`
 - dependency posture when known
-- `orientation.state_owner` as a hint only, plus `route_required_if` conditions; the scout must not emit a final recommended owner
+- `orientation.state_owner` as a display of canonical `STATE.json.current_owner` only
+- `orientation.route_hint` as advisory only; not a final recommended owner
+- `orientation.route_required_if` conditions that require `beo-route`
+- do not emit a recommended owner field
 
 ## Apply order
 
@@ -102,3 +117,7 @@ Non-normative success example:
   }
 }
 ```
+
+## Migrated startup gates
+
+Startup checks are managed by the live onboarding script and managed AGENTS block. File presence alone is not freshness.

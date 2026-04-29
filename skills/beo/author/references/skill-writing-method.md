@@ -16,10 +16,11 @@ Use this file only as supporting material when authoring beo skill contracts.
 3. Write 3-5 manual pressure scenarios.
 4. Start with the baseline pressure set: happy path, owner collision, stale approval/handoff, forbidden-surface temptation, debug return/rollback, and user-clarification vs go-mode.
 5. Add scenario coverage for any new human-readable mirror, scout helper, dependency gate, or worker-report protocol you introduce.
-6. Write the smallest SKILL.md that blocks observed failure modes.
-7. Remove hypothetical content not tied to observed pressure.
-8. Re-read the contract for overlap with existing skills.
-9. Keep references non-normative unless they are canonical shared references.
+6. When changing a shared reference or operations appendix, inspect all owner skills that cite it and add or update one manual pressure scenario for the new failure mode.
+7. Write the smallest SKILL.md that blocks observed failure modes.
+8. Remove hypothetical content not tied to observed pressure.
+9. Re-read the contract for overlap with existing skills.
+10. Keep references non-normative unless they are canonical shared references.
 
 ## Skill contract checklist
 
@@ -32,6 +33,7 @@ Use this file only as supporting material when authoring beo skill contracts.
 - Forbidden surfaces block neighboring skills.
 - Allowed next owners are explicit.
 - References are pointers, not hidden routing logic.
+- Operations appendices do not contradict owner `SKILL.md` contracts.
 
 ## Pressure scenario shape
 

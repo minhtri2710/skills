@@ -1,3 +1,21 @@
+<!-- owner: beo-reference -->
+<!-- version: 2026-04-29 -->
+<!-- last-reviewed: 2026-04-29 -->
+
+## Contents
+
+- Core flow
+- Session scout summary
+- Communication contract
+- Go-mode display checkpoints
+- Optional closure
+- Owner boundary matrix
+- When unsure
+- Read first
+- Exit packet
+- Canonical pointers
+- Structured operator output
+
 # Operator card
 
 Use this as the first-pass operational view. It does not replace canonical doctrine.
@@ -6,7 +24,7 @@ Use this as the first-pass operational view. It does not replace canonical doctr
 
 `route -> explore -> plan -> validate -> execute/swarm -> review -> done`
 
-Go mode is a macro over this flow, not a separate owner. See `beo-references -> go-mode.md`.
+Go mode is a macro over this flow, not a separate owner. See `beo-reference -> go-mode.md`.
 
 ## Session scout summary
 
@@ -22,9 +40,14 @@ must not authorize execution, replace routing, or create approval.
 | plan | `PLAN.md` + bead graph | missing, incomplete, current, or invalidated |
 | approval | `approval-record.json` + approval doctrine | missing, referenced-unverified, current, or stale |
 | readiness | `STATE.json.readiness` | absent, `PASS_SERIAL`, `PASS_SWARM`, or failure class |
-| likely next owner | `beo-route` evidence | route candidate, not a final scout decision |
+| route hint | `beo-route`-relevant evidence | advisory route signal only; not a final owner decision |
 | blockers | live artifacts | external input, access, root cause, or artifact repair |
 | next reads | required vs conditional | minimum files to confirm the route |
+
+`route hint` is not a recommendation, approval, or owner decision.
+Only a valid current owner or `beo-route` may select the next owner.
+If `route hint` conflicts with canonical artifacts, ignore the hint and route
+from live evidence.
 
 If the scout output conflicts with canonical artifacts, trust canonical artifacts
 and route through `beo-route`.
@@ -43,6 +66,7 @@ Current state:
 - Next legal action:
 - Must read:
 - Must not touch:
+- Route hint:
 - Route required if:
 ```
 
@@ -63,6 +87,8 @@ handoffs, report in this order:
 Translate decision ids, invariants, and owner rules into user-visible meaning.
 Do not say only "violates D5"; explain what D5 requires and what would break in
 the workflow or delivered behavior.
+When explaining a route or blocker, name the canonical owner and the user-visible
+consequence. Avoid bare doctrine shorthand.
 
 ## Go-mode display checkpoints
 
@@ -123,7 +149,11 @@ Return only:
 ## Canonical pointers
 
 - owner selection -> `beo-route`
-- legal transitions -> `beo-references -> pipeline.md`
-- approval -> `beo-references -> approval.md`
-- state/handoff -> `beo-references -> state.md`
-- learning -> `beo-references -> learning.md`
+- legal transitions -> `beo-reference -> pipeline.md`
+- approval -> `beo-reference -> approval.md`
+- state/handoff -> `beo-reference -> state.md`
+- learning -> `beo-reference -> learning.md`
+
+## Structured operator output
+
+When reporting findings, state the active owner, evidence read, decision, next owner, and blockers before optional detail.

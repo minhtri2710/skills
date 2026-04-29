@@ -22,18 +22,22 @@ Checklist:
 1. Confirm `CONTEXT.md` is locked and required sections are present.
 2. Confirm `PLAN.md` declares its context binding and planning depth class.
 3. Confirm `PLAN.md` contains the sections required for its planning depth: minimal approach or approach, prior learning and discovery facts when required, risk map, current phase contract, current phase story map when required, bead graph, file scopes, verification commands, and execution envelope proposal.
-4. Confirm every bead has Goal, Scope, Acceptance, File scope, Dependencies, and Verification.
-5. Check dependency graph for cycles and ambiguous ordering.
-6. Check file scopes for missing mutable paths, broad globs, generated outputs, and forbidden paths.
-7. Check the execution envelope proposal for candidate mode, approved beads, scope refs, and verification coverage consistent with the bead graph.
-8. Check serial/swarm mode evidence is supportable by dependency and file-scope isolation.
-9. Identify contract-bearing mutations that would require approval invalidation.
-10. Count ready beads:
+4. Confirm MED/HIGH risks have proof or accepted mitigation.
+5. Confirm acceptance-critical decisions map to bead acceptance, verification, review/UAT, or explicit `N/A`.
+6. Confirm every bead has Goal, Scope, Acceptance, File scope, Dependencies, and Verification.
+7. Check dependency graph for cycles and ambiguous ordering.
+8. Check file scopes for missing mutable paths, broad globs, generated outputs, and forbidden paths.
+9. Check the execution envelope proposal for candidate mode, approved beads, scope refs, and verification coverage consistent with the bead graph.
+10. Check serial/swarm mode evidence is supportable by dependency and file-scope isolation.
+11. Identify contract-bearing mutations that would require approval invalidation.
+12. Check approval envelope freshness or whether a new grant is needed.
+13. If two or more ready beads exist, evaluate swarm eligibility before serial.
+14. Count ready beads:
    - exactly one ready bead
    - two or more ready beads with isolation proof
    - two or more ready beads without isolation proof
-11. Confirm whether Agent Mail availability supports swarm dispatch.
-12. Confirm whether any serial fallback would require a fresh serial approval envelope.
+15. Confirm whether Agent Mail availability supports swarm dispatch.
+16. Confirm whether any serial fallback would require a fresh serial approval envelope.
 
 Return shape:
 

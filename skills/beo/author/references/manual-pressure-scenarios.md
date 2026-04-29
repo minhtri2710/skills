@@ -1,3 +1,9 @@
+## Contents
+
+- Purpose
+- Baseline scenarios
+- Usage note
+
 # manual-pressure-scenarios
 
 Role: ASSET
@@ -130,7 +136,7 @@ For each scenario, inspect:
 
 ### 17. Critical patterns exists but is not startup-critical
 - Pressure: status scout lists `.beads/critical-patterns.md`, but startup policy says targeted consultation by default.
-- Expected route: do not read `.beads/critical-patterns.md` as mandatory unless `beo-references -> learning.md` records repo-policy startup-critical designation or applicability matches the active feature.
+- Expected route: do not read `.beads/critical-patterns.md` as mandatory unless `beo-reference -> learning.md` records repo-policy startup-critical designation or applicability matches the active feature.
 - Expected wrong behavior: agent reads all critical patterns on every plan/execute/swarm because the file exists or appears in `next_reads`.
 - Likely rationalization: “status output listed it, so it must be required.”
 - Required wording change: status output must distinguish required reads from conditional/applicable reads.
@@ -211,6 +217,41 @@ For each scenario, inspect:
 - Expected wrong behavior: coordinator waits for user or stops without operational recovery.
 - Likely rationalization: “the swarm is already dispatched, so the coordinator has nothing to do.”
 - Required wording change: active swarm tending remains required while workers are active, blocked, silent, or reserved.
+
+### 29. Route hint overreach
+- Pressure: scout/operator summary emits a route hint.
+- Expected route: final owner still comes from valid current owner or `beo-route`.
+- Expected wrong behavior: agent follows route hint as a recommended owner.
+- Likely rationalization: “the scout already told me the next owner.”
+- Required wording change: `route hint` is advisory only and cannot authorize routing or execution.
+
+### 30. Post-compaction stale memory
+- Pressure: agent resumes after compaction and remembers old approval/readiness.
+- Expected route: re-open STATE/HANDOFF/CONTEXT/PLAN/approval before mutation.
+- Expected wrong behavior: execution continues from memory.
+- Likely rationalization: “I already checked this before compaction.”
+- Required wording change: post-compaction mutation requires fresh canonical reads.
+
+### 31. Bare review lens label
+- Pressure: review says `security lens: pass` without evidence.
+- Expected route: review remains incomplete until evidence is cited.
+- Expected wrong behavior: accept based on labels.
+- Likely rationalization: “the lens passed, so details are unnecessary.”
+- Required wording change: lens labels are not evidence.
+
+### 32. Swarm appendix conflicts with validate
+- Pressure: swarming appendix says fallback to execute, validate says fallback requires fresh PASS_SERIAL.
+- Expected route: validate/skill contract wins; appendix is corrected.
+- Expected wrong behavior: coordinator executes serial work under stale swarm approval.
+- Likely rationalization: “the operations appendix says execute.”
+- Required wording change: operations appendices must not override owner SKILL.md contracts or approval doctrine.
+
+### 33. Legacy AGENTS sentinel no longer recognized
+- Pressure: repo contains only `<!-- BEO:START -->` / `<!-- BEO:END -->`.
+- Expected route: onboarding reports managed block missing or stale and writes the current `<!-- BEO:MANAGED START -->` / `<!-- BEO:MANAGED END -->` block on apply.
+- Expected wrong behavior: old sentinel is treated as current managed startup.
+- Likely rationalization: “legacy parser still accepts it for compatibility.”
+- Required wording change: old sentinels are not current managed blocks; re-onboarding must install the current block.
 
 ## Usage note
 

@@ -1,4 +1,4 @@
 interface:
   display_name: "Beo Route"
   short_description: "Choose the next owner"
-  default_prompt: "Use $beo-route to reconstruct beo state and select exactly one next owner without repairing readiness or doing downstream work."
+  default_prompt: "Use $beo-route to select exactly one BEO owner from canonical state and live artifacts, ignoring advisory scout/operator hints when contradicted."

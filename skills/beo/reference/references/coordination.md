@@ -1,3 +1,7 @@
+<!-- owner: beo-reference -->
+<!-- version: 2026-04-29 -->
+<!-- last-reviewed: 2026-04-29 -->
+
 # Coordination
 
 ## Agent Mail availability predicate
@@ -16,6 +20,24 @@
 ## Swarm availability fallback
 
 If Agent Mail is not available, do not start `beo-swarm`; route to `beo-validate` for serial reclassification.
+
+## Worker authority boundary
+
+Workers may report:
+- done evidence
+- blocker evidence
+- file conflict evidence
+- reservation status
+- stop-condition evidence
+
+Workers must not select the next BEO owner.
+Coordinator verifies reports and routes by canonical owner doctrine.
+
+## Active coordination obligation
+
+A coordinator remains responsible for active tending while worker reservations,
+active assignments, blockers, or expected reports exist.
+A quiet inbox is not terminal evidence.
 
 ## Worker loop summary
 

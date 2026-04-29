@@ -1,3 +1,22 @@
+<!-- owner: beo-reference -->
+<!-- version: 2026-04-29 -->
+<!-- last-reviewed: 2026-04-29 -->
+
+## Contents
+
+- Purpose
+- Shared required-input baseline
+- Shared optional-input baseline
+- Shared handoff discipline
+- Shared evidence writing style
+- Shared state and handoff baseline
+- Shared decision packet
+- Ask-user threshold
+- Go-mode default assumption rule
+- Shared forbidden surfaces baseline
+- Shared forbidden behaviors
+- Shared outputs baseline
+
 # Skill contract common
 
 ## Purpose
@@ -16,7 +35,8 @@ Shared mechanical contract doctrine for beo skill files. This file exists to red
 ## Shared handoff discipline
 - Write `HANDOFF.json` only for a real pause, checkpoint, external wait, or owner transfer that must survive beyond the current live session.
 - Routine same-session owner transitions update `STATE.json` only.
-- Unless a skill says otherwise, inherit handoff discipline from `beo-references -> state.md`.
+- After compaction, owners must re-read canonical surfaces before mutation.
+- Unless a skill says otherwise, inherit handoff discipline from `beo-reference -> state.md`.
 - Only list a handoff section in the skill when the owner has a real exception.
 
 ## Shared evidence writing style
@@ -76,7 +96,7 @@ compatibility, external approval, secret/access, legal/business decision,
 approved file scope, or verification.
 
 Proceed with a conservative assumption and record it in the owning artifact or
-`STATE.json.operator_view` according to `beo-references -> go-mode.md`.
+`STATE.json.operator_view` according to `beo-reference -> go-mode.md`.
 
 ## Shared forbidden surfaces baseline
 Unless a skill explicitly lists an exception in `Writable surfaces`, treat the following as forbidden by default:
@@ -110,8 +130,8 @@ the canonical fields and the owner decision being recorded, or explicitly set
 but stale operator-facing claims must not be left unmarked.
 
 Only list extra state fields when that owner writes more than the baseline.
-In `Writable surfaces`, prefer the short form: shared `STATE/HANDOFF` surfaces under `beo-references -> skill-contract-common.md` unless the skill adds extra state fields or exceptions.
-When stale optional fields are removed, record them in `evidence.cleared_fields` using `beo-references -> state.md`.
+In `Writable surfaces`, prefer the short form: shared `STATE/HANDOFF` surfaces under `beo-reference -> skill-contract-common.md` unless the skill adds extra state fields or exceptions.
+When stale optional fields are removed, record them in `evidence.cleared_fields` using `beo-reference -> state.md`.
 
 ## Loop guard
 If the same feature returns between the same two owners twice without changed evidence, the current owner must record `loop_reason` and choose one of:
@@ -127,9 +147,9 @@ Keep `Writable surfaces` owner-specific.
 - rely on the shared forbidden-surfaces baseline instead of re-describing what is not writable
 
 ## Shared state/handoff doctrine pointers
-- First-pass operator view is in `beo-references -> operator-card.md`.
-- State lifecycle, STATE field groups, stale-field cleanup, and handoff freshness are canonical in `beo-references -> state.md`.
-- Go-mode macro behavior and operator assumption discipline are canonical in `beo-references -> go-mode.md`.
-- Delivery order and legal owner transitions are canonical in `beo-references -> pipeline.md`.
+- First-pass operator view is in `beo-reference -> operator-card.md`.
+- State lifecycle, STATE field groups, stale-field cleanup, and handoff freshness are canonical in `beo-reference -> state.md`.
+- Go-mode macro behavior and operator assumption discipline are canonical in `beo-reference -> go-mode.md`.
+- Delivery order and legal owner transitions are canonical in `beo-reference -> pipeline.md`.
 - Routing precedence and owner collision doctrine are canonical in `beo-route`.
-- Approval grant/refresh/invalidation doctrine is canonical in `beo-references -> approval.md`.
+- Approval grant/refresh/invalidation doctrine is canonical in `beo-reference -> approval.md`.

@@ -1,11 +1,19 @@
+## Contents
+
+- Bootstrap surfaces
+- Feature slug rules
+- CONTEXT.md bootstrap
+- Go-mode assumption ledger
+- Linear steps
+
 # intake-bootstrap
 
 Role: APPENDIX
-Allowed content only: bootstrap surfaces, slug immutability, exact commands
+Allowed content only: bootstrap order, slug creation timing, initial file creation commands, and go-mode assumption recording
 
 ## Bootstrap surfaces
 
-Canonical state and handoff semantics remain in `beo-references -> state.md`; this appendix lists only the bootstrap surfaces `beo-explore` touches.
+Canonical state and handoff semantics remain in `beo-reference -> state.md`; this appendix lists only the bootstrap surfaces `beo-explore` touches.
 
 | Surface | Rule |
 | --- | --- |
@@ -21,7 +29,11 @@ Canonical state and handoff semantics remain in `beo-references -> state.md`; th
 - Slug rename is forbidden after first successful write.
 - If the user supplies an unsafe slug, normalize once and record the mapping in evidence.
 
-## CONTEXT.md template
+## CONTEXT.md bootstrap
+
+Use the canonical `CONTEXT.md` schema from `beo-reference -> artifacts.md`. This appendix only covers bootstrap order, slug creation timing, and initial file creation.
+
+Minimal creation stub before filling canonical sections:
 
 ```md
 # CONTEXT.md
@@ -30,46 +42,11 @@ Canonical state and handoff semantics remain in `beo-references -> state.md`; th
 - slug: <slug>
 - request: <user request or ticket summary>
 - owner-visible goal: <what the next owner is trying to make true>
-
-## Locked decisions
-
-| ID | Decision | Source | Verification intent | User-visible? |
-| --- | --- | --- | --- | --- |
-| D1 | <locked requirement or choice> | user / repo / policy | SEE / CALL / RUN / INSPECT / N/A | yes/no |
-
-## Acceptance
-
-| ID | Acceptance criterion | Linked decisions | Verification |
-| --- | --- | --- | --- |
-| A1 | <observable behavior that proves done> | D1 | <how to verify> |
-
-## Non-goals
-
-| ID | Non-goal | Reason |
-| --- | --- | --- |
-| N1 | <explicitly excluded adjacent work> | <why excluded> |
-
-## Compatibility / constraints
-
-| ID | Constraint | Applies to | Verification |
-| --- | --- | --- | --- |
-| C1 | <compatibility or constraint> | <surface or subsystem> | <how to preserve/check it> |
-
-## Open external dependencies
-
-| Dependency | Needed from | Blocks |
-| --- | --- | --- |
-| none or <dependency> | <person/system> | <what cannot proceed> |
-
-## Lock status
-- locked: false
-- locked_at:
-- context_hash:
 ```
 
 ## Go-mode assumption ledger
 
-Canonical go-mode semantics remain in `beo-references -> state.md`.
+Canonical go-mode semantics remain in `beo-reference -> go-mode.md`. State and handoff persistence remain in `beo-reference -> state.md`.
 
 When `go_mode` is used, record each non-blocking assumption with:
 - assumption text

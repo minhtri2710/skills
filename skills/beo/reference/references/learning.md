@@ -1,3 +1,22 @@
+<!-- owner: beo-reference -->
+<!-- version: 2026-04-29 -->
+<!-- last-reviewed: 2026-04-29 -->
+
+## Contents
+
+- Durable learning threshold
+- Obvious no-learning closure
+- Feature learning schema
+- Disposition
+- Accepted evidence
+- Patterns
+- Decisions
+- Failures / blockers
+- Applicability
+- Provenance
+- Promotion status
+- Consolidation threshold
+
 # Learning
 
 ## Durable learning threshold
@@ -145,4 +164,4 @@ Planning and validation may consult applicable feature/shared learnings before m
 
 Applicable learnings are those whose `Applicability` matches the active feature's domain, risk, failure mode, approval shape, or verification concern.
 
-`.beads/critical-patterns.md`, when present, is startup-critical only when `beo-references -> learning.md` records a repo-policy designation. Otherwise treat it like any other shared learning surface and consult it only when its applicability matches the active feature.
+`.beads/critical-patterns.md`, when present, is startup-critical only when `beo-reference -> learning.md` records a repo-policy designation. Otherwise treat it like any other shared learning surface and consult it only when its applicability matches the active feature.

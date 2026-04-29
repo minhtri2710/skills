@@ -1,18 +1,11 @@
 # bead-ops
 
 Role: APPENDIX
-Allowed content only: exact bead mutation commands and dependency-field constraints
+Allowed content only: local bead mutation sequence and dependency-field constraints; canonical shared command forms remain in `beo-reference -> cli.md`
 
 ## Bead mutation command forms
 
-| Purpose | Command form |
-| --- | --- |
-| create bead | `br create --title <title> --type task --priority <n> --no-daemon` |
-| update description | `br update <id> --description <text> --no-daemon` |
-| add comment / scope evidence | `br comments add <id> --message <text> --no-daemon` |
-| update status | `br update <id> --status <status> --no-daemon` |
-| add dependency | `br dep add <child-id> <parent-id> --no-daemon` |
-| flush bead DB | `br sync --flush-only` |
+Use canonical `br create`, `br update`, `br comments add`, `br dep add`, and `br sync --flush-only` forms from `beo-reference -> cli.md`. This appendix owns when `beo-plan` uses them, not their reusable syntax.
 
 ## Required bead description block
 
@@ -61,7 +54,7 @@ Swarm eligibility:
 
 ## Planning exit evidence
 
-Use this appendix to describe the evidence `beo-plan` should record; approval invalidation and next-owner doctrine remain canonical in `beo-plan` and `beo-references -> approval.md`.
+Use this appendix to describe the evidence `beo-plan` should record; approval invalidation and next-owner doctrine remain canonical in `beo-plan` and `beo-reference -> approval.md`.
 
 | Evidence | Required |
 | --- | --- |

@@ -15,96 +15,46 @@ metadata:
       missing_effect: degraded
       reason: Useful for read-only bead inspection but not required for every planning write.
 ---
-
 # beo-plan
 
 ## Purpose
 Create or repair current-phase design and bead graph.
 
 ## Primary owned decision
-Convert locked requirements into a current executable phase and bead graph.
+Turn locked requirements into an executable current-phase plan and bead graph.
 
-## Enter when
-- locked `CONTEXT.md` exists
-- `PLAN.md`, phase shape, bead graph, dependencies, file scopes, verification plan, or any planning-depth-required section from `beo-references -> complexity.md` is missing, contradicted, or invalidated by contract-bearing change
+## Ownership predicate
+- Requirements are locked and planning artifacts are absent, stale, or incomplete.
+- The bead graph is missing, stale, or inconsistent with locked requirements.
+- Validation found content edits needed in plan or bead descriptions.
+- Requirements are not unlocked or contradicted.
 
 ## Writable surfaces
-- `.beads/artifacts/<feature_slug>/PLAN.md` while creating or repairing current-phase design and bead graph
-- bead descriptions and dependency fields described by `references/bead-ops.md`, only for planned current-phase beads
-- approval state surfaces described by `beo-references -> approval.md`, only to invalidate stale approval after contract-bearing plan changes
-- shared `STATE/HANDOFF` surfaces under `beo-references -> skill-contract-common.md`
+- `.beads/artifacts/<feature_slug>/PLAN.md`.
+- Current-phase bead descriptions and dependency fields owned by planning procedure.
+- Shared `STATE/HANDOFF` surfaces under the common contract baseline.
 
-## Decision packet
-- shared decision packet under `beo-references -> skill-contract-common.md`
-- no local packet extensions beyond plan, bead graph, and approval-invalidation evidence in owned surfaces
+> Canonical: `beo-reference -> complexity.md`
+> Locally enforced as:
+> - Select the smallest safe planning depth.
+> - Include required sections for that depth.
+> - Let `beo-validate` classify readiness after planning writes.
 
-## Planning depth rule
-
-When creating or repairing `PLAN.md`, choose the minimum planning depth that is safe:
-- `small_change`
-- `standard_feature`
-- `high_risk_feature`
-
-Depth affects how much discovery, phase mapping, risk proof, and story mapping are required.
-It does not alter routing, approval, or execution ownership.
-Use `beo-references -> complexity.md` for required sections by depth.
-
-## Phase/story rule
-
-A current phase must define:
-- entry state
-- exit state
-- demo or inspectable result
-- rollback expectation when relevant
-- pivot signals when relevant
-- explicit out-of-scope boundaries
-
-A story must describe a user-visible or system-visible change.
-A bead is an executable unit under a story.
-Do not substitute a list of implementation chores for a story map.
-Small changes may keep the story/phase expression compact, but the executable phase and bead scope must remain explicit.
-For `standard_feature` and `high_risk_feature`, keep story map, file scope, verification plan, and risk map explicit.
-
-## Risk proof rule
-
-If a risk can change file scope, verification, acceptance, rollback, security, privacy, migration behavior, or cross-system compatibility, record the proof required before execution.
-For MED and HIGH risks, include:
-- risk statement
-- why the risk can fail in a real scenario
-- proof required before execution
-- proof type: static inspection, test, spike, runtime/manual UAT, or user decision
-- accepted mitigation or pivot signal when proof cannot be completed in the current phase
-
-If the proof changes requirements, route to `beo-explore`.
-If the proof changes phase shape, bead graph, scope, or verification, keep ownership in `beo-plan`.
-Do not hide a high-risk unknown inside an execution bead.
-MED/HIGH risk without proof or accepted mitigation remains plan-incomplete for execution readiness.
-
-## Prior-learning rule
-
-Consult applicable feature/shared learnings when they match the active feature's domain, risk, failure mode, approval shape, or verification concern.
-Record the consultation in `PLAN.md`.
-Do not require every planning pass to read the entire learning corpus.
-
-## Local hard stops
+## Hard stops
+- Do not execute implementation.
+- Do not approve readiness.
 - Do not plan from unlocked or contradicted requirements.
-- Do not create beads before the current phase contract is coherent.
-- Do not mark a bead ready when file scope or verification is missing.
-- Do not preserve stale approval assumptions after modifying phase contract, story map, risk map, bead graph, file scope, forbidden paths, or verification.
-- Do not create separate history artifacts as canonical BEO state.
-- Do not hand off to `beo-validate` before all planned beads have been created in the br DB via `br create`.
-- Do not omit explicit file scope, forbidden paths when needed, or verification for a ready bead.
 
 ## Allowed next owners
-- beo-validate
-- beo-explore
-- user
+- `beo-validate`
+- `beo-explore`
+- `user`
+- `beo-route` — only when owner state is missing, stale, contradictory, or colliding.
 
 ## References
-- `beo-references -> artifacts.md`
-- `beo-references -> approval.md`
-- `beo-references -> complexity.md`
-- `beo-references -> learning.md`
-- `beo-references -> pipeline.md`
-- `beo-references -> state.md`
-- `references/bead-ops.md`
+- `beo-reference -> artifacts.md` — read when writing `PLAN.md` and bead schema fields.
+- `beo-reference -> complexity.md` — read when selecting planning depth and required sections.
+- `beo-reference -> cli.md` — read when using shared `br`/`bv` command forms.
+- `beo-reference -> approval.md` — read when invalidating stale approval after plan changes.
+- `beo-reference -> pipeline.md` — read when selecting the next owner.
+- `references/bead-ops.md` — read when mutating planned current-phase bead descriptions or dependencies.
