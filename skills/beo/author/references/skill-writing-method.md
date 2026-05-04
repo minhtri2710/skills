@@ -28,7 +28,7 @@ Use this file only as supporting material when authoring beo skill contracts.
 - Description states trigger conditions, not workflow summary.
 - Purpose is one sentence.
 - Primary owned decision is exactly one decision.
-- Ownership test has one predicate group.
+- Ownership predicate has one predicate group.
 - Writable surfaces are explicit.
 - Forbidden surfaces block neighboring skills.
 - Allowed next owners are explicit.
@@ -40,9 +40,9 @@ Use this file only as supporting material when authoring beo skill contracts.
 ```text
 Scenario:
 Pressure:
-Expected wrong behavior without skill:
+Ambiguity to avoid without wording:
 Observed or likely rationalization:
-Required wording change:
+Possible wording hardening:
 ```
 
 ## Recommended baseline scenarios

@@ -10,7 +10,7 @@ This appendix is operational only. Owner selection and collision doctrine are ca
 Run before downstream owner selection when the installed onboarding skill path is known:
 
 ```sh
-node <installed-beo-onboard-root>/scripts/onboard_beo.mjs --repo-root "<absolute-repo-root>"
+node skills/beo/onboard/scripts/onboard_beo.mjs --repo-root "$(pwd)"
 ```
 
 If the result is not `up_to_date`, record onboarding freshness evidence and continue through canonical owner selection. This appendix does not choose between `beo-onboard`, `beo-reference`, `beo-author`, or another legal owner.

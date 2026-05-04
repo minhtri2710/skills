@@ -4,26 +4,27 @@
 
 ### Minimal beo ownership architecture
 
-Refactored the beo corpus around the fixed 13-skill topology and final canonical shared reference set.
+Refactored the beo corpus around the fixed 12-skill topology and final canonical shared reference set.
 
 #### Main improvements
 - Standardized every `SKILL.md` around one primary owned decision, one ownership predicate, exact writable surfaces, strict boundaries, and enumerated allowed successors.
-- Consolidated shared schemas, mappings, protocols, command forms, and registries into the final 12 canonical shared references.
+- Consolidated shared schemas, mappings, protocols, command forms, and registries into the final 13 canonical shared references.
 - Reduced skill-local references to asset or appendix roles only.
 - Refocused `beo-author` on skill contract authorship only, with manual pressure scenarios as prose rather than checker or fixture ownership.
 - Normalized `AGENTS.md` to pointer-only runtime doctrine while preserving the managed beo block.
 
 #### Current canonical shared references
-- `anti-goals.md`
 - `approval.md`
 - `artifacts.md`
 - `authoring.md`
 - `cli.md`
 - `complexity.md`
-- `coordination.md`
-- `deletion-policy.md`
+- `doctrine-map.md`
+- `go-mode.md`
 - `learning.md`
+- `operator-card.md`
 - `pipeline.md`
+- `skill-contract-common.md`
 - `state.md`
 - `status-mapping.md`
 

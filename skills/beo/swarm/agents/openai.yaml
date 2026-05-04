@@ -1,4 +1,0 @@
-interface:
-  display_name: "Beo Swarm"
-  short_description: "Coordinate parallel bead execution"
-  default_prompt: "Use $beo-swarm to actively coordinate approved independent current-phase beads with isolated file scopes, tend worker reports/reservations until review-ready or routed fallback, and never implement as coordinator."

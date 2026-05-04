@@ -28,15 +28,16 @@ a runtime authority.
 
 | Doctrine | Canonical surface | Local consumers |
 | --- | --- | --- |
-| Owner routing and collision | `beo-route`, `pipeline.md` | all owner skills |
-| Approval envelope and stale approval | `approval.md` | plan, validate, execute, swarm, review |
+| Owner selection, collision precedence, route suppression | `beo-route` | all owner skills |
+| Delivery order and legal owner transitions | `pipeline.md` | all owner skills |
+| Approval envelope and stale approval | `approval.md` | plan, validate, execute, review |
 | Planning depth and ceremony compactness | `complexity.md` | plan, validate, operator-card |
 | Artifact schemas | `artifacts.md` | explore, plan, execute, review, compound |
-| State, handoff, go-mode, operator view | `state.md`, `go-mode.md` | route, onboard, all owner skills |
-| Coordination and worker protocol | `coordination.md`, `swarm/references/swarming-operations.md` | swarm |
-| Learning thresholds and startup-critical policy | `learning.md` | plan, validate, review, compound, dream |
+| State lifecycle, handoff freshness, operator view | `state.md` | route, onboard, all owner skills |
+| Go-mode macro behavior and operator assumption rule | `go-mode.md` | route, onboard, all owner skills |
+| Learning thresholds and conditional prior-learning consultation | `learning.md` | plan, validate, review, compound, dream |
 | Human-facing summaries | `operator-card.md` | all owner skills |
-| Status mapping | `status-mapping.md` | execute, swarm |
+| Status mapping | `status-mapping.md` | validate, execute |
 
 ## Canonical-source rules
 
@@ -47,6 +48,21 @@ a runtime authority.
 - Neighboring files may include one-line summaries only when needed for local readability.
 - Any multi-step decision rule must live in its canonical owner.
 
+## Restatement policy
+
+Allowed outside the canonical owner:
+- one-line pointer to the canonical owner
+- local example that illustrates local ownership without deciding behavior
+- local hard stop that enforces the current owner's own boundary
+- display-only summary that explicitly says it has no authority
+
+Forbidden outside the canonical owner:
+- multi-step decision rules from another owner
+- copied schemas or command forms
+- examples that restate another file's decision law
+- output cards that grant approval, routing, readiness, review, or promotion authority
+- fallback routing rules hidden in skill-local appendices
+
 ## Rewrite rule
 
 When reducing duplicate wording:
@@ -54,6 +70,15 @@ When reducing duplicate wording:
 - replace neighboring restatements with one-line pointers
 - preserve local examples only when they illustrate local ownership
 - delete examples that restate another file’s decision law
+
+## Cleanup workflow
+
+1. Identify the duplicated doctrine and every file that restates it.
+2. Pick the canonical owner from this map.
+3. Move any unique surviving rule into the canonical owner before deleting it elsewhere.
+4. Replace neighboring copies with a pointer or remove them when even a pointer adds noise.
+5. Check inbound references before deleting or merging a file.
+6. Pressure-review affected scenarios from `skills/beo/author/references/manual-pressure-scenarios.md`.
 
 ## Deletion rules
 

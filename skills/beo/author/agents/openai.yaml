@@ -1,4 +1,4 @@
 interface:
   display_name: "Beo Author"
   short_description: "Author and harden beo contracts"
-  default_prompt: "Use $beo-author to create, rewrite, simplify, dedupe, normalize, review, audit, harden, or pressure-test beo skill contracts and skill-local writing guidance without changing runtime topology, adding checker scripts, adding fixture suites, or doing product delivery."
+  default_prompt: "Use $beo-author to create, rewrite, simplify, dedupe, normalize, review, harden, or perform manual prose pressure review of beo skill contracts and skill-local writing guidance without changing runtime topology, adding checker scripts, adding fixture suites, or doing product delivery."

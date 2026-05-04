@@ -2,7 +2,7 @@
 
 ## What This Repo Is
 
-A collection of 13 canonical beo skills and shared references for structured, contract-driven feature development using `br` and `bv`.
+A collection of 12 canonical beo skills and shared references for structured, contract-driven feature development using `br` and `bv`.
 
 ## Repository Structure
 
@@ -12,27 +12,35 @@ A collection of 13 canonical beo skills and shared references for structured, co
 - `skills/beo/author/references/` contains skill-writing guidance only.
 - `skills/beo/onboard/` contains managed startup assets and onboarding scripts.
 
-## External Dependencies
+## Core Dependencies
 
 | Tool | Version | Purpose |
 | --- | --- | --- |
 | `br` | 0.1.28+ | beads_rust CLI |
 | `bv` | 0.15.2+ | Beads Viewer |
-| `obsidian` CLI | optional | external knowledge-store integration |
-| `qmd` | optional | external knowledge-store search/query |
+| `node` | available | managed onboarding script runtime |
 
-## Canonical Pointers
+## Optional Integrations
 
-- Skill contracts: `skills/beo/<skill>/SKILL.md`
-- Shared reference index: `skills/beo/reference/SKILL.md`
-- Operator first-pass view: `skills/beo/reference/references/operator-card.md`
-- Authoring method and owner map: `skills/beo/reference/references/authoring.md`
-- Exact CLI forms: `skills/beo/reference/references/cli.md`
-- Approval doctrine: `skills/beo/reference/references/approval.md`
-- Learning thresholds and closure split: `skills/beo/reference/references/learning.md`
-- State and handoff schemas: `skills/beo/reference/references/state.md`
-- Status mapping: `skills/beo/reference/references/status-mapping.md`
-- Pipeline and allowed handoffs: `skills/beo/reference/references/pipeline.md`
+Optional only; not required for core beo runtime.
+
+| Tool | Purpose |
+| --- | --- |
+| `obsidian` CLI | external knowledge-store integration |
+| `qmd` | external knowledge-store search/query |
+
+## Canonical Reads
+
+| Need | Read |
+| --- | --- |
+| skill contract | `skills/beo/<skill>/SKILL.md` |
+| reference index | `skills/beo/reference/SKILL.md` |
+| first-pass operation | `skills/beo/reference/references/operator-card.md` |
+| legal transitions | `skills/beo/reference/references/pipeline.md` |
+| approval | `skills/beo/reference/references/approval.md` |
+| state/handoff | `skills/beo/reference/references/state.md` |
+| commands | `skills/beo/reference/references/cli.md` |
+| doctrine ownership | `skills/beo/reference/references/doctrine-map.md` |
 
 ## Onboarding Versioning
 
@@ -41,32 +49,28 @@ A collection of 13 canonical beo skills and shared references for structured, co
 <!-- BEO:MANAGED START -->
 ## Beo Startup
 
-1. Run the live onboarding check before downstream beo work: `node <installed-beo-onboard-root>/scripts/onboard_beo.mjs --repo-root "<absolute-repo-root>"`.
+1. Run the live onboarding check before any downstream beo work: `node skills/beo/onboard/scripts/onboard_beo.mjs --repo-root "$(pwd)"`.
 2. If the check result is not `up_to_date`, stop and load `beo-onboard`.
 3. If `.beads/beo_status.mjs` exists, run `node .beads/beo_status.mjs --json` after the live check passes.
 4. Reopen `.beads/STATE.json` and `.beads/HANDOFF.json` when present; verify handoff freshness before routing.
 5. Reopen active feature artifacts under `.beads/artifacts/<feature_slug>/` before acting on that feature.
-6. Treat status output and cached dependency posture as advisory/display only; canonical owners and references remain binding.
+6. Treat status output and cached dependency posture as advisory, display-only context; canonical owners and references remain binding.
 
 ## Beo Skill Chain
 
-Startup orientation only: `beo-route -> beo-explore -> beo-plan -> beo-validate -> beo-execute/beo-swarm -> beo-review -> done`.
-This chain is an orientation summary only; legal transitions remain canonical in `beo-reference -> pipeline.md`.
+Startup orientation summary: `beo-route -> beo-explore -> beo-plan -> beo-validate -> beo-execute -> beo-review -> done`.
+Legal transitions remain canonical in `beo-reference -> pipeline.md`.
 Optional closure: `beo-review -> beo-compound -> beo-dream/done`.
-Support skills: `beo-debug`, `beo-dream`, `beo-author`. Reference skill: `beo-reference`.
+Support skills: `beo-debug`, `beo-author`. Bootstrap skill: `beo-onboard`. Corpus skill: `beo-dream`. Reference skill: `beo-reference`.
+Go mode only reduces unnecessary operator prompts. It does not bypass owner selection, approval, readiness, execution scope, review, or learning gates; see `beo-reference -> go-mode.md`.
 
-Canonical pointers:
-- legal transitions: `beo-reference -> pipeline.md`
-- approval refresh/invalidation: `beo-reference -> approval.md`
-- learning closure split: `beo-reference -> learning.md`
-- state and handoff freshness: `beo-reference -> state.md`
-- commands: `beo-reference -> cli.md`
+Startup pointers: legal transitions (`pipeline.md`), state/handoff freshness (`state.md`), approval refresh (`approval.md`), and go mode (`go-mode.md`).
 
 ## Advisory Status Rule
 
 Startup and status surfaces are orientation only. They do not approve execution,
-select routes, validate readiness, emit review verdicts, dispatch swarm work, or
-promote learning.
+select routes, validate readiness, select execution sets, emit review verdicts,
+or promote learning.
 
 ## Working Files
 
@@ -82,8 +86,37 @@ promote learning.
 
 1. Update or close the active bead only when the current owner owns bead status/evidence mutation.
 2. Update `STATE.json` only for fields owned by the current owner.
-3. Run `br sync --flush-only` after bead DB mutations.
+3. Flush bead DB mutations through `beo-reference -> cli.md`.
 4. Write or update `HANDOFF.json` only when pausing or transferring ownership.
-5. Record blockers, questions, and next action.
+5. Record blockers, questions, and the next action.
 
 <!-- BEO:MANAGED END -->
+
+## Skill Loading Rule
+
+A beo skill's `SKILL.md` must be loaded (in scope) before any mutation owned by that skill. Identifying `STATE.json.current_owner` is not sufficient authorization to act. The hard stops and writable surfaces in the loaded skill contract must be in scope. A no-skill mutation is invalid even when the agent can verify the current owner from state. See `beo-reference -> skill-contract-common.md`.
+
+## First 5 Minutes
+
+1. From the repo root, run:
+   `node skills/beo/onboard/scripts/onboard_beo.mjs --repo-root "$(pwd)"`
+
+2. If the result is not `up_to_date`, run:
+   `node skills/beo/onboard/scripts/onboard_beo.mjs --repo-root "$(pwd)" --apply`
+   Then rerun step 1.
+
+3. Read:
+   `skills/beo/reference/references/operator-card.md`
+
+4. Read:
+   `skills/beo/reference/references/skill-contract-common.md`
+   sections `Canonical vocabulary registry` and `Skill must be loaded to act`.
+
+5. Read `.beads/STATE.json` and `.beads/HANDOFF.json` when present.
+   - If exactly one current owner is valid, load only `skills/beo/<owner>/SKILL.md`.
+   - Otherwise load `skills/beo/route/SKILL.md`.
+   - Do not mutate anything before one owner SKILL is loaded.
+
+## Manual Doctrine Review
+
+Shared-reference changes should be read against representative prose pressure scenarios for ambiguity. This review is manual and non-executable; it is not a checker, fixture, eval, benchmark, or release gate.

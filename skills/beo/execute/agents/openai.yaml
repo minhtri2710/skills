@@ -1,4 +1,4 @@
 interface:
   display_name: "Beo Execute"
-  short_description: "Deliver one approved bead"
-  default_prompt: "Use $beo-execute to implement and verify exactly one approved ready bead within declared scope."
+  short_description: "Deliver one approved execution set"
+  default_prompt: "Use $beo-execute to implement and verify the selected approved execution set within declared scope, using single, ordered_batch, or local_parallel execution only when validated execution-set evidence permits it."

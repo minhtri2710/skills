@@ -7,29 +7,28 @@ Allowed content only: prompt text only; no pass/fail doctrine
 
 ## Bead readiness prompt
 
-Review bead descriptions and graph evidence for operational clarity. This prompt is assistive only: it cannot approve execution, choose serial vs swarm, or replace canonical validate, approval, or coordination doctrine. Return observations for `beo-validate`.
+Review bead descriptions and graph evidence for operational clarity. This prompt is assistive only: it cannot approve execution, choose execution-set mode, or replace canonical validate, approval, or routing doctrine. Return observations for `beo-validate`.
 
 Inputs to inspect:
 - bead ids and descriptions
 - dependency graph
 - file scopes and forbidden paths
+- generated outputs
 - verification commands
-- swarm eligibility notes
 
 Checklist:
-1. Confirm each bead states Goal, Scope, Acceptance, File scope, Forbidden paths, Dependencies, Verification, and Swarm eligibility.
+1. Confirm each bead states Goal, Scope, Acceptance, File scope, Forbidden paths, Dependencies, Verification, and generated outputs.
 2. Confirm acceptance is observable and testable.
 3. Confirm file scope is narrow enough for safe execution.
 4. Confirm forbidden paths cover adjacent high-risk surfaces.
 5. Confirm verification commands are concrete and runnable.
 6. Confirm dependency edges prevent unsafe ordering.
-7. Confirm swarm eligibility is denied when scopes overlap or dependency edges exist.
-8. Count ready beads and list ids that are operationally ready.
-9. Distinguish serial eligibility from merely having at least one ready bead.
-10. Record whether Agent Mail availability is known for swarm dispatch.
-11. Flag missing or overly broad file scope.
-12. Flag acceptance-critical decisions that are unmapped.
-13. Flag swarm eligibility that lacks isolation or dependency proof.
+7. Confirm scope isolation when two or more independently ready beads are present (no overlapping file scope or unresolved dependency edges).
+8. Count ready beads and list ids that are operationally ready; separately list approved dependency-chain children that are blocked only by an earlier selected parent bead.
+9. Record facts relevant to later execution-set mode classification without choosing the mode.
+10. Flag missing or overly broad file scope.
+11. Flag acceptance-critical decisions that are unmapped.
+12. Flag scope overlap that would block local_parallel classification.
 
 Return shape:
 
@@ -46,12 +45,9 @@ Dependency concerns:
 Verification concerns:
 - <concern or none>
 
-Swarm isolation notes:
-- <note or none>
-
 Mode readiness notes:
 - ready bead count: <number and ids>
-- serial eligibility: <evidence or none>
-- swarm eligibility: <evidence or none>
-- Agent Mail dependency: <available/unavailable/unknown>
+- mode-relevant facts: <single bead / ordered chain / isolated independent beads / conflicts>
+- isolation evidence: <evidence or none>
+- ordering constraints: <constraints or none>
 ```

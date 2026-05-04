@@ -17,14 +17,14 @@ File scope:
 Forbidden paths:
 Dependencies:
 Verification:
-Swarm eligibility:
+Generated outputs:
 ```
 
 ## Dependency constraints
 
 - No dependency cycles.
 - No child bead is ready before parent completion.
-- No concurrent swarm dispatch when a dependency edge exists between beads.
+- No concurrent local_parallel execution when a dependency edge exists between beads.
 - No overlapping mutable file scopes unless the overlap is explicitly read-only.
 - Cross-phase dependencies must name the phase boundary and blocking predecessor.
 
@@ -46,10 +46,10 @@ Swarm eligibility:
 | 3 | Draft current-phase design, dependencies, file scopes, and verification plan. For structural changes (file moves, routing restructure, import-primitive migration), list consuming files across all directories as integration points, not only files being moved. |
 | 4 | Create or update beads with the required description block. |
 | 5 | Add dependency edges after all bead ids exist. |
-| 6 | Record file scope and swarm eligibility evidence on each bead. |
+| 6 | Record file scope and execution-set mode evidence on each bead. |
 | 7 | Update `PLAN.md` with bead ids, dependency graph summary, file scope summary, and verification plan. |
 | 8 | Invalidate approval if any contract-bearing plan content or bead graph changed. |
-| 9 | Run `br sync --flush-only` after bead DB mutations. |
+| 9 | Flush bead DB mutations through `beo-reference -> cli.md`. |
 | 10 | Record planning exit evidence in `STATE.json`. |
 
 ## Planning exit evidence
@@ -76,5 +76,4 @@ Forbidden paths:
 - migrations/**
 Generated outputs:
 - none
-Swarm eligibility: no; depends on auth-session-parent
 ```

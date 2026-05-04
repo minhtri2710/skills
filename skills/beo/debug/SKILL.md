@@ -31,7 +31,7 @@ Establish a single root cause and return the smallest safe unblock path.
 
 ## Writable surfaces
 - Diagnostic notes and state/handoff fields needed to return proven root cause.
-- Shared `STATE/HANDOFF` surfaces under the common contract baseline.
+- Shared state/handoff fields allowed by `beo-reference -> skill-contract-common.md`.
 
 ## Hard stops
 - Do not implement the fix unless ownership routes back through an execution owner.
@@ -39,22 +39,40 @@ Establish a single root cause and return the smallest safe unblock path.
 - Do not present speculation as root cause.
 - Do not include patch wording in diagnostic output; return proven cause and legal unblock owner/action only.
 - Do not change `debug_return.return_to` by habit; override it only when canonical debug-return evidence proves the recorded return owner invalid.
-- Do not authorize rollback or repair mutation from debug output; return rollback or repair evidence to the legal owner chosen by canonical state and pipeline doctrine.
+- Do not authorize rollback or repair mutation from debug output; return rollback or repair evidence to the legal owner chosen by canonical state and pipeline doctrine. The legal owner for rollback of the current executing bead's mutation is `beo-execute`, bounded to that bead's declared file scope.
 
-## Output card
+## Debug Return Card
 
 ```md
 Finding:
 Evidence checked:
 Proof status: proven | inconclusive
-Safe unblock:
-Return evidence:
-Authority note: This output is valid only when emitted by `beo-debug`. It proves diagnosis only and does not authorize mutation.
+Safe unblock action class: <see taxonomy below>
+Return to: <owner per debug_return.return_to or canonical pipeline>
+Return evidence: <facts needed by the receiving owner to act>
+Authority note: display-only; canonical authority remains in the referenced state/artifact surface.
 ```
+
+### Safe unblock action class taxonomy
+
+| Class | Meaning |
+| --- | --- |
+| `retry_without_change` | the failure is transient or environmental; re-run without modifying artifacts |
+| `apply_fix_within_scope` | the fix is contained within the current approved bead's declared file scope; route back to `beo-execute` only when the existing current `PASS_EXECUTE` execution set remains valid; review-created reactive-fix beads route to `beo-validate` |
+| `expand_scope_to_beo_plan` | the fix requires files outside the current approved scope; a plan repair is needed before execution |
+| `retry_with_corrected_input` | the failure is due to incorrect command arguments or missing input; re-issue with corrected input |
+| `escalate_to_user` | the blocker requires a human decision (access, secret, external approval, ambiguous requirement) |
+
+### FORBIDDEN in debug output
+
+Debug output MUST NOT include:
+- patch text, code changes, or implementation instructions
+- a next-owner selection that bypasses `debug_return.return_to` without override evidence
+- an approval grant, PASS_EXECUTE, or readiness verdict
+- a rollback instruction (return rollback evidence to the legal executing owner instead)
 
 ## Allowed next owners
 - `beo-execute`
-- `beo-swarm`
 - `beo-review`
 - `beo-plan`
 - `beo-validate`

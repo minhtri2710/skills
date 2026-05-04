@@ -7,7 +7,7 @@ Allowed content only: prompt text only; no pass/fail doctrine
 
 ## Readiness review prompt
 
-Review the current planning artifacts for execution readiness. This prompt is assistive only: it cannot grant approval, deny approval, choose serial vs swarm, or replace canonical approval, coordination, or routing doctrine. Do not edit artifacts; return observations for `beo-validate` to classify.
+Review the current planning artifacts for execution readiness. This prompt is assistive only: it cannot grant approval, deny approval, select execution-set mode, or replace canonical approval or routing doctrine. Do not edit artifacts; return observations for `beo-validate` to classify.
 
 Inputs to inspect:
 - locked `CONTEXT.md`
@@ -28,16 +28,17 @@ Checklist:
 7. Check dependency graph for cycles and ambiguous ordering.
 8. Check file scopes for missing mutable paths, broad globs, generated outputs, and forbidden paths.
 9. Check the execution envelope proposal for candidate mode, approved beads, scope refs, and verification coverage consistent with the bead graph.
-10. Check serial/swarm mode evidence is supportable by dependency and file-scope isolation.
+10. Check execution-set mode evidence is supportable by dependency and file-scope isolation.
 11. Identify contract-bearing mutations that would require approval invalidation.
 12. Check approval envelope freshness or whether a new grant is needed.
-13. If two or more ready beads exist, evaluate swarm eligibility before serial.
-14. Count ready beads:
+13. If two or more independently ready beads exist, evaluate scope isolation for local_parallel classification.
+14. Count execution-set candidates:
    - exactly one ready bead
+   - one ready root bead plus approved child beads blocked only by earlier beads in the same explicit dependency chain
    - two or more ready beads with isolation proof
    - two or more ready beads without isolation proof
-15. Confirm whether Agent Mail availability supports swarm dispatch.
-16. Confirm whether any serial fallback would require a fresh serial approval envelope.
+15. Confirm execution-set mode is consistent with scope isolation and dependency ordering; ordered_batch may include dependency-chain children that are not independently ready yet when the selected parent bead is their only blocker.
+16. Confirm whether any mode change would require a fresh PASS_EXECUTE approval envelope.
 
 Return shape:
 
@@ -50,10 +51,10 @@ Readiness concerns:
 
 Mode considerations:
 - ready bead count: <number and ids>
-- serial eligibility: <evidence or none>
-- swarm eligibility: <evidence or none>
-- Agent Mail dependency: <available/unavailable/unknown>
-- fallback approval note: <fresh serial envelope required? yes/no/N/A>
+- proposed mode: single | ordered_batch | local_parallel
+- isolation evidence: <evidence or none>
+- ordering constraints: <constraints or none>
+- mode-change approval note: <fresh PASS_EXECUTE required? yes/no/N/A>
 
 Approval freshness inputs:
 - context_hash source: <path>

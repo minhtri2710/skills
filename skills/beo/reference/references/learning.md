@@ -15,6 +15,24 @@
 
 # Learning
 
+## Rejected-feature retrospective
+
+When `verdict=reject`, `beo-review` may record a non-promotable retrospective note directly in `REVIEW.md`.
+Use only when there is something worth capturing about why the feature was rejected (e.g., scope was fundamentally wrong, requirements were contradicted, design could not meet acceptance).
+
+Retrospective notes are:
+- ineligible for `beo-compound` (not a completed accepted feature)
+- ineligible for `beo-dream` (not promotable learning)
+- stored inline in `REVIEW.md` only; no separate learning record is created
+
+Retrospective note shape:
+```md
+## Rejection Retrospective
+- Reason rejected:
+- Root cause (scope / requirements / design / implementation):
+- What to avoid next time:
+```
+
 ## Durable learning threshold
 
 Record a full feature learning only when the lesson does at least one of the following:
@@ -143,7 +161,7 @@ Concrete shared guidance mutation requires:
 - conflict check
 - owner file identified
 - provenance update
-- approval if the surface is not designated auto-writable
+- explicit user approval for all shared guidance mutation
 
 Do not auto-promote single-feature learning into shared guidance. Do not mutate `.beads/critical-patterns.md` or other shared guidance from `beo-compound`.
 
@@ -158,8 +176,10 @@ Do not auto-promote single-feature learning into shared guidance. Do not mutate 
 
 Planning and validation may consult applicable feature/shared learnings before making decisions. This is targeted consultation, not a requirement to read the full corpus for every skill invocation.
 
-Applicable learnings are those whose `Applicability` matches the active feature's domain, risk, failure mode, approval shape, or verification concern.
+Applicable learnings are those whose `Applicability` directly overlaps the active feature's domain, specific risk pattern, known failure mode, or verification strategy — not those with superficial surface similarity.
 
 Targeted lookup does not authorize one-feature shared-doctrine mutation. Shared guidance changes remain governed by the consolidation threshold and critical shared guidance mutation rule above.
 
-`.beads/critical-patterns.md`, when present, is startup-critical only when `beo-reference -> learning.md` records a repo-policy designation. Otherwise treat it like any other shared learning surface and consult it only when its applicability matches the active feature.
+Historical feature artifact directories and learning records are evidence-only unless reactivated through `STATE.json.feature_slug` or explicitly selected by the current owner predicate. They are never auto-canonical for a later feature.
+
+`.beads/critical-patterns.md`, when present, is conditional shared guidance. Consult it only when its applicability matches the active feature; do not treat it as startup-critical by default.

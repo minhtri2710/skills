@@ -18,7 +18,7 @@ Return the exact canonical reference surface for a read-only lookup.
 - No edits, routing, owner selection, or runtime delivery are requested.
 
 ## Writable surfaces
-- none
+- none — `beo-reference` is a read-only consumer role; it does not write during lookups. This is a role constraint, not a repo invariant: `beo-author` may write into `skills/beo/reference/` when explicitly authorized for doctrine authoring.
 
 ## Hard stops
 - Do not edit doctrine or artifacts.
@@ -34,10 +34,10 @@ Return the exact canonical reference surface for a read-only lookup.
 - `beo-reference -> authoring.md` — read when placing doctrine, applying BEO frontmatter policy, or checking anti-goals.
 - `beo-reference -> cli.md` — read when exact shared `br`/`bv` command forms are needed.
 - `beo-reference -> complexity.md` — read when selecting ceremony mode or planning depth.
-- `beo-reference -> coordination.md` — read when checking worker authority, Agent Mail posture, or reservation semantics.
 - `beo-reference -> doctrine-map.md` — read when finding the canonical owner for a concept or deletion rule.
 - `beo-reference -> go-mode.md` — read when applying go-mode macro behavior or operator assumption discipline.
 - `beo-reference -> learning.md` — read when applying durable-learning, no-learning, or consolidation thresholds.
+- `beo-reference -> manual-consistency-checklist.md` — read after doctrine edits as a manual review aid; not an eval suite, benchmark, or release gate.
 - `beo-reference -> operator-card.md` — read for first-pass operator workflow and output order.
 - `beo-reference -> pipeline.md` — read when checking legal transitions and allowed handoffs.
 - `beo-reference -> skill-contract-common.md` — read when applying shared contract boilerplate, terminal-done rule, decision-packet template, or dependency schema.

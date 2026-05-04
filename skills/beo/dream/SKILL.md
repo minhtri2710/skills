@@ -16,13 +16,13 @@ Decide whether accepted feature evidence supports a shared learning update or an
 ## Ownership predicate
 - At least two accepted features support the same shared learning candidate.
 - The user explicitly requests corpus-level consolidation.
-- Existing shared learning guidance needs consolidation from accepted feature records.
-- Only one feature is available only when the user explicitly asks for corpus-level analysis.
+- Existing shared learning guidance needs consolidation from accepted feature records only when the consolidation threshold is met.
+- A single-feature case is in scope only when the user explicitly asks for corpus-level analysis.
 
 ## Writable surfaces
-- Shared learning guidance surfaces explicitly approved by the user or designated auto-writable by canonical learning doctrine.
+- Shared learning guidance surfaces explicitly approved by the user. When approval grants shared-guidance mutation, write to the user-confirmed target file path only. Do not infer a canonical shared guidance location; if no target path has been confirmed, surface the path choice to the user before writing.
 - Consolidation records described by canonical learning doctrine.
-- Shared `STATE/HANDOFF` surfaces under the common contract baseline.
+- Shared state/handoff fields allowed by `beo-reference -> skill-contract-common.md`.
 
 > Canonical: `beo-reference -> learning.md`
 > Locally enforced as:
@@ -34,6 +34,7 @@ Decide whether accepted feature evidence supports a shared learning update or an
 - Do not mutate shared guidance without threshold or explicit corpus-request evidence.
 - Do not implement product changes or reopen review.
 - Do not infer shared doctrine from isolated evidence.
+- Do not write feature-level learning records; that is `beo-compound`'s surface (`beo-compound` owns single-feature, feature-local records; `beo-dream` owns multi-feature cross-feature shared guidance). Route single-feature outcomes to `beo-compound` before consolidation.
 
 ## Corpus consolidation card
 
@@ -43,7 +44,7 @@ Source features checked:
 Threshold evidence:
 Conflict check:
 Decision: consolidation-candidate | no-promotion | needs-user
-Authority note: This output is valid only when emitted by `beo-dream`. Consolidation requires threshold evidence or an explicit corpus-level user request.
+Authority note: display-only; canonical authority remains in the referenced state/artifact surface.
 ```
 
 ## Allowed next owners

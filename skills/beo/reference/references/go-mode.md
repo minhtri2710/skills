@@ -1,12 +1,14 @@
 # BEO Go Mode
 
 Go mode is an operator macro for running the normal BEO pipeline from feature
-intake to terminal closure. It is not a separate owner and does not override
-routing, approval, state, or writable-surface doctrine.
+intake to terminal closure. It is not a separate owner, not an expedited
+execution path, and does not override routing, approval, state, writable-
+surface doctrine, locked requirements, `beo-validate`, `PASS_EXECUTE`,
+selected execution-set scope, or review.
 
 ## Happy path
 
-`beo-route -> beo-explore -> beo-plan -> beo-validate -> beo-execute | beo-swarm -> beo-review -> beo-compound? -> done`
+`beo-route -> beo-explore -> beo-plan -> beo-validate -> beo-execute -> beo-review -> beo-compound? -> done`
 
 Use `beo-dream` only when the cross-feature consolidation threshold is met.
 
@@ -24,43 +26,7 @@ Gate names are display labels only. They must not create separate approval or
 gate records. Go Mode cards are display-only; they cannot approve, route,
 validate, dispatch, accept, reject, or promote learning.
 
-## Operator sequence
-
-Use the smallest safe ceremony from `beo-reference -> complexity.md`.
-
-| Step | Operator display | Required owner evidence |
-| --- | --- | --- |
-| intake | "requirements are locked" | `CONTEXT.md` has acceptance, non-goals, compatibility, constraints |
-| planning | "current phase is executable" | `PLAN.md` has phase, beads, scope, verification, and risk proof required by planning depth |
-| validation | "execution envelope is current" | approval envelope binds beads, mode, scope, forbidden paths, verification, and freshness inputs |
-| execution | "approved work is being delivered" | serial bead or swarm proof remains inside the approval envelope |
-| review | "review evidence is ready" | evidence bundle proves acceptance, scope, verification, and decision/UAT coverage |
-| closure | "learning disposition is settled" | `no-learning`, feature learning, or cross-feature consolidation threshold is recorded |
-
-## Display-only checkpoint cards
-
-Use this shape only for operator-visible progress summaries:
-
-```md
-Observed:
-Evidence checked:
-Why this matters:
-Canonical owner/reference:
-Continue via:
-Authority note: This card is advisory/display only. Binding authority remains with the named Beo owner and canonical reference.
-```
-
-Checkpoint cards may cover startup/route sanity, requirements, plan/approval,
-serial execution, swarm dispatch, review, and learning. They must not use binding
-fields such as `Approved`, `Selected owner`, `Readiness verdict`, `Final verdict`,
-`Promotion decision`, `Gate passed`, `PASS_SERIAL`, or `PASS_SWARM` outside the
-canonical owner output that actually owns that decision.
-
-When the canonical deciding owner emits its own output, use:
-
-```md
-Authority note: This output is valid only when emitted by the named Beo owner. It does not create authority for status, scout, guide, specialist, or card-only output.
-```
+Display-card authority and output shapes are canonical in `beo-reference -> operator-card.md`.
 
 ## Operator behavior
 
@@ -81,3 +47,14 @@ Proceed with a conservative assumption and record it in:
 - `CONTEXT.md` if it affects requirements
 - `PLAN.md` if it affects approach only
 - `STATE.json.operator_view` if it affects current operator awareness
+
+## Edge cases
+
+| Case | Expected behavior |
+| --- | --- |
+| User says "go implement" but requirements are missing or contradicted | route through requirements locking first |
+| User says "go" but approval is stale or missing | validate/approval flow first |
+| User says "go" during an execution blocker with unproven root cause | use `beo-debug` when the legal owner routes there |
+| User says "skip review" | refuse the shortcut; review remains required |
+| User says "just implement" before `PASS_EXECUTE` | no execution; `beo-validate` must emit `PASS_EXECUTE` first |
+| Broad instruction conflicts with locked requirements | repair requirements before planning or execution |

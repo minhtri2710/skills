@@ -1,118 +1,111 @@
 # beo
 
-A skill repository for structured, contract-driven feature delivery with `br` (beads_rust) and `bv` (Beads Viewer). The repo contains 13 canonical beo skills, a shared reference corpus, onboarding scripts, and managed startup templates. It is primarily Markdown and support assets rather than product application code.
+A skill repository for structured, contract-driven feature delivery with `br`
+(beads_rust) and `bv` (Beads Viewer). The repo contains canonical beo skills,
+shared references, onboarding scripts, and managed startup templates.
 
----
-
-## Pipeline
+## Workflow
 
 ```mermaid
 flowchart LR
-    bootstrap[beo-onboard] -.->|onboarding gate| router[beo-route]
-    router --> exploring[beo-explore]
-    exploring --> planning[beo-plan]
-    planning --> validating[beo-validate]
-
-    validating -->|PASS_SWARM| swarming[beo-swarm]
-    validating -->|PASS_SERIAL| executing[beo-execute]
-
-    swarming -. serial remainder requires reclassification .-> validating
-    swarming -->|worker reports complete| reviewing[beo-review]
-
-    executing -->|terminal execution scope complete| reviewing[beo-review]
-    executing -. later phases remain .-> planning
-
-    reviewing -->|accept + durable/unclear learning| compounding[beo-compound]
-    reviewing -->|accept + obvious no-learning| done[done]
-
-    executing -. blocker / failure .-> debugging[beo-debug]
-    swarming -. blocker / failure .-> debugging
-    debugging -. safe unblock / diagnosis return .-> executing
-
-    compounding -->|cross-feature threshold met| dream[beo-dream]
-    compounding -->|feature learning complete| done
-    dream -->|consolidation complete| done
-
-    compounding --> critical[.beads/critical-patterns.md]
-    critical -. read by future planning .-> planning
-    compounding --> learnings[.beads/learnings/*.md]
-    dream -. periodic consolidation .-> learnings
+    bootstrap[beo-onboard] -.->|startup gate| route[beo-route]
+    route --> explore[beo-explore]
+    explore --> plan[beo-plan]
+    plan --> validate[beo-validate]
+    validate -->|PASS_EXECUTE| execute[beo-execute]
+    execute --> review[beo-review]
+    review -->|accept + no learning| done[done]
+    review -->|fix| validate
+    review -->|durable or unclear learning| compound[beo-compound]
+    compound --> dream[beo-dream]
+    compound --> done
+    dream --> done
+    execute -. blocker .-> debug[beo-debug]
+    debug -. evidence .-> owner[recorded/legal owner]
 ```
+
+Core runtime:
+
+`beo-route -> beo-explore -> beo-plan -> beo-validate -> beo-execute -> beo-review -> done`
+
+Optional closure:
+
+`beo-review -> beo-compound -> beo-dream/done`
+
+## 30-second model
+
+- `beo-route` selects one owner only when owner state is missing, stale, contradictory, or colliding.
+- `beo-validate` is the only owner that emits `PASS_EXECUTE`.
+- `beo-execute` only mutates the selected approved execution set.
+- `beo-review` is the only terminal verdict owner.
+- Cards are display-only unless emitted by the owning skill.
+
+Go mode only reduces unnecessary operator prompts. It does not bypass owner selection, approval, readiness, execution scope, review, or learning gates. Canonical behavior is in
+`skills/beo/reference/references/go-mode.md`.
+
+## Skill map
 
 | Category | Skill | Purpose |
 | --- | --- | --- |
-| Mainline | **beo-route** | Resolves canonical beo state and selects exactly one next target |
-| Mainline | **beo-explore** | Locks product requirements into `CONTEXT.md` before solution design |
-| Mainline | **beo-plan** | Converts locked context into current-phase technical design and executable beads |
-| Mainline | **beo-validate** | Gates current-phase execution readiness and selects `beo-execute` or `beo-swarm` |
-| Strategy | **beo-swarm** | Coordinates parallel workers for approved, independent beads |
-| Mainline | **beo-execute** | Implements and verifies exactly one approved bead |
-| Mainline | **beo-review** | Assesses completed current-phase work and issues `accept`, `fix`, or `reject` |
-| Mainline | **beo-compound** | Captures durable learnings from one accepted feature |
-| Bootstrap | **beo-onboard** | Verifies and minimally repairs beo tooling, bootstrap state, and managed startup readiness |
-| Support | **beo-debug** | Diagnoses one non-obvious blocker and applies the smallest verified unblock |
-| Support | **beo-dream** | Consolidates learnings across accepted features into corpus-level guidance |
-| Meta | **beo-author** | Creates, revises, and pressure-tests beo skills and supporting references |
-| Reference | **beo-reference** | Provides one targeted canonical reference document without doing operational work |
+| Runtime | `beo-route` | Select exactly one current owner when state is missing, stale, contradictory, or colliding |
+| Runtime | `beo-explore` | Lock requirements into `CONTEXT.md` |
+| Runtime | `beo-plan` | Convert locked requirements into `PLAN.md` and executable beads |
+| Runtime | `beo-validate` | Verify readiness and select one execution set |
+| Runtime | `beo-execute` | Deliver the approved execution set inside scope |
+| Runtime | `beo-review` | Emit one terminal verdict for completed work |
+| Closure | `beo-compound` | Record one accepted feature learning outcome |
+| Closure | `beo-dream` | Consolidate repeated accepted-feature learnings |
+| Support | `beo-debug` | Prove one blocker root cause and return evidence |
+| Bootstrap | `beo-onboard` | Verify and repair managed startup surfaces |
+| Meta | `beo-author` | Author, simplify, dedupe, and manually review beo contracts |
+| Reference | `beo-reference` | Return targeted canonical references without operational work |
 
-The minimal core runtime is `beo-route -> beo-explore -> beo-plan -> beo-validate -> beo-execute/beo-swarm -> beo-review -> done`.
-Optional closure is `beo-review -> beo-compound -> beo-dream/done`.
-`beo-swarm` is an execution strategy selected by validation, not a core delivery phase.
-`review -> done` is the default accepted-work closure when `learning_disposition=no-learning` is obvious.
+## Operator entry points
 
----
+- First-pass view: `skills/beo/reference/references/operator-card.md`
+- Legal transitions: `skills/beo/reference/references/pipeline.md`
+- Approval: `skills/beo/reference/references/approval.md`
+- State and handoff: `skills/beo/reference/references/state.md`
+- Artifacts and schemas: `skills/beo/reference/references/artifacts.md`
+- Learning thresholds: `skills/beo/reference/references/learning.md`
+- Exact command forms: `skills/beo/reference/references/cli.md`
+- Doctrine ownership: `skills/beo/reference/references/doctrine-map.md`
 
-## Operator View
-
-Use `skills/beo/reference/references/operator-card.md` as the first-pass operator view.
-Its owner boundary matrix is the shortest reliable summary of:
-- who decides what
-- which surfaces each owner may write
-- what each owner must not do
-
-Canonical shared doctrine is split deliberately:
-- owner selection, collision precedence, route suppression -> `skills/beo/route/SKILL.md`
-- legal transitions -> `skills/beo/reference/references/pipeline.md`
-- approval, grant/refresh/invalidation -> `skills/beo/reference/references/approval.md`
-- state/handoff freshness and terminal done rule -> `skills/beo/reference/references/state.md`
-- no-learning and consolidation thresholds -> `skills/beo/reference/references/learning.md`
-
-## Repository Layout
+## Repository layout
 
 ```text
 skills/beo/
-  route/       state reconstruction and next-skill routing
+  route/       owner selection and state reconstruction
   explore/     requirements locking
-  plan/        current-phase technical planning and bead creation
-  validate/    readiness gate and execution-mode selection
-  swarm/       parallel worker orchestration
-  execute/     single-bead delivery
-  review/      post-execution verdicts
-  compound/    single-feature learnings capture
+  plan/        current-phase planning and bead graph creation
+  validate/    readiness gate and execution-set selection
+  execute/     approved execution-set delivery
+  review/      terminal review verdicts
+  compound/    single-feature learning capture
+  dream/       cross-feature learning consolidation
   debug/       blocker diagnosis
-  dream/       corpus maintenance
-  author/      beo skill authoring
   onboard/     bootstrap and managed startup setup
-  reference/   shared protocol and CLI corpus
+  author/      skill authoring and doctrine cleanup
+  reference/   shared canonical references
 ```
 
-Generated `*-workspace/` directories under `skills/beo/` are audit artifacts, not source.
-
----
+Generated `*-workspace/` directories under `skills/beo/` are audit artifacts, not
+source.
 
 ## Prerequisites
 
-| Tool | Required | Install |
+| Tool | Required | Purpose |
 | --- | --- | --- |
-| [`br`](https://github.com/Dicklesworthstone/beads_rust) 0.1.28+ | Yes | `cargo install beads_rust` |
-| [`bv`](https://github.com/Dicklesworthstone/beads_viewer) 0.15.2+ | Yes | See [bv docs](https://github.com/Dicklesworthstone/beads_viewer) |
-| [`obsidian` CLI](https://github.com/Yakitrak/obsidian-cli) | No | Optional knowledge store mirror |
-| [`qmd`](https://github.com/tobi/qmd) | No | Optional search enhancement |
+| `br` 0.1.28+ | Yes | bead graph inspection and updates |
+| `bv` 0.15.2+ | Yes | Beads Viewer inspection |
+| `node` | Yes for onboarding | run managed onboarding script |
 
+## Optional integrations
 
-The host environment needs shell execution, filesystem access, and skill/instruction loading. Delegation is optional and runtime-dependent: planning and review can run parallel isolated passes when the runtime supports worker spawning, but they must fall back to sequential passes when it does not. Swarming requires Agent Mail plus worker orchestration support; without both, work must return through `beo-validate` for serial reclassification rather than silently falling into `beo-execute`.
-
----
+| Tool | Purpose |
+| --- | --- |
+| `obsidian` CLI | optional external knowledge-store integration |
+| `qmd` | optional external knowledge-store search |
 
 ## Installation
 
@@ -120,44 +113,23 @@ The host environment needs shell execution, filesystem access, and skill/instruc
 npx skills add https://github.com/minhtri2710/skills/tree/main/skills/beo
 ```
 
-Verify: `br --version` (0.1.28+), `bv --version` (0.15.2+).
+Verify the core CLIs with `br --version` and `bv --version`.
 
-Or load skills manually by reading `skills/beo/route/SKILL.md` as the entry point.
+## Bootstrap overview
 
----
+`beo-onboard` installs and verifies the managed startup block in `AGENTS.md` and
+the `.beads/` startup orientation surfaces. For exact startup behavior, read
+`AGENTS.md` and `skills/beo/onboard/`.
 
-## Bootstrap and State
+## Editing skills
 
-`beo-onboard` prepares the startup contract installed into `AGENTS.md` and the `.beads/` bootstrap state used by the rest of the workflow.
+Skill authoring rules are canonical in:
+- `skills/beo/author/SKILL.md`
+- `skills/beo/reference/references/authoring.md`
+- `skills/beo/reference/references/doctrine-map.md`
 
-Managed bootstrap artifacts:
-
-- `.beads/onboarding.json` -- onboarding completion state plus managed asset versions
-- `.beads/beo_status.mjs` -- read-only scout command for recorded onboarding metadata, state, and optional handoff summary
-- `.beads/STATE.json` -- canonical intra-session pipeline state
-- `.beads/HANDOFF.json` -- optional cross-session resume checkpoint
-- `.beads/critical-patterns.md` -- shared promoted guidance, initialized by onboarding when missing
-
-Onboarding is treated as current only when the live `beo-onboard` check confirms all of the following:
-
-- `.beads/onboarding.json` exists and reflects the current onboarder metadata
-- `.beads/onboarding.json` reflects the current managed startup contract metadata
-- the managed `AGENTS.md` block still matches the installed startup contract template
-
-In practice this means `beo-route` should treat onboarding as a first-class gate owned by the live onboarder check, not by repo-local scout output or incidental metadata.
-
----
-
-## Editing Skills
-
-- All `br`/`bv` commands must match CLI help output exactly
-- Child beads use dotted IDs: `<parent-id>.<number>`
-- Use `br label add/remove <ID> -l <label>` for label operations
-- Always include `--no-daemon` on `br comments add` and `br comments list`
-- Artifact end markers use underscores: `---END_ARTIFACT---`
-- Status mapping must match the shared reference documents
-
----
+README is an overview only. It does not approve execution, select owners,
+validate readiness, define state semantics, or replace canonical references.
 
 ## License
 

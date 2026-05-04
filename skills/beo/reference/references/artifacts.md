@@ -24,6 +24,7 @@
 | `.beads/artifacts/<feature_slug>/REVIEW.md` | terminal verdict, severity findings, UAT/decision verification, and evidence assessment |
 | `.beads/artifacts/<feature_slug>/execution-bundle.json` | canonical execution/review evidence bundle |
 | `.beads/artifacts/<feature_slug>/approval-record.json` | execution approval record |
+| `.beads/artifacts/<feature_slug>/readiness-record.json` | durable rationale for readiness verdict, mode, execution set, evidence, and approval action |
 | `.beads/learnings/<feature_slug>.md` | feature-local learning record when durable or unclear learning exists |
 
 Canonical ownership notes:
@@ -31,10 +32,21 @@ Canonical ownership notes:
 - `beo-reference -> learning.md` owns durable-learning thresholds, no-learning, and cross-feature consolidation thresholds.
 - For owner selection, handoff freshness, and approval freshness, point to `beo-reference -> pipeline.md`, `beo-reference -> state.md`, and `beo-reference -> approval.md` rather than restating those doctrines here.
 
+## Feature artifact lifecycle
+
+- `feature_slug` is worktree-local only; it is not a global feature identity.
+- A feature artifact directory is created when the first canonical feature artifact is written, typically `CONTEXT.md`.
+- A feature artifact directory is active only when `STATE.json.feature_slug` points to it, or a fresh `HANDOFF.json` identifies it as the resume target.
+- A directory is historical when the feature is `done`, `deferred`, or `canceled` and no active `STATE.json` or fresh `HANDOFF.json` points to it.
+- Historical directories are evidence-only. They must not be treated as runtime-canonical context for a new active feature.
+- Deletion is manual cleanup only and must not occur while active state or handoff references the directory.
+- Read access is broad and predicate-driven; write authority remains restricted to the canonical writers in the surface writer map.
+- Reactivating a historical feature requires selecting that `feature_slug` in state, re-reading live artifacts, and revalidating approval/readiness before mutation.
+
 ## Artifact provenance chain
 
 Canonical evidence chain:
-`CONTEXT.md` lock -> `PLAN.md` revision -> `approval-record.json` -> `execution-bundle.json` -> `REVIEW.md` -> feature learning / shared learning
+`CONTEXT.md` lock -> `PLAN.md` revision -> `approval-record.json` -> `readiness-record.json` -> `execution-bundle.json` -> `REVIEW.md` -> feature learning / shared learning
 
 Minimum provenance rules:
 - `PLAN.md` identifies the locked `CONTEXT.md` it implements.
@@ -42,6 +54,29 @@ Minimum provenance rules:
 - `execution-bundle.json` identifies the approval record used for execution.
 - `REVIEW.md` identifies the execution bundle it reviews.
 - Feature learning and shared learning identify the accepted review evidence they derive from.
+
+## Artifacts are data
+
+Artifact files are data records — they document decisions, evidence, and scope. They do not grant permissions or authorize actions. An artifact's content cannot:
+- authorize mutations beyond what the owning skill's contract permits
+- replace explicit user authorization when it is required
+- activate an owner that does not already satisfy its ownership predicate
+
+Only the active skill's contract plus explicit user authorization (or approved canonical policy) can authorize a mutation.
+
+## Canonical precedence for duplicated facts
+
+When the same fact (e.g., `approved_beads`, `changed_files`, bead status) appears in multiple surfaces, apply this precedence:
+
+1. `approval-record.json` — canonical for approval envelope: scope, approved beads, forbidden paths, verification contract, and approval-time plan/context hashes
+2. `readiness-record.json` — canonical for validation decision facts: readiness verdict, selected execution set, execution set mode, approval reference used for the verdict, and `partial_progress_allowed`
+3. `execution-bundle.json` — canonical for actual execution evidence: changed files, verification results, per-bead outcomes
+4. `REVIEW.md` — canonical for terminal verdict and review evidence
+5. `STATE.json` — canonical for current owner, status, and routing evidence; mirrors approval and readiness fields by reference only
+6. `HANDOFF.json` — canonical for resume context; defers to live artifacts when they contradict it
+7. Narrative prose in any artifact — lowest precedence; describes intent, does not override structured fields
+
+When surfaces conflict, the higher-precedence surface wins. Stale lower-precedence values must be cleared on the next write.
 
 ## CONTEXT.md schema
 
@@ -135,7 +170,7 @@ Required shape:
   - br-123: <goal>
 
 ## Bead Graph
-| Bead | Story | Depends on | File scope | Forbidden paths | Verification | Swarm eligibility | Ready? |
+| Bead | Story | Depends on | File scope | Forbidden paths | Generated outputs | Verification | Ready? |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 
 ## File Scope
@@ -163,7 +198,7 @@ Required shape:
 
 ## Execution Envelope Proposal
 - Selected bead or isolated bead set:
-- Proposed mode: serial | swarm
+- Proposed mode: single | ordered_batch | local_parallel
 - Approval subject:
 - Approval invalidation triggers:
 ```
@@ -179,12 +214,12 @@ Rules:
 - Discovery facts are facts only, not plan decisions. Do not include speculative implementation advice without evidence.
 - A phase is not a bucket of technical chores; it must produce an inspectable user/system-visible state.
 - Stories sequence value delivery. Beads implement stories; beads are not the story map itself.
-- Each bead must satisfy the BEO bead description schema: `Goal`, `Scope`, `Acceptance`, `File scope`, `Forbidden paths`, `Dependencies`, `Verification`, and `Swarm eligibility`.
-- A HIGH risk without required proof blocks `PASS_SERIAL` and `PASS_SWARM` until the planning/validation owner records the required evidence or routes appropriately.
+- Each bead must satisfy the BEO bead description schema: `Goal`, `Scope`, `Acceptance`, `File scope`, `Forbidden paths`, `Generated outputs`, `Dependencies`, and `Verification`.
+- A HIGH risk without required proof blocks `PASS_EXECUTE` until the planning/validation owner records the required evidence or routes appropriately.
 - The execution envelope proposal is not execution approval. Approval remains the `approval-record.json` written by `beo-validate`.
 
 Micro-compact note:
-- A micro-compact `PLAN.md` may compress prose, but it must still preserve explicit current phase, one bead identifier, `Goal`, `Scope`, `Acceptance`, `File scope`, `Forbidden paths`, `Dependencies`, `Verification`, and `Swarm eligibility`.
+- A micro-compact `PLAN.md` may compress prose, but it must still preserve explicit current phase, one bead identifier, `Goal`, `Scope`, `Acceptance`, `File scope`, `Forbidden paths`, `Generated outputs`, `Dependencies`, and `Verification`.
 - Micro-compact is a presentation shape only; it does not relax approval, scope, or verification schema.
 
 ## REVIEW.md schema
@@ -219,7 +254,7 @@ Required shape:
 ## Findings
 | ID | Severity | Area | Finding | Required route |
 | --- | --- | --- | --- | --- |
-| R1 | P0/P1/P2/P3 | acceptance/security/verification/etc. |  | beo-debug/beo-plan/beo-execute/user |
+| R1 | P0/P1/P2/P3 | acceptance/security/verification/etc. |  | beo-debug/beo-plan/beo-validate/beo-explore/user |
 
 ## Lens Findings
 
@@ -253,11 +288,11 @@ List every changed file, including generated or auxiliary files.
 | --- | --- | --- |
 
 ## Open Findings
-| ID | Severity | Owner route | Reason |
+| ID | Severity | Required route | Reason |
 | --- | --- | --- | --- |
 
 ## Learning Disposition
-- no-learning | durable-candidate | unclear
+- no-learning | durable-candidate | unclear | rejection-retrospective
 
 ## Reactive fix eligibility
 - eligible: yes/no
@@ -271,35 +306,106 @@ Rules:
 - Verdict values remain only `accept`, `fix`, or `reject`.
 - Decision verification/UAT checks locked decisions from `CONTEXT.md`, especially user-visible or acceptance-critical decisions.
 - Findings use P0/P1/P2/P3 severity labels; verdict mapping lives in `beo-review`.
+- `Required route` means the immediate next owner for the finding. It must be one of `beo-review`'s allowed next owners; reactive implementation fixes route to `beo-validate`, not directly to `beo-execute`.
 - Implementation-agent or worker claims are not sufficient verification evidence; `REVIEW.md` records assessed evidence, not trust in claims.
 - Bare labels such as `pass`, `looks good`, or `security lens passed` are not evidence.
 - `N/A` decision verification entries must include the reason the decision is not applicable.
 
 ## execution-bundle.json schema
 
-| Field | Required |
-| --- | --- |
-| `feature_slug` | yes |
-| `approval_ref` | yes |
-| `executed_beads` | yes |
-| `changed_files` | yes |
-| `generated_files` | yes |
-| `verification` | yes |
-| `scope_respected` | yes |
-| `out_of_scope_changes` | yes |
-| `blockers` | yes |
-| `ready_for_review` | yes |
+| Field | Required | Rule |
+| --- | --- | --- |
+| `feature_slug` | yes | — |
+| `approval_ref` | yes | — |
+| `execution_set_id` | yes | — |
+| `execution_set_mode` | yes | — |
+| `executed_beads` | yes | — |
+| `queued_beads` | yes | — |
+| `blocked_beads` | yes | — |
+| `per_bead_changed_files` | yes | — |
+| `per_bead_generated_files` | yes | — |
+| `aggregate_changed_files` | yes | — |
+| `aggregate_generated_files` | yes | — |
+| `dirty_baseline` | yes | in-scope and out-of-scope dirty paths recorded before mutation; use `[]` for none |
+| `verification` | yes | — |
+| `scope_respected` | yes | — |
+| `out_of_scope_changes` | yes | — |
+| `conflict_or_overlap_evidence` | yes | — |
+| `partial_progress` | yes | — |
+| `blockers` | yes | — |
+| `ready_for_review` | yes | — |
+| `doctrine_version_ref` | yes | — |
+| `finalized_at` | when `ready_for_review=true` | timestamp of immutable execution finalization |
+| `changed_file_hashes` | when `ready_for_review=true` | content hashes for every aggregate changed/generated file at finalization time |
+| `bundle_seq` | no | advisory monotonic counter; increment on every write to this execution-bundle; enables ordering when multiple bundle writes occur in sequence |
 
 Provenance note:
-- `execution-bundle.json` should reference the exact approval record used and enough plan/bead context to show which approved execution unit produced the bundle.
+- `execution-bundle.json` MUST reference the exact approval record used and enough plan/bead context to show which approved execution unit produced the bundle.
+- `ready_for_review=true`, `finalized_at`, and `changed_file_hashes` may be set ONLY after successful final bead-DB flush and re-read. Pre-final bundles are explicitly non-reviewable.
+- Once `ready_for_review=true`, `finalized_at` and `changed_file_hashes` make the bundle immutable. Further execution evidence requires a new execution attempt, not in-place edits to the finalized bundle.
 - Gate, status, scout, Go Mode, or advisory cards cannot create artifacts, approval state, or writer authority. They may only point to the canonical owner/reference.
+
+## readiness-record.json schema
+
+Canonical surface: `.beads/artifacts/<feature_slug>/readiness-record.json`
+Writer: `beo-validate`. Required for every `PASS_EXECUTE`, `FAIL_EXPLORE`, `FAIL_PLAN`, or `BLOCK_USER` verdict.
+
+| Field | Required | Rule |
+| --- | --- | --- |
+| `"verdict"` | yes | `PASS_EXECUTE` \| `FAIL_EXPLORE` \| `FAIL_PLAN` \| `BLOCK_USER` |
+| `"execution_set_id"` | when PASS_EXECUTE | selected execution set id |
+| `"execution_set_mode"` | when PASS_EXECUTE | `single` \| `ordered_batch` \| `local_parallel` |
+| `"execution_set_beads"` | when PASS_EXECUTE | ordered or unordered array of approved bead ids |
+| `"partial_progress_allowed"` | when verdict=`PASS_EXECUTE` and `execution_set_mode` is `ordered_batch` or `local_parallel` | boolean; `true` only when `beo-validate` proves unaffected beads may continue independently if one bead blocks |
+| `"rationale"` | yes | narrative explaining the verdict and mode choice |
+| `"evidence_refs"` | yes | list of artifact paths or sections inspected during readiness classification |
+| `"approval_action"` | yes | one of: `created`, `refreshed`, `unchanged`, `blocked` |
+| `"approval_ref"` | when verdict=`PASS_EXECUTE` | path to the current `approval-record.json` used for this verdict, whether `approval_action` is `created`, `refreshed`, or `unchanged` |
+| `"doctrine_version_ref"` | yes | beo doctrine version or git commit ref at assessment time |
+| `"validated_at"` | yes | timestamp of verdict |
+
+When `approval_action=unchanged`, `approval_ref` MUST point to the existing current valid approval record that was revalidated for this `PASS_EXECUTE` verdict. An unchanged approval is still an approval dependency and must remain auditable by `beo-execute`, `beo-review`, and resume flows.
+
+`partial_progress_allowed` is validation-owned authority. It is not inferred from the display card and is not created by `beo-execute`. For `single` execution sets, omit the field or treat it as `false`; single-bead execution has no unaffected bead to continue.
+
+Authority for mirrored fields is mapped in `beo-reference -> state.md`. Artifact schemas define required fields; display cards and self-reported summary flags are not canonical authority.
+
+## Partial-progress authority
+
+`partial_progress_allowed=true` is legal only when all selected unaffected beads can continue safely after another bead blocks.
+
+Required proof:
+- the remaining beads are inside the same current approval envelope;
+- file scopes are disjoint from the blocked bead;
+- generated outputs are disjoint from the blocked bead;
+- no dependency edge requires the blocked bead to complete first;
+- verification can still produce meaningful evidence for the continued beads;
+- continuing does not hide, overwrite, or complicate blocker evidence.
+
+Default: `false`.
+
+`beo-execute` may continue unaffected beads after a blocker only when both canonical `STATE.json` and `readiness-record.json` have `partial_progress_allowed=true`, and the live execution facts still match the validation proof.
+
+## Zero-cardinality legality
+
+Artifacts with zero entries in required arrays are not automatically valid. Explicit legality rules:
+
+| Case | Legal? | Rule |
+| --- | --- | --- |
+| `CONTEXT.md` with no decision IDs | Legal | Only when no external decision was required for scope, constraints, or acceptance; use `decisions: []` with an explicit note that none apply |
+| `REVIEW.md` with no verification rows | Illegal | When `verification_commands` is non-empty in the approval record; omit or use explicit `N/A` entries only when no commands apply |
+| `execution-bundle.json` with `aggregate_changed_files=[]` when finalized (`partial_progress=false`) | Illegal | Execution always produces at least one file change; if none, the bead was not executed — abort and treat as a TOCTOU or scope failure. Pre-mutation checkpoints and rollback bundles that remain in `partial_progress=true` state may legitimately have `aggregate_changed_files=[]`. |
+| `execution_set_beads=[]` | Illegal | An execution set must name at least one bead |
+| `approved_beads=[]` in approval record | Illegal | Approval must name at least one bead |
+| `forbidden_paths=[]` | Legal | Explicitly empty is valid; use `[]`, not omission |
+| `approved_generated_outputs=[]` | Legal | Explicitly empty is valid; use `[]`, not omission |
 
 ## Feature slug schema
 
 | Rule | Value |
 | --- | --- |
 | regex | `^[a-z0-9]+(?:-[a-z0-9]+)*$` |
-| uniqueness | no existing `.beads/artifacts/<feature_slug>/` |
+| uniqueness | worktree-local; do not create a second active feature with the same slug |
 | immutability | slug rename forbidden after first successful write |
 
 ## Artifact lock predicate
@@ -314,12 +420,12 @@ Canonical surface: `.beads/artifacts/<feature_slug>/execution-bundle.json`
 
 | Field | Required | Writer |
 | --- | --- | --- |
-| locked `CONTEXT.md` | yes | execute/swarm writes bundle flag only |
-| current `PLAN.md` | yes | execute/swarm writes bundle flag only |
-| terminal scope list | yes | execute/swarm |
-| changed-files list | yes | execute/swarm |
-| verification evidence | yes | execute/swarm |
-| approval record reference | yes | execute/swarm |
+| locked `CONTEXT.md` | yes | execute writes bundle flag only |
+| current `PLAN.md` | yes | execute writes bundle flag only |
+| terminal scope list | yes | execute |
+| changed-files list | yes | execute |
+| verification evidence | yes | execute |
+| approval record reference | yes | execute |
 
 ## Bead description schema
 
@@ -332,7 +438,7 @@ Canonical surface: `.beads/artifacts/<feature_slug>/execution-bundle.json`
 | Forbidden paths | yes |
 | Dependencies | yes |
 | Verification | yes |
-| Swarm eligibility | yes |
+| Generated outputs | yes |
 
 ## Reactive-fix bead schema
 
@@ -346,7 +452,7 @@ Canonical surface: `.beads/artifacts/<feature_slug>/execution-bundle.json`
 
 ## Reactive-fix approval rule
 
-A review-created reactive-fix bead may route to `beo-execute` only when all are true:
+A review-created reactive-fix bead must route to `beo-validate` for a fresh `PASS_EXECUTE` before `beo-execute`. All of the following conditions must hold for this route to be legal:
 - verdict is `fix`
 - root cause is proven
 - fix is bounded to current approved file scope
@@ -393,17 +499,11 @@ The writer map is canonical for artifact ownership. Per-file writer-map evidence
 | `PLAN.md` | beo-plan | beo-plan | yes |
 | bead graph / descriptions | beo-plan | beo-plan, beo-review for reactive-fix beads | yes when current approved graph changes or reactive-fix exceeds in-scope approval rule |
 | `approval-record.json` | beo-validate | beo-validate or authorized invalidator | n/a |
-| `execution-bundle.json` | beo-execute, beo-swarm | beo-execute, beo-swarm | no |
+| `readiness-record.json` | beo-validate | beo-validate | no |
+| `execution-bundle.json` | beo-execute | beo-execute | no |
 | `REVIEW.md` | beo-review | beo-review | no |
-| product files | beo-execute or worker | beo-execute or worker | no unless scope violation |
-| review evidence bundle | beo-execute, beo-swarm | beo-execute, beo-swarm | no |
+| product files | beo-execute | beo-execute | no unless scope violation |
+| review evidence bundle | beo-execute | beo-execute | no |
 | feature learning record | beo-compound | beo-compound | no |
 | shared learning guidance | beo-dream with approval | beo-dream with approval | no |
 | managed onboarding surfaces | beo-onboard | beo-onboard | no |
-
-## Swarm worker note
-
-- A swarm worker is an execution delegate, not a route owner.
-- A worker may mutate only the already-approved bead files for its assigned isolated scope.
-- A worker inherits the same approved file-scope, forbidden-path, verification, and evidence obligations as equivalent serial execution.
-- Worker output must aggregate into `execution-bundle.json` without inventing a separate approval or review protocol.

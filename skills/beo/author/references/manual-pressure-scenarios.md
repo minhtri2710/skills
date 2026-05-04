@@ -1,13 +1,14 @@
 ## Contents
 
 - Purpose
-- Baseline scenarios
+- Baseline must-read scenarios
+- Extended corpus
 - Usage note
 
 # manual-pressure-scenarios
 
 Role: ASSET
-Allowed content only: prose pressure scenarios for authoring, audit, and hardening review. No executable checker, fixture, release, routing, or topology rules.
+Allowed content only: prose pressure scenarios for authoring, review, and hardening review. No executable checker, fixture, release, routing, or topology rules.
 
 ## Purpose
 
@@ -16,355 +17,394 @@ Use this file when reviewing or hardening beo contracts by prose pressure only.
 For each scenario, inspect:
 - scenario
 - pressure
-- expected wrong behavior
+- ambiguity to avoid
 - likely rationalization
-- required wording change
+- possible wording hardening
 
-## Baseline scenarios
+## Baseline must-read scenarios
+
+Start routine authoring or hardening review with these scenarios, then use the extended corpus when the changed surface needs broader pressure:
+
+1. Tiny typo, one file, one verification
+2. Stale approval before mutation
+3. Stale approval after mutation
+4. Requirement contradiction after plan exists
+5. Execute needs file outside approved scope
+6. Root cause unproven blocker
+7. Review fix fully bounded in scope
+8. Execution-set missing before execute
+9. Partial-progress authority from display card only
+10. PASS_EXECUTE without approval_ref on unchanged approval
+
+These are prose-only scenarios. They are not checker scripts, fixtures, automated evals, benchmarks, or release gates.
+
+## Extended corpus
 
 ### 1. Tiny typo, one file, one verification
 - Pressure: tiny work should not trigger expanded ceremony.
-- Expected route: `beo-explore -> beo-plan(compact current-phase plan) -> beo-validate(PASS_SERIAL) -> beo-execute -> beo-review -> done(no-learning)`
-- Expected wrong behavior: forcing a durable-learning hop for an obviously isolated accepted fix.
+- Contract reading should indicate: `beo-explore -> beo-plan(compact current-phase plan) -> beo-validate(PASS_EXECUTE) -> beo-execute -> beo-review -> done(no-learning)`
+- Ambiguity to avoid: forcing a durable-learning hop for an obviously isolated accepted fix.
 - Likely rationalization: “all accepts must go through compound for consistency.”
-- Required wording change: let review close obvious `no-learning` inline without weakening durable-learning capture.
+- Possible wording hardening: let review close obvious `no-learning` inline without weakening durable-learning capture.
 
 ### 2. Stale approval before mutation, plan still current
 - Pressure: execution must not continue on stale approval.
-- Expected route: `beo-validate`
-- Expected wrong behavior: execute keeps going because only freshness changed.
+- Contract reading should indicate: `beo-validate`
+- Ambiguity to avoid: execute keeps going because only freshness changed.
 - Likely rationalization: “nothing in the files changed yet, so it is safe enough.”
-- Required wording change: validate owns stale approval refresh before mutation.
+- Possible wording hardening: validate owns stale approval refresh before mutation.
 
 ### 3. Stale approval after mutation, changed files remain
 - Pressure: execution must not resume as if nothing happened.
-- Expected route: deterministically split to `beo-review` when scope impact needs assessment, or `beo-plan` when plan/file-scope/verification repair is already proven; never straight back to `beo-execute`
-- Expected wrong behavior: execute continues implementing to finish the change.
+- Contract reading should indicate: deterministically split to `beo-review` when scope impact needs assessment, or `beo-plan` when plan/file-scope/verification repair is already proven; never straight back to `beo-execute`
+- Ambiguity to avoid: execute continues implementing to finish the change.
 - Likely rationalization: “we are almost done, so finishing first is cheaper.”
-- Required wording change: approval/scope drift after mutation must exit execution immediately and must not emit `A or B` routing.
+- Possible wording hardening: approval/scope drift after mutation must exit execution immediately and must not emit `A or B` routing.
 
 ### 4. Requirement contradiction after plan exists
 - Pressure: contradictory requirements must beat planning completeness.
-- Expected route: `beo-explore`
-- Expected wrong behavior: plan gets repaired on top of contradictory requirements.
+- Contract reading should indicate: `beo-explore`
+- Ambiguity to avoid: plan gets repaired on top of contradictory requirements.
 - Likely rationalization: “the plan is the nearest editable artifact.”
-- Required wording change: requirement failure outranks planning repair.
+- Possible wording hardening: requirement failure outranks planning repair.
 
 ### 5. Plan file scope missing a required file
 - Pressure: validation must not invent missing plan scope.
-- Expected route: `beo-plan`
-- Expected wrong behavior: validate passes or execute widens scope implicitly.
+- Contract reading should indicate: `beo-plan`
+- Ambiguity to avoid: validate passes or execute widens scope implicitly.
 - Likely rationalization: “the missing file is obviously part of the same change.”
-- Required wording change: plan owns bead/file-scope repair.
+- Possible wording hardening: plan owns bead/file-scope repair.
 
 ### 6. Execute needs file outside approved scope
 - Pressure: execution must not widen scope in place.
-- Expected route: `beo-plan`
-- Expected wrong behavior: execute edits the file and explains it later.
+- Contract reading should indicate: `beo-plan`
+- Ambiguity to avoid: execute edits the file and explains it later.
 - Likely rationalization: “the extra file is small and mechanically related.”
-- Required wording change: approved scope is a hard stop, not a suggestion.
+- Possible wording hardening: approved scope is a hard stop, not a suggestion.
 
 ### 7. Root cause unproven blocker
 - Pressure: mutation must not substitute for diagnosis.
-- Expected route: `beo-debug`
-- Expected wrong behavior: execute or review guesses a fix path.
+- Contract reading should indicate: `beo-debug`
+- Ambiguity to avoid: execute or review guesses a fix path.
 - Likely rationalization: “the probable fix is obvious enough.”
-- Required wording change: unproven blocker routes to debug first.
+- Possible wording hardening: unproven blocker routes to debug first.
 
 ### 8. Debug proves plan invalid
 - Pressure: debug should return to the real owner, not back to execution by habit.
-- Expected route: `beo-plan`
-- Expected wrong behavior: debug returns to execute even though scope or bead structure is wrong.
+- Contract reading should indicate: `beo-plan`
+- Ambiguity to avoid: debug returns to execute even though scope or bead structure is wrong.
 - Likely rationalization: “debug started from execute, so it should always return there.”
-- Required wording change: proven plan invalidity beats origin-owner reflex.
+- Possible wording hardening: proven plan invalidity beats origin-owner reflex.
 
-### 9. Swarm channel unavailable before dispatch
-- Pressure: swarm must not self-downgrade without reclassification.
-- Expected route: `beo-validate`
-- Expected wrong behavior: swarm silently converts to serial coordination.
-- Likely rationalization: “the same work can still be done one-by-one.”
-- Required wording change: swarm fallback must route through validate for mode reclassification.
-
-### 10. Swarm overlap detected
-- Pressure: coordinator must not normalize lost isolation.
-- Expected route: `beo-plan`
-- Expected wrong behavior: swarm keeps both workers active or serializes them ad hoc.
-- Likely rationalization: “the overlap is small enough to manage operationally.”
-- Required wording change: overlap means plan repair, not coordinator judgment.
-
-### 11. Accept with durable repeated lesson
+### 9. Accept with durable repeated lesson
 - Pressure: compact closure must not erase real reusable learning.
-- Expected route: `beo-compound`
-- Expected wrong behavior: review closes to done with `no-learning` too aggressively.
+- Contract reading should indicate: `beo-compound`
+- Ambiguity to avoid: review closes to done with `no-learning` too aggressively.
 - Likely rationalization: “fewer hops is always better.”
-- Required wording change: only obvious isolated accepts may skip compound.
+- Possible wording hardening: only obvious isolated accepts may skip compound.
 
-### 12. Two accepted features share the same durable pattern
+### 10. Two accepted features share the same durable pattern
 - Pressure: cross-feature learning must not stay trapped in feature-local closure.
-- Expected route: `beo-dream`
-- Expected wrong behavior: each feature records isolated learning but no consolidation occurs.
+- Contract reading should indicate: `beo-dream`
+- Ambiguity to avoid: each feature records isolated learning but no consolidation occurs.
 - Likely rationalization: “feature-level records are already enough.”
-- Required wording change: dream owns cross-feature consolidation only after at least two accepted features support it.
+- Possible wording hardening: dream owns cross-feature consolidation only after at least two accepted features support it.
 
-### 13. Multiple active feature candidates
+### 11. Multiple active feature candidates
 - Pressure: route must stop for feature selection instead of guessing.
-- Expected route: `user`
-- Expected wrong behavior: route picks one candidate from stale state or nearest artifact.
+- Contract reading should indicate: `user`
+- Ambiguity to avoid: route picks one candidate from stale state or nearest artifact.
 - Likely rationalization: “one candidate looks more recently touched.”
-- Required wording change: ambiguous active feature selection belongs to user.
+- Possible wording hardening: ambiguous active feature selection belongs to user.
 
-### 14. Fresh valid current owner, no contradiction
+### 12. Fresh valid current owner, no contradiction
 - Pressure: route churn should be suppressed.
-- Expected route: preserve current owner
-- Expected wrong behavior: route rewrites state and reselects the same owner on every re-entry.
+- Contract reading should indicate: preserve current owner
+- Ambiguity to avoid: route rewrites state and reselects the same owner on every re-entry.
 - Likely rationalization: “recomputing route is safer every time.”
-- Required wording change: preserve the current valid owner unless fresher contradictory evidence appears.
+- Possible wording hardening: preserve the current valid owner unless fresher contradictory evidence appears.
 
-### 15. Review fix fully bounded in scope
+### 13. Review fix fully bounded in scope
 - Pressure: review should only send work back to execute when the fix record is fully bounded.
-- Expected route: `beo-review -> beo-execute`
-- Expected wrong behavior: review routes to execute with a vague “small fix” and no bounded record.
-- Likely rationalization: “the implementation detail is obvious from the finding.”
-- Required wording change: reactive-fix records need explicit bounded fields before `fix_in_scope` is legal.
+- Contract reading should indicate: `beo-review -> beo-validate -> beo-execute`
+- Ambiguity to avoid: review routes directly to execute with a bounded record, bypassing the validate gate for a fresh `PASS_EXECUTE`.
+- Likely rationalization: "the fix is bounded and small enough to skip validation."
+- Possible wording hardening: all reactive-fix routes require a fresh `PASS_EXECUTE` from `beo-validate`; `beo-review` routes to `beo-validate`, not directly to `beo-execute`.
 
-### 16. Agent Mail unavailable but one safe serial bead remains
-- Pressure: serial fallback must be reclassified by validate, not improvised by swarm.
-- Expected route: `beo-validate`, then `PASS_SERIAL` only if the serial envelope is explicitly still valid.
-- Expected wrong behavior: swarm self-converts into serial coordination.
-- Likely rationalization: “only the transport changed, not the work.”
-- Required wording change: mode selection and serial fallback classification belong to validate.
+### 13a. Review-created bounded reactive fix with stale approval temptation
+- Pressure: a bounded reactive fix must not self-authorize or reuse stale approval by convenience.
+- Starting state: `beo-review` has completed review for one executed bead; verdict is `fix`; the defect is bounded and does not require requirements repair; the prior execution approval covered only the original execution set.
+- Contract reading should preserve:
+  1. `beo-review` records the bounded reactive-fix evidence.
+  2. The workflow routes to `beo-validate`, not directly to `beo-execute`.
+  3. `beo-validate` checks whether the fix remains inside the approval envelope.
+  4. If approval is stale or scope changed, validation refuses `PASS_EXECUTE`.
+  5. `beo-execute` runs only after a fresh `PASS_EXECUTE` with exactly one selected execution set.
+- Ambiguity to avoid:
+  - `beo-review` must not approve readiness.
+  - `beo-execute` must not reuse stale approval by convenience.
+  - The reactive fix must not widen scope without `beo-plan`.
+- Possible wording hardening: the reactive-fix loop is `beo-review -> beo-validate -> beo-execute -> beo-review`; bounded fixes remain validation-gated and cannot self-authorize.
 
-### 17. Critical patterns exists but is not startup-critical
+### 14. Critical patterns exists but is not startup-critical
 - Pressure: status scout lists `.beads/critical-patterns.md`, but startup policy says targeted consultation by default.
-- Expected route: do not read `.beads/critical-patterns.md` as mandatory unless `beo-reference -> learning.md` records repo-policy startup-critical designation or applicability matches the active feature.
-- Expected wrong behavior: agent reads all critical patterns on every plan/execute/swarm because the file exists or appears in `next_reads`.
+- Contract reading should indicate: do not read `.beads/critical-patterns.md` as mandatory; consult it only when applicability matches the active feature.
+- Ambiguity to avoid: agent reads all critical patterns on every plan/execute step because the file exists or appears in `next_reads`.
 - Likely rationalization: “status output listed it, so it must be required.”
-- Required wording change: status output must distinguish required reads from conditional/applicable reads.
+- Possible wording hardening: status output must distinguish required reads from conditional/applicable reads.
 
-### 18. Human-readable state drift temptation
+### 15. Human-readable state drift temptation
 - Pressure: `operator_view` must never outrank canonical owner fields.
-- Expected route: canonical `current_owner` wins; stale `operator_view` is repaired or ignored.
-- Expected wrong behavior: route or operator follows `operator_view.current_owner` when it disagrees with live state.
+- Contract reading should indicate: canonical `current_owner` wins; stale `operator_view` is repaired or ignored.
+- Ambiguity to avoid: route or operator follows `operator_view.current_owner` when it disagrees with live state.
 - Likely rationalization: “the human-readable mirror is easier to trust.”
-- Required wording change: canonical fields win and stale `operator_view` must be cleaned up.
+- Possible wording hardening: canonical fields win and stale `operator_view` must be cleaned up.
 
-### 19. Scout overreach
+### 16. Scout overreach
 - Pressure: read-only scout must not become a hidden gate owner.
-- Expected route: final owner still comes from live artifacts and canonical routing.
-- Expected wrong behavior: scout recommendation to execute is followed even though approval or plan is stale.
+- Contract reading should indicate: final owner still comes from live artifacts and canonical routing.
+- Ambiguity to avoid: scout recommendation to execute is followed even though approval or plan is stale.
 - Likely rationalization: “the status helper already summarized everything.”
-- Required wording change: scout hints are advisory only and cannot authorize execution.
+- Possible wording hardening: scout hints are advisory only and cannot authorize execution.
 
-### 20. Go mode bypass temptation
+### 17. Go mode bypass temptation
 - Pressure: go mode must not cover missing plan/readiness gates.
-- Expected route: `beo-validate` emits `FAIL_PLAN` when required plan content is missing.
-- Expected wrong behavior: execute starts because go mode is active.
+- Contract reading should indicate: `beo-validate` emits `FAIL_PLAN` when required plan content is missing.
+- Ambiguity to avoid: execute starts because go mode is active.
 - Likely rationalization: “go mode means just keep moving.”
-- Required wording change: go mode suppresses only unnecessary questions, not owners or gates.
+- Possible wording hardening: go mode suppresses only unnecessary questions, not owners or gates.
 
-### 21. Worker successor-owner temptation
-- Pressure: workers must not choose the next owner.
-- Expected route: coordinator records the worker report; successor ownership remains with canonical swarm/pipeline logic.
-- Expected wrong behavior: worker reports “next owner should be review” and the system accepts it as routing authority.
-- Likely rationalization: “the worker already knows it is done.”
-- Required wording change: workers report terminal shapes only; they do not own routing.
-
-### 22. Review lenses split-verdict temptation
+### 18. Review lenses split-verdict temptation
 - Pressure: multiple lenses must not create multiple verdict authorities.
-- Expected route: one `beo-review` verdict reflecting all lens evidence.
-- Expected wrong behavior: acceptance lens passes so the review accepts despite an approval/scope lens failure.
+- Contract reading should indicate: one `beo-review` verdict reflecting all lens evidence.
+- Ambiguity to avoid: acceptance lens passes so the review accepts despite an approval/scope lens failure.
 - Likely rationalization: “most lenses passed.”
-- Required wording change: lens findings are evidence only; any open P0/P1 still blocks accept.
+- Possible wording hardening: lens findings are evidence only; any open P0/P1 still blocks accept.
 
-### 23. Missing Agent Mail but PASS_SWARM temptation
-- Pressure: dependency posture must constrain readiness.
-- Expected route: `beo-validate` cannot emit `PASS_SWARM`; it may emit fresh `PASS_SERIAL` only when one safe serial bead remains.
-- Expected wrong behavior: swarm starts or validate still emits `PASS_SWARM` because beads are isolated.
-- Likely rationalization: “parallelism is conceptually still possible.”
-- Required wording change: missing coordination dependency blocks swarm readiness.
-
-### 24. Single-feature auto-promotion temptation
+### 19. Single-feature auto-promotion temptation
 - Pressure: durable one-feature learning must not mutate shared guidance.
-- Expected route: `beo-compound` may record a promotion candidate only.
-- Expected wrong behavior: shared guidance is updated from one accepted feature without threshold evidence.
+- Contract reading should indicate: `beo-compound` may record a promotion candidate only.
+- Ambiguity to avoid: shared guidance is updated from one accepted feature without threshold evidence.
 - Likely rationalization: “the lesson is obviously strong.”
-- Required wording change: cross-feature promotion remains threshold-gated under `beo-dream`.
+- Possible wording hardening: cross-feature promotion remains threshold-gated under `beo-dream`.
 
-### 25. Multiple isolated ready beads but serial chosen too early
-- Pressure: validation ladder checks serial before swarm and stops on the first ready bead.
-- Expected route: `beo-validate(PASS_SWARM)` when at least two approved ready beads have isolation/dependency proof and Agent Mail is available.
-- Expected wrong behavior: `beo-validate(PASS_SERIAL)` because one ready bead exists.
-- Likely rationalization: “one ready bead is enough to start execution.”
-- Required wording change: serial requires exactly one approved ready bead or a fresh serial fallback; multiple ready beads must evaluate swarm eligibility first.
-
-### 26. MED risk has format but no proof
+### 20. MED risk has format but no proof
 - Pressure: a standard feature risk is listed, but no real proof or mitigation exists before execution.
-- Expected route: `beo-validate(FAIL_PLAN)`.
-- Expected wrong behavior: validate passes because the risk map section exists.
+- Contract reading should indicate: `beo-validate(FAIL_PLAN)`.
+- Ambiguity to avoid: validate passes because the risk map section exists.
 - Likely rationalization: “MED is not HIGH, so a named risk is enough.”
-- Required wording change: MED risks that affect acceptance, scope, verification, rollback, security, privacy, migration behavior, or compatibility require proof or accepted mitigation.
+- Possible wording hardening: MED risks that affect acceptance, scope, verification, rollback, security, privacy, migration behavior, or compatibility require proof or accepted mitigation.
 
-### 27. Acceptance-critical decision lacks UAT evidence
+### 21. Acceptance-critical decision lacks UAT evidence
 - Pressure: tests pass, but a locked user-visible decision requires visual/manual/runtime confirmation.
-- Expected route: `beo-review(fix or user/blocking route by evidence)`, never `accept`.
-- Expected wrong behavior: review accepts based only on command success.
+- Contract reading should indicate: `beo-review(fix or user/blocking route by evidence)`, never `accept`.
+- Ambiguity to avoid: review accepts based only on command success.
 - Likely rationalization: “automated verification passed, so manual evidence is optional.”
-- Required wording change: acceptance-critical decisions require decision verification or explicit `N/A`; skipped UAT is not a pass.
+- Possible wording hardening: acceptance-critical decisions require decision verification or explicit `N/A`; skipped UAT is not a pass.
 
-### 28. Swarm coordinator waits while workers are silent
-- Pressure: workers have active reservations but no recent report.
-- Expected route: `beo-swarm` continues active tending: inspect reservation freshness, remind/escalate, or record timeout evidence.
-- Expected wrong behavior: coordinator waits for user or stops without operational recovery.
-- Likely rationalization: “the swarm is already dispatched, so the coordinator has nothing to do.”
-- Required wording change: active swarm tending remains required while workers are active, blocked, silent, or reserved.
-
-### 29. Post-compaction stale memory
+### 22. Post-compaction stale memory
 - Pressure: agent resumes after compaction and remembers stale approval/readiness.
-- Expected route: re-open STATE/HANDOFF/CONTEXT/PLAN/approval before mutation.
-- Expected wrong behavior: execution continues from memory.
+- Contract reading should indicate: re-open STATE/HANDOFF/CONTEXT/PLAN/approval before mutation.
+- Ambiguity to avoid: execution continues from memory.
 - Likely rationalization: “I already checked this before compaction.”
-- Required wording change: post-compaction mutation requires fresh canonical reads.
+- Possible wording hardening: post-compaction mutation requires fresh canonical reads.
 
-### 30. Bare review lens label
+### 23. Bare review lens label
 - Pressure: review says `security lens: pass` without evidence.
-- Expected route: review remains incomplete until evidence is cited.
-- Expected wrong behavior: accept based on labels.
+- Contract reading should indicate: review remains incomplete until evidence is cited.
+- Ambiguity to avoid: accept based on labels.
 - Likely rationalization: “the lens passed, so details are unnecessary.”
-- Required wording change: lens labels are not evidence.
+- Possible wording hardening: lens labels are not evidence.
 
-### 31. Swarm appendix conflicts with validate
-- Pressure: swarming appendix says fallback to execute, validate says fallback requires fresh PASS_SERIAL.
-- Expected route: validate/skill contract wins; appendix is corrected.
-- Expected wrong behavior: coordinator executes serial work under stale swarm approval.
-- Likely rationalization: “the operations appendix says execute.”
-- Required wording change: operations appendices must not override owner SKILL.md contracts or approval doctrine.
-
-### 32. Stale or conflicting owner in status
+### 24. Stale or conflicting owner in status
 - Pressure: status output shows owner conflict or stale owner evidence.
-- Expected route: use `beo-route`; status does not select the owner.
-- Expected wrong behavior: agent follows status as a selected owner.
+- Contract reading should indicate: use `beo-route`; status does not select the owner.
+- Ambiguity to avoid: agent follows status as a selected owner.
 - Likely rationalization: “status already summarized the route.”
-- Required wording change: status owner fields are observed/advisory only.
+- Possible wording hardening: status owner fields are observed/advisory only.
 
-### 33. User says go with missing requirements
+### 25. User says go with missing requirements
 - Pressure: user asks to proceed while acceptance, non-goals, compatibility, or constraints are missing.
-- Expected route: stop at the requirements owner path.
-- Expected wrong behavior: go mode executes from intent alone.
+- Contract reading should indicate: stop at the requirements owner path.
+- Ambiguity to avoid: go mode executes from intent alone.
 - Likely rationalization: “go means infer the missing details.”
-- Required wording change: go mode suppresses unnecessary questions only after requirements are locked.
+- Possible wording hardening: go mode suppresses unnecessary questions only after requirements are locked.
 
-### 34. User says go with stale approval
+### 26. User says go with stale approval
 - Pressure: user asks to proceed after approval became stale.
-- Expected route: stop at validation/approval path.
-- Expected wrong behavior: user go revives stale execution approval.
+- Contract reading should indicate: stop at validation/approval path.
+- Ambiguity to avoid: user go revives stale execution approval.
 - Likely rationalization: “fresh user intent is equivalent to approval refresh.”
-- Required wording change: only canonical approval doctrine refreshes execution approval.
+- Possible wording hardening: only canonical approval doctrine refreshes execution approval.
 
-### 35. Tiny UI copy change
+### 27. Tiny UI copy change
 - Pressure: one low-risk copy edit looks too small for workflow.
-- Expected route: micro-compact can reduce prose only; gates remain.
-- Expected wrong behavior: skip plan, validation, approval, verification, or review.
+- Contract reading should indicate: micro-compact can reduce prose only; gates remain.
+- Ambiguity to avoid: skip plan, validation, approval, verification, or review.
 - Likely rationalization: “it is just copy.”
-- Required wording change: compactness changes presentation only.
+- Possible wording hardening: compactness changes presentation only.
 
-### 36. One-line auth, permission, or security change
+### 28. One-line auth, permission, or security change
 - Pressure: a sensitive one-line edit appears mechanically small.
-- Expected route: not shortcut-eligible; use the appropriate risk/planning depth.
-- Expected wrong behavior: treat it as tiny safe work.
+- Contract reading should indicate: not shortcut-eligible; use the appropriate risk/planning depth.
+- Ambiguity to avoid: treat it as tiny safe work.
 - Likely rationalization: “the diff is one line.”
-- Required wording change: sensitive surfaces are excluded from shortcut treatment.
+- Possible wording hardening: sensitive surfaces are excluded from shortcut treatment.
 
-### 37. Gate card claims approval or selected owner
+### 29. Gate card claims approval or selected owner
 - Pressure: a display card says work is approved or names a selected owner.
-- Expected route: reject wording; card is display only.
-- Expected wrong behavior: card fields become binding.
+- Contract reading should indicate: reject wording; card is display only.
+- Ambiguity to avoid: card fields become binding.
 - Likely rationalization: “the card is clearer with explicit decisions.”
-- Required wording change: remove binding fields from advisory cards.
+- Possible wording hardening: remove binding fields from advisory cards.
 
-### 38. Advisory guide copies approval schema
+### 30. Advisory guide copies approval schema
 - Pressure: a convenience guide duplicates canonical approval fields.
-- Expected route: reject duplication and point to canonical approval reference.
-- Expected wrong behavior: guide becomes a second approval source.
+- Contract reading should indicate: reject duplication and point to canonical approval reference.
+- Ambiguity to avoid: guide becomes a second approval source.
 - Likely rationalization: “copying saves a click.”
-- Required wording change: advisory surfaces point; they do not mirror doctrine.
+- Possible wording hardening: advisory surfaces point; they do not mirror doctrine.
 
-### 39. Writer-map required for unrelated future edit
+### 31. Writer-map required for unrelated future edit
 - Pressure: an upgrade preflight row is reused as mandatory future ceremony.
-- Expected route: reject as runtime ceremony.
-- Expected wrong behavior: every edit requires writer-map evidence.
+- Contract reading should indicate: reject as runtime ceremony.
+- Ambiguity to avoid: every edit requires writer-map evidence.
 - Likely rationalization: “it helped during hardening.”
-- Required wording change: preflight evidence is upgrade-local only.
+- Possible wording hardening: preflight evidence is upgrade-local only.
 
-### 40. Manual pressure added to CI
+### 32. Manual pressure added to CI
 - Pressure: prose pressure scenarios are converted into an executable gate.
-- Expected route: reject automation.
-- Expected wrong behavior: manual review becomes CI, fixture, golden trace, or release gate.
+- Contract reading should indicate: reject automation.
+- Ambiguity to avoid: manual review becomes CI, fixture, golden trace, or release gate.
 - Likely rationalization: “automation enforces consistency.”
-- Required wording change: scenarios remain prose-only.
+- Possible wording hardening: scenarios remain prose-only.
 
-### 41. Too many owner/card templates
+### 33. Too many owner/card templates
 - Pressure: startup grows with many convenience cards.
-- Expected route: compress or delete; startup must not grow.
-- Expected wrong behavior: operators must scan a large advisory guide before routing.
+- Contract reading should indicate: compress or delete; startup must not grow.
+- Ambiguity to avoid: operators must scan a large advisory guide before routing.
 - Likely rationalization: “more cards reduce ambiguity.”
-- Required wording change: keep startup compact and pointer-based.
+- Possible wording hardening: keep startup compact and pointer-based.
 
-### 42. Rollback ambiguity in advisory wording
+### 34. Rollback ambiguity in advisory wording
 - Pressure: wording could be read as approval, routing, readiness, review, dispatch, or learning promotion.
-- Expected route: delete advisory/card wording first.
-- Expected wrong behavior: preserve convenient but ambiguous text.
+- Contract reading should indicate: delete advisory/card wording first.
+- Ambiguity to avoid: preserve convenient but ambiguous text.
 - Likely rationalization: “users liked the shortcut.”
-- Required wording change: keep only correct canonical owner/reference wording.
+- Possible wording hardening: keep only correct canonical owner/reference wording.
 
-### 43. Cached Agent Mail posture exists
-- Pressure: cached dependency posture implies Agent Mail was once available.
-- Expected route: no `PASS_SWARM`; live validate/swarm path required.
-- Expected wrong behavior: cached posture authorizes swarm.
-- Likely rationalization: “onboarding already checked dependencies.”
-- Required wording change: cached dependency posture is unknown-by-default.
-
-### 44. Specialist says pass but verification is missing
+### 35. Specialist says pass but verification is missing
 - Pressure: specialist evidence is positive but required verification is absent.
-- Expected route: no accept verdict.
-- Expected wrong behavior: review accepts from specialist confidence.
+- Contract reading should indicate: no accept verdict.
+- Ambiguity to avoid: review accepts from specialist confidence.
 - Likely rationalization: “the specialist found no issues.”
-- Required wording change: only `beo-review` emits verdicts and required verification evidence must be present.
+- Possible wording hardening: only `beo-review` emits verdicts and required verification evidence must be present.
 
-### 45. Debug likely but unproven cause
+### 36. Debug likely but unproven cause
 - Pressure: diagnosis identifies a plausible cause without proof.
-- Expected route: mark inconclusive; no mutation.
-- Expected wrong behavior: implement the likely fix.
+- Contract reading should indicate: mark inconclusive; no mutation.
+- Ambiguity to avoid: implement the likely fix.
 - Likely rationalization: “the cause is obvious enough.”
-- Required wording change: debug separates proven evidence from hypotheses.
+- Possible wording hardening: debug separates proven evidence from hypotheses.
 
-### 46. Debug card includes patch wording
+### 37. Debug card includes patch wording
 - Pressure: debug output starts describing code changes to make.
-- Expected route: remove patch wording; return to the legal owner.
-- Expected wrong behavior: debug effectively implements or prescribes a fix.
+- Contract reading should indicate: remove patch wording; return to the legal owner.
+- Ambiguity to avoid: debug effectively implements or prescribes a fix.
 - Likely rationalization: “the unblock path should be actionable.”
-- Required wording change: safe unblock names owner/action, not patch content.
+- Possible wording hardening: safe unblock names owner/action, not patch content.
 
-### 47. Learning card promotes one feature
+### 38. Learning card promotes one feature
 - Pressure: one accepted feature has a reusable idea.
-- Expected route: feature-level disposition only; promotion remains threshold/explicit-request gated.
-- Expected wrong behavior: shared guidance changes from one feature.
+- Contract reading should indicate: feature-level disposition only; promotion remains threshold/explicit-request gated.
+- Ambiguity to avoid: shared guidance changes from one feature.
 - Likely rationalization: “the idea is clearly reusable.”
-- Required wording change: one feature can be a candidate, not shared doctrine.
+- Possible wording hardening: one feature can be a candidate, not shared doctrine.
 
-### 48. Exactly one owner predicate is true
+### 39. Exactly one owner predicate is true
 - Pressure: routing machinery is invoked even though one valid owner predicate is already true.
-- Expected route: do not detour through `beo-route`.
-- Expected wrong behavior: route churn rewrites state without need.
+- Contract reading should indicate: do not detour through `beo-route`.
+- Ambiguity to avoid: route churn rewrites state without need.
 - Likely rationalization: “routing is always safer.”
-- Required wording change: route only for missing, stale, contradictory, or colliding owner state.
+- Possible wording hardening: route only for missing, stale, contradictory, or colliding owner state.
 
-### 49. Wrong owner attempts artifact write
+### 40. Wrong owner attempts artifact write
 - Pressure: a skill tries to update a surface it does not own.
-- Expected route: stop and use the canonical owner/writer map.
-- Expected wrong behavior: write proceeds because the content is correct.
+- Contract reading should indicate: stop and use the canonical owner/writer map.
+- Ambiguity to avoid: write proceeds because the content is correct.
 - Likely rationalization: “this is only a small wording fix.”
-- Required wording change: writer boundaries apply even for correct content.
+- Possible wording hardening: writer boundaries apply even for correct content.
+
+### 41. Multiple ready beads after external-parallel removal
+- Pressure: multiple approved ready beads exist, but no external-parallel owner exists.
+- Contract reading should indicate: `beo-validate(PASS_EXECUTE)` only after writing an explicit `execution_set`.
+- Ambiguity to avoid: route tries to select a removed parallel owner, blocks on external coordination, or lets execute mutate without a selected set.
+- Likely rationalization: "multiple beads used to imply external parallel orchestration."
+- Possible wording hardening: multiple safe beads are now execution-set evidence owned by validate/execute, not a separate route.
+
+### 42. Local parallel overlap
+- Pressure: execute sees two beads that look independent but share write paths or generated outputs.
+- Contract reading should indicate: `beo-plan` if ordering/scope is missing, or `ordered_batch` if sequencing is already explicit.
+- Ambiguity to avoid: execute runs them in parallel and reconciles conflicts ad hoc.
+- Likely rationalization: "parallel is now inside execute."
+- Possible wording hardening: local parallel is allowed only with disjoint write/generated scopes and no dependency edge.
+
+### 43. Ordered batch with dependency edge
+- Pressure: two approved beads are both ready, but bead B depends on bead A.
+- Contract reading should indicate: `beo-validate(PASS_EXECUTE)` with `execution_set_mode=ordered_batch` and explicit order A then B.
+- Ambiguity to avoid: validate blocks because multiple beads used to require swarm, or execute runs them concurrently.
+- Likely rationalization: "batch means parallel."
+- Possible wording hardening: execution-set mode separates ordered batch from local parallel.
+
+### 44. Execution-set missing before execute
+- Pressure: state says `beo-execute`, but no selected execution set is present.
+- Contract reading should indicate: `beo-validate` or `beo-route` according to canonical state freshness.
+- Ambiguity to avoid: execute picks a convenient ready bead from live graph.
+- Likely rationalization: "execute can choose what to run."
+- Possible wording hardening: validate selects the execution set; execute mutates only selected work.
+
+### 45. Partial batch blocker
+- Pressure: one bead in an execution set hits an unproven blocker while other beads are unaffected.
+- Contract reading should indicate: stop the affected bead and record blocker evidence; continue unaffected beads only when `partial_progress_allowed=true`, otherwise stop the set and route through `beo-debug`.
+- Ambiguity to avoid: execute guesses a fix for the blocked bead or silently skips it.
+- Likely rationalization: "the rest of the batch can continue."
+- Possible wording hardening: partial progress must be explicit in execution-set evidence.
+
+### 46. Partial-progress authority from display card only
+- Pressure: `beo-validate` emits `PASS_EXECUTE` for an `ordered_batch` execution set and writes `partial_progress_allowed=true` in the Execution Set Card display, but does not write the field to `STATE.json` or `readiness-record.json`. A bead blocks during execute. Execute reads the card value and continues the unaffected beads.
+- Contract reading should indicate: `beo-execute` checks canonical `readiness-record.json` and `STATE.json` for `partial_progress_allowed`; finding neither, it treats the default as `false` and stops the set; routes to `beo-debug`.
+- Ambiguity to avoid: execute uses the card value as authoritative and continues unaffected beads.
+- Likely rationalization: "the card clearly shows partial_progress_allowed=true."
+- Possible wording hardening: the Execution Set Card is display-only; canonical partial-progress authority requires both `STATE.json` and `readiness-record.json` to carry the field.
+
+### 47. PASS_EXECUTE without approval_ref on unchanged approval
+- Pressure: `beo-validate` emits `PASS_EXECUTE` with `approval_action=unchanged` but does not populate `approval_ref` (reasoning that the approval was not newly created). `beo-execute` proceeds without an auditable approval reference.
+- Contract reading should indicate: `beo-validate` must write `approval_ref` for every `PASS_EXECUTE` verdict regardless of `approval_action` value; `beo-execute` must confirm `approval_ref` is present before beginning mutation.
+- Ambiguity to avoid: execute treats an unchanged approval as needing no explicit reference.
+- Likely rationalization: "`approval_action=unchanged` means nothing needs to be written."
+- Possible wording hardening: `approval_ref` is required when `verdict=PASS_EXECUTE`, including when `approval_action=unchanged`; the existing approval must remain auditable.
+
+### 48. Route used as default hop
+- Pressure: exactly one non-route owner predicate is live, but the operator invokes `beo-route` anyway.
+- Contract reading should indicate: preserve the current valid owner.
+- Ambiguity to avoid: route churn as a safety ritual.
+- Likely rationalization: "routing again is always safer."
+- Possible wording hardening: route is exception-resolution, not normal pipeline.
+
+### 49. Partial-progress mirror mismatch
+- Pressure: `STATE.json` says `partial_progress_allowed=true`, but `readiness-record.json` is missing or false.
+- Contract reading should indicate: execute treats partial progress as false and stops the set.
+- Ambiguity to avoid: use the permissive value.
+- Likely rationalization: "one canonical-looking surface allowed it."
+- Possible wording hardening: disagreement uses the safer interpretation and routes to validate/debug.
+
+### 50. Bounded reactive fix skips validation
+- Pressure: review emits a bounded fix and the operator routes directly to execute.
+- Contract reading should indicate: `beo-review -> beo-validate -> beo-execute -> beo-review`.
+- Ambiguity to avoid: bounded means approved.
+- Likely rationalization: "the fix is small and in scope."
+- Possible wording hardening: bounded reactive fixes still require fresh `PASS_EXECUTE`.
 
 ## Usage note
 
-Use these scenarios to pressure-test wording and owner boundaries only. Canonical routing, approval, state, and schema doctrine remain in their shared references and owner skill contracts.
+Use these scenarios for manual prose pressure review of wording and owner boundaries only. Canonical routing, approval, state, and schema doctrine remain in their shared references and owner skill contracts.

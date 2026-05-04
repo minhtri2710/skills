@@ -7,7 +7,8 @@
 - Manual pressure doctrine
 - Owner manifest
 - Canonical-source discipline
-- Migration ledger
+- Authoring quick rules
+- Historical migration ledger
 - Anti-goals
 
 # Authoring
@@ -69,7 +70,6 @@ metadata:
 Supported `missing_effect` values:
 - `degraded`
 - `unavailable`
-- `unavailable_for_swarm`
 
 Missing dependencies must never silently downgrade safety. If a skill can still
 proceed in degraded mode, it must say so explicitly in its contract and record
@@ -93,22 +93,21 @@ Use `beo-reference -> doctrine-map.md` as the short source-of-truth registry for
 
 | Concept | Canonical owner | Section |
 | --- | --- | --- |
-| skill contract authorship | `beo-author` | Ownership test |
+| skill contract authorship | `beo-author` | Ownership predicate |
 | manual pressure scenario prose | `references/manual-pressure-scenarios.md` | Pressure scenario bank |
 | checker scripts | out of `beo-author` scope | none |
 | fixture suites | out of `beo-author` scope | none |
 | release gates | out of `beo-author` scope | none |
 | topology validation | out of `beo-author` scope | none |
-| ownership predicates | each `SKILL.md` | Ownership test |
+| ownership predicates | each `SKILL.md` | Ownership predicate |
 | shared doctrine registry | `beo-reference -> doctrine-map.md` | Canonical source-of-truth registry |
-| collision precedence | `beo-route` | Ownership test / Enter when |
+| collision precedence | `beo-route` | Ownership predicate |
 | approval record schema and invalidation | `beo-reference -> approval.md` | Approval record / invalidation protocol |
 | artifact layout and schemas | `beo-reference -> artifacts.md` | Artifact schemas |
 | shared contract boilerplate | `beo-reference -> skill-contract-common.md` | Shared contract doctrine |
 | exact `br` / `bv` command syntax | `beo-reference -> cli.md` | Exact command forms |
 | compact/expanded ceremony and planning depth classes | `beo-reference -> complexity.md` | Ceremony modes / Planning depth classes |
-| Agent Mail reservation/report protocol | `beo-reference -> coordination.md` | Coordination protocols |
-| deletion and merge criteria | `beo-reference -> doctrine-map.md` | Deletion and merge criteria |
+| deletion rules | `beo-reference -> doctrine-map.md` | Deletion rules |
 | learning and consolidation schemas | `beo-reference -> learning.md` | Learning schemas |
 | delivery order and allowed handoffs | `beo-reference -> pipeline.md` | Allowed handoffs |
 | state, handoff freshness, route evidence, go-mode marker | `beo-reference -> state.md` | State schemas |
@@ -128,7 +127,19 @@ When wording a beo contract, prefer reference-over-restatement:
 If a doctrine concept already has a canonical home, neighboring files should point to it instead of re-specifying the same rule in parallel prose.
 Startup templates, onboarding surfaces, and skill-local appendices should stay pointer-oriented as well: they may summarize the happy-path shape briefly, but must defer routing, approval, and state semantics to their canonical files.
 
-## Migration ledger
+## Authoring quick rules
+
+When editing a beo skill:
+1. Keep trigger, ownership, writable surfaces, hard stops, and allowed next owners in `SKILL.md`.
+2. Keep schemas, protocols, exact command forms, and state semantics in shared references.
+3. Keep skill-local references limited to assets, prompts, local checklists, and local command appendices.
+4. Replace duplicate doctrine with canonical pointers.
+5. Preserve display-only output cards only when they cannot authorize runtime decisions.
+6. Run manual pressure scenarios after shared reference changes.
+
+## Historical migration ledger
+
+Historical appendix only. Do not use this table as active runtime doctrine.
 
 | Source file | Source concept | Destination file | Destination section | Obsolete reason if dropped |
 | --- | --- | --- | --- | --- |
@@ -143,24 +154,29 @@ Startup templates, onboarding surfaces, and skill-local appendices should stay p
 | `references/debugging-operations.md` | root-cause flow and return behavior | `beo-debug`; `beo-reference -> state.md` | Primary decision; Debug return metadata | local runtime doctrine merged |
 | `references/message-templates.md` | debug output message shapes | `references/diagnostic-checklist.md` | Message shape prompts | merged to reduce local asset count |
 | `references/dream-operations.md` | consolidation flow | `beo-dream`; `beo-reference -> learning.md` | Primary decision; Consolidation record schema | local runtime doctrine merged |
-| `references/consolidation-rubric.md` | evidence threshold and owner clarity | `beo-dream`; `beo-reference -> learning.md` | Ownership test; Provenance schema | rubric merged |
+| `references/consolidation-rubric.md` | evidence threshold and owner clarity | `beo-dream`; `beo-reference -> learning.md` | Ownership predicate; Provenance schema | rubric merged |
 | `references/escalation.md` | escalation doctrine | `beo-reference -> pipeline.md` | Allowed handoffs / wait statuses | split owner merged |
 | `references/bead-description-templates.md` | bead description template | `beo-reference -> artifacts.md` | Bead description schema | duplicate template |
 | `references/go-mode.md` | go-mode route state | `beo-reference -> state.md` | Go-mode marker | duplicate state protocol |
 | `references/context-template.md` | CONTEXT schema | `beo-reference -> artifacts.md` | CONTEXT.md schema | duplicate schema |
-| `references/go-mode.md` | go-mode behavior and marker | `beo-explore`; `beo-reference -> state.md` | Enter when; Go-mode marker | split behavior/schema |
+| `references/go-mode.md` | go-mode behavior and marker | `beo-explore`; `beo-reference -> state.md` | Ownership predicate; Go-mode marker | split behavior/schema |
 | `references/plan-template.md` | PLAN schema | `beo-reference -> artifacts.md` | PLAN.md schema | duplicate schema |
-| `references/discovery-reference.md` | planning discovery | `beo-plan`; `beo-reference -> artifacts.md` | Enter when; Artifact schemas | planning behavior merged |
+| `references/discovery-reference.md` | planning discovery | `beo-plan`; `beo-reference -> artifacts.md` | Ownership predicate; Artifact schemas | planning behavior merged |
 | `references/artifact-writing-guide.md` | artifact writing behavior | `beo-plan` | Writable surfaces | behavior merged |
-| `references/planning-prerequisites.md` | planning entry conditions | `beo-plan` | Ownership test | predicate merged |
-| `references/planning-state-and-cleanup.md` | approval cleanup | `beo-reference -> approval.md`; `beo-plan` | invalidation protocol; Enter when | protocol merged |
+| `references/planning-prerequisites.md` | planning entry conditions | `beo-plan` | Ownership predicate | predicate merged |
+| `references/planning-state-and-cleanup.md` | approval cleanup | `beo-reference -> approval.md`; `beo-plan` | invalidation protocol; Ownership predicate | protocol merged |
 | `references/blocker-handling.md` | blocker classification | `beo-execute` | Must not / Allowed next owners | behavior merged |
-| `references/worker-prompt-guide.md` | worker payload | `references/swarming-operations.md` | Worker payload schema | swarm-owned appendix |
 | `references/pressure-scenarios.md` | pressure cases | none | none | executable fixture ownership removed |
-| `references/pressure-scenarios.md` | pressure cases | none | none | executable fixture ownership removed |
+
+## Regression baseline
+
+Doctrine changes to shared references should be reviewed for regression against `skills/beo/author/references/manual-pressure-scenarios.md` before becoming canonical. Because executable checker scripts and fixture suites are outside `beo-author` scope, manual pressure scenario review is the primary regression gate. A new or changed shared-reference rule that is not covered by at least one existing scenario should either be added as a new scenario or explicitly noted as out-of-scope for pressure testing.
 
 ## Anti-goals
 
 The following are outside this cleanup unless explicitly approved:
-
-
+- skill topology changes
+- runtime delivery or product implementation
+- checker scripts, fixture suites, or release gates
+- executable route validation
+- broad rewrite of canonical schema references solely to reduce line count
