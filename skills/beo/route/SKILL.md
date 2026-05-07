@@ -26,11 +26,11 @@ STATE.json fields needed for owner repair; HANDOFF.json only when pausing/transf
 
 ## Hard stops
 
-Do not implement product changes. Do not approve readiness. Do not emit PASS_EXECUTE. Do not review or verdict. Do not repair artifacts owned by the selected runtime owner. Do not route merely because an artifact defect exists if a current owner legally owns that repair.
+Route may select done only when terminal closure is proven by canonical artifacts. Do not implement product changes. Do not approve readiness. Do not emit PASS_EXECUTE. Do not review or verdict. Do not repair artifacts owned by the selected runtime owner. Do not route merely because an artifact defect exists if a current owner legally owns that repair.
 
 ## Allowed next owners
 
-beo-explore, beo-plan, beo-validate, beo-execute, beo-review, beo-debug, beo-compound, beo-dream, user
+beo-explore, beo-plan, beo-validate, beo-execute, beo-review, beo-debug, beo-compound, beo-dream, user, done
 
 ## References
 

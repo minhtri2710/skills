@@ -30,7 +30,9 @@ Do not reopen review. Do not mutate implementation. Do not promote shared guidan
 
 ## Allowed next owners
 
-beo-dream, done, user, beo-route
+done, user
+
+If compound evidence plus existing accepted feature outcomes appears to satisfy corpus threshold, record the candidate and close `done`; corpus consolidation requires a separate explicit `beo-dream` activation or user request.
 
 ## References
 

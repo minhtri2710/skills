@@ -1,4 +1,4 @@
-# Status Mapping v2
+# Status Mapping
 
 ## Bead state labels
 

@@ -1,4 +1,4 @@
-# BEO Doctrine Map v2
+# BEO Doctrine Map
 
 ## Restatement rule
 
@@ -28,3 +28,4 @@ When a local owner hard stop is stricter than the canonical reference, the stric
 | Operator quick map | `references/operator-card.md` |
 | Doctrine authoring rules | `references/authoring.md` |
 | Exact CLI command forms | `references/cli.md` |
+| Setup/check/usage bootstrap | `setup/SKILL.md` and pointer from `references/operator-card.md` |

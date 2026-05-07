@@ -1,4 +1,4 @@
-# BEO Operator Card v2
+# BEO Operator Card
 
 ## Startup rule
 
@@ -7,8 +7,8 @@ At session start:
 1. Read `.beads/STATE.json` if present.
 2. Read `.beads/HANDOFF.json` only if resuming paused or transferred work.
 3. Read active feature artifacts only for the active `feature_slug`.
-4. If no active feature exists, start through `beo-route` or `beo-explore`.
-5. If multiple active feature candidates exist, stop and ask the user which feature is active.
+4. If no active feature exists and the user request names a feature goal, start through `beo-explore`.
+5. Use `beo-route` only when owner identity or active feature identity is unsafe. If multiple active feature candidates exist, stop and ask the user which feature is active.
 
 Startup output is advisory only. It cannot approve execution, select execution sets, emit review verdicts, or promote learning.
 
@@ -20,14 +20,19 @@ Use repair paths in `pipeline.md` when validation, execution, or review discover
 
 ## AGENTS.md setup
 
-For a new BEO project, ensure `AGENTS.md` exists.
+Use `beo-setup` for all AGENTS.md managed-block setup, checks, and refreshes. Do not create or append the managed block outside `beo-setup`.
 
-- If `AGENTS.md` is missing, create it from `assets/AGENTS.template.md`.
-- If `AGENTS.md` exists but lacks the BEO managed block, append the managed block from `assets/AGENTS.template.md`.
-- If `AGENTS.md` already contains the managed block, do not change it unless the user explicitly requests a refresh.
-- If the managed block markers are duplicated or malformed, ask the user before editing.
+## Setup and usage helper
 
-This is setup-only. Its only writable surface is `AGENTS.md`.
+Use `beo-setup` only for project setup, AGENTS.md managed-block checks, setup health checks, and concise usage guidance.
+
+`beo-setup` is not a runtime owner and is not part of the normal feature delivery path.
+
+Normal feature delivery remains:
+
+`beo-route -> beo-explore -> beo-plan -> beo-validate -> beo-execute -> beo-review -> done`
+
+`beo-setup` output is advisory only. It cannot approve execution, select execution sets, emit review verdicts, mutate feature artifacts, or promote learning.
 
 ## Standard decision packet
 

@@ -34,7 +34,7 @@ Use this file only as supporting material when authoring beo skill contracts.
 - Allowed next owners are explicit.
 - References are pointers, not hidden routing logic.
 - Operations appendices do not contradict owner `SKILL.md` contracts.
-- Keep workflow logic in `beo-reference → pipeline.md` and state logic in `beo-reference → state.md`.
+- Keep workflow logic in `beo-reference -> references/pipeline.md` and state logic in `beo-reference -> references/state.md`.
 - Use operator, guide, scout, and appendix docs for pointers or examples only; do not add new routing, approval, go-mode, or state rules there.
 
 ## Pressure scenario shape

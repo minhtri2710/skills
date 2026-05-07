@@ -1,4 +1,4 @@
-# Go-Mode v2
+# Go-Mode
 
 ## Go-mode invariant
 

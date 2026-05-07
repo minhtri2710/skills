@@ -1,4 +1,4 @@
-# Execution Operations v2
+# Execution Operations
 
 Role: APPENDIX
 
@@ -22,9 +22,11 @@ File-change baseline:
 
 Hard stop if any row is missing, stale, contradictory, or outside approval.
 
+Immediately before first mutation, reread readiness, approval record, selected execution set, declared files, forbidden paths, and approval freshness. Stop if any value is stale, missing, or contradictory.
+
 ## File-change baseline
 
-Before mutation, record the current file-change baseline needed to distinguish execution changes from pre-existing or unrelated changes.
+Before mutation, record the current file-change baseline needed to distinguish execution changes from pre-existing or unrelated changes. The baseline includes each relevant file path, status (`clean`, `modified`, `untracked`, or `absent`), and hash when available.
 
 This is local file-change evidence only. It is not a worktree model.
 
@@ -40,7 +42,7 @@ For `ordered_batch`, execute beads in the validated order. If any bead blocks, s
 
 ## Execution bundle finalization
 
-Finalize `.beads/artifacts/<feature_slug>/execution-bundle.json` with every changed/generated file, hash coverage, verification evidence, `ready_for_review=true`, and `finalized_at`.
+Finalize `.beads/artifacts/<feature_slug>/execution-bundle.json` with every changed/generated file, baseline status/hash coverage, `final_file_hashes`, verification evidence, `ready_for_review=true`, and `finalized_at`.
 
 ## Stale approval stop
 

@@ -30,7 +30,7 @@ Do not mutate files or runtime artifacts. Do not select owners. Do not approve r
 
 ## Allowed next owners
 
-done, user, beo-route
+done, user
 
 ## References
 

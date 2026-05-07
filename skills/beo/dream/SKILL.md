@@ -18,7 +18,7 @@ Not active when only one feature provides evidence and there is no explicit corp
 
 ## Primary owned decision
 
-Choose and apply a user-confirmed corpus-level consolidation target.
+Decide whether threshold evidence or explicit request supports corpus-level consolidation, then write only the current user-confirmed target if approved.
 
 ## Writable surfaces
 
@@ -26,11 +26,11 @@ User-confirmed shared guidance target path; STATE.json closure fields; HANDOFF.j
 
 ## Hard stops
 
-Do not mutate shared guidance without current user-confirmed target path. Do not promote one-feature learning. Do not reopen runtime delivery. Do not implement product changes.
+Do not mutate shared guidance without threshold/request and current user-confirmed target path. Dream may emit no-promotion when consolidation is not justified. Do not promote one-feature learning. Do not reopen runtime delivery. Do not implement product changes.
 
 ## Allowed next owners
 
-done, user, beo-route
+done, user
 
 ## References
 

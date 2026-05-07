@@ -1,4 +1,4 @@
-# Readiness Classification v2
+# Readiness Classification
 
 Role: APPENDIX
 
@@ -12,3 +12,12 @@ Evaluate execution readiness in this order:
 6. Multiple approved ready beads with explicit dependency order and all dependencies satisfied -> write `execution_mode=ordered_batch`, `execution_set_id`, and `execution_set_beads` to `STATE.json` and emit `PASS_EXECUTE`.
 
 Do not select unsupported execution modes. Do not allow continuation after a blocked bead in an ordered batch.
+
+
+## FAIL_STATE
+
+`FAIL_STATE` means canonical state/artifact evidence prevents safe readiness classification.
+
+- If owner identity is unsafe, next owner is `beo-route`.
+- If artifact is unreadable due to access, missing file, or external environment, next owner is `user`.
+- If the defect is owned by `beo-plan` or `beo-explore`, emit `FAIL_PLAN` or `FAIL_EXPLORE`, not `FAIL_STATE`.

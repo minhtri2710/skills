@@ -27,7 +27,7 @@ Procedure:
 5. Run a security/privacy lens for data, auth, secret, permission, and irreversible-damage concerns.
 6. Run a maintainability lens for non-blocking quality issues.
 7. Extract acceptance-critical locked decisions and classify each verification type as `SEE`, `CALL`, `RUN`, `INSPECT`, or explicit `N/A`; record external/manual UAT as evidence under one of those canonical types, not as a new type.
-8. Mark each unverified acceptance-critical decision as an evidence gap that blocks accept.
+8. Mark each unverified acceptance-critical decision as an evidence gap for `beo-review` to classify.
 9. Classify every finding as P0, P1, P2, or P3 using `beo-review` severity definitions.
 10. Return evidence for `beo-review` to classify; do not treat this prompt as a canonical verdict or routing source.
 
@@ -79,3 +79,16 @@ Lens evidence calibration:
 - Good: `Regression lens: no changed imports/handoff-contexts outside approved file scope; searched <paths>; verification <command> passed.`
 
 Canonical terminal verdict remains only in `beo-review`; this appendix supplies evidence, severity suggestions, uncertainty, and missing evidence only.
+
+
+## Decision Verification vocabulary
+
+Allowed Decision Verification evidence types: `SEE`, `CALL`, `RUN`, `INSPECT`, `N/A`. Record a reason when reporting `N/A`. Missing acceptance-critical rows or N/A without reason should be reported as evidence gaps for `beo-review` to classify.
+
+## Severity
+
+Use P0/P1/P2/P3 as severity suggestions for `beo-review` to classify; this asset does not emit verdicts or accept-blocking rules.
+
+## Security/privacy applicability
+
+Security/privacy lens is applicable when changed scope touches auth, permissions, secrets, PII, billing, migrations, destructive operations, external network calls, irreversible side effects, or legal/compliance behavior.

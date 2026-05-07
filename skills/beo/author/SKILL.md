@@ -30,7 +30,7 @@ Do not perform runtime owner mutations unless that owner skill is loaded. Do not
 
 ## Allowed next owners
 
-user, done, beo-route
+done, user
 
 ## References
 

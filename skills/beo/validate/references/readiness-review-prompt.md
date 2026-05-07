@@ -1,4 +1,4 @@
-# Readiness Review Prompt v2
+# Readiness Review Prompt
 
 Role: APPENDIX
 

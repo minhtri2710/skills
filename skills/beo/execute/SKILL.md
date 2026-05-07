@@ -26,11 +26,11 @@ approved declared files for selected beads; declared generated outputs; .beads/a
 
 ## Hard stops
 
-Do not mutate without PASS_EXECUTE, fresh approval_ref, selected execution set, or approved declared file scope. Do not mutate outside scope. Do not continue if approval becomes stale. Do not continue ordered batch after a bead blocks. Do not coordinate external workers. Do not decide review verdict. Do not prove root cause by guessing; route to beo-debug.
+Immediately before first mutation, perform the pre-write freshness guard. Stop if approval, readiness, selected execution set, declared files, forbidden paths, or approval hashes are stale, missing, or contradictory. Do not mutate without PASS_EXECUTE, fresh approval_ref, selected execution set, approved declared file scope, and approval hashes matching live artifacts. Do not mutate outside scope. Do not continue if approval becomes stale. Do not continue ordered batch after a bead blocks. Do not coordinate external workers. Do not decide review verdict. Do not prove root cause by guessing; route to beo-debug.
 
 ## Allowed next owners
 
-beo-review, beo-debug, beo-plan, user, beo-route
+beo-review, beo-debug, beo-validate, beo-plan, user, beo-route
 
 ## References
 

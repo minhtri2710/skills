@@ -8,13 +8,13 @@ Authority note: display-only; canonical authority remains in the referenced stat
 
 ## Happy path
 
-Normal orientation is `beo-route -> beo-explore -> beo-plan -> beo-validate -> beo-execute -> beo-review -> done`, with optional `beo-review -> beo-compound -> beo-dream/done` when accepted learning needs disposition.
+Normal orientation is `beo-route -> beo-explore -> beo-plan -> beo-validate -> beo-execute -> beo-review -> done`, with optional `beo-review -> beo-compound -> done` when accepted learning needs feature-level disposition. `beo-dream` is explicit corpus-level consolidation only when cross-feature threshold or user request exists.
 
 `beo-route` is exceptional owner-state repair and is not required when exactly one owner is already live.
 
 ## beo_tiny golden path
 
-`beo_tiny` uses normal owners with compact artifacts: lock the exact requirement, write one current plan bead with explicit file scope and verification, validate one `single` execution set, execute only that set, run review-lite only if every lite gate is satisfied, then close `done` with `no-learning` when isolated.
+`beo_tiny` uses normal owners with compact artifacts: lock the exact requirement, write one current plan bead with explicit file scope and verification, validate one `single` execution set, execute only that set, run the same accept gate with shorter prose, then close `done` with `no-learning` when isolated.
 
 ## Owner-selection symptom table
 
@@ -37,11 +37,11 @@ Supported modes are `single` and `ordered_batch` only. `beo-validate` selects th
 
 ## Verdict routing
 
-`accept` routes to `done` when learning is clearly `no-learning`, or `beo-compound` when durable or unclear learning remains. `fix` routes through `beo-validate` for bounded reactive fixes unless root cause is unproven or scope exceeds approval. `reject` routes to `beo-explore` for invalid requirements or `beo-plan` for design/scope/approach failure with valid requirements.
+`accept` routes to `done` when learning is clearly `no-learning`, or `beo-compound` when durable or unclear learning remains. `fix` routes to `beo-debug` when root cause is unproven, otherwise to `beo-plan`; fixes do not use a direct review-to-validate fast path. `reject` routes to `beo-explore` for invalid requirements or `beo-plan` for design/scope/approach failure with valid requirements.
 
 ## Approval freshness summary
 
-Execution needs current `PASS_EXECUTE`, `approval_ref`, selected execution set fields, and matching context/plan approval evidence. Stale approval before mutation returns to validation or plan by stale cause; stale approval after mutation stops execution and follows `approval.md`.
+Execution needs current `PASS_EXECUTE`, `approval_ref`, selected execution set fields, and matching context/plan approval evidence. Missing/stale readiness, approval, or selected execution set before mutation returns to `beo-validate`; stale approval before mutation returns to validation or plan by stale cause; stale approval after mutation stops execution and follows `approval.md`.
 
 ## Execute hard-stop cheat sheet
 

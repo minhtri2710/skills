@@ -1,4 +1,4 @@
-# Bead Operations v2
+# Bead Operations
 
 Role: APPENDIX
 

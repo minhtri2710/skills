@@ -1,4 +1,4 @@
-# Human Gate v2
+# Human Gate
 
 ## Human Gate discipline
 
@@ -34,3 +34,17 @@ Clarification gates may use go-mode fallback only when the canonical go-mode rul
 Approval and UAT gates never fallback.
 
 Secret material must not be persisted in Human Gate records.
+
+
+## Secret gates
+
+For `secret` gates, record only that the secret was provided or access was confirmed. Do not record the secret value.
+
+
+## Gate resolution rule
+
+A required Human Gate blocks `PASS_EXECUTE` unless status is `resolved` or `not_applicable` with an explicit N/A reason.
+
+Approval and UAT gates never fallback to go-mode.
+
+Secret gates may record only that access or secret provision was confirmed. Secret values must not be persisted.

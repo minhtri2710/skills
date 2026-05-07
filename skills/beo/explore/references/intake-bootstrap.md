@@ -13,7 +13,7 @@ Allowed content only: bootstrap order, slug creation timing, initial file creati
 
 ## Bootstrap surfaces
 
-Canonical state and handoff semantics remain in `beo-reference → state.md`; this appendix lists only the bootstrap surfaces `beo-explore` touches.
+Canonical state and handoff semantics remain in `beo-reference -> references/state.md`; this appendix lists only the bootstrap surfaces `beo-explore` touches.
 
 | Surface | Rule |
 | --- | --- |
@@ -31,7 +31,7 @@ Canonical state and handoff semantics remain in `beo-reference → state.md`; th
 
 ## CONTEXT.md bootstrap
 
-Use the canonical `CONTEXT.md` schema from `beo-reference → artifacts.md`. This appendix only covers bootstrap order, slug creation timing, and initial file creation.
+Use the canonical `CONTEXT.md` schema from `beo-reference -> references/artifacts.md`. This appendix only covers bootstrap order, slug creation timing, and initial file creation.
 
 Minimal creation stub before filling canonical sections:
 
@@ -46,7 +46,7 @@ Minimal creation stub before filling canonical sections:
 
 ## Go-mode assumption ledger
 
-Canonical go-mode semantics remain in `beo-reference → go-mode.md`. State and handoff persistence remain in `beo-reference → state.md`.
+Canonical go-mode semantics remain in `beo-reference -> references/go-mode.md`. State and handoff persistence remain in `beo-reference -> references/state.md`.
 
 When `go_mode` is used, record each non-blocking assumption with:
 - assumption text

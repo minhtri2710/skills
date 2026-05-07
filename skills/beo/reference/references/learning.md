@@ -1,4 +1,4 @@
-# BEO Learning v2
+# BEO Learning
 
 ## Review default
 
@@ -24,3 +24,20 @@ One accepted feature is not enough.
 Do not mutate shared guidance without current user-confirmed target path.
 
 Learning must never reopen runtime delivery, mutate implementation, or promote shared guidance from one feature alone.
+
+
+## Learning quality bar
+
+Accepted closure defaults to `done` with `no-learning`.
+
+A `durable-candidate` must include:
+
+- observed pattern or failure mode
+- concrete trigger condition
+- owner or artifact surface affected
+- unsafe rationalization it prevents
+- minimal wording or workflow hardening
+- evidence ref from accepted `REVIEW.md`
+- boundary where the learning does not apply
+
+If these are missing, use `unclear` only when the accepted review evidence suggests a real reusable pattern. Otherwise use `no-learning` and close.

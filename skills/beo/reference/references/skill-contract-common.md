@@ -1,4 +1,4 @@
-# BEO Skill Contract Common v2
+# BEO Skill Contract Common
 
 ## Canonical vocabulary registry
 

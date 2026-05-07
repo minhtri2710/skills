@@ -26,7 +26,7 @@ Diagnostic notes in owner output; STATE.json debug_return fields when the active
 
 ## Hard stops
 
-Do not implement the fix. Do not describe the patch. Do not approve readiness. Do not emit review verdict. Do not authorize rollback. Do not change debug_return.return_to unless evidence proves it invalid.
+Do not implement the fix. Do not act without a current `STATE.json.debug_return` anchor when entered from execution or review. Do not describe the patch. Do not approve readiness. Do not emit review verdict. Do not authorize rollback. Do not change debug_return.return_to unless evidence proves it invalid.
 
 ## Allowed next owners
 

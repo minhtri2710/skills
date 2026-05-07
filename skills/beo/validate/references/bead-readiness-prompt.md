@@ -1,4 +1,4 @@
-# Bead Readiness Prompt v2
+# Bead Readiness Prompt
 
 Role: APPENDIX
 

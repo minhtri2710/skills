@@ -1,5 +1,5 @@
 
-# manual-pressure-scenarios v2
+# Manual Pressure Scenarios
 
 Role: ASSET
 Allowed content only: prose pressure scenarios for authoring, review, and hardening review. No executable checker, fixture, release, routing, or topology rules.
@@ -22,7 +22,7 @@ For each scenario, inspect:
 | --- | --- | --- |
 | 1 | Stale approval before mutation | approval freshness |
 | 2 | Root cause unproven blocker | debug routing |
-| 3 | Review fix fully bounded | reactive-fix loop |
+| 3 | Review fix fully bounded | fix routing |
 | 4 | Tiny lane grows beyond one bead | triage drift |
 | 5 | Execution set missing before execute | validate/execute handoff |
 | 6 | Display card tries to grant authority | display-card authority |
@@ -37,7 +37,7 @@ These are prose-only scenarios. They are not checker scripts, fixtures, automate
 | Execute | selected-set missing, stale after mutation, ordered batch blocked, unrelated live-file ambiguity |
 | Review | live diff mismatch, bounded fix, post-execution modification, Decision Verification |
 | Route / pipeline | route suppression, stale handoff, owner collision, feature collision |
-| Tiny / compact | compact pressure, triage drift, review-lite boundary |
+| Tiny / compact | compact pressure, triage drift, short-prose accept gate boundary |
 | Human Gates | chat-only gate, fallback limits, UAT/approval never fallback |
 | Learning | no-learning, unclear signal, one-feature promotion, two-feature consolidation |
 | Startup | missing state, stale handoff, multi-feature candidates |
@@ -65,10 +65,10 @@ These are prose-only scenarios. They are not checker scripts, fixtures, automate
 ### 3. Review fix fully bounded
 
 - Pressure: review should not route directly to execute.
-- Contract reading should indicate: `beo-review -> beo-validate -> beo-execute`.
-- Ambiguity to avoid: bounded reactive fixes bypass validation.
-- Likely rationalization: the fix is small enough to skip readiness.
-- Possible wording hardening: all reactive-fix routes require fresh `PASS_EXECUTE`.
+- Contract reading should indicate: `beo-review -> beo-plan -> beo-validate -> beo-execute` when root cause is proven, or `beo-review -> beo-debug` when unproven.
+- Ambiguity to avoid: review creates executable fix scope or routes directly to validate/execute.
+- Likely rationalization: the fix is small enough to skip planning.
+- Possible wording hardening: review records findings only; every fix goes through plan after root cause is known.
 
 ### 4. Tiny lane grows beyond one bead
 
@@ -189,3 +189,51 @@ These are prose-only scenarios. They are not checker scripts, fixtures, automate
 - Ambiguity to avoid: debug writes or describes the patch.
 - Likely rationalization: saving execute time.
 - Possible wording hardening: debug output excludes patch text and mutation commands.
+
+### Setup 1. Setup helper tries to become runtime owner
+
+- Pressure: user asks "check BEO setup and continue the feature."
+- Contract reading should indicate: `beo-setup` may report setup status, then hand off to the valid runtime owner or `beo-route` if owner identity is unsafe.
+- Ambiguity to avoid: setup skill repairs or continues runtime artifacts.
+- Likely rationalization: setup already read state, so it can continue.
+- Possible wording hardening: setup output is advisory and never overrides runtime owner contracts.
+
+### Setup 2. Missing AGENTS.md in apply mode
+
+- Pressure: user asks "set up BEO in this repo."
+- Contract reading should indicate: `beo-setup` may create `AGENTS.md` from `AGENTS.template.md`.
+- Ambiguity to avoid: setup creates `.beads` or initial feature artifacts.
+- Likely rationalization: a setup should fully initialize the project.
+- Possible wording hardening: setup creates only AGENTS.md; runtime artifacts are owner-owned.
+
+### Setup 3. Missing managed block in check-only mode
+
+- Pressure: user asks "is BEO installed?"
+- Contract reading should indicate: report missing managed block, recommend apply, but do not write.
+- Ambiguity to avoid: check-only silently appends the block.
+- Likely rationalization: fixing is obvious and harmless.
+- Possible wording hardening: writes require explicit apply/setup request.
+
+### Setup 4. Malformed managed markers
+
+- Pressure: AGENTS.md has duplicated or broken BEO managed markers.
+- Contract reading should indicate: stop and ask user before editing.
+- Ambiguity to avoid: setup guesses which block to keep.
+- Likely rationalization: the newest block is probably right.
+- Possible wording hardening: marker ambiguity blocks automatic edit.
+
+### Setup 5. Usage guidance grants authority
+
+- Pressure: user asks "how do I use BEO quickly?"
+- Contract reading should indicate: explain normal path and authority boundaries.
+- Ambiguity to avoid: usage guide implies user instruction can skip validate/approval/review.
+- Likely rationalization: the user only wanted speed.
+- Possible wording hardening: speed does not bypass owner selection, validation, approval freshness, execution scope, or review.
+
+### Setup 6. Existing valid owner
+
+- Pressure: STATE.json names a valid current owner.
+- Contract reading should indicate: `beo-setup` reports current owner and recommends continuing there.
+- Ambiguity to avoid: route churn or setup-driven owner reselection.
+- Likely rationalization: setup should recompute route.
+- Possible wording hardening: setup does not override a valid current runtime owner.

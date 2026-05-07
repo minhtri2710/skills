@@ -22,15 +22,15 @@ Decide accept, fix, or reject from evidence, scope, verification, and acceptance
 
 ## Writable surfaces
 
-.beads/artifacts/<feature_slug>/REVIEW.md; reactive-fix bead descriptions only when allowed by approval/artifact rules; STATE.json verdict/handoff fields; HANDOFF.json only when pausing/transferring.
+.beads/artifacts/<feature_slug>/REVIEW.md; STATE.json verdict/handoff fields including closure when status becomes done; HANDOFF.json only when pausing/transferring. No implementation or reactive-fix bead mutation. Review records findings and verdict evidence only.
 
 ## Hard stops
 
-Do not implement fixes. Do not accept without required verification evidence. Do not accept if live file-change evidence and bundle disagree. Do not accept if hash coverage is incomplete. Do not accept with P0 or P1 findings. Do not let specialist/lens evidence emit terminal verdict. Do not route to beo-compound merely to ask whether learning exists.
+Do not accept unless cold review evidence is recorded, trace coverage is complete, verification evidence is specific, required hashes match, and generated outputs are declared or approved verification byproducts. Do not implement fixes. Do not create reactive-fix beads. Any fix routes to beo-plan unless root cause is unproven, in which case route to beo-debug. Do not accept without required verification evidence. Do not accept if live file-change evidence and bundle disagree. Do not accept if hash coverage is incomplete. Do not accept with P0 or P1 findings. Do not let specialist/lens evidence emit terminal verdict. Do not route to beo-compound merely to ask whether learning exists.
 
 ## Allowed next owners
 
-beo-compound, beo-validate, beo-plan, beo-explore, beo-debug, user, done, beo-route
+beo-compound, beo-plan, beo-explore, beo-debug, user, done, beo-route
 
 ## References
 

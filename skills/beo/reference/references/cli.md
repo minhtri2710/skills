@@ -1,4 +1,4 @@
-# BEO CLI v2
+# BEO CLI
 
 ## Purpose
 
@@ -6,7 +6,7 @@ This reference records exact command forms for bead and viewer operations only. 
 
 ## Beads
 
-Use `br` for bead database operations when a loaded owner contract permits the mutation.
+Use `br` only when the project explicitly uses a bead database and a loaded owner contract permits the mutation. `br` output is not canonical unless mirrored in `PLAN.md`.
 
 Common read-only forms:
 
@@ -24,7 +24,7 @@ br update <id> --status <status>
 br dep add <id> <dependency-id>
 ```
 
-Flush any bead DB mutation before handoff or session end.
+Flush any optional bead metadata mutation before handoff or session end. Canonical workflow authority remains in `PLAN.md`, state, and artifacts.
 
 ## Viewer
 

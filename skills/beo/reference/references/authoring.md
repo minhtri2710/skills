@@ -1,4 +1,4 @@
-# BEO Authoring v2
+# BEO Authoring
 
 ## Owner SKILL.md rewrite standard
 
