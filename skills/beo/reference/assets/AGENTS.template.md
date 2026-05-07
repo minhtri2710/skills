@@ -13,10 +13,11 @@ If the user asks to set up BEO, check BEO setup, install or refresh the AGENTS.m
 4. If no active feature exists and the user request names a feature goal, start through `beo-explore`.
 5. Use `beo-route` only when owner identity or active feature identity is unsafe. If multiple active feature candidates exist, stop and ask the user which feature is active.
 6. Treat startup output as advisory only; it cannot approve execution, select execution sets, emit review verdicts, or promote learning.
+7. Before any owner action or mutation, load the active owner's `SKILL.md`. `STATE.json.current_owner` is not sufficient authority by itself.
 
 ## Beo Skill Chain
 
-Startup orientation summary: read `beo-reference -> references/operator-card.md` first for the workflow quick map; normal path is `beo-route -> beo-explore -> beo-plan -> beo-validate -> beo-execute -> beo-review -> done`.
+Startup orientation summary: read `beo-reference -> references/operator-card.md` first for the workflow quick map. Normal delivery path: `beo-explore -> beo-plan -> beo-validate -> beo-execute -> beo-review -> done`. `beo-route` only when owner identity or active feature identity is unsafe.
 Legal transitions remain canonical in `beo-reference -> references/pipeline.md`.
 Optional learning closure: `beo-review -> beo-compound -> done` only when REVIEW records durable-candidate or unclear single-feature learning. `beo-dream` only when cross-feature threshold or explicit corpus request exists.
 Support skills: `beo-setup`, `beo-debug`, `beo-author`. Corpus skill: `beo-dream`. Reference skill: `beo-reference`.

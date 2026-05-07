@@ -12,9 +12,15 @@ At session start:
 
 Startup output is advisory only. It cannot approve execution, select execution sets, emit review verdicts, or promote learning.
 
-## Owner quick map
+Before any owner action or mutation, load the active owner's `SKILL.md`. `STATE.json.current_owner` is not sufficient authority by itself.
 
-`beo-route -> beo-explore -> beo-plan -> beo-validate -> beo-execute -> beo-review -> done`
+## Normal delivery path
+
+`beo-explore -> beo-plan -> beo-validate -> beo-execute -> beo-review -> done`
+
+## Startup repair path
+
+`beo-route` only when owner identity or active feature identity is unsafe.
 
 Use repair paths in `pipeline.md` when validation, execution, or review discovers a blocker.
 
@@ -28,9 +34,11 @@ Use `beo-setup` only for project setup, AGENTS.md managed-block checks, setup he
 
 `beo-setup` is not a runtime owner and is not part of the normal feature delivery path.
 
-Normal feature delivery remains:
+Normal feature delivery:
 
-`beo-route -> beo-explore -> beo-plan -> beo-validate -> beo-execute -> beo-review -> done`
+`beo-explore -> beo-plan -> beo-validate -> beo-execute -> beo-review -> done`
+
+`beo-route` only when owner identity or active feature identity is unsafe.
 
 `beo-setup` output is advisory only. It cannot approve execution, select execution sets, emit review verdicts, mutate feature artifacts, or promote learning.
 

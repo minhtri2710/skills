@@ -22,9 +22,13 @@ flowchart LR
     debug -. evidence .-> owner[recorded/legal owner]
 ```
 
-Core runtime:
+Core delivery:
 
-`beo-route -> beo-explore -> beo-plan -> beo-validate -> beo-execute -> beo-review -> done`
+`beo-explore -> beo-plan -> beo-validate -> beo-execute -> beo-review -> done`
+
+Startup repair:
+
+`beo-route` only when owner state or active feature identity is missing, stale, contradictory, or colliding.
 
 Optional closure:
 

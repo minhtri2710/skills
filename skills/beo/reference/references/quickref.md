@@ -8,7 +8,7 @@ Authority note: display-only; canonical authority remains in the referenced stat
 
 ## Happy path
 
-Normal orientation is `beo-route -> beo-explore -> beo-plan -> beo-validate -> beo-execute -> beo-review -> done`, with optional `beo-review -> beo-compound -> done` when accepted learning needs feature-level disposition. `beo-dream` is explicit corpus-level consolidation only when cross-feature threshold or user request exists.
+Normal delivery is `beo-explore -> beo-plan -> beo-validate -> beo-execute -> beo-review -> done`, with optional `beo-review -> beo-compound -> done` when accepted learning needs feature-level disposition. `beo-dream` is explicit corpus-level consolidation only when cross-feature threshold or user request exists.
 
 `beo-route` is exceptional owner-state repair and is not required when exactly one owner is already live.
 

@@ -6,9 +6,11 @@ BEO manages one active feature at a time through canonical state, feature artifa
 
 BEO does not require worktree identity, onboarding scripts, status scouts, eval suites, checker tooling, local parallel execution, or partial-progress continuation.
 
-## Normal path
+## Normal delivery path
 
-`beo-route -> beo-explore -> beo-plan -> beo-validate -> beo-execute -> beo-review -> done`
+`beo-explore -> beo-plan -> beo-validate -> beo-execute -> beo-review -> done`
+
+`beo-route` is a startup repair path only when owner identity or active feature identity is unsafe.
 
 ## Repair paths
 
@@ -105,7 +107,9 @@ It is not a runtime owner.
 
 It does not change the normal path:
 
-`beo-route -> beo-explore -> beo-plan -> beo-validate -> beo-execute -> beo-review -> done`
+`beo-explore -> beo-plan -> beo-validate -> beo-execute -> beo-review -> done`
+
+`beo-route` remains exceptional owner-state repair only.
 
 It cannot approve readiness, emit `PASS_EXECUTE`, select execution sets, execute, review, close, or promote learning.
 

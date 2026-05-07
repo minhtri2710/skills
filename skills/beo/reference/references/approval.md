@@ -98,6 +98,15 @@ Hash fields are computed from the canonical artifact content that defines the ap
 
 When exact hashing is impractical, approval is stale. Fingerprint summaries are diagnostic only and do not authorize execution or acceptance.
 
+## Canonical hash method
+
+- Full-file hashes use raw file bytes as stored on disk.
+- Section hashes use the exact markdown slice from heading start to before the next same-or-higher heading.
+- Normalize line endings to LF before hashing.
+- Hash algorithm: SHA-256.
+- Hash string format: `sha256:<hex>`.
+- If the canonical slice cannot be identified exactly, hash is missing and approval is stale.
+
 
 ## Approval refresh and new approval grant
 
