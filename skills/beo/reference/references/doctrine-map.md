@@ -1,31 +1,28 @@
 # BEO Doctrine Map
 
-## Restatement rule
-
 Each workflow rule has exactly one canonical home.
+Owner files may contain local hard stops and rule pointers only.
+Do not copy multi-step shared doctrine across owner files.
 
-Owner SKILL files may restate a canonical rule only as a local hard stop needed to prevent unsafe action.
+| Topic | Canonical home | May owner files restate? |
+| --- | --- | --- |
+| Runtime kernel / core invariants | runtime-kernel.md | no, pointer only |
+| Topology / default path / exception path | pipeline.md | no, pointer only |
+| Owner mechanics / shared stops | skill-contract-common.md | no, pointer only |
+| Approval authority | approval.md | no, owner-specific action only |
+| Integrity helper | approval-integrity.md | no, owner-specific action only |
+| Artifact schemas / precedence | artifacts.md | no, pointer only |
+| STATE / HANDOFF | state.md | no, pointer only |
+| Command authority | tool-contracts.md | no, pointer only |
+| Learning provenance | learning.md | no, route condition only |
+| Human Gates | human-gate.md | no, pointer only |
+| Go-mode | go-mode.md | no, pointer only |
+| Tiny / standard lanes | complexity.md | no, pointer only |
+| Route operations | route/references/router-operations.md | route only |
+| Review operations | review/references/review-operations.md | review only |
+| Debug diagnostics | debug/references/diagnostic-checklist.md | debug only |
+| Execution operations | execute/references/execution-operations.md | execute only |
+| Setup operations | setup/references/setup-operations.md | setup only |
+| Authoring method | author/references/skill-writing-method.md | author only |
 
-Do not duplicate multi-step approval, routing, state, review, go-mode, or learning logic in owner files. Use one-line canonical pointers instead.
-
-When a local owner hard stop is stricter than the canonical reference, the stricter local stop applies only to that owner.
-
-## Canonical homes
-
-| Doctrine | Canonical surface |
-| --- | --- |
-| Owner selection | `references/pipeline.md` |
-| Route suppression | `route/SKILL.md` and pointer from `pipeline.md` |
-| Legal transitions | `references/pipeline.md` |
-| State and handoff lifecycle | `references/state.md` |
-| Approval freshness | `references/approval.md` |
-| Artifact layout and templates | `references/artifacts.md` |
-| Triage and tiny path | `references/complexity.md` |
-| Human Gate discipline | `references/human-gate.md` |
-| Go-mode | `references/go-mode.md` |
-| Learning thresholds | `references/learning.md` |
-| Shared output packet | `references/skill-contract-common.md` |
-| Operator quick map | `references/operator-card.md` |
-| Doctrine authoring rules | `references/authoring.md` |
-| Exact CLI command forms | `references/cli.md` |
-| Setup/check/usage bootstrap | `setup/SKILL.md` and pointer from `references/operator-card.md` |
+Command behavior belongs in `tool-contracts.md`, not in owner prose, chat, examples, or artifact summaries.

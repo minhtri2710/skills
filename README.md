@@ -69,7 +69,7 @@ Go mode changes assumption posture only. It does not bypass owner selection, Hum
 - State and handoff: `beo-reference -> references/state.md`
 - Artifacts and schemas: `beo-reference -> references/artifacts.md`
 - Learning thresholds: `beo-reference -> references/learning.md`
-- Exact command forms: `beo-reference -> references/cli.md`
+- Command contracts: `beo-reference -> references/tool-contracts.md`
 - Doctrine ownership: `beo-reference -> references/doctrine-map.md`
 
 ## Repository layout
@@ -129,7 +129,7 @@ This is setup-only. It is not a runtime owner.
 Skill authoring rules are canonical in:
 
 - `skills/beo/author/SKILL.md`
-- `beo-reference -> references/authoring.md`
+- `skills/beo/author/references/skill-writing-method.md`
 - `beo-reference -> references/doctrine-map.md`
 
 README is an overview only. It does not approve execution, select owners, validate readiness, define state semantics, or replace canonical references.

@@ -2,8 +2,9 @@ Non-normative asset.
 
 # gray-area-probes
 
-Role: ASSET
-Allowed content only: probe axes / question prompts only
+Role: APPENDIX
+Allowed content only: probe axes and question prompts
+Forbidden content: owner selection, approval authority, review verdict authority, routing topology, writable-surface expansion
 
 ## Acceptance probes
 
@@ -28,14 +29,14 @@ Allowed content only: probe axes / question prompts only
 ## Non-goal probes
 
 - What tempting adjacent work should not be included?
-- What refactor, migration, redesign, or cleanup is explicitly out of scope?
+- What refactor, data-change, redesign, or cleanup is explicitly out of scope?
 - What existing behavior should remain intentionally imperfect for now?
 
-## Compatibility probes
+## Existing user/data support probes
 
-- Which existing API, file format, config, CLI, or data must remain compatible?
-- Are old users, old configs, old data, or old clients supported?
-- Is backwards compatibility required across feature flags or rollout phases?
+- Must existing users, configs, data, clients, or rollout phases keep working?
+- Would this change break current public behavior, saved data, configs, URLs, APIs, or user expectations?
+- Is preserving existing behavior required for this feature?
 
 ## Constraint probes
 
@@ -45,7 +46,7 @@ Allowed content only: probe axes / question prompts only
 
 ## Scope-risk probes
 
-- Could this touch auth, billing, permissions, migrations, data deletion, secrets, or privacy surfaces?
+- Could this touch auth, billing, permissions, schema changes, data deletion, secrets, or privacy surfaces?
 - Could this require multi-phase delivery?
 - Could this create generated files, snapshots, schema outputs, or lockfile changes?
 - Could parallel work conflict with the same files or public interfaces?
@@ -54,7 +55,7 @@ Allowed content only: probe axes / question prompts only
 
 - Would the answer change acceptance criteria?
 - Would the answer change file scope or approval scope?
-- Would the answer change compatibility or security/privacy constraints?
+- Would the answer change existing user/data support or security/privacy constraints?
 - If not, can it be recorded as a non-blocking assumption under `go_mode`?
 
 ## Intake boundary probes

@@ -1,161 +1,126 @@
 # BEO State
 
-## State authority
+## STATE-01 — STATE is display/orientation only
 
-`STATE.json` records routing-safe facts only. Durable rationale belongs in owner artifacts.
+`STATE.json` is orientation and display state. It never grants approval, selects execution sets, emits verdicts, overrides current required surfaces, or substitutes for an active owner contract.
 
-Human-readable mirrors such as `operator_view` are display-only. Canonical fields win.
+Runtime authority remains with:
 
-## Active feature invariant
+- active owner contract
+- current required surfaces (ART-01)
+- tool-verified approval/integrity status (INT-03)
 
-BEO manages one active feature at a time.
+`STATE.json` and `HANDOFF.json` are non-authoritative mirrors/context; current required surfaces and active owner contract win.
 
-`STATE.json.feature_slug` names the active feature. All runtime owner decisions operate on that feature only.
+## STATE-02 — One active feature
 
-If multiple active feature candidates exist and the active feature cannot be selected from canonical state and artifacts, route to `user`.
+BEO manages one active feature at a time. If multiple active feature candidates exist and canonical evidence cannot select one, route to `user`. Do not infer feature identity from branch, worktree, recent files, or status scouts.
 
-Do not solve feature collision by branch, worktree, status scout, or inference from recent files.
-
-## Required fields during active runtime
-
-| Field | Meaning |
-| --- | --- |
-| `current_owner` | active owner |
-| `status` | `active`, `blocked`, or `done` |
-| `feature_slug` | active feature |
-| `current_phase` | `requirements`, `plan`, `validation`, `execution`, `review`, or `learning` |
-| `triage_class` | `beo_tiny` or `standard` |
-| `go_mode` | assumption posture only |
-| `updated_at` | last canonical state update |
-
-## Minimal STATE.json
+## Lightweight shape
 
 ```json
 {
-  "current_owner": "beo-explore",
-  "status": "active",
-  "feature_slug": "feature-slug",
-  "current_phase": "requirements",
-  "triage_class": "beo_tiny",
-  "go_mode": {
-    "active": false,
-    "suspended": false,
-    "reason": null
+  "active_feature": "example_feature",
+  "lane": "beo_tiny | standard",
+  "current_owner": "beo-plan",
+  "status": "active | blocked | done",
+  "artifact_shape": "ticket | standard",
+  "canonical_artifacts": {
+    "ticket": "TICKET.md",
+    "context": "CONTEXT.md",
+    "plan": "PLAN.md",
+    "tracker": "TRACKER.json",
+    "review": "REVIEW.md"
   },
-  "readiness": null,
-  "approval_ref": null,
-  "execution_mode": null,
-  "execution_set_id": null,
-  "execution_set_beads": [],
-  "debug_return": null,
-  "closure": null,
-  "operator_view": {
-    "current_owner": "beo-explore",
-    "next_action": "lock requirements",
-    "updated_at": "..."
+  "br_enabled": true,
+  "mirrors": {
+    "readiness": "display-only",
+    "approval_ref": "display-only",
+    "execution_set_id": "display-only"
   },
-  "updated_at": "..."
+  "next_owner": null,
+  "reason": ""
 }
 ```
 
-## Validation mirrors
-
-| Field | Clear when |
-| --- | --- |
-| `readiness` | requirements, plan, scope, verification, approval, or execution set changes |
-| `approval_ref` | approval invalidates |
-| `execution_mode` | plan or execution set changes |
-| `execution_set_id` | execution set changes |
-| `execution_set_beads` | execution set changes |
-
-When approval becomes stale, the owner that caused staleness must clear all validation mirrors in the same handoff.
-
-## No worktree dependency
-
-BEO does not require a worktree identity model.
-
-Workflow authority comes from one active feature, canonical state, canonical handoff when fresh, feature artifacts, fresh approval, selected execution set, live file-change evidence, and review evidence.
-
-Repository/file checks may prove scope, freshness, or post-execution modification. They do not create a separate worktree authority layer.
-
-Do not require branch, HEAD, worktree, or `last_git_ref` fields.
+Display fields such as `feature_slug`, `current_phase`, `readiness`, `approval_ref`, `execution_mode`, `execution_set_id`, and `execution_set_beads` may exist as mirrors. They are not execution authority.
 
 ## Handoff
 
-`HANDOFF.json` is used only for pause/resume or owner transfer. It is not a second state file.
+`HANDOFF.json` is resume context for pause or transfer. It never grants approval, verdict, integrity, route authority, or product mutation authority.
 
-Minimum shape:
+A handoff is usable only when fresh, from/to owners are legal, and its reason/status matches canonical artifacts.
 
-```json
-{
-  "from_owner": "beo-plan",
-  "intended_resume_owner": "beo-validate",
-  "feature_slug": "feature-slug",
-  "reason": "plan complete",
-  "evidence_refs": [
-    ".beads/artifacts/feature-slug/CONTEXT.md",
-    ".beads/artifacts/feature-slug/PLAN.md"
-  ],
-  "state_updated_at": "...",
-  "created_at": "..."
-}
-```
+If `HANDOFF.json` conflicts with current canonical artifact or STATE owner identity, route to `beo-route` or `user` depending on whether the conflict is resolvable.
 
-If HANDOFF contradicts live STATE/artifacts, ignore stale handoff and use canonical state/artifact evidence. Route only if owner identity becomes unsafe.
+## Cold-start behavior
 
+If `STATE.json` exists:
+1. Read `STATE.json`.
+2. Verify active owner and feature.
+3. Load active owner `SKILL.md`.
+4. Continue or route only if owner identity is unsafe.
+
+If `STATE.json` is absent but `.beads/artifacts/` exists:
+1. Do not infer owner from memory.
+2. Inspect canonical artifact presence minimally.
+3. Treat as `missing_owner`.
+4. Use `beo-route` to repair owner identity.
+
+If no STATE and no artifacts exist:
+- Setup/usage request -> `beo-setup`.
+- New feature request -> `beo-explore`.
+- Read-only rule lookup -> `beo-reference`.
 
 ## Debug return lifecycle
 
-Before handing to `beo-debug`, the sending owner records `debug_return.return_to`, `source_owner`, `blocked_invariant`, and `evidence_ref`.
-
-```json
-"debug_return": {
-  "return_to": "beo-execute",
-  "source_owner": "beo-execute",
-  "blocked_invariant": "verification failed with unproven root cause",
-  "evidence_ref": ".beads/artifacts/feature-slug/execution-bundle.json",
-  "created_at": "..."
-}
-```
-
-`beo-debug` may not change `debug_return.return_to` unless evidence proves it invalid.
-
-The receiving owner must consume or clear `debug_return` before continuing.
-
-Do not reuse an old debug return for a new blocker.
+Before handing to `beo-debug`, the sending owner records return owner, source owner, blocked invariant, and evidence reference. `beo-debug` may not change the return owner unless evidence proves it invalid. The receiving owner must consume or clear the debug return before continuing.
 
 ## Closure lifecycle
 
-When `STATE.json.status` becomes `done`, write `closure`.
-
-```json
-"closure": {
-  "type": "accepted | rejected | deferred | canceled | user_stop",
-  "source_owner": "beo-review | user | beo-compound | beo-dream",
-  "evidence_ref": ".beads/artifacts/feature-slug/REVIEW.md",
-  "closed_at": "..."
-}
-```
-
-A feature is terminal only when `status=done` and `closure` is present.
-
-
-## Blocked status recovery
-
-When a blocker is resolved, the owner that consumes the resolution sets `status=active`, updates `current_owner`, and clears stale blocker fields before continuing.
-
+When `STATE.json.status` becomes `done`, write closure summary with source owner, evidence ref, and closed time. Terminal closure requires both `status=done` and closure evidence.
 
 ## Pre-write freshness guard
 
-Before any owner-owned mutation, the owner must reread the canonical surfaces that authorize that mutation.
+Before any owner-owned mutation, reread the current required surfaces that authorize that mutation. If any required surface changed, disappeared, became stale, or contradicted preflight evidence, stop and route to the legal repair owner.
 
-If any required surface changed, disappeared, became stale, or contradicted the owner's preflight evidence, the owner must stop and route to the legal repair owner.
+## Learning status is display-only
 
-This is not a worktree model and not a parallel-worker protocol. It is a local stale-read guard for AI agents.
+Learning status in `STATE.json` is display/orientation only. It does not authorize skill edits, approval, execution, review acceptance, or route selection.
 
-Examples:
+Optional learning mirror fields:
 
-- `beo-plan` rereads locked `CONTEXT.md` before writing `PLAN.md`.
-- `beo-validate` rereads `CONTEXT.md` and `PLAN.md` before writing approval/readiness.
-- `beo-execute` rereads approval/readiness/selected set before first mutation.
-- `beo-review` rereads execution bundle and live file evidence before verdict.
+```text
+learning_case_pending
+latest_learning_case
+latest_learning_pattern
+recommended_author_action
+```
+
+These are mirrors only. Avoid adding them unless needed.
+
+## learning_source mirror
+
+STATE may mirror `learning_source` for handoff/navigation only:
+
+```json
+{
+  "learning_source": {
+    "origin_owner": "...",
+    "source_surface": "...",
+    "source_section_or_pointer": "...",
+    "case_type": "...",
+    "case_status": "candidate",
+    "affected_owner": "...",
+    "target_path": "...",
+    "runtime_status": "runtime_complete"
+  }
+}
+```
+
+Rules:
+- For tiny lane, `TICKET.md` Review/Closure `learning_source` is canonical.
+- For standard lane, the tagged source artifact/output is canonical.
+- STATE `learning_source` is a navigation mirror unless no artifact source exists.
+- If STATE conflicts with canonical source, canonical source wins.
+- Do not let STATE learning mirror authorize compound to read broader evidence.

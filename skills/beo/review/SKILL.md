@@ -1,41 +1,62 @@
 ---
 name: beo-review
 description: |
-  Use this skill to emit exactly one terminal verdict from finalized execution evidence. Use when the execution bundle is finalized and ready for review. Do not use when implementation fixes, readiness refresh, or root-cause proof is needed.
+  Use this skill to emit exactly one terminal verdict from finalized execution evidence. Use when tiny TICKET.md execution evidence or standard TRACKER.json execution evidence is finalized and ready for review. Do not use when implementation fixes, readiness refresh, or root-cause proof is needed.
 ---
 
 # beo-review
 
 ## Purpose
+Emit one terminal verdict from finalized execution evidence.
 
-Emit exactly one terminal verdict from finalized execution evidence.
+## Active when
+Execution evidence is finalized and ready for cold review.
 
-## Fast predicate
+## Owns
+Decide accept, fix, or reject from current evidence, scope, verification, and acceptance requirements.
 
-Active when the execution bundle is finalized and ready for review.
+## Reads
+- current required requirement/plan/tracker surfaces
+- finalized execution evidence
+- live declared files
+- integrity evidence when needed
+- review surface if already created
+- `beo-reference -> references/approval.md` (read only for stale approval check)
+- `review/references/review-operations.md` (read only for verdict routing and bounded repair packet)
+- `beo-reference -> references/tool-contracts.md` (read only before using workflow-visible commands)
 
-Not active when implementation fixes, readiness refresh, or root-cause proof is needed.
+## Writes
+- Tiny: `TICKET.md` Review/Closure
+- Standard: `REVIEW.md` and `TRACKER.json.review_pointer`
+- STATE verdict/closure fields
+- No implementation or review-created fix bead mutation
 
-## Primary owned decision
+## Must stop when
+- execution evidence is missing/vague
+- approval/integrity is stale/invalid/unavailable
+- generated outputs are undeclared (ART-06)
+- review would rely on memory/chat (REV-01)
+- fix implementation is needed
+- Enforce shared owner stops from `beo-reference -> references/skill-contract-common.md`.
 
-Decide accept, fix, or reject from evidence, scope, verification, and acceptance requirements.
+## Exit map
+| Condition | Next owner |
+| --- | --- |
+| accept, no learning case | done |
+| accept, concrete learning_source | beo-compound |
+| known bounded repair | beo-plan |
+| fix/reject with unproven root cause | beo-debug |
+| requirements contradiction | beo-explore |
+| approval/integrity refresh needed | beo-validate |
+| unsafe owner/feature identity | beo-route |
 
-## Writable surfaces
-
-.beads/artifacts/<feature_slug>/REVIEW.md; STATE.json verdict/handoff fields including closure when status becomes done; HANDOFF.json only when pausing/transferring. No implementation or reactive-fix bead mutation. Review records findings and verdict evidence only.
-
-## Hard stops
-
-Do not accept unless cold review evidence is recorded, trace coverage is complete, verification evidence is specific, required hashes match, and generated outputs are declared or approved verification byproducts. Do not implement fixes. Do not create reactive-fix beads. Any fix routes to beo-plan unless root cause is unproven, in which case route to beo-debug. Do not accept without required verification evidence. Do not accept if live file-change evidence and bundle disagree. Do not accept if hash coverage is incomplete. Do not accept with P0 or P1 findings. Do not let specialist/lens evidence emit terminal verdict. Do not route to beo-compound merely to ask whether learning exists.
-
-## Allowed next owners
-
-beo-compound, beo-plan, beo-explore, beo-debug, user, done, beo-route
+## Verdict routing
+Learning routing is exceptional; enforce `beo-reference -> references/learning.md`. Route to `beo-compound` only with canonical `learning_source` provenance after the runtime verdict is complete.
 
 ## References
-
+- `beo-reference -> references/approval.md` (read only for stale approval check)
 - `beo-reference -> references/pipeline.md`
-- `beo-reference -> references/state.md`
-- `beo-reference -> references/artifacts.md`
-- `beo-reference -> references/approval.md`
+- `beo-reference -> references/learning.md` (read only for learning routing)
+- `review/references/review-operations.md` (read only for verdict routing and bounded repair packet)
 - `beo-reference -> references/skill-contract-common.md`
+- `beo-reference -> references/tool-contracts.md` (read only before using workflow-visible commands)

@@ -7,35 +7,54 @@ description: |
 # beo-execute
 
 ## Purpose
-
 Deliver exactly one selected approved execution set.
 
-## Fast predicate
+## Active when
+Current required surfaces prove `PASS_EXECUTE`, fresh approval, verified integrity, selected execution set, supported execution mode, declared files, forbidden paths, generated outputs, and verification contract.
 
-Active when current readiness is PASS_EXECUTE and approval_ref, execution_set_id, execution_set_beads, execution_mode, declared files, and verification contract are present and fresh.
+## Owns
+Implement the selected approved execution set inside the approval envelope.
 
-Not active when readiness, approval, or execution set is missing/stale, or review/debug owns the next decision.
+## Reads
+- approval envelope
+- integrity status
+- selected execution set
+- declared files / forbidden paths / generated outputs / verification contract
+- approved implementation files
+- `beo-reference -> references/approval.md`
+- `beo-reference -> references/approval-integrity.md` (read only before mutation)
+- `execute/references/execution-operations.md` (read only for ordered batch, generated outputs, or verification byproducts)
+- `beo-reference -> references/tool-contracts.md` (read only before using workflow-visible commands)
 
-## Primary owned decision
+## Writes
+- approved declared implementation files
+- approved generated outputs
+- approved verification byproducts
+- execution evidence surfaces
+- owner-owned STATE/HANDOFF fields
 
-Implement the selected approved execution set inside the current approval envelope.
+## Must stop when
+- approval/integrity is missing, stale, invalid, unavailable, or contradictory (APP-01)
+- intended mutation is outside approved declared files
+- ordered batch bead blocks (APP-06)
+- root cause is unproven
+- Enforce shared owner stops from `beo-reference -> references/skill-contract-common.md`.
 
-## Writable surfaces
-
-approved declared files for selected beads; declared generated outputs; .beads/artifacts/<feature_slug>/execution-bundle.json; STATE.json fields needed for execution handoff; HANDOFF.json only when pausing/transferring.
-
-## Hard stops
-
-Immediately before first mutation, perform the pre-write freshness guard. Stop if approval, readiness, selected execution set, declared files, forbidden paths, or approval hashes are stale, missing, or contradictory. Do not mutate without PASS_EXECUTE, fresh approval_ref, selected execution set, approved declared file scope, and approval hashes matching live artifacts. Do not mutate outside scope. Do not continue if approval becomes stale. Do not continue ordered batch after a bead blocks. Do not coordinate external workers. Do not decide review verdict. Do not prove root cause by guessing; route to beo-debug.
-
-## Allowed next owners
-
-beo-review, beo-debug, beo-validate, beo-plan, user, beo-route
+## Exit map
+| Condition | Next owner |
+| --- | --- |
+| execution evidence finalized | beo-review |
+| root cause unproven | beo-debug |
+| approval/integrity stale before mutation | beo-validate or beo-plan |
+| known bounded plan/scope repair needed | beo-plan |
+| user blocker | user |
+| unsafe owner/feature identity | beo-route |
+| concrete learning after safe runtime stop | beo-compound |
 
 ## References
-
-- `beo-reference -> references/pipeline.md`
-- `beo-reference -> references/state.md`
-- `beo-reference -> references/artifacts.md`
 - `beo-reference -> references/approval.md`
+- `beo-reference -> references/approval-integrity.md` (read only before mutation)
+- `beo-reference -> references/pipeline.md`
 - `beo-reference -> references/skill-contract-common.md`
+- `execute/references/execution-operations.md` (read only for ordered batch, generated outputs, or verification byproducts)
+- `beo-reference -> references/tool-contracts.md` (read only before using workflow-visible commands)

@@ -7,35 +7,38 @@ description: |
 # beo-reference
 
 ## Purpose
-
 Return canonical references without mutating runtime artifacts.
 
-## Fast predicate
+## Active when
+The request is a read-only lookup of an existing rule, schema, template, mapping, protocol, or command form.
 
-Active when the request is a read-only lookup of an existing rule, schema, template, mapping, protocol, or command form.
+## Owns
+Identify and quote the canonical reference that exactly matches the user's requested rule, schema, template, mapping, protocol, or command form.
 
-Not active when routing, artifact edits, implementation, validation, execution, review, or doctrine authoring is requested.
+## Reads
+- `references/pipeline.md` (topology, vocabulary, legal transitions)
+- `references/approval.md` (approval envelope and staleness)
+- `references/approval-integrity.md` (helper contract and integrity status)
+- `references/artifacts.md` (schemas, precedence, field ownership)
+- `references/state.md` (STATE/HANDOFF authority)
+- `references/learning.md` (learning loop)
+- `references/operator-card.md` (human orientation)
+- `references/skill-contract-common.md` (owner mechanics)
+- `references/tool-contracts.md` (workflow-visible command contracts)
 
-## Primary owned decision
+## Writes
+None.
 
-Identify and quote the canonical reference surface.
+## Must stop when
+- mutation of files or runtime artifacts is requested
+- owner selection, readiness approval, review verdicts, or implementation is needed
+- Enforce shared owner stops from `beo-reference -> references/skill-contract-common.md`.
 
-## Writable surfaces
-
-None for read-only lookup.
-
-## Hard stops
-
-Do not mutate files or runtime artifacts. Do not select owners. Do not approve readiness. Do not emit review verdicts. Do not implement.
-
-## Allowed next owners
-
-done, user
+## Exit map
+| Condition | Next owner |
+| --- | --- |
+| lookup complete | done |
+| clarification needed | user |
 
 ## References
-
-- `references/pipeline.md`
-- `references/state.md`
-- `references/artifacts.md`
-- `references/approval.md`
-- `references/skill-contract-common.md`
+- All canonical references under `references/` as listed in Reads.

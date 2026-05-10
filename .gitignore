@@ -6,9 +6,3 @@
 .bv/
 .gitnexus
 .env
-
-benchmarks/
-evals/
-*-workspace/
-skills/beo/*-workspace/
-

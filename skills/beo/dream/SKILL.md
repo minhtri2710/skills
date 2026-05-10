@@ -1,41 +1,42 @@
 ---
 name: beo-dream
 description: |
-  Use this skill to consolidate cross-feature learning only when threshold evidence or explicit request exists. Use when at least two accepted/finalized feature outcomes support the same shared pattern, or the user explicitly requests corpus-level consolidation. Do not use when only one feature provides evidence and there is no explicit corpus request.
+  Use this skill to consolidate multiple finalized BEO learning cases into one recurring pattern or skill-improvement candidate. Use when at least two finalized learning cases support the same workflow pattern, or the user explicitly asks to consolidate learning. Do not use for one isolated case, runtime delivery, product implementation, direct skill edits, or speculative doctrine.
 ---
 
 # beo-dream
 
 ## Purpose
+Consolidate multiple finalized learning cases into one recurring pattern or skill-improvement candidate without editing skills, shared doctrine, or product files.
 
-Consolidate cross-feature learning only when threshold evidence or explicit request exists.
+## Active when
+At least two finalized learning cases support the same recurring BEO workflow pattern, or the user explicitly requests learning consolidation.
 
-## Fast predicate
+## Owns
+Decide whether multiple finalized cases justify one consolidated pattern, then write only the consolidation output or no-consolidation decision.
 
-Active when at least two accepted/finalized feature outcomes support the same shared pattern, or the user explicitly requests corpus-level consolidation.
+## Reads
+- finalized learning cases needed for the pattern
+- `beo-reference -> references/learning.md`
 
-Not active when only one feature provides evidence and there is no explicit corpus request.
+## Writes
+- `.beads/learnings/<pattern_slug>.md` as a consolidated learning pattern
+- STATE closure fields only when needed
+- HANDOFF only when pausing/transferring
 
-## Primary owned decision
+## Must stop when
+- only one case exists without explicit user consolidation request
+- runtime delivery is still open
+- skill edits or doctrine changes would be made directly
+- Enforce shared owner stops from `beo-reference -> references/skill-contract-common.md`.
 
-Decide whether threshold evidence or explicit request supports corpus-level consolidation, then write only the current user-confirmed target if approved.
-
-## Writable surfaces
-
-User-confirmed shared guidance target path; STATE.json closure fields; HANDOFF.json only when pausing/transferring.
-
-## Hard stops
-
-Do not mutate shared guidance without threshold/request and current user-confirmed target path. Dream may emit no-promotion when consolidation is not justified. Do not promote one-feature learning. Do not reopen runtime delivery. Do not implement product changes.
-
-## Allowed next owners
-
-done, user
+## Exit map
+| Condition | Next owner |
+| --- | --- |
+| consolidation complete | done |
+| pattern recommends skill update, user confirms | beo-author |
+| user decision needed | user |
 
 ## References
-
-- `beo-reference -> references/pipeline.md`
-- `beo-reference -> references/state.md`
-- `beo-reference -> references/artifacts.md`
-- `beo-reference -> references/approval.md`
+- `beo-reference -> references/learning.md`
 - `beo-reference -> references/skill-contract-common.md`

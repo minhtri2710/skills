@@ -2,64 +2,72 @@ Non-normative asset.
 
 # skill-writing-method
 
-Role: ASSET
-Allowed content only: skill authoring method, manual pressure scenarios, wording guidance; no checker, fixture, release, routing, or topology rules.
+Role: APPENDIX
+Allowed content only: skill authoring method and wording guidance for selected learning cases
+Forbidden content: external quality-process requirements, routing topology, approval authority, review verdict authority, runtime execution rules
+
+## Purpose
+
+Use this file only when `beo-author` is already active.
+
+It helps turn a selected learning case or explicit user request into a small skill update or a new BEO skill.
 
 ## Method
 
-Use this file only as supporting material when authoring beo skill contracts.
+1. Identify the selected source:
+   - explicit user request; or
+   - finalized learning case; or
+   - consolidated learning pattern.
 
-## Cycle
+2. Identify the affected surface:
+   - existing owner `SKILL.md`;
+   - owner-local reference;
+   - canonical shared reference;
+   - new skill.
 
-1. Define the skill behavior.
-2. Identify failure modes without the skill.
-3. Write 3-5 manual pressure scenarios.
-4. Start with the baseline pressure set: happy path, owner collision, stale approval/handoff, forbidden-surface temptation, debug return/rollback, and user-clarification vs go-mode.
-5. Add scenario coverage for any new human-readable mirror, scout helper, dependency gate, or worker-report protocol you introduce.
-6. When changing a shared reference or operations appendix, inspect all owner skills that cite it and add or update one manual pressure scenario for the new failure mode.
-7. Write the smallest SKILL.md that blocks observed failure modes.
-8. Remove hypothetical content not tied to observed pressure.
-9. Re-read the contract for overlap with existing skills.
-10. Keep references non-normative unless they are canonical shared references.
+3. Prefer the smallest change that prevents the observed false case.
 
-## Skill contract checklist
+4. Harden an existing skill before creating a new skill when possible.
 
-- Frontmatter name matches the skill directory.
-- Description states trigger conditions, not workflow summary.
-- Purpose is one sentence.
-- Primary owned decision is exactly one decision.
-- Ownership predicate has one predicate group.
-- Writable surfaces are explicit.
-- Forbidden surfaces block neighboring skills.
-- Allowed next owners are explicit.
-- References are pointers, not hidden routing logic.
-- Operations appendices do not contradict owner `SKILL.md` contracts.
-- Keep workflow logic in `beo-reference -> references/pipeline.md` and state logic in `beo-reference -> references/state.md`.
-- Use operator, guide, scout, and appendix docs for pointers or examples only; do not add new routing, approval, go-mode, or state rules there.
+5. Do not add runtime ceremony unless the false case cannot be blocked otherwise.
 
-## Pressure scenario shape
+6. Do not add shared doctrine until the canonical home is identified.
 
-```text
-Scenario:
-Pressure:
-Ambiguity to avoid without wording:
-Observed or likely rationalization:
-Possible wording hardening:
+7. Do not duplicate multi-step shared logic across owners.
+
+8. Do not write product implementation, approval, execution, review verdicts, or route decisions.
+
+9. Keep output focused on the selected case/request.
+
+## Case-to-skill checklist
+
+- What happened?
+- What should have happened?
+- Which owner or reference failed to block the false case?
+- Is this a wording issue, ownership issue, missing hard stop, or missing skill?
+- Can an existing skill be hardened instead of creating a new one?
+- What is the smallest safe edit?
+- Does the edit add runtime ceremony? If yes, why is it unavoidable?
+- Which canonical home owns any shared rule?
+- What should remain out of scope?
+
+## Author output reminder
+
+```md
+Decision:
+Source request or case:
+Canonical home:
+Surfaces changed:
+Why this blocks the false case or satisfies the request:
+Doctrine duplicated? no
+Runtime ceremony added? no/yes with reason
+Next owner:
 ```
-
-## Recommended baseline scenarios
-
-- Happy path: contract should route and exit cleanly without extra doctrine.
-- Owner collision: neighboring owner should be disqualified for a stated reason.
-- Stale approval/handoff: stale control surface must not be followed silently.
-- Forbidden-surface temptation: contract must block the most likely out-of-scope edit.
-- Debug return/rollback: temporary diagnosis must not steal permanent ownership.
-- User clarification vs go-mode: non-blocking authorization must not become approval bypass.
 
 ## Must not
 
 - Add checker scripts.
-- Add route fixtures.
-- Add release gates.
-- Add topology validation.
+- Add fixtures.
+- Add external quality-process gates.
 - Hide owner-selection logic in local references.
+- Create broad doctrine from one vague case.

@@ -7,35 +7,49 @@ description: |
 # beo-debug
 
 ## Purpose
-
 Prove one blocker root cause.
 
-## Fast predicate
+## Active when
+Root cause is unproven and mutation or verdicting would be unsafe without diagnosis.
 
-Active when root cause is unproven and mutation or verdicting would be unsafe without diagnosis.
+## Owns
+Return proven cause and smallest legal unblock class.
 
-Not active when the fix is known and belongs to execute/plan/validate/review.
+## Reads
+- current debug_return anchor when entered from execution/review
+- direct blocker evidence
+- current required surfaces needed to prove the blocker
+- `debug/references/diagnostic-checklist.md` (required before emitting output)
+- `beo-reference -> references/tool-contracts.md` (read only for diagnostic commands)
 
-## Primary owned decision
+## Writes
+- diagnostic notes in owner output
+- debug_return fields when owned by sender handoff
+- HANDOFF only when pausing/transferring
 
-Return proven cause and the smallest legal unblock action class.
+## Must stop when
+- patch text would be needed
+- mutation command would be needed
+- approval/readiness/verdict would be emitted
+- no debug_return anchor exists when required
+- Enforce shared owner stops from `beo-reference -> references/skill-contract-common.md`.
 
-## Writable surfaces
+## Return shape
+Canonical output shape lives in `debug/references/diagnostic-checklist.md`. Read that file before emitting debug output. Debug output is invalid unless it includes `Patch text: none` and `Mutation command: none`.
 
-Diagnostic notes in owner output; STATE.json debug_return fields when the active owner owns that handoff; HANDOFF.json only when pausing/transferring.
-
-## Hard stops
-
-Do not implement the fix. Do not act without a current `STATE.json.debug_return` anchor when entered from execution or review. Do not describe the patch. Do not approve readiness. Do not emit review verdict. Do not authorize rollback. Do not change debug_return.return_to unless evidence proves it invalid.
-
-## Allowed next owners
-
-beo-execute, beo-review, beo-plan, beo-validate, beo-explore, user, beo-route
+## Exit map
+| Condition | Next owner |
+| --- | --- |
+| proven cause, return owner still legal | return owner |
+| plan repair class | beo-plan |
+| validate refresh class | beo-validate |
+| explore clarification class | beo-explore |
+| user blocker | user |
+| unsafe owner/feature identity | beo-route |
+| concrete workflow-learning case, no runtime return | beo-compound |
 
 ## References
-
 - `beo-reference -> references/pipeline.md`
-- `beo-reference -> references/state.md`
-- `beo-reference -> references/artifacts.md`
-- `beo-reference -> references/approval.md`
+- `debug/references/diagnostic-checklist.md`
 - `beo-reference -> references/skill-contract-common.md`
+- `beo-reference -> references/tool-contracts.md` (read only for diagnostic commands)

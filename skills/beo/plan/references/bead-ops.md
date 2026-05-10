@@ -1,6 +1,8 @@
 # Bead Operations
 
 Role: APPENDIX
+Allowed content only: bead graph planning procedure and approval-bearing change rules
+Forbidden content: owner selection, approval authority, review verdict authority, routing topology, writable-surface expansion
 
 ## Planning bead graph
 
@@ -26,4 +28,4 @@ For `ordered_batch`, beads execute in the validated order. If one bead blocks, s
 
 ## Approval-bearing changes
 
-Changing bead graph, execution order, scope, generated outputs, verification, risk proof, or rollback boundary makes prior approval/readiness stale and requires clearing validation mirrors.
+Changing bead graph, execution order, scope, generated outputs, verification, risk proof, or rollback boundary makes prior approval/readiness stale and requires marking `TICKET.md` or `TRACKER.json` approval/integrity stale.

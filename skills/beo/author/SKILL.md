@@ -1,41 +1,57 @@
 ---
 name: beo-author
 description: |
-  Use this skill to author or harden beo skill contracts and doctrine text. Use when creating, rewriting, simplifying, deduping, normalizing, reviewing, or manually pressure-reviewing beo skill definitions or skill-local writing guidance. Do not use when runtime delivery, checker scripts, fixture suites, release gates, governance validation, topology changes, automated evals, benchmarks, or product implementation is requested.
+  Use this skill to update existing BEO skills, harden BEO skill contracts, or create a new BEO skill from explicit user request or selected learning-case/pattern evidence. Use when the user asks to modify BEO skills/doctrine, or when a finalized compound case or dream pattern is selected for authoring. Do not use for runtime delivery, product implementation, approval, execution, review verdicting, debugging, or automatic self-modification.
 ---
 
 # beo-author
 
 ## Purpose
+Update existing BEO skills or create a new BEO skill from explicit user request or selected observed learning evidence.
 
-Author or harden beo skill contracts and doctrine text.
+## Active when
+User explicitly requests BEO skill creation/update/hardening, or when a selected finalized learning case or dream pattern has been explicitly chosen for authoring.
 
-## Fast predicate
+## Owns
+Produce the smallest skill/doctrine change that blocks the selected false case or implements the requested BEO skill improvement while preserving owner boundaries and canonical homes.
 
-Active when creating, rewriting, simplifying, deduping, normalizing, reviewing, or manually pressure-reviewing beo skill definitions or skill-local writing guidance.
+## Reads
+- selected learning case/pattern or files needed for the explicit user-requested skill edit
+- `beo-reference -> references/doctrine-map.md`
+- `author/references/skill-writing-method.md`
 
-Not active when runtime delivery, checker scripts, fixture suites, release gates, governance validation, topology changes, automated evals, benchmarks, or product implementation is requested.
+## Writes
+- `<skill_name>/SKILL.md` when explicitly updating that skill
+- `<skill_name>/references/*` skill-local writing assets when needed
+- `beo-reference -> references/*` only when explicitly editing shared doctrine and canonical home is identified
+- HANDOFF only when pausing/transferring
 
-## Primary owned decision
+## Must stop when
+- no explicit request or selected evidence exists
+- canonical home for shared doctrine is not identified
+- the change duplicates multi-step logic across owner files
+- a new skill is created when an existing skill can be hardened
+- Enforce shared owner stops from `beo-reference -> references/skill-contract-common.md`.
 
-Produce skill-contract or doctrine text that preserves owner boundaries and canonical homes.
+## Required author output
+```md
+Decision:
+Source request or case:
+Canonical home:
+Surfaces changed:
+Why this blocks the false case or satisfies the request:
+Doctrine duplicated? no
+Runtime ceremony added? no/yes with reason
+Next owner:
+```
 
-## Writable surfaces
-
-`<skill_name>/SKILL.md`; `<skill_name> -> references/xxx` skill-local writing assets; `beo-reference -> references/xxx` when explicitly editing shared doctrine; HANDOFF.json only when pausing/transferring.
-
-## Hard stops
-
-Do not perform runtime owner mutations unless that owner skill is loaded. Do not add eval/checker/benchmark/release-gate requirements. Do not duplicate canonical doctrine into owner files beyond local hard stops. Do not hide writable surfaces in references.
-
-## Allowed next owners
-
-done, user
+## Exit map
+| Condition | Next owner |
+| --- | --- |
+| skill update complete | done |
+| user confirmation needed | user |
 
 ## References
-
-- `beo-reference -> references/pipeline.md`
-- `beo-reference -> references/state.md`
-- `beo-reference -> references/artifacts.md`
-- `beo-reference -> references/approval.md`
+- `beo-reference -> references/doctrine-map.md`
 - `beo-reference -> references/skill-contract-common.md`
+- `author/references/skill-writing-method.md`

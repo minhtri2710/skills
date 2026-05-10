@@ -1,44 +1,56 @@
 ---
 name: beo-validate
 description: |
-  Use this skill to classify readiness and select the next legal execution or repair path. Use when requirements and plan exist, but readiness, approval, execution set selection, remediation classification, or user-blocker classification is needed. Do not use when implementation, review verdicting, or requirements/plan authoring is needed.
+  Use this skill to classify readiness and grant or refuse execution approval. Use when locked requirements and plan exist, but readiness, approval, integrity, execution-set selection, remediation classification, or user-blocker classification is needed. Do not use for requirements authoring, plan authoring, implementation, terminal review verdicts, or root-cause proof.
 ---
 
 # beo-validate
 
 ## Purpose
+Classify readiness and grant or refuse execution approval.
 
-Classify readiness and select the next legal execution or repair path.
+## Active when
+Locked requirements and plan exist, but readiness, approval, integrity, execution-set selection, remediation classification, or user-blocker classification is needed.
 
-## Fast predicate
+## Owns
+Emit exactly one readiness classification and record approval/integrity when eligible.
 
-Active when requirements and plan exist, but readiness, approval, execution set selection, remediation classification, or user-blocker classification is needed.
+## Reads
+- locked requirements
+- plan / execution sets
+- current approval and integrity evidence
+- helper output as evidence only
+- `beo-reference -> references/approval.md`
+- `beo-reference -> references/approval-integrity.md` (read only for helper output contract)
+- `beo-reference -> references/tool-contracts.md` (read only before using workflow-visible commands)
 
-Not active when implementation, review verdicting, or requirements/plan authoring is needed.
+## Writes
+- Tiny: `TICKET.md` Approval section
+- Standard: `TRACKER.json` readiness/approval/integrity sections
+- STATE readiness mirrors
+- owner-owned STATE/HANDOFF fields when pausing/transferring
 
-## Primary owned decision
+## Must stop when
+- trace coverage is missing
+- Human Gates are unresolved (HG-01)
+- integrity is stale/invalid/unavailable (INT-04)
+- selected execution set is missing/contradictory
+- generated outputs are undeclared (ART-06)
+- `approval_ref` is missing (APP-01)
+- Enforce shared owner stops from `beo-reference -> references/skill-contract-common.md`.
 
-Emit exactly one readiness classification and select execution sets from the canonical `PLAN.md` bead graph: PASS_EXECUTE, FAIL_PLAN, FAIL_EXPLORE, BLOCK_USER, or FAIL_STATE.
-
-## Writable surfaces
-
-- `.beads/artifacts/<feature_slug>/readiness-record.json`
-- `.beads/artifacts/<feature_slug>/approval-record.json`
-- `STATE.json` readiness mirrors
-- `HANDOFF.json` only when pausing/transferring
-
-## Hard stops
-
-Do not emit PASS_EXECUTE with missing trace coverage, unresolved required Human Gates, ambiguous hashes, fingerprint-only approval evidence, or mismatched selected execution-set fields. Do not implement. Do not review. Do not emit PASS_EXECUTE without approval_ref. Do not emit PASS_EXECUTE with stale approval. Do not emit PASS_EXECUTE unless the approval record is created or refreshed by beo-validate and its approval hashes match live artifacts. Do not select unsupported execution modes. Do not allow continuation after a blocked ordered-batch bead. Do not use FAIL_STATE for ordinary plan or explore defects. Do not ask user questions unless the blocker is a true Human Gate.
-
-## Allowed next owners
-
-beo-execute, beo-plan, beo-explore, user, beo-route
+## Exit map
+| Condition | Next owner |
+| --- | --- |
+| PASS_EXECUTE | beo-execute |
+| plan defect | beo-plan |
+| requirement/Human Gate defect | beo-explore or user |
+| state/owner identity defect | beo-route |
+| concrete learning after classification | beo-compound |
 
 ## References
-
-- `beo-reference -> references/pipeline.md`
-- `beo-reference -> references/state.md`
-- `beo-reference -> references/artifacts.md`
 - `beo-reference -> references/approval.md`
+- `beo-reference -> references/approval-integrity.md` (read only for helper output contract)
+- `beo-reference -> references/pipeline.md`
 - `beo-reference -> references/skill-contract-common.md`
+- `beo-reference -> references/tool-contracts.md` (read only before using workflow-visible commands)

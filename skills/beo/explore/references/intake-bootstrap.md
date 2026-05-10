@@ -10,6 +10,7 @@
 
 Role: APPENDIX
 Allowed content only: bootstrap order, slug creation timing, initial file creation commands, and go-mode assumption recording
+Forbidden content: owner selection, approval authority, review verdict authority, routing topology, writable-surface expansion
 
 ## Bootstrap surfaces
 
@@ -65,7 +66,7 @@ When `go_mode` is used, record each non-blocking assumption with:
 | 2 | Select or create a valid immutable feature slug. |
 | 3 | Create artifact directory if absent. |
 | 4 | Fill the CONTEXT template from user intent and live repo evidence. |
-| 5 | Ask only blocking questions whose answers can change acceptance, non-goals, compatibility, constraints, or user-visible scope. |
+| 5 | Ask only blocking questions whose answers can change acceptance, non-goals, existing user/data support, constraints, or user-visible scope. |
 | 6 | Record non-blocking assumptions only when `go_mode` permits them. |
 | 7 | Set `locked=true` and `locked_at` only when required sections are complete and no blocking questions remain. |
 | 8 | Update `STATE.json` with feature slug, status, and evidence. |

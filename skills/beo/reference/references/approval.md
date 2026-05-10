@@ -1,131 +1,89 @@
 # BEO Approval
 
-## Approval invariant
+## APP-01 — Complete approval envelope required
 
-Execution approval is valid only for the exact locked requirements, plan scope, bead graph, declared files, forbidden paths, generated outputs, verification contract, risk proof, execution mode, and execution set recorded in the current approval record.
+No product mutation may start unless current required surfaces prove:
 
-`approval_ref` is required for every `PASS_EXECUTE`, including unchanged approval.
-
-Do not infer approval from `PLAN.md`, bead status, prior chat, operator intent, or go-mode.
-
-## Approval becomes stale when
-
-Approval becomes stale when any approval-bearing content changes:
-
-- `CONTEXT.md`
-- acceptance decisions
-- non-goals
-- compatibility constraints
-- `PLAN.md`
-- bead graph
-- declared files
+- `PASS_EXECUTE`
+- fresh `approval_ref`
+- selected execution set
+- supported execution mode (`single` or `ordered_batch`)
+- declared file scope
 - forbidden paths
-- generated outputs
-- verification
-- risk proof or mitigation
-- execution mode
-- execution set
-- rollback boundary
+- verification contract
+- deterministic integrity pass (status: `verified`)
 
-## Stale approval clearing rule
+Missing any field stops execution. `beo-execute` cannot infer or assume missing fields from chat, BR description, memory, display cards, or summaries.
 
-When approval becomes stale, the owner that caused staleness must clear:
+## APP-02 — Only validate grants approval
 
-- `readiness`
-- `approval_ref`
-- `execution_mode`
-- `execution_set_id`
-- `execution_set_beads`
+Only `beo-validate` may grant or refresh execution approval. No other owner may emit `PASS_EXECUTE`, refresh approval, select execution sets, declare approval fresh, or turn chat approval into execution authority.
 
-## Stale approval routing
+## APP-03 — Approval becomes stale on approval-bearing changes
 
-| Condition | Next owner |
-| --- | --- |
-| Approval stale before mutation | `beo-validate` or `beo-plan` by stale cause |
-| Requirements changed | `beo-explore` |
-| Plan/scope/verification changed | `beo-plan` |
-| Mutation already happened and bundle can be finalized | `beo-review` |
-| Mutation happened but root cause is unproven | `beo-debug` |
-| Human approval required | `user` |
-| Owner-state contradiction | `beo-route` |
+Approval becomes stale when approval-bearing content changes in `TICKET.md`, `CONTEXT.md`, `PLAN.md`, selected BR task descriptions, selected execution set, declared files, forbidden paths, generated outputs, verification contract, risk proof, rollback boundary, or required Human Gates.
 
-## Human approval gates
+When approval becomes stale, the owner that caused staleness must clear readiness/approval mirrors or mark tracker/ticket approval and integrity stale.
 
-Approval and UAT gates never fallback to go-mode. They require explicit user approval evidence before `PASS_EXECUTE`.
+## APP-04 — Chat, display cards, BR descriptions, STATE, summaries, and command output do not grant approval
 
+Execution approval exists only when the current approval surface records it. Chat messages, display cards, BR prose descriptions, `STATE.json` mirrors, summaries, fingerprint evidence, and command output are not approval.
 
-## Approval freshness proof
+Command output does not grant approval.
 
-Approval is current only when:
+Only `beo-validate` may grant approval from current required surfaces and permitted integrity evidence.
 
-- `context_hash` matches live `CONTEXT.md`
-- `plan_hash` matches live `PLAN.md`
-- `bead_graph_hash` matches the canonical `PLAN.md` bead graph
-- `verification_hash` matches the approved verification contract
-- `risk_scope_hash` matches the approved risk, mitigation, generated output, rollback, and scope envelope
-- approved execution mode, execution set id, and selected beads match readiness state
+A command name such as `bv` must not be interpreted as validation authority.
 
-If any value differs, approval is stale.
+`approval_ref` is an identifier and evidence pointer. It is not permission by itself.
 
-## Approval ownership
+## APP-05 — Approval covers exactly one selected execution set
 
-`beo-validate` owns approval-record creation, approval freshness refresh, and readiness-record creation.
+Approval is valid only for the selected execution set recorded at approval time. If the selected set is missing, changed, or contradicts `PLAN.md`, approval is invalid.
 
-Mutating owners may invalidate approval-bearing fields by clearing state mirrors, but only `beo-validate` may grant or refresh execution approval.
+## APP-06 — Ordered batch stops on first blocked bead
 
-Explore, plan, execute, and review may invalidate approval but cannot grant it.
+For `ordered_batch` execution, stop on the first blocked bead. Do not continue to unaffected beads.
 
+## Current approval surfaces
+
+Tiny:
+- `TICKET.md` Approval section
+
+Standard:
+- `TRACKER.json.readiness`
+- `TRACKER.json.approval`
+- `TRACKER.json.integrity`
+
+Approval is invalid if any selected-set field is missing, stale, unsupported, contradictory, unavailable, or outside scope.
+
+## Stale approval quick table
+
+| Situation | Product mutation happened? | Root cause proven? | Next owner |
+| --- | --- | --- | --- |
+| Approval/integrity stale before first mutation | no | N/A | `beo-validate` if envelope unchanged; `beo-plan` if plan/scope/verification/BR changed |
+| Approval/integrity stale after mutation begins | yes | yes | `beo-review` if evidence can be finalized; otherwise `beo-plan` |
+| Approval/integrity stale after mutation begins | yes | no | `beo-debug` with return owner anchored |
+| Selected execution set missing/stale | no | N/A | `beo-validate` |
+| Scope outside approved envelope discovered | maybe | yes/no | stop; route by evidence to `beo-plan`, `beo-review`, or `beo-debug` |
+
+## Stale after mutation handling
+
+If approval/integrity becomes stale after product mutation began:
+
+1. Stop further mutation.
+2. Preserve execution evidence.
+3. Record what changed and when staleness was discovered.
+4. If changed files are inside approved declared scope and root cause is proven, finalize evidence and route to `beo-review` or `beo-plan` by finding.
+5. If root cause is unproven, route to `beo-debug` with return owner anchored.
+6. Never silently refresh approval from execute.
+
+Rollback boundary and generated outputs are approval-bearing. Changing either stales approval.
 
 ## User authorization is not execution approval
 
-User authorization and execution approval are distinct.
+User authorization, UAT, access, secret, legal, or business approval can satisfy a Human Gate, but only `beo-validate` creates execution approval. Approval and UAT gates never fallback to go-mode (HG-01).
 
-- `user_authorization_ref` records the user, policy, UAT, access, secret, legal, or business authorization required for the change, or a valid N/A reason.
-- `approval_kind=execution_approval` and `validated_by=beo-validate` record validate's execution-envelope decision.
+## Learning non-authority
 
-`beo-validate` may create execution approval only after all required user authorization, approval, UAT, access, secret, legal, and business gates are resolved or validly not applicable.
-
-
-## Hash field coverage
-
-Hash fields are computed from the canonical artifact content that defines the approved envelope:
-
-- `context_hash`: full locked `CONTEXT.md`
-- `plan_hash`: full current `PLAN.md`
-- `bead_graph_hash`: `PLAN.md` Execution Beads table
-- `verification_hash`: verification cells/section for selected beads
-- `risk_scope_hash`: Risks, Approval-bearing scope, Generated outputs, Forbidden paths, and Rollback boundary
-
-When exact hashing is impractical, approval is stale. Fingerprint summaries are diagnostic only and do not authorize execution or acceptance.
-
-## Canonical hash method
-
-- Full-file hashes use raw file bytes as stored on disk.
-- Section hashes use the exact markdown slice from heading start to before the next same-or-higher heading.
-- Normalize line endings to LF before hashing.
-- Hash algorithm: SHA-256.
-- Hash string format: `sha256:<hex>`.
-- If the canonical slice cannot be identified exactly, hash is missing and approval is stale.
-
-
-## Approval refresh and new approval grant
-
-Approval refresh is legal only when the approved envelope is unchanged and hashes still match.
-
-New approval grant is required when scope, selected beads, execution mode, generated outputs, verification, risk proof, or rollback boundary changes.
-
-
-## Exact hash rule
-
-`PASS_EXECUTE` and `accept` require exact approval hashes for every required approval-bearing surface.
-
-Fingerprint summaries are diagnostic only. They may explain uncertainty, but they do not authorize `PASS_EXECUTE` and do not allow review to `accept`.
-
-If exact required hashes cannot be computed or matched, approval is stale.
-
-Approval freshness is binary:
-
-- fresh: every required hash and selected execution field matches live canonical artifacts
-- stale: any required hash is missing, ambiguous, or different
-
-There is no partial freshness state.
+Learning has no runtime authority; see `references/learning.md`.

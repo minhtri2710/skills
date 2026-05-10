@@ -7,35 +7,45 @@ description: |
 # beo-route
 
 ## Purpose
-
 Repair or select the active owner only when owner identity is unsafe.
 
-## Fast predicate
+## Active when
+A ROUTE-01 defect is proven: `missing_owner`, `stale_owner`, `contradictory_owner`, `colliding_predicates`, or `feature_collision`.
 
-Active when owner identity is missing, stale, contradictory, colliding, or feature collision exists.
+## Owns
+Select one next owner or route to user for unresolved collision.
 
-Not active when a valid current owner can continue or a normal legal handoff is obvious.
+## Reads
+- current STATE/HANDOFF as context
+- current required surfaces needed to prove owner/feature identity
+- pipeline legal transitions
+- `route/references/router-operations.md`
+- `beo-reference -> references/tool-contracts.md` (read only before using command output for owner-identity evidence)
 
-## Primary owned decision
+## Writes
+- STATE fields needed for owner repair
+- HANDOFF only when pausing/transferring
 
-Select one next owner or route to user for feature collision.
+## Must stop when
+- current owner can legally repair the defect (ROUTE-02)
+- the issue is an ordinary artifact defect
+- terminal closure is not proven
+- Enforce shared owner stops from `beo-reference -> references/skill-contract-common.md`.
 
-## Writable surfaces
+## Route activation gate
+`beo-route` is active only after proving one ROUTE-01 defect. If the current owner can legally repair the defect, do not use route. Multiple active feature candidates that cannot be resolved by canonical evidence route to `user` (STATE-02).
 
-STATE.json fields needed for owner repair; HANDOFF.json only when pausing/transferring.
-
-## Hard stops
-
-Route may select done only when terminal closure is proven by canonical artifacts. Do not implement product changes. Do not approve readiness. Do not emit PASS_EXECUTE. Do not review or verdict. Do not repair artifacts owned by the selected runtime owner. Do not route merely because an artifact defect exists if a current owner legally owns that repair.
-
-## Allowed next owners
-
-beo-explore, beo-plan, beo-validate, beo-execute, beo-review, beo-debug, beo-compound, beo-dream, user, done
+## Exit map
+| Condition | Next owner |
+| --- | --- |
+| owner identity repaired | selected owner |
+| feature collision unresolved | user |
+| colliding predicates unresolved | user |
+| terminal closure proven | done |
 
 ## References
-
-- `beo-reference -> references/pipeline.md`
 - `beo-reference -> references/state.md`
-- `beo-reference -> references/artifacts.md`
-- `beo-reference -> references/approval.md`
+- `route/references/router-operations.md`
+- `beo-reference -> references/pipeline.md` (read only if allowed next owner is unclear)
+- `beo-reference -> references/tool-contracts.md` (read only before using command output for owner-identity evidence)
 - `beo-reference -> references/skill-contract-common.md`

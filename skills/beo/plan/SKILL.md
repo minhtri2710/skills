@@ -7,35 +7,47 @@ description: |
 # beo-plan
 
 ## Purpose
-
 Turn locked requirements into executable scope.
 
-## Fast predicate
+## Active when
+Locked requirements exist and plan, bead graph, file scope, generated outputs, risk proof, rollback boundary, or verification contract is missing, stale, or invalid.
 
-Active when locked requirements exist and plan, bead graph, file scope, generated outputs, risk proof, rollback boundary, or verification contract is missing, stale, or invalid.
+## Owns
+Create or repair executable scope and selected execution candidates.
 
-Not active when requirements are unlocked or contradicted.
+## Reads
+- locked requirements
+- current plan/tracker if repairing
+- artifact and approval references when approval-bearing content changes
+- `beo-reference -> references/complexity.md` (read only for tiny reclassification)
+- `beo-reference -> references/tool-contracts.md` (read only before using workflow-visible commands)
 
-## Primary owned decision
+## Writes
+- Tiny: `TICKET.md` Plan section
+- Standard: `PLAN.md`; BR task descriptions derived from `PLAN.md`
+- Standard: `TRACKER.json` initialization only
+- stale approval/readiness mirrors when plan changes stale approval
+- owner-owned STATE/HANDOFF fields when pausing/transferring
 
-Create or repair the current executable plan and canonical `PLAN.md` bead graph.
+## Must stop when
+- requirements are unlocked or contradicted
+- trace coverage is missing for acceptance-critical decisions
+- required Human Gate lacks blocking/N/A status (HG-01)
+- tiny needs multiple meaningful beads (TINY-02)
+- BR descriptions contradict `PLAN.md` (ART-05)
+- Enforce shared owner stops from `beo-reference -> references/skill-contract-common.md`.
 
-## Writable surfaces
-
-.beads/artifacts/<feature_slug>/PLAN.md, including the canonical Execution Beads table, dependency order, declared files, forbidden paths, generated outputs, verification, risk proof/N/A, rollback boundary, and human blockers; STATE.json stale readiness/approval mirror clearing when approval-bearing content changes; HANDOFF.json only when pausing/transferring.
-
-## Hard stops
-
-Do not hand off to validation while acceptance-critical decisions lack trace matrix coverage or required Human Gates lack explicit blocking/N/A status. Do not plan from unlocked or contradicted requirements. Do not implement. Do not approve readiness. Do not emit PASS_EXECUTE. Do not route for a plan defect that beo-plan owns. If plan changes approval-bearing content, clear stale readiness and approval mirrors in the same handoff.
-
-## Allowed next owners
-
-beo-validate, beo-explore, user, beo-route
+## Exit map
+| Condition | Next owner |
+| --- | --- |
+| executable scope complete | beo-validate |
+| requirements defect | beo-explore |
+| required Human Gate unresolved | user |
+| unsafe owner/feature identity | beo-route |
 
 ## References
-
 - `beo-reference -> references/pipeline.md`
-- `beo-reference -> references/state.md`
 - `beo-reference -> references/artifacts.md`
-- `beo-reference -> references/approval.md`
+- `beo-reference -> references/complexity.md` (read only for tiny reclassification)
 - `beo-reference -> references/skill-contract-common.md`
+- `beo-reference -> references/tool-contracts.md` (read only before using workflow-visible commands)
