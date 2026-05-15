@@ -1,474 +1,145 @@
-# BEO Artifacts
+# Artifacts
 
-## ART-01 — Current required surfaces only
+Authority: canonical for artifact density, ownership, and human artifact shape.
 
-BEO runtime uses only current required surfaces for the active lane and stage. Artifacts consolidate I/O, not owner authority. Owner boundaries remain even when multiple owners write different sections of the same file.
+## Density
 
-## ART-02 — Tiny required surface
+BEO uses one workflow with `artifact_density: compact | full`. Density changes ceremony and artifact shape only. It never weakens approval, execution scope, review, owner authority, or fail-closed behavior.
 
-Tiny lane requires `TICKET.md` only.
+| Density | Artifact set | Use when |
+|---|---|---|
+| compact | `FEATURE.json` + `HANDOFF.json` + `TICKET.md` | one bounded normal execution set with one bounded item, explicit files, direct verification, low declared risk |
+| full | `FEATURE.json` + `CONTEXT.md` + `PLAN.md` + `TRACKER.json` + `REVIEW.md` + `HANDOFF.json` | multiple items, multiple execution sets, repair/rollback set, broad risk, indirect verification, complex generated outputs, multi-phase work |
 
-## ART-03 — Standard required surfaces
+Compact is allowed only when all are true: exactly one normal execution set with exactly one bounded item, explicit narrow declared files, direct verification, absent or bounded risk, absent/simple/declared generated outputs, and Human Gates are resolved or not applicable. Use full when any compact condition is false.
 
-Standard lane required surfaces are stage-scoped. See the stage-scoped required-surface matrix below; `REVIEW.md` is not required before execution.
+Density escalation is mechanical:
 
-## ART-04 — Optional surfaces never override required surfaces
+| Trigger | Density |
+|---|---|
+| One bounded change, one execution item, simple scope | compact |
+| Multiple execution items | full |
+| Multiple execution sets | full |
+| Repair or rollback set needed | full |
+| Item-level execution state tracking needed | full |
+| Complex generated outputs | full |
+| Multi-owner or high-risk feature | full |
+| Human Gate matrix beyond simple status | full |
 
-Optional surfaces (`STATE.json`, `HANDOFF.json`, learning files, BR descriptions) never override required surfaces.
+## FEATURE manifest
 
-## ART-05 — Precedence
+`FEATURE.json` identifies one runtime feature artifact root. It records the feature slug, density, lifecycle status, current owner mirror, contract version, timestamps, and artifact list. It is required in both compact and full density and is the anchor used by helpers to find the current artifact set.
 
-When surfaces conflict, the canonical required surface wins. Mirrors and summaries are stale. Do not average conflicting surfaces. Identify the highest-precedence canonical surface, then repair by the owner that owns the defective surface.
+`FEATURE.json.current_owner` is identity metadata only. It orients resume/repair, but it does not authorize action without loading the owner `SKILL.md` and reading current required artifacts.
 
-Precedence order (standard):
-1. Active owner contract
-2. `TRACKER.json` owner-owned section for readiness/approval/integrity/execution
-3. `CONTEXT.md` for locked requirements
-4. `PLAN.md` for canonical bead graph, scope, dependencies, execution sets, verification
-5. BR task descriptions for per-bead executable slices
-6. `REVIEW.md` for terminal verdict
-7. `STATE.json` display mirrors
-8. `HANDOFF.json` resume context
-9. Chat memory
+## Ownership
 
-If a BR task description conflicts with `PLAN.md`, `PLAN.md` wins.
+| Surface/section | Owner |
+|---|---|
+| `TICKET.md#Request`, `#Done`, `#Human Gates` | beo-explore |
+| `TICKET.md#Scope` | beo-plan |
+| `TICKET.md#Approval` | beo-validate |
+| `TICKET.md#Execution` | beo-execute |
+| `TICKET.md#Review` | beo-review |
+| `CONTEXT.md` | beo-explore |
+| `PLAN.md` non-Approval sections | beo-plan |
+| `PLAN.md#Approval` | beo-validate |
+| `TRACKER.json` | beo-execute |
+| `REVIEW.md` | beo-review |
 
-## ART-06 — Generated outputs
+## Compact phase-gated shape
 
-Generated outputs are legal only when declared in the selected execution envelope or produced as approved verification byproducts.
+Compact mode presents one visible operator artifact: `TICKET.md`. Its approval-bearing authority is one structured `beo.ticket.v1` block inside that artifact. Markdown headings may orient humans, but the helper treats markdown-only tickets as draft-only diagnostics and derives no approval fields from headings.
 
-Undeclared generated outputs block accept. Broad or nondeterministic generated outputs reclassify tiny to standard.
+A compact `TICKET.md` grows by owner phase. Future fields are not required until the owning phase begins.
 
-## ART-07 — Review evidence surfaces
-
-Review reads cold evidence from current required surfaces and live declared files. Memory and chat summaries are never review evidence (REV-01).
-
-## Evidence authority ladder
-
-| Authority class | Examples | Can grant approval? | Can select execution set? | Can inform review? |
-| --- | --- | ---:| ---:| ---:|
-| Canonical required surface | `TICKET.md`, `CONTEXT.md`, `PLAN.md`, `TRACKER.json`, `REVIEW.md` when stage-required | Only through validate-owned approval fields | Yes, when canonical surface owns that field | Yes, when current and stage-appropriate |
-| Helper integrity evidence | `beo_approval_check.py` output | No | No | Yes, only as integrity/status evidence |
-| Contracted command output | `br`, `bv --robot-*`, documented verification commands | No | No | Yes, only when contract-defined, current, well-formed, and tied to current required surfaces |
-| Live declared file evidence | files in approved declared scope | No | No | Yes |
-| Mirror/display | `STATE.json`, display cards, setup reports | No | No | No, except as pointers to canonical evidence |
-| Chat/user instruction | conversation text | No | No | No, except Human Gate answers captured into canonical surfaces |
-| Optional/reference artifact | examples, notes, packets, summaries | No | No | Only as navigation aid |
-
-Command output never overrides canonical required surfaces unless a canonical reference explicitly says so.
-
-Uncontracted command output may be recorded as raw evidence only. It must not affect approval, readiness, integrity, scope, selected execution set, owner identity, review verdict, or learning provenance.
-
-## Stage-scoped required-surface matrix
-
-| Lane | Stage | Required surfaces |
-| --- | --- | --- |
-| `beo_tiny` | all runtime stages | `TICKET.md` |
-| `standard` | explore | `CONTEXT.md` |
-| `standard` | plan | `CONTEXT.md` + `PLAN.md` |
-| `standard` | validate | `CONTEXT.md` + `PLAN.md` + `TRACKER.json` |
-| `standard` | execute | `CONTEXT.md` + `PLAN.md` + `TRACKER.json` + selected BR descriptions only when canonical `PLAN.md`/`TRACKER.json` references selected BR tasks |
-| `standard` | review | `CONTEXT.md` + `PLAN.md` + `TRACKER.json` + `REVIEW.md` when created + selected BR descriptions only when canonical `PLAN.md`/`TRACKER.json` references selected BR tasks + live declared files |
-| `any` | learning case recording | selected source evidence + `.beads/learnings/<case_slug>.md` |
-
-`REVIEW.md` is not required before execution. `TRACKER.json` is not required before standard planning initializes it. Owner predicates must say "current required surfaces for the active stage," not "all required surfaces."
-
-## Artifact field ownership table
-
-| Field/surface | Owner allowed to write | Notes |
-| --- | --- | --- |
-| request/acceptance/non-goals | explore | tiny `TICKET.md` or standard `CONTEXT.md` |
-| Human Gate captured answers | explore, or validate only for approval evidence already required by validation | must be persisted into current required surface; secrets are never persisted (HG-02) |
-| plan/bead graph/declared files/generated outputs | plan | `PLAN.md` or `TICKET.md` Plan section |
-| readiness classification | validate | `TRACKER.json` or `TICKET.md` Approval section |
-| approval fields and `approval_ref` | validate only | helper output is evidence, not writer (INT-03) |
-| integrity evidence pointer/status | validate records after reading helper output | helper does not mutate runtime artifacts |
-| execution evidence | execute | `TRACKER.json` or `TICKET.md` Execution section |
-| review verdict/disposition | review | `REVIEW.md` or `TICKET.md` Review/Closure |
-| bounded repair packet | review | evidence only; not executable scope |
-| learning case file | compound | one observed learning case or false case |
-| consolidated learning pattern | dream | repeated finalized case consolidation only |
-| shared guidance | author by explicit request or selected evidence | never from single runtime review |
-| STATE display mirrors | active owner that owns handoff | display only, loses to required surfaces |
-| HANDOFF.json | active owner when pausing/transferring | never grants approval or verdict |
-
-Rule: if an owner `SKILL.md` writable surface conflicts with this table, the owner file is wrong unless the table is updated in the same doctrine edit.
-
-## Tiny TICKET.md schema
+Canonical compact sections:
 
 ```md
-# TICKET: <feature_slug>
-
-## Lane
-beo_tiny
+# TICKET.md
 
 ## Request
-<user request in one compact paragraph>
-
-## Acceptance
-- <one clear acceptance outcome>
-
-## Non-goals
-- <N/A or explicit out-of-scope item>
-
+## Done
+## Human Gates
 ## Scope
-Allowed files:
-- <path>
-
-Forbidden paths:
-- <path or pattern>
-
-Generated outputs:
-- <N/A or declared generated output>
-
-## Risk
-Security/privacy: N/A | <risk>
-Data/destructive: N/A | <risk>
-Permissions/billing/legal: N/A | <risk>
-Existing user/data support: N/A | <risk>
-
-## Human Gates
-Required gates:
-- none
-or
-- <blocking gate>
-
-## Plan
-Bead:
-- ID: B1
-- BR task: <br-id or N/A>
-- Action: <smallest executable action>
-- Verification: <direct cheap check>
-
 ## Approval
-Readiness: PASS_EXECUTE | FAIL_PLAN | FAIL_EXPLORE | BLOCK_USER | FAIL_STATE
-Approval ref: <ref or N/A>
-Integrity: verified | stale | invalid | unavailable
-Approved execution set: B1
-Execution mode: single
-
 ## Execution
-Status: not-started | completed | blocked
-Changed files:
-- <path>
-
-Verification evidence:
-- <command/check/result>
-
-Blocked by:
-- <N/A or blocker>
-
 ## Review
-Verdict: pending | accept | fix | reject
-Evidence:
-- <specific evidence>
-
-Learning case: none | present
-learning_source:
-  origin_owner: <owner or N/A>
-  source_surface: <surface or N/A>
-  source_section_or_pointer: <pointer or N/A>
-  case_type: <type or N/A>
-  case_status: candidate
-  affected_owner: <owner or none>
-  target_path: <path or none>
-  runtime_status: runtime_complete | runtime_active | user_blocked
-
-## Closure
-Next owner: <owner | done | user>
-Reason: <one line>
 ```
 
-## Standard schemas
+### Explore-owned seed
 
-### CONTEXT.md
+Required after `beo-explore`: `artifact_density`, `owner`, `request`, `done`, `human_gates`. Optional: `assumptions`, `non_goals`, `constraints`.
 
-```md
-# CONTEXT: <feature_slug>
+Human Gate location: `TICKET.md#Human Gates`. Shape and approval-bearing semantics: `beo-reference -> references/decision-boundaries.md`.
 
-## Request
-...
+### Plan-owned scope
 
-## Acceptance requirements
-- A1: ...
+Compact operators author shorthand only. For compact operator drafting, use `assets/operator-forms/compact-ticket.md` as advisory only. Canonical compact field authority remains `registry/artifact-schemas.json` and `registry/approval-envelope.json`.
 
-## Non-goals
-- ...
-
-## Constraints
-Security/privacy:
-Existing user/data support:
-Access/secrets:
-Legal/business:
-Performance:
-UX/API:
-
-## Human Gates
-Required:
-- ...
-
-Resolved:
-- ...
-
-N/A:
-- ...
-
-## Assumptions
-- ...
-
-## Trace anchors
-- A1: ...
-```
-
-Approval-bearing content: acceptance requirements, non-goals, constraints, required Human Gates, scope/acceptance assumptions, and trace anchors.
-
-### PLAN.md
-
-```md
-# PLAN: <feature_slug>
-
-## Requirement trace
-| Acceptance ID | Plan coverage | Verification |
-| --- | --- | --- |
-| A1 | B1 | V1 |
-
-## Execution beads
-| Bead ID | BR task ID | Purpose | Depends on | Declared files | Generated outputs | Verification |
-| --- | --- | --- | --- | --- | --- | --- |
-| B1 | br-123 | ... | none | ... | ... | V1 |
-
-## Execution sets
-| Set ID | Mode | Beads | Stop rule |
-| --- | --- | --- | --- |
-| ES1 | single | B1 | stop on block |
-
-## Declared files
-- ...
-
-## Forbidden paths
-- ...
-
-## Generated outputs
-- N/A
-
-## Verification contract
-- V1: ...
-
-## Risk proof
-Security/privacy: N/A | ...
-Data/destructive: N/A | ...
-Permissions/billing/legal: N/A | ...
-Existing user/data support: N/A | ...
-
-## Rollback boundary
-- ...
-
-## Human blockers
-- none
-```
-
-Approval-bearing content: execution beads, BR task bead mapping, execution sets, mode, selected bead IDs, declared files, forbidden paths, generated outputs, verification contract, risk proof, rollback boundary, and human blockers.
-
-### TRACKER.json schema
-
-`TRACKER.json` is the only standard tracking record for readiness, approval, integrity, execution, and review pointers.
-
-```json
-{
-  "schema_version": 2,
-  "feature_slug": "example_feature",
-  "lane": "standard",
-  "readiness": {
-    "status": "PASS_EXECUTE",
-    "classified_by": "beo-validate",
-    "selected_execution_set_id": "ES1",
-    "execution_mode": "single",
-    "selected_beads": ["B1"],
-    "selected_br_tasks": ["br-201"],
-    "next_owner": "beo-execute",
-    "blockers": []
-  },
-  "approval": {
-    "approval_ref": "approval-2026-05-07-001",
-    "approved_by_owner": "beo-validate",
-    "approved_declared_files": [],
-    "approved_forbidden_paths": [],
-    "approved_generated_outputs": [],
-    "verification_contract_ref": "PLAN.md#verification-contract",
-    "status": "fresh"
-  },
-  "integrity": {
-    "method": "tool",
-    "tool": "beo_approval_check.py",
-    "status": "verified",
-    "context_status": "complete",
-    "plan_status": "complete",
-    "br_description_status": "complete",
-    "selected_execution_set_status": "complete",
-    "declared_files_status": "complete",
-    "forbidden_paths_status": "complete",
-    "verification_contract_status": "complete",
-    "errors": []
-  },
-  "execution": {
-    "status": "not-started",
-    "changed_files": [],
-    "generated_outputs": [],
-    "file_change_baseline": [],
-    "final_file_evidence": [],
-    "verification_evidence": [],
-    "review_packet": {
-      "feature_slug": "example_feature",
-      "execution_set_id": "ES1",
-      "execution_mode": "single",
-      "selected_beads": ["B1"],
-      "changed_files": [],
-      "declared_files_checked": true,
-      "forbidden_paths_checked": true,
-      "generated_outputs": ["N/A"],
-      "verification_evidence_refs": [],
-      "integrity_status_at_execution": "verified",
-      "known_deviations": [],
-      "blocked_items": [],
-      "ready_for_review": false
-    },
-    "ready_for_review": false,
-    "blocked_by": null
-  },
-  "review_pointer": {
-    "review_path": "REVIEW.md",
-    "verdict": "pending"
-  },
-  "history": []
-}
-```
-
-`history` is append-only and short. Do not turn it into a transcript.
-
-### REVIEW.md
-
-```md
-# REVIEW: <feature_slug>
-
-## Verdict
-accept | fix | reject
-
-## Evidence reviewed
-- CONTEXT.md:
-- PLAN.md:
-- BR task descriptions:
-- TRACKER.json:
-- changed files:
-- verification evidence:
-
-## Trace coverage
-| Acceptance | Evidence | Status |
-| --- | --- | --- |
-
-## Findings
-| Severity | Finding | Evidence | Required next owner |
-| --- | --- | --- | --- |
-
-## Integrity status
-verified | stale | invalid | unavailable
-
-## Generated outputs
-Declared/approved:
-- ...
-
-Observed:
-- ...
-
-Status:
-- ok | mismatch
-
-## Learning case
-none | present
-
-## learning_source
-origin_owner: <owner or N/A>
-source_surface: <surface or N/A>
-source_section_or_pointer: <pointer or N/A>
-case_type: <type or N/A>
-case_status: candidate
-affected_owner: <owner or none>
-target_path: <path or none>
-runtime_status: runtime_complete | runtime_active | user_blocked
-
-## Next owner
-done | beo-plan | beo-explore | beo-debug | beo-compound | user
-
-## Reason
-...
-```
-
-## Tiny lane compression rule
-
-Tiny keeps the same authority invariants as standard but collapses the required surfaces into `TICKET.md`.
-
-Tiny must not require separate CONTEXT, PLAN, TRACKER, or REVIEW files.
-
-Tiny requires exactly:
-
-- one request paragraph
-- one acceptance outcome
-- explicit allowed files
-- explicit forbidden paths
-- generated outputs or N/A
-- one executable bead
-- one verification contract
-- one approval block
-- one execution block
-- one review/closure block
-
-Tiny remains tiny only when:
-
-- one meaningful bead is enough
-- file scope is small and explicit
-- generated outputs are N/A or deterministic and declared
-- verification is direct and cheap
-- no multi-phase or ambiguous Human Gate is required
-
-Reclassify to standard when:
-
-- multiple meaningful beads are needed
-- scope cannot fit explicit allowed files
-- generated outputs are broad or nondeterministic
-- risk proof needs multiple surfaces
-- approval/review evidence would become ambiguous in one file
-
-## Learning artifacts
-
-`.beads/learnings/<case_slug>.md` records one observed learning case or false case.
-`.beads/learnings/<pattern_slug>.md` may record one consolidated learning pattern.
-
-Learning artifacts:
-- Learning has no runtime authority; see `references/learning.md`.
-- May be read only by `beo-compound`, `beo-dream`, or `beo-author` when their predicates are active.
-
-`beo-compound` reads only the selected source evidence for one learning case.
-
-`REVIEW.md` is compound-readable only when review produced the learning case or the user explicitly selected `REVIEW.md` as source evidence. Otherwise, compound reads the actual source output from debug, validate, execute, route, or user-provided selected case text.
-
-See `learning.md` for learning case and pattern templates.
-
-## BR task bead decomposition
-
-`PLAN.md` is the canonical graph and source of truth. A `br` task description is only the executable slice for that bead and never grants approval.
-
-Do not copy full `CONTEXT.md`, full `PLAN.md`, all other beads, tracker state, review doctrine, learning doctrine, setup doctrine, or irrelevant owner contract text into BR descriptions.
-
-## Rollback boundary
-
-`PLAN.md` must state one of:
-
-- `rollback: not_applicable` with reason
-- `rollback: revert declared file changes`
-- `rollback: manual user decision required`
-- `rollback: impossible/destructive` with risk proof and Human Gate before approval
-
-Rollback boundary is approval-bearing. Changing it stales approval.
-
-## Review evidence packet
-
-The review packet in `TRACKER.json.execution.review_packet` or `TICKET.md` Execution section is a navigation aid, not authority. `beo-review` must still read current required surfaces and live declared files. If the packet conflicts with canonical artifacts or live evidence, the packet loses.
+Required shorthand after `beo-plan`:
+- `scope.files.allow`
+- `scope.files.forbid`
+- `scope.item`
+- `scope.verify`
+
+The helper derives the approval-bearing projection:
+- `declared_files` from `scope.files.allow`
+- `forbidden_paths` from `scope.files.forbid`
+- one execution set `set-1` with `kind: normal`
+- execution set `files` from `scope.files.allow`
+- one item `item-1` with `description` from `scope.item`
+- `acceptance_criteria` from `done`
+- `verification_contract` from `scope.verify`
+- `generated_outputs`, `risk_scope`, and `rollback_boundary` as explicit `not_applicable` unless specified
+- `non_goal_constraints` from `non_goals` or `[]` when absent
+
+Operator-authored compact projection fields such as `declared_files`, `execution_sets`, `acceptance_criteria`, or `verification_contract` are not the target compact form. Use full density when explicit projection authoring is required.
+
+### Validate-owned approval
+
+Required for `PASS_EXECUTE`: `readiness`, `approval_ref`, `integrity`, `selected_execution_set`, `execution_mode`.
+
+Approval fields are flat under the authority block. Do not nest them under `approval:`.
+
+### Execute-owned evidence
+
+Required for review: `pre_execution_integrity_check`, `changed_files`, `verification_evidence`, `review_status: ready_for_review`, and `blocker` showing no active blockers.
+
+`pre_execution_integrity_check.approval_envelope_status` must reflect the helper output from the current execution attempt.
+
+### Review-owned verdict
+
+Required after terminal review: `verdict`, `evidence`, `findings`, `closure`. Optional: `learning`.
+
+## Full phase-gated shape
+
+Full artifacts are also phase-gated. Future-owned files or fields are not required until the owning phase begins.
+
+### Explore-owned context
+
+`CONTEXT.md` is required after `beo-explore` and contains `artifact_density`, `owner`, `request`, `done`, and `human_gates`. Optional: `assumptions`, `non_goals`, `constraints`.
+
+In full density, `CONTEXT.md#human_gates` is canonical. A duplicated `human_gates` block in `PLAN.md` is non-authoritative and must not be used for approval.
+
+### Plan-owned plan
+
+`PLAN.md` non-Approval sections are required after `beo-plan` and contain `declared_files`, `forbidden_paths`, `generated_outputs`, `non_goal_constraints`, `risk_scope`, `rollback_boundary`, `execution_sets`, `acceptance_criteria`, and `verification_contract`.
+
+Execution sets use `kind: normal | repair | rollback`. Repair and rollback are execution sets, not execution modes. Repair files must be inside `declared_files`. Rollback sets require `rollback_from_execution_set`.
+
+### Validate-owned approval
+
+`PLAN.md#Approval` is required for `PASS_EXECUTE` and contains flat `readiness`, `approval_ref`, `integrity`, `selected_execution_set`, and `execution_mode`.
+
+### Execute-owned tracker
+
+`TRACKER.json` is the Execution Ledger (`beo.execution_ledger.v1`) required for review. It records selected execution set, execution mode, pre-execution integrity check, ledger status, item statuses, changed files, observations, blockers, resume point, repair budget, scope delta requests, and rollback status. See `beo-reference -> references/execution-ledger.md`.
+
+### Review-owned review
+
+`REVIEW.md` is required after terminal review and contains `verdict`, `evidence`, `findings`, and `closure`. Optional: `learning`.
+
+## Placeholder policy
+
+Use absence for future-owned fields. Use explicit `not_applicable` only for approval-bearing fields where absence would be ambiguous: `generated_outputs`, `risk_scope`, `rollback_boundary`, and `human_gates`.

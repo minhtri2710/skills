@@ -1,126 +1,41 @@
-# BEO State
+# State and Handoff
 
-## STATE-01 — STATE is display/orientation only
+Authority: canonical for `.beads/STATE.json` and `HANDOFF.json` semantics.
 
-`STATE.json` is orientation and display state. It never grants approval, selects execution sets, emits verdicts, overrides current required surfaces, or substitutes for an active owner contract.
+STATE and HANDOFF are context mirrors only. They never authorize action, override current required artifacts, replace the loaded owner `SKILL.md`, grant approval, refresh integrity, select execution scope, or emit review verdicts.
 
-Runtime authority remains with:
+## Identity Mirrors And Meta-targets
 
-- active owner contract
-- current required surfaces (ART-01)
-- tool-verified approval/integrity status (INT-03)
+`FEATURE.json.current_owner`, `.beads/STATE.json.owner`, and `HANDOFF.json.to_owner` are mirrors of artifact-derived owner identity. They may help resume after context loss, but current artifacts and the loaded owner contract decide whether action is legal.
 
-`STATE.json` and `HANDOFF.json` are non-authoritative mirrors/context; current required surfaces and active owner contract win.
+When mirrors disagree, `beo-route` repairs identity metadata from current artifact evidence. Route does not change requirements, plan, approval, execution evidence, review verdicts, or product files.
 
-## STATE-02 — One active feature
+`return_to_caller` and `restored_owner` are meta-targets, not owners. `return_to_caller` means return from a temporary owner to fresh, legal caller metadata. `restored_owner` is symbolic route completion, not a final concrete owner by itself. After route repairs identity mirrors, the concrete target comes from `references/resume-resolution.md`.
 
-BEO manages one active feature at a time. If multiple active feature candidates exist and canonical evidence cannot select one, route to `user`. Do not infer feature identity from branch, worktree, recent files, or status scouts.
+## Transition State Write Exception
 
-## Lightweight shape
+When a legal transition is emitted, the outgoing active owner may write `.beads/STATE.json` and feature-local `HANDOFF.json` only for transition metadata.
 
-```json
-{
-  "active_feature": "example_feature",
-  "lane": "beo_tiny | standard",
-  "current_owner": "beo-plan",
-  "status": "active | blocked | done",
-  "artifact_shape": "ticket | standard",
-  "canonical_artifacts": {
-    "ticket": "TICKET.md",
-    "context": "CONTEXT.md",
-    "plan": "PLAN.md",
-    "tracker": "TRACKER.json",
-    "review": "REVIEW.md"
-  },
-  "br_enabled": true,
-  "mirrors": {
-    "readiness": "display-only",
-    "approval_ref": "display-only",
-    "execution_set_id": "display-only"
-  },
-  "next_owner": null,
-  "reason": ""
-}
-```
+This exception does not permit writing product files, approval, review verdicts, runtime artifacts owned by another owner, or any content that changes canonical artifact authority.
 
-Display fields such as `feature_slug`, `current_phase`, `readiness`, `approval_ref`, `execution_mode`, `execution_set_id`, and `execution_set_beads` may exist as mirrors. They are not execution authority.
-
-## Handoff
-
-`HANDOFF.json` is resume context for pause or transfer. It never grants approval, verdict, integrity, route authority, or product mutation authority.
-
-A handoff is usable only when fresh, from/to owners are legal, and its reason/status matches canonical artifacts.
-
-If `HANDOFF.json` conflicts with current canonical artifact or STATE owner identity, route to `beo-route` or `user` depending on whether the conflict is resolvable.
-
-## Cold-start behavior
-
-If `STATE.json` exists:
-1. Read `STATE.json`.
-2. Verify active owner and feature.
-3. Load active owner `SKILL.md`.
-4. Continue or route only if owner identity is unsafe.
-
-If `STATE.json` is absent but `.beads/artifacts/` exists:
-1. Do not infer owner from memory.
-2. Inspect canonical artifact presence minimally.
-3. Treat as `missing_owner`.
-4. Use `beo-route` to repair owner identity.
-
-If no STATE and no artifacts exist:
-- Setup/usage request -> `beo-setup`.
-- New feature request -> `beo-explore`.
-- Read-only rule lookup -> `beo-reference`.
-
-## Debug return lifecycle
-
-Before handing to `beo-debug`, the sending owner records return owner, source owner, blocked invariant, and evidence reference. `beo-debug` may not change the return owner unless evidence proves it invalid. The receiving owner must consume or clear the debug return before continuing.
-
-## Closure lifecycle
-
-When `STATE.json.status` becomes `done`, write closure summary with source owner, evidence ref, and closed time. Terminal closure requires both `status=done` and closure evidence.
-
-## Pre-write freshness guard
-
-Before any owner-owned mutation, reread the current required surfaces that authorize that mutation. If any required surface changed, disappeared, became stale, or contradicted preflight evidence, stop and route to the legal repair owner.
-
-## Learning status is display-only
-
-Learning status in `STATE.json` is display/orientation only. It does not authorize skill edits, approval, execution, review acceptance, or route selection.
-
-Optional learning mirror fields:
-
-```text
-learning_case_pending
-latest_learning_case
-latest_learning_pattern
-recommended_author_action
-```
-
-These are mirrors only. Avoid adding them unless needed.
-
-## learning_source mirror
-
-STATE may mirror `learning_source` for handoff/navigation only:
+## Suggested Fields
 
 ```json
 {
-  "learning_source": {
-    "origin_owner": "...",
-    "source_surface": "...",
-    "source_section_or_pointer": "...",
-    "case_type": "...",
-    "case_status": "candidate",
-    "affected_owner": "...",
-    "target_path": "...",
-    "runtime_status": "runtime_complete"
-  }
+  "owner": "beo-<owner>",
+  "feature_slug": "<slug>",
+  "artifact_density": "compact | full",
+  "caller_owner": "<optional owner used only for return_to_caller>",
+  "caller_condition_id": "<optional condition that entered the temporary owner>",
+  "updated_at": "<timestamp>",
+  "handoff_ref": "<optional>"
 }
 ```
 
-Rules:
-- For tiny lane, `TICKET.md` Review/Closure `learning_source` is canonical.
-- For standard lane, the tagged source artifact/output is canonical.
-- STATE `learning_source` is a navigation mirror unless no artifact source exists.
-- If STATE conflicts with canonical source, canonical source wins.
-- Do not let STATE learning mirror authorize compound to read broader evidence.
+`caller_owner` and `caller_condition_id` are transition metadata only. `beo-route` may use them to resolve `return_to_caller` only when they are fresh, match the originating transition, and do not contradict current artifact evidence.
+
+## Route Repair Write Exception
+
+`beo-route` may repair only stale identity metadata: active feature pointer in `.beads/STATE.json`, `current_owner` metadata when artifacts clearly prove it, or handoff identity metadata when transition evidence is fresh and legal. It may not change requirements, plan, approval, execution evidence, review verdict, or product files.
+
+Accepted closure may neutralize active STATE pointers only as lifecycle bookkeeping after the review-owned final verdict exists, so new feature startup cannot inherit stale owner identity. STATE never closes a feature or emits, revises, or substitutes for the review verdict.

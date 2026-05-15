@@ -1,60 +1,90 @@
 ---
 name: beo-execute
 description: |
-  Use this skill to deliver exactly one selected approved execution set. Use when current readiness is PASS_EXECUTE and approval_ref, execution_set_id, execution_set_beads, execution_mode, declared files, and verification contract are present and fresh. Do not use when readiness, approval, or execution set is missing/stale, or review/debug owns the next decision.
+  Delivers exactly one selected approved execution set. Use when PASS_EXECUTE exists with current approval, integrity evidence, resolved/not-applicable Human Gates, selected execution set, execution_mode normal, declared files, and verification contract. Must call beo_approval_check fresh before any mutation. Not for planning, approving, review verdicts, or unscoped mutation.
 ---
 
 # beo-execute
 
 ## Purpose
-Deliver exactly one selected approved execution set.
 
-## Active when
-Current required surfaces prove `PASS_EXECUTE`, fresh approval, verified integrity, selected execution set, supported execution mode, declared files, forbidden paths, generated outputs, and verification contract.
+Perform the approved mutation and record execution evidence.
 
-## Owns
-Implement the selected approved execution set inside the approval envelope.
+## Decision Card
 
-## Reads
-- approval envelope
-- integrity status
-- selected execution set
-- declared files / forbidden paths / generated outputs / verification contract
-- approved implementation files
-- `beo-reference -> references/approval.md`
-- `beo-reference -> references/approval-integrity.md` (read only before mutation)
-- `execute/references/execution-operations.md` (read only for ordered batch, generated outputs, or verification byproducts)
-- `beo-reference -> references/tool-contracts.md` (read only before using workflow-visible commands)
+Decision: deliver exactly one selected approved execution set.
 
-## Writes
-- approved declared implementation files
-- approved generated outputs
-- approved verification byproducts
-- execution evidence surfaces
-- owner-owned STATE/HANDOFF fields
+Can enter when:
+- `PASS_EXECUTE`, current approval/integrity, resolved/not_applicable Human Gates, and selected execution set exist
 
-## Must stop when
-- approval/integrity is missing, stale, invalid, unavailable, or contradictory (APP-01)
-- intended mutation is outside approved declared files
-- ordered batch bead blocks (APP-06)
-- root cause is unproven
-- Enforce shared owner stops from `beo-reference -> references/skill-contract-common.md`.
+Can write:
+- declared product files/generated outputs and execution evidence
 
-## Exit map
-| Condition | Next owner |
-| --- | --- |
-| execution evidence finalized | beo-review |
-| root cause unproven | beo-debug |
-| approval/integrity stale before mutation | beo-validate or beo-plan |
-| known bounded plan/scope repair needed | beo-plan |
-| user blocker | user |
-| unsafe owner/feature identity | beo-route |
-| concrete learning after safe runtime stop | beo-compound |
+Must stop when:
+- fresh `beo_approval_check` is missing or not complete, or mutation is outside the selected approved set
 
-## References
-- `beo-reference -> references/approval.md`
-- `beo-reference -> references/approval-integrity.md` (read only before mutation)
-- `beo-reference -> references/pipeline.md`
-- `beo-reference -> references/skill-contract-common.md`
-- `execute/references/execution-operations.md` (read only for ordered batch, generated outputs, or verification byproducts)
-- `beo-reference -> references/tool-contracts.md` (read only before using workflow-visible commands)
+Exit summary (non-authoritative):
+- `execution_ready_for_review` -> `beo-review`
+- `blocker_found` -> `beo-debug`
+- `approval_stale_or_invalid` -> `beo-validate`
+- `bounded_plan_repair_needed` -> `beo-plan`
+- `scope_delta_required` -> `beo-plan`
+- `user_blocker` -> `user`
+- `owner_feature_identity_unsafe` -> `beo-route`
+
+Never:
+- change approval, emit terminal verdicts, or mutate undeclared/forbidden paths
+
+Reads:
+- current artifacts, approval, artifacts, state, and pipeline
+
+## Contract
+
+Before acting, load and obey `beo-reference -> references/skill-contract-common.md`.
+
+Acts when:
+- `PASS_EXECUTE`, current approval, integrity evidence, resolved/not-applicable Human Gates, and selected execution set exist
+
+Owns:
+- approved execution-set delivery inside declared scope
+
+Writes:
+- declared product files/generated outputs and execution evidence (`TICKET.md#Execution` or `TRACKER.json`)
+
+Reads:
+- current artifacts, `beo-reference -> references/approval.md`, `beo-reference -> references/artifacts.md`, `beo-reference -> references/state.md`, `beo-reference -> registry/pipeline.json`
+
+Local stops:
+- approval is missing, stale, invalid, contradictory, or unavailable
+- fresh `beo_approval_check` output is missing or does not report `approval_envelope_status: complete`
+- selected execution set does not cover the mutation
+- blocker root cause is unproven
+- repair requires scope change
+- owner/feature identity is unsafe
+
+Local forbids:
+- approval changes
+- terminal verdicts
+- undeclared/forbidden path mutation
+- unproven blocker fixes
+- mutation outside the selected approved execution set
+- relying only on artifact-recorded `integrity.status` as live authority
+
+Exits:
+- `execution_ready_for_review` -> `beo-review`
+- `blocker_found` -> `beo-debug`
+- `approval_stale_or_invalid` -> `beo-validate`
+- `bounded_plan_repair_needed` -> `beo-plan`
+- `scope_delta_required` -> `beo-plan`
+- `user_blocker` -> `user`
+- `owner_feature_identity_unsafe` -> `beo-route`
+
+## Execution Loop
+
+Before any mutation, run `beo_approval_check` for the current execution attempt. Only live helper output with `approval_envelope_status: complete` permits mutation.
+
+Update only the selected approved execution set. If approval-bearing content changes, stop to `beo-validate`. If blocker root cause is unproven, stop to `beo-debug`. If repair requires scope change, stop to `beo-plan`.
+
+Record `pre_execution_integrity_check` in execution evidence with helper name, evidence ref, and approval envelope status.
+
+Repair and rollback execution are normal approved execution-set delivery with `kind: repair` or `kind: rollback`.

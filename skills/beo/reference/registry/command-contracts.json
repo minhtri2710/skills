@@ -1,0 +1,233 @@
+{
+  "$schema": "./registry.schema.json#/definitions/command-contracts",
+  "description": "Command authority contracts. Default rule: any command not explicitly listed below is unavailable for workflow authority. Human-readable orientation is generated/advisory only.",
+  "default_rule": "All commands are unavailable for workflow authority unless explicitly listed in commands[]. Output from an uncontracted command must not affect owner selection, approval, readiness, integrity, selected execution set, artifact authority, review verdict, or learning provenance.",
+  "rules": [
+    "No command may grant approval.",
+    "No command may refresh approval.",
+    "No command may emit PASS_EXECUTE.",
+    "No command may emit a review verdict.",
+    "Product mutation command authority can exist only inside beo-execute approved envelope."
+  ],
+  "commands": [
+    {
+      "command_id": "beo.approval_check",
+      "command": "beo_approval_check.py",
+      "binary": "python3",
+      "argv_templates": [
+        [
+          "python3",
+          "skills/beo/reference/scripts/beo_approval_check.py",
+          "{feature_slug}",
+          "--root",
+          "{root}",
+          "--check",
+          "{stage}"
+        ]
+      ],
+      "arguments": {
+        "feature_slug": {
+          "type": "string",
+          "required": false
+        },
+        "root": {
+          "type": "path",
+          "required": false,
+          "default": "."
+        },
+        "stage": {
+          "type": "string",
+          "enum": [
+            "validate",
+            "execute",
+            "review"
+          ],
+          "required": true
+        }
+      },
+      "authority_level": "integrity_evidence",
+      "allowed_callers": [
+        "beo-validate",
+        "beo-execute",
+        "beo-review"
+      ],
+      "allowed_stages": [
+        "validate",
+        "execute",
+        "review"
+      ],
+      "reads": [
+        "FEATURE.json",
+        "TICKET.md structured authority block (compact approval-bearing checks; documented markdown sections are diagnostic-only draft surfaces)",
+        "CONTEXT.md and PLAN.md structured authority blocks (full approval checks)",
+        "TRACKER.json (full review-entry checks)"
+      ],
+      "runtime_dependencies": [
+        "python3",
+        "PyYAML importable as yaml",
+        "StrictYamlLoader duplicate-key rejection enabled",
+        "BEO YAML subset enforced: objects, lists, strings, numbers, booleans, and null only; aliases and custom tags rejected"
+      ],
+      "writes": [],
+      "output_format": "json",
+      "output_schema_ref": "helper-output-schema.json",
+      "required_output_fields": [
+        "feature_slug",
+        "artifact_density",
+        "readiness_seen",
+        "integrity",
+        "integrity_status_seen",
+        "approval_ref_seen",
+        "selected_execution_set_seen",
+        "execution_mode_seen",
+        "pre_execution_integrity_check_seen",
+        "approval_envelope_complete",
+        "approval_envelope_status",
+        "field_status",
+        "machine_hashes",
+        "errors",
+        "warnings"
+      ],
+      "exit_codes": {
+        "0": "checks passed",
+        "1": "check failed (integrity issue or validation error)",
+        "2": "registry unavailable or invalid (fail-closed)",
+        "3": "usage error"
+      },
+      "may_grant_approval": false,
+      "may_refresh_approval": false,
+      "may_select_execution_set": false,
+      "may_mutate_product_files": false,
+      "may_mutate_workflow_artifacts": false,
+      "staleness_rule": "Helper output is stale if artifact hashes have changed since last run. Stale output must not be used as current evidence.",
+      "failure_handling": "On registry load failure, missing runtime dependency, YAML parser import failure, strict loader setup failure, unsupported YAML feature, missing structured authority block for approval-bearing checks, or missing/invalid compact expanded projection markers: fail closed. Output integrity: unavailable or invalid, approval_envelope_complete: false, approval_envelope_status: unavailable or invalid when JSON output is possible; otherwise report setup dependency unavailable. Exit nonzero and do not use helper output as current integrity evidence.",
+      "forbidden_interpretations": [
+        "Helper output does not grant approval.",
+        "Helper output does not refresh approval.",
+        "Helper output does not select execution set.",
+        "integrity.status: verified does not mean PASS_EXECUTE."
+      ],
+      "contract_status": "contracted"
+    },
+    {
+      "command_id": "br.version",
+      "command": "br --version",
+      "binary": "br",
+      "argv_templates": [
+        [
+          "br",
+          "--version"
+        ]
+      ],
+      "arguments": {},
+      "contract_status": "contracted",
+      "authority_level": "none",
+      "allowed_callers": [
+        "beo-setup"
+      ],
+      "allowed_stages": [
+        "setup_health_check"
+      ],
+      "reads": [
+        "environment"
+      ],
+      "writes": [],
+      "output_format": "text",
+      "required_output": {
+        "kind": "version_string",
+        "minimum_version": "0.1.28"
+      },
+      "may_grant_approval": false,
+      "may_refresh_approval": false,
+      "may_select_execution_set": false,
+      "may_mutate_product_files": false,
+      "may_mutate_workflow_artifacts": false,
+      "failure_handling": "Report setup dependency unavailable. Do not affect runtime owner, approval, readiness, execution set, review verdict, or learning provenance.",
+      "forbidden_interpretations": [
+        "Version output does not create workflow authority.",
+        "Version output does not authorize br subcommands.",
+        "Version output does not start runtime delivery."
+      ]
+    },
+    {
+      "command_id": "bv.version",
+      "command": "bv --version",
+      "binary": "bv",
+      "argv_templates": [
+        [
+          "bv",
+          "--version"
+        ]
+      ],
+      "arguments": {},
+      "contract_status": "contracted",
+      "authority_level": "none",
+      "allowed_callers": [
+        "beo-setup"
+      ],
+      "allowed_stages": [
+        "setup_health_check"
+      ],
+      "reads": [
+        "environment"
+      ],
+      "writes": [],
+      "output_format": "text",
+      "required_output": {
+        "kind": "version_string",
+        "minimum_version": "0.15.2"
+      },
+      "may_grant_approval": false,
+      "may_refresh_approval": false,
+      "may_select_execution_set": false,
+      "may_mutate_product_files": false,
+      "may_mutate_workflow_artifacts": false,
+      "failure_handling": "Report setup dependency unavailable. Do not affect runtime owner, approval, readiness, execution set, review verdict, or learning provenance.",
+      "forbidden_interpretations": [
+        "Version output does not create workflow authority.",
+        "Version output does not authorize bv robot flags.",
+        "Version output does not start runtime delivery."
+      ]
+    },
+    {
+      "command_id": "python.version",
+      "command": "python3 --version",
+      "binary": "python3",
+      "argv_templates": [
+        [
+          "python3",
+          "--version"
+        ]
+      ],
+      "arguments": {},
+      "contract_status": "contracted",
+      "authority_level": "none",
+      "allowed_callers": [
+        "beo-setup"
+      ],
+      "allowed_stages": [
+        "setup_health_check"
+      ],
+      "reads": [
+        "environment"
+      ],
+      "writes": [],
+      "output_format": "text",
+      "required_output": {
+        "kind": "version_string",
+        "minimum_version": "3.11"
+      },
+      "may_grant_approval": false,
+      "may_refresh_approval": false,
+      "may_select_execution_set": false,
+      "may_mutate_product_files": false,
+      "may_mutate_workflow_artifacts": false,
+      "failure_handling": "Report setup dependency unavailable or below minimum version. Do not affect runtime authority."
+    }
+  ],
+  "explicit_unavailable_groups": [
+    "all br commands except explicitly contracted br.version",
+    "all bv commands except explicitly contracted bv.version",
+    "any command not listed in commands[]"
+  ]
+}

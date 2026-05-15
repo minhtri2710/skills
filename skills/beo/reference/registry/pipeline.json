@@ -1,0 +1,310 @@
+{
+  "$schema": "./registry.schema.json#/definitions/pipeline",
+  "description": "Machine-readable BEO transition topology. Only canonical transition source. target_class identifies the target registry set: runtime_owner means a loadable BEO owner in vocabulary.runtime_owners, including maintenance owners.",
+  "normal_path": [
+    "beo-explore",
+    "beo-plan",
+    "beo-validate",
+    "beo-execute",
+    "beo-review",
+    "done"
+  ],
+  "virtual_sources": [
+    "start"
+  ],
+  "transitions": [
+    {
+      "from": "start",
+      "condition_id": "new_feature_request",
+      "to": "beo-explore",
+      "target_class": "runtime_owner"
+    },
+    {
+      "from": "start",
+      "condition_id": "reopened_bounded_repair",
+      "to": "beo-plan",
+      "target_class": "runtime_owner"
+    },
+    {
+      "from": "beo-explore",
+      "condition_id": "requirements_locked",
+      "to": "beo-plan",
+      "target_class": "runtime_owner"
+    },
+    {
+      "from": "beo-explore",
+      "condition_id": "human_gate_unresolved",
+      "to": "user",
+      "target_class": "terminal"
+    },
+    {
+      "from": "beo-explore",
+      "condition_id": "owner_feature_identity_unsafe",
+      "to": "beo-route",
+      "target_class": "runtime_owner"
+    },
+    {
+      "from": "beo-plan",
+      "condition_id": "plan_complete",
+      "to": "beo-validate",
+      "target_class": "runtime_owner"
+    },
+    {
+      "from": "beo-plan",
+      "condition_id": "requirements_missing_or_contradicted",
+      "to": "beo-explore",
+      "target_class": "runtime_owner"
+    },
+    {
+      "from": "beo-plan",
+      "condition_id": "human_gate_blocks_planning",
+      "to": "user",
+      "target_class": "terminal"
+    },
+    {
+      "from": "beo-plan",
+      "condition_id": "owner_feature_identity_unsafe",
+      "to": "beo-route",
+      "target_class": "runtime_owner"
+    },
+    {
+      "from": "beo-validate",
+      "condition_id": "PASS_EXECUTE",
+      "to": "beo-execute",
+      "target_class": "runtime_owner",
+      "handoff_required": true
+    },
+    {
+      "from": "beo-validate",
+      "condition_id": "FAIL_PLAN",
+      "to": "beo-plan",
+      "target_class": "runtime_owner"
+    },
+    {
+      "from": "beo-validate",
+      "condition_id": "FAIL_EXPLORE",
+      "to": "beo-explore",
+      "target_class": "runtime_owner"
+    },
+    {
+      "from": "beo-validate",
+      "condition_id": "BLOCK_USER",
+      "to": "user",
+      "target_class": "terminal"
+    },
+    {
+      "from": "beo-validate",
+      "condition_id": "FAIL_STATE",
+      "to": "beo-route",
+      "target_class": "runtime_owner"
+    },
+    {
+      "from": "beo-execute",
+      "condition_id": "execution_ready_for_review",
+      "to": "beo-review",
+      "target_class": "runtime_owner",
+      "handoff_required": true
+    },
+    {
+      "from": "beo-execute",
+      "condition_id": "blocker_found",
+      "to": "beo-debug",
+      "target_class": "runtime_owner",
+      "handoff_required": true
+    },
+    {
+      "from": "beo-execute",
+      "condition_id": "approval_stale_or_invalid",
+      "to": "beo-validate",
+      "target_class": "runtime_owner"
+    },
+    {
+      "from": "beo-execute",
+      "condition_id": "bounded_plan_repair_needed",
+      "to": "beo-plan",
+      "target_class": "runtime_owner",
+      "handoff_required": true
+    },
+    {
+      "from": "beo-execute",
+      "condition_id": "scope_delta_required",
+      "to": "beo-plan",
+      "target_class": "runtime_owner",
+      "handoff_required": true
+    },
+    {
+      "from": "beo-execute",
+      "condition_id": "user_blocker",
+      "to": "user",
+      "target_class": "terminal"
+    },
+    {
+      "from": "beo-execute",
+      "condition_id": "owner_feature_identity_unsafe",
+      "to": "beo-route",
+      "target_class": "runtime_owner"
+    },
+    {
+      "from": "beo-review",
+      "condition_id": "entry_blocked_execution_evidence_incomplete",
+      "to": "beo-execute",
+      "target_class": "runtime_owner"
+    },
+    {
+      "from": "beo-review",
+      "condition_id": "verdict_accept",
+      "to": "done",
+      "target_class": "terminal"
+    },
+    {
+      "from": "beo-review",
+      "condition_id": "verdict_accept_learning_candidate",
+      "to": "beo-learn",
+      "target_class": "runtime_owner",
+      "handoff_required": true
+    },
+    {
+      "from": "beo-review",
+      "condition_id": "verdict_fix_unproven_root_cause",
+      "to": "beo-debug",
+      "target_class": "runtime_owner",
+      "handoff_required": true
+    },
+    {
+      "from": "beo-review",
+      "condition_id": "verdict_fix_bounded_repair",
+      "to": "beo-plan",
+      "target_class": "runtime_owner",
+      "handoff_required": true
+    },
+    {
+      "from": "beo-review",
+      "condition_id": "verdict_reject",
+      "to": "beo-plan",
+      "target_class": "runtime_owner",
+      "handoff_required": true
+    },
+    {
+      "from": "beo-review",
+      "condition_id": "repair_budget_exceeded",
+      "to": "user",
+      "target_class": "terminal"
+    },
+    {
+      "from": "beo-review",
+      "condition_id": "owner_feature_identity_unsafe",
+      "to": "beo-route",
+      "target_class": "runtime_owner"
+    },
+    {
+      "from": "beo-debug",
+      "condition_id": "root_cause_proven",
+      "to": "return_to_caller",
+      "target_class": "meta"
+    },
+    {
+      "from": "beo-debug",
+      "condition_id": "diagnosis_inconclusive",
+      "to": "user",
+      "target_class": "terminal"
+    },
+    {
+      "from": "beo-debug",
+      "condition_id": "blocker_is_user_owned",
+      "to": "user",
+      "target_class": "terminal"
+    },
+    {
+      "from": "beo-route",
+      "condition_id": "identity_repaired",
+      "to": "restored_owner",
+      "target_class": "meta"
+    },
+    {
+      "from": "beo-route",
+      "condition_id": "user_decision_needed",
+      "to": "user",
+      "target_class": "terminal"
+    },
+    {
+      "from": "beo-learn",
+      "condition_id": "case_recorded",
+      "to": "done",
+      "target_class": "terminal"
+    },
+    {
+      "from": "beo-learn",
+      "condition_id": "single_case_authoring_requested_with_evidence",
+      "to": "beo-author",
+      "target_class": "runtime_owner"
+    },
+    {
+      "from": "beo-learn",
+      "condition_id": "pattern_consolidated_authoring_requested_with_evidence",
+      "to": "beo-author",
+      "target_class": "runtime_owner"
+    },
+    {
+      "from": "beo-learn",
+      "condition_id": "insufficient_evidence",
+      "to": "done",
+      "target_class": "terminal"
+    },
+    {
+      "from": "beo-author",
+      "condition_id": "skill_authored_or_updated",
+      "to": "done",
+      "target_class": "terminal"
+    },
+    {
+      "from": "beo-author",
+      "condition_id": "user_review_needed",
+      "to": "user",
+      "target_class": "terminal"
+    },
+    {
+      "from": "beo-setup",
+      "condition_id": "setup_complete",
+      "to": "done",
+      "target_class": "terminal"
+    },
+    {
+      "from": "beo-setup",
+      "condition_id": "user_confirmation_needed",
+      "to": "user",
+      "target_class": "terminal"
+    }
+  ],
+  "invalid_transitions": [
+    {
+      "from": "beo-review",
+      "condition_id": "verdict_fix",
+      "to": "beo-execute",
+      "reason": "post-verdict mutation requires refreshed scope and approval; route to beo-debug (unproven) or beo-plan (proven bounded repair) instead"
+    },
+    {
+      "from": "beo-explore",
+      "condition_id": "any",
+      "to": "beo-execute",
+      "reason": "cannot skip validation; beo-validate must grant PASS_EXECUTE"
+    },
+    {
+      "from": "beo-plan",
+      "condition_id": "any",
+      "to": "beo-execute",
+      "reason": "cannot skip validation; beo-validate must grant PASS_EXECUTE"
+    },
+    {
+      "from": "beo-execute",
+      "condition_id": "any",
+      "to": "done",
+      "reason": "cannot bypass review; beo-review must emit terminal verdict"
+    },
+    {
+      "from": "beo-setup",
+      "condition_id": "feature_delivery_requested",
+      "to": "beo-explore",
+      "reason": "beo-setup is advisory only; it does not hand off to runtime owners; user initiates beo-explore independently"
+    }
+  ]
+}

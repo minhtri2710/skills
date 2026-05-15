@@ -1,69 +1,64 @@
 ---
 name: beo-setup
 description: |
-  Use this skill to set up, check, or explain how to use the BEO workflow in a repository/project. Use when AGENTS.md setup, BEO managed startup text, project bootstrap orientation, workflow usage guidance, or lightweight setup health checking is requested. Do not use as a runtime owner for feature delivery, approval, execution, review, debugging, learning recording/consolidation/authoring, or product implementation.
+  Sets up and checks BEO repository integration. Use for direct AGENTS.md managed block, repository bootstrap orientation, version checks, setup health checks, and repository bootstrap requests. Not for canonical reference lookup, runtime delivery, approval, execution, review, debugging, learning, routing, or product implementation.
 ---
 
 # beo-setup
 
 ## Purpose
-Set up, check, and explain BEO workflow usage without becoming a runtime owner.
 
-## Active when
-User asks to set up BEO workflow, check whether setup is present, install/refresh the BEO managed block in `AGENTS.md`, understand BEO usage, or diagnose missing startup/setup surfaces before normal BEO operation.
+Install, check, and explain repository integration.
 
-## Owns
-Decide whether BEO startup/setup is present and explain the correct next usage path.
+## Decision Card
 
-## Reads
-- `AGENTS.md` managed block presence
-- `.beads/STATE.json` if present (display-only, STATE-01)
-- `setup/references/setup-operations.md`
-- `beo-reference -> references/operator-card.md`
-- `beo-reference -> assets/AGENTS.template.md`
+Decision: install, check, or explain repository integration.
 
-## Writes
-- `AGENTS.md` only for installing or refreshing the BEO managed startup block from `skills/beo/reference/assets/AGENTS.template.md`
-- Optional setup report in chat or owner output
+Can enter when:
+- direct setup, health check, managed block, repository bootstrap orientation, or version check is requested
 
-## Must stop when
-- feature runtime artifacts are requested (SETUP-01, SETUP-02)
-- a valid current runtime owner exists and can continue
-- `AGENTS.md` managed markers are duplicated, malformed, or ambiguous without user confirmation
-- Enforce shared owner stops from `beo-reference -> references/skill-contract-common.md`.
+Can write:
+- `AGENTS.md` managed block and setup surfaces only
 
-## Setup output
-Use only:
+Must stop when:
+- requested mutation is outside repository integration setup/checks
 
-```md
-Setup status:
-- <missing_agents | missing_managed_block | valid_managed_block | malformed_managed_block | no_active_runtime | active_runtime_detected>
+Exit summary (non-authoritative):
+- `setup_complete` -> `done`
+- `user_confirmation_needed` -> `user`
 
-Setup action:
-- <none | installed_managed_block | appended_managed_block | blocked_user_confirmation_needed>
+Never:
+- mutate runtime artifacts, approvals, execution evidence, verdicts, or product files
 
-Runtime recommendation:
-- <advisory next step>
+Reads:
+- AGENTS template, runtime kernel, operator cockpit, pipeline, command contracts, and tool versions
 
-Authority:
-- setup is advisory only; it does not create runtime authority, approval, execution evidence, review verdict, or learning record.
-```
+## Contract
 
-Avoid any `Next owner:` wording unless explicitly labeled advisory.
+Before acting, load and obey `beo-reference -> references/skill-contract-common.md`.
 
-## Setup modes
-**Check-only:** read surfaces, report status, explain usage. Not allowed: write files.
-**Apply mode:** create `AGENTS.md` from template when missing, append managed block when missing, leave valid block unchanged. Not allowed: edit malformed/duplicated blocks without user confirmation, create `.beads` or feature artifacts.
+Acts when:
+- direct setup, health check, managed block, repository bootstrap orientation, or version check is requested
 
-## Exit map
-| Condition | Next owner |
-| --- | --- |
-| setup complete, no runtime | done |
-| user wants to start a feature | beo-explore (advisory) |
-| setup/user decision needed | user |
+Owns:
+- repository integration setup/checks only
 
-## References
-- `setup/references/setup-operations.md`
-- `beo-reference -> references/operator-card.md`
-- `beo-reference -> assets/AGENTS.template.md`
-- `beo-reference -> references/skill-contract-common.md`
+Local stops:
+- owner-specific entry evidence is missing, stale, contradictory, or out of scope
+
+Writes:
+- `AGENTS.md` managed block and setup surfaces only
+
+Reads:
+- `beo-reference -> assets/AGENTS.template.md`, `beo-reference -> references/operator-cockpit.md`, `beo-reference -> references/runtime-kernel.md`, `beo-reference -> registry/pipeline.json`, `beo-reference -> registry/command-contracts.json`, command contracts `python.version`, `br.version`, `bv.version`
+
+Local forbids:
+- runtime artifacts, approvals, execution evidence, verdicts, product files
+
+Exits:
+- `setup_complete` -> `done`
+- `user_confirmation_needed` -> `user`
+
+## Setup Operations
+
+Setup may create or update the managed AGENTS block, check command contracts `python.version`, `br.version`, and `bv.version`, and explain usage. It must not create feature artifacts or runtime approval/evidence/verdicts.

@@ -1,53 +1,84 @@
 ---
 name: beo-plan
 description: |
-  Use this skill to turn locked requirements into executable scope. Use when locked requirements exist and plan, bead graph, file scope, generated outputs, risk proof, rollback boundary, or verification contract is missing, stale, or invalid. Do not use when requirements are unlocked or contradicted.
+  Turns locked requirements into executable scope. Use when locked requirements exist and plan, file scope, risk scope, rollback boundary, generated outputs, execution sets, or verification contract is missing/stale/invalid. Not for requirements authoring, approval, execution, or review verdicts.
 ---
 
 # beo-plan
 
 ## Purpose
-Turn locked requirements into executable scope.
 
-## Active when
-Locked requirements exist and plan, bead graph, file scope, generated outputs, risk proof, rollback boundary, or verification contract is missing, stale, or invalid.
+Convert locked requirements into executable scope.
 
-## Owns
-Create or repair executable scope and selected execution candidates.
+## Decision Card
 
-## Reads
-- locked requirements
-- current plan/tracker if repairing
-- artifact and approval references when approval-bearing content changes
-- `beo-reference -> references/complexity.md` (read only for tiny reclassification)
-- `beo-reference -> references/tool-contracts.md` (read only before using workflow-visible commands)
+Decision: convert locked requirements into executable scope.
 
-## Writes
-- Tiny: `TICKET.md` Plan section
-- Standard: `PLAN.md`; BR task descriptions derived from `PLAN.md`
-- Standard: `TRACKER.json` initialization only
-- stale approval/readiness mirrors when plan changes stale approval
-- owner-owned STATE/HANDOFF fields when pausing/transferring
+Can enter when:
+- locked requirements need scope, files, risk, rollback, execution sets, or verification
 
-## Must stop when
-- requirements are unlocked or contradicted
-- trace coverage is missing for acceptance-critical decisions
-- required Human Gate lacks blocking/N/A status (HG-01)
-- tiny needs multiple meaningful beads (TINY-02)
-- BR descriptions contradict `PLAN.md` (ART-05)
-- Enforce shared owner stops from `beo-reference -> references/skill-contract-common.md`.
+Can write:
+- compact `TICKET.md#Scope` or full `PLAN.md` non-Approval sections
 
-## Exit map
-| Condition | Next owner |
-| --- | --- |
-| executable scope complete | beo-validate |
-| requirements defect | beo-explore |
-| required Human Gate unresolved | user |
-| unsafe owner/feature identity | beo-route |
+Must stop when:
+- requirements are missing/contradicted or a Human Gate answer has not been recorded by `beo-explore`
 
-## References
-- `beo-reference -> references/pipeline.md`
-- `beo-reference -> references/artifacts.md`
-- `beo-reference -> references/complexity.md` (read only for tiny reclassification)
-- `beo-reference -> references/skill-contract-common.md`
-- `beo-reference -> references/tool-contracts.md` (read only before using workflow-visible commands)
+Exit summary (non-authoritative):
+- `plan_complete` -> `beo-validate`
+- `requirements_missing_or_contradicted` -> `beo-explore`
+- `human_gate_blocks_planning` -> `user`
+- `owner_feature_identity_unsafe` -> `beo-route`
+
+Never:
+- write approval fields, product files, execution evidence, or terminal verdicts
+
+Reads:
+- locked requirements and `beo-reference -> references/decision-boundaries.md` for Human Gate lifecycle
+- `beo-reference -> references/artifacts.md`, `beo-reference -> references/approval.md`, `beo-reference -> references/state.md`, and `beo-reference -> registry/pipeline.json`
+
+## Contract
+
+Before acting, load and obey `beo-reference -> references/skill-contract-common.md`.
+
+Acts when:
+- requirements are locked and executable scope is missing, stale, invalid, or contradicted
+- a proven bounded repair or rollback needs an execution set
+
+Owns:
+- declared files, forbidden paths, generated outputs, risk scope, rollback boundary, execution sets, acceptance criteria, and verification contract
+
+Writes:
+- compact `TICKET.md#Scope`
+- full `PLAN.md` non-Approval sections
+
+Reads:
+- locked requirements, `beo-reference -> references/artifacts.md`, `beo-reference -> references/approval.md`, `beo-reference -> references/decision-boundaries.md`, `beo-reference -> references/state.md`, `beo-reference -> registry/pipeline.json`
+
+Local stops:
+- requirements are missing or contradicted
+- a Human Gate blocks executable scope selection because required user input is absent
+- user has answered a Human Gate but `beo-explore` has not recorded current gate status
+- owner/feature identity is unsafe
+
+Local forbids:
+- approval fields, product files, execution evidence, terminal verdicts
+
+Exits:
+- `plan_complete` -> `beo-validate`
+- `requirements_missing_or_contradicted` -> `beo-explore`
+- `human_gate_blocks_planning` -> `user` when required input is absent, then `beo-explore` records the answer before planning resumes
+- `owner_feature_identity_unsafe` -> `beo-route`
+
+## Compact shorthand
+
+Write compact shorthand only as defined by `beo-reference -> references/artifacts.md` and `beo-reference -> registry/artifact-schemas.json`.
+
+Compact scope uses `scope.item` as one string. Do not author expanded projection fields in compact artifacts.
+
+## Repair and rollback planning
+
+Represent repair and rollback as execution sets in full density:
+- `kind: repair` for bounded repair inside declared files;
+- `kind: rollback` for rollback mutation, with `rollback_from_execution_set`.
+
+Do not add separate repair surfaces or intent-only relationship fields. File-scope validation enforces repair containment.

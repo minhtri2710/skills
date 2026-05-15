@@ -1,57 +1,94 @@
 ---
 name: beo-author
 description: |
-  Use this skill to update existing BEO skills, harden BEO skill contracts, or create a new BEO skill from explicit user request or selected learning-case/pattern evidence. Use when the user asks to modify BEO skills/doctrine, or when a finalized compound case or dream pattern is selected for authoring. Do not use for runtime delivery, product implementation, approval, execution, review verdicting, debugging, or automatic self-modification.
+  Authors or hardens BEO skill contracts and doctrine text. Use when editing or proposing concrete BEO doctrine/skill contract changes, including creating, rewriting, simplifying, deduplicating, or normalizing BEO skill definitions or skill-local writing guidance. Not for generic read-only review, runtime delivery, approval, execution, review verdicting, debugging, learning promotion, or product implementation.
 ---
 
 # beo-author
 
 ## Purpose
-Update existing BEO skills or create a new BEO skill from explicit user request or selected observed learning evidence.
 
-## Active when
-User explicitly requests BEO skill creation/update/hardening, or when a selected finalized learning case or dream pattern has been explicitly chosen for authoring.
+Edit doctrine from explicit request, selected consolidated evidence, or selected single-case evidence.
 
-## Owns
-Produce the smallest skill/doctrine change that blocks the selected false case or implements the requested BEO skill improvement while preserving owner boundaries and canonical homes.
+## Decision Card
 
-## Reads
-- selected learning case/pattern or files needed for the explicit user-requested skill edit
-- `beo-reference -> references/doctrine-map.md`
-- `author/references/skill-writing-method.md`
+Decision: edit doctrine from explicit request or selected evidence.
 
-## Writes
-- `<skill_name>/SKILL.md` when explicitly updating that skill
-- `<skill_name>/references/*` skill-local writing assets when needed
-- `beo-reference -> references/*` only when explicitly editing shared doctrine and canonical home is identified
-- HANDOFF only when pausing/transferring
+Can enter when:
+- concrete BEO doctrine/skill contract changes are explicitly requested or selected evidence requires authoring
 
-## Must stop when
-- no explicit request or selected evidence exists
-- canonical home for shared doctrine is not identified
-- the change duplicates multi-step logic across owner files
-- a new skill is created when an existing skill can be hardened
-- Enforce shared owner stops from `beo-reference -> references/skill-contract-common.md`.
+Can write:
+- BEO skill/doctrine files named by the request
 
-## Required author output
-```md
-Decision:
-Source request or case:
-Canonical home:
-Surfaces changed:
-Why this blocks the false case or satisfies the request:
-Doctrine duplicated? no
-Runtime ceremony added? no/yes with reason
-Next owner:
-```
+Must stop when:
+- owner-specific entry evidence is missing, stale, contradictory, or out of scope
 
-## Exit map
-| Condition | Next owner |
-| --- | --- |
-| skill update complete | done |
-| user confirmation needed | user |
+Exit summary (non-authoritative):
+- `skill_authored_or_updated` -> `done`
+- `user_review_needed` -> `user`
 
-## References
-- `beo-reference -> references/doctrine-map.md`
-- `beo-reference -> references/skill-contract-common.md`
-- `author/references/skill-writing-method.md`
+Never:
+- mutate runtime artifacts, product files, approvals, execution evidence, review verdicts, or reopen execution
+
+Reads:
+- doctrine map, common contract, pipeline, affected owner skill, and selected evidence
+
+## Contract
+
+Before acting, load and obey `beo-reference -> references/skill-contract-common.md`.
+
+Acts when:
+- explicit request to edit or propose concrete BEO doctrine/skill contract changes, selected consolidated evidence requiring authoring, or selected single-case evidence requiring authoring
+
+Owns:
+- smallest doctrine/skill change that implements the request while preserving canonical homes
+
+Local stops:
+- owner-specific entry evidence is missing, stale, contradictory, or out of scope
+
+Writes:
+- BEO skill/doctrine files named by the request
+
+Reads:
+- `beo-reference -> references/doctrine-map.md`, `beo-reference -> references/skill-contract-common.md`, `beo-reference -> registry/pipeline.json`, affected owner `SKILL.md`, and current selected evidence
+
+Local forbids:
+- runtime artifacts, product files, approvals, execution evidence, review verdicts, reopening execution
+
+Exits:
+- `skill_authored_or_updated` -> `done`
+- `user_review_needed` -> `user`
+
+## Authoring Method
+
+Keep changes small, preserve one canonical home per decision, remove duplicate/pointer surfaces after references are updated, remove stale terminology, and pressure-read representative scenarios for ambiguity.
+
+## Final Response Contract
+
+When exiting `skill_authored_or_updated`, report:
+- changed files;
+- canonical home used;
+- duplicate pointers updated or removed;
+- exit condition;
+- unresolved review items, if any.
+
+## Doctrine Refactor Method
+
+When simplifying or deduplicating BEO doctrine:
+
+1. Identify the canonical home from `beo-reference -> references/doctrine-map.md`.
+2. Move authority to the canonical home, not to owner files or generated playbooks.
+3. Replace duplicates with short pointers unless local trigger clarity requires a summary.
+4. Keep owner `SKILL.md` files focused on local entry, ownership, writes, reads, local stops, and exits.
+5. Preserve explicit exit `condition_id` -> target pairs.
+6. If a rule becomes machine-enforced, keep prose as mental model only and point to the registry/helper.
+7. Pressure-read:
+   - simple compact feature
+   - full multi-item feature
+   - stale approval
+   - unresolved Human Gate
+   - context-loss resume
+   - route identity contradiction
+   - review fix loop
+   - decision card vs. contract and pipeline exit consistency
+   - compact template field alignment with artifact-schemas.json

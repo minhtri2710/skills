@@ -1,47 +1,63 @@
 ---
 name: beo-explore
 description: |
-  Use this skill to lock requirements before planning. Use when no locked requirements exist, requirements are missing or contradicted, acceptance/scope-affecting answers are unresolved, or a Human Gate can affect acceptance, scope, non-goals, security/privacy, access, or legal/business constraints. Do not use when implementation details can be safely decided inside locked scope.
+  Locks BEO feature requirements before planning, including Human Gate capture/resolution status. Use for every new BEO feature request, and whenever requirements/gates are missing, unclear, or contradicted. Not for planning, readiness validation, execution, review, or setup.
 ---
 
 # beo-explore
 
 ## Purpose
-Lock requirements before planning.
 
-## Active when
-No locked requirements exist, requirements are missing or contradicted, or an unresolved answer can change acceptance, scope, non-goals, Human Gates, security/privacy, access, or legal/business constraints.
+Lock requirements and Human Gate status.
 
-## Owns
-Produce or repair locked requirements.
+## Decision Card
 
-## Reads
-- current user request
-- current requirement surface if present
-- repo evidence only when needed to lock scope/risk
-- `beo-reference -> references/human-gate.md` (read only for gate classification)
-- `beo-reference -> references/artifacts.md` (read only for field/schema placement)
+Decision: lock requirements and Human Gate status.
 
-## Writes
-- Tiny: `TICKET.md` requirement sections
-- Standard: `CONTEXT.md`
-- owner-owned STATE/HANDOFF fields when pausing/transferring
+Can enter when:
+- a new feature request starts or requirements/gates are missing, unclear, or contradicted
 
-## Must stop when
-- a required Human Gate remains unresolved (HG-01)
-- the question cannot affect acceptance, scope, non-goals, constraints, or approval
-- the defect belongs to a later owner
-- Enforce shared owner stops from `beo-reference -> references/skill-contract-common.md`.
+Can write:
+- `FEATURE.json` plus compact Request/Done/Human Gates seed or full `CONTEXT.md`
 
-## Exit map
-| Condition | Next owner |
-| --- | --- |
-| requirements locked | beo-plan |
-| required Human Gate unresolved | user |
-| unsafe owner/feature identity | beo-route |
+Must stop when:
+- required human input is unresolved or owner/feature identity is unsafe
 
-## References
-- `beo-reference -> references/pipeline.md`
-- `beo-reference -> references/skill-contract-common.md`
-- `beo-reference -> references/human-gate.md` (read only for gate classification)
-- `beo-reference -> references/artifacts.md` (read only for field/schema placement)
+Exit summary (non-authoritative):
+- `requirements_locked` -> `beo-plan`
+- `human_gate_unresolved` -> `user`
+- `owner_feature_identity_unsafe` -> `beo-route`
+
+Never:
+- plan scope, approve, execute, or review
+
+Reads:
+- `beo-reference -> references/decision-boundaries.md` for Human Gate lifecycle
+- `beo-reference -> references/artifacts.md`, `beo-reference -> references/state.md`, and `beo-reference -> registry/pipeline.json`
+
+## Contract
+
+Before acting, load and obey `beo-reference -> references/skill-contract-common.md`.
+
+Acts when:
+- a new feature request starts, requirements are missing/ambiguous/contradicted, or scope-affecting gates are unresolved
+
+Owns:
+- requirements lock and safe assumption boundary
+
+Local stops:
+- owner-specific entry evidence is missing, stale, contradictory, or out of scope
+
+Writes:
+- `FEATURE.json` manifest, plus compact Request/Done/Human Gates seed in `TICKET.md` or full `CONTEXT.md`
+
+Reads:
+- `beo-reference -> references/decision-boundaries.md`, `beo-reference -> references/artifacts.md`, `beo-reference -> references/state.md`, `beo-reference -> registry/pipeline.json`
+
+Local forbids:
+- execution scope, approval, product files, review verdicts
+
+Exits:
+- `requirements_locked` -> `beo-plan`
+- `human_gate_unresolved` -> `user`
+- `owner_feature_identity_unsafe` -> `beo-route`

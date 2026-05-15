@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""Read-only BEO approval/integrity evidence verifier."""
-
+"""Read-only strict BEO approval/integrity evidence verifier."""
 from __future__ import annotations
 
 import argparse
@@ -11,492 +10,1033 @@ import sys
 from pathlib import Path
 from typing import Any
 
-SUPPORTED_MODES = {"single", "ordered_batch"}
-SUPPORTED_LANES = {"beo_tiny", "standard"}
-SCHEMA_VERSION = 2
+try:
+    import yaml
+    from yaml.events import AliasEvent
+except Exception as exc:  # noqa: BLE001
+    yaml = None
+    AliasEvent = None
+    _YAML_ERROR = str(exc)
+else:
+    _YAML_ERROR = None
+
+REGISTRY_ROOT = Path(__file__).resolve().parents[1] / "registry"
+RFC3339_UTC_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
+AUTHORITY_FENCE_RE = re.compile(r"```(?P<kind>[^\s`]+)\s+(?P<schema>beo\.[\w_.-]+)\n(?P<body>.*?)\n```", re.S)
+
+_REGISTRY_ERROR: str | None = None
+try:
+    VOCAB = json.loads((REGISTRY_ROOT / "vocabulary.json").read_text())
+    APPROVAL_ENVELOPE = json.loads((REGISTRY_ROOT / "approval-envelope.json").read_text())
+    ARTIFACT_SCHEMAS = json.loads((REGISTRY_ROOT / "artifact-schemas.json").read_text())
+except Exception as exc:  # noqa: BLE001
+    VOCAB = {}
+    APPROVAL_ENVELOPE = {}
+    ARTIFACT_SCHEMAS = {}
+    _REGISTRY_ERROR = str(exc)
+if _YAML_ERROR and not _REGISTRY_ERROR:
+    _REGISTRY_ERROR = _YAML_ERROR
 
 
-def sha256_text(text: str) -> str:
-    normalized = text.replace("\r\n", "\n").replace("\r", "\n")
-    return "sha256:" + hashlib.sha256(normalized.encode()).hexdigest()
+def registry_unavailable(message: str) -> None:
+    global _REGISTRY_ERROR
+    if not _REGISTRY_ERROR:
+        _REGISTRY_ERROR = message
 
 
-def sha256_ticket_approval_bearing(text: str) -> str:
-    normalized_lines = []
-    for line in text.replace("\r\n", "\n").replace("\r", "\n").splitlines():
-        stripped = line.strip()
-        if stripped.startswith("Machine hashes:") or stripped.startswith("Baseline hashes:"):
+def registry_string_list(payload: Any, field: str, default: list[str]) -> list[str]:
+    if not isinstance(payload, dict):
+        registry_unavailable("registry payload must be an object")
+        return default
+    value = payload.get(field, default)
+    if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
+        registry_unavailable(f"registry field {field} must be a list of strings")
+        return default
+    return value
+
+
+def approval_required_fields() -> list[dict[str, Any]]:
+    if not isinstance(APPROVAL_ENVELOPE, dict):
+        registry_unavailable("approval-envelope registry must be an object")
+        return []
+    if "required_fields" not in APPROVAL_ENVELOPE:
+        registry_unavailable("approval-envelope required_fields must be a list of objects")
+        return []
+    fields = APPROVAL_ENVELOPE.get("required_fields")
+    if not isinstance(fields, list) or not all(isinstance(field, dict) for field in fields):
+        registry_unavailable("approval-envelope required_fields must be a list of objects")
+        return []
+    for index, field in enumerate(fields):
+        if not isinstance(field.get("id"), str) or not field.get("id"):
+            registry_unavailable(f"approval-envelope required_fields[{index}].id must be a non-empty string")
+            return []
+    return fields
+
+
+def registry_required_string_list(payload: Any, object_field: str, list_field: str) -> list[str]:
+    if not isinstance(payload, dict) or object_field not in payload:
+        registry_unavailable(f"registry field {object_field} must be an object")
+        return []
+    value = payload.get(object_field)
+    if not isinstance(value, dict):
+        registry_unavailable(f"registry field {object_field} must be an object")
+        return []
+    if list_field not in value:
+        registry_unavailable(f"registry field {object_field}.{list_field} must be a list of strings")
+        return []
+    return registry_string_list(value, list_field, [])
+
+
+def required_readiness(default: str = "PASS_EXECUTE") -> str:
+    for field in approval_required_fields():
+        if field.get("id") != "readiness":
             continue
-        normalized_lines.append(line)
-    return "sha256:" + hashlib.sha256(("\n".join(normalized_lines) + "\n").encode()).hexdigest()
+        value = field.get("required_value")
+        if isinstance(value, str) and value:
+            return value
+        registry_unavailable("approval-envelope readiness required_value must be a string")
+        return default
+    registry_unavailable("approval-envelope readiness required field is missing")
+    return default
+
+
+SUPPORTED_DENSITIES = set(registry_string_list(VOCAB, "artifact_density", ["compact", "full"]))
+SUPPORTED_MODES = set(registry_string_list(VOCAB, "execution_mode", []))
+SUPPORTED_EXECUTION_SET_KINDS = set(registry_string_list(VOCAB, "execution_set_kind", []))
+SUPPORTED_LIFECYCLE_STATUSES = set(registry_string_list(VOCAB, "lifecycle_status", []))
+SUPPORTED_MANIFEST_OWNERS = set(registry_string_list(VOCAB, "runtime_owners", [])) | set(registry_string_list(VOCAB, "utilities", []))
+HUMAN_GATE_TYPES = set(registry_string_list(VOCAB, "human_gate_type", []))
+HUMAN_GATE_AFFECTS = set(registry_string_list(VOCAB, "human_gate_affects", []))
+INTEGRITY_STATUSES = set(registry_string_list(VOCAB, "integrity_status", ["verified", "invalid", "unavailable"]))
+REQUIRED_READINESS = required_readiness()
+APPROVAL_PROJECTION_RULES = registry_string_list(APPROVAL_ENVELOPE, "approval_projection_rule", [])
+APPROVAL_REF_REQUIRED_FIELDS = registry_required_string_list(APPROVAL_ENVELOPE, "approval_ref_schema", "required")
+MANIFEST_REQUIRED_FIELDS = registry_required_string_list(ARTIFACT_SCHEMAS, "manifest_schema", "required")
+
+
+class StrictYamlLoader(yaml.SafeLoader if yaml is not None else object):
+    def compose_node(self, parent: Any, index: Any) -> Any:
+        event = self.peek_event()
+        if AliasEvent is not None and self.check_event(AliasEvent):
+            raise yaml.YAMLError(f"YAML aliases are not supported: {event.anchor}")
+        anchor = getattr(event, "anchor", None)
+        if anchor is not None:
+            raise yaml.YAMLError(f"YAML anchors are not supported: {anchor}")
+        node = super().compose_node(parent, index)
+        allowed_tags = {
+            "tag:yaml.org,2002:map",
+            "tag:yaml.org,2002:seq",
+            "tag:yaml.org,2002:str",
+            "tag:yaml.org,2002:int",
+            "tag:yaml.org,2002:float",
+            "tag:yaml.org,2002:bool",
+            "tag:yaml.org,2002:null",
+        }
+        if node.tag not in allowed_tags:
+            raise yaml.YAMLError(f"unsupported YAML tag: {node.tag}")
+        return node
+
+
+def construct_mapping_no_duplicates(loader: StrictYamlLoader, node: yaml.nodes.MappingNode, deep: bool = False) -> dict[Any, Any]:
+    mapping: dict[Any, Any] = {}
+    for key_node, value_node in node.value:
+        key = loader.construct_object(key_node, deep=deep)
+        if not isinstance(key, str):
+            raise yaml.YAMLError(f"mapping keys must be strings: {key!r}")
+        if key in mapping:
+            raise yaml.YAMLError(f"duplicate key: {key}")
+        mapping[key] = loader.construct_object(value_node, deep=deep)
+    return mapping
+
+
+if yaml is not None:
+    StrictYamlLoader.add_constructor(
+        yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG,
+        construct_mapping_no_duplicates,
+    )
+
+
+def sha256_bytes(data: bytes) -> str:
+    return "sha256:" + hashlib.sha256(data).hexdigest()
+
+
+def stable_hash(data: Any) -> str:
+    return sha256_bytes(json.dumps(data, sort_keys=True, separators=(",", ":")).encode())
+
+
+def projection_rule_for_density(density: str) -> str:
+    return "compact_shorthand_derived" if density == "compact" else "full_plan_explicit"
+
+
+def approval_bearing_projection_hash(values: dict[str, Any]) -> str:
+    return stable_hash(approval_fields_from_values(values, include_ref=True))
+
+
+def integrity_status(value: Any) -> str | None:
+    return value.get("status") if isinstance(value, dict) and isinstance(value.get("status"), str) else None
+
+
+def validate_integrity(value: Any, path: str = "integrity") -> list[dict[str, Any]]:
+    errors: list[dict[str, Any]] = []
+    if not isinstance(value, dict):
+        return [err("INTEGRITY_INVALID_SHAPE", path, "object with status and evidence_ref", type(value).__name__)]
+    status = value.get("status")
+    if status not in INTEGRITY_STATUSES:
+        errors.append(err("MISMATCH", f"{path}.status", sorted(INTEGRITY_STATUSES), status))
+    if status == "verified" and missing_non_empty_value(value.get("evidence_ref")):
+        errors.append(err("MISSING_FIELD", f"{path}.evidence_ref", "non-empty value when status is verified", value.get("evidence_ref", "missing")))
+    if status != "verified" and value.get("evidence_ref"):
+        errors.append(err("MISMATCH", f"{path}.evidence_ref", "absent unless status is verified", value.get("evidence_ref")))
+    return errors
+
+
+def validate_pre_execution_integrity_check(value: Any, path: str = "pre_execution_integrity_check") -> list[dict[str, Any]]:
+    errors: list[dict[str, Any]] = []
+    if not isinstance(value, dict):
+        return [err("MISSING_FIELD", path, "object", value if value is not None else "missing")]
+    if value.get("helper") != "beo_approval_check":
+        errors.append(err("MISMATCH", f"{path}.helper", "beo_approval_check", value.get("helper")))
+    if missing_non_empty_value(value.get("evidence_ref")):
+        errors.append(err("MISSING_FIELD", f"{path}.evidence_ref", "non-empty value", value.get("evidence_ref", "missing")))
+    if value.get("approval_envelope_status") != "complete":
+        errors.append(err("MISMATCH", f"{path}.approval_envelope_status", "complete", value.get("approval_envelope_status")))
+    return errors
+
+
+def sanitize_approval_ref(value: Any) -> Any:
+    if not isinstance(value, dict):
+        return value
+    sanitized = json.loads(json.dumps(value))
+    sanitized.pop("envelope_hash", None)
+    sanitized.pop("artifact_hashes", None)
+    return sanitized
+
+
+def approval_fields_from_values(values: dict[str, Any], include_ref: bool = True) -> dict[str, Any]:
+    projection: dict[str, Any] = {}
+    for field in approval_required_fields():
+        field_id = field.get("id")
+        if not field_id or (field_id == "approval_ref" and not include_ref):
+            continue
+        value = values.get(field_id)
+        if value is None:
+            continue
+        projection[field_id] = sanitize_approval_ref(value) if field_id == "approval_ref" else value
+    return projection
+
+
+def approval_envelope_hash(values: dict[str, Any]) -> str:
+    return stable_hash(approval_fields_from_values(values, include_ref=True))
 
 
 def err(code: str, path: str, expected: Any, observed: Any) -> dict[str, Any]:
     return {"code": code, "path": path, "expected": expected, "observed": observed}
 
 
+def read_json(path: Path) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+    try:
+        parsed = json.loads(path.read_text())
+    except FileNotFoundError:
+        return None, err("MISSING_FIELD", str(path), "readable JSON object", "missing")
+    except Exception as exc:  # noqa: BLE001
+        return None, err("INVALID_JSON", str(path), "valid JSON object", str(exc))
+    if not isinstance(parsed, dict):
+        return None, err("INVALID_JSON", str(path), "JSON object", type(parsed).__name__)
+    return parsed, None
+
+
 def read_text(path: Path) -> tuple[str | None, dict[str, Any] | None]:
-    if not path.exists():
-        return None, err("MISSING_FIELD", str(path), "readable file", "missing")
     try:
         return path.read_text(), None
+    except FileNotFoundError:
+        return None, err("MISSING_FIELD", str(path), "readable file", "missing")
     except Exception as exc:  # noqa: BLE001
-        return None, err("MISSING_FIELD", str(path), "readable file", f"unreadable: {exc}")
+        return None, err("UNREADABLE_FIELD", str(path), "readable file", str(exc))
 
 
-def read_json(path: Path) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
-    if not path.exists():
-        return None, err("MISSING_FIELD", str(path), "readable json", "missing")
-    try:
-        data = json.loads(path.read_text())
-    except Exception as exc:  # noqa: BLE001
-        return None, err("MISMATCH", str(path), "valid json", f"invalid json: {exc}")
-    if not isinstance(data, dict):
-        return None, err("MISMATCH", str(path), "json object", type(data).__name__)
-    return data, None
+def get_path(data: Any, dotted: str) -> Any:
+    cur = data
+    for part in dotted.split("."):
+        if isinstance(cur, dict) and part in cur:
+            cur = cur[part]
+        else:
+            return None
+    return cur
 
 
-def section(text: str | None, heading: str) -> str | None:
-    if text is None:
-        return None
-    lines = text.replace("\r\n", "\n").replace("\r", "\n").splitlines(keepends=True)
-    start = None
-    level = None
-    for i, line in enumerate(lines):
-        stripped = line.strip()
-        if stripped == heading:
-            start = i
-            level = len(stripped) - len(stripped.lstrip("#"))
-            break
-    if start is None or level is None:
-        return None
-    end = len(lines)
-    for j in range(start + 1, len(lines)):
-        stripped = lines[j].strip()
-        if stripped.startswith("#"):
-            next_level = len(stripped) - len(stripped.lstrip("#"))
-            if next_level <= level:
-                end = j
-                break
-    return "".join(lines[start:end])
-
-
-def field_value(text: str | None, label: str) -> str | None:
-    if text is None:
-        return None
-    prefix = f"{label}:"
-    for line in text.splitlines():
-        stripped = line.strip()
-        if stripped.startswith(prefix):
-            return stripped[len(prefix):].strip()
+def direct_key(data: Any, key: str) -> Any:
+    if isinstance(data, dict):
+        return data.get(key)
     return None
 
 
-def list_after(text: str | None, heading: str) -> list[str]:
-    if text is None:
-        return []
-    lines = text.splitlines()
-    result: list[str] = []
-    active = False
-    for line in lines:
-        stripped = line.strip()
-        if stripped == heading or stripped.startswith(f"{heading}:"):
-            active = True
-            inline = stripped[len(heading):].lstrip(":").strip()
-            if inline and inline.lower() not in {"n/a", "none"}:
-                result.extend([x.strip() for x in inline.split(",") if x.strip()])
+def parse_simple_yaml(body: str) -> Any:
+    return yaml.load(body, Loader=StrictYamlLoader)
+
+
+def authority_blocks(text: str, schema: str) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    blocks: list[dict[str, Any]] = []
+    errors: list[dict[str, Any]] = []
+    for match in AUTHORITY_FENCE_RE.finditer(text):
+        matched_schema = match.group("schema")
+        kind = match.group("kind").lower()
+        if kind not in {"yaml", "yml"}:
+            errors.append(err(
+                "INVALID_AUTHORITY_BLOCK",
+                matched_schema,
+                f"```yaml {matched_schema}``` authority block",
+                f"```{match.group('kind')} {matched_schema}```",
+            ))
             continue
-        if active:
-            if stripped.startswith("- "):
-                value = stripped[2:].strip()
-                if value and value.lower() not in {"n/a", "none"}:
-                    result.append(value)
-            elif stripped == "":
-                continue
-            elif stripped.startswith("#") or re.match(r"^[A-Za-z].*:$", stripped):
-                break
-    return result
-
-
-def table_rows(section_text: str | None) -> list[list[str]]:
-    if not section_text:
-        return []
-    rows = []
-    for line in section_text.splitlines():
-        stripped = line.strip()
-        if not stripped.startswith("|") or "---" in stripped:
+        if matched_schema != schema:
             continue
-        cols = [c.strip() for c in stripped.strip("|").split("|")]
-        if cols:
-            rows.append(cols)
-    return rows
+        body = match.group("body")
+        try:
+            parsed = parse_simple_yaml(body)
+        except Exception as exc:  # noqa: BLE001
+            errors.append(err("INVALID_AUTHORITY_BLOCK", schema, "parseable structured block", str(exc)))
+            continue
+        if not isinstance(parsed, dict):
+            errors.append(err("INVALID_AUTHORITY_BLOCK", schema, "object", type(parsed).__name__))
+            continue
+        blocks.append(parsed)
+    if len(blocks) > 1:
+        errors.append(err("DUPLICATE_AUTHORITY_BLOCK", schema, "exactly one block", len(blocks)))
+    return blocks, errors
 
 
-def table_col_values(section_text: str | None, col_name: str) -> list[str]:
-    rows = table_rows(section_text)
-    if len(rows) < 2:
+def markdown_sections(text: str) -> dict[str, str]:
+    sections: dict[str, list[str]] = {}
+    current: str | None = None
+    for line in text.splitlines():
+        match = re.match(r"^##\s+(.+?)\s*$", line)
+        if match:
+            current = match.group(1).strip().lower()
+            sections.setdefault(current, [])
+            continue
+        if current is not None:
+            sections[current].append(line)
+    return {key: "\n".join(lines).strip() for key, lines in sections.items()}
+
+
+def state_feature_slug(root: Path) -> str | None:
+    state, state_error = read_json(root / ".beads" / "STATE.json")
+    if state_error or not state:
+        return None
+    candidates = [
+        state.get("feature_slug"),
+        state.get("feature"),
+    ]
+    active = state.get("active")
+    if isinstance(active, dict):
+        candidates.extend([active.get("feature_slug"), active.get("feature")])
+    for candidate in candidates:
+        if isinstance(candidate, str) and candidate.strip():
+            return candidate.strip()
+    return None
+
+
+def validate_manifest_values(manifest: dict[str, Any]) -> list[dict[str, Any]]:
+    errors: list[dict[str, Any]] = []
+    slug = manifest.get("feature_slug")
+    if "schema_version" in manifest and manifest.get("schema_version") != ARTIFACT_SCHEMAS.get("manifest_schema", {}).get("schema_version"):
+        errors.append(err("MISMATCH", "FEATURE.json.schema_version", ARTIFACT_SCHEMAS.get("manifest_schema", {}).get("schema_version"), manifest.get("schema_version")))
+    if "feature_slug" in manifest and (not isinstance(slug, str) or not slug):
+        errors.append(err("MISMATCH", "FEATURE.json.feature_slug", "non-empty string", slug))
+    if isinstance(slug, str) and slug and "artifact_root" in manifest:
+        expected_root = f".beads/artifacts/{slug}"
+        if manifest.get("artifact_root") != expected_root:
+            errors.append(err("MISMATCH", "FEATURE.json.artifact_root", expected_root, manifest.get("artifact_root")))
+    if "beo_contract_version" in manifest and missing_non_empty_value(manifest.get("beo_contract_version")):
+        errors.append(err("MISSING_FIELD", "FEATURE.json.beo_contract_version", "non-empty value", manifest.get("beo_contract_version")))
+    if "lifecycle_status" in manifest and manifest.get("lifecycle_status") not in SUPPORTED_LIFECYCLE_STATUSES:
+        errors.append(err("MISMATCH", "FEATURE.json.lifecycle_status", sorted(SUPPORTED_LIFECYCLE_STATUSES), manifest.get("lifecycle_status")))
+    if "current_owner" in manifest and manifest.get("current_owner") not in SUPPORTED_MANIFEST_OWNERS:
+        errors.append(err("MISMATCH", "FEATURE.json.current_owner", sorted(SUPPORTED_MANIFEST_OWNERS), manifest.get("current_owner")))
+    for field in ["created_at", "updated_at"]:
+        value = manifest.get(field)
+        if field in manifest and (not isinstance(value, str) or not RFC3339_UTC_RE.match(value)):
+            errors.append(err("INVALID_TIMESTAMP", f"FEATURE.json.{field}", "RFC3339 UTC Z", value))
+    artifacts = manifest.get("artifacts")
+    if "artifacts" in manifest and (not isinstance(artifacts, list) or not artifacts or not all(isinstance(item, str) and item for item in artifacts)):
+        errors.append(err("MISMATCH", "FEATURE.json.artifacts", "non-empty list of strings", artifacts))
+    return errors
+
+
+def resolve_manifest(root: Path, feature_slug: str | None) -> tuple[Path | None, dict[str, Any] | None, list[dict[str, Any]]]:
+    errors: list[dict[str, Any]] = []
+    candidates: list[Path] = []
+    if not feature_slug:
+        feature_slug = state_feature_slug(root)
+    if feature_slug:
+        candidates.append(root / ".beads" / "artifacts" / feature_slug / "FEATURE.json")
+        candidates.append(root / "FEATURE.json")
+    else:
+        candidates.extend(sorted((root / ".beads" / "artifacts").glob("*/FEATURE.json")) if (root / ".beads" / "artifacts").exists() else [])
+        candidates.append(root / "FEATURE.json")
+    existing = [p for p in candidates if p.exists()]
+    if not existing:
+        errors.append(err("MISSING_FEATURE_MANIFEST", str(root), "FEATURE.json under .beads/artifacts/<feature_slug>", "missing"))
+        return None, None, errors
+    if len(existing) > 1 and not feature_slug:
+        errors.append(err("AMBIGUOUS_FEATURE_MANIFEST", str(root), "one FEATURE.json or feature_slug", [str(p) for p in existing]))
+        return None, None, errors
+    manifest_path = existing[0]
+    manifest, json_error = read_json(manifest_path)
+    if json_error:
+        errors.append(json_error)
+        return manifest_path.parent, None, errors
+    assert manifest is not None
+    for field in MANIFEST_REQUIRED_FIELDS:
+        if field not in manifest:
+            errors.append(err("MISSING_FIELD", f"FEATURE.json.{field}", "present", "missing"))
+    errors.extend(validate_manifest_values(manifest))
+    slug = manifest.get("feature_slug")
+    direct_artifact_root = manifest_path.parent.resolve() == root.resolve()
+    if direct_artifact_root:
+        expected_root = root.resolve()
+    else:
+        expected_root = Path(str(root / ".beads" / "artifacts" / str(slug))).resolve() if slug else None
+    if expected_root and manifest_path.parent.resolve() != expected_root:
+        errors.append(err("INVALID_ARTIFACT_ROOT", str(manifest_path.parent), str(expected_root), str(manifest_path.parent.resolve())))
+    if feature_slug and slug and feature_slug != slug:
+        errors.append(err("MISMATCH", "FEATURE.json.feature_slug", feature_slug, slug))
+    density = manifest.get("artifact_density")
+    if density not in SUPPORTED_DENSITIES:
+        errors.append(err("MISMATCH", "FEATURE.json.artifact_density", sorted(SUPPORTED_DENSITIES), density))
+    return manifest_path.parent, manifest, errors
+
+
+def validate_approval_ref(value: Any, density: str, selected: Any, mode: Any, hashes: dict[str, str]) -> list[dict[str, Any]]:
+    errors: list[dict[str, Any]] = []
+    if not isinstance(value, dict):
+        return [err("APPROVAL_REF_INVALID_SHAPE", "approval_ref", "object", type(value).__name__)]
+    required = APPROVAL_REF_REQUIRED_FIELDS
+    missing = [field for field in required if field not in value]
+    if missing:
+        errors.append(err("MISSING_FIELD", "approval_ref", required, {"missing": missing}))
+    for field in required:
+        if field in value and missing_non_empty_value(value.get(field)):
+            errors.append(err("MISSING_FIELD", f"approval_ref.{field}", "non-empty value", value.get(field)))
+    if value.get("schema_version") != "beo.approval_ref.v1":
+        errors.append(err("MISMATCH", "approval_ref.schema_version", "beo.approval_ref.v1", value.get("schema_version")))
+    if value.get("approved_by_owner") != "beo-validate":
+        errors.append(err("MISMATCH", "approval_ref.approved_by_owner", "beo-validate", value.get("approved_by_owner")))
+    if not missing_non_empty_value(value.get("approved_at")) and not RFC3339_UTC_RE.match(str(value.get("approved_at"))):
+        errors.append(err("INVALID_TIMESTAMP", "approval_ref.approved_at", "RFC3339 UTC Z", value.get("approved_at")))
+    for key, expected in {"artifact_density": density, "selected_execution_set": selected, "execution_mode": mode, "approval_projection_rule": projection_rule_for_density(density)}.items():
+        if value.get(key) != expected:
+            errors.append(err("MISMATCH", f"approval_ref.{key}", expected, value.get(key)))
+    if isinstance(APPROVAL_PROJECTION_RULES, list) and value.get("approval_projection_rule") not in APPROVAL_PROJECTION_RULES:
+        errors.append(err("MISMATCH", "approval_ref.approval_projection_rule", APPROVAL_PROJECTION_RULES, value.get("approval_projection_rule")))
+    expected_envelope_hash = hashes.get("approval_envelope")
+    if expected_envelope_hash is not None and value.get("envelope_hash") != expected_envelope_hash:
+        errors.append(err("MISMATCH", "approval_ref.envelope_hash", expected_envelope_hash, value.get("envelope_hash")))
+    artifact_hashes = value.get("artifact_hashes")
+    if not isinstance(artifact_hashes, dict):
+        errors.append(err("MISMATCH", "approval_ref.artifact_hashes", "object", artifact_hashes))
+    else:
+        forbidden_keys = [key for key in artifact_hashes if "#approval_bearing_projection" in key or key in {"CONTEXT.md", "TICKET.md", "PLAN.md"}]
+        if forbidden_keys:
+            errors.append(err("DEPRECATED_FIELD", "approval_ref.artifact_hashes", "logical key approval_bearing_projection only", forbidden_keys))
+        current = hashes.get("approval_bearing_projection")
+        approved = artifact_hashes.get("approval_bearing_projection")
+        if approved != current:
+            errors.append(err("MISMATCH", "approval_ref.artifact_hashes.approval_bearing_projection", current, approved))
+    return errors
+
+
+def execution_set_ids(execution_sets: Any) -> set[str]:
+    if not isinstance(execution_sets, list):
+        return set()
+    return {item["id"] for item in execution_sets if isinstance(item, dict) and isinstance(item.get("id"), str) and item.get("id")}
+
+
+def approval_ref_id(value: Any) -> Any:
+    return value.get("id") if isinstance(value, dict) else None
+
+
+def validate_human_gates(gates: Any) -> list[dict[str, Any]]:
+    errors: list[dict[str, Any]] = []
+    if not isinstance(gates, dict):
+        return [err("HUMAN_GATES_INVALID_SHAPE", "human_gates", "object with status and gates", gates if gates is not None else "missing")]
+    status = gates.get("status")
+    gate_items = gates.get("gates", [])
+    if status not in {"resolved", "unresolved", "not_applicable"}:
+        errors.append(err("MISMATCH", "human_gates.status", ["resolved", "unresolved", "not_applicable"], status))
+    if not isinstance(gate_items, list):
+        errors.append(err("MISMATCH", "human_gates.gates", "list", type(gate_items).__name__))
+        return errors
+    unresolved = False
+    for index, gate in enumerate(gate_items):
+        if not isinstance(gate, dict):
+            errors.append(err("MISMATCH", f"human_gates.gates[{index}]", "object", type(gate).__name__))
+            unresolved = True
+            continue
+        for field in ["id", "question", "resolution_ref"]:
+            if missing_non_empty_value(gate.get(field)):
+                errors.append(err("MISSING_FIELD", f"human_gates.gates[{index}].{field}", "non-empty value", gate.get(field, "missing")))
+                unresolved = True
+        gate_type = gate.get("type")
+        if gate_type not in HUMAN_GATE_TYPES:
+            errors.append(err("MISMATCH", f"human_gates.gates[{index}].type", sorted(HUMAN_GATE_TYPES), gate_type))
+            unresolved = True
+        affects = gate.get("affects")
+        if not isinstance(affects, list) or not affects:
+            errors.append(err("MISMATCH", f"human_gates.gates[{index}].affects", "non-empty list", affects if affects is not None else "missing"))
+            unresolved = True
+        else:
+            invalid_affects = [item for item in affects if item not in HUMAN_GATE_AFFECTS]
+            if invalid_affects:
+                errors.append(err("MISMATCH", f"human_gates.gates[{index}].affects", sorted(HUMAN_GATE_AFFECTS), invalid_affects))
+                unresolved = True
+        resolution_status = gate.get("resolution_status")
+        if resolution_status not in {"resolved", "unresolved"}:
+            errors.append(err("MISMATCH", f"human_gates.gates[{index}].resolution_status", ["resolved", "unresolved"], resolution_status))
+            unresolved = True
+        elif resolution_status != "resolved":
+            unresolved = True
+    expected = "not_applicable" if not gate_items else "unresolved" if unresolved else "resolved"
+    if status != expected:
+        errors.append(err("MISMATCH", "human_gates.status", expected, status))
+    if status == "unresolved":
+        errors.append(err("MISMATCH", "human_gates", "resolved or not_applicable", status))
+    return errors
+
+
+def gates_unresolved(gates: Any) -> bool:
+    return bool(validate_human_gates(gates)) or (isinstance(gates, dict) and gates.get("status") == "unresolved")
+
+
+def path_from_entry(value: Any) -> str | None:
+    if isinstance(value, str):
+        return value
+    if isinstance(value, dict):
+        path = value.get("path") or value.get("file")
+        if isinstance(path, str):
+            return path
+    return None
+
+
+def as_path_list(value: Any) -> list[str]:
+    if value is None:
         return []
-    header = rows[0]
-    try:
-        idx = header.index(col_name)
-    except ValueError:
+    if isinstance(value, str):
+        return [value] if value else []
+    if not isinstance(value, list):
         return []
-    values = []
-    for row in rows[1:]:
-        if idx < len(row):
-            values.append(row[idx])
-    return values
+    return [path for item in value if (path := path_from_entry(item)) is not None]
 
 
-def split_values(values: list[str]) -> set[str]:
-    out: set[str] = set()
-    for value in values:
-        for part in re.split(r"[,;]", value):
-            clean = part.strip().strip("`")
-            if clean and clean.lower() not in {"n/a", "none", "..."}:
-                out.add(clean)
-    return out
+def validate_path_list_shape(value: Any, path: str) -> list[dict[str, Any]]:
+    errors: list[dict[str, Any]] = []
+    if value is None or isinstance(value, str):
+        return errors
+    if not isinstance(value, list):
+        return [err("MISMATCH", path, "string or list of strings/path objects", type(value).__name__)]
+    for index, item in enumerate(value):
+        if path_from_entry(item) is None:
+            errors.append(err("MISMATCH", f"{path}[{index}]", "string or object with string path/file", item))
+    return errors
 
 
-def baseline_hashes(integrity: dict[str, Any] | None, approval_section: str | None = None) -> dict[str, str]:
-    if integrity:
-        for key in ("machine_hashes", "baseline_hashes", "hashes"):
-            value = integrity.get(key)
-            if isinstance(value, dict):
-                return {str(k): str(v) for k, v in value.items()}
-    if approval_section:
-        baseline = field_value(approval_section, "Machine hashes") or field_value(approval_section, "Baseline hashes")
-        if baseline and baseline not in {"N/A", "none"}:
-            try:
-                parsed = json.loads(baseline)
-                if isinstance(parsed, dict):
-                    return {str(k): str(v) for k, v in parsed.items()}
-            except json.JSONDecodeError:
-                return {"ticket_hash": baseline}
-    return {}
+def unsafe_path(path: str) -> bool:
+    normalized = path.replace("\\", "/")
+    return path != path.strip() or normalized.startswith("/") or any(part in {"", ".", ".."} for part in normalized.split("/"))
 
 
-def compare_hashes(current: dict[str, str], baseline: dict[str, str], errors: list[dict[str, Any]]) -> None:
-    if not baseline:
-        errors.append(err("MISSING_FIELD", "integrity.machine_hashes", "baseline hashes", "missing"))
+def path_matches(path: str, pattern: str) -> bool:
+    path = path.replace("\\", "/").rstrip("/")
+    pattern = pattern.replace("\\", "/").rstrip("/")
+    return path == pattern or path.startswith(pattern + "/")
+
+
+def execution_set_file_entries(execution_set: dict[str, Any]) -> list[tuple[str, str]]:
+    entries = [("execution_sets[].files", path) for path in as_path_list(execution_set.get("files"))]
+    items = execution_set.get("items")
+    if isinstance(items, list):
+        for item in items:
+            if isinstance(item, dict):
+                entries.extend(("execution_sets[].items[].files", path) for path in as_path_list(item.get("files")))
+    return entries
+
+
+def selected_execution_files(values: dict[str, Any]) -> set[str]:
+    selected = values.get("selected_execution_set")
+    execution_sets = values.get("execution_sets")
+    if not isinstance(selected, str) or not selected or not isinstance(execution_sets, list):
+        return set()
+    for execution_set in execution_sets:
+        if not isinstance(execution_set, dict) or execution_set.get("id") != selected:
+            continue
+        return {path for _, path in execution_set_file_entries(execution_set)}
+    return set()
+
+
+def execution_file_entries(execution_sets: Any) -> list[tuple[str, str]]:
+    entries: list[tuple[str, str]] = []
+    if not isinstance(execution_sets, list):
+        return entries
+    for execution_set in execution_sets:
+        if isinstance(execution_set, dict):
+            entries.extend(execution_set_file_entries(execution_set))
+    return entries
+
+
+def validate_execution_sets(values: dict[str, Any]) -> list[dict[str, Any]]:
+    errors: list[dict[str, Any]] = []
+    execution_sets = values.get("execution_sets")
+    if not isinstance(execution_sets, list):
+        return errors
+    ids = execution_set_ids(execution_sets)
+    for index, execution_set in enumerate(execution_sets):
+        if not isinstance(execution_set, dict):
+            errors.append(err("MISMATCH", f"execution_sets[{index}]", "object", type(execution_set).__name__))
+            continue
+        execution_set_id = execution_set.get("id")
+        if not isinstance(execution_set_id, str) or not execution_set_id:
+            errors.append(err("MISMATCH", f"execution_sets[{index}].id", "non-empty string", execution_set_id))
+        if "files" in execution_set:
+            errors.extend(validate_path_list_shape(execution_set.get("files"), f"execution_sets[{index}].files"))
+        items = execution_set.get("items")
+        if isinstance(items, list):
+            for item_index, item in enumerate(items):
+                if isinstance(item, dict) and "files" in item:
+                    errors.extend(validate_path_list_shape(item.get("files"), f"execution_sets[{index}].items[{item_index}].files"))
+        kind = execution_set.get("kind")
+        if kind not in SUPPORTED_EXECUTION_SET_KINDS:
+            errors.append(err("MISMATCH", f"execution_sets[{index}].kind", sorted(SUPPORTED_EXECUTION_SET_KINDS), kind))
+        if kind == "rollback" and missing_non_empty_value(execution_set.get("rollback_from_execution_set")):
+            errors.append(err("MISSING_FIELD", f"execution_sets[{index}].rollback_from_execution_set", "non-empty value", "missing"))
+        if kind == "rollback" and execution_set.get("rollback_from_execution_set") not in ids:
+            errors.append(err("MISMATCH", f"execution_sets[{index}].rollback_from_execution_set", "existing execution_sets[].id", execution_set.get("rollback_from_execution_set")))
+        if "scope_relation" in execution_set:
+            errors.append(err("DEPRECATED_FIELD", f"execution_sets[{index}].scope_relation", "omit field; file-scope validation is authoritative", execution_set.get("scope_relation")))
+    return errors
+
+
+def validate_projection_file_scope(values: dict[str, Any]) -> list[dict[str, Any]]:
+    errors: list[dict[str, Any]] = []
+    errors.extend(validate_path_list_shape(values.get("declared_files"), "declared_files"))
+    errors.extend(validate_path_list_shape(values.get("forbidden_paths"), "forbidden_paths"))
+    declared = as_path_list(values.get("declared_files"))
+    forbidden = as_path_list(values.get("forbidden_paths"))
+    declared_set = set(declared)
+    for field, paths in {"declared_files": declared, "forbidden_paths": forbidden}.items():
+        for path in paths:
+            if unsafe_path(path):
+                errors.append(err("INVALID_PATH", field, "relative normalized path", path))
+    errors.extend(validate_execution_sets(values))
+    for field, path in execution_file_entries(values.get("execution_sets")):
+        if unsafe_path(path):
+            errors.append(err("INVALID_PATH", field, "relative normalized path", path))
+        if path not in declared_set:
+            errors.append(err("OUT_OF_SCOPE_EXECUTION_FILE", field, "member of declared_files", path))
+        if any(path_matches(path, forbidden_path) for forbidden_path in forbidden):
+            errors.append(err("FORBIDDEN_EXECUTION_FILE", field, "not under forbidden_paths", path))
+    return errors
+
+
+def validate_changed_file_scope(values: dict[str, Any]) -> list[dict[str, Any]]:
+    errors: list[dict[str, Any]] = []
+    errors.extend(validate_path_list_shape(values.get("changed_files"), "changed_files"))
+    changed = as_path_list(values.get("changed_files"))
+    declared = as_path_list(values.get("declared_files"))
+    forbidden = as_path_list(values.get("forbidden_paths"))
+    selected_files = selected_execution_files(values)
+    declared_set = set(declared)
+    for path in changed:
+        if unsafe_path(path):
+            errors.append(err("INVALID_PATH", "changed_files", "relative normalized path", path))
+    for path in changed:
+        if path not in declared_set:
+            errors.append(err("OUT_OF_SCOPE_CHANGED_FILE", "changed_files", "member of declared_files", path))
+        if selected_files and path not in selected_files:
+            errors.append(err("OUT_OF_SCOPE_CHANGED_FILE", "changed_files", "member of selected execution set files", path))
+        if any(path_matches(path, forbidden_path) for forbidden_path in forbidden):
+            errors.append(err("FORBIDDEN_CHANGED_FILE", "changed_files", "not under forbidden_paths", path))
+    return errors
+
+
+def active_blocker(value: Any) -> bool:
+    if value in (None, False, "", [], {}, "none", "not_applicable"):
+        return False
+    if isinstance(value, str):
+        return value.strip().lower() not in {"none", "not_applicable", "no active blockers", "no_active_blockers"}
+    if isinstance(value, list):
+        return any(active_blocker(item) for item in value)
+    if isinstance(value, dict):
+        status = value.get("status") or value.get("blocker_status")
+        if status in {"none", "resolved", "not_applicable", "no_active_blockers"}:
+            return False
+        return True
+    return True
+
+
+def validate_compact_density(values: dict[str, Any]) -> list[dict[str, Any]]:
+    errors: list[dict[str, Any]] = []
+    execution_sets = values.get("execution_sets")
+    if not isinstance(execution_sets, list) or len(execution_sets) != 1:
+        errors.append(err("COMPACT_DENSITY_VIOLATION", "execution_sets", "exactly one execution set", execution_sets))
+        return errors
+    execution_set = execution_sets[0]
+    items = execution_set.get("items") if isinstance(execution_set, dict) else None
+    if not isinstance(items, list) or len(items) != 1:
+        errors.append(err("COMPACT_DENSITY_VIOLATION", "execution_sets[].items", "exactly one bounded item", items))
+    if not as_path_list(values.get("declared_files")):
+        errors.append(err("COMPACT_DENSITY_VIOLATION", "declared_files", "non-empty explicit narrow files", values.get("declared_files")))
+    verification = values.get("verification_contract")
+    commands = verification.get("commands") if isinstance(verification, dict) else None
+    if not isinstance(commands, list) or not commands:
+        errors.append(err("COMPACT_DENSITY_VIOLATION", "verification_contract", "direct verification commands", verification))
+    if len(as_path_list(values.get("generated_outputs"))) > 1:
+        errors.append(err("COMPACT_DENSITY_VIOLATION", "generated_outputs", "zero or one simple generated output", values.get("generated_outputs")))
+    risk = values.get("risk_scope")
+    if isinstance(risk, str) and "broad" in risk.lower():
+        errors.append(err("COMPACT_DENSITY_VIOLATION", "risk_scope", "bounded risk", risk))
+    if gates_unresolved(values.get("human_gates")):
+        errors.append(err("COMPACT_DENSITY_VIOLATION", "human_gates", "resolved or not_applicable", values.get("human_gates")))
+    return errors
+
+
+def set_or_reject_projection(values: dict[str, Any], errors: list[dict[str, Any]], field: str, expected: Any) -> None:
+    observed = values.get(field)
+    if observed is None:
+        values[field] = expected
+    elif observed != expected:
+        errors.append(err("CONTRADICTORY_PROJECTION", field, expected, observed))
+
+
+def validate_forbidden_target_fields(data: dict[str, Any], errors: list[dict[str, Any]]) -> None:
+    for field in ["micro_repair_scope", "scope_relation", "projection_operator_editable", "projection_generated_by"]:
+        if direct_key(data, field) is not None:
+            errors.append(err("DEPRECATED_FIELD", field, "omit field in target schema", direct_key(data, field)))
+    if isinstance(direct_key(data, "approval"), dict):
+        errors.append(err("DEPRECATED_FIELD", "approval", "flat approval fields", "nested approval object"))
+
+
+def validate_forbidden_compact_projection_fields(data: dict[str, Any], errors: list[dict[str, Any]]) -> None:
+    for field in ["declared_files", "forbidden_paths", "execution_sets", "acceptance_criteria", "verification_contract"]:
+        if direct_key(data, field) is not None:
+            errors.append(err("DEPRECATED_FIELD", field, "compact operators write scope/done shorthand; helper derives projection", direct_key(data, field)))
+
+
+def derive_compact_values(data: dict[str, Any], values: dict[str, Any], errors: list[dict[str, Any]]) -> None:
+    if values.get("generated_outputs") is None:
+        values["generated_outputs"] = "not_applicable"
+    non_goals = direct_key(data, "non_goals")
+    if non_goals is not None:
+        set_or_reject_projection(values, errors, "non_goal_constraints", non_goals)
+    elif values.get("non_goal_constraints") is None:
+        values["non_goal_constraints"] = []
+    if values.get("risk_scope") is None:
+        values["risk_scope"] = "not_applicable"
+    if values.get("rollback_boundary") is None:
+        values["rollback_boundary"] = "not_applicable"
+
+    scope = direct_key(data, "scope")
+    if not isinstance(scope, dict):
         return
-    for key, current_hash in current.items():
-        expected = baseline.get(key)
-        if not expected:
-            errors.append(err("MISSING_FIELD", f"integrity.machine_hashes.{key}", current_hash, "missing"))
-        elif expected != current_hash:
-            errors.append(err("HASH_MISMATCH", f"integrity.machine_hashes.{key}", expected, current_hash))
+    allowed = get_path(scope, "files.allow")
+    forbidden = get_path(scope, "files.forbid")
+    item = scope.get("item")
+    verify = scope.get("verify")
+    if allowed is not None:
+        set_or_reject_projection(values, errors, "declared_files", allowed)
+    if forbidden is not None:
+        set_or_reject_projection(values, errors, "forbidden_paths", forbidden)
+    else:
+        errors.append(err("MISSING_FIELD", "scope.files.forbid", "explicit forbidden paths", "missing"))
+    if allowed is not None and item is not None:
+        set_or_reject_projection(values, errors, "execution_sets", [
+            {
+                "id": "set-1",
+                "kind": "normal",
+                "files": allowed,
+                "items": [
+                    {
+                        "id": "item-1",
+                        "description": item,
+                    }
+                ],
+            }
+        ])
+    done = direct_key(data, "done")
+    if done is not None:
+        set_or_reject_projection(values, errors, "acceptance_criteria", done)
+    if verify is not None:
+        set_or_reject_projection(values, errors, "verification_contract", verify)
 
 
-def output_status(errors: list[dict[str, Any]], unavailable: bool) -> str:
-    if unavailable:
-        return "unavailable"
-    if any(e["code"] in {"HASH_MISMATCH", "STALE"} for e in errors):
-        return "stale"
-    if errors:
-        return "invalid"
-    return "verified"
+def missing_required_value(field: str, value: Any) -> bool:
+    if value is None or value == "":
+        return True
+    non_empty_fields = {"declared_files", "execution_sets", "acceptance_criteria", "verification_contract"}
+    if field not in non_empty_fields:
+        return False
+    if value in ([], {}):
+        return True
+    if field == "verification_contract":
+        commands = value.get("commands") if isinstance(value, dict) else None
+        return not isinstance(commands, list) or not commands
+    return False
 
 
-def result(status: str, lane: str, feature_slug: str, errors: list[dict[str, Any]], **fields: Any) -> dict[str, Any]:
-    from datetime import datetime, timezone
-    payload = {
-        "schema_version": SCHEMA_VERSION,
+def approval_field_ids(owner: str | None = None) -> list[str]:
+    return [
+        field["id"]
+        for field in approval_required_fields()
+        if owner is None or field.get("owner") == owner
+    ]
+
+
+def missing_non_empty_value(value: Any) -> bool:
+    return value is None or value == "" or (isinstance(value, list) and not value) or (isinstance(value, dict) and not value)
+
+
+def build_payload(status: str, density: str, feature_slug: str, errors: list[dict[str, Any]], warnings: list[str], values: dict[str, Any], hashes: dict[str, str]) -> dict[str, Any]:
+    missing_paths = {error.get("path") for error in errors if error.get("code") == "MISSING_FIELD"}
+    return {
         "feature_slug": feature_slug,
-        "lane": lane,
-        "readiness": fields.get("readiness"),
-        "approval_ref": fields.get("approval_ref"),
-        "selected_execution_set": fields.get("selected_execution_set_id"),
-        "integrity": status,
-        "approval_bearing_hash": fields.get("approval_bearing_hash"),
-        "checked_at": datetime.now(timezone.utc).isoformat(),
-        "declared_files_status": fields.get("declared_files_status", "missing"),
-        "forbidden_paths_status": fields.get("forbidden_paths_status", "missing"),
-        "generated_outputs_status": fields.get("generated_outputs_status", "missing"),
-        "verification_contract_status": fields.get("verification_contract_status", "missing"),
-        "execution_mode": fields.get("execution_mode"),
-        "safe_for_execute": status == "verified" and fields.get("readiness") == "PASS_EXECUTE",
-        "helper_authority": "advisory_integrity_check",
-        "machine_hashes": fields.get("machine_hashes", {}),
+        "artifact_density": density,
+        "readiness_seen": values.get("readiness"),
+        "integrity": {"complete": "verified", "invalid": "invalid", "unavailable": "unavailable"}.get(status, "invalid"),
+        "integrity_status_seen": integrity_status(values.get("integrity")),
+        "approval_ref_seen": values.get("approval_ref"),
+        "selected_execution_set_seen": values.get("selected_execution_set"),
+        "execution_mode_seen": values.get("execution_mode"),
+        "pre_execution_integrity_check_seen": values.get("pre_execution_integrity_check"),
+        "approval_envelope_complete": not errors and status == "complete",
+        "approval_envelope_status": status,
+        "field_status": {k: ("missing" if k in missing_paths or missing_required_value(k, v) else "complete") for k, v in values.items()},
+        "machine_hashes": hashes,
         "errors": errors,
-        "warnings": fields.get("warnings", []),
+        "warnings": warnings,
     }
-    return payload
 
 
-def verify_tiny(feature_slug: str, artifact_root: Path) -> dict[str, Any]:
-    errors: list[dict[str, Any]] = []
-    ticket_text, ticket_error = read_text(artifact_root / "TICKET.md")
-    if ticket_error:
-        return result("unavailable", "beo_tiny", feature_slug, [ticket_error], declared_files_status="unavailable", forbidden_paths_status="unavailable", generated_outputs_status="unavailable", verification_contract_status="unavailable")
+def verify(root: Path, feature_slug: str | None, check: str) -> dict[str, Any]:
+    if _REGISTRY_ERROR:
+        return build_payload("unavailable", "unknown", feature_slug or "unknown", [err("REGISTRY_UNAVAILABLE", str(REGISTRY_ROOT), "readable registry", _REGISTRY_ERROR)], [], {}, {})
+    artifact_root, manifest, errors = resolve_manifest(root, feature_slug)
+    if not artifact_root or not manifest:
+        return build_payload("unavailable", "unknown", feature_slug or "unknown", errors, [], {}, {})
+    density = str(manifest.get("artifact_density"))
+    slug = str(manifest.get("feature_slug"))
+    values: dict[str, Any] = {"artifact_density": density}
+    hashes: dict[str, str] = {"FEATURE.json": sha256_bytes((artifact_root / "FEATURE.json").read_bytes())}
+    warnings: list[str] = []
 
-    request = section(ticket_text, "## Request")
-    acceptance = section(ticket_text, "## Acceptance")
-    plan = section(ticket_text, "## Plan")
-    approval = section(ticket_text, "## Approval")
-    scope = section(ticket_text, "## Scope")
+    compact_exists = (artifact_root / "TICKET.md").exists()
+    full_exists = any((artifact_root / name).exists() for name in ("CONTEXT.md", "PLAN.md", "TRACKER.json", "REVIEW.md"))
+    if density == "compact" and full_exists or density == "full" and compact_exists:
+        errors.append(err("MIXED_DENSITY_ARTIFACTS", str(artifact_root), f"only {density} artifacts", "compact and full artifacts present"))
 
-    if not request or not request.strip():
-        errors.append(err("MISSING_FIELD", "TICKET.md#Request", "locked request", "missing"))
-    if not acceptance or not acceptance.strip():
-        errors.append(err("MISSING_FIELD", "TICKET.md#Acceptance", "locked acceptance", "missing"))
-
-    bead_ids = [line.split(":", 1)[1].strip() for line in (plan or "").splitlines() if line.strip().startswith("- ID:")]
-    if len(bead_ids) != 1:
-        errors.append(err("MISMATCH", "TICKET.md#Plan.Bead", "exactly one selected bead", len(bead_ids)))
-
-    approval_status = field_value(approval, "Readiness") or field_value(approval, "Status")
-    integrity_status = field_value(approval, "Integrity") or field_value(approval, "Integrity status")
-    approval_ref = field_value(approval, "Approval ref")
-    selected_set = field_value(approval, "Approved execution set")
-    execution_mode = field_value(approval, "Execution mode")
-
-    if not approval_status or approval_status not in {"PASS_EXECUTE"}:
-        errors.append(err("STALE", "TICKET.md#Approval.Readiness", "PASS_EXECUTE", approval_status or "missing"))
-    if integrity_status != "verified":
-        errors.append(err("STALE", "TICKET.md#Approval.Integrity", "verified", integrity_status or "missing"))
-    if not approval_ref or approval_ref == "N/A":
-        errors.append(err("MISSING_FIELD", "TICKET.md#Approval.Approval ref", "non-empty ref", approval_ref or "missing"))
-    if not selected_set:
-        errors.append(err("MISSING_FIELD", "TICKET.md#Approval.Approved execution set", "selected execution set", "missing"))
-    if execution_mode not in SUPPORTED_MODES:
-        errors.append(err("UNSUPPORTED", "TICKET.md#Approval.Execution mode", "single or ordered_batch", execution_mode or "missing"))
-
-    allowed_files = list_after(scope, "Allowed files")
-    forbidden_paths = list_after(scope, "Forbidden paths")
-    generated_outputs = list_after(scope, "Generated outputs")
-    verification = field_value(plan, "Verification")
-    if not verification and plan:
-        for line in plan.splitlines():
-            stripped = line.strip()
-            if stripped.startswith("- Verification:"):
-                verification = stripped.split(":", 1)[1].strip()
-                break
-    if not allowed_files:
-        errors.append(err("MISSING_FIELD", "TICKET.md#Scope.Allowed files", "non-empty declared files", "missing"))
-    if not forbidden_paths:
-        errors.append(err("MISSING_FIELD", "TICKET.md#Scope.Forbidden paths", "explicit forbidden paths", "missing"))
-    if generated_outputs == [] and scope and "Generated outputs" not in scope:
-        errors.append(err("MISSING_FIELD", "TICKET.md#Scope.Generated outputs", "declared outputs or N/A", "missing"))
-    if not verification:
-        errors.append(err("MISSING_FIELD", "TICKET.md#Plan.Verification", "non-empty verification contract", "missing"))
-
-    current_hashes = {"ticket_hash": sha256_ticket_approval_bearing(ticket_text or "")}
-    compare_hashes(current_hashes, baseline_hashes(None, approval), errors)
-    status = output_status(errors, False)
-    approval_bearing_hash = current_hashes.get("ticket_hash")
-
-    readiness_value = None
-    if approval:
-        readiness_value = field_value(approval, "Readiness") or field_value(approval, "Status")
-    return result(
-        status,
-        "beo_tiny",
-        feature_slug,
-        errors,
-        readiness=readiness_value,
-        approval_ref=approval_ref,
-        selected_execution_set_id=selected_set,
-        execution_mode=execution_mode,
-        approval_bearing_hash=approval_bearing_hash,
-        declared_files_status="complete" if allowed_files else "missing",
-        forbidden_paths_status="complete" if forbidden_paths else "missing",
-        generated_outputs_status="complete" if scope and "Generated outputs" in scope else "missing",
-        verification_contract_status="complete" if verification else "missing",
-        machine_hashes=current_hashes,
-    )
-
-
-def verify_standard(feature_slug: str, artifact_root: Path) -> dict[str, Any]:
-    errors: list[dict[str, Any]] = []
-    unavailable_errors: list[dict[str, Any]] = []
-    context_text, context_error = read_text(artifact_root / "CONTEXT.md")
-    plan_text, plan_error = read_text(artifact_root / "PLAN.md")
-    tracker, tracker_error = read_json(artifact_root / "TRACKER.json")
-    for e in (context_error, plan_error, tracker_error):
-        if e:
-            if e["code"] == "MISSING_FIELD" and (e["observed"] == "missing" or str(e["observed"]).startswith("unreadable:")):
-                unavailable_errors.append(e)
+    if density == "compact":
+        ticket_text, text_error = read_text(artifact_root / "TICKET.md")
+        used_documented_sections = False
+        if text_error:
+            errors.append(text_error)
+            data = {}
+        else:
+            blocks, block_errors = authority_blocks(ticket_text or "", "beo.ticket.v1")
+            errors.extend(block_errors)
+            if blocks:
+                data = blocks[0]
             else:
+                data = {}
+                if markdown_sections(ticket_text or ""):
+                    used_documented_sections = True
+                    warnings.append("TICKET.md uses documented markdown sections without beo.ticket.v1 authority block")
+                else:
+                    errors.append(err("MISSING_AUTHORITY_BLOCK", "TICKET.md", "```yaml beo.ticket.v1```", "missing"))
+            if used_documented_sections:
+                errors.append(err(
+                    "MISSING_AUTHORITY_BLOCK",
+                    "TICKET.md",
+                    "add ```yaml beo.ticket.v1``` structured authority block for approval-bearing checks",
+                    "documented markdown sections are draft-only",
+                ))
+        values.update({
+            "request": direct_key(data, "request"),
+            "human_gates": direct_key(data, "human_gates"),
+            "declared_files": direct_key(data, "declared_files"),
+            "forbidden_paths": direct_key(data, "forbidden_paths"),
+            "generated_outputs": direct_key(data, "generated_outputs"),
+            "non_goal_constraints": direct_key(data, "non_goal_constraints"),
+            "risk_scope": direct_key(data, "risk_scope"),
+            "rollback_boundary": direct_key(data, "rollback_boundary"),
+            "execution_sets": direct_key(data, "execution_sets"),
+            "acceptance_criteria": direct_key(data, "acceptance_criteria"),
+            "verification_contract": direct_key(data, "verification_contract"),
+            "readiness": direct_key(data, "readiness"),
+            "approval_ref": direct_key(data, "approval_ref"),
+            "integrity": direct_key(data, "integrity"),
+            "selected_execution_set": direct_key(data, "selected_execution_set"),
+            "execution_mode": direct_key(data, "execution_mode"),
+            "pre_execution_integrity_check": direct_key(data, "pre_execution_integrity_check"),
+            "changed_files": direct_key(data, "changed_files"),
+            "verification_evidence": direct_key(data, "verification_evidence"),
+            "review_status": direct_key(data, "review_status"),
+            "blocker": direct_key(data, "blocker"),
+        })
+        validate_forbidden_target_fields(data, errors)
+        validate_forbidden_compact_projection_fields(data, errors)
+        derive_compact_values(data, values, errors)
+        hashes["approval_bearing_projection"] = approval_bearing_projection_hash(values)
+    else:
+        context_text, context_error = read_text(artifact_root / "CONTEXT.md")
+        plan_text, plan_error = read_text(artifact_root / "PLAN.md")
+        for e in (context_error, plan_error):
+            if e:
                 errors.append(e)
-    if unavailable_errors:
-        return result("unavailable", "standard", feature_slug, unavailable_errors, declared_files_status="unavailable", forbidden_paths_status="unavailable", generated_outputs_status="unavailable", verification_contract_status="unavailable")
-    if errors:
-        return result("invalid", "standard", feature_slug, errors, declared_files_status="invalid", forbidden_paths_status="invalid", generated_outputs_status="invalid", verification_contract_status="invalid")
-    tracker = tracker or {}
+        context_data: dict[str, Any] = {}
+        plan_data: dict[str, Any] = {}
+        if context_text is not None:
+            hashes["CONTEXT.md"] = sha256_bytes(context_text.replace("\r\n", "\n").encode())
+            blocks, block_errors = authority_blocks(context_text, "beo.context.v1")
+            errors.extend(block_errors)
+            context_data = blocks[0] if blocks else {}
+            if not blocks:
+                errors.append(err("MISSING_AUTHORITY_BLOCK", "CONTEXT.md", "```yaml beo.context.v1```", "missing"))
+        if plan_text is not None:
+            blocks, block_errors = authority_blocks(plan_text, "beo.plan.v1")
+            errors.extend(block_errors)
+            plan_data = blocks[0] if blocks else {}
+            if not blocks:
+                errors.append(err("MISSING_AUTHORITY_BLOCK", "PLAN.md", "```yaml beo.plan.v1```", "missing"))
+            validate_forbidden_target_fields(plan_data, errors)
+        values.update({
+            "request": direct_key(context_data, "request"),
+            "human_gates": direct_key(context_data, "human_gates"),
+            "declared_files": direct_key(plan_data, "declared_files"),
+            "forbidden_paths": direct_key(plan_data, "forbidden_paths"),
+            "generated_outputs": direct_key(plan_data, "generated_outputs"),
+            "non_goal_constraints": direct_key(plan_data, "non_goal_constraints"),
+            "risk_scope": direct_key(plan_data, "risk_scope"),
+            "rollback_boundary": direct_key(plan_data, "rollback_boundary"),
+            "execution_sets": direct_key(plan_data, "execution_sets"),
+            "acceptance_criteria": direct_key(plan_data, "acceptance_criteria"),
+            "verification_contract": direct_key(plan_data, "verification_contract"),
+            "readiness": direct_key(plan_data, "readiness"),
+            "approval_ref": direct_key(plan_data, "approval_ref"),
+            "integrity": direct_key(plan_data, "integrity"),
+            "selected_execution_set": direct_key(plan_data, "selected_execution_set"),
+            "execution_mode": direct_key(plan_data, "execution_mode"),
+        })
 
-    readiness = tracker.get("readiness", {}) if isinstance(tracker.get("readiness"), dict) else {}
-    approval = tracker.get("approval", {}) if isinstance(tracker.get("approval"), dict) else {}
-    integrity = tracker.get("integrity", {}) if isinstance(tracker.get("integrity"), dict) else {}
+    hashes["approval_bearing_projection"] = approval_bearing_projection_hash(values)
+    hashes["approval_envelope"] = approval_envelope_hash(values)
 
-    readiness_status = readiness.get("status")
-    approval_ref = approval.get("approval_ref")
-    selected_set_id = readiness.get("selected_execution_set_id")
-    execution_mode = readiness.get("execution_mode")
-    selected_beads = readiness.get("selected_beads") or []
-    selected_br_tasks = readiness.get("selected_br_tasks") or []
-
-    if readiness_status != "PASS_EXECUTE":
-        errors.append(err("STALE", "TRACKER.json.readiness.status", "PASS_EXECUTE", readiness_status or "missing"))
-    if not approval_ref:
-        errors.append(err("MISSING_FIELD", "TRACKER.json.approval.approval_ref", "non-empty ref", "missing"))
-    if not selected_set_id:
-        errors.append(err("MISSING_FIELD", "TRACKER.json.readiness.selected_execution_set_id", "selected execution set", "missing"))
-    if execution_mode not in SUPPORTED_MODES:
-        errors.append(err("UNSUPPORTED", "TRACKER.json.readiness.execution_mode", "single or ordered_batch", execution_mode or "missing"))
-    if not selected_beads:
-        errors.append(err("MISSING_FIELD", "TRACKER.json.readiness.selected_beads", "non-empty selected beads", "missing"))
-
-    exec_sets = section(plan_text, "## Execution sets")
-    set_rows = table_rows(exec_sets)
-    set_found = False
-    if selected_set_id and len(set_rows) >= 2:
-        headers = set_rows[0]
-        for row in set_rows[1:]:
-            row_map = {headers[i]: row[i] for i in range(min(len(headers), len(row)))}
-            if row_map.get("Set ID") == selected_set_id:
-                set_found = True
-                if execution_mode and row_map.get("Mode") != execution_mode:
-                    errors.append(err("MISMATCH", "PLAN.md#Execution sets.Mode", row_map.get("Mode"), execution_mode))
-                plan_beads = split_values([row_map.get("Beads", "")])
-                if set(selected_beads) and plan_beads and set(selected_beads) != plan_beads:
-                    errors.append(err("MISMATCH", "PLAN.md#Execution sets.Beads", sorted(plan_beads), selected_beads))
-                break
-    elif selected_set_id and exec_sets and re.search(rf"\b{re.escape(selected_set_id)}\b", exec_sets):
-        set_found = True
-    if selected_set_id and not set_found:
-        errors.append(err("MISMATCH", "PLAN.md#Execution sets", f"selected set {selected_set_id}", "not found"))
-
-    declared_files = set(approval.get("approved_declared_files") or [])
-    forbidden_paths = set(approval.get("approved_forbidden_paths") or [])
-    generated_outputs = set(approval.get("approved_generated_outputs") or [])
-    verification_ref = approval.get("verification_contract_ref")
-
-    plan_declared = split_values(list_after(section(plan_text, "## Declared files"), "## Declared files") or table_col_values(section(plan_text, "## Execution beads"), "Declared files"))
-    plan_generated = split_values(list_after(section(plan_text, "## Generated outputs"), "## Generated outputs") or table_col_values(section(plan_text, "## Execution beads"), "Generated outputs"))
-    plan_forbidden = split_values(list_after(section(plan_text, "## Forbidden paths"), "## Forbidden paths"))
-    plan_verification = section(plan_text, "## Verification contract")
-
-    if not declared_files:
-        errors.append(err("MISSING_FIELD", "TRACKER.json.approval.approved_declared_files", "non-empty declared files", "missing"))
-    elif plan_declared and not declared_files.issubset(plan_declared):
-        errors.append(err("OUT_OF_SCOPE", "TRACKER.json.approval.approved_declared_files", sorted(plan_declared), sorted(declared_files)))
-    if not forbidden_paths:
-        errors.append(err("MISSING_FIELD", "TRACKER.json.approval.approved_forbidden_paths", "explicit forbidden paths", "missing"))
-    elif plan_forbidden and forbidden_paths != plan_forbidden:
-        errors.append(err("MISMATCH", "TRACKER.json.approval.approved_forbidden_paths", sorted(plan_forbidden), sorted(forbidden_paths)))
-    if generated_outputs and plan_generated and not generated_outputs.issubset(plan_generated):
-        errors.append(err("UNDECLARED_OUTPUT", "TRACKER.json.approval.approved_generated_outputs", sorted(plan_generated), sorted(generated_outputs)))
-    if not verification_ref or not plan_verification:
-        errors.append(err("MISSING_FIELD", "TRACKER.json.approval.verification_contract_ref", "verification contract matching PLAN.md", verification_ref or "missing"))
-
-    if integrity.get("status") != "verified":
-        errors.append(err("STALE", "TRACKER.json.integrity.status", "verified", integrity.get("status") or "missing"))
-
-    # BR descriptions are optional, but if tracker references them and embeds per-task metadata, they must not expand PLAN scope.
-    br_descriptions = tracker.get("br_descriptions") if isinstance(tracker.get("br_descriptions"), dict) else {}
-    for br_id in selected_br_tasks:
-        desc = br_descriptions.get(br_id)
-        if not desc:
-            continue
-        br_files = set(desc.get("declared_files") or [])
-        br_outputs = set(desc.get("generated_outputs") or [])
-        if br_files and declared_files and not br_files.issubset(declared_files):
-            errors.append(err("OUT_OF_SCOPE", f"TRACKER.json.br_descriptions.{br_id}.declared_files", sorted(declared_files), sorted(br_files)))
-        if br_outputs and generated_outputs and not br_outputs.issubset(generated_outputs):
-            errors.append(err("UNDECLARED_OUTPUT", f"TRACKER.json.br_descriptions.{br_id}.generated_outputs", sorted(generated_outputs), sorted(br_outputs)))
-
-    current_hashes = {
-        "context_hash": sha256_text(context_text or ""),
-        "plan_hash": sha256_text(plan_text or ""),
-    }
-    compare_hashes(current_hashes, baseline_hashes(integrity), errors)
-    status = output_status(errors, False)
-    approval_bearing_hash = current_hashes.get("context_hash")
-    return result(
-        status,
-        "standard",
-        feature_slug,
-        errors,
-        readiness=readiness_status,
-        approval_ref=approval_ref,
-        selected_execution_set_id=selected_set_id,
-        execution_mode=execution_mode,
-        approval_bearing_hash=approval_bearing_hash,
-        declared_files_status="complete" if declared_files and not any(e["path"].endswith("approved_declared_files") for e in errors) else "missing",
-        forbidden_paths_status="complete" if forbidden_paths and not any(e["path"].endswith("approved_forbidden_paths") for e in errors) else "missing",
-        generated_outputs_status="complete" if not any(e["code"] == "UNDECLARED_OUTPUT" for e in errors) else "invalid",
-        verification_contract_status="complete" if verification_ref and plan_verification else "missing",
-        machine_hashes=current_hashes,
-    )
-
-
-def apply_review_checks(payload: dict[str, Any], artifact_root: Path) -> dict[str, Any]:
-    errors = list(payload["errors"])
-    tracker, tracker_error = read_json(artifact_root / "TRACKER.json")
-    if tracker_error:
-        errors.append(tracker_error)
-    tracker = tracker or {}
-    execution = tracker.get("execution", {}) if isinstance(tracker.get("execution"), dict) else {}
-    review_packet = execution.get("review_packet", {}) if isinstance(execution.get("review_packet"), dict) else {}
-    verification_evidence = execution.get("verification_evidence") or review_packet.get("verification_evidence_refs") or []
-    ready_for_review = execution.get("ready_for_review") or review_packet.get("ready_for_review")
-    if not ready_for_review:
-        errors.append(err("MISSING_FIELD", "TRACKER.json.execution.ready_for_review", True, ready_for_review or "missing"))
-    if not verification_evidence:
-        errors.append(err("MISSING_FIELD", "TRACKER.json.execution.verification_evidence", "non-empty verification evidence", "missing"))
-    status = output_status(errors, payload["integrity"] == "unavailable")
-    payload = dict(payload)
-    payload["errors"] = errors
-    payload["integrity"] = status
-    payload["safe_for_execute"] = status == "verified" and payload.get("readiness") == "PASS_EXECUTE"
-    return payload
+    validate_approval_fields = {"readiness", "approval_ref", "integrity", "selected_execution_set", "execution_mode"}
+    validate_required = approval_field_ids()
+    for field in validate_required:
+        values.setdefault(field, None)
+    required = [field for field in validate_required if check != "validate" or field not in validate_approval_fields]
+    for field in required:
+        if missing_required_value(field, values.get(field)):
+            errors.append(err("MISSING_FIELD", field, "non-empty value", "missing"))
+    errors.extend(validate_projection_file_scope(values))
+    if density == "compact" and check in {"validate", "execute", "review"}:
+        errors.extend(validate_compact_density(values))
+    if check in {"validate", "execute", "review"}:
+        errors.extend(validate_human_gates(values.get("human_gates")))
+    if values.get("integrity") is not None:
+        errors.extend(validate_integrity(values.get("integrity")))
+    if check in {"execute", "review"}:
+        if values.get("readiness") != REQUIRED_READINESS:
+            errors.append(err("MISMATCH", "readiness", REQUIRED_READINESS, values.get("readiness")))
+        if integrity_status(values.get("integrity")) != "verified":
+            errors.append(err("MISMATCH", "integrity.status", "verified", integrity_status(values.get("integrity"))))
+        execution_mode = values.get("execution_mode")
+        if not isinstance(execution_mode, str) or execution_mode not in SUPPORTED_MODES:
+            errors.append(err("MISMATCH", "execution_mode", sorted(SUPPORTED_MODES), execution_mode))
+        selected = values.get("selected_execution_set")
+        if not missing_required_value("selected_execution_set", selected):
+            if not isinstance(selected, str) or selected not in execution_set_ids(values.get("execution_sets")):
+                errors.append(err("MISMATCH", "selected_execution_set", "execution_sets[].id", selected))
+        errors.extend(validate_approval_ref(values.get("approval_ref"), density, selected, execution_mode, hashes))
+        errors.extend(validate_changed_file_scope(values))
+    if check == "review":
+        if density == "compact":
+            for field in ["pre_execution_integrity_check", "changed_files", "verification_evidence", "review_status", "blocker"]:
+                if missing_non_empty_value(values.get(field)):
+                    errors.append(err("MISSING_FIELD", field, "non-empty value", "missing"))
+            if values.get("review_status") != "ready_for_review":
+                errors.append(err("MISMATCH", "review_status", "ready_for_review", values.get("review_status")))
+            if active_blocker(values.get("blocker")):
+                errors.append(err("MISMATCH", "blocker", "no active blockers", values.get("blocker")))
+            errors.extend(validate_pre_execution_integrity_check(values.get("pre_execution_integrity_check")))
+        else:
+            tracker, tracker_error = read_json(artifact_root / "TRACKER.json")
+            if tracker_error:
+                errors.append(tracker_error)
+            elif tracker is not None:
+                ledger_required = [
+                    "schema_version",
+                    "feature_slug",
+                    "artifact_root",
+                    "approval_ref_id",
+                    "ledger_status",
+                    "pre_execution_integrity_check",
+                    "selected_execution_set",
+                    "execution_mode",
+                    "items",
+                    "changed_files",
+                    "observations",
+                    "blockers",
+                    "scope_delta_requests",
+                    "repair_budget",
+                    "resume_point",
+                    "rollback_status",
+                ]
+                for field in ledger_required:
+                    if field in {"blockers", "observations", "scope_delta_requests"}:
+                        if field not in tracker:
+                            errors.append(err("MISSING_FIELD", f"TRACKER.json.{field}", "present list", "missing"))
+                        elif not isinstance(tracker.get(field), list):
+                            errors.append(err("MISSING_FIELD", f"TRACKER.json.{field}", "list", type(tracker.get(field)).__name__))
+                    elif missing_non_empty_value(tracker.get(field)):
+                        errors.append(err("MISSING_FIELD", f"TRACKER.json.{field}", "non-empty value", "missing"))
+                if tracker.get("schema_version") != "beo.execution_ledger.v1":
+                    errors.append(err("MISMATCH", "TRACKER.json.schema_version", "beo.execution_ledger.v1", tracker.get("schema_version")))
+                if tracker.get("ledger_status") != "ready_for_review":
+                    errors.append(err("MISMATCH", "TRACKER.json.ledger_status", "ready_for_review", tracker.get("ledger_status")))
+                if active_blocker(tracker.get("blockers")):
+                    errors.append(err("MISMATCH", "TRACKER.json.blockers", "no active blockers", tracker.get("blockers")))
+                if tracker.get("approval_ref_id") != approval_ref_id(values.get("approval_ref")):
+                    errors.append(err("MISMATCH", "TRACKER.json.approval_ref_id", approval_ref_id(values.get("approval_ref")), tracker.get("approval_ref_id")))
+                if tracker.get("selected_execution_set") != values.get("selected_execution_set"):
+                    errors.append(err("MISMATCH", "TRACKER.json.selected_execution_set", values.get("selected_execution_set"), tracker.get("selected_execution_set")))
+                if tracker.get("execution_mode") != values.get("execution_mode"):
+                    errors.append(err("MISMATCH", "TRACKER.json.execution_mode", values.get("execution_mode"), tracker.get("execution_mode")))
+                errors.extend(validate_pre_execution_integrity_check(tracker.get("pre_execution_integrity_check"), "TRACKER.json.pre_execution_integrity_check"))
+                values["changed_files"] = direct_key(tracker, "changed_files")
+                if missing_non_empty_value(values.get("changed_files")):
+                    errors.append(err("MISSING_FIELD", "TRACKER.json.changed_files", "non-empty value", "missing"))
+                errors.extend(validate_changed_file_scope(values))
+    status = "complete" if not errors else "invalid"
+    return build_payload(status, density, slug, errors, warnings, values, hashes)
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Compute read-only BEO approval/integrity evidence")
-    parser.add_argument("feature_slug", nargs="?", help="Feature slug; defaults to STATE.json active_feature")
-    parser.add_argument("--root", default=".", help="Repository root")
-    parser.add_argument("--feature", help="Feature slug (alternative to positional arg)")
-    parser.add_argument("--lane", choices=sorted(SUPPORTED_LANES), help="Lane override")
-    parser.add_argument("--artifact-root", help="Artifact root override")
-    parser.add_argument("--state", help="Path to STATE.json")
-    parser.add_argument("--check", choices=["validate", "execute", "review"], default="validate", help="Check intent mode")
-    parser.add_argument("--output-json", action="store_true", default=True, help="Output JSON to stdout (default)")
-    parser.add_argument("--strict", action="store_true", default=True, help="Fail closed on missing baselines and contradictions (default)")
-    try:
-        args = parser.parse_args()
-    except SystemExit as exc:
-        return 3 if exc.code else 0
+    class Parser(argparse.ArgumentParser):
+        def exit(self, status: int = 0, message: str | None = None) -> None:
+            if message:
+                self._print_message(message, sys.stderr)
+            raise SystemExit(3 if status == 2 else status)
 
-    root = Path(args.root).resolve()
-    state_path = Path(args.state).resolve() if args.state else root / ".beads" / "STATE.json"
-    state, _ = read_json(state_path)
-    state = state or {}
-    feature_slug = args.feature or args.feature_slug or state.get("active_feature") or state.get("feature_slug")
-    if args.feature and args.feature_slug and args.feature != args.feature_slug:
-        print("error: conflicting feature slug values", file=sys.stderr)
-        return 3
-    if not feature_slug:
-        payload = result("unavailable", args.lane or "standard", "", [err("MISSING_FIELD", "feature_slug", "non-empty slug", "missing")])
-        print(json.dumps(payload, indent=2, sort_keys=True))
-        return 2
-
-    artifact_root = Path(args.artifact_root).resolve() if args.artifact_root else root / ".beads" / "artifacts" / feature_slug
-    lane = args.lane
-    if not lane:
-        lane = "beo_tiny" if (artifact_root / "TICKET.md").exists() and not (artifact_root / "TRACKER.json").exists() else "standard"
-
-    payload = verify_tiny(feature_slug, artifact_root) if lane == "beo_tiny" else verify_standard(feature_slug, artifact_root)
-    if args.check == "review" and lane == "standard":
-        payload = apply_review_checks(payload, artifact_root)
-    print(json.dumps(payload, indent=2, sort_keys=True))
-    if payload["integrity"] == "verified" and payload["safe_for_execute"]:
+    parser = Parser(description="BEO approval checker (read-only, strict runtime mode)")
+    parser.add_argument("feature_slug", nargs="?")
+    parser.add_argument("--artifact-root", "--root", dest="artifact_root", type=Path, default=Path("."))
+    parser.add_argument("--check", choices=["validate", "execute", "review"], default="validate")
+    args = parser.parse_args()
+    payload = verify(args.artifact_root, args.feature_slug, args.check)
+    print(json.dumps(payload, indent=2))
+    if payload.get("approval_envelope_status") == "complete":
         return 0
-    if payload["integrity"] == "unavailable":
+    if payload.get("approval_envelope_status") == "unavailable":
         return 2
-    if payload["integrity"] in {"invalid", "stale"}:
-        return 1
     return 1
 
 

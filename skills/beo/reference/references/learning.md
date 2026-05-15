@@ -1,195 +1,60 @@
-# BEO Learning
+# Learning
 
-## Purpose
+Authority: canonical for post-runtime learning capture.
 
-BEO learning records observed workflow cases and turns repeated patterns into controlled skill improvements.
+## LEARN-01 Concrete Case Only
 
-## LEARN-01 — Learning is case-based
+A learning item must describe one concrete observed workflow case with provenance. Vague impressions are invalid.
 
-A learning item must be a concrete observed case, not a vague impression.
+Learning records use `beo.learning_case.v1` or `beo.learning_pattern.v1` from `registry/artifact-schemas.json`. Learning enum values come from `registry/learning-vocabulary.json`.
 
-## LEARN-02 — Compound records one case
+## LEARN-02 No Runtime Authority
 
-`beo-compound` records exactly one observed learning case or false case.
-It does not edit skills, shared doctrine, runtime artifacts, or product files.
+`beo-learn` cannot approve, unlock execution, mutate product files, emit verdict, route runtime delivery, or edit doctrine.
 
-## LEARN-03 — Dream consolidates repeated cases
+## LEARN-03 Record Home and Naming
 
-`beo-dream` consolidates at least two finalized cases that support the same recurring pattern, or acts when the user explicitly asks for consolidation.
-It does not edit skills, shared doctrine, runtime artifacts, or product files.
+Learning records live under `.beads/artifacts/<feature_slug>/learning/` unless an explicit corpus request names another destination.
 
-## LEARN-04 — Author performs selected skill changes
+Case filenames and IDs use `case-<feature_slug>-<short-topic>.yaml`. Pattern filenames and IDs use `pattern-<short-topic>.yaml`. Keep IDs stable once referenced.
 
-`beo-author` updates skills or creates new skills only from explicit user request or selected learning evidence.
-It does not perform runtime delivery or product implementation.
+Minimal case record:
 
-## LEARN-05 — No automatic self-modification
+```yaml
+schema_version: beo.learning_case.v1
+id: case-demo-owner-boundary
+case_status: finalized
+case_type: wrong-owner-selection
+feature_slug: demo
+source:
+  source_surface: REVIEW.md
+  source_pointer: "## Learning"
+observed_case: "Accepted review identified an owner-boundary confusion in one concrete demo workflow."
+affected_owner: beo-author
+runtime_status: runtime_complete
+created_at: "2026-05-14T00:00:00Z"
+```
 
-BEO must not automatically rewrite skills or doctrine during runtime delivery.
-Learning owners may recommend changes, but only `beo-author` may perform skill/doctrine edits.
+## LEARN-04 Consolidate Only Repeated Patterns
 
-## LEARN-06 — Runtime safety comes before learning
+A repeated-pattern consolidation requires at least two finalized learning cases that independently support the same recurring workflow issue.
 
-Learning routing is lower priority than runtime safety routing.
-If approval, scope, requirements, review, debug, route repair, or user blocking remains active, complete the required runtime handoff first.
-Route to `beo-compound` only after the safe runtime decision is complete.
+Authoring from one selected case is not pattern consolidation. It may only recommend a focused doctrine change for `beo-author` when the user explicitly selects that case or the accepted review section requests authoring.
 
-## LEARN-07 — Compound reads source evidence only
+## LEARN-05 Consolidation Source Boundaries
 
-`beo-compound` records one learning case from selected source evidence.
+Explicit consolidation may use finalized learning cases and accepted review learning sections. Exclude runtime-active, advisory, generated, or non-authoritative artifacts unless the user explicitly selects them as evidence.
 
-`beo-compound` requires `learning_source` provenance before reading any evidence. If `learning_source` is missing:
-- If runtime delivery is still active, compound is not yet the correct owner. Return to the active runtime owner.
-- If runtime delivery is complete or inactive, ask `user` or return to the calling owner for provenance clarification.
-- Do not infer provenance from memory.
-- Do not read `REVIEW.md` by default.
+## LEARN-06 Authoring Requires `beo-author`
 
-`REVIEW.md` is valid source evidence only when:
-- `beo-review` produced the learning case; or
-- the user explicitly selects `REVIEW.md` as the source evidence.
+Learning may recommend a doctrine change. Only `beo-author` may edit skills or reference doctrine, and only from explicit user request or selected evidence.
 
-For non-review learning cases, compound reads the actual source evidence:
-- debug output for debug-sourced cases;
-- validation output or approval/readiness surface for validate-sourced cases;
-- execution safe-stop/evidence output for execute-sourced cases;
-- route output for route-sourced cases;
-- selected user-provided case text for user-sourced cases.
-
-## LEARN-08 — Tiny provenance canonical surface
-
-For tiny lane:
-- `TICKET.md` Review/Closure `learning_source` is canonical.
-- `STATE.json.learning_source` may mirror it for handoff/navigation only.
-- If `TICKET.md` and `STATE.json` conflict, `TICKET.md` wins for tiny learning provenance.
-- Compound should read only the tagged tiny `TICKET.md` section or pointer.
-
-For standard lane:
-- `REVIEW.md` or the originating owner output is canonical when it contains the tagged evidence.
-- `STATE.json.learning_source` may mirror for handoff/navigation only.
-- If a standard artifact and STATE conflict, the artifact/source surface named by the calling owner wins.
-
-## Canonical provenance packet
-
-Minimum packet required before compound reads any evidence:
+## Minimal Learning Source
 
 ```yaml
 learning_source:
-  origin_owner: beo-review | beo-debug | beo-validate | beo-execute | beo-route | user
-  source_surface: REVIEW.md | TICKET.md | TRACKER.json | STATE.json | HANDOFF.json | owner_output | user_text
-  source_section_or_pointer: "<exact section, field path, or selected text pointer>"
-  case_type: wrong-owner-selection | unsafe-mutation-temptation | approval-scope-confusion | review-debug-confusion | human-gate-confusion | tiny-standard-confusion | route-identity-confusion | durable-workflow-learning | unclear-learning
-  case_status: candidate
-  affected_owner: "<owner most likely affected, or none>"
-  target_path: "<skill/reference path likely affected, or none>"
-  runtime_status: runtime_complete | runtime_active | user_blocked
+  source_surface: <REVIEW.md | TICKET.md | learning/case-*.yaml | user_text>
+  source_pointer: <exact section/field/path>
+  observed_case: <one concrete observed case>
+  affected_owner: <owner | none>
 ```
-
-Every route to compound must provide this provenance. Missing `learning_source` is a hard stop.
-
-## Learning case format
-
-```md
-# Learning Case: <case_slug>
-
-## Status
-case_status: candidate | finalized | consolidated | closed
-
-## What happened
-<One concrete observed false case or learning.>
-
-## What should have happened
-<Correct owner, action, hard stop, or rule behavior.>
-
-## Source evidence
-source_owner: beo-review | beo-debug | beo-validate | beo-execute | beo-route | user
-source_surface: REVIEW.md | TICKET.md | TRACKER.json | STATE.json | HANDOFF.json | owner_output | user_text
-source_section_or_pointer: "<exact section, field path, or selected text pointer>"
-
-## Evidence
-- Source owner:
-- Source surface:
-- Source sections read:
-- Observed:
-- Expected:
-- Rule or boundary involved:
-
-## Classification
-case_type: wrong-owner-selection | unsafe-mutation-temptation | approval-scope-confusion | review-debug-confusion | human-gate-confusion | tiny-standard-confusion | route-identity-confusion | durable-workflow-learning | unclear-learning
-affected_owner: beo-explore | beo-plan | beo-validate | beo-execute | beo-review | beo-debug | beo-route | beo-compound | beo-dream | beo-author | beo-setup | beo-reference | none
-target_path: <skill/reference path likely affected, or none>
-
-## Runtime status
-runtime_status: runtime_complete | runtime_active | user_blocked
-
-## Suggested target
-target_type: owner-skill | canonical-reference | new-skill | none
-candidate_action: none | update-existing-skill | create-new-skill | consolidate-later | needs-user-decision
-
-## Why this matters
-<workflow risk>
-
-## Recommendation
-<non-binding recommendation; no patch text>
-
-## Next
-next_owner: done | beo-dream | user
-```
-
-When `source_surface: REVIEW.md`, the learning case may cite only the review's learning case fields, findings, next owner, reason, and directly relevant evidence lines. It must not re-run review or change the verdict.
-
-## Consolidated pattern format
-
-```md
-# Learning Pattern: <pattern_slug>
-
-## Status
-pattern_status: candidate | ready-for-author | closed
-
-## Pattern
-<One recurring workflow failure or improvement opportunity.>
-
-## Supporting cases
-- `.beads/learnings/<case_1>.md`
-- `.beads/learnings/<case_2>.md`
-
-## Affected surface
-affected_owner: <owner or none>
-target_type: owner-skill | canonical-reference | new-skill | none
-target_path: <path or none>
-
-## Recommendation
-recommended_action: none | update-existing-skill | create-new-skill | user-decision
-
-## Why not direct edit
-Dream consolidates learning only. Skill or doctrine edits belong to `beo-author`.
-```
-
-## Learning is exceptional
-
-Learning is not part of the default delivery path.
-
-Use `beo-compound` only when all are true:
-
-- runtime safety decision is already complete
-- evidence shows one concrete workflow-learning case
-- canonical `learning_source` exists
-- learning is not being used to bypass repair, diagnosis, approval, or review
-
-If any condition is missing, close normally or return to the required runtime owner.
-
-Default closure after accept is `done`. Route to `beo-compound` only when:
-- concrete workflow-learning case exists
-- runtime decision is complete
-- canonical `learning_source` exists
-- no runtime owner still needs repair, diagnosis, approval, or verdict
-
-## Routing
-
-- no learning case -> done
-- one concrete case -> beo-compound -> done
-- repeated finalized cases -> beo-dream -> done
-- explicit skill update request -> beo-author -> done
-
-## Learning artifacts are never runtime authority
-
-Learning artifacts and learning-owner outputs are never runtime authority. They do not grant approval, refresh integrity, select execution sets, authorize mutation, emit verdicts, repair owner identity, or bypass Human Gates.

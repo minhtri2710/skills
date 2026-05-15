@@ -1,89 +1,104 @@
-# BEO Approval
+# Approval
 
-## APP-01 — Complete approval envelope required
+Authority: canonical human doctrine for approval, freshness, integrity, and helper authority.
 
-No product mutation may start unless current required surfaces prove:
+Only `beo-validate` may grant or refuse `PASS_EXECUTE`, write approval fields, select an execution set, or refresh approval.
 
-- `PASS_EXECUTE`
-- fresh `approval_ref`
-- selected execution set
-- supported execution mode (`single` or `ordered_batch`)
-- declared file scope
-- forbidden paths
-- verification contract
-- deterministic integrity pass (status: `verified`)
+For canonical terminology, see `beo-reference -> references/glossary.md`.
 
-Missing any field stops execution. `beo-execute` cannot infer or assume missing fields from chat, BR description, memory, display cards, or summaries.
+## Approval in one paragraph
 
-## APP-02 — Only validate grants approval
+`beo-validate` approves a normalized execution contract from the current requirement, scope, Human Gate, execution-set, verification, readiness, integrity, and mode fields. The approval ref records the approved snapshot. Helper output can prove whether current artifacts still match that approval, but the helper never grants approval. If any approval-bearing source changes, approval is stale until `beo-validate` refreshes or refuses it.
 
-Only `beo-validate` may grant or refresh execution approval. No other owner may emit `PASS_EXECUTE`, refresh approval, select execution sets, declare approval fresh, or turn chat approval into execution authority.
+| Term | Operator meaning | Machine surface |
+|---|---|---|
+| `PASS_EXECUTE` | validate says execute may act | `readiness` |
+| Approved execution contract | what validate approves | approval-envelope fields |
+| Approval ref | approved snapshot record | `approval_ref` |
+| Current helper verification | evidence current artifacts still match approval | `integrity` and helper output |
+| Authority block | parseable artifact truth | `beo.ticket.v1` / `beo.context.v1` / `beo.plan.v1` |
 
-## APP-03 — Approval becomes stale on approval-bearing changes
+## Approval model
 
-Approval becomes stale when approval-bearing content changes in `TICKET.md`, `CONTEXT.md`, `PLAN.md`, selected BR task descriptions, selected execution set, declared files, forbidden paths, generated outputs, verification contract, risk proof, rollback boundary, or required Human Gates.
+`PASS_EXECUTE` means the current approval-bearing projection is complete, internally consistent, Human Gates are resolved or `not_applicable`, an execution set is selected, integrity is verified, and no current required artifact contradicts the envelope.
 
-When approval becomes stale, the owner that caused staleness must clear readiness/approval mirrors or mark tracker/ticket approval and integrity stale.
+Approval binds the exact approval-bearing projection. If an approval-bearing source changes, approval is stale until `beo-validate` re-establishes it.
 
-## APP-04 — Chat, display cards, BR descriptions, STATE, summaries, and command output do not grant approval
+Execution/review evidence is not approval-bearing by default unless it reveals contradiction, scope change, forbidden path, unresolved Human Gate, or changed integrity basis.
 
-Execution approval exists only when the current approval surface records it. Chat messages, display cards, BR prose descriptions, `STATE.json` mirrors, summaries, fingerprint evidence, and command output are not approval.
+Human Gate status is approval-bearing; see `beo-reference -> references/decision-boundaries.md`.
 
-Command output does not grant approval.
+In compact shorthand, `PASS_EXECUTE` is evaluated against the derived approval-bearing projection, not the raw shorthand alone.
 
-Only `beo-validate` may grant approval from current required surfaces and permitted integrity evidence.
+## Approval-bearing projection
 
-A command name such as `bv` must not be interpreted as validation authority.
+The approval-bearing projection is the normalized set of current requirement, scope, Human Gate, execution-set, verification, readiness, integrity, and mode fields that `beo-validate` binds to approval. It excludes execution/review evidence unless that evidence exposes a contradiction or scope/integrity change.
 
-`approval_ref` is an identifier and evidence pointer. It is not permission by itself.
+Compact artifacts store shorthand; the helper derives the approval-bearing projection. Full artifacts bind the corresponding canonical fields from `CONTEXT.md` and `PLAN.md`.
 
-## APP-05 — Approval covers exactly one selected execution set
+`PASS_EXECUTE` requires structured authority blocks. Documented markdown sections may orient compact draft work, but they cannot satisfy approval-bearing checks or produce current approval/integrity evidence without a `beo.ticket.v1` authority block. Helper diagnostics may detect markdown-only drafts only to report the missing block; they must not derive approval fields from markdown headings.
 
-Approval is valid only for the selected execution set recorded at approval time. If the selected set is missing, changed, or contradicts `PLAN.md`, approval is invalid.
+Authority YAML is the BEO subset: objects, lists, strings, numbers, booleans, and null. Anchors, aliases, custom tags, and non-subset YAML features are invalid for authority blocks.
 
-## APP-06 — Ordered batch stops on first blocked bead
+## Approval ref
 
-For `ordered_batch` execution, stop on the first blocked bead. Do not continue to unaffected beads.
+Target `approval_ref` shape:
 
-## Current approval surfaces
+```yaml
+approval_ref:
+  id: approval-<id>
+  schema_version: beo.approval_ref.v1
+  approved_by_owner: beo-validate
+  approved_at: <RFC3339 UTC>
+  artifact_density: compact | full
+  selected_execution_set: <id>
+  execution_mode: normal
+  approval_projection_rule: compact_shorthand_derived | full_plan_explicit
+  envelope_hash: sha256:<hash>
+  artifact_hashes:
+    approval_bearing_projection: sha256:<hash>
+```
 
-Tiny:
-- `TICKET.md` Approval section
+`approval_ref.artifact_hashes.approval_bearing_projection` is the approved snapshot hash. The `integrity` object records helper evidence for a check; it does not replace the approved snapshot hash.
 
-Standard:
-- `TRACKER.json.readiness`
-- `TRACKER.json.approval`
-- `TRACKER.json.integrity`
+## Integrity
 
-Approval is invalid if any selected-set field is missing, stale, unsupported, contradictory, unavailable, or outside scope.
+Target `integrity` shape:
 
-## Stale approval quick table
+```yaml
+integrity:
+  status: verified | invalid | unavailable
+  evidence_ref: beo_approval_check:<run-id>
+```
 
-| Situation | Product mutation happened? | Root cause proven? | Next owner |
-| --- | --- | --- | --- |
-| Approval/integrity stale before first mutation | no | N/A | `beo-validate` if envelope unchanged; `beo-plan` if plan/scope/verification/BR changed |
-| Approval/integrity stale after mutation begins | yes | yes | `beo-review` if evidence can be finalized; otherwise `beo-plan` |
-| Approval/integrity stale after mutation begins | yes | no | `beo-debug` with return owner anchored |
-| Selected execution set missing/stale | no | N/A | `beo-validate` |
-| Scope outside approved envelope discovered | maybe | yes/no | stop; route by evidence to `beo-plan`, `beo-review`, or `beo-debug` |
+`evidence_ref` is required when `status: verified`.
 
-## Stale after mutation handling
+Artifact-recorded `integrity.status` documents a previous check only. It is not live execution authority. `beo-execute` must call `beo_approval_check` fresh before mutation, and only live helper output with `approval_envelope_status: complete` permits mutation.
 
-If approval/integrity becomes stale after product mutation began:
+Execution evidence must record:
 
-1. Stop further mutation.
-2. Preserve execution evidence.
-3. Record what changed and when staleness was discovered.
-4. If changed files are inside approved declared scope and root cause is proven, finalize evidence and route to `beo-review` or `beo-plan` by finding.
-5. If root cause is unproven, route to `beo-debug` with return owner anchored.
-6. Never silently refresh approval from execute.
+```yaml
+pre_execution_integrity_check:
+  helper: beo_approval_check
+  evidence_ref: beo_approval_check:<run-id>
+  approval_envelope_status: complete | invalid | unavailable
+```
 
-Rollback boundary and generated outputs are approval-bearing. Changing either stales approval.
+## Freshness
 
-## User authorization is not execution approval
+Missing, stale, invalid, contradictory, or unavailable approval/integrity blocks `PASS_EXECUTE`.
 
-User authorization, UAT, access, secret, legal, or business approval can satisfy a Human Gate, but only `beo-validate` creates execution approval. Approval and UAT gates never fallback to go-mode (HG-01).
+Approval remains current only while the approval-bearing projection, selected execution set, execution mode, integrity basis, and Human Gate status remain unchanged.
 
-## Learning non-authority
+## Repair and rollback approval
 
-Learning has no runtime authority; see `references/learning.md`.
+Repair and rollback are selected execution sets with `kind: repair` or `kind: rollback`. They require normal `beo-plan -> beo-validate -> beo-execute` approval. No repair path preserves or bypasses approval outside selected execution-set approval.
+
+## Machine integrity
+
+The exact projection fields, hash inputs, approval ref shape, and helper checks are defined by:
+- `beo-reference -> registry/approval-envelope.json`
+- `beo-reference -> registry/artifact-schemas.json`
+- `beo-reference -> scripts/beo_approval_check.py`
+
+The helper is read-only evidence. It cannot grant approval, refresh approval, authorize mutation, select execution sets, override artifacts, or downgrade fail-closed conditions.

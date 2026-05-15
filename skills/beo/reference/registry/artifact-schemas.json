@@ -1,0 +1,333 @@
+{
+  "$schema": "./registry.schema.json#/definitions/artifact-schemas",
+  "shared_shapes": {
+    "human_gate_shape": {
+      "status": "resolved | unresolved | not_applicable",
+      "gates": [
+        {
+          "id": "HG-1",
+          "type": "clarification | choice | authorization | secret | execution_preview",
+          "question": "<human-facing decision>",
+          "affects": [
+            "scope",
+            "acceptance",
+            "security",
+            "access",
+            "business",
+            "approval"
+          ],
+          "resolution_status": "resolved | unresolved",
+          "resolution_ref": "<artifact section | user message ref | env:HANDLE>",
+          "notes": "<optional, no secrets>"
+        }
+      ]
+    }
+  },
+  "artifact_densities": {
+    "compact": {
+      "artifact_set": [
+        "FEATURE.json",
+        "HANDOFF.json",
+        "TICKET.md"
+      ],
+      "authority_blocks": [
+        "yaml beo.ticket.v1"
+      ],
+      "phase_sections": {
+        "explore": {
+          "owner": "beo-explore",
+          "required_after_owner_exit": [
+            "artifact_density",
+            "owner",
+            "request",
+            "done",
+            "human_gates"
+          ],
+          "optional": [
+            "assumptions",
+            "non_goals",
+            "constraints"
+          ]
+        },
+        "plan": {
+          "owner": "beo-plan",
+          "required_after_owner_exit": [
+            "scope.files.allow",
+            "scope.files.forbid",
+            "scope.item",
+            "scope.verify"
+          ],
+          "derived_approval_projection": {
+            "declared_files": "scope.files.allow",
+            "forbidden_paths": "scope.files.forbid",
+            "generated_outputs": "not_applicable unless specified",
+            "non_goal_constraints": "non_goals or [] when absent",
+            "risk_scope": "not_applicable unless specified",
+            "rollback_boundary": "not_applicable unless specified",
+            "execution_sets": [
+              {
+                "id": "set-1",
+                "items": [
+                  {
+                    "id": "item-1",
+                    "description": "scope.item"
+                  }
+                ],
+                "kind": "normal",
+                "files": "scope.files.allow"
+              }
+            ],
+            "acceptance_criteria": "done",
+            "verification_contract": "scope.verify"
+          }
+        },
+        "approval": {
+          "owner": "beo-validate",
+          "required_for_PASS_EXECUTE": [
+            "readiness",
+            "approval_ref",
+            "integrity",
+            "selected_execution_set",
+            "execution_mode"
+          ]
+        },
+        "execution": {
+          "owner": "beo-execute",
+          "required_for_ready_for_review": [
+            "pre_execution_integrity_check",
+            "changed_files",
+            "verification_evidence",
+            "review_status",
+            "blocker"
+          ]
+        },
+        "review": {
+          "owner": "beo-review",
+          "required_after_terminal_review": [
+            "verdict",
+            "evidence",
+            "findings",
+            "closure"
+          ],
+          "optional": [
+            "learning"
+          ]
+        }
+      }
+    },
+    "full": {
+      "artifact_set": [
+        "FEATURE.json",
+        "CONTEXT.md",
+        "PLAN.md",
+        "TRACKER.json",
+        "REVIEW.md",
+        "HANDOFF.json"
+      ],
+      "authority_blocks": [
+        "yaml beo.context.v1",
+        "yaml beo.plan.v1",
+        "yaml beo.review_decision.v1"
+      ],
+      "phase_sections": {
+        "explore": {
+          "owner": "beo-explore",
+          "artifact": "CONTEXT.md",
+          "required_after_owner_exit": [
+            "artifact_density",
+            "owner",
+            "request",
+            "done",
+            "human_gates"
+          ],
+          "optional": [
+            "assumptions",
+            "non_goals",
+            "constraints"
+          ]
+        },
+        "plan": {
+          "owner": "beo-plan",
+          "artifact": "PLAN.md",
+          "required_after_owner_exit": [
+            "declared_files",
+            "forbidden_paths",
+            "generated_outputs",
+            "non_goal_constraints",
+            "risk_scope",
+            "rollback_boundary",
+            "execution_sets",
+            "acceptance_criteria",
+            "verification_contract"
+          ]
+        },
+        "approval": {
+          "owner": "beo-validate",
+          "artifact": "PLAN.md#Approval",
+          "required_for_PASS_EXECUTE": [
+            "readiness",
+            "approval_ref",
+            "integrity",
+            "selected_execution_set",
+            "execution_mode"
+          ]
+        },
+        "execution": {
+          "owner": "beo-execute",
+          "artifact": "TRACKER.json",
+          "required_for_ready_for_review": [
+            "schema_version",
+            "feature_slug",
+            "artifact_root",
+            "approval_ref_id",
+            "ledger_status",
+            "pre_execution_integrity_check",
+            "selected_execution_set",
+            "execution_mode",
+            "items",
+            "changed_files",
+            "observations",
+            "blockers",
+            "scope_delta_requests",
+            "repair_budget",
+            "resume_point",
+            "rollback_status"
+          ]
+        },
+        "review": {
+          "owner": "beo-review",
+          "artifact": "REVIEW.md",
+          "required_after_terminal_review": [
+            "verdict",
+            "evidence",
+            "findings",
+            "closure"
+          ],
+          "optional": [
+            "learning"
+          ]
+        }
+      }
+    }
+  },
+  "manifest_schema": {
+    "file": "FEATURE.json",
+    "schema_version": "beo.feature_manifest.v1",
+    "required": [
+      "schema_version",
+      "beo_contract_version",
+      "feature_slug",
+      "artifact_root",
+      "artifact_density",
+      "lifecycle_status",
+      "current_owner",
+      "created_at",
+      "updated_at",
+      "artifacts"
+    ],
+    "canonical_artifact_root": ".beads/artifacts/<feature_slug>",
+    "mixed_density_policy": "fail_closed"
+  },
+  "ledger_schema": {
+    "file": "TRACKER.json",
+    "schema_version": "beo.execution_ledger.v1",
+    "required": [
+      "schema_version",
+      "feature_slug",
+      "artifact_root",
+      "approval_ref_id",
+      "selected_execution_set",
+      "execution_mode",
+      "ledger_status",
+      "pre_execution_integrity_check",
+      "items",
+      "changed_files",
+      "observations",
+      "blockers",
+      "scope_delta_requests",
+      "repair_budget",
+      "resume_point",
+      "rollback_status"
+    ]
+  },
+  "handoff_schema": {
+    "file": "HANDOFF.json",
+    "schema_version": "beo.handoff.v1",
+    "required": [
+      "schema_version",
+      "feature_slug",
+      "artifact_root",
+      "from_owner",
+      "to_owner",
+      "condition_id",
+      "created_at",
+      "required_reads"
+    ]
+  },
+  "debug_diagnosis_schema": {
+    "artifact_target": "feature artifact root DEBUG_DIAGNOSIS.md or debug-diagnosis-<id>.json",
+    "schema_version": "beo.debug_diagnosis.v1",
+    "required": [
+      "schema_version",
+      "id",
+      "feature_slug",
+      "created_by_owner",
+      "created_at",
+      "assigned_question",
+      "diagnosis_status",
+      "evidence_refs",
+      "recommended_next_owner"
+    ]
+  },
+  "learning_case_schema": {
+    "schema_version": "beo.learning_case.v1",
+    "required": [
+      "schema_version",
+      "id",
+      "case_status",
+      "case_type",
+      "feature_slug",
+      "source",
+      "observed_case",
+      "affected_owner",
+      "runtime_status",
+      "created_at"
+    ],
+    "vocabulary_ref": "learning-vocabulary.json"
+  },
+  "learning_pattern_schema": {
+    "schema_version": "beo.learning_pattern.v1",
+    "required": [
+      "schema_version",
+      "id",
+      "pattern_status",
+      "supporting_case_ids",
+      "recurring_issue",
+      "affected_surfaces",
+      "authoring_recommendation",
+      "created_at"
+    ],
+    "vocabulary_ref": "learning-vocabulary.json"
+  },
+  "execution_set_schema": {
+    "kind": [
+      "normal",
+      "repair",
+      "rollback"
+    ],
+    "repair_constraint": "execution_set.files must be a subset of declared_files",
+    "rollback_constraint": "rollback execution sets require rollback_from_execution_set"
+  },
+  "pre_execution_integrity_check_schema": {
+    "required": [
+      "helper",
+      "evidence_ref",
+      "approval_envelope_status"
+    ],
+    "approval_envelope_status": [
+      "complete",
+      "invalid",
+      "unavailable"
+    ]
+  }
+}

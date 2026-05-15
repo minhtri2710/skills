@@ -1,0 +1,185 @@
+{
+  "$schema": "./registry.schema.json#/definitions/core-vocabulary",
+  "description": "Single canonical source for current BEO runtime enum values. No aliases or compatibility shims.",
+  "runtime_owners": [
+    "beo-explore",
+    "beo-plan",
+    "beo-validate",
+    "beo-execute",
+    "beo-review",
+    "beo-debug",
+    "beo-route",
+    "beo-learn",
+    "beo-author",
+    "beo-setup"
+  ],
+  "owner_classes": {
+    "runtime_delivery": [
+      "beo-explore",
+      "beo-plan",
+      "beo-validate",
+      "beo-execute",
+      "beo-review"
+    ],
+    "runtime_support": [
+      "beo-debug",
+      "beo-route"
+    ],
+    "utility": [
+      "beo-reference"
+    ],
+    "maintenance": [
+      "beo-author",
+      "beo-learn",
+      "beo-setup"
+    ]
+  },
+  "utilities": [
+    "beo-reference"
+  ],
+  "terminal_targets": [
+    "done",
+    "user"
+  ],
+  "meta_targets": [
+    "return_to_caller",
+    "restored_owner"
+  ],
+  "artifact_density": [
+    "compact",
+    "full"
+  ],
+  "artifact_density_output": [
+    "compact",
+    "full",
+    "unknown"
+  ],
+  "readiness": [
+    "PASS_EXECUTE",
+    "FAIL_PLAN",
+    "FAIL_EXPLORE",
+    "BLOCK_USER",
+    "FAIL_STATE"
+  ],
+  "execution_mode": [
+    "normal"
+  ],
+  "review_status": [
+    "ready_for_review"
+  ],
+  "verdict": [
+    "accept",
+    "fix",
+    "reject"
+  ],
+  "field_status": [
+    "complete",
+    "missing"
+  ],
+  "route_defect_types": [
+    "contradictory_owner",
+    "colliding_predicates",
+    "feature_collision",
+    "unsafe_stale_identity",
+    "missing_owner_with_no_canonical_artifact_owner"
+  ],
+  "human_gate_type": [
+    "clarification",
+    "choice",
+    "authorization",
+    "secret",
+    "execution_preview"
+  ],
+  "human_gate_affects": [
+    "scope",
+    "acceptance",
+    "security",
+    "access",
+    "business",
+    "approval"
+  ],
+  "human_gate_status": [
+    "unresolved",
+    "resolved",
+    "not_applicable"
+  ],
+  "lifecycle_status": [
+    "active",
+    "closed",
+    "reopened",
+    "abandoned"
+  ],
+  "ledger_status": [
+    "not_started",
+    "in_progress",
+    "blocked",
+    "ready_for_review",
+    "rolled_back",
+    "abandoned"
+  ],
+  "item_status": [
+    "pending",
+    "in_progress",
+    "applied",
+    "blocked",
+    "skipped",
+    "rolled_back"
+  ],
+  "execution_set_kind": [
+    "normal",
+    "repair",
+    "rollback"
+  ],
+  "rollback_boundary": [
+    "not_applicable",
+    "revert_declared_file_changes",
+    "manual_user_decision_required",
+    "impossible_destructive"
+  ],
+  "proof_status": [
+    "proven",
+    "inconclusive"
+  ],
+  "debug_unblock_class": [
+    "bounded_plan_repair",
+    "user_owned",
+    "return_to_caller",
+    "inconclusive"
+  ],
+  "command_authority": [
+    "none",
+    "navigation",
+    "evidence",
+    "integrity_evidence",
+    "artifact_mutation",
+    "product_mutation"
+  ],
+  "command_contract_status": [
+    "unavailable",
+    "contracted"
+  ],
+  "approval_envelope_status": [
+    "complete",
+    "invalid",
+    "unavailable"
+  ],
+  "style_forbidden_aliases": {
+    "tiny": "invalid",
+    "micro": "invalid",
+    "small": "invalid",
+    "beo_standard": "invalid",
+    "PASSEXECUTE": "use PASS_EXECUTE",
+    "pass": "invalid",
+    "fail": "invalid",
+    "ok": "invalid",
+    "valid": "use verified only for integrity",
+    "clean": "invalid",
+    "pending": "invalid as verdict, review status, or debug lifecycle; valid only as item_status",
+    "not-started": "invalid"
+  },
+  "integrity_status": [
+    "verified",
+    "invalid",
+    "unavailable"
+  ]
+}

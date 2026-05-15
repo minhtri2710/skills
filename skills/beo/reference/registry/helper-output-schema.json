@@ -1,0 +1,51 @@
+{
+  "$schema": "./registry.schema.json#/definitions/helper-output-schema",
+  "fields": {
+    "feature_slug": {
+      "required": true
+    },
+    "artifact_density": {
+      "required": true,
+      "allowed_values_ref": "artifact_density_output"
+    },
+    "readiness_seen": {
+      "required": true
+    },
+    "integrity": {
+      "required": true
+    },
+    "approval_ref_seen": {
+      "required": true
+    },
+    "selected_execution_set_seen": {
+      "required": true
+    },
+    "execution_mode_seen": {
+      "required": true
+    },
+    "pre_execution_integrity_check_seen": {
+      "required": true
+    },
+    "approval_envelope_complete": {
+      "required": true
+    },
+    "approval_envelope_status": {
+      "required": true
+    },
+    "field_status": {
+      "required": true
+    },
+    "machine_hashes": {
+      "required": true
+    },
+    "errors": {
+      "required": true
+    },
+    "warnings": {
+      "required": true
+    },
+    "integrity_status_seen": {
+      "required": true
+    }
+  }
+}
