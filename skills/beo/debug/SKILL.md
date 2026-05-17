@@ -1,85 +1,50 @@
 ---
 name: beo-debug
-description: |
-  Proves one blocker root cause. Use when root cause is unproven and mutation or verdicting would be unsafe without diagnosis. Not for patching, approval, execution, planning, or terminal review verdicts.
+description: Proves one BEO blocker root cause without patching or approving.
 ---
 
 # beo-debug
 
-## Purpose
-
-Prove one blocker root cause and return diagnosis evidence only.
-
-## Decision Card
-
-Decision: prove one blocker root cause.
-
-Can enter when:
-- one concrete blocker/root-cause question is assigned
-
-Can write:
-- debug diagnosis artifact and allowed owner-owned handoff metadata
-
-Must stop when:
-- entry evidence is stale/contradictory or runtime debug lacks caller provenance for `return_to_caller`
-
-Exit summary (non-authoritative):
-- `root_cause_proven` -> `return_to_caller`
-- `diagnosis_inconclusive` -> `user`
-- `blocker_is_user_owned` -> `user`
-
-Never:
-- patch, mutate product files, approve, select execution sets, or emit terminal verdicts
-
-Reads:
-- current artifacts, blocker evidence, state, and pipeline
-
-## Contract
-
 Before acting, load and obey `beo-reference -> references/skill-contract-common.md`.
 
-Acts when:
-- one concrete blocker/root-cause question is assigned
+## Decision
 
-Owns:
-- diagnosis, causal proof, and unblock classification
+Prove one blocker root cause without patching.
 
-Local stops:
-- owner-specific entry evidence is missing, stale, contradictory, or out of scope
-- runtime debug lacks fresh caller provenance required for `return_to_caller`
+## Enter
 
-Writes:
-- debug diagnosis artifact conforming to `beo.debug_diagnosis.v1`, plus owner-owned handoff metadata when allowed; no patches or other artifact authority
+- One concrete blocker question is assigned.
+- Transition provenance exists when temporary-owner return is expected.
 
-Reads:
-- current artifacts, blocker evidence, bounded targeted read-only probes, `beo-reference -> references/state.md`, `beo-reference -> registry/pipeline.json`
+## Owns
 
-Local forbids:
-- patch text, product mutation, approval, execution-set selection, terminal verdicts
+- Diagnosis.
+- Causal proof.
+- Evidence collection.
+- Unblock classification.
 
-Exits:
+## Writes
+
+- Debug diagnosis artifact.
+- Allowed handoff metadata.
+
+## Stops
+
+- Blocker evidence is missing, stale, contradictory, or out of scope.
+- Return provenance is missing, stale, contradictory, or illegal.
+- Out-of-scope mutation is requested.
+
+## Exits
+
 - `root_cause_proven` -> `return_to_caller`
 - `diagnosis_inconclusive` -> `user`
 - `blocker_is_user_owned` -> `user`
+- `user_abandoned` -> `done`
 
-## Diagnosis Output
+## Method
 
-Write concise diagnosis evidence at the feature artifact root as `DEBUG_DIAGNOSIS.md` or `debug-diagnosis-<id>.json`; either form must carry `schema_version: beo.debug_diagnosis.v1` and the required fields in `beo-reference -> registry/artifact-schemas.json`.
-
-```yaml
-schema_version: beo.debug_diagnosis.v1
-id: debug-diagnosis-<id>
-feature_slug: <feature_slug>
-created_by_owner: beo-debug
-created_at: <RFC3339 UTC timestamp>
-assigned_question: <one blocker/root-cause question>
-diagnosis_status: <root_cause_proven | diagnosis_inconclusive | blocker_is_user_owned>
-evidence_refs:
-  - <artifact/path/command/probe ref>
-recommended_next_owner: <return_to_caller | user>
-notes: <optional bounded note>
-```
-
-For bounded plan repair, set `recommended_next_owner: return_to_caller`; the caller decides the legal repair owner from the pipeline.
-
-Use no more than three targeted read-only probes before reporting unless the caller explicitly authorizes more probes or the assigned debug budget already allows them.
+1. Restate the assigned blocker question.
+2. Validate transition provenance before relying on `return_to_caller`.
+3. Use no more than three bounded read-only probes unless the caller explicitly authorizes more probes.
+4. Record evidence and diagnosis status.
+5. Emit exactly one legal condition; meta-target resolution follows `beo-reference -> references/transition-provenance.md`.

@@ -1,34 +1,40 @@
 # Skill Contract Common
 
-Authority: canonical for shared owner boundaries.
+Authority: canonical shared contract inherited by every BEO owner. Global invariants live in `beo-reference -> references/protocol-core.md`.
 
-Runtime owner `SKILL.md` files must load and obey this contract before acting, and should keep only local entry conditions, ownership, writable surfaces, local stops/forbids, and explicit legal exits.
+## Load order
 
-## Skill must be loaded to act
+Before any owner mutation, load:
 
-A BEO skill's `SKILL.md` must be loaded before any mutation owned by that skill. STATE/HANDOFF can orient but cannot authorize action by itself.
+1. active owner `SKILL.md`;
+2. this common contract;
+3. `beo-reference -> references/protocol-core.md`;
+4. current required artifacts for the active density;
+5. `beo-reference -> registry/pipeline.json` before checking or emitting a `condition_id`.
 
-## Common Authority Rule
+A BEO skill must be loaded before any mutation owned by that skill. STATE/HANDOFF orient only; they do not authorize action.
 
-Human-readable artifact text may orient work, but approval-bearing or owner-bearing decisions require the current structured authority block for that density. Compact uses one `beo.ticket.v1` authority block in `TICKET.md`; full uses the canonical owner surfaces named in `references/artifacts.md`.
+## Owner exclusivity
 
-## Common Forbidden Actions
+Each owner decides only the phase named in its contract and writes only its owned surfaces. Approval-bearing or owner-bearing decisions require the current structured authority block for the artifact density named in `beo-reference -> references/artifacts.md`.
 
-Unless explicitly owned by the loaded skill:
-- do not mutate product files;
-- do not mutate another owner’s artifact section;
-- do not grant or refresh approval;
-- do not select execution sets;
-- do not emit terminal verdicts;
-- do not route by STATE alone;
-- do not treat helper output as authority;
-- do not preserve compatibility shims or old aliases.
+## Shared write boundary
 
-## Common Stop Conditions
+Unless explicitly owned by the loaded skill, do not mutate product files, another owner's artifact section, approval, selected execution sets, terminal verdicts, route identity, helper output, or compatibility aliases.
 
-Stop when owner identity is unsafe, required current artifacts or structured authority blocks are missing or contradictory, approval/integrity is missing/stale/invalid/unavailable for execution, Human Gates are unresolved outside the owner that records or resolves Human Gate status, the requested mutation is outside writable surfaces, or a handoff would cross owner boundaries without a legal transition.
+## Freshness and fail-closed rule
 
-When stopping, report the next action in this shape:
+Reload current artifacts immediately before approval/refusal, product mutation, terminal verdict, owner identity repair, lifecycle closure, Human Gate resolution, or resume after interruption. Missing, stale, contradictory, invalid, or unavailable authority fails closed.
+
+## Handoff rule
+
+A phase can hand off only by emitting exactly one legal `condition_id` from the active owner contract and `registry/pipeline.json`. Owner-to-owner handoffs must include transition provenance as defined in `beo-reference -> references/transition-provenance.md`.
+
+When the legal condition is `user_abandoned`, the current owner may write only the abandonment lifecycle bookkeeping defined in `beo-reference -> references/lifecycle.md` while emitting the terminal transition. This exception does not permit product mutation, approval, review verdicts, or non-abandonment closure writes.
+
+## Common stop output
+
+When stopping, report:
 
 ```text
 Cannot continue because: <reason>
@@ -37,7 +43,3 @@ Legal next owner/source: <owner | user | canonical reference>
 Required read/evidence: <artifact section, registry, or helper output>
 Writable surface now: <surface | none>
 ```
-
-## Common Exit Rule
-
-Owner files may name legal condition IDs, but `beo-reference -> registry/pipeline.json` is the only transition topology.

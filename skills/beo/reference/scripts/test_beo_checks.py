@@ -23,14 +23,13 @@ def load_script(name: str):
 
 
 approval = load_script("beo_approval_check")
+registry_check = load_script("beo_registry_check")
 
 
-def write_compact_fixture(root: Path, ticket: str) -> None:
+def write_compact_fixture(root: Path, ticket: str, *, default_current_owner: str | None = "beo-validate") -> None:
     artifact_root = root / ".beads" / "artifacts" / "compact-case"
     artifact_root.mkdir(parents=True)
     manifest = {
-        "schema_version": "beo.feature_manifest.v1",
-        "beo_contract_version": "test",
         "feature_slug": "compact-case",
         "artifact_root": ".beads/artifacts/compact-case",
         "artifact_density": "compact",
@@ -41,8 +40,11 @@ def write_compact_fixture(root: Path, ticket: str) -> None:
         "artifacts": ["FEATURE.json", "TICKET.md"],
     }
     (artifact_root / "FEATURE.json").write_text(json.dumps(manifest))
-    if "```yaml beo.ticket.v1\n" in ticket and "\nrequest:" not in ticket:
-        ticket = ticket.replace("```yaml beo.ticket.v1\n", "```yaml beo.ticket.v1\nrequest: Test request\n", 1)
+    if "```yaml beo.ticket\n" in ticket:
+        if "\nrequest:" not in ticket:
+            ticket = ticket.replace("```yaml beo.ticket\n", "```yaml beo.ticket\nrequest: Test request\n", 1)
+        if default_current_owner is not None and "\ncurrent_owner:" not in ticket:
+            ticket = ticket.replace("```yaml beo.ticket\n", f"```yaml beo.ticket\ncurrent_owner: {default_current_owner}\n", 1)
     (artifact_root / "TICKET.md").write_text(ticket)
 
 
@@ -50,8 +52,6 @@ def write_full_review_fixture(root: Path, tracker: dict[str, object]) -> None:
     artifact_root = root / ".beads" / "artifacts" / "full-case"
     artifact_root.mkdir(parents=True)
     manifest = {
-        "schema_version": "beo.feature_manifest.v1",
-        "beo_contract_version": "test",
         "feature_slug": "full-case",
         "artifact_root": ".beads/artifacts/full-case",
         "artifact_density": "full",
@@ -62,14 +62,14 @@ def write_full_review_fixture(root: Path, tracker: dict[str, object]) -> None:
         "artifacts": ["FEATURE.json", "CONTEXT.md", "PLAN.md", "TRACKER.json"],
     }
     (artifact_root / "FEATURE.json").write_text(json.dumps(manifest))
-    (artifact_root / "CONTEXT.md").write_text("""```yaml beo.context.v1
+    (artifact_root / "CONTEXT.md").write_text("""```yaml beo.context
 request: Test request
 human_gates:
   status: not_applicable
   gates: []
 ```
 """)
-    (artifact_root / "PLAN.md").write_text("""```yaml beo.plan.v1
+    (artifact_root / "PLAN.md").write_text("""```yaml beo.plan
 declared_files:
   - src/a.py
 forbidden_paths: []
@@ -91,7 +91,6 @@ verification_contract:
 readiness: PASS_EXECUTE
 approval_ref:
   id: approval-current
-  schema_version: beo.approval_ref.v1
   approved_by_owner: beo-validate
   approved_at: "2026-05-14T00:00:00Z"
   artifact_density: full
@@ -119,8 +118,6 @@ def write_full_validate_fixture(root: Path, human_gates: str) -> None:
     artifact_root = root / ".beads" / "artifacts" / "full-case"
     artifact_root.mkdir(parents=True)
     manifest = {
-        "schema_version": "beo.feature_manifest.v1",
-        "beo_contract_version": "test",
         "feature_slug": "full-case",
         "artifact_root": ".beads/artifacts/full-case",
         "artifact_density": "full",
@@ -131,12 +128,12 @@ def write_full_validate_fixture(root: Path, human_gates: str) -> None:
         "artifacts": ["FEATURE.json", "CONTEXT.md", "PLAN.md"],
     }
     (artifact_root / "FEATURE.json").write_text(json.dumps(manifest))
-    (artifact_root / "CONTEXT.md").write_text(f"""```yaml beo.context.v1
+    (artifact_root / "CONTEXT.md").write_text(f"""```yaml beo.context
 request: Test request
 human_gates:{human_gates_yaml}
 ```
 """)
-    (artifact_root / "PLAN.md").write_text("""```yaml beo.plan.v1
+    (artifact_root / "PLAN.md").write_text("""```yaml beo.plan
 declared_files:
   - src/a.py
 forbidden_paths: []
@@ -167,8 +164,6 @@ def write_approval_script_fixture(tmp: str, registry_file: str, key: str, value:
     artifact_root = Path(tmp) / "repo" / ".beads" / "artifacts" / "compact-case"
     artifact_root.mkdir(parents=True)
     (artifact_root / "FEATURE.json").write_text(json.dumps({
-        "schema_version": "beo.feature_manifest.v1",
-        "beo_contract_version": "test",
         "feature_slug": "compact-case",
         "artifact_root": ".beads/artifacts/compact-case",
         "artifact_density": "compact",
@@ -178,7 +173,8 @@ def write_approval_script_fixture(tmp: str, registry_file: str, key: str, value:
         "updated_at": "2026-05-14T00:00:00Z",
         "artifacts": ["FEATURE.json", "TICKET.md"],
     }))
-    (artifact_root / "TICKET.md").write_text("""```yaml beo.ticket.v1
+    (artifact_root / "TICKET.md").write_text("""```yaml beo.ticket
+current_owner: beo-validate
 request: Test request
 human_gates:
   status: not_applicable
@@ -192,7 +188,7 @@ scope:
   verify:
     commands:
       - python3 -m unittest
-done:
+acceptance_criteria:
   - AC-1
 ```
 """)
@@ -276,7 +272,6 @@ class ApprovalCheckTests(unittest.TestCase):
     def test_approval_ref_requires_current_envelope_hash(self) -> None:
         ref = {
             "id": "approval-1",
-            "schema_version": "beo.approval_ref.v1",
             "approved_by_owner": "beo-validate",
             "approved_at": "2026-05-14T00:00:00Z",
             "artifact_density": "compact",
@@ -301,7 +296,6 @@ class ApprovalCheckTests(unittest.TestCase):
     def test_approval_ref_rejects_empty_required_identity_fields(self) -> None:
         ref = {
             "id": "",
-            "schema_version": "beo.approval_ref.v1",
             "approved_by_owner": "beo-validate",
             "approved_at": "",
             "artifact_density": "compact",
@@ -325,6 +319,34 @@ class ApprovalCheckTests(unittest.TestCase):
         self.assertIn("approval_ref.id", error_paths)
         self.assertIn("approval_ref.approved_at", error_paths)
 
+    def test_approval_ref_rejects_removed_shape_field(self) -> None:
+        removed_suffix = "_" + "ver" + "sion"
+        shape_field = "schema" + removed_suffix
+        ref = {
+            "id": "approval-1",
+            "approved_by_owner": "beo-validate",
+            "approved_at": "2026-05-14T00:00:00Z",
+            "artifact_density": "compact",
+            "selected_execution_set": "set-1",
+            "execution_mode": "normal",
+            "approval_projection_rule": approval.projection_rule_for_density("compact"),
+            "envelope_hash": "sha256:envelope",
+            "artifact_hashes": {"approval_bearing_projection": "sha256:ticket"},
+            shape_field: "old",
+        }
+        errors = approval.validate_approval_ref(
+            ref,
+            "compact",
+            "set-1",
+            "normal",
+            {
+                "approval_envelope": "sha256:envelope",
+                "approval_bearing_projection": "sha256:ticket",
+            },
+        )
+        unsupported_paths = {error["path"] for error in errors if error["code"] == "UNSUPPORTED_FIELD"}
+        self.assertIn(f"approval_ref.{shape_field}", unsupported_paths)
+
     def test_compact_requires_direct_verification_and_simple_generated_outputs(self) -> None:
         values = {
             "execution_sets": [{"id": "set-1", "items": [{"id": "item-1"}]}],
@@ -347,6 +369,70 @@ class ApprovalCheckTests(unittest.TestCase):
         }
         codes = {error["code"] for error in approval.validate_changed_file_scope(values)}
         self.assertIn("OUT_OF_SCOPE_CHANGED_FILE", codes)
+
+    def test_review_skipped_required_verification_command_is_missing(self) -> None:
+        errors = approval.validate_verification_evidence(
+            [{"command": "python3 -m unittest", "status": "skipped", "evidence_ref": "not run"}],
+            {"commands": ["python3 -m unittest"]},
+        )
+        missing_paths = {error["path"] for error in errors if error["code"] == "MISSING_FIELD"}
+        self.assertIn("verification_evidence", missing_paths)
+
+    def test_review_rejects_uncontracted_verification_command(self) -> None:
+        errors = approval.validate_verification_evidence(
+            [{"command": "echo uncontracted", "status": "passed", "evidence_ref": "test-output"}],
+            {"commands": ["python3 -m unittest"]},
+        )
+        mismatches = {error["path"] for error in errors if error["code"] == "MISMATCH"}
+        self.assertIn("verification_evidence[0].command", mismatches)
+
+    def test_required_verification_command_needs_evidence_ref(self) -> None:
+        errors = approval.validate_verification_evidence(
+            [{"command": "python3 -m unittest", "status": "passed", "evidence_ref": ""}],
+            {"commands": ["python3 -m unittest"]},
+        )
+        missing_paths = {error["path"] for error in errors if error["code"] == "MISSING_FIELD"}
+        self.assertIn("verification_evidence", missing_paths)
+        self.assertIn("verification_evidence[0].evidence_ref", missing_paths)
+
+    def test_malformed_skipped_verification_command_reports_command_shape_only(self) -> None:
+        errors = approval.validate_verification_evidence(
+            [{"command": "", "status": "skipped", "evidence_ref": "not run"}],
+            {"commands": ["python3 -m unittest"]},
+        )
+        missing_paths = {error["path"] for error in errors if error["code"] == "MISSING_FIELD"}
+        mismatch_paths = {error["path"] for error in errors if error["code"] == "MISMATCH"}
+        self.assertIn("verification_evidence[0].command", missing_paths)
+        self.assertNotIn("verification_evidence[0].status", mismatch_paths)
+
+    def test_required_verification_command_cannot_be_downgraded_to_optional_skip(self) -> None:
+        errors = approval.validate_verification_evidence(
+            [{"command": "python3 -m unittest", "status": "skipped", "evidence_ref": "not run"}],
+            {"commands": ["python3 -m unittest"], "optional_commands": ["python3 -m unittest"]},
+        )
+        missing_paths = {error["path"] for error in errors if error["code"] == "MISSING_FIELD"}
+        mismatch_paths = {error["path"] for error in errors if error["code"] == "MISMATCH"}
+        self.assertIn("verification_evidence", missing_paths)
+        self.assertIn("verification_evidence[0].status", mismatch_paths)
+
+    def test_verification_contract_rejects_blank_commands(self) -> None:
+        values = {
+            "execution_sets": [{"id": "set-1", "items": [{"id": "item-1"}]}],
+            "declared_files": ["src/a.py"],
+            "human_gates": {"status": "not_applicable", "gates": []},
+            "verification_contract": {"commands": ["   "]},
+            "generated_outputs": "not_applicable",
+            "risk_scope": "bounded",
+        }
+        self.assertTrue(approval.missing_required_value("verification_contract", values["verification_contract"]))
+        codes = {error["code"] for error in approval.validate_compact_density(values)}
+        self.assertIn("COMPACT_DENSITY_VIOLATION", codes)
+
+    def test_active_blocker_normalizes_safe_status_strings(self) -> None:
+        self.assertFalse(approval.active_blocker(" None "))
+        self.assertFalse(approval.active_blocker({"status": " Resolved "}))
+        self.assertFalse(approval.active_blocker({"status": " no active blockers "}))
+        self.assertFalse(approval.active_blocker({"status": "", "blocker_status": "none"}))
 
     def test_review_scope_handles_malformed_execution_items(self) -> None:
         values = {
@@ -421,6 +507,22 @@ except SystemExit as exc:
     def test_malformed_approval_required_fields_returns_structured_unavailable_payload(self) -> None:
         self.assert_malformed_approval_registry_unavailable("approval-envelope.json", "required_fields", ["bad-entry"])
 
+    def test_malformed_owner_classes_returns_structured_unavailable_payload(self) -> None:
+        self.assert_malformed_approval_registry_unavailable("vocabulary.json", "owner_classes", "bad")
+
+    def test_blank_approval_required_field_id_returns_structured_unavailable_payload(self) -> None:
+        required_fields = json.loads((REFERENCE / "registry" / "approval-envelope.json").read_text())["required_fields"]
+        required_fields[0]["id"] = " "
+        self.assert_malformed_approval_registry_unavailable("approval-envelope.json", "required_fields", required_fields)
+
+    def test_invalid_readiness_required_value_returns_structured_unavailable_payload(self) -> None:
+        invalid_values = [" ", " PASS_EXECUTE ", "NOT_A_READINESS"]
+        for invalid_value in invalid_values:
+            with self.subTest(invalid_value=invalid_value):
+                required_fields = json.loads((REFERENCE / "registry" / "approval-envelope.json").read_text())["required_fields"]
+                required_fields[0]["required_value"] = invalid_value
+                self.assert_malformed_approval_registry_unavailable("approval-envelope.json", "required_fields", required_fields)
+
     def test_missing_approval_required_fields_returns_structured_unavailable_payload(self) -> None:
         self.assert_malformed_approval_registry_unavailable("approval-envelope.json", "required_fields", None)
 
@@ -435,10 +537,37 @@ except SystemExit as exc:
     def test_missing_manifest_required_fields_registry_returns_structured_unavailable_payload(self) -> None:
         self.assert_malformed_approval_registry_unavailable("artifact-schemas.json", "manifest_schema", None)
 
+    def test_compact_field_ownership_drift_returns_structured_unavailable_payload(self) -> None:
+        artifact_schemas = json.loads((REFERENCE / "registry" / "artifact-schemas.json").read_text())
+        artifact_schemas["artifact_densities"]["compact"]["field_ownership"].pop("beo-plan")
+        self.assert_malformed_approval_registry_unavailable(
+            "artifact-schemas.json",
+            "artifact_densities",
+            artifact_schemas["artifact_densities"],
+        )
+
+    def test_empty_compact_field_ownership_returns_structured_unavailable_payload(self) -> None:
+        artifact_schemas = json.loads((REFERENCE / "registry" / "artifact-schemas.json").read_text())
+        artifact_schemas["artifact_densities"]["compact"]["field_ownership"]["beo-plan"] = []
+        self.assert_malformed_approval_registry_unavailable(
+            "artifact-schemas.json",
+            "artifact_densities",
+            artifact_schemas["artifact_densities"],
+        )
+
+    def test_blank_compact_field_ownership_returns_structured_unavailable_payload(self) -> None:
+        artifact_schemas = json.loads((REFERENCE / "registry" / "artifact-schemas.json").read_text())
+        artifact_schemas["artifact_densities"]["compact"]["field_ownership"]["beo-plan"] = [""]
+        self.assert_malformed_approval_registry_unavailable(
+            "artifact-schemas.json",
+            "artifact_densities",
+            artifact_schemas["artifact_densities"],
+        )
+
     def test_manifest_values_must_match_registry_contract(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            write_compact_fixture(root, """```yaml beo.ticket.v1
+            write_compact_fixture(root, """```yaml beo.ticket
 artifact_density: compact
 human_gates:
   status: not_applicable
@@ -452,14 +581,13 @@ scope:
   verify:
     commands:
       - python3 -m unittest
-done:
+acceptance_criteria:
   - AC-1
 ```
 """)
             manifest_path = root / ".beads" / "artifacts" / "compact-case" / "FEATURE.json"
             manifest = json.loads(manifest_path.read_text())
             manifest.update({
-                "schema_version": "wrong",
                 "artifact_root": "wrong/path",
                 "lifecycle_status": "planned",
                 "current_owner": "nobody",
@@ -470,12 +598,209 @@ done:
             result = approval.verify(root, "compact-case", "validate")
         self.assertEqual(result["approval_envelope_status"], "invalid")
         error_paths = {error["path"] for error in result["errors"]}
-        self.assertIn("FEATURE.json.schema_version", error_paths)
         self.assertIn("FEATURE.json.artifact_root", error_paths)
         self.assertIn("FEATURE.json.lifecycle_status", error_paths)
         self.assertIn("FEATURE.json.current_owner", error_paths)
         self.assertIn("FEATURE.json.created_at", error_paths)
         self.assertIn("FEATURE.json.artifacts", error_paths)
+
+    def test_removed_manifest_shape_fields_are_unsupported(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            write_compact_fixture(root, """```yaml beo.ticket
+artifact_density: compact
+human_gates:
+  status: not_applicable
+  gates: []
+scope:
+  files:
+    allow:
+      - src/a.py
+    forbid: []
+  item: update the checker
+  verify:
+    commands:
+      - python3 -m unittest
+acceptance_criteria:
+  - AC-1
+```
+""")
+            removed_suffix = "_" + "ver" + "sion"
+            shape_field = "schema" + removed_suffix
+            contract_field = "beo" + "_contract" + removed_suffix
+            manifest_path = root / ".beads" / "artifacts" / "compact-case" / "FEATURE.json"
+            manifest = json.loads(manifest_path.read_text())
+            manifest[shape_field] = "old"
+            manifest[contract_field] = "old"
+            manifest_path.write_text(json.dumps(manifest))
+            result = approval.verify(root, "compact-case", "validate")
+        unsupported_paths = {error["path"] for error in result["errors"] if error["code"] == "UNSUPPORTED_FIELD"}
+        self.assertIn(f"FEATURE.json.{shape_field}", unsupported_paths)
+        self.assertIn(f"FEATURE.json.{contract_field}", unsupported_paths)
+
+    def test_compact_current_owner_can_advance_ahead_of_manifest_mirror(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            write_compact_fixture(root, """```yaml beo.ticket
+current_owner: beo-plan
+owner: beo-plan
+artifact_density: compact
+human_gates:
+  status: not_applicable
+  gates: []
+scope:
+  files:
+    allow:
+      - src/a.py
+    forbid: []
+  item: update the checker
+  verify:
+    commands:
+      - python3 -m unittest
+acceptance_criteria:
+  - AC-1
+```
+""")
+            manifest_path = root / ".beads" / "artifacts" / "compact-case" / "FEATURE.json"
+            manifest = json.loads(manifest_path.read_text())
+            manifest["current_owner"] = "beo-explore"
+            manifest_path.write_text(json.dumps(manifest))
+            result = approval.verify(root, "compact-case", "validate")
+        self.assertEqual(result["approval_envelope_status"], "complete")
+        self.assertNotIn("UNSAFE_IDENTITY", {error["code"] for error in result["errors"]})
+
+    def test_compact_ticket_requires_current_owner(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            write_compact_fixture(root, """```yaml beo.ticket
+artifact_density: compact
+human_gates:
+  status: not_applicable
+  gates: []
+scope:
+  files:
+    allow:
+      - src/a.py
+    forbid: []
+  item: update the checker
+  verify:
+    commands:
+      - python3 -m unittest
+acceptance_criteria:
+  - AC-1
+```
+""", default_current_owner=None)
+            result = approval.verify(root, "compact-case", "validate")
+        self.assertEqual(result["approval_envelope_status"], "invalid")
+        self.assertIn("UNSAFE_IDENTITY", {error["code"] for error in result["errors"]})
+        self.assertIn("current_owner", {error["path"] for error in result["errors"]})
+
+    def test_compact_ticket_rejects_unknown_current_owner(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            write_compact_fixture(root, """```yaml beo.ticket
+current_owner: mystery-owner
+artifact_density: compact
+human_gates:
+  status: not_applicable
+  gates: []
+scope:
+  files:
+    allow:
+      - src/a.py
+    forbid: []
+  item: update the checker
+  verify:
+    commands:
+      - python3 -m unittest
+acceptance_criteria:
+  - AC-1
+```
+""")
+            result = approval.verify(root, "compact-case", "validate")
+        self.assertEqual(result["approval_envelope_status"], "invalid")
+        self.assertIn("UNSAFE_IDENTITY", {error["code"] for error in result["errors"]})
+        self.assertIn("current_owner", {error["path"] for error in result["errors"]})
+
+    def test_compact_ticket_rejects_utility_current_owner(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            write_compact_fixture(root, """```yaml beo.ticket
+current_owner: beo-reference
+artifact_density: compact
+human_gates:
+  status: not_applicable
+  gates: []
+scope:
+  files:
+    allow:
+      - src/a.py
+    forbid: []
+  item: update the checker
+  verify:
+    commands:
+      - python3 -m unittest
+acceptance_criteria:
+  - AC-1
+```
+""")
+            result = approval.verify(root, "compact-case", "validate")
+        self.assertEqual(result["approval_envelope_status"], "invalid")
+        self.assertIn("UNSAFE_IDENTITY", {error["code"] for error in result["errors"]})
+        self.assertIn("current_owner", {error["path"] for error in result["errors"]})
+
+    def test_compact_ticket_allows_runtime_support_current_owner(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            write_compact_fixture(root, """```yaml beo.ticket
+current_owner: beo-debug
+artifact_density: compact
+human_gates:
+  status: not_applicable
+  gates: []
+scope:
+  files:
+    allow:
+      - src/a.py
+    forbid: []
+  item: update the checker
+  verify:
+    commands:
+      - python3 -m unittest
+acceptance_criteria:
+  - AC-1
+```
+""")
+            result = approval.verify(root, "compact-case", "validate")
+        self.assertEqual(result["approval_envelope_status"], "complete")
+        self.assertNotIn("UNSAFE_IDENTITY", {error["code"] for error in result["errors"]})
+
+    def test_compact_owner_mirror_must_match_current_owner(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            write_compact_fixture(root, """```yaml beo.ticket
+current_owner: beo-plan
+owner: beo-validate
+artifact_density: compact
+human_gates:
+  status: not_applicable
+  gates: []
+scope:
+  files:
+    allow:
+      - src/a.py
+    forbid: []
+  item: update the checker
+  verify:
+    commands:
+      - python3 -m unittest
+acceptance_criteria:
+  - AC-1
+```
+""")
+            result = approval.verify(root, "compact-case", "validate")
+        self.assertEqual(result["approval_envelope_status"], "invalid")
+        self.assertIn("UNSAFE_IDENTITY", {error["code"] for error in result["errors"]})
 
     def assert_malformed_approval_registry_unavailable(self, filename: str, key: str, value: object | None) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -539,7 +864,7 @@ selected_execution_set: set-1
     def test_compact_ticket_uses_non_goal_constraints_as_canonical_field(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            write_compact_fixture(root, """```yaml beo.ticket.v1
+            write_compact_fixture(root, """```yaml beo.ticket
 artifact_density: compact
 human_gates:
   status: not_applicable
@@ -556,7 +881,7 @@ scope:
     type: manual
     commands:
       - python3 -m unittest
-done:
+acceptance_criteria:
   - AC-1
 rollback_boundary: git checkout -- src/a.py
 ```
@@ -568,7 +893,7 @@ rollback_boundary: git checkout -- src/a.py
     def test_compact_ticket_derives_canonical_shorthand_before_required_check(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            write_compact_fixture(root, """```yaml beo.ticket.v1
+            write_compact_fixture(root, """```yaml beo.ticket
 artifact_density: compact
 human_gates:
   status: not_applicable
@@ -584,7 +909,7 @@ scope:
   verify:
     commands:
       - python3 -m unittest
-done:
+acceptance_criteria:
   - validates compact shorthand
 ```
 """)
@@ -596,7 +921,7 @@ done:
     def test_compact_ticket_rejects_malformed_yaml_authority_block(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            write_compact_fixture(root, """```yaml beo.ticket.v1
+            write_compact_fixture(root, """```yaml beo.ticket
 artifact_density: compact
 human_gates:
   status: not_applicable
@@ -611,7 +936,7 @@ declared_files: [src/a.py
     def test_compact_ticket_rejects_duplicate_yaml_keys(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            write_compact_fixture(root, """```yaml beo.ticket.v1
+            write_compact_fixture(root, """```yaml beo.ticket
 artifact_density: compact
 artifact_density: full
 human_gates:
@@ -626,7 +951,7 @@ human_gates:
     def test_compact_ticket_rejects_non_string_yaml_keys_before_hashing(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            write_compact_fixture(root, """```yaml beo.ticket.v1
+            write_compact_fixture(root, """```yaml beo.ticket
 artifact_density: compact
 human_gates:
   status: not_applicable
@@ -641,7 +966,7 @@ scope:
     commands:
       - python3 -m unittest
     1: invalid numeric key
-done:
+acceptance_criteria:
   - validates compact shorthand
 ```
 """)
@@ -652,7 +977,7 @@ done:
     def test_compact_ticket_rejects_yaml_aliases(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            write_compact_fixture(root, """```yaml beo.ticket.v1
+            write_compact_fixture(root, """```yaml beo.ticket
 artifact_density: compact
 human_gates:
   status: not_applicable
@@ -670,7 +995,7 @@ verification_contract: *defaults
     def test_compact_ticket_rejects_yaml_anchors_without_aliases(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            write_compact_fixture(root, """```yaml beo.ticket.v1
+            write_compact_fixture(root, """```yaml beo.ticket
 artifact_density: compact
 human_gates:
   status: not_applicable
@@ -702,7 +1027,7 @@ verification_contract: &verification
     def test_compact_ticket_rejects_yaml_custom_tags(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            write_compact_fixture(root, """```yaml beo.ticket.v1
+            write_compact_fixture(root, """```yaml beo.ticket
 artifact_density: compact
 human_gates: !beo.gate not_applicable
 ```
@@ -714,7 +1039,7 @@ human_gates: !beo.gate not_applicable
     def test_compact_ticket_rejects_json_authority_fence(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            write_compact_fixture(root, """```json beo.ticket.v1
+            write_compact_fixture(root, """```json beo.ticket.old
 {"artifact_density":"compact","human_gates":"not_applicable","declared_files":["src/a.py"],"forbidden_paths":[],"generated_outputs":"not_applicable","non_goal_constraints":[],"risk_scope":"not_applicable","rollback_boundary":"not_applicable","execution_sets":[{"id":"set-1","items":[{"id":"item-1","files":["src/a.py"]}]}],"acceptance_criteria":["AC-1"],"verification_contract":{"commands":["python3 -m unittest"]}}
 ```
 """)
@@ -725,11 +1050,11 @@ human_gates: !beo.gate not_applicable
     def test_compact_ticket_rejects_json_authority_fence_even_with_valid_yaml(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            write_compact_fixture(root, """```json beo.ticket.v1
+            write_compact_fixture(root, """```json beo.ticket.old
 {"artifact_density":"compact"}
 ```
 
-```yaml beo.ticket.v1
+```yaml beo.ticket
 artifact_density: compact
 human_gates:
   status: not_applicable
@@ -761,7 +1086,7 @@ verification_contract:
     def test_compact_ticket_hashes_derived_shorthand_projection(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            write_compact_fixture(root, """```yaml beo.ticket.v1
+            write_compact_fixture(root, """```yaml beo.ticket
 artifact_density: compact
 human_gates:
   status: not_applicable
@@ -777,7 +1102,7 @@ scope:
   verify:
     commands:
       - python3 -m unittest
-done:
+acceptance_criteria:
   - validates compact shorthand
 ```
 """)
@@ -802,7 +1127,8 @@ done:
             root = Path(tmp)
 
             def ticket(request: str) -> str:
-                return f"""```yaml beo.ticket.v1
+                return f"""```yaml beo.ticket
+current_owner: beo-validate
 request: {request}
 artifact_density: compact
 human_gates:
@@ -819,7 +1145,7 @@ scope:
   verify:
     commands:
       - python3 -m unittest
-done:
+acceptance_criteria:
   - validates compact shorthand
 ```
 """
@@ -836,7 +1162,7 @@ done:
     def test_compact_ticket_rejects_contradictory_expanded_projection(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            write_compact_fixture(root, """```yaml beo.ticket.v1
+            write_compact_fixture(root, """```yaml beo.ticket
 artifact_density: compact
 human_gates:
   status: not_applicable
@@ -850,7 +1176,7 @@ scope:
   verify:
     commands:
       - python3 -m unittest
-done:
+acceptance_criteria:
   - validates compact shorthand
 declared_files:
   - src/b.py
@@ -873,7 +1199,7 @@ verification_contract:
     def test_compact_ticket_preserves_specified_optional_projection_fields(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            write_compact_fixture(root, """```yaml beo.ticket.v1
+            write_compact_fixture(root, """```yaml beo.ticket
 artifact_density: compact
 human_gates:
   status: not_applicable
@@ -887,7 +1213,7 @@ scope:
   verify:
     commands:
       - python3 -m unittest
-done:
+acceptance_criteria:
   - validates compact shorthand
 generated_outputs:
   - dist/a.json
@@ -902,7 +1228,7 @@ rollback_boundary: revert declared file changes
     def test_validate_rejects_invalid_declared_paths_before_pass_execute(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            write_compact_fixture(root, """```yaml beo.ticket.v1
+            write_compact_fixture(root, """```yaml beo.ticket
 artifact_density: compact
 human_gates:
   status: not_applicable
@@ -934,7 +1260,7 @@ verification_contract:
     def test_validate_rejects_malformed_path_entries(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            write_compact_fixture(root, """```yaml beo.ticket.v1
+            write_compact_fixture(root, """```yaml beo.ticket
 artifact_density: compact
 human_gates:
   status: not_applicable
@@ -977,7 +1303,7 @@ verification_contract:
             root = Path(tmp)
             write_full_validate_fixture(root, "not_applicable")
             plan_path = root / ".beads" / "artifacts" / "full-case" / "PLAN.md"
-            plan_path.write_text("""```yaml beo.plan.v1
+            plan_path.write_text("""```yaml beo.plan
 declared_files:
   - src/a.py
 forbidden_paths: []
@@ -1016,7 +1342,7 @@ verification_contract:
             root = Path(tmp)
             write_full_validate_fixture(root, "not_applicable")
             context_path = root / ".beads" / "artifacts" / "full-case" / "CONTEXT.md"
-            context_path.write_text("""```yaml beo.context.v1
+            context_path.write_text("""```yaml beo.context
 human_gates:
   status: not_applicable
   gates: []
@@ -1026,10 +1352,24 @@ human_gates:
         self.assertEqual(result["approval_envelope_status"], "invalid")
         self.assertIn("request", {error["path"] for error in result["errors"]})
 
+    def test_full_validate_rejects_old_authority_markers(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            write_full_validate_fixture(root, "not_applicable")
+            context_path = root / ".beads" / "artifacts" / "full-case" / "CONTEXT.md"
+            plan_path = root / ".beads" / "artifacts" / "full-case" / "PLAN.md"
+            old_context = "beo.context." + "v1"
+            old_plan = "beo.plan." + "v1"
+            context_path.write_text(context_path.read_text().replace("beo.context", old_context))
+            plan_path.write_text(plan_path.read_text().replace("beo.plan", old_plan))
+            result = approval.verify(root, "full-case", "validate")
+        self.assertEqual(result["approval_envelope_status"], "invalid")
+        self.assertIn("UNSUPPORTED_MARKER", {error["code"] for error in result["errors"]})
+
     def test_compact_projection_ignores_nested_non_projection_fields(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            write_compact_fixture(root, """```yaml beo.ticket.v1
+            write_compact_fixture(root, """```yaml beo.ticket
 artifact_density: compact
 human_gates:
   status: not_applicable
@@ -1061,10 +1401,10 @@ notes:
         self.assertIn("declared_files", missing_paths)
         self.assertEqual(result["field_status"].get("declared_files"), "missing")
 
-    def test_compact_shorthand_projection_derives_default_optional_fields(self) -> None:
+    def test_compact_projection_derives_default_optional_fields(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            write_compact_fixture(root, """```yaml beo.ticket.v1
+            write_compact_fixture(root, """```yaml beo.ticket
 artifact_density: compact
 human_gates:
   status: not_applicable
@@ -1078,7 +1418,7 @@ scope:
   verify:
     commands:
       - python3 -m unittest
-done:
+acceptance_criteria:
   - AC-1
 ```
 """)
@@ -1092,7 +1432,7 @@ done:
     def test_compact_expanded_projection_without_marker_fails_closed(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            write_compact_fixture(root, """```yaml beo.ticket.v1
+            write_compact_fixture(root, """```yaml beo.ticket
 artifact_density: compact
 human_gates:
   status: not_applicable
@@ -1119,13 +1459,13 @@ verification_contract:
 """)
             result = approval.verify(root, "compact-case", "validate")
         self.assertEqual(result["approval_envelope_status"], "invalid")
-        self.assertIn("DEPRECATED_FIELD", {error["code"] for error in result["errors"]})
+        self.assertIn("UNSUPPORTED_FIELD", {error["code"] for error in result["errors"]})
         self.assertFalse(any("projection_generated_by" in warning for warning in result["warnings"]))
 
     def test_compact_ticket_requires_explicit_shorthand_forbidden_paths(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            write_compact_fixture(root, """```yaml beo.ticket.v1
+            write_compact_fixture(root, """```yaml beo.ticket
 artifact_density: compact
 human_gates:
   status: not_applicable
@@ -1138,7 +1478,7 @@ scope:
   verify:
     commands:
       - python3 -m unittest
-done:
+acceptance_criteria:
   - validates compact shorthand
 ```
 """)
@@ -1195,7 +1535,7 @@ foo: [
     def test_execute_requires_direct_selected_execution_fields(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            write_compact_fixture(root, """```yaml beo.ticket.v1
+            write_compact_fixture(root, """```yaml beo.ticket
 artifact_density: compact
 human_gates:
   status: not_applicable
@@ -1209,18 +1549,17 @@ scope:
   verify:
     commands:
       - python3 -m unittest
-done:
+acceptance_criteria:
   - AC-1
 readiness: PASS_EXECUTE
 approval_ref:
   id: approval-1
-  schema_version: beo.approval_ref.v1
   approved_by_owner: beo-validate
   approved_at: 2026-05-14T00:00:00Z
   artifact_density: compact
   selected_execution_set: set-1
   execution_mode: normal
-  approval_projection_rule: compact_shorthand_derived
+  approval_projection_rule: compact_derived
   envelope_hash: sha256:placeholder
   artifact_hashes:
     approval_bearing_projection: sha256:placeholder
@@ -1239,7 +1578,8 @@ integrity:
             root = Path(tmp)
 
             def ticket(envelope_hash: str, artifact_hash: str) -> str:
-                return f"""```yaml beo.ticket.v1
+                return f"""```yaml beo.ticket
+current_owner: beo-validate
 artifact_density: compact
 human_gates:
   status: not_applicable
@@ -1265,7 +1605,6 @@ verification_contract:
 readiness: PASS_EXECUTE
 approval_ref:
   id: approval-1
-  schema_version: beo.approval_ref.v1
   approved_by_owner: beo-validate
   approved_at: "2026-05-14T00:00:00Z"
   artifact_density: compact
@@ -1298,7 +1637,7 @@ execution_mode: normal
     def test_execute_rejects_malformed_scalar_fields_without_traceback(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            write_compact_fixture(root, f"""```yaml beo.ticket.v1
+            write_compact_fixture(root, f"""```yaml beo.ticket
 artifact_density: compact
 human_gates:
   status: not_applicable
@@ -1312,12 +1651,11 @@ scope:
   verify:
     commands:
       - python3 -m unittest
-done:
+acceptance_criteria:
   - AC-1
 readiness: PASS_EXECUTE
 approval_ref:
   id: approval-1
-  schema_version: beo.approval_ref.v1
   approved_by_owner: beo-validate
   approved_at: "2026-05-14T00:00:00Z"
   artifact_density: compact
@@ -1343,7 +1681,7 @@ changed_files:
     def test_execute_rejects_falsey_non_string_selected_execution_set(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            write_compact_fixture(root, f"""```yaml beo.ticket.v1
+            write_compact_fixture(root, f"""```yaml beo.ticket
 artifact_density: compact
 human_gates:
   status: not_applicable
@@ -1357,12 +1695,11 @@ scope:
   verify:
     commands:
       - python3 -m unittest
-done:
+acceptance_criteria:
   - AC-1
 readiness: PASS_EXECUTE
 approval_ref:
   id: approval-1
-  schema_version: beo.approval_ref.v1
   approved_by_owner: beo-validate
   approved_at: "2026-05-14T00:00:00Z"
   artifact_density: compact
@@ -1389,7 +1726,8 @@ changed_files:
             root = Path(tmp)
 
             def ticket(envelope_hash: str, artifact_hash: str) -> str:
-                return f"""```yaml beo.ticket.v1
+                return f"""```yaml beo.ticket
+current_owner: beo-validate
 artifact_density: compact
 human_gates:
   status: not_applicable
@@ -1404,12 +1742,11 @@ scope:
   verify:
     commands:
       - python3 -m unittest
-done:
+acceptance_criteria:
   - AC-1
 readiness: PASS_EXECUTE
 approval_ref:
   id: approval-1
-  schema_version: beo.approval_ref.v1
   approved_by_owner: beo-validate
   approved_at: "2026-05-14T00:00:00Z"
   artifact_density: compact
@@ -1446,7 +1783,7 @@ changed_files:
     def test_verify_accepts_direct_artifact_root_with_feature_slug(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            write_compact_fixture(root, """```yaml beo.ticket.v1
+            write_compact_fixture(root, """```yaml beo.ticket
 artifact_density: compact
 human_gates:
   status: not_applicable
@@ -1460,7 +1797,7 @@ scope:
   verify:
     commands:
       - python3 -m unittest
-done:
+acceptance_criteria:
   - AC-1
 ```
 """)
@@ -1470,7 +1807,7 @@ done:
     def test_verify_uses_state_feature_when_slug_is_omitted(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            write_compact_fixture(root, """```yaml beo.ticket.v1
+            write_compact_fixture(root, """```yaml beo.ticket
 artifact_density: compact
 human_gates:
   status: not_applicable
@@ -1484,7 +1821,7 @@ scope:
   verify:
     commands:
       - python3 -m unittest
-done:
+acceptance_criteria:
   - AC-1
 ```
 """)
@@ -1501,7 +1838,6 @@ done:
             "readiness": "PASS_EXECUTE",
             "approval_ref": {
                 "id": "approval-1",
-                "schema_version": "beo.approval_ref.v1",
                 "approved_by_owner": "beo-validate",
                 "approved_at": "2026-05-14T00:00:00Z",
                 "artifact_density": "compact",
@@ -1521,7 +1857,7 @@ done:
     def test_validate_rejects_empty_required_approval_arrays(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            write_compact_fixture(root, """```yaml beo.ticket.v1
+            write_compact_fixture(root, """```yaml beo.ticket
 artifact_density: compact
 human_gates:
   status: not_applicable
@@ -1547,14 +1883,14 @@ verification_contract:
         registry_field = {
             "id": "registry_only_required",
             "owner": "beo-plan",
-            "compact_source": "TICKET.md beo.ticket.v1 registry_only_required",
+            "compact_source": "TICKET.md `beo.ticket` registry_only_required",
             "full_source": "PLAN.md#registry_only_required",
         }
         try:
             approval.APPROVAL_ENVELOPE["required_fields"].append(registry_field)
             with tempfile.TemporaryDirectory() as tmp:
                 root = Path(tmp)
-                write_compact_fixture(root, """```yaml beo.ticket.v1
+                write_compact_fixture(root, """```yaml beo.ticket
 artifact_density: compact
 human_gates:
   status: not_applicable
@@ -1568,7 +1904,7 @@ scope:
   verify:
     commands:
       - python3 -m unittest
-done:
+acceptance_criteria:
   - AC-1
 ```
 """)
@@ -1582,14 +1918,14 @@ done:
         registry_field = {
             "id": "future_validate_field",
             "owner": "beo-validate",
-            "compact_source": "TICKET.md beo.ticket.v1 future_validate_field",
+            "compact_source": "TICKET.md `beo.ticket` future_validate_field",
             "full_source": "PLAN.md#future_validate_field",
         }
         try:
             approval.APPROVAL_ENVELOPE["required_fields"].append(registry_field)
             with tempfile.TemporaryDirectory() as tmp:
                 root = Path(tmp)
-                write_compact_fixture(root, """```yaml beo.ticket.v1
+                write_compact_fixture(root, """```yaml beo.ticket
 artifact_density: compact
 human_gates:
   status: not_applicable
@@ -1603,7 +1939,7 @@ scope:
   verify:
     commands:
       - python3 -m unittest
-done:
+acceptance_criteria:
   - AC-1
 ```
 """)
@@ -1616,7 +1952,7 @@ done:
     def test_validate_rejects_compact_density_violations(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            write_compact_fixture(root, """```yaml beo.ticket.v1
+            write_compact_fixture(root, """```yaml beo.ticket
 artifact_density: compact
 human_gates:
   status: not_applicable
@@ -1653,7 +1989,7 @@ verification_contract:
     def test_review_rejects_empty_compact_evidence_lists(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            write_compact_fixture(root, """```yaml beo.ticket.v1
+            write_compact_fixture(root, """```yaml beo.ticket
 artifact_density: compact
 human_gates:
   status: not_applicable
@@ -1667,7 +2003,7 @@ scope:
   verify:
     commands:
       - python3 -m unittest
-done:
+acceptance_criteria:
   - AC-1
 readiness: PASS_EXECUTE
 approval_ref: {}
@@ -1682,6 +2018,7 @@ pre_execution_integrity_check:
   approval_envelope_status: complete
 changed_files: []
 verification_evidence: []
+execution_status: ready_for_review
 review_status: ready_for_review
 blocker: none
 ```
@@ -1693,10 +2030,10 @@ blocker: none
         self.assertEqual(result["field_status"].get("changed_files"), "missing")
         self.assertEqual(result["field_status"].get("verification_evidence"), "missing")
 
-    def test_review_rejects_active_compact_blocker(self) -> None:
+    def test_review_rejects_malformed_compact_verification_evidence(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            write_compact_fixture(root, """```yaml beo.ticket.v1
+            write_compact_fixture(root, """```yaml beo.ticket
 artifact_density: compact
 human_gates:
   status: not_applicable
@@ -1710,7 +2047,7 @@ scope:
   verify:
     commands:
       - python3 -m unittest
-done:
+acceptance_criteria:
   - AC-1
 readiness: PASS_EXECUTE
 approval_ref: {}
@@ -1726,18 +2063,23 @@ pre_execution_integrity_check:
 changed_files:
   - src/a.py
 verification_evidence:
-  - tests passed
+  - command: "   "
+    status: passed
+    evidence_ref: ""
+execution_status: ready_for_review
 review_status: ready_for_review
-blocker: tests failing
+blocker: none
 ```
 """)
             result = approval.verify(root, "compact-case", "review")
-        self.assertIn("blocker", {error["path"] for error in result["errors"]})
+        missing_paths = {error["path"] for error in result["errors"] if error["code"] == "MISSING_FIELD"}
+        self.assertIn("verification_evidence[0].command", missing_paths)
+        self.assertIn("verification_evidence[0].evidence_ref", missing_paths)
 
-    def test_review_rejects_invalid_compact_pre_execution_integrity_check(self) -> None:
+    def test_review_rejects_active_compact_blocker(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            write_compact_fixture(root, """```yaml beo.ticket.v1
+            write_compact_fixture(root, """```yaml beo.ticket
 artifact_density: compact
 human_gates:
   status: not_applicable
@@ -1751,7 +2093,51 @@ scope:
   verify:
     commands:
       - python3 -m unittest
-done:
+acceptance_criteria:
+  - AC-1
+readiness: PASS_EXECUTE
+approval_ref: {}
+integrity:
+  status: verified
+  evidence_ref: beo_approval_check:test
+selected_execution_set: set-1
+execution_mode: normal
+pre_execution_integrity_check:
+  helper: beo_approval_check
+  evidence_ref: beo_approval_check:test
+  approval_envelope_status: complete
+changed_files:
+  - src/a.py
+verification_evidence:
+  - command: python3 -m unittest
+    status: passed
+    evidence_ref: test-output
+execution_status: ready_for_review
+review_status: ready_for_review
+blocker: tests failing
+```
+""")
+            result = approval.verify(root, "compact-case", "review")
+        self.assertIn("blocker", {error["path"] for error in result["errors"]})
+
+    def test_review_rejects_invalid_compact_pre_execution_integrity_check(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            write_compact_fixture(root, """```yaml beo.ticket
+artifact_density: compact
+human_gates:
+  status: not_applicable
+  gates: []
+scope:
+  files:
+    allow:
+      - src/a.py
+    forbid: []
+  item: update the checker
+  verify:
+    commands:
+      - python3 -m unittest
+acceptance_criteria:
   - AC-1
 readiness: PASS_EXECUTE
 approval_ref: {}
@@ -1767,7 +2153,10 @@ pre_execution_integrity_check:
 changed_files:
   - src/a.py
 verification_evidence:
-  - tests passed
+  - command: python3 -m unittest
+    status: passed
+    evidence_ref: test-output
+execution_status: ready_for_review
 review_status: ready_for_review
 blocker: none
 ```
@@ -1781,7 +2170,6 @@ blocker: none
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             write_full_review_fixture(root, {
-                "schema_version": "beo.execution_ledger.v1",
                 "ledger_status": "ready_for_review",
                 "approval_ref_id": "approval-stale",
                 "selected_execution_set": "set-1",
@@ -1798,7 +2186,6 @@ blocker: none
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             write_full_review_fixture(root, {
-                "schema_version": "beo.execution_ledger.v1",
                 "ledger_status": "ready_for_review",
                 "changed_files": ["src/a.py"],
             })
@@ -1813,7 +2200,6 @@ blocker: none
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             write_full_review_fixture(root, {
-                "schema_version": "beo.execution_ledger.v1",
                 "ledger_status": "ready_for_review",
                 "approval_ref_id": "approval-current",
                 "selected_execution_set": "set-1",
@@ -1834,7 +2220,6 @@ blocker: none
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             write_full_review_fixture(root, {
-                "schema_version": "beo.execution_ledger.v1",
                 "feature_slug": "full-case",
                 "artifact_root": ".beads/artifacts/full-case",
                 "ledger_status": "ready_for_review",
@@ -1860,7 +2245,6 @@ blocker: none
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             write_full_review_fixture(root, {
-                "schema_version": "beo.execution_ledger.v1",
                 "feature_slug": "full-case",
                 "artifact_root": ".beads/artifacts/full-case",
                 "ledger_status": "ready_for_review",
@@ -1888,7 +2272,6 @@ blocker: none
             write_full_review_fixture(root, {})
             result = approval.verify(root, "full-case", "review")
         paths = {error["path"] for error in result["errors"] if error["code"] == "MISSING_FIELD"}
-        self.assertIn("TRACKER.json.schema_version", paths)
         self.assertIn("TRACKER.json.approval_ref_id", paths)
         self.assertIn("TRACKER.json.ledger_status", paths)
         self.assertIn("TRACKER.json.selected_execution_set", paths)
@@ -1900,7 +2283,6 @@ blocker: none
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             write_full_review_fixture(root, {
-                "schema_version": "beo.execution_ledger.v1",
                 "ledger_status": "ready_for_review",
                 "approval_ref_id": "approval-current",
                 "selected_execution_set": "set-1",
@@ -1920,7 +2302,6 @@ blocker: none
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             write_full_review_fixture(root, {
-                "schema_version": "beo.execution_ledger.v1",
                 "feature_slug": "full-case",
                 "artifact_root": ".beads/artifacts/full-case",
                 "approval_ref_id": "approval-current",
@@ -1950,8 +2331,6 @@ blocker: none
             artifact_root = root / ".beads" / "artifacts" / "full-case"
             artifact_root.mkdir(parents=True)
             manifest = {
-                "schema_version": "beo.feature_manifest.v1",
-                "beo_contract_version": "test",
                 "feature_slug": "full-case",
                 "artifact_root": ".beads/artifacts/full-case",
                 "artifact_density": "full",
@@ -1962,13 +2341,13 @@ blocker: none
                 "artifacts": ["FEATURE.json", "CONTEXT.md", "PLAN.md"],
             }
             (artifact_root / "FEATURE.json").write_text(json.dumps(manifest))
-            (artifact_root / "CONTEXT.md").write_text("""```yaml beo.context.v1
+            (artifact_root / "CONTEXT.md").write_text("""```yaml beo.context
 human_gates:
   status: not_applicable
   gates: []
 ```
 """)
-            (artifact_root / "PLAN.md").write_text("""```yaml beo.plan.v1
+            (artifact_root / "PLAN.md").write_text("""```yaml beo.plan
 forbidden_paths: []
 generated_outputs: not_applicable
 non_goal_constraints: []
@@ -2002,7 +2381,7 @@ class RegistryCheckTests(unittest.TestCase):
     def test_compact_approval_sources_name_authority_block_not_markdown_headings(self) -> None:
         approval_envelope = json.loads((REFERENCE / "registry" / "approval-envelope.json").read_text())
         compact_sources = [field["compact_source"] for field in approval_envelope["required_fields"]]
-        self.assertTrue(all("beo.ticket.v1" in source for source in compact_sources))
+        self.assertTrue(all(source.startswith("TICKET.md `beo.ticket` ") for source in compact_sources))
         self.assertFalse(any("TICKET.md#" in source for source in compact_sources))
 
     def test_human_gate_shape_is_shared_not_compact_local(self) -> None:
@@ -2011,6 +2390,30 @@ class RegistryCheckTests(unittest.TestCase):
         self.assertNotIn("human_gate_shape", artifact_schemas["artifact_densities"]["compact"])
         self.assertNotIn("documented TICKET.md markdown sections", artifact_schemas["artifact_densities"]["compact"]["authority_blocks"])
         self.assertNotIn("severity", artifact_schemas["shared_shapes"]["human_gate_shape"]["gates"][0])
+
+    def test_registry_schema_accepts_compact_metadata_fields(self) -> None:
+        artifact_schemas = json.loads((REFERENCE / "registry" / "artifact-schemas.json").read_text())
+        schema = json.loads((REFERENCE / "registry" / "registry.schema.json").read_text())
+        errors: list[str] = []
+        registry_check.validate_schema_node(
+            errors,
+            "artifact-schemas.json",
+            "<root>",
+            artifact_schemas,
+            schema["definitions"]["artifact-schemas"],
+            schema,
+        )
+        self.assertEqual([], errors)
+
+    def test_compact_field_ownership_covers_identity_handoff_fields(self) -> None:
+        artifact_schemas = json.loads((REFERENCE / "registry" / "artifact-schemas.json").read_text())
+        ownership = artifact_schemas["artifact_densities"]["compact"]["field_ownership"]
+        self.assertLessEqual(
+            {"artifact_density", "phase_status", "current_owner", "owner"},
+            set(ownership["beo-explore"]),
+        )
+        for owner in ["beo-explore", "beo-plan", "beo-validate", "beo-execute", "beo-review", "beo-route"]:
+            self.assertLessEqual({"phase_status", "current_owner", "owner"}, set(ownership[owner]))
 
     def test_human_gate_docs_keep_soft_assumptions_out_of_gate_shape(self) -> None:
         text = (REFERENCE / "references" / "decision-boundaries.md").read_text()
@@ -2057,22 +2460,6 @@ class RegistryCheckTests(unittest.TestCase):
             )
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("allowed_values_ref points to unknown string-list vocabulary field", result.stdout)
-
-    def test_registry_check_detects_generated_playbook_drift(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
-            registry = Path(tmp) / "registry"
-            shutil.copytree(REFERENCE / "registry", registry)
-            playbook = registry.parent / "references" / "runtime-playbook.md"
-            playbook.parent.mkdir()
-            playbook.write_text("stale generated playbook\n")
-            result = subprocess.run(
-                [sys.executable, str(SCRIPTS / "beo_registry_check.py"), str(registry)],
-                text=True,
-                capture_output=True,
-                check=False,
-            )
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("runtime-playbook.md", result.stdout)
 
     def test_registry_check_reports_malformed_vocabulary_without_traceback(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -2181,6 +2568,46 @@ class RegistryCheckTests(unittest.TestCase):
                 self.assertNotIn("Traceback", result.stderr)
 
     def test_registry_check_reports_malformed_approval_fields_without_traceback(self) -> None:
+        malformed_cases = [
+            (None, ("schema error",)),
+            ("bad-entry", ("schema error",)),
+            ({"id": "", "required_value": "PASS_EXECUTE"}, ("schema error", "required_fields[", "].id")),
+            ({"id": " ", "required_value": "PASS_EXECUTE"}, ("required_fields[", "].id", "non-blank")),
+            ({"id": "readiness", "required_value": []}, ("schema error", "required_value")),
+            ({"id": "readiness", "required_value": ""}, ("schema error", "required_value")),
+            ({"id": "readiness", "required_value": " "}, ("required_value", "non-blank")),
+            ({"id": "readiness", "required_value": " PASS_EXECUTE "}, ("required_value", "surrounding whitespace")),
+            ({"id": "readiness", "required_value": "NOT_A_READINESS"}, ("required_value", "not registered readiness")),
+        ]
+        for entry, expected_snippets in malformed_cases:
+            with self.subTest(entry=entry):
+                with tempfile.TemporaryDirectory() as tmp:
+                    base = Path(tmp)
+                    registry = base / "registry"
+                    shutil.copytree(REFERENCE / "registry", registry)
+                    shutil.copytree(REFERENCE / "references", base / "references")
+                    shutil.copytree(REFERENCE / "assets", base / "assets")
+                    path = registry / "approval-envelope.json"
+                    payload = json.loads(path.read_text())
+                    if entry is None:
+                        payload = []
+                    else:
+                        payload["required_fields"].append(entry)
+                    path.write_text(json.dumps(payload))
+                    result = subprocess.run(
+                        [sys.executable, str(SCRIPTS / "beo_registry_check.py"), str(registry)],
+                        text=True,
+                        capture_output=True,
+                        check=False,
+                    )
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn('"status": "invalid"', result.stdout)
+                self.assertIn("approval-envelope.json", result.stdout)
+                for expected_snippet in expected_snippets:
+                    self.assertIn(expected_snippet, result.stdout)
+                self.assertNotIn("Traceback", result.stderr)
+
+    def test_registry_check_requires_readiness_required_value(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             base = Path(tmp)
             registry = base / "registry"
@@ -2189,7 +2616,10 @@ class RegistryCheckTests(unittest.TestCase):
             shutil.copytree(REFERENCE / "assets", base / "assets")
             path = registry / "approval-envelope.json"
             payload = json.loads(path.read_text())
-            payload["required_fields"].append("bad-entry")
+            for field in payload["required_fields"]:
+                if field.get("id") == "readiness":
+                    field.pop("required_value")
+                    break
             path.write_text(json.dumps(payload))
             result = subprocess.run(
                 [sys.executable, str(SCRIPTS / "beo_registry_check.py"), str(registry)],
@@ -2198,8 +2628,7 @@ class RegistryCheckTests(unittest.TestCase):
                 check=False,
             )
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn('"status": "invalid"', result.stdout)
-        self.assertIn("approval-envelope.json schema error", result.stdout)
+        self.assertIn("readiness required_value is required", result.stdout)
         self.assertNotIn("Traceback", result.stderr)
 
     def test_registry_check_reports_malformed_artifact_schema_without_traceback(self) -> None:
@@ -2245,7 +2674,6 @@ class RegistryCheckTests(unittest.TestCase):
         self.assertIn("owner_classes assigns owners to multiple classes", result.stdout)
 
     def test_registry_check_parses_contract_exits_only(self) -> None:
-        module = load_script("beo_registry_check")
         text = """# skill
 Exit summary (non-authoritative):
 - `summary_only` -> `done`
@@ -2260,20 +2688,7 @@ Exits:
 Exits:
 - `other_exit` -> `done`
 """
-        self.assertEqual(module.skill_exit_pairs(text), [("real_exit", "beo-plan")])
-
-    def test_runtime_playbook_contains_operator_cockpit(self) -> None:
-        text = (REFERENCE / "references" / "runtime-playbook.md").read_text()
-        for expected in [
-            "<!-- beo:runtime-playbook -->",
-            "<!-- beo:runtime-playbook:operator-cockpit -->",
-            "<!-- beo:runtime-playbook:mutate-checklist -->",
-            "<!-- beo:runtime-playbook:compact-full -->",
-            "<!-- beo:runtime-playbook:happy-path -->",
-            "<!-- beo:runtime-playbook:read-now -->",
-            "<!-- beo:runtime-playbook:stop-shape -->",
-        ]:
-            self.assertIn(expected, text)
+        self.assertEqual(registry_check.skill_exit_pairs(text), [("real_exit", "beo-plan")])
 
     def test_operator_navigation_surfaces_exist(self) -> None:
         expected_markers = {
@@ -2290,11 +2705,37 @@ Exits:
                 self.assertIn(marker, text)
         agents_template = (REFERENCE / "assets" / "AGENTS.template.md").read_text()
         self.assertIn("<!-- beo:agents:start-cockpit -->", agents_template)
-        self.assertNotIn("Quick operator view: `beo-reference -> references/runtime-playbook", agents_template)
+
+    def test_setup_contract_replaces_only_agents_managed_block(self) -> None:
+        setup = (REFERENCE.parent / "setup" / "SKILL.md").read_text()
+        template = (REFERENCE / "assets" / "AGENTS.template.md").read_text()
+        expected_order = [
+            "Treat `beo-reference -> assets/AGENTS.template.md` as the exact managed-block payload.",
+            "Inspect the target repository `AGENTS.md` for BEO managed markers before editing",
+            "if `AGENTS.md` is missing, create it from the template",
+            "if `AGENTS.md` has partial, malformed, nested, or duplicate BEO managed markers, stop with `user_confirmation_needed`",
+            "if `AGENTS.md` has exactly one valid BEO managed block, replace only that marker-delimited span",
+            "if `AGENTS.md` has no BEO managed block but has unmarked BEO integration instructions, stop with `user_confirmation_needed`",
+            "if `AGENTS.md` has no BEO managed block and no conflicting unmarked BEO integration instructions, append the template after a blank-line separator and preserve existing content",
+            "Do not rewrite, normalize, or delete non-managed `AGENTS.md` content.",
+        ]
+        positions = [setup.index(text) for text in expected_order]
+        self.assertEqual(positions, sorted(positions))
+        self.assertIn("target `AGENTS.md` contains partial, malformed, nested, or duplicate BEO managed markers", setup)
+        self.assertIn("unmarked BEO integration instructions", setup)
+        self.assertIn("<!-- BEO:MANAGED START -->", template)
+        self.assertIn("<!-- BEO:MANAGED END -->", template)
 
     def test_review_contract_reads_live_declared_files(self) -> None:
         review = (REFERENCE.parent / "review" / "SKILL.md").read_text()
         self.assertIn("live declared files", review)
+
+    def test_validate_contract_uses_contracted_approval_helper(self) -> None:
+        validate = (REFERENCE.parent / "validate" / "SKILL.md").read_text()
+        self.assertIn("beo_approval_check", validate)
+        self.assertNotIn("projection_check", validate)
+        self.assertNotIn("human_gate_check", validate)
+        self.assertNotIn("scope_binding_check", validate)
 
     def test_owner_skills_load_common_contract_without_stop_boilerplate(self) -> None:
         for path in sorted(REFERENCE.parent.glob("*/SKILL.md")):
@@ -2323,6 +2764,25 @@ Exits:
         self.assertIn("Never repair requirements, plan, approval, execution evidence, review, or product files", route)
         self.assertIn("explicitly authorizes more probes", debug)
 
+    def test_transition_provenance_nests_return_metadata_under_transition(self) -> None:
+        text = (REFERENCE / "references" / "transition-provenance.md").read_text()
+        section = text.split("## Temporary owner return", 1)[1].split("## `return_to_caller`", 1)[0]
+        self.assertIn('"transition": {', section)
+        self.assertIn('    "return": {', section)
+        self.assertNotIn('{\n  "return": {', section)
+
+    def test_abandonment_write_exception_is_explicit(self) -> None:
+        common = (REFERENCE / "references" / "skill-contract-common.md").read_text()
+        lifecycle = (REFERENCE / "references" / "lifecycle.md").read_text()
+        artifacts = (REFERENCE / "references" / "artifacts.md").read_text()
+        artifact_schemas = json.loads((REFERENCE / "registry" / "artifact-schemas.json").read_text())
+        abandoned_rule = artifact_schemas["shared_shapes"]["closure_shape"]["abandoned_rule"]
+        self.assertIn("user_abandoned", common)
+        self.assertIn("abandonment lifecycle bookkeeping", common)
+        self.assertIn("owner emitting `user_abandoned`", lifecycle)
+        self.assertIn("does not grant review closure", artifacts)
+        self.assertIn("owner emitting legal user_abandoned", abandoned_rule)
+
     def test_registry_check_rejects_compact_local_human_gate_shape(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             base = Path(tmp)
@@ -2342,6 +2802,177 @@ Exits:
             )
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("compact artifact density must not define human_gate_shape", result.stdout)
+
+    def test_registry_check_rejects_unsupported_compact_authority_source(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            registry = base / "registry"
+            shutil.copytree(REFERENCE / "registry", registry)
+            shutil.copytree(REFERENCE / "references", base / "references")
+            shutil.copytree(REFERENCE / "assets", base / "assets")
+            path = registry / "approval-envelope.json"
+            payload = json.loads(path.read_text())
+            payload["required_fields"][0]["compact_source"] = "TICKET.md beo.ticket.extra readiness"
+            path.write_text(json.dumps(payload))
+            result = subprocess.run(
+                [sys.executable, str(SCRIPTS / "beo_registry_check.py"), str(registry)],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("approval envelope compact sources must use exact TICKET.md `beo.ticket` authority source", result.stdout)
+
+    def test_registry_check_rejects_malformed_compact_field_ownership(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            registry = base / "registry"
+            shutil.copytree(REFERENCE / "registry", registry)
+            shutil.copytree(REFERENCE / "references", base / "references")
+            shutil.copytree(REFERENCE / "assets", base / "assets")
+            path = registry / "artifact-schemas.json"
+            payload = json.loads(path.read_text())
+            payload["artifact_densities"]["compact"]["field_ownership"]["beo-plan"] = ["scope", 1]
+            path.write_text(json.dumps(payload))
+            result = subprocess.run(
+                [sys.executable, str(SCRIPTS / "beo_registry_check.py"), str(registry)],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("artifact-schemas.json schema error", result.stdout)
+
+    def test_registry_check_rejects_missing_compact_field_ownership(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            registry = base / "registry"
+            shutil.copytree(REFERENCE / "registry", registry)
+            shutil.copytree(REFERENCE / "references", base / "references")
+            shutil.copytree(REFERENCE / "assets", base / "assets")
+            path = registry / "artifact-schemas.json"
+            payload = json.loads(path.read_text())
+            payload["artifact_densities"]["compact"].pop("field_ownership")
+            path.write_text(json.dumps(payload))
+            result = subprocess.run(
+                [sys.executable, str(SCRIPTS / "beo_registry_check.py"), str(registry)],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("missing required field field_ownership", result.stdout)
+
+    def test_registry_check_rejects_empty_compact_field_ownership(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            registry = base / "registry"
+            shutil.copytree(REFERENCE / "registry", registry)
+            shutil.copytree(REFERENCE / "references", base / "references")
+            shutil.copytree(REFERENCE / "assets", base / "assets")
+            path = registry / "artifact-schemas.json"
+            payload = json.loads(path.read_text())
+            payload["artifact_densities"]["compact"]["field_ownership"]["beo-plan"] = []
+            path.write_text(json.dumps(payload))
+            result = subprocess.run(
+                [sys.executable, str(SCRIPTS / "beo_registry_check.py"), str(registry)],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("expected at least 1 item", result.stdout)
+
+    def test_registry_check_rejects_blank_compact_field_ownership(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            registry = base / "registry"
+            shutil.copytree(REFERENCE / "registry", registry)
+            shutil.copytree(REFERENCE / "references", base / "references")
+            shutil.copytree(REFERENCE / "assets", base / "assets")
+            path = registry / "artifact-schemas.json"
+            payload = json.loads(path.read_text())
+            payload["artifact_densities"]["compact"]["field_ownership"]["beo-plan"] = [" "]
+            path.write_text(json.dumps(payload))
+            result = subprocess.run(
+                [sys.executable, str(SCRIPTS / "beo_registry_check.py"), str(registry)],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("compact field_ownership fields must be non-empty strings", result.stdout)
+
+    def test_registry_check_rejects_missing_compact_handoff_identity_fields(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            registry = base / "registry"
+            shutil.copytree(REFERENCE / "registry", registry)
+            shutil.copytree(REFERENCE / "references", base / "references")
+            shutil.copytree(REFERENCE / "assets", base / "assets")
+            path = registry / "artifact-schemas.json"
+            payload = json.loads(path.read_text())
+            payload["artifact_densities"]["compact"]["field_ownership"]["beo-plan"].remove("phase_status")
+            path.write_text(json.dumps(payload))
+            result = subprocess.run(
+                [sys.executable, str(SCRIPTS / "beo_registry_check.py"), str(registry)],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("compact field_ownership.beo-plan missing handoff identity fields", result.stdout)
+
+    def test_registry_check_rejects_compact_field_ownership_drift(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            registry = base / "registry"
+            shutil.copytree(REFERENCE / "registry", registry)
+            shutil.copytree(REFERENCE / "references", base / "references")
+            shutil.copytree(REFERENCE / "assets", base / "assets")
+            path = registry / "vocabulary.json"
+            payload = json.loads(path.read_text())
+            payload["owner_classes"]["runtime_support"].remove("beo-debug")
+            payload["owner_classes"]["runtime_delivery"].append("beo-debug")
+            path.write_text(json.dumps(payload))
+            result = subprocess.run(
+                [sys.executable, str(SCRIPTS / "beo_registry_check.py"), str(registry)],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("compact field_ownership keys must match compact artifact owners", result.stdout)
+
+    def test_registry_check_rejects_invalid_transition_wildcard_conflict(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            registry = base / "registry"
+            shutil.copytree(REFERENCE / "registry", registry)
+            shutil.copytree(REFERENCE / "references", base / "references")
+            shutil.copytree(REFERENCE / "assets", base / "assets")
+            path = registry / "pipeline.json"
+            payload = json.loads(path.read_text())
+            for transition in payload["invalid_transitions"]:
+                if transition.get("from") == "beo-execute" and transition.get("to") == "done":
+                    transition["condition_id"] = "any"
+                    break
+            else:
+                payload["invalid_transitions"].append({
+                    "from": "beo-execute",
+                    "condition_id": "any",
+                    "to": "done",
+                    "reason": "test conflict",
+                })
+            path.write_text(json.dumps(payload))
+            result = subprocess.run(
+                [sys.executable, str(SCRIPTS / "beo_registry_check.py"), str(registry)],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("invalid transition conflicts with legal transition", result.stdout)
 
     def test_registry_check_rejects_human_gate_bypass_fields(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

@@ -1,29 +1,41 @@
 ---
 name: beo-review
-description: |
-  Emits exactly one phase-terminal review verdict from finalized execution evidence. Use when execution evidence contains ready_for_review, no blockers, and recorded pre-execution integrity check evidence. Not for implementation fixes, readiness refresh, or root-cause proof.
+description: Judges completed BEO execution and emits exactly one terminal review verdict.
 ---
 
 # beo-review
 
-## Purpose
+Before acting, load and obey `beo-reference -> references/skill-contract-common.md`.
 
-Review completed execution and emit one phase-terminal verdict.
+## Decision
 
-## Decision Card
+Emit exactly one terminal review verdict.
 
-Decision: emit exactly one phase-terminal review verdict.
+## Enter
 
-Can enter when:
-- execution evidence is `ready_for_review` with no active blockers and recorded pre-execution integrity evidence
+- Ready-for-review execution evidence exists with no active blockers and pre-execution integrity evidence.
 
-Can write:
-- `TICKET.md#Review` or `REVIEW.md`, plus accepted-review closure bookkeeping after the verdict
+## Owns
 
-Must stop when:
-- execution evidence is incomplete/stale/contradictory or root-cause evidence is required but unproven
+- Accept/fix/reject verdict.
+- Findings and review evidence.
+- Closure recommendation.
+- Learning candidate signal.
 
-Exit summary (non-authoritative):
+## Writes
+
+- Compact review fields or `REVIEW.md`.
+- Accepted-review closure bookkeeping after verdict.
+- Legal transition metadata, including temporary-owner return provenance when routing to `beo-debug`.
+
+## Stops
+
+- Execution evidence is incomplete, stale, contradictory, or unavailable.
+- Root cause evidence is required but unproven.
+- Owner/feature identity is unsafe.
+
+## Exits
+
 - `entry_blocked_execution_evidence_incomplete` -> `beo-execute`
 - `verdict_accept` -> `done`
 - `verdict_accept_learning_candidate` -> `beo-learn`
@@ -31,51 +43,14 @@ Exit summary (non-authoritative):
 - `verdict_fix_bounded_repair` -> `beo-plan`
 - `verdict_reject` -> `beo-plan`
 - `repair_budget_exceeded` -> `user`
+- `user_abandoned` -> `done`
 - `owner_feature_identity_unsafe` -> `beo-route`
 
-Never:
-- mutate product files, approve, or directly patch after a fix verdict
+## Method
 
-Reads:
-- current artifacts, live declared files, approval, learning, and pipeline
-
-## Contract
-
-Before acting, load and obey `beo-reference -> references/skill-contract-common.md`.
-
-Acts when:
-- complete `ready_for_review` execution evidence exists with no active blockers, including pre-execution integrity check, ledger status, selected execution set, completed items, and resume point when full density uses `TRACKER.json`
-
-Owns:
-- phase-terminal verdict and review findings
-
-Writes:
-- `TICKET.md#Review` or `REVIEW.md`
-- accepted-review runtime closure bookkeeping: `FEATURE.json.lifecycle_status`, closure metadata, and neutralized active STATE pointers only after writing the final verdict
-
-Reads:
-- current artifacts, live declared files, `beo-reference -> references/approval.md`, `beo-reference -> references/learning.md`, `beo-reference -> registry/pipeline.json`
-
-Local stops:
-- execution evidence is incomplete, stale, contradictory, or unavailable
-- root cause evidence is required but unproven
-- owner/feature identity is unsafe
-
-Local forbids:
-- product mutation, approval, execution evidence mutation, direct patch after fix
-
-Exits:
-- `entry_blocked_execution_evidence_incomplete` -> `beo-execute`
-- `verdict_accept` -> `done`
-- `verdict_accept_learning_candidate` -> `beo-learn`
-- `verdict_fix_unproven_root_cause` -> `beo-debug`
-- `verdict_fix_bounded_repair` -> `beo-plan`
-- `verdict_reject` -> `beo-plan` with handoff
-- `repair_budget_exceeded` -> `user`
-- `owner_feature_identity_unsafe` -> `beo-route`
-
-## Repair Loop
-
-A phase-terminal `fix` verdict ends the review phase but does not authorize mutation or end the workflow. `fix` with unproven cause exits to `beo-debug`; proven bounded repair exits to `beo-plan`; repair scope must be represented as an execution set, pass `beo-validate`, and be delivered only by `beo-execute`.
-
-Review never directly patches product files.
+1. Verify review entry evidence is complete and current.
+2. Inspect live declared files, changed files, and verification evidence.
+3. Emit one verdict with findings and evidence.
+4. For accepted work, close runtime or hand off to learning candidate.
+5. For unproven root cause, write transition provenance with `return_to_caller` before handing to `beo-debug`.
+6. For bounded repair, hand off to plan; never patch directly.

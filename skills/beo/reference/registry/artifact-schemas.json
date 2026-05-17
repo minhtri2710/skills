@@ -11,16 +11,82 @@
           "affects": [
             "scope",
             "acceptance",
+            "non_goals",
+            "compatibility",
             "security",
+            "privacy",
             "access",
+            "legal",
             "business",
-            "approval"
+            "approval",
+            "user_visible_commitment"
           ],
           "resolution_status": "resolved | unresolved",
           "resolution_ref": "<artifact section | user message ref | env:HANDLE>",
           "notes": "<optional, no secrets>"
         }
       ]
+    },
+    "verification_evidence_item": {
+      "required": [
+        "command",
+        "status",
+        "evidence_ref"
+      ],
+      "command": "<verification command from verification_contract.commands>",
+      "status": "passed | failed | skipped",
+      "evidence_ref": "<command output, log, or run reference>",
+      "skip_rule": "skipped is valid only for verification_contract optional_commands or not_applicable_commands; required commands must have passed evidence"
+    },
+    "transition_provenance_shape": {
+      "required": [
+        "from_owner",
+        "condition_id",
+        "to_owner",
+        "feature_slug",
+        "artifact_root",
+        "created_at",
+        "basis_ref"
+      ],
+      "optional": [
+        "artifact_hash_ref",
+        "return"
+      ],
+      "return_required_when_meta_target": [
+        "meta_target",
+        "return_target_owner",
+        "return_condition_id",
+        "return_basis_required"
+      ],
+      "rule": "from_owner, condition_id, and to_owner must match registry/pipeline.json; feature_slug and artifact_root must match current artifact authority."
+    },
+    "closure_shape": {
+      "required": [
+        "status",
+        "closed_at",
+        "closed_by_owner"
+      ],
+      "status": "closed | repair_requested | abandoned",
+      "optional": [
+        "reason_ref",
+        "verdict_ref",
+        "learning_ref"
+      ],
+      "abandoned_rule": "status abandoned requires lifecycle_status abandoned; the owner emitting legal user_abandoned -> done may write only abandonment lifecycle bookkeeping, and no product mutation occurs as part of abandonment."
+    },
+    "debug_diagnosis_shape": {
+      "required": [
+        "id",
+        "feature_slug",
+        "created_by_owner",
+        "created_at",
+        "assigned_question",
+        "diagnosis_status",
+        "evidence_refs",
+        "recommended_next_owner"
+      ],
+      "diagnosis_status": "root_cause_proven | inconclusive | user_owned",
+      "return_rule": "root_cause_proven may target return_to_caller only when transition.return provenance is fresh and legal."
     }
   },
   "artifact_densities": {
@@ -31,14 +97,18 @@
         "TICKET.md"
       ],
       "authority_blocks": [
-        "yaml beo.ticket.v1"
+        "yaml beo.ticket"
       ],
       "phase_sections": {
         "explore": {
           "owner": "beo-explore",
           "required_after_owner_exit": [
             "artifact_density",
-            "owner",
+            "ticket_id",
+            "title",
+            "lifecycle_status",
+            "phase_status",
+            "current_owner",
             "request",
             "done",
             "human_gates"
@@ -55,7 +125,8 @@
             "scope.files.allow",
             "scope.files.forbid",
             "scope.item",
-            "scope.verify"
+            "scope.verify",
+            "acceptance_criteria"
           ],
           "derived_approval_projection": {
             "declared_files": "scope.files.allow",
@@ -77,7 +148,7 @@
                 "files": "scope.files.allow"
               }
             ],
-            "acceptance_criteria": "done",
+            "acceptance_criteria": "acceptance_criteria",
             "verification_contract": "scope.verify"
           }
         },
@@ -89,11 +160,16 @@
             "integrity",
             "selected_execution_set",
             "execution_mode"
+          ],
+          "required_for_failure_readiness": [
+            "readiness",
+            "readiness_reason"
           ]
         },
         "execution": {
           "owner": "beo-execute",
           "required_for_ready_for_review": [
+            "execution_status",
             "pre_execution_integrity_check",
             "changed_files",
             "verification_evidence",
@@ -105,15 +181,85 @@
           "owner": "beo-review",
           "required_after_terminal_review": [
             "verdict",
-            "evidence",
+            "review_evidence",
             "findings",
             "closure"
           ],
           "optional": [
-            "learning"
+            "learning_candidate"
           ]
         }
-      }
+      },
+      "field_ownership": {
+        "beo-explore": [
+          "artifact_density",
+          "ticket_id",
+          "title",
+          "created_from_request",
+          "lifecycle_status",
+          "phase_status",
+          "current_owner",
+          "owner",
+          "request",
+          "done",
+          "human_gates",
+          "assumptions",
+          "non_goals",
+          "constraints"
+        ],
+        "beo-plan": [
+          "phase_status",
+          "current_owner",
+          "owner",
+          "scope",
+          "acceptance_criteria",
+          "generated_outputs",
+          "risk_scope",
+          "rollback_boundary"
+        ],
+        "beo-validate": [
+          "phase_status",
+          "current_owner",
+          "owner",
+          "readiness",
+          "readiness_reason",
+          "selected_execution_set",
+          "execution_mode",
+          "approval_ref",
+          "integrity"
+        ],
+        "beo-execute": [
+          "phase_status",
+          "current_owner",
+          "owner",
+          "execution_status",
+          "pre_execution_integrity_check",
+          "changed_files",
+          "verification_evidence",
+          "review_status",
+          "blocker",
+          "execution_notes"
+        ],
+        "beo-review": [
+          "phase_status",
+          "current_owner",
+          "owner",
+          "verdict",
+          "findings",
+          "review_evidence",
+          "closure",
+          "learning_candidate",
+          "lifecycle_status"
+        ],
+        "beo-route": [
+          "phase_status",
+          "current_owner",
+          "owner"
+        ]
+      },
+      "identity_consistency": "compact current_owner is owner-bearing authority; optional owner mirror must match current_owner when present. FEATURE.json.current_owner, STATE, and HANDOFF are advisory mirrors handled by references/state.md; stale mirrors require beo-route repair but do not override compact authority. Meta-targets require transition provenance.",
+      "future_owned_fields": "absent until owning phase acts; examples may use comments only",
+      "handoff_identity_update": "Each outgoing owner may update phase_status/current_owner/owner only while emitting one legal transition and matching transition provenance; beo-route may update identity mirrors only after proving an identity defect."
     },
     "full": {
       "artifact_set": [
@@ -125,9 +271,9 @@
         "HANDOFF.json"
       ],
       "authority_blocks": [
-        "yaml beo.context.v1",
-        "yaml beo.plan.v1",
-        "yaml beo.review_decision.v1"
+        "yaml beo.context",
+        "yaml beo.plan",
+        "yaml beo.review_decision"
       ],
       "phase_sections": {
         "explore": {
@@ -176,7 +322,6 @@
           "owner": "beo-execute",
           "artifact": "TRACKER.json",
           "required_for_ready_for_review": [
-            "schema_version",
             "feature_slug",
             "artifact_root",
             "approval_ref_id",
@@ -199,12 +344,12 @@
           "artifact": "REVIEW.md",
           "required_after_terminal_review": [
             "verdict",
-            "evidence",
+            "review_evidence",
             "findings",
             "closure"
           ],
           "optional": [
-            "learning"
+            "learning_candidate"
           ]
         }
       }
@@ -212,10 +357,7 @@
   },
   "manifest_schema": {
     "file": "FEATURE.json",
-    "schema_version": "beo.feature_manifest.v1",
     "required": [
-      "schema_version",
-      "beo_contract_version",
       "feature_slug",
       "artifact_root",
       "artifact_density",
@@ -230,9 +372,7 @@
   },
   "ledger_schema": {
     "file": "TRACKER.json",
-    "schema_version": "beo.execution_ledger.v1",
     "required": [
-      "schema_version",
       "feature_slug",
       "artifact_root",
       "approval_ref_id",
@@ -252,23 +392,21 @@
   },
   "handoff_schema": {
     "file": "HANDOFF.json",
-    "schema_version": "beo.handoff.v1",
     "required": [
-      "schema_version",
       "feature_slug",
       "artifact_root",
       "from_owner",
       "to_owner",
       "condition_id",
       "created_at",
-      "required_reads"
-    ]
+      "required_reads",
+      "transition"
+    ],
+    "transition_rule": "Top-level feature_slug, artifact_root, from_owner, to_owner, condition_id, and created_at must match HANDOFF.transition; contradictions fail closed."
   },
   "debug_diagnosis_schema": {
     "artifact_target": "feature artifact root DEBUG_DIAGNOSIS.md or debug-diagnosis-<id>.json",
-    "schema_version": "beo.debug_diagnosis.v1",
     "required": [
-      "schema_version",
       "id",
       "feature_slug",
       "created_by_owner",
@@ -277,12 +415,12 @@
       "diagnosis_status",
       "evidence_refs",
       "recommended_next_owner"
-    ]
+    ],
+    "shared_shape_ref": "shared_shapes.debug_diagnosis_shape",
+    "return_rule": "recommended_next_owner return_to_caller requires transition.return provenance and diagnosis_status root_cause_proven."
   },
   "learning_case_schema": {
-    "schema_version": "beo.learning_case.v1",
     "required": [
-      "schema_version",
       "id",
       "case_status",
       "case_type",
@@ -296,9 +434,7 @@
     "vocabulary_ref": "learning-vocabulary.json"
   },
   "learning_pattern_schema": {
-    "schema_version": "beo.learning_pattern.v1",
     "required": [
-      "schema_version",
       "id",
       "pattern_status",
       "supporting_case_ids",

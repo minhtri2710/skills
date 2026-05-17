@@ -1,40 +1,33 @@
 # Route Resolution
 <!-- beo:route-resolution -->
 
-Authority: canonical for unsafe owner/feature identity repair resolution and meta-target semantics only. It adds no transition topology; legal `condition_id` -> target pairs remain defined only by `registry/pipeline.json`.
+Authority: canonical unsafe owner/feature identity repair algorithm. Meta-target resolution lives in `beo-reference -> references/transition-provenance.md`.
 
-Use route only when owner/feature identity is missing, stale, contradictory, colliding, or unsafe. Normal resume owner orientation lives in `references/resume-resolution.md`. `beo-route` repairs identity metadata only and never repairs requirements, plan, approval, execution evidence, review, learning, setup state, or product files.
+## Rule
 
-If artifacts remain contradictory after identity comparison, stop for user decision.
+Use `beo-route` only when owner or feature identity is missing, stale, contradictory, colliding, or unsafe. Route is not normal resume and never approves, executes, reviews, plans, or patches.
 
-## Meta-target resolution
+## Algorithm
+
+1. Compare artifact identity against STATE/HANDOFF mirrors.
+2. Artifacts beat STATE/HANDOFF mirrors.
+3. Repair identity metadata only when artifact evidence proves the repair.
+4. If repair is proven, emit `identity_repaired` -> `restored_owner`.
+5. If artifacts remain contradictory or no safe repair is proven, emit `user_decision_needed` -> `user`.
+6. After repair, use `resume-resolution.md` for concrete owner orientation.
+
+## Meta-target pointer
 <!-- beo:route-resolution:meta-targets -->
 
-`return_to_caller` is legal only when:
-- the current transition came from a temporary owner such as `beo-debug`;
-- fresh `caller_owner` and `caller_condition_id` exist;
-- the metadata matches a legal originating transition in `registry/pipeline.json`;
-- current artifact evidence does not contradict returning.
-
-If any condition fails, use `references/resume-resolution.md` for artifact-derived orientation or stop for user decision.
-
-`restored_owner` is a symbolic meta-target condition emitted only after identity metadata is repaired. It is not a concrete owner and never means "the owner written in STATE". After repair, concrete target selection comes from `references/resume-resolution.md` and must resolve to a runtime owner, terminal `done`, or `user` before the next owner acts.
-
-`return_to_caller` and `restored_owner` do not grant owner authority by themselves. The concrete next owner must still load its `SKILL.md`, common contract, and current artifacts.
+`restored_owner` is symbolic. It is not a concrete owner and must not be loaded directly. Resolve it through `beo-reference -> references/transition-provenance.md` and then `beo-reference -> references/resume-resolution.md`.
 
 ## Operator output
 <!-- beo:route-resolution:operator-output -->
 
-When repairing identity, report:
+When route stops, report the identity defect, artifact evidence checked, repair performed or refused, and the legal `condition_id`.
 
 ```text
-Artifacts prove: <artifact evidence and repaired identity basis>
-Mirror said: <STATE/HANDOFF owner identity, if present>
-Action: repair identity metadata only | user decision needed
-Restored target: <symbolic restored_owner | user>
-Concrete orientation source: references/resume-resolution.md
-Target class: <meta | terminal>
-Next read: <resume-resolution.md | canonical reference | none for user>
+Artifacts prove: <owner/feature identity evidence or none>
+STATE/HANDOFF mirror: <matching | stale | contradictory | missing>
+Route result: <identity_repaired | user_decision_needed>
 ```
-
-If operator output names a later concrete owner, label it as resume orientation from `references/resume-resolution.md`, not route authority.

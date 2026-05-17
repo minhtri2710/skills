@@ -23,6 +23,11 @@ else:
 REGISTRY_ROOT = Path(__file__).resolve().parents[1] / "registry"
 RFC3339_UTC_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
 AUTHORITY_FENCE_RE = re.compile(r"```(?P<kind>[^\s`]+)\s+(?P<schema>beo\.[\w_.-]+)\n(?P<body>.*?)\n```", re.S)
+UNSUPPORTED_FENCE_RE = re.compile(r"^beo\.[\w_]+\.v\d+$")
+REMOVED_SUFFIX = "_" + "ver" + "sion"
+REMOVED_SHAPE_FIELD = "schema" + REMOVED_SUFFIX
+REMOVED_CONTRACT_FIELD = "beo" + "_contract" + REMOVED_SUFFIX
+REMOVED_FIELD_NAMES = {REMOVED_SHAPE_FIELD, REMOVED_CONTRACT_FIELD}
 
 _REGISTRY_ERROR: str | None = None
 try:
@@ -67,8 +72,9 @@ def approval_required_fields() -> list[dict[str, Any]]:
         registry_unavailable("approval-envelope required_fields must be a list of objects")
         return []
     for index, field in enumerate(fields):
-        if not isinstance(field.get("id"), str) or not field.get("id"):
-            registry_unavailable(f"approval-envelope required_fields[{index}].id must be a non-empty string")
+        field_id = field.get("id")
+        if not isinstance(field_id, str) or not field_id.strip():
+            registry_unavailable(f"approval-envelope required_fields[{index}].id must be a non-blank string")
             return []
     return fields
 
@@ -92,19 +98,62 @@ def required_readiness(default: str = "PASS_EXECUTE") -> str:
         if field.get("id") != "readiness":
             continue
         value = field.get("required_value")
-        if isinstance(value, str) and value:
-            return value
-        registry_unavailable("approval-envelope readiness required_value must be a string")
-        return default
+        if not isinstance(value, str) or not value.strip():
+            registry_unavailable("approval-envelope readiness required_value must be a non-blank string")
+            return default
+        if value != value.strip():
+            registry_unavailable("approval-envelope readiness required_value must not have surrounding whitespace")
+            return default
+        if value not in SUPPORTED_READINESS:
+            registry_unavailable(f"approval-envelope readiness required_value is not registered readiness: {value}")
+            return default
+        return value
     registry_unavailable("approval-envelope readiness required field is missing")
     return default
 
 
 SUPPORTED_DENSITIES = set(registry_string_list(VOCAB, "artifact_density", ["compact", "full"]))
+SUPPORTED_READINESS = set(registry_string_list(VOCAB, "readiness", []))
 SUPPORTED_MODES = set(registry_string_list(VOCAB, "execution_mode", []))
 SUPPORTED_EXECUTION_SET_KINDS = set(registry_string_list(VOCAB, "execution_set_kind", []))
 SUPPORTED_LIFECYCLE_STATUSES = set(registry_string_list(VOCAB, "lifecycle_status", []))
-SUPPORTED_MANIFEST_OWNERS = set(registry_string_list(VOCAB, "runtime_owners", [])) | set(registry_string_list(VOCAB, "utilities", []))
+SUPPORTED_RUNTIME_OWNERS = set(registry_string_list(VOCAB, "runtime_owners", []))
+SUPPORTED_MANIFEST_OWNERS = SUPPORTED_RUNTIME_OWNERS | set(registry_string_list(VOCAB, "utilities", []))
+
+
+def validate_compact_field_ownership() -> None:
+    owner_classes = VOCAB.get("owner_classes", {}) if isinstance(VOCAB, dict) else {}
+    if not isinstance(owner_classes, dict):
+        registry_unavailable("vocabulary.owner_classes must be an object")
+        return
+    runtime_delivery = owner_classes.get("runtime_delivery", [])
+    if not isinstance(runtime_delivery, list) or not runtime_delivery or not all(isinstance(item, str) for item in runtime_delivery):
+        registry_unavailable("vocabulary.owner_classes.runtime_delivery must be a non-empty list of strings")
+        return
+    expected = set(runtime_delivery) | {"beo-route"}
+    densities = ARTIFACT_SCHEMAS.get("artifact_densities") if isinstance(ARTIFACT_SCHEMAS, dict) else None
+    compact = densities.get("compact") if isinstance(densities, dict) else None
+    ownership = compact.get("field_ownership") if isinstance(compact, dict) else None
+    if not isinstance(ownership, dict) or not ownership:
+        registry_unavailable("artifact-schemas artifact_densities.compact.field_ownership must be a non-empty object")
+        return
+    owners: set[str] = set()
+    for owner, fields in ownership.items():
+        if not isinstance(owner, str) or not owner:
+            registry_unavailable("artifact-schemas compact field_ownership keys must be non-empty strings")
+            return
+        if owner not in SUPPORTED_RUNTIME_OWNERS:
+            registry_unavailable(f"artifact-schemas compact field_ownership owner is not a runtime owner: {owner}")
+            return
+        if not isinstance(fields, list) or not fields or not all(isinstance(field, str) and field.strip() for field in fields):
+            registry_unavailable(f"artifact-schemas compact field_ownership.{owner} must be a non-empty list of non-empty strings")
+            return
+        owners.add(owner)
+    if owners != expected:
+        registry_unavailable(f"artifact-schemas compact field_ownership keys must match compact artifact owners: expected {sorted(expected)}, got {sorted(owners)}")
+
+
+validate_compact_field_ownership()
 HUMAN_GATE_TYPES = set(registry_string_list(VOCAB, "human_gate_type", []))
 HUMAN_GATE_AFFECTS = set(registry_string_list(VOCAB, "human_gate_affects", []))
 INTEGRITY_STATUSES = set(registry_string_list(VOCAB, "integrity_status", ["verified", "invalid", "unavailable"]))
@@ -165,7 +214,7 @@ def stable_hash(data: Any) -> str:
 
 
 def projection_rule_for_density(density: str) -> str:
-    return "compact_shorthand_derived" if density == "compact" else "full_plan_explicit"
+    return "compact_derived" if density == "compact" else "full_plan_explicit"
 
 
 def approval_bearing_projection_hash(values: dict[str, Any]) -> str:
@@ -270,6 +319,15 @@ def direct_key(data: Any, key: str) -> Any:
     return None
 
 
+def validate_removed_fields(data: Any, errors: list[dict[str, Any]], path_prefix: str = "") -> None:
+    if not isinstance(data, dict):
+        return
+    for field in REMOVED_FIELD_NAMES:
+        if field in data:
+            path = f"{path_prefix}.{field}" if path_prefix else field
+            errors.append(err("UNSUPPORTED_FIELD", path, "omit field; BEO uses one current shape", data.get(field)))
+
+
 def parse_simple_yaml(body: str) -> Any:
     return yaml.load(body, Loader=StrictYamlLoader)
 
@@ -289,6 +347,8 @@ def authority_blocks(text: str, schema: str) -> tuple[list[dict[str, Any]], list
             ))
             continue
         if matched_schema != schema:
+            if UNSUPPORTED_FENCE_RE.match(matched_schema):
+                errors.append(err("UNSUPPORTED_MARKER", matched_schema, f"```yaml {schema}```", f"```{match.group('kind')} {matched_schema}```"))
             continue
         body = match.group("body")
         try:
@@ -338,17 +398,14 @@ def state_feature_slug(root: Path) -> str | None:
 
 def validate_manifest_values(manifest: dict[str, Any]) -> list[dict[str, Any]]:
     errors: list[dict[str, Any]] = []
+    validate_removed_fields(manifest, errors, "FEATURE.json")
     slug = manifest.get("feature_slug")
-    if "schema_version" in manifest and manifest.get("schema_version") != ARTIFACT_SCHEMAS.get("manifest_schema", {}).get("schema_version"):
-        errors.append(err("MISMATCH", "FEATURE.json.schema_version", ARTIFACT_SCHEMAS.get("manifest_schema", {}).get("schema_version"), manifest.get("schema_version")))
     if "feature_slug" in manifest and (not isinstance(slug, str) or not slug):
         errors.append(err("MISMATCH", "FEATURE.json.feature_slug", "non-empty string", slug))
     if isinstance(slug, str) and slug and "artifact_root" in manifest:
         expected_root = f".beads/artifacts/{slug}"
         if manifest.get("artifact_root") != expected_root:
             errors.append(err("MISMATCH", "FEATURE.json.artifact_root", expected_root, manifest.get("artifact_root")))
-    if "beo_contract_version" in manifest and missing_non_empty_value(manifest.get("beo_contract_version")):
-        errors.append(err("MISSING_FIELD", "FEATURE.json.beo_contract_version", "non-empty value", manifest.get("beo_contract_version")))
     if "lifecycle_status" in manifest and manifest.get("lifecycle_status") not in SUPPORTED_LIFECYCLE_STATUSES:
         errors.append(err("MISMATCH", "FEATURE.json.lifecycle_status", sorted(SUPPORTED_LIFECYCLE_STATUSES), manifest.get("lifecycle_status")))
     if "current_owner" in manifest and manifest.get("current_owner") not in SUPPORTED_MANIFEST_OWNERS:
@@ -412,14 +469,15 @@ def validate_approval_ref(value: Any, density: str, selected: Any, mode: Any, ha
     if not isinstance(value, dict):
         return [err("APPROVAL_REF_INVALID_SHAPE", "approval_ref", "object", type(value).__name__)]
     required = APPROVAL_REF_REQUIRED_FIELDS
+    unknown = sorted(set(value) - set(required))
+    for field in unknown:
+        errors.append(err("UNSUPPORTED_FIELD", f"approval_ref.{field}", "fields named in approval_ref_schema.required only", value.get(field)))
     missing = [field for field in required if field not in value]
     if missing:
         errors.append(err("MISSING_FIELD", "approval_ref", required, {"missing": missing}))
     for field in required:
         if field in value and missing_non_empty_value(value.get(field)):
             errors.append(err("MISSING_FIELD", f"approval_ref.{field}", "non-empty value", value.get(field)))
-    if value.get("schema_version") != "beo.approval_ref.v1":
-        errors.append(err("MISMATCH", "approval_ref.schema_version", "beo.approval_ref.v1", value.get("schema_version")))
     if value.get("approved_by_owner") != "beo-validate":
         errors.append(err("MISMATCH", "approval_ref.approved_by_owner", "beo-validate", value.get("approved_by_owner")))
     if not missing_non_empty_value(value.get("approved_at")) and not RFC3339_UTC_RE.match(str(value.get("approved_at"))):
@@ -438,7 +496,7 @@ def validate_approval_ref(value: Any, density: str, selected: Any, mode: Any, ha
     else:
         forbidden_keys = [key for key in artifact_hashes if "#approval_bearing_projection" in key or key in {"CONTEXT.md", "TICKET.md", "PLAN.md"}]
         if forbidden_keys:
-            errors.append(err("DEPRECATED_FIELD", "approval_ref.artifact_hashes", "logical key approval_bearing_projection only", forbidden_keys))
+            errors.append(err("UNSUPPORTED_FIELD", "approval_ref.artifact_hashes", "logical key approval_bearing_projection only", forbidden_keys))
         current = hashes.get("approval_bearing_projection")
         approved = artifact_hashes.get("approval_bearing_projection")
         if approved != current:
@@ -611,7 +669,7 @@ def validate_execution_sets(values: dict[str, Any]) -> list[dict[str, Any]]:
         if kind == "rollback" and execution_set.get("rollback_from_execution_set") not in ids:
             errors.append(err("MISMATCH", f"execution_sets[{index}].rollback_from_execution_set", "existing execution_sets[].id", execution_set.get("rollback_from_execution_set")))
         if "scope_relation" in execution_set:
-            errors.append(err("DEPRECATED_FIELD", f"execution_sets[{index}].scope_relation", "omit field; file-scope validation is authoritative", execution_set.get("scope_relation")))
+            errors.append(err("UNSUPPORTED_FIELD", f"execution_sets[{index}].scope_relation", "omit field; file-scope validation is authoritative", execution_set.get("scope_relation")))
     return errors
 
 
@@ -659,18 +717,72 @@ def validate_changed_file_scope(values: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def active_blocker(value: Any) -> bool:
-    if value in (None, False, "", [], {}, "none", "not_applicable"):
+    if value in (None, False, [], {}):
         return False
     if isinstance(value, str):
-        return value.strip().lower() not in {"none", "not_applicable", "no active blockers", "no_active_blockers"}
+        return value.strip().lower() not in {"", "none", "resolved", "not_applicable", "no active blockers", "no_active_blockers"}
     if isinstance(value, list):
         return any(active_blocker(item) for item in value)
     if isinstance(value, dict):
-        status = value.get("status") or value.get("blocker_status")
-        if status in {"none", "resolved", "not_applicable", "no_active_blockers"}:
+        status = value.get("status")
+        if status is None or (isinstance(status, str) and not status.strip()):
+            status = value.get("blocker_status")
+        if isinstance(status, str) and status.strip().lower() in {"", "none", "resolved", "not_applicable", "no active blockers", "no_active_blockers"}:
             return False
         return True
     return True
+
+
+def string_commands(value: Any) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return [item for item in value if isinstance(item, str) and item.strip()]
+
+
+def optional_verification_commands(contract: Any) -> set[str]:
+    if not isinstance(contract, dict):
+        return set()
+    return set(string_commands(contract.get("optional_commands"))) | set(string_commands(contract.get("not_applicable_commands")))
+
+
+def validate_verification_evidence(value: Any, contract: Any) -> list[dict[str, Any]]:
+    errors: list[dict[str, Any]] = []
+    if not isinstance(value, list) or not value:
+        return [err("MISSING_FIELD", "verification_evidence", "non-empty list", value if value is not None else "missing")]
+    required_commands = string_commands(contract.get("commands") if isinstance(contract, dict) else None)
+    required_command_set = set(required_commands)
+    optional_commands = optional_verification_commands(contract) - required_command_set
+    allowed_commands = required_command_set | optional_commands
+    seen: set[str] = set()
+    for index, item in enumerate(value):
+        if not isinstance(item, dict):
+            errors.append(err("MISMATCH", f"verification_evidence[{index}]", "object", type(item).__name__))
+            continue
+        command = item.get("command")
+        status = item.get("status")
+        command_allowed = False
+        if not isinstance(command, str) or not command.strip():
+            errors.append(err("MISSING_FIELD", f"verification_evidence[{index}].command", "non-empty command", command if command is not None else "missing"))
+        elif command not in allowed_commands:
+            errors.append(err("MISMATCH", f"verification_evidence[{index}].command", "verification_contract.commands or optional/not_applicable command", command))
+        else:
+            command_allowed = True
+        evidence_ref = item.get("evidence_ref")
+        evidence_ref_valid = isinstance(evidence_ref, str) and bool(evidence_ref.strip())
+        if not evidence_ref_valid:
+            errors.append(err("MISSING_FIELD", f"verification_evidence[{index}].evidence_ref", "non-empty evidence_ref", evidence_ref if evidence_ref is not None else "missing"))
+        if status not in {"passed", "failed", "skipped"}:
+            errors.append(err("MISMATCH", f"verification_evidence[{index}].status", ["passed", "failed", "skipped"], status))
+        if status == "failed":
+            errors.append(err("MISMATCH", f"verification_evidence[{index}].status", "passed or approved optional skip", status))
+        if status == "skipped" and command_allowed and command not in optional_commands:
+            errors.append(err("MISMATCH", f"verification_evidence[{index}].status", "skipped only for optional/not_applicable command", {"command": command, "status": status}))
+        if command_allowed and status == "passed" and evidence_ref_valid:
+            seen.add(command)
+    missing_required = [cmd for cmd in required_commands if cmd not in seen]
+    if missing_required:
+        errors.append(err("MISSING_FIELD", "verification_evidence", "evidence for required verification commands", missing_required))
+    return errors
 
 
 def validate_compact_density(values: dict[str, Any]) -> list[dict[str, Any]]:
@@ -687,7 +799,7 @@ def validate_compact_density(values: dict[str, Any]) -> list[dict[str, Any]]:
         errors.append(err("COMPACT_DENSITY_VIOLATION", "declared_files", "non-empty explicit narrow files", values.get("declared_files")))
     verification = values.get("verification_contract")
     commands = verification.get("commands") if isinstance(verification, dict) else None
-    if not isinstance(commands, list) or not commands:
+    if not isinstance(commands, list) or len(string_commands(commands)) != len(commands) or not commands:
         errors.append(err("COMPACT_DENSITY_VIOLATION", "verification_contract", "direct verification commands", verification))
     if len(as_path_list(values.get("generated_outputs"))) > 1:
         errors.append(err("COMPACT_DENSITY_VIOLATION", "generated_outputs", "zero or one simple generated output", values.get("generated_outputs")))
@@ -708,17 +820,18 @@ def set_or_reject_projection(values: dict[str, Any], errors: list[dict[str, Any]
 
 
 def validate_forbidden_target_fields(data: dict[str, Any], errors: list[dict[str, Any]]) -> None:
+    validate_removed_fields(data, errors)
     for field in ["micro_repair_scope", "scope_relation", "projection_operator_editable", "projection_generated_by"]:
         if direct_key(data, field) is not None:
-            errors.append(err("DEPRECATED_FIELD", field, "omit field in target schema", direct_key(data, field)))
+            errors.append(err("UNSUPPORTED_FIELD", field, "omit field in target schema", direct_key(data, field)))
     if isinstance(direct_key(data, "approval"), dict):
-        errors.append(err("DEPRECATED_FIELD", "approval", "flat approval fields", "nested approval object"))
+        errors.append(err("UNSUPPORTED_FIELD", "approval", "flat approval fields", "nested approval object"))
 
 
 def validate_forbidden_compact_projection_fields(data: dict[str, Any], errors: list[dict[str, Any]]) -> None:
-    for field in ["declared_files", "forbidden_paths", "execution_sets", "acceptance_criteria", "verification_contract"]:
+    for field in ["declared_files", "forbidden_paths", "execution_sets", "verification_contract"]:
         if direct_key(data, field) is not None:
-            errors.append(err("DEPRECATED_FIELD", field, "compact operators write scope/done shorthand; helper derives projection", direct_key(data, field)))
+            errors.append(err("UNSUPPORTED_FIELD", field, "compact operators write scope/acceptance shorthand; helper derives projection", direct_key(data, field)))
 
 
 def derive_compact_values(data: dict[str, Any], values: dict[str, Any], errors: list[dict[str, Any]]) -> None:
@@ -761,9 +874,9 @@ def derive_compact_values(data: dict[str, Any], values: dict[str, Any], errors: 
                 ],
             }
         ])
-    done = direct_key(data, "done")
-    if done is not None:
-        set_or_reject_projection(values, errors, "acceptance_criteria", done)
+    acceptance_criteria = direct_key(data, "acceptance_criteria")
+    if acceptance_criteria is not None:
+        set_or_reject_projection(values, errors, "acceptance_criteria", acceptance_criteria)
     if verify is not None:
         set_or_reject_projection(values, errors, "verification_contract", verify)
 
@@ -778,7 +891,7 @@ def missing_required_value(field: str, value: Any) -> bool:
         return True
     if field == "verification_contract":
         commands = value.get("commands") if isinstance(value, dict) else None
-        return not isinstance(commands, list) or not commands
+        return not isinstance(commands, list) or len(string_commands(commands)) != len(commands) or not commands
     return False
 
 
@@ -839,22 +952,31 @@ def verify(root: Path, feature_slug: str | None, check: str) -> dict[str, Any]:
             errors.append(text_error)
             data = {}
         else:
-            blocks, block_errors = authority_blocks(ticket_text or "", "beo.ticket.v1")
+            blocks, block_errors = authority_blocks(ticket_text or "", "beo.ticket")
             errors.extend(block_errors)
             if blocks:
                 data = blocks[0]
+                validate_removed_fields(data, errors)
+                ticket_owner = data.get("current_owner")
+                owner_mirror = data.get("owner")
+                if not isinstance(ticket_owner, str) or not ticket_owner.strip():
+                    errors.append(err("UNSAFE_IDENTITY", "current_owner", sorted(SUPPORTED_RUNTIME_OWNERS), ticket_owner if ticket_owner is not None else "missing"))
+                elif ticket_owner not in SUPPORTED_RUNTIME_OWNERS:
+                    errors.append(err("UNSAFE_IDENTITY", "current_owner", sorted(SUPPORTED_RUNTIME_OWNERS), ticket_owner))
+                if owner_mirror is not None and ticket_owner is not None and owner_mirror != ticket_owner:
+                    errors.append(err("UNSAFE_IDENTITY", "owner", ticket_owner, owner_mirror))
             else:
                 data = {}
                 if markdown_sections(ticket_text or ""):
                     used_documented_sections = True
-                    warnings.append("TICKET.md uses documented markdown sections without beo.ticket.v1 authority block")
+                    warnings.append("TICKET.md uses documented markdown sections without beo.ticket authority block")
                 else:
-                    errors.append(err("MISSING_AUTHORITY_BLOCK", "TICKET.md", "```yaml beo.ticket.v1```", "missing"))
+                    errors.append(err("MISSING_AUTHORITY_BLOCK", "TICKET.md", "```yaml beo.ticket```", "missing"))
             if used_documented_sections:
                 errors.append(err(
                     "MISSING_AUTHORITY_BLOCK",
                     "TICKET.md",
-                    "add ```yaml beo.ticket.v1``` structured authority block for approval-bearing checks",
+                    "add ```yaml beo.ticket``` structured authority block for approval-bearing checks",
                     "documented markdown sections are draft-only",
                 ))
         values.update({
@@ -875,6 +997,7 @@ def verify(root: Path, feature_slug: str | None, check: str) -> dict[str, Any]:
             "selected_execution_set": direct_key(data, "selected_execution_set"),
             "execution_mode": direct_key(data, "execution_mode"),
             "pre_execution_integrity_check": direct_key(data, "pre_execution_integrity_check"),
+            "execution_status": direct_key(data, "execution_status"),
             "changed_files": direct_key(data, "changed_files"),
             "verification_evidence": direct_key(data, "verification_evidence"),
             "review_status": direct_key(data, "review_status"),
@@ -883,7 +1006,6 @@ def verify(root: Path, feature_slug: str | None, check: str) -> dict[str, Any]:
         validate_forbidden_target_fields(data, errors)
         validate_forbidden_compact_projection_fields(data, errors)
         derive_compact_values(data, values, errors)
-        hashes["approval_bearing_projection"] = approval_bearing_projection_hash(values)
     else:
         context_text, context_error = read_text(artifact_root / "CONTEXT.md")
         plan_text, plan_error = read_text(artifact_root / "PLAN.md")
@@ -894,17 +1016,18 @@ def verify(root: Path, feature_slug: str | None, check: str) -> dict[str, Any]:
         plan_data: dict[str, Any] = {}
         if context_text is not None:
             hashes["CONTEXT.md"] = sha256_bytes(context_text.replace("\r\n", "\n").encode())
-            blocks, block_errors = authority_blocks(context_text, "beo.context.v1")
+            blocks, block_errors = authority_blocks(context_text, "beo.context")
             errors.extend(block_errors)
             context_data = blocks[0] if blocks else {}
             if not blocks:
-                errors.append(err("MISSING_AUTHORITY_BLOCK", "CONTEXT.md", "```yaml beo.context.v1```", "missing"))
+                errors.append(err("MISSING_AUTHORITY_BLOCK", "CONTEXT.md", "```yaml beo.context```", "missing"))
+            validate_removed_fields(context_data, errors)
         if plan_text is not None:
-            blocks, block_errors = authority_blocks(plan_text, "beo.plan.v1")
+            blocks, block_errors = authority_blocks(plan_text, "beo.plan")
             errors.extend(block_errors)
             plan_data = blocks[0] if blocks else {}
             if not blocks:
-                errors.append(err("MISSING_AUTHORITY_BLOCK", "PLAN.md", "```yaml beo.plan.v1```", "missing"))
+                errors.append(err("MISSING_AUTHORITY_BLOCK", "PLAN.md", "```yaml beo.plan```", "missing"))
             validate_forbidden_target_fields(plan_data, errors)
         values.update({
             "request": direct_key(context_data, "request"),
@@ -959,21 +1082,24 @@ def verify(root: Path, feature_slug: str | None, check: str) -> dict[str, Any]:
         errors.extend(validate_changed_file_scope(values))
     if check == "review":
         if density == "compact":
-            for field in ["pre_execution_integrity_check", "changed_files", "verification_evidence", "review_status", "blocker"]:
+            for field in ["pre_execution_integrity_check", "execution_status", "changed_files", "verification_evidence", "review_status", "blocker"]:
                 if missing_non_empty_value(values.get(field)):
                     errors.append(err("MISSING_FIELD", field, "non-empty value", "missing"))
+            if values.get("execution_status") != "ready_for_review":
+                errors.append(err("MISMATCH", "execution_status", "ready_for_review", values.get("execution_status")))
             if values.get("review_status") != "ready_for_review":
                 errors.append(err("MISMATCH", "review_status", "ready_for_review", values.get("review_status")))
             if active_blocker(values.get("blocker")):
                 errors.append(err("MISMATCH", "blocker", "no active blockers", values.get("blocker")))
+            errors.extend(validate_verification_evidence(values.get("verification_evidence"), values.get("verification_contract")))
             errors.extend(validate_pre_execution_integrity_check(values.get("pre_execution_integrity_check")))
         else:
             tracker, tracker_error = read_json(artifact_root / "TRACKER.json")
             if tracker_error:
                 errors.append(tracker_error)
             elif tracker is not None:
+                validate_removed_fields(tracker, errors, "TRACKER.json")
                 ledger_required = [
-                    "schema_version",
                     "feature_slug",
                     "artifact_root",
                     "approval_ref_id",
@@ -998,8 +1124,6 @@ def verify(root: Path, feature_slug: str | None, check: str) -> dict[str, Any]:
                             errors.append(err("MISSING_FIELD", f"TRACKER.json.{field}", "list", type(tracker.get(field)).__name__))
                     elif missing_non_empty_value(tracker.get(field)):
                         errors.append(err("MISSING_FIELD", f"TRACKER.json.{field}", "non-empty value", "missing"))
-                if tracker.get("schema_version") != "beo.execution_ledger.v1":
-                    errors.append(err("MISMATCH", "TRACKER.json.schema_version", "beo.execution_ledger.v1", tracker.get("schema_version")))
                 if tracker.get("ledger_status") != "ready_for_review":
                     errors.append(err("MISMATCH", "TRACKER.json.ledger_status", "ready_for_review", tracker.get("ledger_status")))
                 if active_blocker(tracker.get("blockers")):

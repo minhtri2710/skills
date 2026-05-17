@@ -21,3 +21,11 @@ Authority: canonical terminology only. It adds no workflow rule, owner authority
 - Route repair: unsafe owner/feature identity metadata repair only.
 - Decision card: human scan summary in owner skills; it is not machine transition authority.
 - Anchor: stable markdown marker used for navigation or checker expectations.
+
+## `beo-reference -> <path>`
+
+`beo-reference -> <path>` is a symbolic lookup instruction: use `beo-reference` to read the canonical file at `<path>` under `skills/beo/reference/`.
+
+It is not a shell path, runtime transition, or mutation permission.
+
+Example: `beo-reference -> references/skill-contract-common.md` means read `skills/beo/reference/references/skill-contract-common.md` as canonical doctrine.

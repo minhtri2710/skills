@@ -4,7 +4,7 @@ Authority: advisory only.
 Start here:
 <!-- beo:agents:start-cockpit -->
 1. Operator cockpit: `beo-reference -> references/operator-cockpit.md`
-2. Runtime kernel: `beo-reference -> references/runtime-kernel.md`
+2. Protocol core: `beo-reference -> references/protocol-core.md`
 3. Current owner contract: active owner `SKILL.md`
 4. Canonical transitions: `beo-reference -> registry/pipeline.json`
 

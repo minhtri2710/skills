@@ -1,88 +1,52 @@
 ---
 name: beo-validate
-description: |
-  Classifies readiness and selects the next legal execution set. Use when requirements and plan exist but readiness, approval, execution-set selection, recorded Human Gate status evaluation, approval_ref, or integrity evidence is needed. Not for implementation, review verdicting, Human Gate capture/resolution, or requirements/plan authoring.
+description: Decides whether the exact BEO plan is ready and approved for execution.
 ---
 
 # beo-validate
 
-## Purpose
-
-Own the readiness gate and approval envelope.
-
-## Decision Card
-
-Decision: classify readiness and select the next legal execution set.
-
-Can enter when:
-- current requirements and plan are ready for approval evaluation
-
-Can write:
-- Approval section fields and allowed STATE/HANDOFF transition metadata
-
-Must stop when:
-- approval inputs or recorded Human Gate status are missing, stale, invalid, contradictory, or unavailable
-
-Exit summary (non-authoritative):
-- `PASS_EXECUTE` -> `beo-execute`
-- `FAIL_PLAN` -> `beo-plan`
-- `FAIL_EXPLORE` -> `beo-explore`
-- `BLOCK_USER` -> `user`
-- `FAIL_STATE` -> `beo-route`
-
-Never:
-- mutate product files, resolve Human Gates, write non-Approval sections, or emit verdicts
-
-Reads:
-- current artifacts and `beo-reference -> references/decision-boundaries.md` for Human Gate lifecycle
-- `beo-reference -> references/approval.md`, `beo-reference -> registry/artifact-schemas.json`, `beo-reference -> registry/approval-envelope.json`, and `beo-reference -> registry/pipeline.json`
-
-## Contract
-
 Before acting, load and obey `beo-reference -> references/skill-contract-common.md`.
 
-Acts when:
-- current artifacts are ready for approval evaluation
+## Decision
 
-Owns:
-- `PASS_EXECUTE` or failure readiness, full approval ref, integrity object, selected execution set, and execution mode
+Atomically decide execution readiness and bind execution authority.
 
-Writes:
-- compact/full Approval section only and allowed STATE/HANDOFF transition metadata
+## Enter
 
-Reads:
-- current artifacts, `beo-reference -> references/approval.md`, `beo-reference -> references/decision-boundaries.md`, `beo-reference -> registry/approval-envelope.json`, `beo-reference -> registry/artifact-schemas.json`, `beo-reference -> registry/pipeline.json`
+- Requirements and plan are ready for approval evaluation.
 
-Local stops:
-- readiness inputs are missing, stale, invalid, contradictory, or unavailable
-- recorded Human Gate status is unresolved, missing, stale, or contradictory
-- required user input for a Human Gate is absent
-- owner/feature identity is unsafe
+## Owns
 
-Local forbids:
-- product files, execution evidence, terminal verdicts, non-Approval artifact sections
-- resolving Human Gates
+- Readiness/refusal.
+- Selected execution set.
+- Execution mode.
+- Approval ref and integrity object.
 
-Exits:
+## Writes
+
+- Compact validation fields or full Approval section only.
+- Legal transition metadata.
+
+## Stops
+
+- Approval inputs are missing, stale, invalid, contradictory, or unavailable.
+- Recorded Human Gate status is unresolved, missing, stale, or contradictory.
+- Required user input for a Human Gate is absent.
+- Owner/feature identity is unsafe.
+
+## Exits
+
 - `PASS_EXECUTE` -> `beo-execute`
 - `FAIL_PLAN` -> `beo-plan`
 - `FAIL_EXPLORE` -> `beo-explore` for missing, stale, contradictory, or unresolved recorded Human Gate status
 - `BLOCK_USER` -> `user` only when required user input is absent
+- `user_abandoned` -> `done`
 - `FAIL_STATE` -> `beo-route`
 
-## Compact derived projection
+## Method
 
-Evaluate compact shorthand through the approval-bearing projection defined by `beo-reference -> references/approval.md` and `beo-reference -> registry/approval-envelope.json`.
-
-## Approval fields
-
-Write flat approval fields only:
-- `readiness`
-- `approval_ref`
-- `integrity`
-- `selected_execution_set`
-- `execution_mode: normal`
-
-`approval_ref.artifact_hashes.approval_bearing_projection` records the approved snapshot. `integrity.status` records helper evidence and must include `evidence_ref` when verified.
-
-Repair and rollback require normal selected execution-set approval.
+1. Run fresh `beo_approval_check.py --check validate` for the current artifacts.
+2. Evaluate the approval projection, Human Gate status, and scope binding from current artifacts and registries.
+3. Emit `approval_ref` only for valid `PASS_EXECUTE`.
+4. Record integrity.
+5. Hand off with exactly one legal condition and transition provenance when applicable.

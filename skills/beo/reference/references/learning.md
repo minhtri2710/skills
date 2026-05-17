@@ -6,7 +6,7 @@ Authority: canonical for post-runtime learning capture.
 
 A learning item must describe one concrete observed workflow case with provenance. Vague impressions are invalid.
 
-Learning records use `beo.learning_case.v1` or `beo.learning_pattern.v1` from `registry/artifact-schemas.json`. Learning enum values come from `registry/learning-vocabulary.json`.
+Learning records use the current learning case or learning pattern shapes from `registry/artifact-schemas.json`. Learning enum values come from `registry/learning-vocabulary.json`.
 
 ## LEARN-02 No Runtime Authority
 
@@ -21,7 +21,6 @@ Case filenames and IDs use `case-<feature_slug>-<short-topic>.yaml`. Pattern fil
 Minimal case record:
 
 ```yaml
-schema_version: beo.learning_case.v1
 id: case-demo-owner-boundary
 case_status: finalized
 case_type: wrong-owner-selection

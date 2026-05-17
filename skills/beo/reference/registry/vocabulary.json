@@ -76,13 +76,6 @@
     "complete",
     "missing"
   ],
-  "route_defect_types": [
-    "contradictory_owner",
-    "colliding_predicates",
-    "feature_collision",
-    "unsafe_stale_identity",
-    "missing_owner_with_no_canonical_artifact_owner"
-  ],
   "human_gate_type": [
     "clarification",
     "choice",
@@ -93,10 +86,15 @@
   "human_gate_affects": [
     "scope",
     "acceptance",
+    "non_goals",
+    "compatibility",
     "security",
+    "privacy",
     "access",
+    "legal",
     "business",
-    "approval"
+    "approval",
+    "user_visible_commitment"
   ],
   "human_gate_status": [
     "unresolved",
@@ -136,10 +134,6 @@
     "manual_user_decision_required",
     "impossible_destructive"
   ],
-  "proof_status": [
-    "proven",
-    "inconclusive"
-  ],
   "debug_unblock_class": [
     "bounded_plan_repair",
     "user_owned",
@@ -163,23 +157,40 @@
     "invalid",
     "unavailable"
   ],
-  "style_forbidden_aliases": {
-    "tiny": "invalid",
-    "micro": "invalid",
-    "small": "invalid",
-    "beo_standard": "invalid",
-    "PASSEXECUTE": "use PASS_EXECUTE",
-    "pass": "invalid",
-    "fail": "invalid",
-    "ok": "invalid",
-    "valid": "use verified only for integrity",
-    "clean": "invalid",
-    "pending": "invalid as verdict, review status, or debug lifecycle; valid only as item_status",
-    "not-started": "invalid"
-  },
   "integrity_status": [
     "verified",
     "invalid",
     "unavailable"
+  ],
+  "phase_status": [
+    "draft",
+    "planned",
+    "approved",
+    "executing",
+    "ready_for_review",
+    "blocked"
+  ],
+  "execution_status": [
+    "not_started",
+    "in_progress",
+    "blocked",
+    "ready_for_review",
+    "rolled_back",
+    "abandoned"
+  ],
+  "verification_evidence_status": [
+    "passed",
+    "failed",
+    "skipped"
+  ],
+  "review_evidence_status": [
+    "checked",
+    "issue_found"
+  ],
+  "closure_status": [
+    "open",
+    "closed",
+    "repair_requested",
+    "abandoned"
   ]
 }

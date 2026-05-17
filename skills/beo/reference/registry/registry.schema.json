@@ -13,6 +13,7 @@
         "terminal_targets",
         "meta_targets",
         "artifact_density",
+        "artifact_density_output",
         "readiness",
         "execution_mode",
         "review_status",
@@ -27,11 +28,15 @@
         "item_status",
         "execution_set_kind",
         "rollback_boundary",
-        "proof_status",
         "debug_unblock_class",
         "command_authority",
         "command_contract_status",
-        "approval_envelope_status"
+        "approval_envelope_status",
+        "phase_status",
+        "execution_status",
+        "verification_evidence_status",
+        "review_evidence_status",
+        "closure_status"
       ],
       "properties": {
         "description": {
@@ -132,12 +137,6 @@
           },
           "minItems": 1
         },
-        "route_defect_types": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
         "human_gate_type": {
           "type": "array",
           "items": {
@@ -157,12 +156,6 @@
           }
         },
         "rollback_boundary": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "proof_status": {
           "type": "array",
           "items": {
             "type": "string"
@@ -189,12 +182,6 @@
         "approval_envelope_status": {
           "type": "array",
           "items": {
-            "type": "string"
-          }
-        },
-        "style_forbidden_aliases": {
-          "type": "object",
-          "additionalProperties": {
             "type": "string"
           }
         },
@@ -229,7 +216,49 @@
           },
           "minItems": 1
         },
+        "artifact_density_output": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        },
         "integrity_status": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        },
+        "phase_status": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        },
+        "execution_status": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        },
+        "verification_evidence_status": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        },
+        "review_evidence_status": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        },
+        "closure_status": {
           "type": "array",
           "items": {
             "type": "string"
@@ -240,6 +269,34 @@
     },
     "vocabulary": {
       "$ref": "#/definitions/core-vocabulary"
+    },
+    "style-policy": {
+      "type": "object",
+      "required": [
+        "forbidden_aliases",
+        "preferred_terms"
+      ],
+      "properties": {
+        "$schema": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "forbidden_aliases": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "preferred_terms": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
     },
     "learning-vocabulary": {
       "type": "object",
@@ -312,7 +369,8 @@
             ],
             "properties": {
               "id": {
-                "type": "string"
+                "type": "string",
+                "minLength": 1
               },
               "owner": {
                 "type": "string"
@@ -325,6 +383,10 @@
               },
               "full_source": {
                 "type": "string"
+              },
+              "required_value": {
+                "type": "string",
+                "minLength": 1
               }
             }
           }
@@ -357,7 +419,8 @@
               "type": "object",
               "required": [
                 "artifact_set",
-                "phase_sections"
+                "phase_sections",
+                "field_ownership"
               ],
               "properties": {
                 "artifact_set": {
@@ -398,6 +461,18 @@
                       "$ref": "#/definitions/phase-section"
                     }
                   }
+                },
+                "field_ownership": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "$ref": "#/definitions/non-empty-string-array"
+                  }
+                },
+                "identity_consistency": {
+                  "type": "string"
+                },
+                "future_owned_fields": {
+                  "type": "string"
                 }
               }
             },
@@ -461,13 +536,13 @@
           "$ref": "#/definitions/named-artifact-schema"
         },
         "debug_diagnosis_schema": {
-          "$ref": "#/definitions/versioned-artifact-schema"
+          "$ref": "#/definitions/auxiliary-artifact-schema"
         },
         "learning_case_schema": {
-          "$ref": "#/definitions/versioned-artifact-schema"
+          "$ref": "#/definitions/auxiliary-artifact-schema"
         },
         "learning_pattern_schema": {
-          "$ref": "#/definitions/versioned-artifact-schema"
+          "$ref": "#/definitions/auxiliary-artifact-schema"
         },
         "execution_set_schema": {
           "type": "object"
@@ -478,18 +553,22 @@
       },
       "additionalProperties": false
     },
+    "non-empty-string-array": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 1
+    },
     "named-artifact-schema": {
       "type": "object",
       "required": [
         "file",
-        "schema_version",
         "required"
       ],
       "properties": {
         "file": {
-          "type": "string"
-        },
-        "schema_version": {
           "type": "string"
         },
         "required": {
@@ -507,15 +586,12 @@
         }
       }
     },
-    "versioned-artifact-schema": {
+    "auxiliary-artifact-schema": {
       "type": "object",
       "required": [
         "required"
       ],
       "properties": {
-        "schema_version": {
-          "type": "string"
-        },
         "required": {
           "type": "array",
           "items": {
@@ -784,6 +860,12 @@
           }
         },
         "required_for_PASS_EXECUTE": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "required_for_failure_readiness": {
           "type": "array",
           "items": {
             "type": "string"

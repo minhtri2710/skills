@@ -31,11 +31,12 @@ Optional closure: `beo-learn -> beo-author` only on explicit request with select
 - `beo-validate` alone grants `PASS_EXECUTE`.
 - `beo-execute` alone mutates product files.
 - `beo-review` alone emits terminal verdicts.
-- Generated/advisory surfaces never create authority.
+- Advisory surfaces never create authority.
 
 ## Operator entry points
 
-- Runtime playbook: `beo-reference -> references/runtime-playbook.md`
+- Operator cockpit: `beo-reference -> references/operator-cockpit.md`
+- Protocol core: `beo-reference -> references/protocol-core.md`
 - Legal transitions: `beo-reference -> registry/pipeline.json`
 - Artifact model: `beo-reference -> references/artifacts.md`
 - Approval: `beo-reference -> references/approval.md`

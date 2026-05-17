@@ -1,113 +1,113 @@
 {
   "$schema": "./registry.schema.json#/definitions/approval-envelope",
   "approval_projection_rule": [
-    "compact_shorthand_derived",
+    "compact_derived",
     "full_plan_explicit"
   ],
-  "compact_input_rule": "compact_shorthand_derived",
+  "compact_input_rule": "compact_derived",
   "envelope_rules": [
     "Only beo-validate may write approval envelope fields.",
     "Missing, stale, invalid, contradictory, or unavailable approval/integrity blocks PASS_EXECUTE.",
     "Compact shorthand is evaluated through its derived approval-bearing projection, not raw shorthand alone.",
     "Compact markdown headings are diagnostic-only and must not satisfy approval fields.",
-    "Compact expanded projection fields are helper-derived diagnostics only and are not operator-authored approval authority."
+    "Compact derived projection fields are helper-derived diagnostics only and are not operator-authored approval authority."
   ],
   "required_fields": [
     {
       "id": "readiness",
       "owner": "beo-validate",
-      "compact_source": "TICKET.md beo.ticket.v1 readiness",
+      "compact_source": "TICKET.md `beo.ticket` readiness",
       "full_source": "PLAN.md#Approval.readiness",
       "required_value": "PASS_EXECUTE"
     },
     {
       "id": "approval_ref",
       "owner": "beo-validate",
-      "compact_source": "TICKET.md beo.ticket.v1 approval_ref",
+      "compact_source": "TICKET.md `beo.ticket` approval_ref",
       "full_source": "PLAN.md#Approval.approval_ref"
     },
     {
       "id": "selected_execution_set",
       "owner": "beo-validate",
-      "compact_source": "TICKET.md beo.ticket.v1 selected_execution_set",
+      "compact_source": "TICKET.md `beo.ticket` selected_execution_set",
       "full_source": "PLAN.md#Approval.selected_execution_set"
     },
     {
       "id": "execution_mode",
       "owner": "beo-validate",
-      "compact_source": "TICKET.md beo.ticket.v1 execution_mode",
+      "compact_source": "TICKET.md `beo.ticket` execution_mode",
       "full_source": "PLAN.md#Approval.execution_mode"
     },
     {
       "id": "request",
       "owner": "beo-explore",
-      "compact_source": "TICKET.md beo.ticket.v1 request",
+      "compact_source": "TICKET.md `beo.ticket` request",
       "full_source": "CONTEXT.md#request"
     },
     {
       "id": "declared_files",
       "owner": "beo-plan",
-      "compact_source": "TICKET.md beo.ticket.v1 scope.files.allow -> derived declared_files",
+      "compact_source": "TICKET.md `beo.ticket` scope.files.allow -> derived declared_files",
       "full_source": "PLAN.md#declared_files"
     },
     {
       "id": "forbidden_paths",
       "owner": "beo-plan",
-      "compact_source": "TICKET.md beo.ticket.v1 scope.files.forbid -> derived forbidden_paths",
+      "compact_source": "TICKET.md `beo.ticket` scope.files.forbid -> derived forbidden_paths",
       "full_source": "PLAN.md#forbidden_paths"
     },
     {
       "id": "generated_outputs",
       "owner": "beo-plan",
-      "compact_source": "TICKET.md beo.ticket.v1 generated_outputs or derived not_applicable",
+      "compact_source": "TICKET.md `beo.ticket` generated_outputs or derived not_applicable",
       "full_source": "PLAN.md#generated_outputs"
     },
     {
       "id": "verification_contract",
       "owner": "beo-plan",
-      "compact_source": "TICKET.md beo.ticket.v1 scope.verify -> derived verification_contract",
+      "compact_source": "TICKET.md `beo.ticket` scope.verify -> derived verification_contract",
       "full_source": "PLAN.md#verification_contract"
     },
     {
       "id": "execution_sets",
       "owner": "beo-plan",
-      "compact_source": "TICKET.md beo.ticket.v1 scope.item -> derived execution_sets[set-1].items[item-1]",
+      "compact_source": "TICKET.md `beo.ticket` scope.item -> derived execution_sets[set-1].items[item-1]",
       "full_source": "PLAN.md#execution_sets"
     },
     {
       "id": "acceptance_criteria",
       "owner": "beo-plan",
-      "compact_source": "TICKET.md beo.ticket.v1 done -> derived acceptance_criteria",
+      "compact_source": "TICKET.md `beo.ticket` acceptance_criteria",
       "full_source": "PLAN.md#acceptance_criteria"
     },
     {
       "id": "non_goal_constraints",
       "owner": "beo-plan",
-      "compact_source": "TICKET.md beo.ticket.v1 non_goals -> non_goal_constraints or []",
+      "compact_source": "TICKET.md `beo.ticket` non_goals -> non_goal_constraints or []",
       "full_source": "PLAN.md#non_goal_constraints"
     },
     {
       "id": "risk_scope",
       "owner": "beo-plan",
-      "compact_source": "TICKET.md beo.ticket.v1 risk_scope or derived not_applicable",
+      "compact_source": "TICKET.md `beo.ticket` risk_scope or derived not_applicable",
       "full_source": "PLAN.md#risk_scope"
     },
     {
       "id": "rollback_boundary",
       "owner": "beo-plan",
-      "compact_source": "TICKET.md beo.ticket.v1 rollback_boundary or derived not_applicable",
+      "compact_source": "TICKET.md `beo.ticket` rollback_boundary or derived not_applicable",
       "full_source": "PLAN.md#rollback_boundary"
     },
     {
       "id": "human_gates",
       "owner": "beo-explore",
-      "compact_source": "TICKET.md beo.ticket.v1 human_gates",
+      "compact_source": "TICKET.md `beo.ticket` human_gates",
       "full_source": "CONTEXT.md#human_gates"
     },
     {
       "id": "integrity",
       "owner": "beo-validate",
-      "compact_source": "TICKET.md beo.ticket.v1 integrity",
+      "compact_source": "TICKET.md `beo.ticket` integrity",
       "full_source": "PLAN.md#Approval.integrity"
     }
   ],
@@ -115,7 +115,6 @@
     "type": "object",
     "required": [
       "id",
-      "schema_version",
       "approved_by_owner",
       "approved_at",
       "artifact_density",
@@ -138,18 +137,6 @@
       ]
     }
   },
-  "compact_shorthand_projection": {
-    "request": "request",
-    "declared_files": "scope.files.allow",
-    "forbidden_paths": "scope.files.forbid",
-    "generated_outputs": "not_applicable unless specified",
-    "non_goal_constraints": "non_goals or [] when absent",
-    "risk_scope": "not_applicable unless specified",
-    "rollback_boundary": "not_applicable unless specified",
-    "execution_sets": "single set-1 containing item-1 from scope.item and scope.files.allow",
-    "acceptance_criteria": "done",
-    "verification_contract": "scope.verify"
-  },
   "integrity_schema": {
     "type": "object",
     "required": [
@@ -161,5 +148,18 @@
       "unavailable"
     ],
     "evidence_ref": "required when status = verified"
+  },
+  "compact_projection": {
+    "request": "request",
+    "declared_files": "scope.files.allow",
+    "forbidden_paths": "scope.files.forbid",
+    "generated_outputs": "not_applicable unless specified",
+    "non_goal_constraints": "non_goals or [] when absent",
+    "risk_scope": "not_applicable unless specified",
+    "rollback_boundary": "not_applicable unless specified",
+    "execution_sets": "single set-1 containing item-1 from scope.item and scope.files.allow",
+    "acceptance_criteria": "acceptance_criteria",
+    "verification_contract": "scope.verify",
+    "human_gates": "human_gates"
   }
 }

@@ -8,7 +8,7 @@ A collection of canonical beo skills and shared references for structured, contr
 ## Repository Structure
 
 - `skills/beo/*/SKILL.md` contains owner skill contracts.
-- `skills/beo/reference/references/` contains canonical shared doctrine and generated/advisory playbook surfaces.
+- `skills/beo/reference/references/` contains canonical shared doctrine.
 - `skills/beo/reference/registry/` contains machine-readable canonical registries.
 
 ## Core Dependencies
@@ -25,8 +25,7 @@ A collection of canonical beo skills and shared references for structured, contr
 | skill contract | `skills/beo/<skill>/SKILL.md` |
 | reference index | `skills/beo/reference/SKILL.md` |
 | operator cockpit | `beo-reference -> references/operator-cockpit.md` |
-| runtime playbook | `beo-reference -> references/runtime-playbook.md` |
-| runtime kernel | `beo-reference -> references/runtime-kernel.md` |
+| protocol core | `beo-reference -> references/protocol-core.md` |
 | artifact model | `beo-reference -> references/artifacts.md` |
 | legal transitions | `beo-reference -> registry/pipeline.json` |
 | vocabulary registry | `beo-reference -> registry/vocabulary.json` |
@@ -41,7 +40,7 @@ Authority: advisory only.
 Start here:
 <!-- beo:agents:start-cockpit -->
 1. Operator cockpit: `beo-reference -> references/operator-cockpit.md`
-2. Runtime kernel: `beo-reference -> references/runtime-kernel.md`
+2. Protocol core: `beo-reference -> references/protocol-core.md`
 3. Current owner contract: active owner `SKILL.md`
 4. Canonical transitions: `beo-reference -> registry/pipeline.json`
 
@@ -49,8 +48,10 @@ Startup:
 1. Read `.beads/STATE.json` if present.
 2. Load `FEATURE.json` and current required artifacts.
 3. Resolve current owner from artifacts; STATE/HANDOFF are mirrors only.
-4. New feature delivery starts through `beo-explore`.
-5. Setup/usage requests use `beo-setup`.
+4. Normal resume uses `beo-reference -> references/resume-resolution.md`.
+5. Route is only for unsafe owner/feature identity repair.
+6. New feature delivery starts through `beo-explore`.
+7. Direct setup/usage requests use `beo-setup`.
 
 Normal path:
 `beo-explore -> beo-plan -> beo-validate -> beo-execute -> beo-review -> done`.

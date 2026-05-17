@@ -1,59 +1,46 @@
 # Doctrine Map
 
-Authority: canonical map of BEO doctrine homes and surface classes.
-
-## Surface classes
-
-| Class | Meaning |
-|---|---|
-| Canonical | May define workflow authority. |
-| Generated | Derived/advisory only; must cite canonical sources and introduce no new rule. |
-| Advisory | Orientation only; cannot grant authority. |
-| Template | Seed content only; cannot override canonical sources. |
-
-Generated/advisory/template files must not duplicate canonical rules unless they explicitly cite the canonical source and are marked non-authoritative.
+Authority: canonical map of BEO doctrine homes. It maps topics to sources; it does not restate their rules.
 
 ## Canonical homes
 
-| Concern | Canonical home | May be summarized elsewhere? |
+| Topic | Canonical home | Notes |
 |---|---|---|
-| Reference navigation | `references/README.md` | summary only |
-| Operator navigation and read order | `references/operator-cockpit.md` | summary only |
-| Normal resume owner orientation | `references/resume-resolution.md` | summary only |
-| Operator terminology | `references/glossary.md` | summary only |
-| Runtime invariants | `references/runtime-kernel.md` | yes, summary only |
-| Runtime artifact loading | `references/loading.md` | summary only |
-| Execution ledger | `references/execution-ledger.md` | summary only |
-| Context-loss survival | `references/context-management.md` | summary only |
-| Feature lifecycle | `references/lifecycle.md` | summary only |
-| Owner common contract | `references/skill-contract-common.md` | no verbatim duplicate |
-| Transition topology | `registry/pipeline.json` | no duplicate topology |
-| Owner and utility classification | `registry/vocabulary.json` | no duplicate enum lists outside generated summaries |
-| Registry shape schema | `registry/registry.schema.json` | no prose duplicate of machine fields |
-| Core runtime vocabulary/enums | `registry/vocabulary.json` | no duplicate enum lists outside generated summaries |
-| Learning extension vocabulary | `registry/learning-vocabulary.json` | no duplicate enum lists outside generated summaries |
-| Artifact density/ownership/human shape | `references/artifacts.md` | summary only |
-| Artifact machine schema | `registry/artifact-schemas.json` | no prose duplicate of machine fields |
-| Approval model and helper authority | `references/approval.md` | summary only |
-| Approval envelope fields | `registry/approval-envelope.json` | no prose duplicate of machine fields |
-| State and handoff semantics | `references/state.md` | summary only |
-| Decision boundaries, go-mode, Human Gates | `references/decision-boundaries.md` | location references only |
-| Unsafe identity repair and meta-target semantics | `references/route-resolution.md` | summary only |
-| Compact operator form | `assets/operator-forms/compact-ticket.md` advisory only | summary only |
-| Command authority | `registry/command-contracts.json` | no duplicate command tables outside generated summaries |
-| Helper output schema | `registry/helper-output-schema.json` | no prose duplicate of machine fields |
-| Learning extension | `references/learning.md` | summary only |
-| Skill authoring | `../../author/SKILL.md` | summary only |
+| Reference index and tiers | `references/README.md` | Navigation only |
+| Global protocol invariants | `references/protocol-core.md` | No owner-specific details |
+| Shared owner contract | `references/skill-contract-common.md` | Loaded by every owner |
+| Legal transitions | `registry/pipeline.json` | Only transition topology |
+| Artifact ownership and prose shape | `references/artifacts.md` | Human-readable ownership and density shape |
+| Artifact machine shape | `registry/artifact-schemas.json` | Schemas and shared shapes |
+| Approval semantics | `references/approval.md` | Validate-owned authority |
+| Approval envelope fields | `registry/approval-envelope.json` | Machine-readable approval contract |
+| Transition provenance and meta-targets | `references/transition-provenance.md` | `return_to_caller`, `restored_owner`, handoff provenance |
+| STATE/HANDOFF mirrors | `references/state.md` | Mirrors and contradiction rules |
+| Lifecycle, closure, reopen, abandonment | `references/lifecycle.md` | Human-readable lifecycle narrative |
+| Human Gates and ask/assume posture | `references/decision-boundaries.md` | Gate semantics and missing-user-input boundary |
+| Artifact density | `references/density.md` | Compact/single-ticket vs full selection |
+| Operator dashboard | `references/operator-cockpit.md` | Quick routing, no new authority |
+| Operator explanation | `references/operator-guide.md` | Examples and explanations only |
+| Read-only resume orientation | `references/resume-resolution.md` | Writes nothing |
+| Unsafe identity repair | `references/route-resolution.md` | Route algorithm only |
+| Runtime artifact loading/reload | `references/loading.md` | Reload timing |
+| Context-loss survival | `references/context-management.md` | Resume inputs and output handling |
+| Execution ledger model | `references/execution-ledger.md` | Full-density execution state |
+| Learning record boundary | `references/learning.md` | Post-runtime learning capture |
+| Runtime vocabulary | `registry/vocabulary.json` | Runtime enums only |
+| Style wording policy | `registry/style-policy.json` | Non-authoritative aliases and preferred terms |
+| Learning extension vocabulary | `registry/learning-vocabulary.json` | Learning enums |
+| Command authority | `registry/command-contracts.json` | Contracted commands |
+| Helper output fields | `registry/helper-output-schema.json` | Helper JSON shape |
+| Glossary terms | `references/glossary.md` | Terminology only |
+| Compact minimal operator form | `assets/compact-ticket.min.md` | Advisory drafting aid |
+| Compact reference operator form | `assets/compact-ticket.reference.md` | Advisory examples |
+| Skill authoring | `../../author/SKILL.md` | Doctrine editing boundary |
+
+## Canonical-home rule
+
+If two files disagree, the canonical home wins. If a rule appears in two canonical homes, one home must be demoted to a pointer.
 
 ## Duplication rule
 
-A non-canonical surface may summarize a rule only when:
-
-1. it names the canonical source;
-2. it does not add conditions;
-3. it does not restate machine fields verbatim unless generated from the machine source;
-4. it cannot be used as fallback authority.
-
-## No fallback authority
-
-Removed or merged surfaces must not be kept as advisory fallback. Use only the canonical homes listed above.
+Non-canonical surfaces may summarize a rule only when they name the canonical source, add no conditions, do not restate machine fields as fallback authority, and cannot be used as fallback authority.

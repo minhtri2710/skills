@@ -58,7 +58,7 @@
       ],
       "reads": [
         "FEATURE.json",
-        "TICKET.md structured authority block (compact approval-bearing checks; documented markdown sections are diagnostic-only draft surfaces)",
+        "TICKET.md structured beo.ticket authority block (compact approval-bearing checks; documented markdown sections are diagnostic-only draft surfaces)",
         "CONTEXT.md and PLAN.md structured authority blocks (full approval checks)",
         "TRACKER.json (full review-entry checks)"
       ],
@@ -100,7 +100,7 @@
       "may_mutate_product_files": false,
       "may_mutate_workflow_artifacts": false,
       "staleness_rule": "Helper output is stale if artifact hashes have changed since last run. Stale output must not be used as current evidence.",
-      "failure_handling": "On registry load failure, missing runtime dependency, YAML parser import failure, strict loader setup failure, unsupported YAML feature, missing structured authority block for approval-bearing checks, or missing/invalid compact expanded projection markers: fail closed. Output integrity: unavailable or invalid, approval_envelope_complete: false, approval_envelope_status: unavailable or invalid when JSON output is possible; otherwise report setup dependency unavailable. Exit nonzero and do not use helper output as current integrity evidence.",
+      "failure_handling": "On registry load failure, missing runtime dependency, YAML parser import failure, strict loader setup failure, unsupported YAML feature, missing structured authority block (`beo.ticket`) for compact approval-bearing checks, or missing/invalid compact projection fields: fail closed. Output integrity: unavailable or invalid, approval_envelope_complete: false, approval_envelope_status: unavailable or invalid when JSON output is possible; otherwise report setup dependency unavailable. Exit nonzero and do not use helper output as current integrity evidence.",
       "forbidden_interpretations": [
         "Helper output does not grant approval.",
         "Helper output does not refresh approval.",

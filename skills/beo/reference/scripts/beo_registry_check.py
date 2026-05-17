@@ -55,6 +55,9 @@ def validate_schema_node(errors: list[str], filename: str, path: str, data: Any,
     if expected_type not in {"object", "array", "string", "boolean"}:
         error(errors, f"registry.schema.json schema error at {path}.type: expected supported type")
         return
+    min_length = schema.get("minLength")
+    if "minLength" in schema and (not isinstance(min_length, int) or isinstance(min_length, bool) or min_length < 0):
+        error(errors, f"registry.schema.json schema error at {path}.minLength: expected non-negative integer")
     enum_values = schema.get("enum")
     if "enum" in schema and not isinstance(enum_values, list):
         error(errors, f"registry.schema.json schema error at {path}.enum: expected array")
@@ -102,8 +105,11 @@ def validate_schema_node(errors: list[str], filename: str, path: str, data: Any,
         if isinstance(item_schema, dict):
             for index, item in enumerate(data):
                 validate_schema_node(errors, filename, f"{path}[{index}]", item, item_schema, root_schema)
-    elif expected_type == "string" and not isinstance(data, str):
-        error(errors, f"{filename} schema error at {path}: expected string")
+    elif expected_type == "string":
+        if not isinstance(data, str):
+            error(errors, f"{filename} schema error at {path}: expected string")
+        elif isinstance(min_length, int) and not isinstance(min_length, bool) and len(data) < min_length:
+            error(errors, f"{filename} schema error at {path}: expected at least {min_length} character(s)")
     elif expected_type == "boolean" and not isinstance(data, bool):
         error(errors, f"{filename} schema error at {path}: expected boolean")
 
@@ -123,7 +129,7 @@ def validate_registry_schemas(errors: list[str], schema: dict[str, Any], registr
 
 def validate_basic_shapes(errors: list[str], registries: dict[str, tuple[str, dict[str, Any]]]) -> None:
     required = {
-        "vocabulary.json": ["runtime_owners", "owner_classes", "utilities", "terminal_targets", "meta_targets", "artifact_density", "readiness", "execution_mode", "integrity_status", "field_status", "debug_unblock_class"],
+        "vocabulary.json": ["runtime_owners", "owner_classes", "utilities", "terminal_targets", "meta_targets", "artifact_density", "artifact_density_output", "readiness", "execution_mode", "integrity_status", "field_status", "debug_unblock_class"],
         "learning-vocabulary.json": ["learning_case_status", "learning_pattern_status", "learning_case_types", "learning_runtime_status"],
         "approval-envelope.json": ["approval_projection_rule", "required_fields"],
         "artifact-schemas.json": ["artifact_densities"],
@@ -132,7 +138,7 @@ def validate_basic_shapes(errors: list[str], registries: dict[str, tuple[str, di
         "pipeline.json": ["normal_path", "virtual_sources", "transitions", "invalid_transitions"],
     }
     array_fields = {
-        "vocabulary.json": ["runtime_owners", "utilities", "terminal_targets", "meta_targets", "artifact_density", "readiness", "execution_mode", "integrity_status", "field_status", "debug_unblock_class"],
+        "vocabulary.json": ["runtime_owners", "utilities", "terminal_targets", "meta_targets", "artifact_density", "artifact_density_output", "readiness", "execution_mode", "integrity_status", "field_status", "debug_unblock_class"],
         "approval-envelope.json": ["required_fields"],
         "command-contracts.json": ["commands"],
         "pipeline.json": ["normal_path", "virtual_sources", "transitions", "invalid_transitions"],
@@ -156,14 +162,23 @@ def skill_name(text: str) -> str | None:
 
 
 def skill_exit_pairs(text: str) -> list[tuple[str, str]]:
-    contract_match = re.search(r"(?ms)^## Contract\b(?P<body>.*?)(?=^## |\Z)", text)
-    if not contract_match:
-        return []
-    exits_match = re.search(r"(?ms)^Exits:\n(?P<body>(?:^- .*\n?)+)", contract_match.group("body"))
-    if not exits_match:
-        return []
+    exits_section_match = re.search(r"(?ms)^## Exits\b(?P<body>.*?)(?=^## |\Z)", text)
+    exits_text = exits_section_match.group("body") if exits_section_match else None
+    if exits_text is None:
+        contract_match = re.search(r"(?ms)^## Contract\b(?P<body>.*?)(?=^## |\Z)", text)
+        if not contract_match:
+            return []
+        exits_match = re.search(r"(?ms)^Exits:\n(?P<body>(?:^- .*\n?)+)", contract_match.group("body"))
+        if not exits_match:
+            return []
+        exits_text = exits_match.group("body")
+    else:
+        exits_match = re.search(r"(?ms)(?P<body>(?:^- .*\n?)+)", exits_text)
+        if not exits_match:
+            return []
+        exits_text = exits_match.group("body")
     pairs: list[tuple[str, str]] = []
-    for line in exits_match.group("body").splitlines():
+    for line in exits_text.splitlines():
         match = re.match(r"- `([^`]+)` -> `([^`]+)`", line)
         if match:
             pairs.append((match.group(1), match.group(2)))
@@ -199,27 +214,6 @@ def validate_skill_contracts(errors: list[str], owners: set[str], utilities: set
         for condition_id, target in exits:
             if (owner, condition_id, target) not in transition_pairs:
                 error(errors, f"{rel}: exit is not in pipeline: {condition_id} -> {target}")
-
-
-def validate_generated_playbook(errors: list[str], registry_root: Path, pipeline: dict[str, Any]) -> None:
-    playbook = registry_root.parent / "references" / "runtime-playbook.md"
-    try:
-        text = playbook.read_text()
-    except FileNotFoundError:
-        error(errors, "runtime-playbook.md is missing")
-        return
-    normal_path = " -> ".join(str(item) for item in pipeline.get("normal_path", []))
-    if normal_path and normal_path not in text:
-        error(errors, "runtime-playbook.md is stale: normal_path drift")
-    require_markers(errors, "runtime-playbook.md", text, [
-        "<!-- beo:runtime-playbook -->",
-        "<!-- beo:runtime-playbook:operator-cockpit -->",
-        "<!-- beo:runtime-playbook:mutate-checklist -->",
-        "<!-- beo:runtime-playbook:compact-full -->",
-        "<!-- beo:runtime-playbook:happy-path -->",
-        "<!-- beo:runtime-playbook:read-now -->",
-        "<!-- beo:runtime-playbook:stop-shape -->",
-    ])
 
 
 def validate_operator_navigation_surfaces(errors: list[str], registry_root: Path) -> None:
@@ -285,49 +279,93 @@ def validate_operator_navigation_surfaces(errors: list[str], registry_root: Path
         return
     if "<!-- beo:agents:start-cockpit -->" not in text:
         error(errors, "AGENTS.template.md missing required marker: <!-- beo:agents:start-cockpit -->")
-    if "Quick operator view: `beo-reference -> references/runtime-playbook" in text:
-        error(errors, "AGENTS.template.md must not point to runtime-playbook as the first operator view")
-
-
 def validate_helper_output_refs(errors: list[str], helper_schema: dict[str, Any], vocabulary: dict[str, Any]) -> None:
     fields = helper_schema.get("fields", {})
-    if not isinstance(fields, dict):
-        return
     for field_name, field in fields.items():
-        if not isinstance(field, dict):
-            continue
         allowed_values_ref = field.get("allowed_values_ref")
         if allowed_values_ref is None:
-            continue
-        if not isinstance(allowed_values_ref, str):
-            error(errors, f"helper-output-schema.json fields.{field_name}.allowed_values_ref must be a string")
             continue
         values = vocabulary.get(allowed_values_ref)
         if not isinstance(values, list) or not all(isinstance(item, str) for item in values):
             error(errors, f"helper-output-schema.json fields.{field_name}.allowed_values_ref points to unknown string-list vocabulary field: {allowed_values_ref}")
 
 
-def validate_forbidden_aliases(errors: list[str], vocabulary: dict[str, Any]) -> None:
-    aliases = vocabulary.get("style_forbidden_aliases", {})
-    if not isinstance(aliases, dict):
+def validate_approval_required_fields(errors: list[str], approval_envelope: Any, vocabulary: dict[str, Any]) -> None:
+    if not isinstance(approval_envelope, dict):
         return
+    fields = approval_envelope.get("required_fields", [])
+    if not isinstance(fields, list):
+        return
+    readiness_seen = False
+    for index, field in enumerate(fields):
+        if not isinstance(field, dict):
+            continue
+        field_id = field.get("id")
+        if isinstance(field_id, str) and not field_id.strip():
+            error(errors, f"approval-envelope.json required_fields[{index}].id must be non-blank")
+        required_value = field.get("required_value")
+        if field_id == "readiness":
+            readiness_seen = True
+            if not isinstance(required_value, str):
+                error(errors, f"approval-envelope.json required_fields[{index}].readiness required_value is required")
+                continue
+        if isinstance(required_value, str):
+            if not required_value.strip():
+                error(errors, f"approval-envelope.json required_fields[{index}].required_value must be non-blank")
+            elif required_value != required_value.strip():
+                error(errors, f"approval-envelope.json required_fields[{index}].required_value must not have surrounding whitespace")
+            elif field_id == "readiness" and required_value not in string_set(vocabulary.get("readiness", [])):
+                error(errors, f"approval-envelope.json required_fields[{index}].required_value is not registered readiness: {required_value}")
+    if not readiness_seen:
+        error(errors, "approval-envelope.json readiness required field is missing")
+
+
+def validate_invalid_transition_conflicts(errors: list[str], pipeline: dict[str, Any]) -> None:
+    transitions = pipeline.get("transitions", [])
+    invalid_transitions = pipeline.get("invalid_transitions", [])
+    if not isinstance(transitions, list) or not isinstance(invalid_transitions, list):
+        return
+    for invalid in invalid_transitions:
+        if not isinstance(invalid, dict):
+            continue
+        source = invalid.get("from")
+        target = invalid.get("to")
+        condition = invalid.get("condition_id")
+        if not all(isinstance(item, str) for item in [source, target, condition]):
+            continue
+        for transition in transitions:
+            if not isinstance(transition, dict):
+                continue
+            legal_condition = transition.get("condition_id")
+            if (
+                transition.get("from") == source
+                and transition.get("to") == target
+                and (condition == "any" or condition == legal_condition)
+            ):
+                error(
+                    errors,
+                    f"pipeline invalid transition conflicts with legal transition: {source} {condition} -> {target} conflicts with {legal_condition}",
+                )
+                break
+
+
+def validate_forbidden_aliases(errors: list[str], style_policy: dict[str, Any], vocabulary: dict[str, Any]) -> None:
+    aliases = style_policy.get("forbidden_aliases", {})
     enum_values = {
         item
         for key, values in vocabulary.items()
-        if key != "style_forbidden_aliases" and isinstance(values, list)
+        if isinstance(values, list)
         for item in values
         if isinstance(item, str)
     }
     for alias, guidance in aliases.items():
-        if not isinstance(guidance, str):
-            continue
         if alias in enum_values and guidance == "invalid":
-            error(errors, f"style_forbidden_aliases.{alias} conflicts with registered vocabulary value")
-        if guidance == "invalid" or guidance.startswith("invalid "):
+            error(errors, f"style-policy.json forbidden_aliases.{alias} conflicts with registered vocabulary value")
+        if guidance.startswith("invalid"):
             continue
         match = re.match(r"use\s+(\S+)", guidance)
         if match and match.group(1) not in enum_values:
-            error(errors, f"style_forbidden_aliases.{alias} points to unknown value: {match.group(1)}")
+            error(errors, f"style-policy.json forbidden_aliases.{alias} points to unknown value: {match.group(1)}")
 
 
 def main() -> int:
@@ -345,8 +383,10 @@ def main() -> int:
         artifact_schemas = load_json("artifact-schemas.json")
         approval_envelope = load_json("approval-envelope.json")
         helper_output_schema = load_json("helper-output-schema.json")
+        style_policy = load_json("style-policy.json")
         registries = {
             "vocabulary.json": ("core-vocabulary", vocabulary),
+            "style-policy.json": ("style-policy", style_policy),
             "learning-vocabulary.json": ("learning-vocabulary", load_json("learning-vocabulary.json")),
             "approval-envelope.json": ("approval-envelope", approval_envelope),
             "artifact-schemas.json": ("artifact-schemas", artifact_schemas),
@@ -364,12 +404,12 @@ def main() -> int:
 
     validate_basic_shapes(errors, registries)
     validate_registry_schemas(errors, schema, registries)
+    validate_approval_required_fields(errors, approval_envelope, vocabulary)
     if errors:
         print(json.dumps({"status": "invalid", "errors": errors}, indent=2))
         return 1
 
     validate_operator_navigation_surfaces(errors, REGISTRY_ROOT)
-    validate_generated_playbook(errors, REGISTRY_ROOT, pipeline)
     owners = string_set(vocabulary.get("runtime_owners", []))
     utilities = string_set(vocabulary.get("utilities", []))
     terminal_targets = string_set(vocabulary.get("terminal_targets", []))
@@ -424,19 +464,8 @@ def main() -> int:
             error(errors, f"missing debug_unblock_class: {unblock_class}")
 
     for transition in pipeline.get("transitions", []):
-        if not isinstance(transition, dict):
-            continue
         target = transition.get("to")
         source = transition.get("from")
-        malformed_transition = False
-        if not isinstance(target, str):
-            error(errors, f"pipeline transition target must be a string: {target!r}")
-            malformed_transition = True
-        if not isinstance(source, str):
-            error(errors, f"pipeline transition source must be a string: {source!r}")
-            malformed_transition = True
-        if malformed_transition:
-            continue
         if target not in all_targets:
             error(errors, f"pipeline transition target is not registered: {target}")
         if source not in all_sources:
@@ -454,9 +483,10 @@ def main() -> int:
         if expected_class and target_class != expected_class:
             error(errors, f"pipeline target_class mismatch for {source} {transition.get('condition_id')} -> {target}: expected {expected_class}, got {target_class!r}")
 
+    validate_invalid_transition_conflicts(errors, pipeline)
     validate_skill_contracts(errors, owners, utilities, pipeline)
     validate_helper_output_refs(errors, helper_output_schema, vocabulary)
-    validate_forbidden_aliases(errors, vocabulary)
+    validate_forbidden_aliases(errors, style_policy, vocabulary)
 
     densities = artifact_schemas.get("artifact_densities", {})
     if "human_gate_shape" not in artifact_schemas.get("shared_shapes", {}):
@@ -469,6 +499,54 @@ def main() -> int:
                     error(errors, f"human_gate_shape must not define {forbidden}; Human Gates are approval-bearing by definition")
     if "human_gate_shape" in densities.get("compact", {}):
         error(errors, "compact artifact density must not define human_gate_shape; use shared_shapes.human_gate_shape")
+
+    compact = densities.get("compact", {})
+    compact_authority_blocks = compact.get("authority_blocks", []) if isinstance(compact, dict) else []
+    if compact_authority_blocks != ["yaml beo.ticket"]:
+        error(errors, f"compact authority_blocks must be yaml beo.ticket only, got {compact_authority_blocks!r}")
+    compact_field_ownership = compact.get("field_ownership") if isinstance(compact, dict) else None
+    if not isinstance(compact_field_ownership, dict) or not compact_field_ownership:
+        error(errors, "compact field_ownership must be a non-empty object")
+    else:
+        invalid_compact_owners = sorted(owner for owner in compact_field_ownership if owner not in owners)
+        if invalid_compact_owners:
+            error(errors, f"compact field_ownership owners must be runtime owners: {invalid_compact_owners}")
+        malformed_compact_fields = sorted(
+            owner for owner, fields in compact_field_ownership.items()
+            if not isinstance(fields, list)
+            or not fields
+            or any(not isinstance(field, str) or not field.strip() for field in fields)
+        )
+        if malformed_compact_fields:
+            error(errors, f"compact field_ownership fields must be non-empty strings for owners: {malformed_compact_fields}")
+        expected_compact_owners = string_set(owner_classes.get("runtime_delivery", []) if isinstance(owner_classes, dict) else []) | {"beo-route"}
+        if set(compact_field_ownership) != expected_compact_owners:
+            error(errors, f"compact field_ownership keys must match compact artifact owners: expected {sorted(expected_compact_owners)}, got {sorted(compact_field_ownership)}")
+        identity_seed_fields = {"artifact_density", "phase_status", "current_owner", "owner"}
+        explore_fields = string_set(compact_field_ownership.get("beo-explore", []))
+        missing_seed_fields = sorted(identity_seed_fields - explore_fields)
+        if missing_seed_fields:
+            error(errors, f"compact field_ownership.beo-explore missing identity seed fields: {missing_seed_fields}")
+        handoff_identity_fields = {"phase_status", "current_owner", "owner"}
+        for owner in sorted(expected_compact_owners):
+            owner_fields = string_set(compact_field_ownership.get(owner, []))
+            missing_handoff_fields = sorted(handoff_identity_fields - owner_fields)
+            if missing_handoff_fields:
+                error(errors, f"compact field_ownership.{owner} missing handoff identity fields: {missing_handoff_fields}")
+
+    if "compact_derived" not in string_set(approval_envelope.get("approval_projection_rule", [])):
+        error(errors, "approval_projection_rule missing compact_derived")
+    if approval_envelope.get("compact_input_rule") != "compact_derived":
+        error(errors, f"compact_input_rule must be compact_derived, got {approval_envelope.get('compact_input_rule')!r}")
+    non_compact_authority_sources = [
+        field.get("compact_source")
+        for field in approval_envelope.get("required_fields", [])
+        if isinstance(field, dict)
+        and isinstance(field.get("compact_source"), str)
+        and not field.get("compact_source", "").startswith("TICKET.md `beo.ticket` ")
+    ]
+    if non_compact_authority_sources:
+        error(errors, f"approval envelope compact sources must use exact TICKET.md `beo.ticket` authority source: {non_compact_authority_sources}")
 
     for density in ["compact", "full"]:
         phase_sections = densities.get(density, {}).get("phase_sections", {})
@@ -484,6 +562,10 @@ def main() -> int:
             error(errors, f"{density} plan fields missing acceptance_criteria")
         if "acceptance_refs" in fields_or_projection:
             error(errors, f"{density} plan fields must use acceptance_criteria as canonical field")
+
+    compact_projection = densities.get("compact", {}).get("phase_sections", {}).get("plan", {}).get("derived_approval_projection", {})
+    if isinstance(compact_projection, dict) and compact_projection.get("acceptance_criteria") != "acceptance_criteria":
+        error(errors, f"compact acceptance_criteria projection must use plan-owned acceptance_criteria, got {compact_projection.get('acceptance_criteria')!r}")
 
     approval_fields = {
         field.get("id") for field in approval_envelope.get("required_fields", [])

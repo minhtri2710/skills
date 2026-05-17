@@ -29,7 +29,8 @@
       "from": "beo-explore",
       "condition_id": "requirements_locked",
       "to": "beo-plan",
-      "target_class": "runtime_owner"
+      "target_class": "runtime_owner",
+      "handoff_required": true
     },
     {
       "from": "beo-explore",
@@ -41,19 +42,22 @@
       "from": "beo-explore",
       "condition_id": "owner_feature_identity_unsafe",
       "to": "beo-route",
-      "target_class": "runtime_owner"
+      "target_class": "runtime_owner",
+      "handoff_required": true
     },
     {
       "from": "beo-plan",
       "condition_id": "plan_complete",
       "to": "beo-validate",
-      "target_class": "runtime_owner"
+      "target_class": "runtime_owner",
+      "handoff_required": true
     },
     {
       "from": "beo-plan",
       "condition_id": "requirements_missing_or_contradicted",
       "to": "beo-explore",
-      "target_class": "runtime_owner"
+      "target_class": "runtime_owner",
+      "handoff_required": true
     },
     {
       "from": "beo-plan",
@@ -65,7 +69,8 @@
       "from": "beo-plan",
       "condition_id": "owner_feature_identity_unsafe",
       "to": "beo-route",
-      "target_class": "runtime_owner"
+      "target_class": "runtime_owner",
+      "handoff_required": true
     },
     {
       "from": "beo-validate",
@@ -78,13 +83,15 @@
       "from": "beo-validate",
       "condition_id": "FAIL_PLAN",
       "to": "beo-plan",
-      "target_class": "runtime_owner"
+      "target_class": "runtime_owner",
+      "handoff_required": true
     },
     {
       "from": "beo-validate",
       "condition_id": "FAIL_EXPLORE",
       "to": "beo-explore",
-      "target_class": "runtime_owner"
+      "target_class": "runtime_owner",
+      "handoff_required": true
     },
     {
       "from": "beo-validate",
@@ -96,7 +103,8 @@
       "from": "beo-validate",
       "condition_id": "FAIL_STATE",
       "to": "beo-route",
-      "target_class": "runtime_owner"
+      "target_class": "runtime_owner",
+      "handoff_required": true
     },
     {
       "from": "beo-execute",
@@ -116,7 +124,8 @@
       "from": "beo-execute",
       "condition_id": "approval_stale_or_invalid",
       "to": "beo-validate",
-      "target_class": "runtime_owner"
+      "target_class": "runtime_owner",
+      "handoff_required": true
     },
     {
       "from": "beo-execute",
@@ -142,13 +151,15 @@
       "from": "beo-execute",
       "condition_id": "owner_feature_identity_unsafe",
       "to": "beo-route",
-      "target_class": "runtime_owner"
+      "target_class": "runtime_owner",
+      "handoff_required": true
     },
     {
       "from": "beo-review",
       "condition_id": "entry_blocked_execution_evidence_incomplete",
       "to": "beo-execute",
-      "target_class": "runtime_owner"
+      "target_class": "runtime_owner",
+      "handoff_required": true
     },
     {
       "from": "beo-review",
@@ -194,13 +205,15 @@
       "from": "beo-review",
       "condition_id": "owner_feature_identity_unsafe",
       "to": "beo-route",
-      "target_class": "runtime_owner"
+      "target_class": "runtime_owner",
+      "handoff_required": true
     },
     {
       "from": "beo-debug",
       "condition_id": "root_cause_proven",
       "to": "return_to_caller",
-      "target_class": "meta"
+      "target_class": "meta",
+      "handoff_required": true
     },
     {
       "from": "beo-debug",
@@ -218,7 +231,8 @@
       "from": "beo-route",
       "condition_id": "identity_repaired",
       "to": "restored_owner",
-      "target_class": "meta"
+      "target_class": "meta",
+      "handoff_required": true
     },
     {
       "from": "beo-route",
@@ -236,13 +250,15 @@
       "from": "beo-learn",
       "condition_id": "single_case_authoring_requested_with_evidence",
       "to": "beo-author",
-      "target_class": "runtime_owner"
+      "target_class": "runtime_owner",
+      "handoff_required": true
     },
     {
       "from": "beo-learn",
       "condition_id": "pattern_consolidated_authoring_requested_with_evidence",
       "to": "beo-author",
-      "target_class": "runtime_owner"
+      "target_class": "runtime_owner",
+      "handoff_required": true
     },
     {
       "from": "beo-learn",
@@ -273,6 +289,48 @@
       "condition_id": "user_confirmation_needed",
       "to": "user",
       "target_class": "terminal"
+    },
+    {
+      "from": "beo-explore",
+      "condition_id": "user_abandoned",
+      "to": "done",
+      "target_class": "terminal"
+    },
+    {
+      "from": "beo-plan",
+      "condition_id": "user_abandoned",
+      "to": "done",
+      "target_class": "terminal"
+    },
+    {
+      "from": "beo-validate",
+      "condition_id": "user_abandoned",
+      "to": "done",
+      "target_class": "terminal"
+    },
+    {
+      "from": "beo-execute",
+      "condition_id": "user_abandoned",
+      "to": "done",
+      "target_class": "terminal"
+    },
+    {
+      "from": "beo-review",
+      "condition_id": "user_abandoned",
+      "to": "done",
+      "target_class": "terminal"
+    },
+    {
+      "from": "beo-debug",
+      "condition_id": "user_abandoned",
+      "to": "done",
+      "target_class": "terminal"
+    },
+    {
+      "from": "beo-route",
+      "condition_id": "user_abandoned",
+      "to": "done",
+      "target_class": "terminal"
     }
   ],
   "invalid_transitions": [
@@ -296,7 +354,7 @@
     },
     {
       "from": "beo-execute",
-      "condition_id": "any",
+      "condition_id": "execution_ready_for_review",
       "to": "done",
       "reason": "cannot bypass review; beo-review must emit terminal verdict"
     },

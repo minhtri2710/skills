@@ -1,63 +1,42 @@
 ---
 name: beo-reference
-description: |
-  Returns canonical references without mutating runtime artifacts. Use for read-only lookup of existing rules, schemas, mappings, protocols, and exact command forms. Not for routing, artifact edits, implementation, validation, execution, review, or doctrine authoring.
+description: Returns canonical BEO references without mutating runtime artifacts.
 ---
 
 # beo-reference
 
-## Purpose
+Before acting, load and obey `beo-reference -> references/skill-contract-common.md`.
 
-Return targeted canonical references.
+## Decision
 
-## Decision Card
+Return canonical references without mutation.
 
-Decision: return canonical references.
+## Enter
 
-Can enter when:
-- the request is a read-only lookup of BEO doctrine, registry, schema, or command authority
+- Read-only lookup of BEO doctrine, registry, schema, or command authority.
 
-Can write:
-- nothing
+## Owns
 
-Must stop when:
-- the request requires runtime mutation or owner decision
+- Reference selection.
+- Citation.
+- Explanation.
 
-Returns:
-- reference result to requester or caller
+## Writes
 
-Never:
-- route, approve, execute, review, debug, author doctrine, or mutate runtime artifacts
+- Nothing.
 
-Reads:
-- requested canonical references and registries
+## Stops
 
-## Contract
+- Request requires runtime mutation, owner decision, approval, execution, review, route repair, or doctrine editing.
 
-Common owner rules:
-- Load and obey `beo-reference -> references/skill-contract-common.md`.
-- Transition topology may be read from `beo-reference -> registry/pipeline.json` for lookup/citation only.
+## Returns
 
-Acts when:
-- the request is a read-only lookup of BEO doctrine, registry, schema, or command authority.
+- Explanatory answer or reference summary in the agent response only.
+- No runtime pipeline transition is emitted.
 
-Owns:
-- reference selection and citation only.
+## Method
 
-Local stops:
-- the request requires runtime mutation or owner decision.
-
-Stop reporting:
-- Use the next-action shape in `beo-reference -> references/skill-contract-common.md`.
-
-Writes:
-- nothing.
-
-Reads:
-- `references/README.md`, `references/operator-cockpit.md`, `references/resume-resolution.md`, `references/route-resolution.md`, `references/glossary.md`, `references/doctrine-map.md`, `references/runtime-kernel.md`, canonical references, assets, and registries requested by the user.
-
-Local forbids:
-- routing, approving, executing, reviewing, debugging, or authoring doctrine.
-
-Exits:
-- return reference result to requester or caller; no runtime pipeline transition is emitted.
+1. Identify the canonical home from `references/doctrine-map.md` or the request.
+2. Read the smallest relevant source.
+3. Answer with source paths and no mutation.
+4. If the request is not lookup, report the legal next owner/source.

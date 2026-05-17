@@ -2,7 +2,7 @@
 
 Authority: canonical execution state model for `TRACKER.json`.
 
-`TRACKER.json` uses `schema_version: beo.execution_ledger.v1` and records the selected approved execution set, approval ref id, execution mode, pre-execution integrity check, item order, item status, changed files, observations, blockers, scope delta requests, repair budget, resume point, and rollback status.
+`TRACKER.json` records the selected approved execution set, approval ref id, execution mode, pre-execution integrity check, item order, item status, changed files, observations, blockers, scope delta requests, repair budget, resume point, and rollback status.
 
 For review, `approval_ref_id`, `selected_execution_set`, `execution_mode`, and `pre_execution_integrity_check.approval_envelope_status` must match the current approved `PLAN.md#Approval` envelope and the execution attempt's fresh helper check. Stale ledger evidence from an older approval, missing helper check, or different execution mode is not ready for review.
 
