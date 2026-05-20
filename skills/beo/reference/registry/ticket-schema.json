@@ -2,12 +2,7 @@
   "$schema": "./registry.schema.json#/definitions/ticket-schema",
   "description": "Schema contract for .beads/artifacts/<issue-id>/TICKET.md. Future-owned fields stay absent until their owner acts.",
   "schema_version": "beo-beads/v3",
-  "loadable_owners": ["beo-plan", "beo-validate", "beo-execute", "beo-review", "beo-debug", "beo-recall", "beo-learn", "beo-author", "beo-setup", "beo-reference"],
-  "owner_classes": {
-    "delivery": ["beo-plan", "beo-validate", "beo-execute", "beo-review"],
-    "support_runtime": ["beo-debug", "beo-recall"],
-    "control_plane": ["beo-learn", "beo-author", "beo-setup", "beo-reference"]
-  },
+  "owner_classes_ref": "pipeline.json",
   "terminal_targets": ["done", "user", "subroutine_done", "parent_waits_children"],
   "support_return_targets": ["caller"],
 
@@ -67,8 +62,7 @@
     "beo-validate": ["readiness", "selected_execution_set", "execution_mode", "approval_ref", "integrity", "runtime_events"],
     "beo-execute": ["execution", "runtime_events"],
     "beo-review": ["review", "runtime_events"],
-    "beo-debug": ["runtime_events", "debug"],
-    "beo-recall": ["runtime_events"]
+    "beo-debug": ["runtime_events", "debug"]
   },
   "future_owned_field_rule": {
     "beo-plan": ["readiness", "approval_ref", "integrity", "execution", "review"],

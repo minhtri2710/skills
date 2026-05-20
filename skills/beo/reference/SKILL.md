@@ -1,6 +1,6 @@
 ---
 name: beo-reference
-description: Read-only BEO doctrine loader for kernel, Beads authority, decomposition, lifecycle, approval, mutation safety, events, modes, memory, registries, recipes, and templates.
+description: Read-only BEO doctrine loader for kernel, Beads authority, decomposition, lifecycle, approval, mutation safety, events, modes, memory, registries, and templates.
 ---
 
 # beo-reference
@@ -23,26 +23,22 @@ Load canonical BEO doctrine and registries without mutation.
 
 - Request requires product or Beads lifecycle mutation.
 
-
-
 ## Method
 
 1. Load `references/kernel.md` first for always-on invariants.
 2. Pick the narrow reference or registry needed for the active decision.
-3. Load exactly those narrow files (e.g., `ticket.md`, `approval.md`).
+3. Load exactly those narrow files (e.g., `safety.md`, `memory.md`).
 4. Avoid loading all references by default to optimize token usage.
 
 ## Canonical homes
 
-- Kernel invariants: `beo-reference -> references/kernel.md`
-- Beads authority: `beo-reference -> references/beads-authority.md`
-- Decomposition: `beo-reference -> references/decomposition.md`
-- Ticket contract: `beo-reference -> references/ticket.md`, `registry/ticket-schema.json`
-- Approval: `beo-reference -> references/approval.md`, `registry/approval-envelope.json`
-- Mutation safety: `beo-reference -> references/mutation-safety.md`
-- Lifecycle/Events: `beo-reference -> references/lifecycle-events.md`, `registry/pipeline.json`
-- Modes: `beo-reference -> references/modes.md`, `registry/profiles.json`
-- Memory/Recall: `beo-reference -> references/memory.md`
+- Kernel invariants: `references/kernel.md`
+- Lifecycle, Decomposition & Triage: `references/lifecycle.md`, `registry/pipeline.json`
+- Safety & Path Rules: `references/safety.md`
+- Execution Modes & Profiles: `registry/profiles.json`
+- Approval Binding: `registry/approval-envelope.json`
+- Ticket schema: `registry/ticket-schema.json`
+- Ticket templates: `templates/TICKET.{quick,standard,strict}.md`
+- Memory & Recall: `references/memory.md`
+- Memory backends: `registry/memory-backends.json`
 - Commands: `registry/command-contracts.json`
-- Templates: `templates/*.md`
-

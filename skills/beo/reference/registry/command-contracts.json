@@ -1,7 +1,13 @@
 {
   "$schema": "./registry.schema.json#/definitions/command-contracts",
-  "description": "BEO-on-Beads command authority. br owns issue lifecycle and graph persistence; bv provides triage/orientation only; helpers provide integrity evidence. No command grants PASS_EXECUTE, approval, product mutation permission, or a review verdict.",
+  "description": "BEO-on-Beads command authority. br owns issue lifecycle and graph persistence; bv provides triage/orientation only; helpers provide integrity evidence.",
   "default_rule": "Commands not listed here are unavailable for BEO workflow authority. Human-readable command output is advisory only.",
+  "defaults": {
+    "may_grant_approval": false,
+    "may_grant_review_verdict": false,
+    "may_mutate_product_files": false,
+    "may_block_execution": false
+  },
   "rules": [
     "Only beo-validate may write PASS_EXECUTE.",
     "br and bv never grant approval or review verdicts.",
@@ -22,8 +28,7 @@
       "owner_allow": ["beo-setup", "beo-plan", "beo-validate", "beo-execute", "beo-review"],
       "authority": "Discover supported br commands and flags before relying on contracted mutations.",
       "output_format": "json",
-      "writes": [],
-      "may_grant_approval": false
+      "writes": []
     },
     {
       "command_id": "br.capabilities.command",
@@ -34,8 +39,7 @@
       "owner_allow": ["beo-setup"],
       "authority": "Verify required command-specific br capability before setup installs BEO-on-Beads guidance.",
       "output_format": "json",
-      "writes": [],
-      "may_grant_approval": false
+      "writes": []
     },
     {
       "command_id": "br.ready",
@@ -45,19 +49,17 @@
       "owner_allow": ["beo-plan", "beo-execute", "beo-review", "beo-setup"],
       "authority": "Canonical ready queue and dependency-unblocked work discovery.",
       "output_format": "json",
-      "writes": [],
-      "may_grant_approval": false
+      "writes": []
     },
     {
       "command_id": "br.show",
       "kind": "read",
       "command": "br show <issue-id> --json",
       "argv": ["br", "show", "{issue_id}", "--json"],
-      "owner_allow": ["beo-plan", "beo-validate", "beo-execute", "beo-review", "beo-debug", "beo-recall", "beo-learn", "beo-author", "beo-setup"],
+      "owner_allow": ["beo-plan", "beo-validate", "beo-execute", "beo-review", "beo-debug", "beo-learn", "beo-author", "beo-setup"],
       "authority": "Canonical Beads issue snapshot for the selected bead.",
       "output_format": "json",
-      "writes": [],
-      "may_grant_approval": false
+      "writes": []
     },
     {
       "command_id": "br.create",
@@ -67,8 +69,7 @@
       "owner_allow": ["beo-plan"],
       "authority": "Create child or follow-up beads during decomposition.",
       "output_format": "json",
-      "writes": [".beads/beads.db", ".beads/issues.jsonl via auto-flush unless disabled"],
-      "may_grant_approval": false
+      "writes": [".beads/beads.db", ".beads/issues.jsonl via auto-flush unless disabled"]
     },
     {
       "command_id": "br.dep.add",
@@ -78,8 +79,7 @@
       "owner_allow": ["beo-plan"],
       "authority": "Create Beads dependency edges for execution order.",
       "output_format": "json",
-      "writes": [".beads/beads.db", ".beads/issues.jsonl via auto-flush unless disabled"],
-      "may_grant_approval": false
+      "writes": [".beads/beads.db", ".beads/issues.jsonl via auto-flush unless disabled"]
     },
     {
       "command_id": "br.update.claim",
@@ -89,8 +89,7 @@
       "owner_allow": ["beo-plan", "beo-validate", "beo-execute", "beo-review"],
       "authority": "Atomic claim before requirement ticket mutation, material decomposition, approval writes, product mutation, review-owned writes, or closure.",
       "output_format": "json",
-      "writes": [".beads/beads.db", ".beads/issues.jsonl via auto-flush unless disabled"],
-      "may_grant_approval": false
+      "writes": [".beads/beads.db", ".beads/issues.jsonl via auto-flush unless disabled"]
     },
     {
       "command_id": "br.update.label",
@@ -100,8 +99,7 @@
       "owner_allow": ["beo-plan", "beo-execute", "beo-review", "beo-debug"],
       "authority": "Add BEO lifecycle labels when a Beads issue enters a visible BEO state.",
       "output_format": "json",
-      "writes": [".beads/beads.db", ".beads/issues.jsonl via auto-flush unless disabled"],
-      "may_grant_approval": false
+      "writes": [".beads/beads.db", ".beads/issues.jsonl via auto-flush unless disabled"]
     },
     {
       "command_id": "br.label.add",
@@ -112,8 +110,7 @@
       "owner_allow": ["beo-plan", "beo-execute", "beo-review", "beo-debug"],
       "authority": "Alternative contracted label command for BEO blocked/planned/review labels.",
       "output_format": "json",
-      "writes": [".beads/beads.db", ".beads/issues.jsonl via auto-flush unless disabled"],
-      "may_grant_approval": false
+      "writes": [".beads/beads.db", ".beads/issues.jsonl via auto-flush unless disabled"]
     },
     {
       "command_id": "br.comments.add",
@@ -123,8 +120,7 @@
       "owner_allow": ["beo-plan", "beo-validate", "beo-execute", "beo-review", "beo-debug"],
       "authority": "Durable issue-visible BEO milestone, blocker, or verdict summary.",
       "output_format": "json",
-      "writes": [".beads/beads.db", ".beads/issues.jsonl via auto-flush unless disabled"],
-      "may_grant_approval": false
+      "writes": [".beads/beads.db", ".beads/issues.jsonl via auto-flush unless disabled"]
     },
     {
       "command_id": "br.close",
@@ -134,8 +130,7 @@
       "owner_allow": ["beo-review"],
       "authority": "Close accepted or explicitly abandoned beads after BEO review or user abandonment evidence with a registered abandon_reason.",
       "output_format": "json",
-      "writes": [".beads/beads.db", ".beads/issues.jsonl via auto-flush unless disabled"],
-      "may_grant_approval": false
+      "writes": [".beads/beads.db", ".beads/issues.jsonl via auto-flush unless disabled"]
     },
     {
       "command_id": "br.sync.flush",
@@ -146,8 +141,7 @@
       "authority": "Flush Beads issue state to JSONL without git commit, push, or pull.",
       "output_format": "text",
       "json_feature_gate": "Use --json or --robot only when capabilities/help confirms support.",
-      "writes": [".beads/issues.jsonl"],
-      "may_grant_approval": false
+      "writes": [".beads/issues.jsonl"]
     },
     {
       "command_id": "br.epic.close_eligible",
@@ -158,8 +152,7 @@
       "owner_allow": ["beo-review"],
       "authority": "Close parent epics only after Beads reports all children are eligible/closed.",
       "output_format": "json",
-      "writes": [".beads/beads.db", ".beads/issues.jsonl via auto-flush unless disabled"],
-      "may_grant_approval": false
+      "writes": [".beads/beads.db", ".beads/issues.jsonl via auto-flush unless disabled"]
     },
     {
       "command_id": "bv.robot_triage",
@@ -170,8 +163,7 @@
       "authority": "Graph-aware backlog triage and candidate selection orientation.",
       "evidence_capture": ["data_hash", "status", "cycles when present", "as_of", "as_of_commit"],
       "output_format": "json",
-      "writes": [],
-      "may_grant_approval": false
+      "writes": []
     },
     {
       "command_id": "bv.robot_next",
@@ -182,8 +174,7 @@
       "authority": "Next atomic bead orientation after closure.",
       "evidence_capture": ["data_hash", "status", "as_of", "as_of_commit"],
       "output_format": "json",
-      "writes": [],
-      "may_grant_approval": false
+      "writes": []
     },
     {
       "command_id": "bv.robot_plan",
@@ -194,8 +185,7 @@
       "authority": "Graph-aware decomposition, tracks, and dependency orientation.",
       "evidence_capture": ["data_hash", "status", "as_of", "as_of_commit"],
       "output_format": "json",
-      "writes": [],
-      "may_grant_approval": false
+      "writes": []
     },
     {
       "command_id": "bv.robot_insights",
@@ -206,8 +196,7 @@
       "authority": "Bottleneck, cycle, parallel-track, and graph-health orientation.",
       "evidence_capture": ["data_hash", "status", "cycles", "as_of", "as_of_commit"],
       "output_format": "json",
-      "writes": [],
-      "may_grant_approval": false
+      "writes": []
     },
     {
       "command_id": "beo.check",
@@ -218,8 +207,7 @@
       "owner_allow": ["beo-plan", "beo-validate", "beo-execute", "beo-review", "beo-debug"],
       "authority": "Integrity evidence for identity, owner-boundary, approval binding, scope containment, and review entry checks.",
       "output_format": "json",
-      "writes": [".beads/artifacts/<issue-id>/checks/<run-id>.json"],
-      "may_grant_approval": false
+      "writes": [".beads/artifacts/<issue-id>/checks/<run-id>.json"]
     },
     {
       "command_id": "obsidian.cli.create",
@@ -230,9 +218,6 @@
       "owner_allow": ["beo-learn"],
       "authority": "Create a Markdown learning note under the configured Obsidian vault learning subdir.",
       "writes": ["$BEO_OBSIDIAN_VAULT/beo-learnings/<note>.md"],
-      "may_grant_approval": false,
-      "may_grant_review_verdict": false,
-      "may_mutate_product_files": false,
       "syntax_status": "must_be_verified_by_obsidian_help",
       "setup_requires": [
         "obsidian help create confirms path and content parameters before use",
@@ -252,48 +237,56 @@
       "owner_allow": ["beo-learn"],
       "authority": "Create a learning note through Obsidian CLI when safely available, otherwise write the issue-local fallback.",
       "writes": ["$BEO_OBSIDIAN_VAULT/beo-learnings/<note>.md", ".beads/artifacts/<issue-id>/learning/<note>.md"],
-      "may_grant_approval": false,
-      "may_grant_review_verdict": false,
-      "may_mutate_product_files": false,
       "fallback_on_failure": "local_markdown",
       "write_boundary": "$BEO_OBSIDIAN_VAULT/beo-learnings/ or .beads/artifacts/<issue-id>/learning/<note>.md"
+    },
+    {
+      "command_id": "beo.setup",
+      "kind": "read_write_evidence",
+      "command": "python3 skills/beo/reference/scripts/beo_setup.py",
+      "argv": ["python3", "skills/beo/reference/scripts/beo_setup.py"],
+      "owner_allow": ["beo-setup", "beo-plan", "beo-validate", "beo-execute", "beo-review"],
+      "authority": "Automated BEO environment and memory indexing verification.",
+      "output_format": "json",
+      "writes": ["qmd local config/index", "AGENTS.md"]
+    },
+    {
+      "command_id": "beo.recall",
+      "kind": "read_write_evidence",
+      "command": "python3 skills/beo/reference/scripts/beo_recall.py --issue <issue-id>",
+      "argv": ["python3", "skills/beo/reference/scripts/beo_recall.py", "--issue", "{issue_id}"],
+      "owner_allow": ["beo-plan", "beo-execute", "beo-review", "beo-debug"],
+      "authority": "Automated semantic memory recall loop and prioritization checklist generation.",
+      "output_format": "json",
+      "writes": [".beads/artifacts/<issue-id>/RECALL_SUMMARY.md"]
     },
     {
       "command_id": "qmd.query",
       "kind": "read",
       "command": "qmd query <query> --json -n <n> -c <collection>",
       "argv": ["qmd", "query", "{query}", "--json", "-n", "{limit}", "-c", "{collection}"],
-      "owner_allow": ["beo-recall", "beo-learn", "beo-author"],
+      "owner_allow": ["beo-plan", "beo-execute", "beo-review", "beo-debug", "beo-learn", "beo-author"],
       "authority": "Read-only retrieval of prior learning notes and playbooks.",
       "output_format": "json",
-      "writes": [],
-      "may_grant_approval": false,
-      "may_grant_review_verdict": false,
-      "may_block_execution": false
+      "writes": []
     },
     {
       "command_id": "qmd.status",
       "kind": "read",
       "command": "qmd status",
       "argv": ["qmd", "status"],
-      "owner_allow": ["beo-setup", "beo-recall", "beo-learn", "beo-author"],
+      "owner_allow": ["beo-setup", "beo-plan", "beo-execute", "beo-review", "beo-debug", "beo-learn", "beo-author"],
       "authority": "Read-only qmd index health and collection orientation.",
-      "writes": [],
-      "may_grant_approval": false,
-      "may_grant_review_verdict": false,
-      "may_mutate_product_files": false
+      "writes": []
     },
     {
       "command_id": "qmd.collection.list",
       "kind": "read",
       "command": "qmd collection list",
       "argv": ["qmd", "collection", "list"],
-      "owner_allow": ["beo-setup", "beo-recall", "beo-learn", "beo-author"],
+      "owner_allow": ["beo-setup", "beo-plan", "beo-execute", "beo-review", "beo-debug", "beo-learn", "beo-author"],
       "authority": "Read-only qmd collection discovery before query or memory maintenance.",
-      "writes": [],
-      "may_grant_approval": false,
-      "may_grant_review_verdict": false,
-      "may_mutate_product_files": false
+      "writes": []
     },
     {
       "command_id": "qmd.get",
@@ -301,12 +294,9 @@
       "command": "qmd get <path-or-docid>",
       "argv": ["qmd", "get", "{path_or_docid}"],
       "optional_argv": ["--full"],
-      "owner_allow": ["beo-recall", "beo-learn", "beo-author"],
+      "owner_allow": ["beo-plan", "beo-execute", "beo-review", "beo-debug", "beo-learn", "beo-author"],
       "authority": "Read-only retrieval of indexed learning note contents by path or docid.",
-      "writes": [],
-      "may_grant_approval": false,
-      "may_grant_review_verdict": false,
-      "may_mutate_product_files": false
+      "writes": []
     },
     {
       "command_id": "qmd.index.update",
@@ -317,9 +307,20 @@
       "owner_allow": ["beo-setup", "beo-learn"],
       "authority": "Refresh the configured BEO memory index after beo-learn writes a learning note, or during explicit memory maintenance. Never grants delivery authority.",
       "writes": ["qmd local index/database"],
-      "may_grant_approval": false,
-      "may_grant_review_verdict": false,
-      "may_mutate_product_files": false,
+      "operation_class": "memory_index_maintenance",
+      "auto_index_allowed_after_learning_write": true,
+      "delivery_setup_auto_index_allowed": false,
+      "explicit_user_authorization_required_for_setup": true
+    },
+    {
+      "command_id": "qmd.index.embed",
+      "optional": true,
+      "kind": "write_memory_index",
+      "command": "qmd embed",
+      "argv": ["qmd", "embed"],
+      "owner_allow": ["beo-setup", "beo-learn"],
+      "authority": "Generate or refresh semantic vector embeddings for configured BEO memory notes. Never grants delivery authority.",
+      "writes": ["qmd local index/database"],
       "operation_class": "memory_index_maintenance",
       "auto_index_allowed_after_learning_write": true,
       "delivery_setup_auto_index_allowed": false,
@@ -334,9 +335,6 @@
       "owner_allow": ["beo-setup", "beo-learn"],
       "authority": "Add the configured Obsidian learning vault notes to the BEO memory collection for recall. Memory maintenance only.",
       "writes": ["qmd local config/index"],
-      "may_grant_approval": false,
-      "may_grant_review_verdict": false,
-      "may_mutate_product_files": false,
       "operation_class": "memory_index_maintenance",
       "auto_index_allowed_after_learning_write": true,
       "delivery_setup_auto_index_allowed": false

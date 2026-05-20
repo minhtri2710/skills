@@ -5,7 +5,7 @@ description: Mandatory technical gate before execution. Grants or refuses PASS_E
 
 # beo-validate
 
-Refs: `beo-reference -> references/approval.md`, `beo-reference -> references/modes.md`.
+Refs: `beo-reference -> references/safety.md`, `beo-reference -> references/lifecycle.md`.
 
 ## Decision
 
@@ -31,6 +31,7 @@ Grant or refuse `PASS_EXECUTE` for one atomic bead.
 - `PASS_EXECUTE` -> `beo-execute`
 - `FAIL_PLAN` -> `beo-plan`
 - `BLOCK_USER` -> `user`
+- `abandoned` -> `beo-review`
 
 ## Method
 
@@ -38,5 +39,5 @@ Grant or refuse `PASS_EXECUTE` for one atomic bead.
 2. Check for unsafe overlap; safe overlap must be per-path in `scope.scope_overlap.overlaps`.
 3. Run `beo_check.py --check validate --issue <issue-id>`.
 4. Record `approval_ref`, mode, and hashes only if checks pass.
-5. For `repair_same_scope`, require valid `change_request` per `beo-reference -> references/lifecycle-events.md`.
+5. For `repair_same_scope`, require valid `change_request` per `beo-reference -> references/lifecycle.md`.
 6. Apply drift rules: Soft Drift (title/labels) notes only; Hard Invalidators (scope/criteria) refuse.

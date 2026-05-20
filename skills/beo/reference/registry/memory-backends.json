@@ -1,6 +1,6 @@
 {
   "$schema": "./registry.schema.json#/definitions/memory-backends",
-  "description": "BEO memory backend registry. Memory is advisory and never grants approval, execution permission, or review verdicts.",
+  "description": "BEO memory backend registry. Memory is advisory and never grants approval, execution permission, or review verdicts. Owner-allow lists are canonical in command-contracts.json.",
   "backends": {
     "obsidian_cli": {
       "kind": "preferred_write_backend",
@@ -12,8 +12,6 @@
         "requires_cli_enabled": true,
         "requires_obsidian_running": true
       },
-      "writes_allowed_by": ["beo-learn"],
-      "reads_allowed_by": ["beo-recall", "beo-learn", "beo-author"],
       "fallback": "local_markdown",
       "secret_rule": "handles_only",
       "authority": "advisory_memory_only",
@@ -28,11 +26,6 @@
     "qmd": {
       "kind": "search_index",
       "required_for_delivery": false,
-      "query_allowed_by": ["beo-recall", "beo-learn", "beo-author"],
-      "status_allowed_by": ["beo-setup", "beo-recall", "beo-learn", "beo-author"],
-      "get_allowed_by": ["beo-recall", "beo-learn", "beo-author"],
-      "index_update_allowed_by": ["beo-setup", "beo-learn"],
-      "collection_add_allowed_by": ["beo-setup", "beo-learn"],
       "collection_add_mask": "**/*.md",
       "index_write_kind": "write_memory_index",
       "index_update_operation": "memory_index_maintenance",

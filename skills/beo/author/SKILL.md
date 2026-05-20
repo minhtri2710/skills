@@ -29,6 +29,8 @@ Apply doctrine, skill, template, or registry changes.
 
 - `skill_authored_or_updated` -> `done`
 - `reference_or_registry_updated` -> `done`
+- `no_change_needed` -> `done`
+- `user_review_needed` -> `user`
 
 ## Method
 

@@ -5,7 +5,7 @@ description: Diagnoses one BEO blocker root cause for a Beads ticket without pat
 
 # beo-debug
 
-Refs: `beo-reference -> references/lifecycle-events.md`.
+Refs: `beo-reference -> references/lifecycle.md`.
 
 ## Decision
 
@@ -27,6 +27,7 @@ Return one read-only diagnosis for a BEO blocker.
 ## Exits
 
 - `debug_returned` -> `subroutine_done`
+- `debug_abandoned` -> `subroutine_done`
 
 ## Method
 

@@ -4,7 +4,7 @@
   "normal_path": ["beo-plan", "beo-validate", "beo-execute", "beo-review"],
   "owner_classes": {
     "delivery": ["beo-plan", "beo-validate", "beo-execute", "beo-review"],
-    "support_runtime": ["beo-debug", "beo-recall"],
+    "support_runtime": ["beo-debug"],
     "control_plane": ["beo-learn", "beo-author", "beo-setup", "beo-reference"]
   },
   "support_subroutines": {
@@ -13,12 +13,6 @@
       "return_event_subtype": "debug",
       "callers": ["beo-execute", "beo-review"],
       "return_rule": "Caller resumes only from latest matching debug return. Debug never routes delivery to user directly."
-    },
-    "beo-recall": {
-      "return_event_kind": "return",
-      "return_event_subtype": "recall",
-      "callers": ["beo-plan", "beo-validate", "beo-execute", "beo-review", "beo-debug"],
-      "return_rule": "Recall is advisory only and never grants approval, execution permission, or verdicts."
     }
   },
   "post_verdict_hooks": {
@@ -57,9 +51,7 @@
     {"from": "beo-review", "condition_id": "abandoned", "to": "done", "target_class": "terminal"},
     {"from": "beo-debug", "condition_id": "debug_returned", "to": "subroutine_done", "target_class": "terminal"},
     {"from": "beo-debug", "condition_id": "debug_abandoned", "to": "subroutine_done", "target_class": "terminal"},
-    {"from": "beo-recall", "condition_id": "memory_recalled", "to": "caller", "target_class": "support_return"},
-    {"from": "beo-recall", "condition_id": "no_relevant_memory", "to": "caller", "target_class": "support_return"},
-    {"from": "beo-recall", "condition_id": "memory_unavailable", "to": "caller", "target_class": "support_return"},
+
     {"from": "beo-learn", "condition_id": "case_recorded", "to": "done", "target_class": "terminal"},
     {"from": "beo-learn", "condition_id": "authoring_requested", "to": "beo-author", "target_class": "control_plane"},
     {"from": "beo-learn", "condition_id": "insufficient_evidence", "to": "user", "target_class": "terminal"},
@@ -73,7 +65,6 @@
   "invalid_transitions": [
     {"from": "beo-plan", "condition_id": "any", "to": "beo-execute", "reason": "beo-validate must grant PASS_EXECUTE"},
     {"from": "beo-review", "condition_id": "repair_same_scope", "to": "beo-execute", "reason": "same-scope repair still requires approval refresh"},
-    {"from": "beo-debug", "condition_id": "any", "to": "user", "reason": "debug is a subroutine; caller decides user routing"},
-    {"from": "beo-recall", "condition_id": "any", "to": "beo-execute", "reason": "recall cannot grant execution permission"}
+    {"from": "beo-debug", "condition_id": "any", "to": "user", "reason": "debug is a subroutine; caller decides user routing"}
   ]
 }

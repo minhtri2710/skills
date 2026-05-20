@@ -126,16 +126,21 @@ def sync_constants_with_registry(root: Path) -> None:
     if not schema:
         return
 
-    loadable = schema.get("loadable_owners")
-    if isinstance(loadable, list):
-        OWNERS = set(str(o) for o in loadable)
-
-    classes = schema.get("owner_classes", {})
-    if isinstance(classes, dict):
-        if "delivery" in classes and isinstance(classes["delivery"], list):
-            DELIVERY_OWNERS = set(str(o) for o in classes["delivery"])
-        if "support_runtime" in classes and isinstance(classes["support_runtime"], list):
-            RUNTIME_EVENT_OWNERS = DELIVERY_OWNERS | set(str(o) for o in classes["support_runtime"])
+    # Derive owners from pipeline.json (canonical home for owner_classes)
+    pipeline = load_registry(root, "pipeline.json")
+    if pipeline:
+        classes = pipeline.get("owner_classes", {})
+        if isinstance(classes, dict):
+            all_owners = set()
+            for cls_members in classes.values():
+                if isinstance(cls_members, list):
+                    all_owners.update(str(o) for o in cls_members)
+            if all_owners:
+                OWNERS = all_owners
+            if "delivery" in classes and isinstance(classes["delivery"], list):
+                DELIVERY_OWNERS = set(str(o) for o in classes["delivery"])
+            if "support_runtime" in classes and isinstance(classes["support_runtime"], list):
+                RUNTIME_EVENT_OWNERS = DELIVERY_OWNERS | set(str(o) for o in classes["support_runtime"])
 
     event = schema.get("runtime_event", {})
     if isinstance(event, dict):

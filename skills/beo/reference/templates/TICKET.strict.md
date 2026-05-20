@@ -39,7 +39,8 @@ external_side_effects:
 stateful_external_systems:
   status: declared
   systems:
-    - <system>
+    - name: <system>
+      effect_ref: <same-as-external-side-effect-target>
 risk_scope: <risk and blast radius>
 rollback_boundary: explicit_rollback_plan
 authorization_refs:

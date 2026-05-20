@@ -23,13 +23,7 @@ atomicity:
   reason: <why this is one executable unit>
   rejects_multi_task: true
 generated_outputs: []
-external_side_effects:
-  status: none
-  effects: []
-stateful_external_systems:
-  status: none
-  systems: []
-risk_scope: <bounded repo-only risk>
-rollback_boundary: revert_declared_file_changes
+risk_scope: <risk and blast radius>
+rollback_boundary: <rollback strategy>
 flow_profile: standard_repo_edit
 ```

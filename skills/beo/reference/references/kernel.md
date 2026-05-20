@@ -1,35 +1,21 @@
-# BEO in one page
+# BEO in One Page (Kernel Invariants)
 
-Use one Beads issue at a time.
+BEO is a highly-disciplined, contract-driven pipeline for executing Beads issues. Work on exactly one verified issue at a time.
 
-## Normal path
+## 1. Fast-Path Pipelines
 
-Plan → Validate → Execute → Review
+Three postures scaled by risk: **quick** (repo-only, low-risk), **standard** (moderate, declares risk/rollback), **strict** (stateful/external, requires contracts). See `registry/profiles.json` for canonical definitions.
 
-## Quick path
+Normal delivery path: `plan -> validate -> execute -> review`. See `registry/pipeline.json` for all transitions. See `references/lifecycle.md` for claim invariants and decomposition.
 
-Use for tiny repo-only low-risk work.
+---
 
-1. Show and claim the issue.
-2. Write minimal ticket.
-3. Validate grants PASS_EXECUTE.
-4. Execute edits only approved files.
-5. Review verdict.
-6. Close only after accept.
+## 2. Hard Invariants (Never Bypass)
 
-## Standard path
-
-Same as quick, but declare generated outputs, risk, and rollback.
-
-## Strict path
-
-Same path, but requires human authorization, strict artifacts, and side-effect contract.
-
-## Never
-
-- execute without PASS_EXECUTE
-- mutate outside scope.files.allow or generated outputs
-- let debug/recall/memory approve or route delivery
-- close outside beo-review
-- use broad globs without authorization
-- treat advisory drift as approval invalidation
+1. **Strict Claim**: Never mutate files, write ticket projections, or run code changes without atomically claiming the issue using `br update --claim`.
+2. **Strict Containment**: Never execute code mutations outside `scope.files.allow` or declared generated outputs.
+3. **No Validation Bypass**: Never execute without a current, valid `PASS_EXECUTE` token written by `beo-validate`.
+4. **No Direct Closure**: Never close a ticket or bypass `beo-review`. Only `beo-review` verdict acceptance can route to `close`.
+5. **No Glob Expansion**: Never use broad globs (e.g. `**`, `src/**`) without explicit Human Gate authorization.
+6. **No Stateful Mutation Without Contract**: Stateful external operations (DB migration, third-party API state, destructive mutations) require strict side-effect contracts. See `references/safety.md`.
+7. **Memory**: `qmd` recall is advisory only. See `references/memory.md`.

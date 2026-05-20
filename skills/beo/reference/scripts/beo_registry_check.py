@@ -37,23 +37,22 @@ REQUIRED_COMMANDS = {
     "bv.robot_insights",
     "beo.check",
     "beo.memory_write",
+    "beo.setup",
+    "beo.recall",
     "obsidian.cli.create",
     "qmd.query",
     "qmd.status",
     "qmd.collection.list",
     "qmd.get",
     "qmd.index.update",
+    "qmd.index.embed",
     "qmd.collection.add_obsidian_vault",
 }
 NEW_REFERENCES = [
     "kernel.md",
-    "beads-authority.md",
-    "decomposition.md",
+    "lifecycle.md",
+    "safety.md",
     "ticket.md",
-    "approval.md",
-    "mutation-safety.md",
-    "lifecycle-events.md",
-    "modes.md",
     "memory.md",
 ]
 
@@ -105,10 +104,12 @@ def validate_commands(registry: Path, errors: list[str]) -> None:
         if not isinstance(cmd, dict):
             errors.append("command contract entry must be object")
             continue
-        for field in ["command_id", "kind", "command", "argv", "owner_allow", "authority", "may_grant_approval"]:
+        for field in ["command_id", "kind", "command", "argv", "owner_allow", "authority"]:
             if field not in cmd:
                 errors.append(f"{cmd.get('command_id', '<unknown>')} missing {field}")
-        if cmd.get("may_grant_approval") is not False:
+        # may_grant_approval is now in defaults block; per-command override must also be false
+        effective_approval = cmd.get("may_grant_approval", data.get("defaults", {}).get("may_grant_approval", False))
+        if effective_approval is not False:
             errors.append(f"{cmd.get('command_id')} must not grant approval")
         if cmd.get("command_id", "").startswith("bv.") and "--robot" not in cmd.get("command", ""):
             errors.append(f"{cmd.get('command_id')} must use a bv robot flag")
@@ -143,20 +144,22 @@ def validate_commands(registry: Path, errors: list[str]) -> None:
         if cmd.get("command_id") in {"qmd.status", "qmd.collection.list", "qmd.get"}:
             if cmd.get("kind") != "read":
                 errors.append(f"{cmd.get('command_id')} must be read-only")
-        if cmd.get("command_id") == "qmd.index.update":
+        if cmd.get("command_id") in {"qmd.index.update", "qmd.index.embed"}:
+            cmd_id = cmd.get("command_id")
             if cmd.get("kind") != "write_memory_index":
-                errors.append("qmd.index.update kind must be write_memory_index")
+                errors.append(f"{cmd_id} kind must be write_memory_index")
             if set(cmd.get("owner_allow", [])) != {"beo-setup", "beo-learn"}:
-                errors.append("qmd.index.update owner_allow must be beo-setup and beo-learn")
+                errors.append(f"{cmd_id} owner_allow must be beo-setup and beo-learn")
             if cmd.get("operation_class") != "memory_index_maintenance":
-                errors.append("qmd.index.update must be memory_index_maintenance")
+                errors.append(f"{cmd_id} must be memory_index_maintenance")
             if cmd.get("auto_index_allowed_after_learning_write") is not True:
-                errors.append("qmd.index.update must allow post-learning-write refresh")
+                errors.append(f"{cmd_id} must allow post-learning-write refresh")
             if cmd.get("delivery_setup_auto_index_allowed") is not False:
-                errors.append("qmd.index.update must not auto-index during delivery setup")
+                errors.append(f"{cmd_id} must not auto-index during delivery setup")
             for field in ["may_grant_review_verdict", "may_mutate_product_files"]:
-                if cmd.get(field) is not False:
-                    errors.append(f"qmd.index.update {field} must be false")
+                effective = cmd.get(field, data.get("defaults", {}).get(field, False))
+                if effective is not False:
+                    errors.append(f"{cmd_id} {field} must be false")
         if cmd.get("command_id") == "qmd.collection.add_obsidian_vault":
             if cmd.get("kind") != "write_memory_index":
                 errors.append("qmd.collection.add_obsidian_vault kind must be write_memory_index")
@@ -168,14 +171,20 @@ def validate_commands(registry: Path, errors: list[str]) -> None:
                 if token not in cmd.get("argv", []):
                     errors.append(f"qmd.collection.add_obsidian_vault argv must include {token}")
             for field in ["may_grant_approval", "may_grant_review_verdict", "may_mutate_product_files"]:
-                if cmd.get(field) is not False:
+                effective = cmd.get(field, data.get("defaults", {}).get(field, False))
+                if effective is not False:
                     errors.append(f"qmd.collection.add_obsidian_vault {field} must be false")
 
 
 def validate_pipeline(registry: Path, errors: list[str]) -> None:
     pipeline = load_json(registry / "pipeline.json", errors)
     vocabulary = load_json(registry / "ticket-schema.json", errors)
-    owners = set(vocabulary.get("loadable_owners", []))
+    # Derive loadable_owners from pipeline.json owner_classes (canonical home)
+    owner_classes = pipeline.get("owner_classes", {})
+    owners = set()
+    for cls_members in owner_classes.values():
+        if isinstance(cls_members, list):
+            owners.update(cls_members)
     terminals = set(vocabulary.get("terminal_targets", []))
     support_returns = set(vocabulary.get("support_return_targets", []))
 

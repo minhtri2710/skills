@@ -17,6 +17,8 @@ A collection of canonical beo skills and shared references for structured, contr
 | --- | --- | --- |
 | `br` | 0.1.28+ | beads_rust CLI |
 | `bv` | 0.15.2+ | Beads Viewer |
+| `qmd` | latest | Vector search for learning recall |
+| `obsidian` | latest | Learning note persistence |
 
 ## Canonical Reads
 
@@ -24,15 +26,14 @@ A collection of canonical beo skills and shared references for structured, contr
 | --- | --- |
 | skill contract | `beo-<skill>` |
 | reference index | `beo-reference` |
-| kernel invariants | `beo-reference -> references/kernel.md` |
-| Beads authority | `beo-reference -> references/beads-authority.md` |
-| ticket contract | `beo-reference -> references/ticket.md` |
-| legal transitions | `beo-reference -> registry/pipeline.json` |
-| registry enums | `beo-reference -> registry/ticket-schema.json` |
-| approval | `beo-reference -> references/approval.md` |
-| lifecycle/events | `beo-reference -> references/lifecycle-events.md` |
-| memory and recall | `beo-reference -> references/memory.md` |
-| doctrine ownership | `beo-reference` |
+| kernel invariants | `references/kernel.md` |
+| lifecycle, triage, decomposition | `references/lifecycle.md`, `registry/pipeline.json` |
+| safety & path rules | `references/safety.md` |
+| execution modes & profiles | `registry/profiles.json` |
+| approval binding | `registry/approval-envelope.json` |
+| ticket schema | `registry/ticket-schema.json` |
+| semantic memory | `references/memory.md`, `registry/memory-backends.json` |
+| commands | `registry/command-contracts.json` |
 
 <!-- BEO:MANAGED START -->
 BEO always-on rules (kernel is canonical):

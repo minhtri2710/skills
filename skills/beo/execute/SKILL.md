@@ -5,7 +5,7 @@ description: Mutates only the approved scope for one claimed atomic Beads ticket
 
 # beo-execute
 
-Refs: `beo-reference -> references/mutation-safety.md`, `beo-reference -> references/lifecycle-events.md`.
+Refs: `beo-reference -> references/safety.md`, `beo-reference -> references/lifecycle.md`.
 
 ## Decision
 
@@ -31,7 +31,10 @@ Deliver exactly one approved atomic ticket scope.
 
 - `execution_ready_for_review` -> `beo-review`
 - `approval_stale_or_invalid` -> `beo-validate`
+- `scope_delta_required` -> `beo-plan`
 - `blocker_found` -> `beo-debug`
+- `user_blocker` -> `user`
+- `abandoned` -> `beo-review`
 
 ## Method
 
