@@ -31,8 +31,7 @@ Confirm BEO-on-Beads compatibility and install/update integration.
 
 ## Method
 
-1. Run `python3 skills/beo/reference/scripts/beo_setup.py` to automatically verify core dependencies (`br`, `bv`, `qmd`, `obsidian`), locate the active Obsidian vault, ensure the `beo-learnings` directory exists, and register/validate the `qmd` collection.
-2. Verify capabilities for `ready`, `show`, `comments add`, `update --claim`, and `close`.
-3. Verify `--claim` atomically sets assignee and `status=in_progress`.
-4. Check optional `bv` orientation tool availability without blocking core delivery.
-5. Install or update the BEO managed block in `AGENTS.md` from template.
+1. Environment verification: Run `beo_setup.py` to check dependencies (`br`, `bv`, `qmd`, `obsidian`), resolve Obsidian vault environment, and configure/index the `qmd` collection.
+2. Beads capability validation: Ensure atomicity of `--claim` and verify standard command contracts.
+3. Managed rules integration: Install or update the always-on BEO rules block in `AGENTS.md` from template.
+

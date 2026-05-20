@@ -35,9 +35,9 @@ Grant or refuse `PASS_EXECUTE` for one atomic bead.
 
 ## Method
 
-1. Confirm `atomicity.decision: atomic`.
-2. Check for unsafe overlap; safe overlap must be per-path in `scope.scope_overlap.overlaps`.
-3. Run `beo_check.py --check validate --issue <issue-id>`.
-4. Record `approval_ref`, mode, and hashes only if checks pass.
-5. For `repair_same_scope`, require valid `change_request` per `beo-reference -> references/lifecycle.md`.
-6. Apply drift rules: Soft Drift (title/labels) notes only; Hard Invalidators (scope/criteria) refuse.
+1. Verify atomicity and ensure no unsafe, undeclared path overlaps exist.
+2. Run validation safety gate: `beo_check.py --check validate --issue <issue-id>`.
+3. Upon validation success, write `PASS_EXECUTE` token, recording `approval_ref` and prestate hashes.
+4. For repairs, enforce change request bounds per lifecycle and safety doctrine.
+5. Soft drift (title/labels) triggers warnings; hard drift (scope/criteria changes) invalidates.
+

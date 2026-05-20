@@ -37,12 +37,12 @@ Lock the smallest safe interpretation of a Beads issue; decompose broad work or 
 
 ## Method
 
-1. Run `python3 skills/beo/reference/scripts/beo_recall.py --issue <issue-id>` to semantically retrieve prior learning cases, mistakes, and success patterns before planning.
-2. Read `.beads/artifacts/<issue-id>/RECALL_SUMMARY.md` and explicitly design the plan to prevent recurring mistakes.
-3. Lock requirements: verify bead with `br show`, claim with `br update --claim`, then lock request/done/gates as the smallest safe interpretation. For low-risk repository edits, use the **6-step Quick Path** (see `beo-reference -> references/lifecycle.md`) and write a minimal `TICKET.md`.
-4. Formulate execution tracks dynamically: execute `bv --robot-triage`, `bv --robot-plan`, and `bv --robot-insights` to verify priority scores, parallel execution tracks, and graph health. If cycles are detected, prioritize cycle-break operations. Record these triage insights in the ticket's `triage_records`.
-5. If not atomic: create children via `br create`, add dependencies, comment parent, then exit `decomposition_recorded`.
-6. If atomic: write ticket with request, done, gates, allow/forbid paths, generated outputs, verification, and acceptance.
-7. Select quick, standard, or strict mode per `beo-reference -> references/safety.md`.
-8. Run `beo_check.py --check validate --issue <issue-id>` as a readiness check before handoff.
+1. Run semantic memory recall via `beo_recall.py --issue <issue-id>` (powered by `qmd` vector search) to retrieve prior learnings.
+2. Read `.beads/artifacts/<issue-id>/RECALL_SUMMARY.md` to prevent recurring mistakes in plan design.
+3. Claims & Intake: Claim issue atomically (`br update --claim`) and lock requirements. For low-risk edits, follow the 6-Step Compact Protocol.
+4. Triage & Graph Insights: Run `bv` robot tools (`--robot-triage`, `--robot-plan`, `--robot-insights`) to map parallel tracks and resolve cycle bottlenecks.
+5. If non-atomic: Decompose via `br create`, add dependency edges (`br dep add`), and exit `decomposition_recorded`.
+6. If atomic: Draft `TICKET.md` specifying explicit file boundaries (`allow`/`forbid`), verification contracts, and safety mode (quick/standard/strict).
+7. Pre-validate: Run `beo_check.py --check validate --issue <issue-id>` to ensure plan readiness.
+
 

@@ -40,9 +40,10 @@ Accept, abandon, or route repair for one executed atomic ticket.
 
 ## Method
 
-1. Run `beo_check.py --check review --issue <issue-id>`.
-2. Inspect changed files, verification, and side-effect constraints.
-3. If accepted: write verdict, `br close`, and `br sync --flush-only`.
-4. If abandoned: verify `abandon_reason` and state of mutations, then close.
-5. Use `repair_same_scope` only if criteria in `beo-reference -> references/lifecycle.md` match.
-6. Append `learning_candidate` only for high-value reusable patterns or recurring mistakes.
+1. Run verification checks: `beo_check.py --check review --issue <issue-id>`.
+2. Evaluate file containment boundaries, verify test evidence, and check side-effects.
+3. If accepted: Write verdict, close issue (`br close <issue-id>`), and flush (`br sync --flush-only`).
+4. If abandoned: Record reason, verify cleanup of dirty mutations, and close.
+5. If repair: Route to `beo-validate` (same scope) or `beo-plan` (rescope) as appropriate.
+6. Emit `learning_candidate` event for reusable patterns or mistakes to trigger learn loop.
+

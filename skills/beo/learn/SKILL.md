@@ -33,9 +33,10 @@ Record smallest reusable lesson with provenance.
 
 ## Method
 
-1. Identify `case_type` (e.g., `success_pattern`, `recurring_mistake`).
-2. Extract only reusable lesson, trigger, rule, and provenance.
-3. Name: `YYYY-MM-DD--<case-type>--<bead-id>--<slug>.md` using safe slugs (alphanumeric and hyphens only).
-4. Run `python3 skills/beo/reference/scripts/beo_memory_write.py --issue <issue-id> --case-type <case-type> --slug <slug> --markdown-file <file-path>` to write the note to the active Obsidian vault via the `obsidian` CLI, which automatically triggers a synchronous `qmd update` and `qmd embed` to ensure instant learning-index and vector freshness.
-5. Follow backend and secret policy in `beo-reference -> references/memory.md`.
-6. Route to `beo-author` only for doctrine changes; write `AUTHORING_RECOMMENDATION.md`.
+1. Identify case type (e.g., `success_pattern`, `recurring_mistake`) and extract the reusable lesson and trigger.
+2. Structure note: Use filename `YYYY-MM-DD--<case-type>--<bead-id>--<slug>.md` with safe alphanumeric-hyphen slug.
+3. Persist and index: Run `beo_memory_write.py --issue <issue-id> --case-type <case-type> --slug <slug> --markdown-file <file-path>`.
+   - This writes to the Obsidian learnings folder via `obsidian` CLI.
+   - It runs `qmd update` and `qmd embed` for synchronous vector index freshness.
+4. Doctrine loop: Route to `beo-author` via `AUTHORING_RECOMMENDATION.md` only for BEO doctrine/registry updates.
+

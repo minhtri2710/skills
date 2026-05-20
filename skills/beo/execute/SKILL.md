@@ -38,9 +38,9 @@ Deliver exactly one approved atomic ticket scope.
 
 ## Method
 
-1. Run `beo_check.py --check execute --issue <issue-id>` to confirm approval.
-2. Capture prestate hashes for declared files and outputs.
-3. Mutate only approved `allow` paths and declared outputs.
-4. Record incremented `execution.iteration` for repairs.
-5. Run declared verification commands and record evidence refs.
-6. Run `beo_check.py --check review --issue <issue-id>` before review handoff.
+1. Verify approval: Run `beo_check.py --check execute --issue <issue-id>`.
+2. Hash pre-state: Capture cryptographic pre-state hashes of all allowed files.
+3. Surgical mutation: Modify strictly within approved `allow` files and outputs.
+4. Verify changes: Execute declared verification commands and record results.
+5. Pre-review: Run `beo_check.py --check review --issue <issue-id>` before review handoff.
+
