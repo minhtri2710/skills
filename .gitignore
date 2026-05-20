@@ -6,3 +6,6 @@
 .bv/
 .gitnexus
 .env
+
+# generated skill evaluation workspaces
+skills/*-workspace/

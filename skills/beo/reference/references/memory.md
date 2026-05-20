@@ -1,6 +1,11 @@
 # Semantic Memory and Mistake Prevention
 
-BEO uses a dynamic semantic memory system to prevent repeated mistakes, index past bugs, and preserve reusable success patterns without adding pipeline overhead.
+BEO uses a markdown-first learning loop to prevent repeated mistakes and preserve reusable success patterns without adding delivery authority.
+
+Use one backend role per job:
+- Obsidian CLI writes and manages durable case notes in the configured vault.
+- `qmd` indexes, embeds, and searches those notes for semantic recall.
+- `.beads/artifacts/` stores issue-local fallback evidence when external memory is unavailable.
 
 ---
 
@@ -53,10 +58,12 @@ Post-accept learnings are written by `beo-learn` using the Obsidian CLI when con
   ```bash
   rtk qmd collection add "$BEO_OBSIDIAN_VAULT/beo-learnings/" --name "$BEO_QMD_COLLECTION"
   rtk qmd update
+  rtk qmd embed
   ```
-- **Semantic Similarity Query**:
+- **Recall Queries**:
   ```bash
   rtk qmd query "<query-prose>" --collection "$BEO_QMD_COLLECTION"
   ```
+  Prefer `query` for hybrid recall; use `search` for exact keyword checks and `vsearch` for pure semantic similarity when diagnosing retrieval quality.
 - **Fallback Persistence**: If Obsidian or `qmd` are unavailable, `beo-learn` writes markdown cases directly to:
   `.beads/artifacts/<issue-id>/learning/YYYY-MM-DD--<case-type>--<bead-id>--<slug>.md`

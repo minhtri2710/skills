@@ -1,14 +1,19 @@
 # Lifecycle, Decomposition, and Triage Authority
 
-`br` is canonical for issue identity, lifecycle, claims, comments, ready queue, and closure. `bv` drives structural orientation, triage, track planning, and cycle validation. BEO records safety states and transitions in `TICKET.md`.
+Use one authority per decision:
+- `br` owns issue identity, lifecycle, claims, comments, dependency edges, ready queue, sync, and closure.
+- `bv` owns graph orientation: triage ranking, independent tracks, bottlenecks, and cycle visibility.
+- `TICKET.md` owns BEO safety states, approval projections, execution evidence, and verdict transitions.
+
+Do not duplicate state between them. Link by Bead ID and record only the smallest evidence each authority needs.
 
 ## 1. Issue Triage and Claim Authority
 
 All issue transitions are governed by strict claim invariants to avoid parallel conflict and preserve audit trails.
 
 ### Startup and Claim Sequence
-1. **Discover**: Run `br ready --json` or query triage with `bv --robot-triage -f json --no-cache`.
-2. **Inspect**: Check specific issue details with `br show <issue-id> --json`.
+1. **Discover**: Use `br ready --json` when selecting executable work; use `bv --robot-triage -f json --no-cache` when choosing between backlog tracks.
+2. **Inspect**: Check canonical issue details with `br show <issue-id> --json`.
 3. **Claim**: Before any owned write, ticket mutation, decomposition, or product mutation, claim the issue:
    ```bash
    ACTOR="${BR_ACTOR:-${AGENT_NAME:-assistant}}"
@@ -30,10 +35,12 @@ For low-risk repository-only edits (e.g., docstrings, READMEs, simple refactors)
 
 ## 2. Track Planning and Robot Triage
 
-BEO leverages `beads_viewer` (`bv`) to analyze backlog tracks, bottlenecks, and dependencies dynamically during the planning phase:
-- **Triage**: `bv --robot-triage -f json --no-cache` returns ready-to-run recommendations, quick wins, and priority scores.
-- **Track Planning**: `bv --robot-plan -f json --no-cache` outputs independent parallel execution tracks containing unblocking sequences.
-- **Dependency Health**: `bv --robot-insights -f json --no-cache` checks for graph bottlenecks, articulation points, slack lists, and DAG cycles.
+Use `bv` when the question is structural rather than transactional:
+- **Triage**: `bv --robot-triage -f json --no-cache` ranks ready work, quick wins, and priority signals.
+- **Track Planning**: `bv --robot-plan -f json --no-cache` proposes independent tracks and unblocking sequences.
+- **Dependency Health**: `bv --robot-insights -f json --no-cache` surfaces bottlenecks, slack, articulation points, and DAG cycles.
+
+After `bv` identifies the shape of the work, persist actual issue/dependency changes with `br`.
 
 > [!IMPORTANT]
 > If `bv --robot-insights` detects any cycle (when `.Cycles` is not empty or `has_cycles` is true), the plan must prioritize cycle-break operations before mutating any code.

@@ -37,12 +37,11 @@ Lock the smallest safe interpretation of a Beads issue; decompose broad work or 
 
 ## Method
 
-1. Run semantic memory recall via `beo_recall.py --issue <issue-id>` (powered by `qmd` vector search) to retrieve prior learnings.
-2. Read `.beads/artifacts/<issue-id>/RECALL_SUMMARY.md` to prevent recurring mistakes in plan design.
-3. Claims & Intake: Claim issue atomically (`br update --claim`) and lock requirements. For low-risk edits, follow the 6-Step Compact Protocol.
-4. Triage & Graph Insights: Run `bv` robot tools (`--robot-triage`, `--robot-plan`, `--robot-insights`) to map parallel tracks and resolve cycle bottlenecks.
-5. If non-atomic: Decompose via `br create`, add dependency edges (`br dep add`), and exit `decomposition_recorded`.
-6. If atomic: Draft `TICKET.md` specifying explicit file boundaries (`allow`/`forbid`), verification contracts, and safety mode (quick/standard/strict).
-7. Pre-validate: Run `beo_check.py --check validate --issue <issue-id>` to ensure plan readiness.
+1. Recall: Run `beo_recall.py --issue <issue-id>` and read `.beads/artifacts/<issue-id>/RECALL_SUMMARY.md` for advisory lessons.
+2. Claim & intake: Use `br show <issue-id> --json`, then claim with `br update --claim` before ticket writes.
+3. Triage when needed: Use `bv --robot-triage`, `bv --robot-plan`, or `bv --robot-insights` only for backlog shape, parallel tracks, bottlenecks, or cycles.
+4. If non-atomic: Decompose with `br create`, add edges with `br dep add`, comment on the parent, and exit `decomposition_recorded`.
+5. If atomic: Draft `TICKET.md` with explicit `allow`/`forbid` files, verification contract, safety mode, assumptions, non-goals, and rollback/repair path.
+6. Pre-validate: Run `beo_check.py --check validate --issue <issue-id>` to ensure plan readiness.
 
 

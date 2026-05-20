@@ -1,0 +1,20 @@
+{
+  "skill_name": "beo",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "A Beads issue titled 'Add retry logging to the sync worker' is ready, but the issue may be too broad. Use BEO to decide whether to execute it or split it first.",
+      "expected_output": "A concise BEO planning response that recalls prior lessons, uses br for canonical issue inspection/claim/decomposition, uses bv only for graph triage when structural insight is needed, and exits with either decomposition_recorded or plan_complete."
+    },
+    {
+      "id": 2,
+      "prompt": "A claimed atomic bead has PASS_EXECUTE and allows only src/sync_worker.py plus tests/test_sync_worker.py. Implement the approved change under BEO.",
+      "expected_output": "A contained execution flow that verifies approval, mutates only allowed files, records verification evidence, and hands off to review without closing the issue directly."
+    },
+    {
+      "id": 3,
+      "prompt": "Review accepted a fix after a near miss where an agent almost reused a stale qmd lesson as approval. Capture the BEO learning.",
+      "expected_output": "A learning-capture flow that records a small reusable case note with Beads provenance, writes durable markdown through Obsidian CLI when configured, indexes/searches with qmd, keeps memory advisory, and does not reopen delivery."
+    }
+  ]
+}
