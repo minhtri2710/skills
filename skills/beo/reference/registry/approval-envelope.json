@@ -1,165 +1,84 @@
 {
   "$schema": "./registry.schema.json#/definitions/approval-envelope",
-  "approval_projection_rule": [
-    "compact_derived",
-    "full_plan_explicit"
-  ],
-  "compact_input_rule": "compact_derived",
-  "envelope_rules": [
-    "Only beo-validate may write approval envelope fields.",
-    "Missing, stale, invalid, contradictory, or unavailable approval/integrity blocks PASS_EXECUTE.",
-    "Compact shorthand is evaluated through its derived approval-bearing projection, not raw shorthand alone.",
-    "Compact markdown headings are diagnostic-only and must not satisfy approval fields.",
-    "Compact derived projection fields are helper-derived diagnostics only and are not operator-authored approval authority."
-  ],
+  "description": "Approval binding for BEO-on-Beads. Only beo-validate may write PASS_EXECUTE; helper output verifies mechanics and hashes but never grants approval.",
+  "approval_projection_rule": ["plan_input_execution_binding"],
   "required_fields": [
-    {
-      "id": "readiness",
-      "owner": "beo-validate",
-      "compact_source": "TICKET.md `beo.ticket` readiness",
-      "full_source": "PLAN.md#Approval.readiness",
-      "required_value": "PASS_EXECUTE"
-    },
-    {
-      "id": "approval_ref",
-      "owner": "beo-validate",
-      "compact_source": "TICKET.md `beo.ticket` approval_ref",
-      "full_source": "PLAN.md#Approval.approval_ref"
-    },
-    {
-      "id": "selected_execution_set",
-      "owner": "beo-validate",
-      "compact_source": "TICKET.md `beo.ticket` selected_execution_set",
-      "full_source": "PLAN.md#Approval.selected_execution_set"
-    },
-    {
-      "id": "execution_mode",
-      "owner": "beo-validate",
-      "compact_source": "TICKET.md `beo.ticket` execution_mode",
-      "full_source": "PLAN.md#Approval.execution_mode"
-    },
-    {
-      "id": "request",
-      "owner": "beo-explore",
-      "compact_source": "TICKET.md `beo.ticket` request",
-      "full_source": "CONTEXT.md#request"
-    },
-    {
-      "id": "declared_files",
-      "owner": "beo-plan",
-      "compact_source": "TICKET.md `beo.ticket` scope.files.allow -> derived declared_files",
-      "full_source": "PLAN.md#declared_files"
-    },
-    {
-      "id": "forbidden_paths",
-      "owner": "beo-plan",
-      "compact_source": "TICKET.md `beo.ticket` scope.files.forbid -> derived forbidden_paths",
-      "full_source": "PLAN.md#forbidden_paths"
-    },
-    {
-      "id": "generated_outputs",
-      "owner": "beo-plan",
-      "compact_source": "TICKET.md `beo.ticket` generated_outputs or derived not_applicable",
-      "full_source": "PLAN.md#generated_outputs"
-    },
-    {
-      "id": "verification_contract",
-      "owner": "beo-plan",
-      "compact_source": "TICKET.md `beo.ticket` scope.verify -> derived verification_contract",
-      "full_source": "PLAN.md#verification_contract"
-    },
-    {
-      "id": "execution_sets",
-      "owner": "beo-plan",
-      "compact_source": "TICKET.md `beo.ticket` scope.item -> derived execution_sets[set-1].items[item-1]",
-      "full_source": "PLAN.md#execution_sets"
-    },
-    {
-      "id": "acceptance_criteria",
-      "owner": "beo-plan",
-      "compact_source": "TICKET.md `beo.ticket` acceptance_criteria",
-      "full_source": "PLAN.md#acceptance_criteria"
-    },
-    {
-      "id": "non_goal_constraints",
-      "owner": "beo-plan",
-      "compact_source": "TICKET.md `beo.ticket` non_goals -> non_goal_constraints or []",
-      "full_source": "PLAN.md#non_goal_constraints"
-    },
-    {
-      "id": "risk_scope",
-      "owner": "beo-plan",
-      "compact_source": "TICKET.md `beo.ticket` risk_scope or derived not_applicable",
-      "full_source": "PLAN.md#risk_scope"
-    },
-    {
-      "id": "rollback_boundary",
-      "owner": "beo-plan",
-      "compact_source": "TICKET.md `beo.ticket` rollback_boundary or derived not_applicable",
-      "full_source": "PLAN.md#rollback_boundary"
-    },
-    {
-      "id": "human_gates",
-      "owner": "beo-explore",
-      "compact_source": "TICKET.md `beo.ticket` human_gates",
-      "full_source": "CONTEXT.md#human_gates"
-    },
-    {
-      "id": "integrity",
-      "owner": "beo-validate",
-      "compact_source": "TICKET.md `beo.ticket` integrity",
-      "full_source": "PLAN.md#Approval.integrity"
-    }
+    "readiness",
+    "selected_execution_set",
+    "execution_mode",
+    "approval_ref.id",
+    "approval_ref.approved_by_owner",
+    "approval_ref.approved_at",
+    "approval_ref.issue_id",
+    "approval_ref.ticket_schema_version",
+    "approval_ref.approval_projection_rule",
+    "approval_ref.approval_projection_hash",
+    "approval_ref.plan_input_hash",
+    "approval_ref.bead_snapshot_hash",
+    "approval_ref.command_contracts_hash",
+    "approval_ref.helper_version",
+    "approval_ref.helper_run_id",
+    "integrity.status",
+    "integrity.evidence_ref"
   ],
-  "approval_ref_schema": {
-    "type": "object",
-    "required": [
-      "id",
-      "approved_by_owner",
-      "approved_at",
-      "artifact_density",
-      "selected_execution_set",
-      "execution_mode",
-      "approval_projection_rule",
-      "envelope_hash",
-      "artifact_hashes"
-    ],
-    "strict_object_only": true,
-    "timestamp_format": "RFC3339_UTC_Z",
-    "hash_basis": {
-      "envelope_hash": "canonical approval envelope projection excluding approval_ref.envelope_hash and approval_ref.artifact_hashes",
-      "excluded_artifacts": [
-        "TRACKER.json",
-        "REVIEW.md"
-      ],
-      "artifact_hashes": [
-        "approval_bearing_projection"
-      ]
-    }
-  },
-  "integrity_schema": {
-    "type": "object",
-    "required": [
-      "status"
-    ],
-    "status": [
-      "verified",
-      "invalid",
-      "unavailable"
-    ],
-    "evidence_ref": "required when status = verified"
-  },
-  "compact_projection": {
-    "request": "request",
-    "declared_files": "scope.files.allow",
-    "forbidden_paths": "scope.files.forbid",
-    "generated_outputs": "not_applicable unless specified",
-    "non_goal_constraints": "non_goals or [] when absent",
-    "risk_scope": "not_applicable unless specified",
-    "rollback_boundary": "not_applicable unless specified",
-    "execution_sets": "single set-1 containing item-1 from scope.item and scope.files.allow",
-    "acceptance_criteria": "acceptance_criteria",
-    "verification_contract": "scope.verify",
-    "human_gates": "human_gates"
-  }
+  "projection_fields": [
+    "issue_id",
+    "issue_type",
+    "issue_description_hash",
+    "dependency_snapshot_hash",
+    "ticket_schema_version",
+    "request",
+    "done",
+    "human_gates",
+    "constraints",
+    "atomicity",
+    "scope.files.allow",
+    "scope.files.forbid",
+    "generated_outputs",
+    "external_side_effects",
+    "stateful_external_systems",
+    "risk_scope",
+    "rollback_boundary",
+    "strict.artifact_hashes.STRICT.md",
+    "strict.artifact_hashes.ROLLBACK.md",
+    "acceptance_criteria",
+    "scope.verify.commands",
+    "flow_profile_expansion",
+    "posture_profile_expansion",
+    "selected_execution_set",
+    "execution_mode",
+    "bead_snapshot_hash",
+    "command_contracts_hash"
+  ],
+  "stale_when_changed": [
+    "approval-bearing plan input fields",
+    "atomicity",
+    "br issue type",
+    "br issue description relevant to request/done",
+    "dependency snapshot",
+    "command contracts hash",
+    "helper version when hash semantics change",
+    "Human Gate status",
+    "scope allow/forbid paths",
+    "verification commands",
+    "posture/risk/rollback fields",
+    "strict artifact hashes"
+  ],
+  "plan_input_hash_rule": "This field hashes approval-bearing plan inputs only, including atomicity and verification commands through scope.verify.commands. It excludes assumptions, non_goals, triage_records, learning, recall, readiness, selected_execution_set, execution_mode, approval_ref, integrity, execution, review, debug, runtime_events, helper output refs, and other post-approval evidence so approval does not self-invalidate when later owners append evidence. Title, labels, assumptions, and non-goals are soft-drift fields and do not invalidate approval by themselves.",
+  "not_stale_when_changed": [
+    "ordinary br comments that do not change scope, acceptance, risk, or authorization",
+    "issue title and labels unless they materially change request, scope, safety, or authorization"
+  ],
+  "execute_entry_requires": [
+    "approval_envelope_status complete",
+    "approval_ref hashes match the current projection",
+    "br claim exists for current actor/session",
+    "prestate is captured before product mutation"
+  ],
+  "helper_boundary": [
+    "beo_check.py does not grant approval",
+    "beo_check.py does not refresh approval",
+    "beo_check.py does not select execution sets",
+    "beo_check.py does not emit review verdicts"
+  ]
 }

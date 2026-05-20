@@ -22,41 +22,27 @@ A collection of canonical beo skills and shared references for structured, contr
 
 | Need | Read |
 | --- | --- |
-| skill contract | `skills/beo/<skill>/SKILL.md` |
-| reference index | `skills/beo/reference/SKILL.md` |
-| operator cockpit | `beo-reference -> references/operator-cockpit.md` |
-| protocol core | `beo-reference -> references/protocol-core.md` |
-| artifact model | `beo-reference -> references/artifacts.md` |
+| skill contract | `beo-<skill>` |
+| reference index | `beo-reference` |
+| kernel invariants | `beo-reference -> references/kernel.md` |
+| Beads authority | `beo-reference -> references/beads-authority.md` |
+| ticket contract | `beo-reference -> references/ticket.md` |
 | legal transitions | `beo-reference -> registry/pipeline.json` |
-| vocabulary registry | `beo-reference -> registry/vocabulary.json` |
+| registry enums | `beo-reference -> registry/ticket-schema.json` |
 | approval | `beo-reference -> references/approval.md` |
-| state/handoff | `beo-reference -> references/state.md` |
-| doctrine ownership | `beo-reference -> references/doctrine-map.md` |
-| skill contract common | `beo-reference -> references/skill-contract-common.md` |
+| lifecycle/events | `beo-reference -> references/lifecycle-events.md` |
+| memory and recall | `beo-reference -> references/memory.md` |
+| doctrine ownership | `beo-reference` |
 
 <!-- BEO:MANAGED START -->
-Authority: advisory only.
-
-Start here:
-<!-- beo:agents:start-cockpit -->
-1. Operator cockpit: `beo-reference -> references/operator-cockpit.md`
-2. Protocol core: `beo-reference -> references/protocol-core.md`
-3. Current owner contract: active owner `SKILL.md`
-4. Canonical transitions: `beo-reference -> registry/pipeline.json`
-
-Startup:
-1. Read `.beads/STATE.json` if present.
-2. Load `FEATURE.json` and current required artifacts.
-3. Resolve current owner from artifacts; STATE/HANDOFF are mirrors only.
-4. Normal resume uses `beo-reference -> references/resume-resolution.md`.
-5. Route is only for unsafe owner/feature identity repair.
-6. New feature delivery starts through `beo-explore`.
-7. Direct setup/usage requests use `beo-setup`.
-
-Normal path:
-`beo-explore -> beo-plan -> beo-validate -> beo-execute -> beo-review -> done`.
-
-Runtime authority comes from current artifacts, loaded owner contract, canonical references, and pipeline.
+BEO always-on rules (kernel is canonical):
+1. Work on one verified Beads issue at a time; load the active
+   `skills/beo/*/SKILL.md` before any mutation.
+2. `br` owns lifecycle/claims/comments/closure; `bv` is orientation only.
+3. Only a claimed atomic bead with current `PASS_EXECUTE` may mutate approved
+   scope; strict mode is required for external/stateful/high-risk work.
+4. Human Gates are user-owned, memory is advisory, only `beo-review` closes
+   delivery, and learning never reopens delivery.
 <!-- BEO:MANAGED END -->
 
 ## Skill Loading Rule
@@ -65,10 +51,9 @@ A beo skill's `SKILL.md` must be loaded before any mutation owned by that skill.
 
 ## First 5 Minutes
 
-1. Read `beo-reference -> references/operator-cockpit.md`.
-2. Read `beo-reference -> references/skill-contract-common.md` section `Skill must be loaded to act`.
-3. Read `.beads/STATE.json` when present.
-4. Load the active owner `SKILL.md` before any mutation.
+1. Read `beo-reference -> references/kernel.md`.
+2. Read `.beads/artifacts/<issue-id>/TICKET.md` when acting on a bead.
+3. Load the active owner `SKILL.md` before any mutation.
 
 ## Manual Doctrine Review
 

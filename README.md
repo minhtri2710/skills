@@ -1,64 +1,41 @@
 # beo-skills
 
-Canonical BEO skills and references for contract-driven feature delivery.
+Canonical BEO skills and references for Beads-anchored, contract-driven feature delivery.
 
 ```mermaid
 flowchart LR
-    explore[beo-explore] --> plan[beo-plan]
+    beads[bv/br triage] --> plan[beo-plan]
     plan --> validate[beo-validate]
     validate -->|PASS_EXECUTE| execute[beo-execute]
     execute --> review[beo-review]
-    review -->|accept| done[done]
-    review -->|learning candidate| learn[beo-learn]
-    review -->|unproven root cause| debug[beo-debug]
-    review -->|bounded repair/reject| plan
-    learn --> done
-    execute -. blocker .-> debug
-    debug -. evidence .-> owner[recorded/legal owner]
+    review -->|accept| close[br close]
+    review -->|diagnosis needed| debug[beo-debug]
+    review -->|repair_same_scope| validate
+    review -->|repair_rescope| plan
 ```
 
-Core delivery: `beo-explore -> beo-plan -> beo-validate -> beo-execute -> beo-review -> done` for accepted work.
-
-Identity repair: `beo-route` only for true owner identity defects when current artifacts cannot identify a legal owner.
-
-Review exits: accept to `done`, learning candidates to `beo-learn`, unproven root causes to `beo-debug`, and bounded repair/reject verdicts to `beo-plan`.
-
-Optional closure: `beo-learn -> beo-author` only on explicit request with selected evidence.
+Core delivery: `bv/br triage -> beo-plan -> beo-validate -> beo-execute -> beo-review -> br close` for accepted atomic beads.
 
 ## 30-second model
 
-- Owner `SKILL.md` must be loaded before owner-owned mutation.
-- `beo-validate` alone grants `PASS_EXECUTE`.
-- `beo-execute` alone mutates product files.
-- `beo-review` alone emits terminal verdicts.
-- Advisory surfaces never create authority.
+- `br` owns issue identity, lifecycle, dependencies, claims, comments, ready queue, and closure.
+- `bv` provides graph-aware triage and orientation only.
+- BEO owns Human Gates, atomic scope, `PASS_EXECUTE`, mutation boundary, execution evidence, and review verdict.
+- Only atomic beads are approved or executed.
+- Only `beo-validate` grants `PASS_EXECUTE`.
+- Only `beo-execute` mutates approved product paths.
+- Only `beo-review` emits terminal verdicts.
 
 ## Operator entry points
 
-- Operator cockpit: `beo-reference -> references/operator-cockpit.md`
-- Protocol core: `beo-reference -> references/protocol-core.md`
-- Legal transitions: `beo-reference -> registry/pipeline.json`
-- Artifact model: `beo-reference -> references/artifacts.md`
+- Kernel: `beo-reference -> references/kernel.md`
+- Beads authority: `beo-reference -> references/beads-authority.md`
+- BV triage: `beo-reference -> references/triage.md`
+- Ticket contract: `beo-reference -> references/ticket.md`
 - Approval: `beo-reference -> references/approval.md`
-- State and handoff: `beo-reference -> references/state.md`
+- Mutation safety: `beo-reference -> references/mutation-safety.md`
+- Runtime events: `beo-reference -> references/events.md`
+- Legal transitions: `beo-reference -> registry/pipeline.json`
 - Command contracts: `beo-reference -> registry/command-contracts.json`
-- Doctrine ownership: `beo-reference -> references/doctrine-map.md`
 
-## Repository layout
-
-```text
-skills/beo/
-  explore/    requirements lock
-  plan/       executable scope
-  validate/   readiness and approval
-  execute/    approved execution-set delivery
-  review/     terminal review verdicts
-  debug/      blocker diagnosis
-  route/      owner identity repair
-  setup/      setup/check/usage
-  learn/      optional learning extension
-  author/     explicit doctrine authoring extension
-  reference/  shared references, registries, scripts, templates
-```
-
-README is overview only. It does not approve execution, select owners, validate readiness, define state semantics, or replace canonical references.
+README is overview only. It does not approve execution, select owners, validate readiness, define lifecycle authority, or replace canonical references.

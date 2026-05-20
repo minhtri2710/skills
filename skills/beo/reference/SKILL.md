@@ -1,42 +1,48 @@
 ---
 name: beo-reference
-description: Returns canonical BEO references without mutating runtime artifacts.
+description: Read-only BEO doctrine loader for kernel, Beads authority, decomposition, lifecycle, approval, mutation safety, events, modes, memory, registries, recipes, and templates.
 ---
 
 # beo-reference
 
-Before acting, load and obey `beo-reference -> references/skill-contract-common.md`.
+Refs: `beo-reference -> references/kernel.md`.
 
 ## Decision
 
-Return canonical references without mutation.
+Load canonical BEO doctrine and registries without mutation.
 
 ## Enter
 
-- Read-only lookup of BEO doctrine, registry, schema, or command authority.
+- BEO owner needs canonical doctrine or registry lookup.
 
 ## Owns
 
-- Reference selection.
-- Citation.
-- Explanation.
-
-## Writes
-
-- Nothing.
+- Doctrine text and registry references.
 
 ## Stops
 
-- Request requires runtime mutation, owner decision, approval, execution, review, route repair, or doctrine editing.
+- Request requires product or Beads lifecycle mutation.
 
-## Returns
 
-- Explanatory answer or reference summary in the agent response only.
-- No runtime pipeline transition is emitted.
 
 ## Method
 
-1. Identify the canonical home from `references/doctrine-map.md` or the request.
-2. Read the smallest relevant source.
-3. Answer with source paths and no mutation.
-4. If the request is not lookup, report the legal next owner/source.
+1. Load `references/kernel.md` first for always-on invariants.
+2. Pick the narrow reference or registry needed for the active decision.
+3. Load exactly those narrow files (e.g., `ticket.md`, `approval.md`).
+4. Avoid loading all references by default to optimize token usage.
+
+## Canonical homes
+
+- Kernel invariants: `beo-reference -> references/kernel.md`
+- Beads authority: `beo-reference -> references/beads-authority.md`
+- Decomposition: `beo-reference -> references/decomposition.md`
+- Ticket contract: `beo-reference -> references/ticket.md`, `registry/ticket-schema.json`
+- Approval: `beo-reference -> references/approval.md`, `registry/approval-envelope.json`
+- Mutation safety: `beo-reference -> references/mutation-safety.md`
+- Lifecycle/Events: `beo-reference -> references/lifecycle-events.md`, `registry/pipeline.json`
+- Modes: `beo-reference -> references/modes.md`, `registry/profiles.json`
+- Memory/Recall: `beo-reference -> references/memory.md`
+- Commands: `registry/command-contracts.json`
+- Templates: `templates/*.md`
+

@@ -1,45 +1,39 @@
 ---
 name: beo-learn
-description: Records accepted BEO learning cases or consolidates repeated accepted-feature patterns.
+description: Mandatory learning capture from successes, failures, near misses, or debug patterns. Use this skill whenever a learning candidate is emitted to prevent repeated mistakes and preserve reusable patterns.
 ---
 
 # beo-learn
 
-Before acting, load and obey `beo-reference -> references/skill-contract-common.md`.
+Refs: `beo-reference -> references/memory.md`.
 
 ## Decision
 
-Record accepted learning cases or consolidate repeated accepted-feature patterns.
+Record smallest reusable lesson with provenance.
 
 ## Enter
 
-- Accepted review verdict evidence exists.
-- Explicit consolidation evidence exists.
+- `beo-review` or `beo-debug` marked a learning candidate.
+- User consolidated BEO learning evidence.
 
 ## Owns
 
-- One learning case.
-- Repeated-pattern consolidation.
-
-## Writes
-
-- Learning case records.
-- Learning pattern records.
+- Case notes, patterns, backend metadata.
 
 ## Stops
 
-- Selected accepted evidence is missing, stale, contradictory, insufficient, or out of scope.
+- Evidence insufficient/non-reusable.
+- Reopens delivery or mutates product files.
 
 ## Exits
 
 - `case_recorded` -> `done`
-- `single_case_authoring_requested_with_evidence` -> `beo-author`
-- `pattern_consolidated_authoring_requested_with_evidence` -> `beo-author`
-- `insufficient_evidence` -> `done`
+- `authoring_requested` -> `beo-author`
 
 ## Method
 
-1. Verify accepted evidence or selected finalized cases.
-2. Record one case or consolidate a repeated pattern.
-3. Recommend authoring only when evidence supports it.
-4. Exit without reopening runtime.
+1. Identify `case_type` (e.g., `success_pattern`, `recurring_mistake`).
+2. Extract only reusable lesson, trigger, rule, and provenance.
+3. Name: `YYYY-MM-DD--<case-type>--<bead-id>--<slug>.md`.
+4. Follow backend and secret policy in `beo-reference -> references/memory.md`.
+5. Route to `beo-author` only for doctrine changes; write `AUTHORING_RECOMMENDATION.md`.

@@ -1,51 +1,40 @@
 ---
 name: beo-author
-description: Edits BEO doctrine, reference files, and skill contracts from explicit authoring requests.
+description: Edits BEO doctrine, references, registries, templates, and skill contracts from explicit authoring requests or selected reusable learning evidence.
 ---
 
 # beo-author
 
-Before acting, load and obey `beo-reference -> references/skill-contract-common.md`.
+Refs: `beo-reference -> references/kernel.md`.
 
 ## Decision
 
-Edit BEO doctrine from explicit request or selected evidence.
+Apply doctrine, skill, template, or registry changes.
 
 ## Enter
 
-- Concrete doctrine, skill, registry, or reference change is explicitly requested.
-- Selected accepted evidence requires authoring.
+- User requests BEO doctrine, skill, template, or registry edit.
+- `beo-learn` recommends authoring with selected evidence.
 
 ## Owns
 
-- Workflow text rewrite.
-- Owner contract normalization.
-- Doctrine refactor.
-- Reference compression.
-
-## Writes
-
-- Requested BEO skill/doctrine files only.
-- Requested registries or templates when explicitly in scope.
+- Doctrine text, owner contracts, registries, templates, and skill updates.
 
 ## Stops
 
-- Entry evidence is missing, stale, contradictory, or out of scope.
-- Requested mutation is runtime artifact, product file, approval, execution evidence, review verdict, or execution reopen.
+- Evidence is missing or change weakens kernel invariants.
+- Mutation belongs to product delivery, not control-plane.
 
 ## Exits
 
 - `skill_authored_or_updated` -> `done`
-- `user_review_needed` -> `user`
+- `reference_or_registry_updated` -> `done`
 
 ## Method
 
-1. Identify the canonical home from `references/doctrine-map.md`.
-2. Move authority to the canonical home and replace duplicates with short pointers.
-3. Keep owner files focused on the current contract shape: Decision, Enter, Owns, Writes, Stops, Exits, and Method.
-4. Preserve legal `condition_id` -> target pairs.
-5. Pressure-read simple compact feature, full multi-item feature, stale approval, unresolved Human Gate, context-loss resume, route contradiction, review fix loop, pipeline consistency, and compact schema alignment.
-
-## Final Response Contract
-
-When exiting `skill_authored_or_updated`, report changed files, canonical home used, duplicate pointers updated or removed, exit condition, and unresolved review items.
+1. Identify canonical home for the rule.
+2. Remove duplicate wording; keep one authority and short pointers.
+3. Preserve `br` lifecycle, BEO safety split, and review separation.
+4. Update affected owner contracts and registries together.
+5. Tighten existing owner skills or canonical references before creating new skills.
+6. Run validators (e.g. `beo_registry_check.py`) after any change.

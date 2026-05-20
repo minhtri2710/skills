@@ -1,33 +1,28 @@
 ---
 name: beo-setup
-description: Sets up or checks BEO repository integration without starting feature delivery.
+description: Initial validation, environment health checks, and mandatory configuration for BEO-on-Beads integration.
 ---
 
 # beo-setup
 
-Before acting, load and obey `beo-reference -> references/skill-contract-common.md`.
+Refs: `beo-reference -> references/kernel.md`, `beo-reference -> references/memory.md`.
 
 ## Decision
 
-Install, check, or explain repository integration.
+Confirm BEO-on-Beads compatibility and install/update integration.
 
 ## Enter
 
-- Direct setup, health check, managed block, repository bootstrap orientation, or version check is requested.
+- User asks to set up, check, or update BEO-on-Beads.
 
 ## Owns
 
-- Repository integration setup/checks only.
-
-## Writes
-
-- Target `AGENTS.md` BEO managed block and setup surfaces only.
+- Setup health checks and AGENTS managed block.
 
 ## Stops
 
-- Requested mutation is outside setup.
-- target `AGENTS.md` contains partial, malformed, nested, or duplicate BEO managed markers.
-- Target `AGENTS.md` has conflicting unmarked BEO instructions.
+- `br` is unavailable.
+- Required capabilities/commands cannot be confirmed.
 
 ## Exits
 
@@ -36,14 +31,9 @@ Install, check, or explain repository integration.
 
 ## Method
 
-1. Treat `beo-reference -> assets/AGENTS.template.md` as the exact managed-block payload.
-2. Inspect the target repository `AGENTS.md` for BEO managed markers before editing:
-   - if `AGENTS.md` is missing, create it from the template;
-   - if `AGENTS.md` has partial, malformed, nested, or duplicate BEO managed markers, stop with `user_confirmation_needed`;
-   - if `AGENTS.md` has exactly one valid BEO managed block, replace only that marker-delimited span;
-   - if `AGENTS.md` has no BEO managed block but has unmarked BEO integration instructions, stop with `user_confirmation_needed`;
-   - if `AGENTS.md` has no BEO managed block and no conflicting unmarked BEO integration instructions, append the template after a blank-line separator and preserve existing content.
-3. Do not rewrite, normalize, or delete non-managed `AGENTS.md` content.
-4. Use contracted setup commands for version checks.
-5. Report setup result.
-6. Do not start feature delivery; the user initiates `beo-explore`.
+1. Check `br --version`, `bv --version`, and `.beads` workspace.
+2. Verify capabilities for `ready`, `show`, `comments add`, `update --claim`, and `close`.
+3. Verify `--claim` atomically sets assignee and `status=in_progress`.
+4. Check optional `bv` orientation tool availability without blocking core delivery.
+5. Detect optional memory surfaces (Obsidian, qmd) without blocking.
+6. Install or update the BEO managed block in `AGENTS.md` from template.

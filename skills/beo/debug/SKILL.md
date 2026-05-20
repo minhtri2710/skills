@@ -1,50 +1,37 @@
 ---
 name: beo-debug
-description: Proves one BEO blocker root cause without patching or approving.
+description: Diagnoses one BEO blocker root cause for a Beads ticket without patching, approving, routing delivery, or issuing verdicts.
 ---
 
 # beo-debug
 
-Before acting, load and obey `beo-reference -> references/skill-contract-common.md`.
+Refs: `beo-reference -> references/lifecycle-events.md`.
 
 ## Decision
 
-Prove one blocker root cause without patching.
+Return one read-only diagnosis for a BEO blocker.
 
 ## Enter
 
-- One concrete blocker question is assigned.
-- Transition provenance exists when temporary-owner return is expected.
+- Debug handoff exists or owner requests diagnosis.
 
 ## Owns
 
-- Diagnosis.
-- Causal proof.
-- Evidence collection.
-- Unblock classification.
-
-## Writes
-
-- Debug diagnosis artifact.
-- Allowed handoff metadata.
+- Diagnosis artifact, `return` events, `learning_candidate`.
 
 ## Stops
 
-- Blocker evidence is missing, stale, contradictory, or out of scope.
-- Return provenance is missing, stale, contradictory, or illegal.
-- Out-of-scope mutation is requested.
+- Diagnosis requires product mutation.
+- Required evidence unavailable.
 
 ## Exits
 
-- `root_cause_proven` -> `return_to_caller`
-- `diagnosis_inconclusive` -> `user`
-- `blocker_is_user_owned` -> `user`
-- `user_abandoned` -> `done`
+- `debug_returned` -> `subroutine_done`
 
 ## Method
 
-1. Restate the assigned blocker question.
-2. Validate transition provenance before relying on `return_to_caller`.
-3. Use no more than three bounded read-only probes unless the caller explicitly authorizes more probes.
-4. Record evidence and diagnosis status.
-5. Emit exactly one legal condition; meta-target resolution follows `beo-reference -> references/transition-provenance.md`.
+1. Verify handoff issue, return target, and blocker question.
+2. Use read-only probes; never patch, approve, or route delivery.
+3. Write diagnosis artifact with `diagnosis_status`.
+4. Append `return` event with `subtype: debug` and `diagnosis_ref`.
+5. Append `learning_candidate` only if the diagnosis pattern is reusable.

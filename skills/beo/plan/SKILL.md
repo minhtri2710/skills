@@ -1,52 +1,45 @@
 ---
 name: beo-plan
-description: Converts locked BEO requirements into executable scope and verification.
+description: Mandatory first step for any Beads-anchored development. Locks the smallest safe interpretation of a Beads issue, decomposes broad work, or defines executable scope.
 ---
 
 # beo-plan
 
-Before acting, load and obey `beo-reference -> references/skill-contract-common.md`.
+Refs: `beo-reference -> references/kernel.md`, `beo-reference -> references/ticket.md`, `beo-reference -> references/modes.md`.
 
 ## Decision
 
-Convert locked requirements into an executable contract.
+Lock the smallest safe interpretation of a Beads issue; decompose broad work or define atomic executable scope.
 
 ## Enter
 
-- Requirements are locked and plan/scope/verification is missing, stale, invalid, or contradicted.
-- Proven bounded repair needs scoped work.
+- Beads issue selected; `br show <issue-id> --json` succeeds.
+- Issue needs intake, decomposition, or atomic scope definition.
 
 ## Owns
 
-- Declared files and forbidden paths.
-- Generated outputs, execution sets, risk, and rollback.
-- Acceptance criteria and verification contract.
-
-## Writes
-
-- Plan-owned compact fields in `TICKET.md`.
-- Full `PLAN.md` non-Approval sections.
-- Legal transition metadata.
+- Intake: `request`, `done`, Human Gates, assumptions, non-goals, constraints.
+- Plan: decomposition, scope, acceptance, atomicity, mode, verification, outputs, risk/rollback.
 
 ## Stops
 
-- Requirements are missing or contradicted.
-- Required Human Gate input is absent.
-- A Human Gate answer exists but `beo-explore` has not recorded current gate status.
-- Owner/feature identity is unsafe.
+- Requirements missing/contradictory or Human Gate blocks scope selection.
+- Selected bead is broad and cannot be safely decomposed.
+- Atomic work cannot be stated as one executable unit.
 
 ## Exits
 
 - `plan_complete` -> `beo-validate`
-- `requirements_missing_or_contradicted` -> `beo-explore`
-- `human_gate_blocks_planning` -> `user` when required input is absent, then `beo-explore` records the answer before planning resumes
-- `user_abandoned` -> `done`
-- `owner_feature_identity_unsafe` -> `beo-route`
+- `decomposition_recorded` -> `parent_waits_children`
+- `requirements_missing` -> `user`
+- `abandoned` -> `beo-review`
 
 ## Method
 
-1. Read locked requirements and Human Gate status.
-2. Define the smallest executable scope and forbidden paths.
-3. Define acceptance criteria and verification commands.
-4. Use `beo-reference -> references/density.md` to select compact or full.
-5. Hand off with exactly one legal condition and transition provenance when applicable.
+1. Lock smallest safe interpretation. For low-risk repository edits, use the **6-step Quick Path** (see `beo-reference -> references/lifecycle-events.md`) and write a minimal `TICKET.md`.
+2. Use `bv` only for orientation. Append `triage_records[]` only if `bv` materially affects selection or decomposition.
+3. If not atomic: create children via `br create`, add dependencies, comment parent, then exit `decomposition_recorded`.
+4. If atomic: write ticket with request, done, gates, allow/forbid paths, generated outputs, verification, and acceptance.
+5. Select quick, standard, or strict mode per `beo-reference -> references/modes.md`.
+6. Run `beo_check.py --check validate --issue <issue-id>` as a readiness check before handoff.
+

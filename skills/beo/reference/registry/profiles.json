@@ -1,0 +1,106 @@
+{
+  "$schema": "./registry.schema.json#/definitions/profile-registry",
+  "description": "BEO-on-Beads mode/profile registry. Profiles are authoring shorthand only; helpers expand them into approval-bearing projection fields before hashing.",
+  "modes": {
+    "quick": {
+      "artifact_set": ["TICKET.md", "checks/*.json"],
+      "requires": ["one atomic bead", "repo-only change", "small declared file set", "no generated-output complexity", "no external side effect", "simple revert rollback"],
+      "forbids": ["strict side effects", "stateful external system mutation", "parent bead execution", "multi-task execution"],
+      "operator_path": "compact plan authoring is allowed only after br show and claim; beo-validate, beo-execute, and beo-review remain separate gates"
+    },
+    "standard": {
+      "artifact_set": ["TICKET.md", "checks/*.json"],
+      "requires": ["one atomic bead", "declared generated outputs when present", "explicit verification", "explicit risk and rollback when quick posture is insufficient"],
+      "forbids": ["deployment", "database migration", "cloud resource mutation", "payment/cost mutation", "package publication", "email/message send"]
+    },
+    "strict": {
+      "artifact_set": ["TICKET.md", "STRICT.md", "ROLLBACK.md", "checks/*.json"],
+      "requires": ["explicit Human Gate authorization", "named external/stateful target", "rollback or compensation plan", "strict artifact hashes", "strict side-effect command contract", "review evidence"],
+      "forbids": ["quick posture shorthand", "implicit side effects", "uncontracted side-effect commands"]
+    }
+  },
+  "independence_policy": {
+    "quick": {
+      "same_actor_allowed": true,
+      "reason": "low-risk repo-only work"
+    },
+    "standard": {
+      "same_actor_allowed": true,
+      "review_requires_independent_diff_inspection": true
+    },
+    "strict": {
+      "same_actor_allowed": "false_by_default",
+      "requires": ["separate_validate_or_review_actor", "explicit_human_override"]
+    }
+  },
+  "flow_profiles": {
+    "tiny_repo_edit": {
+      "mode": "quick",
+      "requires": ["one bounded execution item", "scope.files.allow", "scope.verify.commands", "acceptance_criteria"],
+      "derives": {
+        "selected_execution_set": "set-1",
+        "execution_mode": "normal"
+      },
+      "forbids": ["multiple execution items", "repair execution set", "rollback execution set"]
+    },
+    "standard_repo_edit": {
+      "mode": "standard",
+      "requires": ["scope.files.allow", "scope.verify.commands", "acceptance_criteria", "risk_scope", "rollback_boundary"],
+      "derives": {
+        "selected_execution_set": "set-1",
+        "execution_mode": "normal"
+      },
+      "forbids": ["external side effects", "stateful external system mutation"]
+    },
+    "strict_external": {
+      "mode": "strict",
+      "requires": ["strict.reason", "authorization_refs", "risk_scope", "rollback_boundary", "strict.artifact_hashes", "strict side-effect profile fields"],
+      "derives": {
+        "selected_execution_set": "set-1",
+        "execution_mode": "strict"
+      }
+    }
+  },
+  "posture_profiles": {
+    "repo_only_low_risk": {
+      "valid_modes": ["quick", "standard"],
+      "expands": {
+        "generated_outputs": [],
+        "external_side_effects": {"status": "none", "effects": []},
+        "stateful_external_systems": {"status": "none", "systems": []},
+        "risk_scope": "low: bounded edits to declared repo files only",
+        "rollback_boundary": "revert_declared_file_changes"
+      },
+      "forbids": ["generated output complexity", "external side effect", "stateful external system mutation", "uncertain rollback"]
+    }
+  },
+  "protected_path_defaults": [
+    ".git/**",
+    ".env",
+    ".env.*",
+    "**/.env",
+    "**/.env.*",
+    "secrets/**",
+    "credentials/**",
+    "*.pem",
+    "*.key",
+    "*.p12",
+    "*.pfx",
+    "id_rsa",
+    "id_ed25519",
+    ".beads/beads.db"
+  ],
+  "side_effect_command_patterns": [
+    "deploy",
+    "migration",
+    "migrate",
+    "publish",
+    "email",
+    "payment",
+    "billing",
+    "terraform apply",
+    "kubectl apply",
+    "cloud resource",
+    "third-party write"
+  ]
+}

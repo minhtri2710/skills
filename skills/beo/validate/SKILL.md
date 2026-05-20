@@ -1,52 +1,42 @@
 ---
 name: beo-validate
-description: Decides whether the exact BEO plan is ready and approved for execution.
+description: Mandatory technical gate before execution. Grants or refuses PASS_EXECUTE for one atomic Beads-anchored BEO ticket after verifying scope, safety, and contracts.
 ---
 
 # beo-validate
 
-Before acting, load and obey `beo-reference -> references/skill-contract-common.md`.
+Refs: `beo-reference -> references/approval.md`, `beo-reference -> references/modes.md`.
 
 ## Decision
 
-Atomically decide execution readiness and bind execution authority.
+Grant or refuse `PASS_EXECUTE` for one atomic bead.
 
 ## Enter
 
-- Requirements and plan are ready for approval evaluation.
+- Plan-owned fields exist in `TICKET.md`.
+- Selected bead is atomic.
 
 ## Owns
 
-- Readiness/refusal.
-- Selected execution set.
-- Execution mode.
-- Approval ref and integrity object.
-
-## Writes
-
-- Compact validation fields or full Approval section only.
-- Legal transition metadata.
+- `readiness`, `selected_execution_set`, `execution_mode`, `approval_ref`, `integrity`.
 
 ## Stops
 
-- Approval inputs are missing, stale, invalid, contradictory, or unavailable.
-- Recorded Human Gate status is unresolved, missing, stale, or contradictory.
-- Required user input for a Human Gate is absent.
-- Owner/feature identity is unsafe.
+- Unresolved Human Gates or non-atomic beads.
+- Unsafe undeclared path overlap with other active tickets.
+- Missing strict command contracts for stateful systems.
 
 ## Exits
 
 - `PASS_EXECUTE` -> `beo-execute`
 - `FAIL_PLAN` -> `beo-plan`
-- `FAIL_EXPLORE` -> `beo-explore` for missing, stale, contradictory, or unresolved recorded Human Gate status
-- `BLOCK_USER` -> `user` only when required user input is absent
-- `user_abandoned` -> `done`
-- `FAIL_STATE` -> `beo-route`
+- `BLOCK_USER` -> `user`
 
 ## Method
 
-1. Run fresh `beo_approval_check.py --check validate` for the current artifacts.
-2. Evaluate the approval projection, Human Gate status, and scope binding from current artifacts and registries.
-3. Emit `approval_ref` only for valid `PASS_EXECUTE`.
-4. Record integrity.
-5. Hand off with exactly one legal condition and transition provenance when applicable.
+1. Confirm `atomicity.decision: atomic`.
+2. Check for unsafe overlap; safe overlap must be per-path in `scope.scope_overlap.overlaps`.
+3. Run `beo_check.py --check validate --issue <issue-id>`.
+4. Record `approval_ref`, mode, and hashes only if checks pass.
+5. For `repair_same_scope`, require valid `change_request` per `beo-reference -> references/lifecycle-events.md`.
+6. Apply drift rules: Soft Drift (title/labels) notes only; Hard Invalidators (scope/criteria) refuse.
