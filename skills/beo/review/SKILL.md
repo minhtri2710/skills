@@ -1,34 +1,26 @@
 ---
 name: beo-review
-description: Emits one verdict for an executed atomic Beads ticket and closes or routes the bead accordingly.
+description: Mandatory after execution to review atomic Beads tickets, emit verdicts, route repairs, and close only after acceptance.
 ---
-
 # beo-review
-
-Refs: `beo-reference -> references/lifecycle.md`, `beo-reference -> references/kernel.md`.
+Refs: `references/lifecycle.md`, `references/kernel.md`.
 
 ## Decision
-
 Accept, abandon, or route repair for one executed atomic ticket.
 
 ## Enter
-
-- `execution.status: ready_for_review` exists.
-- `beo_check.py --check review` verifies containment and verification.
+- `execution.status: ready_for_review` exists in `TICKET.md`.
 
 ## Owns
+- Acceptance verdict, findings, repair routing, issue closure, Beads sync, and learning candidates.
 
-- Verdict, findings, closure evidence.
-- `learning_candidate` events.
+## Does Not Own
+- Product mutation, approval token creation, scope redesign, or learning note persistence.
 
 ## Stops
-
-- Execution evidence missing, stale, or contradictory.
-- Changes outside approved scope.
-- Blocking findings exist.
+- Missing execution evidence, failed verification, containment violation, or unresolved side-effect evidence.
 
 ## Exits
-
 - `entry_blocked_execution_evidence_incomplete` -> `beo-execute`
 - `verdict_accept` -> `done`
 - `repair_same_scope` -> `beo-validate`
@@ -39,11 +31,8 @@ Accept, abandon, or route repair for one executed atomic ticket.
 - `abandoned` -> `done`
 
 ## Method
-
-1. Run verification checks: `beo_check.py --check review --issue <issue-id>`.
-2. Evaluate file containment boundaries, verify test evidence, and check side-effects.
-3. If accepted: Write verdict, close issue (`br close <issue-id>`), and flush (`br sync --flush-only`).
-4. If abandoned: Record reason, verify cleanup of dirty mutations, and close.
-5. If repair: Route to `beo-validate` (same scope) or `beo-plan` (rescope) as appropriate.
-6. Emit `learning_candidate` event for reusable patterns or mistakes to trigger learn loop.
-
+1. Run `beo_check.py --check review` per `registry/command-contracts.json`.
+2. Audit containment, evidence, verification results, and contracted side effects.
+3. If accepted, issue the verdict, close with `br`, and flush Beads state with `br sync --flush-only`.
+4. If not accepted, route exactly one repair/diagnosis outcome; do not mutate product code here.
+5. Emit `learning_candidate` only for reusable success, failure, or near-miss lessons; `beo-learn` writes notes.

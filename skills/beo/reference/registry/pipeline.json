@@ -1,11 +1,11 @@
 {
   "$schema": "./registry.schema.json#/definitions/pipeline",
-  "description": "BEO-on-Beads legal owner transitions. br owns lifecycle; BEO transitions only express execution-safety ownership.",
+  "description": "BEO-on-Beads legal delivery/support transitions plus loadable maintenance skills. br owns lifecycle; BEO transitions express execution-safety ownership only.",
   "normal_path": ["beo-plan", "beo-validate", "beo-execute", "beo-review"],
   "owner_classes": {
     "delivery": ["beo-plan", "beo-validate", "beo-execute", "beo-review"],
     "support_runtime": ["beo-debug"],
-    "control_plane": ["beo-learn", "beo-author", "beo-setup", "beo-reference"]
+    "maintenance": ["beo-learn", "beo-author", "beo-setup", "beo-reference"]
   },
   "support_subroutines": {
     "beo-debug": {
@@ -53,7 +53,7 @@
     {"from": "beo-debug", "condition_id": "debug_abandoned", "to": "subroutine_done", "target_class": "terminal"},
 
     {"from": "beo-learn", "condition_id": "case_recorded", "to": "done", "target_class": "terminal"},
-    {"from": "beo-learn", "condition_id": "authoring_requested", "to": "beo-author", "target_class": "control_plane"},
+    {"from": "beo-learn", "condition_id": "authoring_requested", "to": "beo-author", "target_class": "maintenance"},
     {"from": "beo-learn", "condition_id": "insufficient_evidence", "to": "user", "target_class": "terminal"},
     {"from": "beo-author", "condition_id": "skill_authored_or_updated", "to": "done", "target_class": "terminal"},
     {"from": "beo-author", "condition_id": "reference_or_registry_updated", "to": "done", "target_class": "terminal"},

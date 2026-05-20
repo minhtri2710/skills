@@ -1,37 +1,31 @@
 ---
 name: beo-setup
-description: Initial validation, environment health checks, and mandatory configuration for BEO-on-Beads integration.
+description: Use for explicit BEO-on-Beads setup or health checks; default checks are read-only.
 ---
-
 # beo-setup
-
-Refs: `beo-reference -> references/kernel.md`, `beo-reference -> references/memory.md`.
+Refs: `references/kernel.md`, `references/memory.md`.
 
 ## Decision
-
-Confirm BEO-on-Beads compatibility and install/update integration.
+Confirm installed BEO tool compatibility without participating in ticket delivery.
 
 ## Enter
-
-- User asks to set up, check, or update BEO-on-Beads.
+- User requests BEO setup, health check, or integration update.
 
 ## Owns
+- Read-only environment/capability evidence and explicitly authorized memory setup/index maintenance.
 
-- Setup health checks and AGENTS managed block.
+## Does Not Own
+- Ticket delivery, product mutation, approval tokens, verdicts, issue closure, or learning case authoring.
 
 ## Stops
-
-- `br` is unavailable.
-- Required capabilities/commands cannot be confirmed.
+- Required `br` command support is missing, atomic claim support cannot be verified, required memory-tool syntax is unknown, or requested memory writes lack authorization. Missing `bv`, `qmd`, or Obsidian support is degraded unless the requested setup action depends on it.
 
 ## Exits
-
 - `setup_complete` -> `done`
 - `user_confirmation_needed` -> `user`
 
 ## Method
-
-1. Environment verification: Run `beo_setup.py` to check dependencies (`br`, `bv`, `qmd`, `obsidian`), resolve Obsidian vault environment, and configure/index the `qmd` collection.
-2. Beads capability validation: Ensure atomicity of `--claim` and verify standard command contracts.
-3. Managed rules integration: Install or update the always-on BEO rules block in `AGENTS.md` from template.
-
+1. Run `beo_setup.py` only for explicit setup/check/update requests; never run setup during ticket delivery.
+2. Default to read-only capability checks for `br`, `bv`, `qmd`, `obsidian`, vault path, and learning collection state.
+3. Verify Obsidian CLI create/vault syntax before enabling Obsidian-backed learning writes.
+4. Use `--configure-memory` or `--refresh-memory-index` only when the user explicitly authorizes memory setup or qmd maintenance.

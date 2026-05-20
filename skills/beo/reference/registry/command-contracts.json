@@ -86,8 +86,8 @@
       "kind": "write",
       "command": "br update --actor <actor> <issue-id> --claim --json",
       "argv": ["br", "update", "--actor", "{actor}", "{issue_id}", "--claim", "--json"],
-      "owner_allow": ["beo-plan", "beo-validate", "beo-execute", "beo-review"],
-      "authority": "Atomic claim before requirement ticket mutation, material decomposition, approval writes, product mutation, review-owned writes, or closure.",
+      "owner_allow": ["beo-plan", "beo-validate", "beo-execute", "beo-review", "beo-debug"],
+      "authority": "Atomic claim before requirement ticket mutation, material decomposition, approval writes, product mutation, review/debug-owned writes, or closure.",
       "output_format": "json",
       "writes": [".beads/beads.db", ".beads/issues.jsonl via auto-flush unless disabled"]
     },
@@ -218,7 +218,6 @@
       "owner_allow": ["beo-learn"],
       "authority": "Create a Markdown learning note under the configured Obsidian vault learning subdir.",
       "writes": ["$BEO_OBSIDIAN_VAULT/beo-learnings/<note>.md"],
-      "syntax_status": "must_be_verified_by_obsidian_help",
       "setup_requires": [
         "obsidian help create confirms path and content parameters before use",
         "obsidian help confirms vault=<name|id> target syntax",
@@ -241,22 +240,52 @@
       "write_boundary": "$BEO_OBSIDIAN_VAULT/beo-learnings/ or .beads/artifacts/<issue-id>/learning/<note>.md"
     },
     {
-      "command_id": "beo.setup",
-      "kind": "read_write_evidence",
+      "command_id": "beo.setup.check",
+      "kind": "read",
       "command": "python3 skills/beo/reference/scripts/beo_setup.py",
       "argv": ["python3", "skills/beo/reference/scripts/beo_setup.py"],
-      "owner_allow": ["beo-setup", "beo-plan", "beo-validate", "beo-execute", "beo-review"],
-      "authority": "Automated BEO environment and memory indexing verification.",
+      "owner_allow": ["beo-setup"],
+      "authority": "Read-only BEO environment verification.",
       "output_format": "json",
-      "writes": ["qmd local config/index", "AGENTS.md"]
+      "writes": []
+    },
+    {
+      "command_id": "beo.setup.configure_memory",
+      "kind": "write_memory_index",
+      "command": "python3 skills/beo/reference/scripts/beo_setup.py --configure-memory",
+      "argv": ["python3", "skills/beo/reference/scripts/beo_setup.py", "--configure-memory"],
+      "owner_allow": ["beo-setup"],
+      "authority": "Explicitly authorized memory directory and qmd collection setup.",
+      "output_format": "json",
+      "writes": ["$BEO_OBSIDIAN_VAULT/beo-learnings/", "qmd local config/index"]
+    },
+    {
+      "command_id": "beo.setup.refresh_memory_index",
+      "kind": "write_memory_index",
+      "command": "python3 skills/beo/reference/scripts/beo_setup.py --refresh-memory-index",
+      "argv": ["python3", "skills/beo/reference/scripts/beo_setup.py", "--refresh-memory-index"],
+      "owner_allow": ["beo-setup"],
+      "authority": "Explicitly authorized qmd memory index refresh.",
+      "output_format": "json",
+      "writes": ["qmd local index/database"]
     },
     {
       "command_id": "beo.recall",
-      "kind": "read_write_evidence",
+      "kind": "read",
       "command": "python3 skills/beo/reference/scripts/beo_recall.py --issue <issue-id>",
       "argv": ["python3", "skills/beo/reference/scripts/beo_recall.py", "--issue", "{issue_id}"],
       "owner_allow": ["beo-plan", "beo-execute", "beo-review", "beo-debug"],
-      "authority": "Automated semantic memory recall loop and prioritization checklist generation.",
+      "authority": "Automated semantic memory recall helper. JSON stdout is advisory only and never grants delivery authority.",
+      "output_format": "json",
+      "writes": []
+    },
+    {
+      "command_id": "beo.recall.write_summary",
+      "kind": "write_evidence",
+      "command": "python3 skills/beo/reference/scripts/beo_recall.py --issue <issue-id> --write-summary",
+      "argv": ["python3", "skills/beo/reference/scripts/beo_recall.py", "--issue", "{issue_id}", "--write-summary"],
+      "owner_allow": ["beo-plan", "beo-execute", "beo-review", "beo-debug"],
+      "authority": "Persist advisory RECALL_SUMMARY.md only after the issue is claimed by the current actor/session.",
       "output_format": "json",
       "writes": [".beads/artifacts/<issue-id>/RECALL_SUMMARY.md"]
     },
@@ -293,7 +322,6 @@
       "kind": "read",
       "command": "qmd get <path-or-docid>",
       "argv": ["qmd", "get", "{path_or_docid}"],
-      "optional_argv": ["--full"],
       "owner_allow": ["beo-plan", "beo-execute", "beo-review", "beo-debug", "beo-learn", "beo-author"],
       "authority": "Read-only retrieval of indexed learning note contents by path or docid.",
       "writes": []

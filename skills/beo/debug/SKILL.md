@@ -1,38 +1,31 @@
 ---
 name: beo-debug
-description: Diagnoses one BEO blocker root cause for a Beads ticket without patching, approving, routing delivery, or issuing verdicts.
+description: Use for read-only root-cause diagnosis of BEO blockers without patching or verdicts.
 ---
-
 # beo-debug
-
-Refs: `beo-reference -> references/lifecycle.md`.
+Refs: `references/lifecycle.md`.
 
 ## Decision
-
 Return one read-only diagnosis for a BEO blocker.
 
 ## Enter
-
-- Debug handoff exists or owner requests diagnosis.
+- Debug handoff event exists or owner requests diagnosis.
 
 ## Owns
+- Read-only diagnosis artifact, return event, and learning candidate.
 
-- Diagnosis artifact, `return` events, `learning_candidate`.
+## Does Not Own
+- Product mutation, repair implementation, approval tokens, review verdicts, issue closure, or learning note persistence.
 
 ## Stops
-
-- Diagnosis requires product mutation.
-- Required evidence unavailable.
+- Diagnosis would require mutation, uncontracted stateful side effects, or unsupported access beyond the handoff scope.
 
 ## Exits
-
 - `debug_returned` -> `subroutine_done`
 - `debug_abandoned` -> `subroutine_done`
 
 ## Method
-
-1. Verify handoff issue, return target, and blocker question.
-2. Use read-only probes; never patch, approve, or route delivery.
-3. Write diagnosis artifact with `diagnosis_status`.
-4. Append `return` event with `subtype: debug` and `diagnosis_ref`.
-5. Append `learning_candidate` only if the diagnosis pattern is reusable.
+1. Verify handoff issue, blocker question, target scope, and active claim per `references/lifecycle.md`.
+2. Use read-only probes only; `bv` may orient graph risk and `qmd` may recall prior lessons, but neither grants authority.
+3. Write one diagnosis artifact and append a `return` event to the ticket.
+4. If the pattern is reusable, emit `learning_candidate`; leave persistence to `beo-learn`.

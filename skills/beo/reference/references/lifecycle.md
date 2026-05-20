@@ -1,46 +1,33 @@
 # Lifecycle, Decomposition, and Triage Authority
 
-Use one authority per decision:
-- `br` owns issue identity, lifecycle, claims, comments, dependency edges, ready queue, sync, and closure.
-- `bv` owns graph orientation: triage ranking, independent tracks, bottlenecks, and cycle visibility.
-- `TICKET.md` owns BEO safety states, approval projections, execution evidence, and verdict transitions.
+Use one authority per decision; never mirror another authority's state in prose or ticket fields:
+- [beads_rust](https://github.com/Dicklesworthstone/beads_rust) (`br`) owns transactional issue state: identity, status, claims, comments, dependency edges, ready queue, sync/export, and closure.
+- [beads_viewer](https://github.com/Dicklesworthstone/beads_viewer) (`bv` robot mode) owns graph orientation only: triage ranking, independent tracks, bottlenecks, critical path, and cycle visibility.
+- `TICKET.md` owns BEO control-plane state: intake, safety scope, approval projection, execution evidence, runtime events, and review verdict.
 
-Do not duplicate state between them. Link by Bead ID and record only the smallest evidence each authority needs.
+Use IDs and evidence refs to connect authorities. Do not copy `br` lifecycle data into `TICKET.md`, do not persist `bv` rankings, and never run bare `bv` in agent workflows because it opens the TUI.
 
 ## 1. Issue Triage and Claim Authority
 
 All issue transitions are governed by strict claim invariants to avoid parallel conflict and preserve audit trails.
 
 ### Startup and Claim Sequence
-1. **Discover**: Use `br ready --json` when selecting executable work; use `bv --robot-triage -f json --no-cache` when choosing between backlog tracks.
-2. **Inspect**: Check canonical issue details with `br show <issue-id> --json`.
-3. **Claim**: Before any owned write, ticket mutation, decomposition, or product mutation, claim the issue:
-   ```bash
-   ACTOR="${BR_ACTOR:-${AGENT_NAME:-assistant}}"
-   export BEO_ACTOR="$ACTOR"
-   rtk br update --actor "$ACTOR" <issue-id> --claim --json
-   ```
-   `--claim` sets the assignee and sets the status to `in_progress` atomically. If setup cannot prove that `--claim` is atomically supported, BEO must fail closed.
+1. **Orient**: If no issue is selected, use `bv` robot triage for graph orientation only.
+2. **Discover**: Use `br` for the canonical executable queue; use `bv` only to choose between tracks or detect graph hazards.
+3. **Inspect**: Check canonical issue details with `br`.
+4. **Claim**: Before any owned write, ticket mutation, decomposition, product mutation, verdict, or closure, claim the issue with the `br.update.claim` command contract. If setup cannot prove atomic claim support, BEO fails closed.
 
-### 6-Step Compact Protocol (Quick Path)
-For low-risk repository-only edits (e.g., docstrings, READMEs, simple refactors):
-1. **Show & Claim**: Run `br show` and claim the issue.
-2. **Intake**: Create a minimal `TICKET.md` with request, done criteria, and atomic scope.
-3. **Validate**: Run `beo-validate` to obtain `PASS_EXECUTE`.
-4. **Execute**: Perform edits strictly restricted to `scope.files.allow`.
-5. **Review**: Emit acceptance verdict.
-6. **Close**: Run `br close <issue-id>` only after review acceptance.
+### Compact Protocol
+Low-risk repository-only work may use compact plan authoring, but it still follows the same gated delivery path: show/claim, plan `TICKET.md`, validate `PASS_EXECUTE`, execute approved scope, review, then close only after review acceptance. `profiles.json` owns quick/standard/strict definitions.
 
 ---
 
 ## 2. Track Planning and Robot Triage
 
-Use `bv` when the question is structural rather than transactional:
-- **Triage**: `bv --robot-triage -f json --no-cache` ranks ready work, quick wins, and priority signals.
-- **Track Planning**: `bv --robot-plan -f json --no-cache` proposes independent tracks and unblocking sequences.
-- **Dependency Health**: `bv --robot-insights -f json --no-cache` surfaces bottlenecks, slack, articulation points, and DAG cycles.
+Use `bv` when the question is structural rather than transactional: triage ranking, independent tracks, bottlenecks, critical path, or cycle visibility. Use only contracted robot commands from `command-contracts.json`; after `bv` identifies work shape, persist issue/dependency changes with `br`.
 
-After `bv` identifies the shape of the work, persist actual issue/dependency changes with `br`.
+### Sync Boundary
+`br sync --flush-only` is the only BEO-authorized Beads export operation. It writes JSONL for handoff, not git commits or pushes; VCS operations remain outside BEO authority unless a human separately requests them.
 
 > [!IMPORTANT]
 > If `bv --robot-insights` detects any cycle (when `.Cycles` is not empty or `has_cycles` is true), the plan must prioritize cycle-break operations before mutating any code.
@@ -58,9 +45,9 @@ Only atomic beads can be validated or executed. Epics and Features must be decom
 
 ### Parent-Child Mechanics
 If a bead is not atomic:
-1. `beo-plan` creates child atomic beads using `br create --actor "$ACTOR" ...`.
-2. Add dependency edges using `br dep add --actor "$ACTOR" <dependent-id> <blocker-id> --json`.
-3. Add a summary comment to the parent bead with `br comments add`.
+1. `beo-plan` creates child atomic beads using the contracted `br.create` command.
+2. Add dependency edges using the contracted `br.dep.add` command.
+3. Add a summary comment to the parent bead using the contracted `br.comments.add` command.
 4. Exit planning with `decomposition_recorded`.
 5. Parent epics remain open until Beads reports all children are closed.
 

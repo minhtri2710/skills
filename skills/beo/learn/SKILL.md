@@ -1,44 +1,33 @@
 ---
 name: beo-learn
-description: Mandatory learning capture from successes, failures, near misses, or debug patterns. Use this skill whenever a learning candidate is emitted to prevent repeated mistakes and preserve reusable patterns.
+description: Mandatory after review/debug learning_candidate to record reusable success, failure, near-miss, or debug lessons without reopening delivery.
 ---
-
 # beo-learn
-
-Refs: `beo-reference -> references/memory.md`.
+Refs: `references/memory.md`.
 
 ## Decision
-
-Record smallest reusable lesson with provenance.
+Persist the smallest reusable lesson with provenance and non-authority disclaimer.
 
 ## Enter
-
-- `beo-review` or `beo-debug` marked a learning candidate.
-- User consolidated BEO learning evidence.
+- `learning_candidate` event emitted by `beo-review` or `beo-debug` with sufficient evidence.
+- If evidence is insufficient, ask the user instead of inventing a lesson.
 
 ## Owns
+- Learning note content, metadata, safe slug, Obsidian/local fallback write, and qmd refresh status.
 
-- Case notes, patterns, backend metadata.
+## Does Not Own
+- Delivery reopening, review verdicts, approval tokens, issue closure, or doctrine edits.
 
 ## Stops
-
-- Evidence insufficient/non-reusable.
-- Reopens delivery or mutates product files.
+- Evidence is non-reusable, unsafe to persist, secret-bearing, or attempts to reopen delivery.
 
 ## Exits
-
 - `case_recorded` -> `done`
 - `authoring_requested` -> `beo-author`
 - `insufficient_evidence` -> `user`
 
 ## Method
-
-1. Identify case type (e.g., `success_pattern`, `recurring_mistake`) and extract the reusable lesson and trigger.
-2. Structure note: Use filename `YYYY-MM-DD--<case-type>--<bead-id>--<slug>.md` with safe alphanumeric-hyphen slug.
-3. Persist and index: Run `beo_memory_write.py --issue <issue-id> --case-type <case-type> --slug <slug> --markdown-file <file-path>` and report which backend path was used.
-   - Obsidian CLI owns durable markdown note creation in the learnings collection.
-   - `qmd update` and `qmd embed` own search/index freshness.
-   - If either backend is unavailable, keep the fallback artifact and do not reopen delivery.
-4. State the memory boundary in the learning note: recall is advisory only and never grants approval, verdicts, closure, or Human Gate authorization.
-5. Doctrine loop: Route to `beo-author` via `AUTHORING_RECOMMENDATION.md` only for BEO doctrine/registry updates.
-
+1. Extract only the reusable trigger, lesson, prevention rule, and safe evidence refs per `references/memory.md`.
+2. Persist through `beo_memory_write.py`; use local markdown fallback if Obsidian is unavailable.
+3. Refresh `qmd` only after a successful learning write or explicit setup authorization.
+4. If doctrine changes are needed, write `AUTHORING_RECOMMENDATION.md` rather than editing doctrine here.

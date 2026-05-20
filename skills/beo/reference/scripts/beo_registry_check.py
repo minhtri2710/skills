@@ -19,7 +19,6 @@ REQUIRED_REGISTRIES = [
     "approval-envelope.json",
     "profiles.json",
     "pipeline.json",
-    "memory-backends.json",
 ]
 REQUIRED_COMMANDS = {
     "br.ready",
@@ -37,8 +36,11 @@ REQUIRED_COMMANDS = {
     "bv.robot_insights",
     "beo.check",
     "beo.memory_write",
-    "beo.setup",
+    "beo.setup.check",
+    "beo.setup.configure_memory",
+    "beo.setup.refresh_memory_index",
     "beo.recall",
+    "beo.recall.write_summary",
     "obsidian.cli.create",
     "qmd.query",
     "qmd.status",
@@ -90,6 +92,15 @@ def skill_exit_pairs(text: str) -> list[tuple[str, str]]:
     return pairs
 
 
+def validate_schema_targets(registry: Path, errors: list[str]) -> None:
+    schema_path = registry / "registry.schema.json"
+    for name in REQUIRED_REGISTRIES:
+        data = load_json(registry / name, errors)
+        schema_ref = data.get("$schema")
+        if isinstance(schema_ref, str) and schema_ref.startswith("./registry.schema.json") and not schema_path.exists():
+            errors.append(f"{name} references missing registry.schema.json")
+
+
 def validate_commands(registry: Path, errors: list[str]) -> None:
     data = load_json(registry / "command-contracts.json", errors)
     commands = data.get("commands")
@@ -97,9 +108,18 @@ def validate_commands(registry: Path, errors: list[str]) -> None:
         errors.append("command-contracts.commands must be a list")
         return
     ids = {cmd.get("command_id") for cmd in commands if isinstance(cmd, dict)}
+    by_id = {cmd.get("command_id"): cmd for cmd in commands if isinstance(cmd, dict)}
     missing = sorted(REQUIRED_COMMANDS - ids)
     if missing:
         errors.append(f"missing command contract(s): {missing}")
+    expected_owner_allow = {
+        "br.close": ["beo-review"],
+        "beo.memory_write": ["beo-learn"],
+        "br.update.claim": ["beo-plan", "beo-validate", "beo-execute", "beo-review", "beo-debug"],
+    }
+    for command_id, expected in expected_owner_allow.items():
+        if by_id.get(command_id, {}).get("owner_allow") != expected:
+            errors.append(f"{command_id} owner_allow must be {expected}")
     for cmd in commands:
         if not isinstance(cmd, dict):
             errors.append("command contract entry must be object")
@@ -113,9 +133,13 @@ def validate_commands(registry: Path, errors: list[str]) -> None:
             errors.append(f"{cmd.get('command_id')} must not grant approval")
         if cmd.get("command_id", "").startswith("bv.") and "--robot" not in cmd.get("command", ""):
             errors.append(f"{cmd.get('command_id')} must use a bv robot flag")
+        if cmd.get("command_id", "").startswith("bv.") and "--no-cache" not in cmd.get("argv", []):
+            errors.append(f"{cmd.get('command_id')} must use --no-cache")
         if cmd.get("kind") == "write" and cmd.get("command_id") not in {"beo.check", "br.sync.flush"} and cmd.get("command_id", "").startswith("br."):
             if "--actor" not in cmd.get("command", ""):
                 errors.append(f"{cmd.get('command_id')} write command must bind --actor")
+        if cmd.get("command_id") == "br.update.claim" and ("--claim" not in cmd.get("argv", []) or "--claim" not in cmd.get("command", "")):
+            errors.append("br.update.claim must use --claim")
         if cmd.get("command_id") == "br.sync.flush" and "--actor" in cmd.get("command", ""):
             errors.append("br.sync.flush must not require --actor")
         if cmd.get("command_id", "").startswith("bv.") and "evidence_capture" not in cmd:
@@ -125,16 +149,59 @@ def validate_commands(registry: Path, errors: list[str]) -> None:
                 errors.append("beo.check base argv must work without --phase")
             if cmd.get("optional_argv") != ["--phase", "{phase}"]:
                 errors.append("beo.check must expose optional --phase argv")
+        if cmd.get("command_id") == "beo.setup.check":
+            if cmd.get("owner_allow") != ["beo-setup"]:
+                errors.append("beo.setup.check owner_allow must be beo-setup only")
+            if cmd.get("kind") != "read":
+                errors.append("beo.setup.check must be read-only")
+            if cmd.get("writes") != []:
+                errors.append("beo.setup.check must not write artifacts or indexes")
+        if cmd.get("command_id") == "beo.setup.configure_memory":
+            if cmd.get("owner_allow") != ["beo-setup"]:
+                errors.append("beo.setup.configure_memory owner_allow must be beo-setup only")
+            if cmd.get("kind") != "write_memory_index":
+                errors.append("beo.setup.configure_memory must be memory-index write contract")
+            if cmd.get("argv") != ["python3", "skills/beo/reference/scripts/beo_setup.py", "--configure-memory"]:
+                errors.append("beo.setup.configure_memory argv must include --configure-memory")
+            if cmd.get("writes") != ["$BEO_OBSIDIAN_VAULT/beo-learnings/", "qmd local config/index"]:
+                errors.append("beo.setup.configure_memory writes must be limited to learning dir and qmd config/index")
+        if cmd.get("command_id") == "beo.setup.refresh_memory_index":
+            if cmd.get("owner_allow") != ["beo-setup"]:
+                errors.append("beo.setup.refresh_memory_index owner_allow must be beo-setup only")
+            if cmd.get("kind") != "write_memory_index":
+                errors.append("beo.setup.refresh_memory_index must be memory-index write contract")
+            if cmd.get("argv") != ["python3", "skills/beo/reference/scripts/beo_setup.py", "--refresh-memory-index"]:
+                errors.append("beo.setup.refresh_memory_index argv must include --refresh-memory-index")
+            if cmd.get("writes") != ["qmd local index/database"]:
+                errors.append("beo.setup.refresh_memory_index writes must be limited to qmd local index/database")
+        if cmd.get("command_id") == "beo.recall":
+            if cmd.get("kind") != "read":
+                errors.append("beo.recall must be read-only")
+            if "optional_argv" in cmd:
+                errors.append("beo.recall must not hide mutating modes in optional argv")
+            if cmd.get("writes") != []:
+                errors.append("beo.recall must not write artifacts")
+        if cmd.get("command_id") == "beo.recall.write_summary":
+            if cmd.get("kind") != "write_evidence":
+                errors.append("beo.recall.write_summary must be a write_evidence contract")
+            if cmd.get("argv") != ["python3", "skills/beo/reference/scripts/beo_recall.py", "--issue", "{issue_id}", "--write-summary"]:
+                errors.append("beo.recall.write_summary argv must include --write-summary")
+            if cmd.get("writes") != [".beads/artifacts/<issue-id>/RECALL_SUMMARY.md"]:
+                errors.append("beo.recall.write_summary write must be canonical RECALL_SUMMARY.md")
         if cmd.get("command_id") == "obsidian.cli.create":
             if "cwd" in cmd:
                 errors.append("obsidian.cli.create must not rely on cwd vault targeting")
             argv = cmd.get("argv", [])
-            if len(argv) < 3 or argv[1] != "vault={vault_name_or_id}" or argv[2] != "create":
-                errors.append("obsidian.cli.create must put vault=<name|id> before create")
-            for required_arg in ["path=beo-learnings/{safe_note_slug}.md", "content={markdown}"]:
+            for required_arg in ["obsidian", "vault={vault_name_or_id}", "create", "path=beo-learnings/{safe_note_slug}.md", "content={markdown}"]:
                 if required_arg not in argv:
                     errors.append(f"obsidian.cli.create missing {required_arg}")
+            if cmd.get("write_boundary") != "$BEO_OBSIDIAN_VAULT/beo-learnings/":
+                errors.append("obsidian.cli.create must write only inside the learning directory")
         if cmd.get("command_id") == "qmd.query":
+            if cmd.get("kind") != "read":
+                errors.append("qmd.query must be read-only")
+            if not {"beo-plan", "beo-execute", "beo-review", "beo-debug"}.issubset(set(cmd.get("owner_allow", []))):
+                errors.append("qmd.query owner_allow must include delivery/debug recall owners")
             argv = cmd.get("argv", [])
             for token in ["qmd", "query", "{query}", "--json", "-n"]:
                 if token not in argv:
@@ -167,8 +234,11 @@ def validate_commands(registry: Path, errors: list[str]) -> None:
                 errors.append("qmd.collection.add_obsidian_vault must be memory_index_maintenance")
             if cmd.get("argv", [])[:3] != ["qmd", "collection", "add"]:
                 errors.append("qmd.collection.add_obsidian_vault must use qmd collection add")
+            argv = cmd.get("argv", [])
+            if "{vault_learning_dir}" not in argv:
+                errors.append("qmd.collection.add_obsidian_vault must target the learning directory, not the whole vault")
             for token in ["--name", "--mask", "**/*.md"]:
-                if token not in cmd.get("argv", []):
+                if token not in argv:
                     errors.append(f"qmd.collection.add_obsidian_vault argv must include {token}")
             for field in ["may_grant_approval", "may_grant_review_verdict", "may_mutate_product_files"]:
                 effective = cmd.get(field, data.get("defaults", {}).get(field, False))
@@ -187,6 +257,9 @@ def validate_pipeline(registry: Path, errors: list[str]) -> None:
             owners.update(cls_members)
     terminals = set(vocabulary.get("terminal_targets", []))
     support_returns = set(vocabulary.get("support_return_targets", []))
+
+    if pipeline.get("normal_path") != ["beo-plan", "beo-validate", "beo-execute", "beo-review"]:
+        errors.append("pipeline.normal_path must be beo-plan -> beo-validate -> beo-execute -> beo-review")
 
     support_subroutines = pipeline.get("support_subroutines", {})
     if not isinstance(support_subroutines, dict):
@@ -385,31 +458,22 @@ def validate_helper_semantics(errors: list[str]) -> None:
     direct_recall_return = dict(
         ticket,
         runtime_events=[
-            {"id": "evt-1", "kind": "return", "subtype": "recall", "created_at": "2026-01-01T00:01:00Z", "owner": "beo-recall", "issue_id": "br-1", "condition_id": "memory_recalled", "basis_ref": "recall:summary", "message": "Done.", "caller_owner": "beo-execute", "return_to": "beo-execute", "result_status": "memory_recalled", "recall_ref": ".beads/artifacts/br-1/recall/RECALL_SUMMARY.md"},
+            {"id": "evt-1", "kind": "return", "subtype": "recall", "created_at": "2026-01-01T00:01:00Z", "owner": "beo-execute", "issue_id": "br-1", "condition_id": "memory_recalled", "basis_ref": "recall:summary", "message": "Done.", "caller_owner": "beo-execute", "return_to": "beo-execute", "result_status": "memory_recalled", "recall_ref": ".beads/artifacts/br-1/RECALL_SUMMARY.md"},
         ],
     )
     if not beo_check.validate_runtime_events(direct_recall_return, "br-1"):
-        errors.append("runtime event validator must reject recall return without prior handoff")
+        errors.append("runtime event validator must reject deprecated recall return events")
     malformed_events = dict(ticket, runtime_events=["bad"])
     if not beo_check.validate_runtime_events(malformed_events, "br-1"):
         errors.append("runtime event validator must reject malformed event entries")
     bad_author_recall = dict(
         ticket,
         runtime_events=[
-            {"id": "evt-1", "kind": "handoff", "subtype": "recall", "created_at": "2026-01-01T00:00:00Z", "owner": "beo-recall", "issue_id": "br-1", "condition_id": "memory_recalled", "basis_ref": "author:need", "message": "Recall.", "caller_owner": "beo-author", "return_to": "beo-author", "query": "prior doctrine"},
+            {"id": "evt-1", "kind": "handoff", "subtype": "recall", "created_at": "2026-01-01T00:00:00Z", "owner": "beo-author", "issue_id": "br-1", "condition_id": "memory_recalled", "basis_ref": "author:need", "message": "Recall.", "caller_owner": "beo-author", "return_to": "beo-author", "query": "prior doctrine"},
         ],
     )
     if not beo_check.validate_runtime_events(bad_author_recall, "br-1"):
-        errors.append("runtime event validator must reject beo-author as a ticket recall caller")
-    bad_recall_ref = dict(
-        ticket,
-        runtime_events=[
-            {"id": "evt-1", "kind": "handoff", "subtype": "recall", "created_at": "2026-01-01T00:00:00Z", "owner": "beo-execute", "issue_id": "br-1", "condition_id": "memory_recalled", "basis_ref": "execute:need", "message": "Recall.", "caller_owner": "beo-execute", "return_to": "beo-execute", "query": "prior failure"},
-            {"id": "evt-2", "kind": "return", "subtype": "recall", "created_at": "2026-01-01T00:01:00Z", "owner": "beo-recall", "issue_id": "br-1", "condition_id": "memory_recalled", "basis_ref": "recall:summary", "message": "Done.", "caller_owner": "beo-execute", "return_to": "beo-execute", "result_status": "memory_recalled", "recall_ref": ".beads/artifacts/br-1/recall/WRONG.md"},
-        ],
-    )
-    if not beo_check.validate_runtime_events(bad_recall_ref, "br-1"):
-        errors.append("runtime event validator must reject non-canonical recall_ref")
+        errors.append("runtime event validator must reject deprecated recall handoff events")
     early_learning = dict(
         ticket,
         runtime_events=[
@@ -457,6 +521,30 @@ def validate_helper_semantics(errors: list[str]) -> None:
             missing_prestate_ticket = dict(ticket, execution={"prestate_refs": {"files": {}}, "changed_files": ["new.txt"]})
             if not any("missing prestate hash" in err for err in beo_check.validate_execute(root, missing_prestate_ticket, issue, "complete")):
                 errors.append("validate_execute must require prestate for changed files")
+        setup_text = (scripts / "beo_setup.py").read_text()
+        if "--configure-memory" not in setup_text or "--refresh-memory-index" not in setup_text:
+            errors.append("beo_setup.py must require explicit flags for memory setup or qmd refresh writes")
+        import beo_setup
+        if beo_setup.collection_exists("beo-prod\n", "beo"):
+            errors.append("beo_setup.py collection detection must not accept substring matches")
+        if not beo_setup.collection_exists("beo\n", "beo"):
+            errors.append("beo_setup.py collection detection must accept exact collection names")
+        old_vault_env = {key: os.environ.get(key) for key in ["BEO_OBSIDIAN_VAULT", "BEO_OBSIDIAN_VAULT_NAME", "BEO_OBSIDIAN_VAULT_ID"]}
+        for key in old_vault_env:
+            os.environ.pop(key, None)
+        if beo_setup.explicitly_configured_vault():
+            errors.append("beo_setup.py must not treat implicit default vaults as explicit configuration")
+        os.environ["BEO_OBSIDIAN_VAULT"] = "/tmp/beo-vault"
+        if beo_setup.explicitly_configured_vault():
+            errors.append("beo_setup.py must require explicit vault name or id with vault path")
+        os.environ["BEO_OBSIDIAN_VAULT_NAME"] = "second-brain"
+        if not beo_setup.explicitly_configured_vault():
+            errors.append("beo_setup.py must accept explicit vault path plus vault name")
+        for key, value in old_vault_env.items():
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
     finally:
         for key, value in old_env.items():
             if value is None:
@@ -470,6 +558,7 @@ def main(argv: list[str]) -> int:
     errors: list[str] = []
     for name in REQUIRED_REGISTRIES:
         load_json(registry / name, errors)
+    validate_schema_targets(registry, errors)
     validate_commands(registry, errors)
     validate_pipeline(registry, errors)
     validate_ticket_schema(registry, errors)

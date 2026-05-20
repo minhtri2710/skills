@@ -32,7 +32,7 @@ A collection of canonical beo skills and shared references for structured, contr
 | execution modes & profiles | `registry/profiles.json` |
 | approval binding | `registry/approval-envelope.json` |
 | ticket schema | `registry/ticket-schema.json` |
-| semantic memory | `references/memory.md`, `registry/memory-backends.json` |
+| semantic memory | `references/memory.md` |
 | commands | `registry/command-contracts.json` |
 
 <!-- BEO:MANAGED START -->

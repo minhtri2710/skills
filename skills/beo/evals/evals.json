@@ -3,18 +3,33 @@
   "evals": [
     {
       "id": 1,
-      "prompt": "A Beads issue titled 'Add retry logging to the sync worker' is ready, but the issue may be too broad. Use BEO to decide whether to execute it or split it first.",
-      "expected_output": "A concise BEO planning response that recalls prior lessons, uses br for canonical issue inspection/claim/decomposition, uses bv only for graph triage when structural insight is needed, and exits with either decomposition_recorded or plan_complete."
+      "prompt": "A Beads issue titled 'Add retry logging to the sync worker' is ready, but it may be too broad. Use BEO to decide whether to execute it or split it first.",
+      "expected_output": "A concise planning flow that treats br as lifecycle authority, uses bv only for graph orientation, records advisory recall without using memory as approval, and exits with decomposition_recorded or plan_complete.",
+      "files": []
     },
     {
       "id": 2,
       "prompt": "A claimed atomic bead has PASS_EXECUTE and allows only src/sync_worker.py plus tests/test_sync_worker.py. Implement the approved change under BEO.",
-      "expected_output": "A contained execution flow that verifies approval, mutates only allowed files, records verification evidence, and hands off to review without closing the issue directly."
+      "expected_output": "A contained execution flow that verifies current approval, mutates only allowed files, records verification evidence, and routes to review without closing directly.",
+      "files": []
     },
     {
       "id": 3,
       "prompt": "Review accepted a fix after a near miss where an agent almost reused a stale qmd lesson as approval. Capture the BEO learning.",
-      "expected_output": "A learning-capture flow that records a small reusable case note with Beads provenance, writes durable markdown through Obsidian CLI when configured, indexes/searches with qmd, keeps memory advisory, and does not reopen delivery."
+      "expected_output": "A selective learning flow that records a small reusable case note with Beads provenance, writes via Obsidian CLI when configured, refreshes qmd only as memory maintenance, and never reopens delivery.",
+      "files": []
+    },
+    {
+      "id": 4,
+      "prompt": "Walk a repo-only atomic Beads ticket through the complete BEO path: plan, validate, execute, review, and post-accept learning. The ticket may use bv for triage orientation and qmd for prior-lesson recall, and it has an Obsidian learning vault configured.",
+      "expected_output": "An end-to-end flow with distinct owners: beo-plan claims and writes only plan-owned TICKET.md scope using br as canonical issue state and bv/qmd as advisory inputs; beo-validate alone grants PASS_EXECUTE with approval hashes and prestate; beo-execute mutates only approved files and records verification evidence; beo-review audits containment/evidence, records the verdict, closes with br, and flushes Beads state; beo-learn writes only the reusable post-accept learning note through Obsidian CLI and refreshes qmd as memory maintenance. No owner performs another owner's authority, and memory never grants approval, verdict, closure, or authorization.",
+      "files": []
+    },
+    {
+      "id": 5,
+      "prompt": "A BEO run encounters a blocker during execution. Debug finds the root cause, review later accepts the repair, and the pattern is reusable. Show the legal routing without overlapping owner responsibilities.",
+      "expected_output": "A routed flow where beo-execute emits a debug handoff instead of patching outside approved scope; beo-debug performs read-only diagnosis only and returns to the caller with optional learning_candidate; delivery resumes through validate/execute/review as needed; beo-review owns the final verdict and closure; beo-learn persists any reusable lesson after the source owner records its normal route. br remains lifecycle authority, bv remains graph orientation only, qmd remains advisory recall/indexing, and Obsidian CLI remains learning-note storage only.",
+      "files": []
     }
   ]
 }

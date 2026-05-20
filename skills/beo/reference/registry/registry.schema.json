@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://beo.local/registry.schema.json",
+  "description": "Lightweight schema anchor for registry $schema references. Semantic validation is implemented by skills/beo/reference/scripts/beo_registry_check.py.",
+  "definitions": {
+    "approval-envelope": {"type": "object"},
+    "command-contracts": {"type": "object"},
+    "pipeline": {"type": "object"},
+    "profile-registry": {"type": "object"},
+    "ticket-schema": {"type": "object"}
+  }
+}

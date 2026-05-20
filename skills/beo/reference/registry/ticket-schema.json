@@ -77,19 +77,16 @@
   "runtime_event": {
     "required": ["id", "kind", "created_at", "owner", "issue_id", "condition_id", "basis_ref", "message"],
     "kind": ["user_stop", "handoff", "return", "change_request", "abandon", "learning_candidate"],
-    "handoff_subtype": ["debug", "recall"],
-    "return_subtype": ["debug", "recall"],
+    "handoff_subtype": ["debug"],
+    "return_subtype": ["debug"],
     "change_request_subtype": ["scope_delta", "repair_same_scope", "repair_rescope"],
     "append_only": true,
-    "validator_rule": "beo_check.py validates required fields, owner, issue_id, registered values, handoff/return matching, abandon_reason, change_request routing, and learning candidate metadata. Recall return events require a prior matching recall handoff; inline advisory recall need not append runtime_events.",
+    "validator_rule": "beo_check.py validates required fields, owner, issue_id, registered values, handoff/return matching, abandon_reason, change_request routing, and learning candidate metadata. Advisory recall is a helper action, not a runtime handoff/return subtype.",
     "message_rule": "Short non-secret summary only.",
     "handoff_debug_required_fields": ["caller_owner", "return_to", "return_condition_id", "question"],
     "handoff_debug_return_to": ["beo-execute", "beo-review"],
     "return_debug_required_fields": ["caller_owner", "return_to", "return_condition_id", "diagnosis_status", "diagnosis_ref"],
-    "handoff_recall_required_fields": ["caller_owner", "return_to", "query"],
-    "return_recall_required_fields": ["caller_owner", "return_to", "result_status", "recall_ref"],
     "diagnosis_status": ["root_cause_proven", "diagnosis_inconclusive", "blocker_is_user_owned"],
-    "recall_result_status": ["memory_recalled", "no_relevant_memory", "memory_unavailable"],
     "abandon_required_fields": ["abandon_reason"],
     "abandon_reason": ["user_cancelled", "pre_mutation_abandon", "post_mutation_preserved", "superseded", "unsafe_environment"],
     "same_scope_repair_required_fields": ["requested_by", "finding_refs", "prior_approval_ref", "unchanged_boundaries"],
@@ -118,19 +115,8 @@
       "atomicity": {"decision": "atomic", "reason": "One executable unit.", "rejects_multi_task": true}
     }
   },
-  "quick_optional_field_rule": "Absent optional fields mean not applicable in quick mode unless this schema requires them.",
-  "quick_default_expansion": {
-    "generated_outputs": [],
-    "external_side_effects": {"status": "none", "effects": []},
-    "stateful_external_systems": {
-      "status": "none",
-      "systems": []
-    },
-    "risk_scope": "low: bounded edits to declared repo files only",
-    "rollback_boundary": "revert_declared_file_changes",
-    "selected_execution_set": "set-1",
-    "execution_mode": "normal"
-  },
+  "quick_optional_field_rule": "Absent optional fields mean not applicable in quick mode unless ticket-schema requires them; profile-derived defaults are canonical in profiles.json posture_profiles.repo_only_low_risk and flow_profiles.tiny_repo_edit.",
+  "profile_expansion_ref": "profiles.json",
   "stateful_external_systems": {
     "status": ["none", "declared"],
     "systems": {

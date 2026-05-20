@@ -29,6 +29,28 @@ def fail(message: str, *, fallback_path: str | None = None) -> int:
     print(json.dumps({"status": "failed", "error": message, "fallback_path": fallback_path}, indent=2))
     return 1
 
+
+def compact_text(text: str, limit: int = 600) -> str:
+    text = text.strip()
+    if len(text) <= limit:
+        return text
+    return f"{text[:limit]}...[truncated]"
+
+
+def qmd_refresh_status() -> dict[str, str | bool]:
+    update_code, _update_out, update_err = beo_utils.run_cmd(["qmd", "update"])
+    embed_code, _embed_out, embed_err = beo_utils.run_cmd(["qmd", "embed"])
+    result: dict[str, str | bool] = {
+        "qmd_update_status": "ok" if update_code == 0 else "failed",
+        "qmd_embed_status": "ok" if embed_code == 0 else "failed",
+        "qmd_indexed": update_code == 0 and embed_code == 0,
+    }
+    if update_code != 0:
+        result["qmd_update_error"] = compact_text(update_err)
+    if embed_code != 0:
+        result["qmd_embed_error"] = compact_text(embed_err)
+    return result
+
 def safe_note_name(issue_id: str, case_type: str, slug: str) -> str:
     if not SAFE_SLUG.fullmatch(slug):
         raise ValueError("slug must be lowercase alphanumeric with hyphens only")
@@ -47,10 +69,21 @@ def ensure_under(base: Path, target: Path) -> None:
     if target.is_symlink():
         raise ValueError("target must not be a symlink")
 
+
+def validate_fallback_target(root: Path, issue_id: str) -> Path:
+    beads_dir = root / ".beads"
+    issue_dir = beads_dir / "artifacts" / issue_id
+    if not beads_dir.is_dir():
+        raise ValueError(f"root is not a Beads workspace: {root}")
+    if not issue_dir.is_dir():
+        raise ValueError(f"issue artifact directory does not exist: {issue_dir}")
+    return issue_dir / "learning"
+
 def write_fallback(root: Path, issue_id: str, note_name: str, markdown: str) -> Path:
-    path = root / ".beads" / "artifacts" / issue_id / "learning" / note_name
+    learning_dir = validate_fallback_target(root, issue_id)
+    path = learning_dir / note_name
     path.parent.mkdir(parents=True, exist_ok=True)
-    ensure_under(root / ".beads" / "artifacts" / issue_id / "learning", path)
+    ensure_under(learning_dir, path)
     path.write_text(markdown, encoding="utf-8")
     return path
 
@@ -77,28 +110,36 @@ def main(argv: list[str]) -> int:
     learning_dir = env["learning_dir"]
 
     # Retrieve Vault Target Name/ID
-    vault_target = os.environ.get("BEO_OBSIDIAN_VAULT_ID") or os.environ.get("BEO_OBSIDIAN_VAULT_NAME") or ""
+    vault_target = os.environ.get("BEO_OBSIDIAN_VAULT_ID") or os.environ.get("BEO_OBSIDIAN_VAULT_NAME") or vault_name
 
+    fallback_reason = "obsidian environment is not configured"
     if vault_path and vault_target:
         try:
-            learning_dir.mkdir(parents=True, exist_ok=True)
             target = learning_dir / note_name
-            ensure_under(learning_dir, target)
-            
-            if beo_utils.obsidian_create_available():
-                code, out, err = beo_utils.run_cmd([
-                    "obsidian", f"vault={vault_target}", "create", f"path=beo-learnings/{note_name}", f"content={markdown}"
-                ])
-                if code == 0:
-                    beo_utils.run_cmd(["qmd", "update"])
-                    beo_utils.run_cmd(["qmd", "embed"])
-                    print(json.dumps({"status": "written", "backend": "obsidian_cli", "path": str(target)}, indent=2))
-                    return 0
-        except Exception:
-            pass
+            if learning_dir.exists():
+                ensure_under(learning_dir, target)
+                if beo_utils.obsidian_create_available():
+                    code, out, err = beo_utils.run_cmd([
+                        "obsidian", f"vault={vault_target}", "create", f"path=beo-learnings/{note_name}", f"content={markdown}"
+                    ])
+                    if code == 0:
+                        result = {"status": "written", "backend": "obsidian_cli", "path": str(target)}
+                        result.update(qmd_refresh_status())
+                        print(json.dumps(result, indent=2))
+                        return 0
+                    fallback_reason = err or out or "obsidian create failed"
+                else:
+                    fallback_reason = "obsidian create command is unavailable"
+            else:
+                fallback_reason = "learning directory is not configured; run beo_setup.py --configure-memory"
+        except Exception as exc:
+            fallback_reason = str(exc)
 
-    fallback = write_fallback(root, args.issue, note_name, markdown)
-    print(json.dumps({"status": "written", "backend": "fallback_local_markdown", "path": str(fallback)}, indent=2))
+    try:
+        fallback = write_fallback(root, args.issue, note_name, markdown)
+    except ValueError as exc:
+        return fail(str(exc))
+    print(json.dumps({"status": "written", "backend": "fallback_local_markdown", "path": str(fallback), "fallback_reason": compact_text(fallback_reason), "qmd_indexed": "not_run"}, indent=2))
     return 0
 
 if __name__ == "__main__":

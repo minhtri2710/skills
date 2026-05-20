@@ -1,34 +1,26 @@
 ---
 name: beo-plan
-description: Mandatory first step for any Beads-anchored development. Locks the smallest safe interpretation of a Beads issue, decomposes broad work, or defines executable scope.
+description: Mandatory for Beads issue intake, decomposition, or atomic scope planning before validation; use before any BEO execution.
 ---
-
 # beo-plan
-
-Refs: `beo-reference -> references/kernel.md`, `registry/ticket-schema.json`, `beo-reference -> references/safety.md`, `beo-reference -> references/lifecycle.md`.
+Refs: `references/lifecycle.md`, `references/safety.md`, `references/memory.md`.
 
 ## Decision
-
-Lock the smallest safe interpretation of a Beads issue; decompose broad work or define atomic executable scope.
+Convert one Beads issue into either atomic BEO scope or recorded child beads.
 
 ## Enter
-
-- Beads issue selected; `br show <issue-id> --json` succeeds.
-- Issue needs intake, decomposition, or atomic scope definition.
+- Beads issue selected; canonical `br show <issue-id> --json` succeeds.
 
 ## Owns
+- Intake, done criteria, decomposition, explicit file scope, and planning comments.
 
-- Intake: `request`, `done`, Human Gates, assumptions, non-goals, constraints.
-- Plan: decomposition, scope, acceptance, atomicity, mode, verification, outputs, risk/rollback.
+## Does Not Own
+- Approval tokens, product mutation, review verdicts, issue closure, or memory writes.
 
 ## Stops
-
-- Requirements missing/contradictory or Human Gate blocks scope selection.
-- Selected bead is broad and cannot be safely decomposed.
-- Atomic work cannot be stated as one executable unit.
+- Requirements remain ambiguous, graph cycles block safe ordering, or the selected bead is not executable as one atomic unit.
 
 ## Exits
-
 - `plan_complete` -> `beo-validate`
 - `decomposition_recorded` -> `parent_waits_children`
 - `requirements_missing` -> `user`
@@ -36,12 +28,9 @@ Lock the smallest safe interpretation of a Beads issue; decompose broad work or 
 - `abandoned` -> `beo-review`
 
 ## Method
-
-1. Recall: Run `beo_recall.py --issue <issue-id>` and read `.beads/artifacts/<issue-id>/RECALL_SUMMARY.md` for advisory lessons.
-2. Claim & intake: Use `br show <issue-id> --json`, then claim with `br update --claim` before ticket writes.
-3. Triage when needed: Use `bv --robot-triage`, `bv --robot-plan`, or `bv --robot-insights` only for backlog shape, parallel tracks, bottlenecks, or cycles.
-4. If non-atomic: Decompose with `br create`, add edges with `br dep add`, comment on the parent, and exit `decomposition_recorded`.
-5. If atomic: Draft `TICKET.md` with explicit `allow`/`forbid` files, verification contract, safety mode, assumptions, non-goals, and rollback/repair path.
-6. Pre-validate: Run `beo_check.py --check validate --issue <issue-id>` to ensure plan readiness.
-
-
+1. Use `bv` robot output only for graph orientation; select and inspect canonical issue state with `br`.
+2. Claim the selected issue using `br` per `references/lifecycle.md` before writing ticket artifacts or child beads.
+3. Run advisory recall per `references/memory.md`; do not let memory alter authority or scope.
+4. If non-atomic, create child beads and dependency edges with `br`; leave the parent open.
+5. If atomic, draft `TICKET.md` with one done target, explicit `allow` paths, risk posture, and verification contract.
+6. Pre-validate plan integrity before validation handoff.

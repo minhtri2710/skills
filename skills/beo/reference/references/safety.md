@@ -39,7 +39,8 @@ scope:
     overlaps:
       - issue_id: <other-id>
         paths:
-          - <current-path> overlaps <other-path>
+          - current: <current-path>
+            other: <other-path>
         safe_reason: dependency_ordered | disjoint_region | user_authorized
         evidence_ref: <required>
 ```
@@ -49,10 +50,7 @@ scope:
 
 ## 3. Stateful & External Systems
 
-Strict mode is mandatory for stateful integrations.
-- **Contracts**: Every stateful integration requires a contract defining a target, authorization, precheck, rollback/compensation, postcheck, and blast radius in `external_side_effects.effects` (or mapped to it).
-- **Evidence**: Explicit Human Gate authorization, `STRICT.md`, `ROLLBACK.md`, and matching artifact hashes are mandatory.
-- **No Bypass**: `strict.reason` cannot bypass the requirement for a side-effect contract in stateful systems.
+Strict mode is mandatory for stateful integrations. `profiles.json` owns mode/profile requirements, `command-contracts.json` owns side-effect command-contract fields, `ticket-schema.json` owns ticket field shape, and `approval-envelope.json` owns hash/freshness binding. `strict.reason` explains why strict mode applies; it never substitutes for the side-effect contract.
 
 ---
 

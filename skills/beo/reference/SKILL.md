@@ -1,44 +1,24 @@
 ---
 name: beo-reference
-description: Read-only BEO doctrine loader for kernel, Beads authority, decomposition, lifecycle, approval, mutation safety, events, modes, memory, registries, and templates.
+description: Use for read-only lookup of BEO doctrine, registries, templates, and command contracts; not a delivery phase.
 ---
-
 # beo-reference
-
-Refs: `beo-reference -> references/kernel.md`.
+Refs: `references/kernel.md`.
 
 ## Decision
-
-Load canonical BEO doctrine and registries without mutation.
+Resolve a BEO doctrine or registry question without mutation.
 
 ## Enter
-
-- BEO owner needs canonical doctrine or registry lookup.
+- A BEO owner or user needs canonical lookup.
 
 ## Owns
-
-- Doctrine text and registry references.
+- Read-only lookup and citation of doctrine files and registries.
 
 ## Stops
-
-- Request requires product or Beads lifecycle mutation.
+- Request requires product or lifecycle state mutation.
 
 ## Method
-
-1. Load `references/kernel.md` first for always-on invariants.
-2. Pick the narrow reference or registry needed for the active decision.
-3. Load exactly those narrow files (e.g., `safety.md`, `memory.md`).
-4. Avoid loading all references by default to optimize token usage.
-
-## Canonical homes
-
-- Kernel invariants: `references/kernel.md`
-- Lifecycle, Decomposition & Triage: `references/lifecycle.md`, `registry/pipeline.json`
-- Safety & Path Rules: `references/safety.md`
-- Execution Modes & Profiles: `registry/profiles.json`
-- Approval Binding: `registry/approval-envelope.json`
-- Ticket schema: `registry/ticket-schema.json`
-- Ticket templates: `templates/TICKET.{quick,standard,strict}.md`
-- Memory & Recall: `references/memory.md`
-- Memory backends: `registry/memory-backends.json`
-- Commands: `registry/command-contracts.json`
+1. Load `references/kernel.md` first for core invariants.
+2. Select and load the specific reference file needed to resolve the decision.
+3. Optimize token usage: avoid loading all reference documents by default.
+4. Verify lookups against canonical registries under `registry/`.

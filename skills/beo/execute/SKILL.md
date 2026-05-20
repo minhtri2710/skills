@@ -1,34 +1,27 @@
 ---
 name: beo-execute
-description: Mutates only the approved scope for one claimed atomic Beads ticket and records execution evidence.
+description: Mandatory for mutating only validated scope on one claimed atomic Beads ticket and recording execution evidence.
 ---
-
 # beo-execute
-
-Refs: `beo-reference -> references/safety.md`, `beo-reference -> references/lifecycle.md`.
+Refs: `references/safety.md`, `references/lifecycle.md`.
 
 ## Decision
-
 Deliver exactly one approved atomic ticket scope.
 
 ## Enter
-
-- `PASS_EXECUTE` exists; `beo_check.py --check execute` confirms complete approval.
-- Bead is claimed by current actor/session.
+- Valid `PASS_EXECUTE` token exists in `TICKET.md`.
+- Bead is claimed per `references/lifecycle.md`.
 
 ## Owns
+- Product mutation strictly within `scope.files.allow`, declared generated outputs, execution evidence, and runtime events.
 
-- Product mutation inside approved `scope.files.allow` only.
-- `execution` evidence and `runtime_events`.
+## Does Not Own
+- Scope expansion, approval renewal, review verdicts, issue closure, or memory persistence.
 
 ## Stops
-
-- Stale/invalid approval or unclaimed bead.
-- Path is outside approved `allow` or matches `forbidden`/protected.
-- Stateful mutation without strict-approved contract.
+- Stale/missing `PASS_EXECUTE`, prestate drift, unauthorized path change, or uncontracted stateful side effect.
 
 ## Exits
-
 - `execution_ready_for_review` -> `beo-review`
 - `approval_stale_or_invalid` -> `beo-validate`
 - `scope_delta_required` -> `beo-plan`
@@ -37,10 +30,7 @@ Deliver exactly one approved atomic ticket scope.
 - `abandoned` -> `beo-review`
 
 ## Method
-
-1. Verify approval: Run `beo_check.py --check execute --issue <issue-id>`.
-2. Hash pre-state: Capture cryptographic pre-state hashes of all allowed files.
-3. Surgical mutation: Modify strictly within approved `allow` files and outputs.
-4. Verify changes: Execute declared verification commands and record results.
-5. Pre-review: Run `beo_check.py --check review --issue <issue-id>` before review handoff.
-
+1. Validate active approval, claim, and prestate hashes per `references/safety.md`.
+2. Apply only the approved mutation; if scope must change, stop and route instead of widening locally.
+3. Run the ticket's verification commands and record execution evidence.
+4. Pre-check containment before review handoff; leave verdict and closure to `beo-review`.

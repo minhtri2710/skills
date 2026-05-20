@@ -8,6 +8,8 @@ Three postures scaled by risk: **quick** (repo-only, low-risk), **standard** (mo
 
 Normal delivery path: `plan -> validate -> execute -> review`. See `registry/pipeline.json` for all transitions. See `references/lifecycle.md` for claim invariants and decomposition.
 
+Authority split: `br` is transactional truth, `bv` is read-only graph orientation, `TICKET.md` is BEO safety/evidence truth, `qmd` is advisory semantic recall, and Obsidian CLI is durable learning-note persistence. Do not duplicate state across them.
+
 ---
 
 ## 2. Hard Invariants (Never Bypass)

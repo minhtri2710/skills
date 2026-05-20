@@ -1,43 +1,35 @@
 ---
 name: beo-validate
-description: Mandatory technical gate before execution. Grants or refuses PASS_EXECUTE for one atomic Beads-anchored BEO ticket after verifying scope, safety, and contracts.
+description: Mandatory technical gate to grant or refuse PASS_EXECUTE for one planned atomic Beads ticket before mutation.
 ---
-
 # beo-validate
-
-Refs: `beo-reference -> references/safety.md`, `beo-reference -> references/lifecycle.md`.
+Refs: `references/safety.md`, `references/lifecycle.md`.
 
 ## Decision
-
-Grant or refuse `PASS_EXECUTE` for one atomic bead.
+Grant or refuse `PASS_EXECUTE` token for one atomic bead.
 
 ## Enter
-
 - Plan-owned fields exist in `TICKET.md`.
 - Selected bead is atomic.
 
 ## Owns
+- Readiness evaluation, execution mode, approval projection, and prestate hashes.
 
-- `readiness`, `selected_execution_set`, `execution_mode`, `approval_ref`, `integrity`.
+## Does Not Own
+- Scope design, product mutation, review verdicts, issue closure, or learning persistence.
 
 ## Stops
-
-- Unresolved Human Gates or non-atomic beads.
-- Unsafe undeclared path overlap with other active tickets.
-- Missing strict command contracts for stateful systems.
+- Unresolved Human Gates, non-atomic beads, path collisions, broad unauthorized globs, or stale/missing canonical issue state.
 
 ## Exits
-
 - `PASS_EXECUTE` -> `beo-execute`
 - `FAIL_PLAN` -> `beo-plan`
 - `BLOCK_USER` -> `user`
 - `abandoned` -> `beo-review`
 
 ## Method
-
-1. Verify atomicity and ensure no unsafe, undeclared path overlaps exist.
-2. Run validation safety gate: `beo_check.py --check validate --issue <issue-id>`.
-3. Upon validation success, write `PASS_EXECUTE` token, recording `approval_ref` and prestate hashes.
-4. For repairs, enforce change request bounds per lifecycle and safety doctrine.
-5. Soft drift (title/labels) triggers warnings; hard drift (scope/criteria changes) invalidates.
-
+1. Confirm claim and issue identity with `br`; treat `bv` and memory as advisory only.
+2. Enforce atomicity, path containment, overlap scans, and execution-mode requirements per `references/safety.md`.
+3. Run validation check script using `beo_check.py`.
+4. On pass, write `PASS_EXECUTE` and prestate hashes; on fail, route to the owning phase instead of patching scope here.
+5. For repairs, enforce registered change bounds before granting a new token.

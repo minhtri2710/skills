@@ -17,39 +17,217 @@ sys.path.insert(0, str(Path(__file__).parent))
 import beo_utils
 
 def extract_json_array(text: str) -> list[dict]:
-    # Extract JSON array from text even if there's trailing garbage or assertions
+    try:
+        payload = json.loads(text)
+        if isinstance(payload, list):
+            return [item for item in payload if isinstance(item, dict)]
+        if isinstance(payload, dict):
+            for key in ["results", "matches", "items", "documents"]:
+                value = payload.get(key)
+                if isinstance(value, list):
+                    return [item for item in value if isinstance(item, dict)]
+    except Exception:
+        pass
     match = re.search(r"(\[\s*\{.*\}\s*\])", text, re.DOTALL)
     if match:
         try:
-            return json.loads(match.group(1))
+            return [item for item in json.loads(match.group(1)) if isinstance(item, dict)]
         except Exception:
             pass
-    # Simple search
     start = text.find("[")
     end = text.rfind("]")
     if start != -1 and end != -1 and end > start:
         try:
-            return json.loads(text[start:end+1])
+            return [item for item in json.loads(text[start:end+1]) if isinstance(item, dict)]
         except Exception:
             pass
     return []
+
+def log(message: str) -> None:
+    print(message, file=sys.stderr)
+
+
+def compact_text(text: str, limit: int = 600) -> str:
+    text = text.strip()
+    if len(text) <= limit:
+        return text
+    return f"{text[:limit]}...[truncated]"
+
+
+SAFE_ISSUE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,120}$")
+
+
+def actor_identity() -> str | None:
+    for name in ["BR_ACTOR", "BEO_ACTOR", "AGENT_NAME", "BR_AGENT_NAME", "ACTOR"]:
+        value = os.environ.get(name)
+        if value:
+            return value
+    return None
+
+
+def issue_field(issue: dict, *names: str, default=None):
+    for name in names:
+        if name in issue:
+            return issue[name]
+    return default
+
+
+def claim_valid(issue: dict) -> bool:
+    status = str(issue_field(issue, "status", default="")).lower()
+    assignee = str(issue_field(issue, "assignee", "owner", default="") or "")
+    actor = actor_identity()
+    return status == "in_progress" and bool(actor) and assignee == actor
+
+
+def query_terms(query: str) -> set[str]:
+    return {w.lower() for w in re.findall(r"[A-Za-z0-9_-]+", query) if len(w) > 3}
+
+
+def lexical_score(text: str, terms: set[str]) -> float:
+    if not terms:
+        return 0.0
+    haystack = text.lower()
+    hits = sum(1 for term in terms if term in haystack)
+    return hits / len(terms)
+
+
+def read_safe_markdown(path: Path, base: Path) -> str | None:
+    try:
+        if path.is_symlink():
+            return None
+        path.resolve().relative_to(base.resolve())
+        return path.read_text(encoding="utf-8")
+    except Exception:
+        return None
+
+
+def qmd_ref(match: dict, collection: str) -> str | None:
+    for key in ["file", "path", "docid", "id", "uri"]:
+        value = match.get(key)
+        if isinstance(value, str) and value:
+            return value
+    if isinstance(match.get("url"), str):
+        return match["url"]
+    return None
+
+
+def retrieve_qmd_matches(matches: list[dict], collection: str, limit: int = 5) -> list[dict]:
+    retrieved: list[dict] = []
+    for match in matches[:limit]:
+        ref = qmd_ref(match, collection)
+        if not ref:
+            continue
+        get_code, get_out, _get_err = beo_utils.run_cmd(["qmd", "get", ref])
+        if get_code != 0 or not get_out.strip():
+            continue
+        hydrated = dict(match)
+        hydrated["file"] = ref
+        hydrated["snippet"] = get_out[:1200]
+        hydrated["retrieved_full_source"] = True
+        retrieved.append(hydrated)
+    return retrieved
+
+
+def search_markdown_tree(directory: Path, terms: set[str], limit: int = 5) -> list[dict]:
+    if not directory.exists() or directory.is_symlink():
+        return []
+    matches: list[dict] = []
+    try:
+        base = directory.resolve()
+        for md_path in sorted(base.glob("**/*.md")):
+            content = read_safe_markdown(md_path, base)
+            if content is None:
+                continue
+            score = lexical_score(f"{md_path.stem} {content}", terms)
+            if score <= 0:
+                continue
+            matches.append({
+                "file": str(md_path),
+                "title": md_path.stem,
+                "score": score,
+                "snippet": content[:1200],
+                "retrieved_full_source": True,
+            })
+        matches.sort(key=lambda item: float(item.get("score", 0)), reverse=True)
+    except Exception:
+        return matches[:limit]
+    return matches[:limit]
+
+
+def search_local_learning_notes(artifacts_dir: Path, terms: set[str], limit: int = 5) -> list[dict]:
+    if not artifacts_dir.exists() or artifacts_dir.is_symlink():
+        return []
+    matches: list[dict] = []
+    try:
+        base = artifacts_dir.resolve()
+        for learning_dir in sorted(base.glob("*/learning")):
+            if not learning_dir.is_dir() or learning_dir.is_symlink():
+                continue
+            for md_path in sorted(learning_dir.glob("*.md")):
+                content = read_safe_markdown(md_path, base)
+                if content is None:
+                    continue
+                score = lexical_score(f"{md_path.stem} {content}", terms)
+                if score <= 0:
+                    continue
+                matches.append({
+                    "file": str(md_path),
+                    "title": md_path.stem,
+                    "score": score,
+                    "snippet": content[:1200],
+                    "retrieved_full_source": True,
+                })
+        matches.sort(key=lambda item: float(item.get("score", 0)), reverse=True)
+    except Exception:
+        return matches[:limit]
+    return matches[:limit]
+
+
+def search_markdown_dir(directory: Path, limit: int = 5) -> list[dict]:
+    if not directory.exists() or directory.is_symlink():
+        return []
+    matches: list[dict] = []
+    try:
+        base = directory.resolve()
+        for md_path in sorted(base.glob("*.md")):
+            content = read_safe_markdown(md_path, base)
+            if content is None:
+                continue
+            matches.append({
+                "file": str(md_path),
+                "title": md_path.stem,
+                "score": 0.3,
+                "snippet": content[:1200],
+                "retrieved_full_source": True,
+            })
+            if len(matches) >= limit:
+                break
+    except Exception:
+        return matches
+    return matches
+
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Recall past BEO learnings for the current issue.")
     parser.add_argument("--issue", required=True, help="Issue ID")
     parser.add_argument("--root", default=".", help="Root directory")
+    parser.add_argument("--write-summary", action="store_true", help="Write RECALL_SUMMARY.md after the issue has been claimed")
     args = parser.parse_args()
 
     root = Path(args.root).resolve()
     issue_id = args.issue
+    if not SAFE_ISSUE_ID.fullmatch(issue_id):
+        print(json.dumps({"status": "failed", "error": "issue_id must be alphanumeric with hyphens or underscores only"}, indent=2))
+        return 1
 
-    print(f"Starting memory recall for issue: {issue_id}")
+    log(f"Starting memory recall for issue: {issue_id}")
 
     # 1. Fetch issue details via br show --json
     code, out, err = beo_utils.run_cmd(["br", "show", issue_id, "--json"])
     title = ""
     description = ""
     labels = []
+    issue_payload = {}
     
     if code == 0:
         try:
@@ -59,13 +237,14 @@ def main() -> int:
             if isinstance(payload, dict) and "issue" in payload:
                 payload = payload["issue"]
             if isinstance(payload, dict):
+                issue_payload = payload
                 title = payload.get("title", "")
                 description = payload.get("description", "")
                 labels = payload.get("labels", [])
         except Exception as e:
-            print(f"Warning: Failed to parse br show JSON: {e}")
+            log(f"Warning: Failed to parse br show JSON: {e}")
     else:
-        print(f"Warning: br show command failed: {err.strip()}")
+        log(f"Warning: br show command failed: {err.strip()}")
 
     # 2. Try to read and parse TICKET.md if it exists
     ticket_path = root / ".beads" / "artifacts" / issue_id / "TICKET.md"
@@ -84,12 +263,14 @@ def main() -> int:
                 ticket_done = ticket.get("done", "")
                 ticket_features = ticket.get("flow_profile", {}).get("features", [])
         except Exception as e:
-            print(f"Warning: Failed to parse TICKET.md YAML: {e}")
+            log(f"Warning: Failed to parse TICKET.md YAML: {e}")
 
     # 3. Formulate query terms
     query_components = []
     if title:
         query_components.append(title)
+    if description:
+        query_components.append(description)
     if ticket_request:
         query_components.append(ticket_request)
     if ticket_done:
@@ -112,41 +293,35 @@ def main() -> int:
     if not final_query:
         final_query = "success failures lessons"
 
-    print(f"Formulated search query: '{final_query}'")
+    log(f"Formulated search query: '{final_query}'")
 
     # Resolve vault/collection details dynamically using beo_utils
     env = beo_utils.resolve_obsidian_env()
-    vault_name = env["vault_name"]
     vault_path = env["vault_path"]
     qmd_collection = env["qmd_collection"]
 
     matches = []
-    # 4. Search via qmd collection
-    print(f"Searching qmd collection '{qmd_collection}'...")
-    qmd_code, qmd_out, qmd_err = beo_utils.run_cmd(["qmd", "query", final_query, "-c", qmd_collection, "--json"])
-    matches = extract_json_array(qmd_out)
-    
-    # 5. Fallback: Search issue-local learning artifacts
-    if not matches:
-        print("No qmd results. Searching local artifacts...")
-        try:
-            import glob
-            local_files = glob.glob(str(root / ".beads" / "artifacts" / "*" / "learning" / "*.md"))
-            for lf_path in local_files[:5]:
-                lf = Path(lf_path)
-                matches.append({
-                    "file": str(lf),
-                    "title": lf.stem,
-                    "score": 0.3,
-                    "snippet": lf.read_text(encoding="utf-8")[:300]
-                })
-        except Exception:
-            pass
+    recall_source = "qmd"
+    terms = query_terms(final_query)
+    # 4. Search via qmd collection, then retrieve full matched notes before using them.
+    log(f"Searching qmd collection '{qmd_collection}'...")
+    qmd_code, qmd_out, qmd_err = beo_utils.run_cmd(["qmd", "query", final_query, "--json", "-n", "5", "-c", qmd_collection])
+    qmd_matches = extract_json_array(qmd_out)
+    matches = retrieve_qmd_matches(qmd_matches, qmd_collection)
+    if qmd_matches and not matches:
+        log("qmd returned leads, but full source retrieval failed; treating them as leads only.")
 
-    # 6. Compile RECALL_SUMMARY.md
-    artifact_dir = root / ".beads" / "artifacts" / issue_id
-    artifact_dir.mkdir(parents=True, exist_ok=True)
-    summary_path = artifact_dir / "RECALL_SUMMARY.md"
+    # 5. Fallback: Search Obsidian learning markdown, then issue-local learning notes with lexical relevance.
+    if not matches:
+        log("No retrieved qmd notes. Searching Obsidian learning markdown...")
+        matches = search_markdown_tree(Path(env["learning_dir"]), terms, 5)
+        recall_source = "obsidian_markdown" if matches else "local_artifacts"
+    if not matches:
+        log("No relevant Obsidian markdown results. Searching local learning artifacts...")
+        matches = search_local_learning_notes(root / ".beads" / "artifacts", terms, 5)
+
+    # 6. Compile recall summary
+    summary_path = root / ".beads" / "artifacts" / issue_id / "RECALL_SUMMARY.md"
 
     summary_md = f"# Memory Recall Summary: {issue_id}\n\n"
     summary_md += f"**Search Query**: `{final_query}`\n\n"
@@ -168,9 +343,10 @@ def main() -> int:
             title = match.get("title") or Path(file_path).stem or f"Learning Case {idx+1}"
             score = match.get("score", 0.0)
             snippet = match.get("snippet", "").strip()
-            
+            if not match.get("retrieved_full_source"):
+                snippet = "Lead only; full source was not retrieved. Do not rely on this without fetching the source.\n\n" + snippet
+
             # Clean snippet markdown
-            snippet = snippet.replace("@@ -1,3 @@ (0 before, 213 after)\n---\n", "")
             
             # Determine alert callout type based on category
             alert_type = "NOTE"
@@ -204,22 +380,44 @@ def main() -> int:
         summary_md += "## No Prior Learnings Found\n\n"
         summary_md += "No relevant past successes, failures, or recurring mistakes were matched for this issue.\n"
 
-    summary_path.write_text(summary_md, encoding="utf-8")
-    print(f"Successfully wrote RECALL_SUMMARY.md to: {summary_path}")
-
-    # Output to stdout
-    print("\n=======================================================")
-    print(f" RECALL SUMMARY FOR {issue_id}")
-    print("=======================================================")
-    if matches:
-        for idx, match in enumerate(matches[:3]):
-            title = match.get("title") or f"Prior Learning {idx+1}"
-            print(f"- [Match {idx+1}] {title} (score: {match.get('score', 0.0):.2f})")
+    summary_written = False
+    write_error = None
+    if args.write_summary:
+        if not claim_valid(issue_payload):
+            write_error = "br claim for current actor/session is missing or invalid"
+            log(f"RECALL_SUMMARY.md not written: {write_error}")
+        else:
+            summary_path.parent.mkdir(parents=True, exist_ok=True)
+            summary_path.write_text(summary_md, encoding="utf-8")
+            summary_written = True
+            log(f"Successfully wrote RECALL_SUMMARY.md to: {summary_path}")
     else:
-        print("- No prior matches found.")
-    print("=======================================================\n")
-    
-    return 0
+        log("RECALL_SUMMARY.md not written; pass --write-summary after claiming the issue to persist it.")
+
+    result = {
+        "status": "success",
+        "issue_id": issue_id,
+        "query": final_query,
+        "qmd_collection": qmd_collection,
+        "qmd_status": "ok" if qmd_code == 0 else "partial" if matches else "failed",
+        "recall_source": recall_source,
+        "summary_path": str(summary_path),
+        "summary_written": summary_written,
+        "matches": [
+            {
+                "title": match.get("title") or Path(str(match.get("file", "unknown"))).stem,
+                "file": match.get("file", "unknown"),
+                "score": match.get("score", 0.0),
+            }
+            for match in matches[:5]
+        ],
+    }
+    if qmd_code != 0:
+        result["qmd_error"] = compact_text(qmd_err)
+    if write_error:
+        result["write_error"] = write_error
+    print(json.dumps(result, indent=2))
+    return 1 if write_error else 0
 
 if __name__ == "__main__":
     sys.exit(main())

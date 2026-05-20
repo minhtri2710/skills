@@ -20,12 +20,11 @@ except ImportError:  # pragma: no cover
 
 SCHEMA_VERSION = "beo-beads/v3"
 HELPER_VERSION = "beo_check.py@beo-beads/v3.0"
-OWNERS = {"beo-plan", "beo-validate", "beo-execute", "beo-review", "beo-debug", "beo-recall", "beo-learn", "beo-author", "beo-setup", "beo-reference"}
+OWNERS = {"beo-plan", "beo-validate", "beo-execute", "beo-review", "beo-debug", "beo-learn", "beo-author", "beo-setup", "beo-reference"}
 DELIVERY_OWNERS = {"beo-plan", "beo-validate", "beo-execute", "beo-review"}
-RUNTIME_EVENT_OWNERS = DELIVERY_OWNERS | {"beo-debug", "beo-recall"}
+RUNTIME_EVENT_OWNERS = DELIVERY_OWNERS | {"beo-debug"}
 ABANDON_REASONS = {"user_cancelled", "pre_mutation_abandon", "post_mutation_preserved", "superseded", "unsafe_environment"}
 DIAGNOSIS_STATUSES = {"root_cause_proven", "diagnosis_inconclusive", "blocker_is_user_owned"}
-RECALL_RESULT_STATUSES = {"memory_recalled", "no_relevant_memory", "memory_unavailable"}
 LEARNING_CASE_TYPES = {"success_pattern", "failure_pattern", "near_miss", "recurring_mistake", "cannot_deliver_pattern", "debug_pattern", "authoring_candidate"}
 PHASE_ALIASES = {
     "plan": "beo-plan",
@@ -33,40 +32,21 @@ PHASE_ALIASES = {
     "execute": "beo-execute",
     "review": "beo-review",
     "debug": "beo-debug",
-    "recall": "beo-recall",
     "beo-plan": "beo-plan",
     "beo-validate": "beo-validate",
     "beo-execute": "beo-execute",
     "beo-review": "beo-review",
     "beo-debug": "beo-debug",
-    "beo-recall": "beo-recall",
 }
 FUTURE_FIELDS = {
     "beo-plan": {"readiness", "approval_ref", "integrity", "execution", "review"},
     "beo-validate": {"execution", "review"},
     "beo-execute": {"review"},
 }
-PROTECTED_PATTERNS = [
-    ".git/**",
-    ".env",
-    ".env.*",
-    "**/.env",
-    "**/.env.*",
-    "secrets/**",
-    "credentials/**",
-    "*.pem",
-    "*.key",
-    "*.p12",
-    "*.pfx",
-    "id_rsa",
-    "id_ed25519",
-    ".beads/beads.db",
-]
+PROTECTED_PATTERNS: list[str] = []
+POSTURE_PROFILES: dict[str, Any] = {}
 MODES = {"quick", "standard", "strict"}
-SIDE_EFFECT_PATTERNS = re.compile(
-    r"\b(deploy|migration|migrate|publish|email|payment|billing)\b|terraform\s+apply|kubectl\s+apply|npm\s+publish|third-party\s+write",
-    re.IGNORECASE,
-)
+SIDE_EFFECT_PATTERNS = re.compile(r"a^", re.IGNORECASE)
 
 
 class DuplicateKeyLoader(yaml.SafeLoader if yaml else object):
@@ -121,12 +101,11 @@ def load_registry(root: Path, name: str) -> dict[str, Any]:
 
 
 def sync_constants_with_registry(root: Path) -> None:
-    global OWNERS, DELIVERY_OWNERS, RUNTIME_EVENT_OWNERS, ABANDON_REASONS, DIAGNOSIS_STATUSES, RECALL_RESULT_STATUSES, LEARNING_CASE_TYPES, FUTURE_FIELDS
+    global OWNERS, DELIVERY_OWNERS, RUNTIME_EVENT_OWNERS, ABANDON_REASONS, DIAGNOSIS_STATUSES, LEARNING_CASE_TYPES, FUTURE_FIELDS, PROTECTED_PATTERNS, POSTURE_PROFILES, MODES, SIDE_EFFECT_PATTERNS
     schema = load_registry(root, "ticket-schema.json")
     if not schema:
         return
 
-    # Derive owners from pipeline.json (canonical home for owner_classes)
     pipeline = load_registry(root, "pipeline.json")
     if pipeline:
         classes = pipeline.get("owner_classes", {})
@@ -142,6 +121,22 @@ def sync_constants_with_registry(root: Path) -> None:
             if "support_runtime" in classes and isinstance(classes["support_runtime"], list):
                 RUNTIME_EVENT_OWNERS = DELIVERY_OWNERS | set(str(o) for o in classes["support_runtime"])
 
+    profiles = load_registry(root, "profiles.json")
+    if profiles:
+        modes = profiles.get("modes")
+        if isinstance(modes, dict) and modes:
+            MODES = set(str(mode) for mode in modes)
+        protected = profiles.get("protected_path_defaults")
+        if isinstance(protected, list):
+            PROTECTED_PATTERNS = [str(pattern) for pattern in protected]
+        postures = profiles.get("posture_profiles")
+        if isinstance(postures, dict):
+            POSTURE_PROFILES = postures
+        side_effects = profiles.get("side_effect_command_patterns")
+        if isinstance(side_effects, list) and side_effects:
+            escaped = [re.escape(str(pattern)).replace(r"\ ", r"\s+") for pattern in side_effects]
+            SIDE_EFFECT_PATTERNS = re.compile(r"\b(" + "|".join(escaped) + r")\b", re.IGNORECASE)
+
     event = schema.get("runtime_event", {})
     if isinstance(event, dict):
         reasons = event.get("abandon_reason")
@@ -150,9 +145,6 @@ def sync_constants_with_registry(root: Path) -> None:
         statuses = event.get("diagnosis_status")
         if isinstance(statuses, list):
             DIAGNOSIS_STATUSES = set(str(s) for s in statuses)
-        recall = event.get("recall_result_status")
-        if isinstance(recall, list):
-            RECALL_RESULT_STATUSES = set(str(s) for s in recall)
 
     future = schema.get("future_owned_field_rule")
     if isinstance(future, dict):
@@ -418,14 +410,10 @@ def expanded_posture(ticket: dict[str, Any]) -> dict[str, Any]:
     if posture is None and ticket.get("mode") == "quick":
         posture = "repo_only_low_risk"
     expanded: dict[str, Any] = {}
-    if posture == "repo_only_low_risk":
-        expanded.update({
-            "generated_outputs": [],
-            "external_side_effects": {"status": "none", "effects": []},
-            "stateful_external_systems": {"status": "none", "systems": []},
-            "risk_scope": "low: bounded edits to declared repo files only",
-            "rollback_boundary": "revert_declared_file_changes",
-        })
+    if isinstance(POSTURE_PROFILES, dict):
+        profile = POSTURE_PROFILES.get(str(posture))
+        if isinstance(profile, dict) and isinstance(profile.get("expands"), dict):
+            expanded.update(profile["expands"])
     for key in ["generated_outputs", "external_side_effects", "stateful_external_systems", "risk_scope", "rollback_boundary"]:
         if key in ticket:
             expanded[key] = ticket[key]
@@ -570,7 +558,6 @@ def validate_runtime_events(ticket: dict[str, Any], issue_id: str, root: Path | 
     latest_debug_return_index: int | None = None
     latest_review_route_index: int | None = None
     required = ["id", "kind", "created_at", "owner", "issue_id", "condition_id", "basis_ref", "message"]
-    recall_callers = DELIVERY_OWNERS | {"beo-debug"}
     review_route_conditions = {"repair_same_scope", "repair_rescope", "cannot_deliver", "abandoned", "root_cause_diagnosis_needed", "repair_budget_exceeded", "entry_blocked_execution_evidence_incomplete"}
     for index, event in enumerate(events):
         prefix = f"runtime_events[{index}]"
@@ -585,7 +572,7 @@ def validate_runtime_events(ticket: dict[str, Any], issue_id: str, root: Path | 
         if event.get("issue_id") and event.get("issue_id") != issue_id:
             errors.append(f"{prefix}.issue_id must match selected bead")
         if kind == "handoff":
-            if subtype not in {"debug", "recall"}:
+            if subtype != "debug":
                 errors.append(f"{prefix}.subtype is not registered for handoff: {subtype}")
             for field in ["caller_owner", "return_to"]:
                 if not event.get(field):
@@ -598,17 +585,12 @@ def validate_runtime_events(ticket: dict[str, Any], issue_id: str, root: Path | 
                         errors.append(f"{prefix}.{field} is required for debug handoff")
                 if event.get("caller_owner") not in {"beo-execute", "beo-review"}:
                     errors.append(f"{prefix}.caller_owner must be beo-execute or beo-review for debug handoff")
-            elif subtype == "recall":
-                if not event.get("query"):
-                    errors.append(f"{prefix}.query is required for recall handoff")
-                if event.get("caller_owner") not in recall_callers:
-                    errors.append(f"{prefix}.caller_owner is not allowed for recall handoff")
             if isinstance(subtype, str):
                 latest_handoff[subtype] = event
         elif kind == "return":
-            if subtype not in {"debug", "recall"}:
+            if subtype != "debug":
                 errors.append(f"{prefix}.subtype is not registered for return: {subtype}")
-            expected_owner = {"debug": "beo-debug", "recall": "beo-recall"}.get(str(subtype))
+            expected_owner = {"debug": "beo-debug"}.get(str(subtype))
             if expected_owner and owner != expected_owner:
                 errors.append(f"{prefix}.owner must be {expected_owner} for {subtype} return")
             for field in ["caller_owner", "return_to"]:
@@ -630,17 +612,6 @@ def validate_runtime_events(ticket: dict[str, Any], issue_id: str, root: Path | 
                 if handoff is not None and event.get("return_condition_id") != handoff.get("return_condition_id"):
                     errors.append(f"{prefix}.return_condition_id must match latest debug handoff")
                 latest_debug_return_index = index
-            elif subtype == "recall":
-                for field in ["result_status", "recall_ref"]:
-                    if not event.get(field):
-                        errors.append(f"{prefix}.{field} is required for recall return")
-                if event.get("result_status") not in RECALL_RESULT_STATUSES:
-                    errors.append(f"{prefix}.result_status is not registered")
-                expected = f".beads/artifacts/{issue_id}/recall/RECALL_SUMMARY.md"
-                if event.get("recall_ref") and event.get("recall_ref") != expected:
-                    errors.append(f"{prefix}.recall_ref must point to canonical RECALL_SUMMARY.md")
-                if root is not None and event.get("recall_ref") == expected and not (root / expected).exists():
-                    errors.append(f"{prefix}.recall_ref file is missing")
         elif kind == "abandon":
             if event.get("abandon_reason") not in ABANDON_REASONS:
                 errors.append(f"{prefix}.abandon_reason is required and must be registered")
@@ -1163,6 +1134,8 @@ def main(argv: list[str]) -> int:
     if args.check in {"validate", "execute", "review"} and ticket:
         errors.extend(validate_plan(root, ticket, issue))
     if args.check == "validate" and ticket:
+        if not claim_valid(issue):
+            errors.append("br claim for current actor/session is missing or invalid")
         errors.extend(validate_same_scope_repair_request(ticket))
         overlap_errors, overlap_warnings = active_scope_conflicts(root, ticket)
         errors.extend(overlap_errors)
