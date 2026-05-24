@@ -1,0 +1,3 @@
+# Make BEO registry and doctrine canonical
+
+BEO workflow authority lives in the shared registries under `skills/beo/reference/registry/` and shared doctrine under `skills/beo/reference/references/`; individual `SKILL.md` files should become thin operator cards that point to those canonical contracts instead of carrying duplicate local routing, lifecycle, or template material. BEO skills are only promised to be repo-local parts of the full `skills/beo` package, not isolated standalone exports. This trades some standalone portability for lower drift risk and clearer workflow authority, and refactors should rewrite operator cards before deleting or generating duplicate local references.

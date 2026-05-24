@@ -16,8 +16,23 @@
     "Obsidian CLI writes are advisory learning notes only and fall back to local markdown on failure.",
     "qmd query is read-only advisory memory retrieval.",
     "qmd index mutations are memory maintenance only: explicit setup maintenance or beo-learn post-write refresh/add. They never grant delivery authority.",
+    "beo-recall is an internal helper identity for read-only qmd hydration behind beo.recall and beo.recall.write_summary; it is not a loadable owner, cannot appear in pipeline owners, and never grants approval, execution permission, verdicts, closure, or Human Gate resolution.",
     "Strict external side-effect commands fail closed until explicitly contracted."
   ],
+  "internal_helpers": {
+    "beo-recall": {
+      "loadable_owner": false,
+      "entry_commands": ["beo.recall", "beo.recall.write_summary"],
+      "may_use_commands": ["qmd.query", "qmd.get"],
+      "authority": "Read-only qmd hydration for advisory recall summaries only.",
+      "may_grant_approval": false,
+      "may_grant_review_verdict": false,
+      "may_grant_execution_permission": false,
+      "may_close_issues": false,
+      "may_resolve_human_gates": false,
+      "writes": []
+    }
+  },
   "commands": [
     {
       "command_id": "br.capabilities",
@@ -46,7 +61,7 @@
       "kind": "read",
       "command": "br ready --json",
       "argv": ["br", "ready", "--json"],
-      "owner_allow": ["beo-plan", "beo-execute", "beo-review", "beo-setup"],
+      "owner_allow": ["beo-plan", "beo-setup"],
       "authority": "Canonical ready queue and dependency-unblocked work discovery.",
       "output_format": "json",
       "writes": []
@@ -86,8 +101,8 @@
       "kind": "write",
       "command": "br update --actor <actor> <issue-id> --claim --json",
       "argv": ["br", "update", "--actor", "{actor}", "{issue_id}", "--claim", "--json"],
-      "owner_allow": ["beo-plan", "beo-validate", "beo-execute", "beo-review", "beo-debug"],
-      "authority": "Atomic claim before requirement ticket mutation, material decomposition, approval writes, product mutation, review/debug-owned writes, or closure.",
+      "owner_allow": ["beo-plan"],
+      "authority": "Atomic claim before decomposition, TICKET.md write, or planning comments. Later phases verify claim; only explicit resume may re-claim.",
       "output_format": "json",
       "writes": [".beads/beads.db", ".beads/issues.jsonl via auto-flush unless disabled"]
     },
@@ -170,8 +185,8 @@
       "kind": "read",
       "command": "bv --robot-next -f json --no-cache",
       "argv": ["bv", "--robot-next", "-f", "json", "--no-cache"],
-      "owner_allow": ["beo-plan", "beo-review"],
-      "authority": "Next atomic bead orientation after closure.",
+      "owner_allow": ["beo-plan"],
+      "authority": "Next atomic bead orientation for planning only. Review uses bv.robot_insights if graph risk affects closure.",
       "evidence_capture": ["data_hash", "status", "as_of", "as_of_commit"],
       "output_format": "json",
       "writes": []
@@ -200,7 +215,9 @@
     },
     {
       "command_id": "beo.check",
-      "kind": "read_write_evidence",
+      "kind": "write_evidence",
+      "mutation_scope": "evidence_only",
+      "operation_class": "maintenance",
       "command": "python3 skills/beo/reference/scripts/beo_check.py --check <identity|validate|execute|review> --issue <issue-id> [--phase <owner>]",
       "argv": ["python3", "skills/beo/reference/scripts/beo_check.py", "--check", "{check}", "--issue", "{issue_id}"],
       "optional_argv": ["--phase", "{phase}"],
@@ -229,6 +246,26 @@
       "write_boundary": "$BEO_OBSIDIAN_VAULT/beo-learnings/"
     },
     {
+      "command_id": "obsidian.vaults",
+      "optional": true,
+      "kind": "read",
+      "command": "obsidian vaults --verbose",
+      "argv": ["obsidian", "vaults", "--verbose"],
+      "owner_allow": ["beo-setup"],
+      "authority": "List all configured/registered Obsidian vaults.",
+      "writes": []
+    },
+    {
+      "command_id": "obsidian.vault.info",
+      "optional": true,
+      "kind": "read",
+      "command": "obsidian vault=<vault_name> vault info=path",
+      "argv": ["obsidian", "vault={vault_name}", "vault", "info=path"],
+      "owner_allow": ["beo-setup"],
+      "authority": "Fetch specific Obsidian vault metadata like path.",
+      "writes": []
+    },
+    {
       "command_id": "beo.memory_write",
       "kind": "write_memory",
       "command": "python3 skills/beo/reference/scripts/beo_memory_write.py --issue <issue-id> --case-type <case-type> --slug <safe-note-slug> --markdown-file <path>",
@@ -252,6 +289,8 @@
     {
       "command_id": "beo.setup.configure_memory",
       "kind": "write_memory_index",
+      "mutation_scope": "memory_index_only",
+      "operation_class": "memory_index_maintenance",
       "command": "python3 skills/beo/reference/scripts/beo_setup.py --configure-memory",
       "argv": ["python3", "skills/beo/reference/scripts/beo_setup.py", "--configure-memory"],
       "owner_allow": ["beo-setup"],
@@ -262,6 +301,8 @@
     {
       "command_id": "beo.setup.refresh_memory_index",
       "kind": "write_memory_index",
+      "mutation_scope": "memory_index_only",
+      "operation_class": "memory_index_maintenance",
       "command": "python3 skills/beo/reference/scripts/beo_setup.py --refresh-memory-index",
       "argv": ["python3", "skills/beo/reference/scripts/beo_setup.py", "--refresh-memory-index"],
       "owner_allow": ["beo-setup"],
@@ -282,6 +323,7 @@
     {
       "command_id": "beo.recall.write_summary",
       "kind": "write_evidence",
+      "mutation_scope": "evidence_only",
       "command": "python3 skills/beo/reference/scripts/beo_recall.py --issue <issue-id> --write-summary",
       "argv": ["python3", "skills/beo/reference/scripts/beo_recall.py", "--issue", "{issue_id}", "--write-summary"],
       "owner_allow": ["beo-plan", "beo-execute", "beo-review", "beo-debug"],
@@ -294,8 +336,8 @@
       "kind": "read",
       "command": "qmd query <query> --json -n <n> -c <collection>",
       "argv": ["qmd", "query", "{query}", "--json", "-n", "{limit}", "-c", "{collection}"],
-      "owner_allow": ["beo-plan", "beo-execute", "beo-review", "beo-debug", "beo-learn", "beo-author"],
-      "authority": "Read-only retrieval of prior learning notes and playbooks.",
+      "owner_allow": ["beo-debug", "beo-learn", "beo-author", "beo-setup", "beo-recall"],
+      "authority": "Read-only retrieval of prior learning notes and playbooks. Includes the internal beo-recall helper, which is not a loadable owner, for qmd hydration behind beo.recall commands.",
       "output_format": "json",
       "writes": []
     },
@@ -304,7 +346,7 @@
       "kind": "read",
       "command": "qmd status",
       "argv": ["qmd", "status"],
-      "owner_allow": ["beo-setup", "beo-plan", "beo-execute", "beo-review", "beo-debug", "beo-learn", "beo-author"],
+      "owner_allow": ["beo-setup", "beo-debug", "beo-learn", "beo-author"],
       "authority": "Read-only qmd index health and collection orientation.",
       "writes": []
     },
@@ -313,7 +355,7 @@
       "kind": "read",
       "command": "qmd collection list",
       "argv": ["qmd", "collection", "list"],
-      "owner_allow": ["beo-setup", "beo-plan", "beo-execute", "beo-review", "beo-debug", "beo-learn", "beo-author"],
+      "owner_allow": ["beo-setup", "beo-debug", "beo-learn", "beo-author"],
       "authority": "Read-only qmd collection discovery before query or memory maintenance.",
       "writes": []
     },
@@ -322,14 +364,15 @@
       "kind": "read",
       "command": "qmd get <path-or-docid>",
       "argv": ["qmd", "get", "{path_or_docid}"],
-      "owner_allow": ["beo-plan", "beo-execute", "beo-review", "beo-debug", "beo-learn", "beo-author"],
-      "authority": "Read-only retrieval of indexed learning note contents by path or docid.",
+      "owner_allow": ["beo-debug", "beo-learn", "beo-author", "beo-setup", "beo-recall"],
+      "authority": "Read-only retrieval of indexed learning note contents by path or docid. Includes the internal beo-recall helper, which is not a loadable owner, for qmd hydration behind beo.recall commands.",
       "writes": []
     },
     {
       "command_id": "qmd.index.update",
       "optional": true,
       "kind": "write_memory_index",
+      "mutation_scope": "memory_index_only",
       "command": "qmd update",
       "argv": ["qmd", "update"],
       "owner_allow": ["beo-setup", "beo-learn"],
@@ -344,6 +387,7 @@
       "command_id": "qmd.index.embed",
       "optional": true,
       "kind": "write_memory_index",
+      "mutation_scope": "memory_index_only",
       "command": "qmd embed",
       "argv": ["qmd", "embed"],
       "owner_allow": ["beo-setup", "beo-learn"],
@@ -358,6 +402,7 @@
       "command_id": "qmd.collection.add_obsidian_vault",
       "optional": true,
       "kind": "write_memory_index",
+      "mutation_scope": "memory_index_only",
       "command": "qmd collection add <vault>/beo-learnings --name <collection> --mask '**/*.md'",
       "argv": ["qmd", "collection", "add", "{vault_learning_dir}", "--name", "{collection}", "--mask", "**/*.md"],
       "owner_allow": ["beo-setup", "beo-learn"],
@@ -365,7 +410,78 @@
       "writes": ["qmd local config/index"],
       "operation_class": "memory_index_maintenance",
       "auto_index_allowed_after_learning_write": true,
-      "delivery_setup_auto_index_allowed": false
+      "delivery_setup_auto_index_allowed": false,
+      "explicit_user_authorization_required_for_setup": true
+    },
+    {
+      "command_id": "beo.reservation.reserve",
+      "kind": "write",
+      "command": "python3 skills/beo/reference/scripts/beo_reservation.py reserve --issue <issue_id> --paths <paths>",
+      "argv": ["python3", "skills/beo/reference/scripts/beo_reservation.py", "reserve", "--issue", "{issue_id}", "--paths", "{paths}"],
+      "owner_allow": ["beo-plan"],
+      "authority": "Acquire or supersede a path reservation lease for an issue.",
+      "writes": [".beads/beo-reservations.jsonl"]
+    },
+    {
+      "command_id": "beo.reservation.check",
+      "kind": "read_gc_expired",
+      "mutation_scope": "reservation_log_only",
+      "operation_class": "maintenance",
+      "command": "python3 skills/beo/reference/scripts/beo_reservation.py check --issue <issue_id> --paths <paths>",
+      "argv": ["python3", "skills/beo/reference/scripts/beo_reservation.py", "check", "--issue", "{issue_id}", "--paths", "{paths}"],
+      "owner_allow": ["beo-plan", "beo-validate"],
+      "authority": "Check path list for conflicts against active reservations and expire stale leases.",
+      "writes": [".beads/beo-reservations.jsonl"]
+    },
+    {
+      "command_id": "beo.reservation.renew",
+      "kind": "write",
+      "command": "python3 skills/beo/reference/scripts/beo_reservation.py renew --issue <issue_id> --reservation-id <reservation_id>",
+      "argv": ["python3", "skills/beo/reference/scripts/beo_reservation.py", "renew", "--issue", "{issue_id}", "--reservation-id", "{reservation_id}"],
+      "owner_allow": ["beo-execute"],
+      "authority": "Renew an active path reservation lease for the same issue and actor during long-running execution.",
+      "writes": [".beads/beo-reservations.jsonl"]
+    },
+    {
+      "command_id": "beo.reservation.release",
+      "kind": "write",
+      "command": "python3 skills/beo/reference/scripts/beo_reservation.py release --issue <issue_id> --reason <reason>",
+      "argv": ["python3", "skills/beo/reference/scripts/beo_reservation.py", "release", "--issue", "{issue_id}", "--reason", "{reason}"],
+      "owner_allow": ["beo-review"],
+      "authority": "Release path reservations for an issue.",
+      "writes": [".beads/beo-reservations.jsonl"]
+    },
+    {
+      "command_id": "beo.reservation.gc",
+      "kind": "write",
+      "command": "python3 skills/beo/reference/scripts/beo_reservation.py gc",
+      "argv": ["python3", "skills/beo/reference/scripts/beo_reservation.py", "gc"],
+      "owner_allow": ["beo-setup"],
+      "authority": "Garbage collect expired path reservations.",
+      "writes": [".beads/beo-reservations.jsonl"]
+    },
+    {
+      "command_id": "beo.reservation.list",
+      "kind": "read_gc_expired",
+      "mutation_scope": "reservation_log_only",
+      "operation_class": "maintenance",
+      "command": "python3 skills/beo/reference/scripts/beo_reservation.py list",
+      "argv": ["python3", "skills/beo/reference/scripts/beo_reservation.py", "list"],
+      "owner_allow": ["beo-plan", "beo-validate", "beo-execute", "beo-review", "beo-debug", "beo-setup"],
+      "authority": "List active path reservations and expire stale leases.",
+      "writes": [".beads/beo-reservations.jsonl"]
+    },
+    {
+      "command_id": "beo.status",
+      "kind": "write_evidence",
+      "mutation_scope": "evidence_only",
+      "operation_class": "maintenance",
+      "command": "python3 skills/beo/reference/scripts/beo_check.py --check status --issue <issue-id>",
+      "argv": ["python3", "skills/beo/reference/scripts/beo_check.py", "--check", "status", "--issue", "{issue_id}"],
+      "owner_allow": ["beo-plan", "beo-validate", "beo-execute", "beo-review", "beo-debug", "beo-setup", "beo-learn", "beo-author"],
+      "authority": "Generate comprehensive BEO status report and persist status evidence.",
+      "output_format": "json",
+      "writes": [".beads/artifacts/<issue-id>/checks/<run-id>.json"]
     }
   ],
   "strict_side_effects": {
@@ -382,5 +498,37 @@
       "billing": ["type", "target", "authorization_ref", "precheck", "rollback_or_compensation", "postcheck", "blast_radius"],
       "destructive_operation": ["type", "target", "authorization_ref", "precheck", "rollback_or_compensation", "postcheck", "blast_radius"]
     }
+  },
+  "review_routing_policy": {
+    "description": "beo-review repair and terminal routing rules.",
+    "repair_routes": {
+      "repair_same_scope": {
+        "to": "beo-validate",
+        "rule": "Within-scope code refinement only; no scope/acceptance/gates/side-effects change.",
+        "increments_repair_counter": true,
+        "required_evidence": ["requested_by", "finding_refs", "prior_approval_ref", "unchanged_boundaries"]
+      },
+      "repair_rescope": {
+        "to": "beo-plan",
+        "rule": "Scope, acceptance, gates, or side effects must change; returns to planning.",
+        "increments_repair_counter": true,
+        "required_evidence": ["requested_by", "finding_refs", "rescope_reason"]
+      }
+    },
+    "terminal_routes": {
+      "repair_budget_exceeded": {
+        "to": "user",
+        "rule": "Mode repair budget exhausted; routes to user with current repair_counter and mode_budget for explicit continuation, cannot_deliver, or issue reassignment decision.",
+        "required_evidence": ["repair_counter", "mode_budget", "exceeded_at"]
+      },
+      "cannot_deliver": {
+        "to": "user",
+        "rule": "Terminal delivery blocker; requires registered cannot_deliver_reason from ticket-schema.json cannot_deliver_reasons taxonomy.",
+        "required_reason": true,
+        "registered_reasons": ["user_owned", "unsafe_environment", "unavailable_dependency", "scope_invalid", "tool_missing"]
+      }
+    },
+    "repair_counter_rule": "Review tracks repair_counter in state.json; increments on each repair route; resets only on new PASS_EXECUTE after user-driven plan restart or issue reassignment.",
+    "budget_check_rule": "Before emitting repair route, review checks repair_counter < mode_budget from profiles.json repair_budget_policy; budget exceeded routes to user, never auto-abandons."
   }
 }

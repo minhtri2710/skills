@@ -3,6 +3,7 @@ schema_version: beo-beads/v3
 issue_id: <br-id>
 mode: strict
 request: <bounded request>
+done_target: <single atomic completion target>
 done:
   - <completion criterion>
 human_gates:

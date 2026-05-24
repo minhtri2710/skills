@@ -19,6 +19,30 @@
       "forbids": ["quick posture shorthand", "implicit side effects", "uncontracted side-effect commands"]
     }
   },
+  "reservation_policy": {
+    "canonical_authority": "profiles.json",
+    "default": "conflict_check_only",
+    "require_current_reservation_when": [
+      "mode_is_strict",
+      "parallel_execution_risk_declared",
+      "active_overlap_or_concurrency_risk_detected",
+      "broad_scope_authorized_by_human_gate"
+    ],
+    "modes": {
+      "quick": {
+        "default_current_reservation": false,
+        "require_when": ["active_overlap_or_concurrency_risk_detected", "parallel_execution_risk_declared", "broad_scope_authorized_by_human_gate"]
+      },
+      "standard": {
+        "default_current_reservation": false,
+        "require_when": ["active_overlap_or_concurrency_risk_detected", "parallel_execution_risk_declared", "broad_scope_authorized_by_human_gate"]
+      },
+      "strict": {
+        "default_current_reservation": true,
+        "require_when": ["always"]
+      }
+    }
+  },
   "independence_policy": {
     "quick": {
       "same_actor_allowed": true,
@@ -32,6 +56,23 @@
       "same_actor_allowed": "false_by_default",
       "requires": ["separate_validate_or_review_actor", "explicit_human_override"]
     }
+  },
+  "repair_budget_policy": {
+    "description": "Maximum repair attempts per mode before repair_budget_exceeded terminal route.",
+    "quick": {
+      "budget": 1,
+      "reason": "quick mode is for simple low-risk changes; one repair attempt is sufficient"
+    },
+    "standard": {
+      "budget": 2,
+      "reason": "standard mode allows moderate complexity; two repair attempts balance convergence and cost"
+    },
+    "strict": {
+      "budget": "explicit",
+      "reason": "strict mode requires explicit repair budget in ticket or authorization gate; default is human confirmation per repair"
+    },
+    "counter_rule": "Repair counter increments on each repair route from beo-review (repair_same_scope, repair_rescope). Counter resets only on new PASS_EXECUTE after user-driven plan restart or issue reassignment.",
+    "terminal_route": "repair_budget_exceeded routes to user with current repair count and mode budget for explicit continuation or cannot_deliver decision."
   },
   "flow_profiles": {
     "tiny_repo_edit": {

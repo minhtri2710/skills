@@ -1,5 +1,4 @@
 # beads runtime (auto-created by br daemon)
-.beads/
 
 # tool caches
 .cass/
@@ -9,3 +8,5 @@
 
 # generated skill evaluation workspaces
 skills/*-workspace/
+# br doctor per-run artifacts
+.doctor/

@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 import argparse
 import json
+import os
 import re
 import sys
 from pathlib import Path
 
-# Add script directory to sys.path for importing beo_utils
 sys.path.insert(0, str(Path(__file__).parent))
 import beo_utils
-import os
+from beo_command import CommandAdapter
 
 
 def explicitly_configured_vault() -> bool:
@@ -34,6 +34,8 @@ def main() -> int:
     parser.add_argument("--configure-memory", action="store_true", help="Create the learning directory and qmd collection when missing.")
     parser.add_argument("--refresh-memory-index", action="store_true", help="Run qmd index/embed maintenance for configured learning notes.")
     args = parser.parse_args()
+
+    adapter = CommandAdapter(Path(".").resolve())
 
     results = {
         "status": "success",
@@ -67,26 +69,40 @@ def main() -> int:
     if results["dependencies"].get("obsidian") == "missing":
         results["vault"]["status"] = "memory_unavailable"
     else:
-        code, out, err = beo_utils.run_cmd(["obsidian", "vaults", "--verbose"])
+        try:
+            obsidian_vaults_argv = adapter.build_argv("obsidian.vaults", owner="beo-setup")
+        except Exception as exc:
+            warn(results, f"CommandAdapter failed to build obsidian.vaults argv: {exc}")
+            obsidian_vaults_argv = []
+        code, out, err = beo_utils.run_cmd(obsidian_vaults_argv) if obsidian_vaults_argv else (1, "", "CommandAdapter failed")
         if code != 0:
             results["vault"]["status"] = "degraded"
             warn(results, "Failed to list vaults via obsidian CLI")
         else:
             vaults = out.split("\n")
-            if vault_name in vaults:
+            if vault_name and vault_name in vaults:
                 results["vault"]["name"] = vault_name
-                p_code, p_out, p_err = beo_utils.run_cmd(["obsidian", f"vault={vault_name}", "vault", "info=path"])
+                try:
+                    obsidian_info_argv = adapter.build_argv("obsidian.vault.info", owner="beo-setup", vault_name=vault_name)
+                except Exception as exc:
+                    warn(results, f"CommandAdapter failed to build obsidian.vault.info argv: {exc}")
+                    obsidian_info_argv = []
+                p_code, p_out, p_err = beo_utils.run_cmd(obsidian_info_argv) if obsidian_info_argv else (1, "", "CommandAdapter failed")
                 if p_code == 0:
                     vault_path = Path(p_out)
                     learning_dir = vault_path / "beo-learnings"
-            else:
+            elif vault_name:
                 warn(results, f"Vault '{vault_name}' not found in registered obsidian vaults: {vaults}")
 
-    results["vault"]["path"] = str(vault_path)
-    results["vault"]["learning_dir"] = str(learning_dir)
+    results["vault"]["path"] = str(vault_path) if vault_path else None
+    results["vault"]["learning_dir"] = str(learning_dir) if learning_dir else None
 
     vault_configured = explicitly_configured_vault()
-    if learning_dir.exists() and learning_dir.is_dir():
+    if learning_dir is None:
+        results["vault"].update({"exists": False, "needs_configuration": True})
+        if args.configure_memory:
+            warn(results, "BEO_OBSIDIAN_VAULT and BEO_OBSIDIAN_VAULT_NAME or BEO_OBSIDIAN_VAULT_ID are required before creating beo-learnings")
+    elif learning_dir.exists() and learning_dir.is_dir():
         results["vault"]["exists"] = True
         if args.configure_memory and not vault_configured:
             warn(results, "BEO_OBSIDIAN_VAULT and BEO_OBSIDIAN_VAULT_NAME or BEO_OBSIDIAN_VAULT_ID are required before configuring beo-learnings")
@@ -105,8 +121,17 @@ def main() -> int:
     else:
         results["vault"].update({"exists": False, "needs_configuration": True})
 
-    if results["dependencies"].get("qmd") != "missing":
-        code, out, err = beo_utils.run_cmd(["qmd", "collection", "list"])
+    if results["dependencies"].get("qmd") != "missing" and not qmd_collection:
+        results["qmd_collection"].update({"name": None, "exists": False, "needs_configuration": True})
+        warn(results, "BEO_QMD_COLLECTION or an Obsidian vault name is required before configuring qmd memory")
+
+    if results["dependencies"].get("qmd") != "missing" and qmd_collection:
+        try:
+            qmd_list_argv = adapter.build_argv("qmd.collection.list", owner="beo-setup")
+        except Exception as exc:
+            warn(results, f"CommandAdapter failed to build qmd.collection.list argv: {exc}")
+            qmd_list_argv = []
+        code, out, err = beo_utils.run_cmd(qmd_list_argv) if qmd_list_argv else (1, "", "CommandAdapter failed")
         if code == 0:
             if collection_exists(out, qmd_collection):
                 results["qmd_collection"].update({"name": qmd_collection, "exists": True})
@@ -115,9 +140,17 @@ def main() -> int:
                     warn(results, "qmd collection was not added because explicit vault configuration is required")
                     results["qmd_collection"].update({"name": qmd_collection, "exists": False, "needs_configuration": True})
                 else:
-                    add_code, add_out, add_err = beo_utils.run_cmd([
-                        "qmd", "collection", "add", str(learning_dir), "--name", qmd_collection, "--mask", "**/*.md"
-                    ])
+                    try:
+                        qmd_add_argv = adapter.build_argv(
+                            "qmd.collection.add_obsidian_vault",
+                            owner="beo-setup",
+                            vault_learning_dir=str(learning_dir),
+                            collection=qmd_collection
+                        )
+                    except Exception as exc:
+                        warn(results, f"CommandAdapter failed to build qmd.collection.add_obsidian_vault argv: {exc}")
+                        qmd_add_argv = []
+                    add_code, add_out, add_err = beo_utils.run_cmd(qmd_add_argv) if qmd_add_argv else (1, "", "CommandAdapter failed")
                     if add_code == 0:
                         results["qmd_collection"].update({"name": qmd_collection, "exists": True, "added": True})
                     else:
@@ -128,18 +161,33 @@ def main() -> int:
 
             if results["qmd_collection"].get("exists"):
                 if args.refresh_memory_index:
-                    u_code, u_out, u_err = beo_utils.run_cmd(["qmd", "update"])
+                    try:
+                        qmd_update_argv = adapter.build_argv("qmd.index.update", owner="beo-setup")
+                    except Exception as exc:
+                        warn(results, f"CommandAdapter failed to build qmd.index.update argv: {exc}")
+                        qmd_update_argv = []
+                    u_code, u_out, u_err = beo_utils.run_cmd(qmd_update_argv) if qmd_update_argv else (1, "", "CommandAdapter failed")
                     results["qmd_collection"]["index_refreshed"] = u_code == 0
                     if u_code != 0:
                         warn(results, f"Failed to run qmd update: {u_err}")
-                s_code, s_out, s_err = beo_utils.run_cmd(["qmd", "status"])
+                try:
+                    qmd_status_argv = adapter.build_argv("qmd.status", owner="beo-setup")
+                except Exception as exc:
+                    warn(results, f"CommandAdapter failed to build qmd.status argv: {exc}")
+                    qmd_status_argv = []
+                s_code, s_out, s_err = beo_utils.run_cmd(qmd_status_argv) if qmd_status_argv else (1, "", "CommandAdapter failed")
                 if s_code == 0:
                     results["qmd_collection"]["status"] = "indexed"
                     pending_match = re.search(r"Pending:\s*(\d+)\s+need\s+embedding", s_out)
                     pending_count = int(pending_match.group(1)) if pending_match else 0
                     results["qmd_collection"]["pending_embeddings"] = pending_count
                     if pending_count > 0 and args.refresh_memory_index:
-                        emb_code, emb_out, emb_err = beo_utils.run_cmd(["qmd", "embed"])
+                        try:
+                            qmd_embed_argv = adapter.build_argv("qmd.index.embed", owner="beo-setup")
+                        except Exception as exc:
+                            warn(results, f"CommandAdapter failed to build qmd.index.embed argv: {exc}")
+                            qmd_embed_argv = []
+                        emb_code, emb_out, emb_err = beo_utils.run_cmd(qmd_embed_argv) if qmd_embed_argv else (1, "", "CommandAdapter failed")
                         if emb_code == 0:
                             results["qmd_collection"].update({"embeddings_refreshed": True, "pending_embeddings": 0})
                         else:

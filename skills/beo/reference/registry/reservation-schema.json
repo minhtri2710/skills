@@ -1,0 +1,27 @@
+{
+  "schema": "beo-reservation/v1",
+  "storage": ".beads/beo-reservations.jsonl",
+  "entry_fields": {
+    "reservation_id": "Unique ID: res-<sha1(random)[:8]>",
+    "issue_id": "Beads issue ID this reservation belongs to",
+    "actor": "Agent identity from BEO_ACTOR / BR_ACTOR",
+    "paths": "List of paths being reserved",
+    "created_at": "ISO-8601 UTC timestamp",
+    "expires_at": "ISO-8601 UTC timestamp (TTL-based lease)",
+    "status": "active | released | expired",
+    "released_at": "ISO-8601 UTC timestamp (set on release)",
+    "release_reason": "executed | abandoned | cannot_deliver | expired | superseded",
+    "renew_rule": "Only active, unexpired reservations for the same issue and actor can be renewed"
+  },
+  "lease_ttl_seconds": 3600,
+  "rules": [
+    "profiles.json reservation_policy is canonical for when a current reservation is required",
+    "beo-plan creates reservation when the selected profile or risk context requires it",
+    "beo-validate always checks active reservations for conflicts and requires a current reservation only when profile policy requires it",
+    "reservation actor must match the Beads claim actor via BEO_ACTOR / BR_ACTOR",
+    "beo-review releases reservation on verdict (accept/abandon/cannot_deliver)",
+    "beo-execute renews active reservations before long-running mutation or verification",
+    "Expired reservations are auto-released on next check",
+    "Reservations use same path_tokens_overlap() logic as active_scope_conflicts()"
+  ]
+}

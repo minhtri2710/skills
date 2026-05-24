@@ -1,12 +1,324 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://beo.local/registry.schema.json",
-  "description": "Lightweight schema anchor for registry $schema references. Semantic validation is implemented by skills/beo/reference/scripts/beo_registry_check.py.",
+  "description": "Registry schema anchor. Semantic validation is implemented by beo-reference -> scripts/beo_registry_check.py reading declared command contract metadata.",
   "definitions": {
     "approval-envelope": {"type": "object"},
-    "command-contracts": {"type": "object"},
-    "pipeline": {"type": "object"},
-    "profile-registry": {"type": "object"},
-    "ticket-schema": {"type": "object"}
+    "command-contracts": {
+      "type": "object",
+      "properties": {
+        "internal_helpers": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "required": ["loadable_owner", "entry_commands", "may_use_commands", "authority", "writes"],
+            "properties": {
+              "loadable_owner": {"const": false},
+              "entry_commands": {"type": "array", "items": {"type": "string"}},
+              "may_use_commands": {"type": "array", "items": {"type": "string"}},
+              "authority": {"type": "string"},
+              "may_grant_approval": {"const": false},
+              "may_grant_review_verdict": {"const": false},
+              "may_grant_execution_permission": {"const": false},
+              "may_close_issues": {"const": false},
+              "may_resolve_human_gates": {"const": false},
+              "writes": {"type": "array", "items": {"type": "string"}}
+            }
+          }
+        },
+        "commands": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["command_id", "kind", "command", "argv", "owner_allow", "authority"],
+            "properties": {
+              "command_id": {"type": "string"},
+              "kind": {
+                "enum": ["read", "write", "write_evidence", "write_memory", "write_memory_index", "read_gc_expired"]
+              },
+              "mutation_scope": {
+                "enum": ["none", "lifecycle_only", "reservation_log_only", "evidence_only", "memory_index_only", "product_files"]
+              },
+              "operation_class": {
+                "enum": ["triage", "discovery", "maintenance", "delivery", "learning", "memory_index_maintenance"]
+              },
+              "authority": {"type": "string"},
+              "writes": {
+                "type": "array",
+                "items": {"type": "string"}
+              },
+              "owner_allow": {
+                "type": "array",
+                "items": {"type": "string"}
+              }
+            }
+          }
+        }
+      }
+    },
+    "pipeline": {
+      "type": "object",
+      "required": [
+        "schema",
+        "delivery_state_machine",
+        "support_subroutines",
+        "repair_loop_policy",
+        "post_verdict_hooks",
+        "maintenance_skills",
+        "reservation_lifecycle_hooks",
+        "invalid_transitions"
+      ],
+      "properties": {
+        "schema": {"type": "string"},
+        "description": {"type": "string"},
+        "delivery_state_machine": {
+          "type": "object",
+          "required": ["normal_path", "owner_classes", "virtual_sources", "transitions"],
+          "properties": {
+            "normal_path": {"type": "array", "items": {"type": "string"}},
+            "owner_classes": {
+              "type": "object",
+              "additionalProperties": {"type": "array", "items": {"type": "string"}}
+            },
+            "virtual_sources": {"type": "array", "items": {"type": "string"}},
+            "transitions": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["from", "condition_id", "to", "target_class"],
+                "properties": {
+                  "from": {"type": "string"},
+                  "condition_id": {"type": "string"},
+                  "to": {"type": "string"},
+                  "target_class": {"enum": ["loadable_owner", "terminal", "support_runtime", "maintenance"]}
+                }
+              }
+            }
+          }
+        },
+        "support_subroutines": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "required": ["return_event_kind", "return_event_subtype", "callers", "return_rule", "transitions"],
+            "properties": {
+              "return_event_kind": {"type": "string"},
+              "return_event_subtype": {"type": "string"},
+              "callers": {"type": "array", "items": {"type": "string"}},
+              "return_rule": {"type": "string"},
+              "transitions": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["from", "condition_id", "to", "target_class"],
+                  "properties": {
+                    "from": {"type": "string"},
+                    "condition_id": {"type": "string"},
+                    "to": {"type": "string"},
+                    "target_class": {"enum": ["loadable_owner", "terminal", "support_runtime", "maintenance"]}
+                  }
+                }
+              }
+            }
+          }
+        },
+        "repair_loop_policy": {
+          "type": "object",
+          "required": [
+            "repair_routes",
+            "terminal_ceiling",
+            "repair_counter",
+            "same_scope_repair_delta"
+          ],
+          "properties": {
+            "description": {"type": "string"},
+            "repair_routes": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["condition_id", "to"],
+                "properties": {
+                  "condition_id": {"type": "string"},
+                  "to": {"type": "string"},
+                  "description": {"type": "string"}
+                }
+              }
+            },
+            "terminal_ceiling": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["condition_id", "to"],
+                "properties": {
+                  "condition_id": {"type": "string"},
+                  "to": {"type": "string"},
+                  "description": {"type": "string"}
+                }
+              }
+            },
+            "repair_counter": {
+              "type": "object",
+              "required": ["increments_on", "resets_on", "checked_by", "budget_source"]
+            },
+            "same_scope_repair_delta": {
+              "type": "object",
+              "required": ["unchanged_boundaries", "allowed_changes", "forbidden_changes"]
+            }
+          }
+        },
+        "post_verdict_hooks": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "required": ["from_owners", "to", "authority", "rule", "transitions"]
+          }
+        },
+        "maintenance_skills": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "required": ["description", "transitions"]
+          }
+        },
+        "reservation_lifecycle_hooks": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object"
+          }
+        },
+        "invalid_transitions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["from", "condition_id", "to", "reason"]
+          }
+        }
+      }
+    },
+    "profile-registry": {
+      "type": "object",
+      "required": [
+        "modes",
+        "reservation_policy",
+        "independence_policy",
+        "repair_budget_policy",
+        "flow_profiles",
+        "posture_profiles",
+        "protected_path_defaults",
+        "side_effect_command_patterns"
+      ],
+      "properties": {
+        "description": {"type": "string"},
+        "modes": {
+          "type": "object",
+          "required": ["quick", "standard", "strict"],
+          "properties": {
+            "quick": {
+              "type": "object",
+              "required": ["artifact_set", "requires", "forbids"]
+            },
+            "standard": {
+              "type": "object",
+              "required": ["artifact_set", "requires", "forbids"]
+            },
+            "strict": {
+              "type": "object",
+              "required": ["artifact_set", "requires", "forbids"]
+            }
+          }
+        },
+        "reservation_policy": {
+          "type": "object",
+          "required": ["canonical_authority", "default", "require_current_reservation_when", "modes"]
+        },
+        "independence_policy": {
+          "type": "object",
+          "required": ["quick", "standard", "strict"]
+        },
+        "repair_budget_policy": {
+          "type": "object",
+          "required": ["quick", "standard", "strict", "counter_rule", "terminal_route"],
+          "properties": {
+            "quick": {
+              "type": "object",
+              "required": ["budget"],
+              "properties": {
+                "budget": {"type": "integer"}
+              }
+            },
+            "standard": {
+              "type": "object",
+              "required": ["budget"],
+              "properties": {
+                "budget": {"type": "integer"}
+              }
+            },
+            "strict": {
+              "type": "object",
+              "required": ["budget"],
+              "properties": {
+                "budget": {"const": "explicit"}
+              }
+            }
+          }
+        },
+        "flow_profiles": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "required": ["mode", "requires", "forbids"]
+          }
+        },
+        "posture_profiles": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "required": ["valid_modes", "expands", "forbids"]
+          }
+        },
+        "protected_path_defaults": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "side_effect_command_patterns": {
+          "type": "array",
+          "items": {"type": "string"}
+        }
+      }
+    },
+    "ticket-schema": {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "artifact_path",
+        "required_plan_intake_fields",
+        "owner_fields",
+        "future_owned_field_rule",
+        "human_gates",
+        "runtime_event",
+        "cannot_deliver_reasons",
+        "repair_budget_tracking",
+        "strict",
+        "minimal_ticket",
+        "prestate_refs"
+      ],
+      "properties": {
+        "schema_version": {"type": "string"},
+        "artifact_path": {"type": "string"},
+        "required_plan_intake_fields": {"type": "array", "items": {"type": "string"}},
+        "owner_fields": {
+          "type": "object",
+          "required": ["beo-plan", "beo-validate", "beo-execute", "beo-review", "beo-debug"]
+        },
+        "future_owned_field_rule": {"type": "object"},
+        "human_gates": {"type": "object"},
+        "runtime_event": {"type": "object"},
+        "cannot_deliver_reasons": {"type": "object"},
+        "repair_budget_tracking": {"type": "object"},
+        "strict": {"type": "object"},
+        "minimal_ticket": {"type": "object"},
+        "prestate_refs": {"type": "object"}
+      }
+    }
   }
 }

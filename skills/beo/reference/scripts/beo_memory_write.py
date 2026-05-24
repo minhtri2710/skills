@@ -9,9 +9,10 @@ import sys
 from datetime import date
 from pathlib import Path
 
-# Add script directory to sys.path for importing beo_utils
 sys.path.insert(0, str(Path(__file__).parent))
 import beo_utils
+from beo_command import CommandAdapter
+from beo_utils import compact_text
 
 SAFE_SLUG = re.compile(r"^[a-z0-9][a-z0-9-]{0,120}$")
 SAFE_ISSUE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,120}$")
@@ -25,21 +26,26 @@ LEARNING_CASE_TYPES = {
     "authoring_candidate",
 }
 
-def fail(message: str, *, fallback_path: str | None = None) -> int:
-    print(json.dumps({"status": "failed", "error": message, "fallback_path": fallback_path}, indent=2))
+def fail(message: str) -> int:
+    print(json.dumps({"status": "failed", "error": message}, indent=2))
     return 1
 
 
-def compact_text(text: str, limit: int = 600) -> str:
-    text = text.strip()
-    if len(text) <= limit:
-        return text
-    return f"{text[:limit]}...[truncated]"
 
+def qmd_refresh_status(adapter: CommandAdapter) -> dict[str, str | bool]:
+    try:
+        update_argv = adapter.build_argv("qmd.index.update", owner="beo-learn")
+        embed_argv = adapter.build_argv("qmd.index.embed", owner="beo-learn")
+    except Exception as exc:
+        return {
+            "qmd_update_status": "skipped",
+            "qmd_embed_status": "skipped",
+            "qmd_indexed": False,
+            "qmd_refresh_error": f"CommandAdapter failed to build qmd index argv: {compact_text(str(exc))}",
+        }
 
-def qmd_refresh_status() -> dict[str, str | bool]:
-    update_code, _update_out, update_err = beo_utils.run_cmd(["qmd", "update"])
-    embed_code, _embed_out, embed_err = beo_utils.run_cmd(["qmd", "embed"])
+    update_code, _update_out, update_err = beo_utils.run_cmd(update_argv)
+    embed_code, _embed_out, embed_err = beo_utils.run_cmd(embed_argv)
     result: dict[str, str | bool] = {
         "qmd_update_status": "ok" if update_code == 0 else "failed",
         "qmd_embed_status": "ok" if embed_code == 0 else "failed",
@@ -103,28 +109,40 @@ def main(argv: list[str]) -> int:
     except ValueError as exc:
         return fail(str(exc))
 
-    # Resolve environment dynamically using beo_utils
+    adapter = CommandAdapter(root)
+
     env = beo_utils.resolve_obsidian_env()
     vault_name = env["vault_name"]
     vault_path = env["vault_path"]
     learning_dir = env["learning_dir"]
 
-    # Retrieve Vault Target Name/ID
     vault_target = os.environ.get("BEO_OBSIDIAN_VAULT_ID") or os.environ.get("BEO_OBSIDIAN_VAULT_NAME") or vault_name
 
     fallback_reason = "obsidian environment is not configured"
-    if vault_path and vault_target:
+    if vault_path and vault_target and learning_dir:
         try:
             target = learning_dir / note_name
             if learning_dir.exists():
                 ensure_under(learning_dir, target)
                 if beo_utils.obsidian_create_available():
-                    code, out, err = beo_utils.run_cmd([
-                        "obsidian", f"vault={vault_target}", "create", f"path=beo-learnings/{note_name}", f"content={markdown}"
-                    ])
+                    try:
+                        safe_note_slug_arg = note_name[:-3] if note_name.endswith(".md") else note_name
+                        obsidian_argv = adapter.build_argv(
+                            "obsidian.cli.create",
+                            owner="beo-learn",
+                            vault_name_or_id=vault_target,
+                            safe_note_slug=safe_note_slug_arg,
+                            markdown=markdown
+                        )
+                    except Exception as e:
+                        fallback_reason = f"CommandAdapter failed to build argv for obsidian.cli.create: {e}"
+                        obsidian_argv = []
+                    if not obsidian_argv:
+                        raise ValueError(fallback_reason)
+                    code, out, err = beo_utils.run_cmd(obsidian_argv)
                     if code == 0:
                         result = {"status": "written", "backend": "obsidian_cli", "path": str(target)}
-                        result.update(qmd_refresh_status())
+                        result.update(qmd_refresh_status(adapter))
                         print(json.dumps(result, indent=2))
                         return 0
                     fallback_reason = err or out or "obsidian create failed"

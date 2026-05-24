@@ -18,6 +18,7 @@
     "approval_ref.command_contracts_hash",
     "approval_ref.helper_version",
     "approval_ref.helper_run_id",
+    "approval_ref.repo_head",
     "integrity.status",
     "integrity.evidence_ref"
   ],
@@ -62,7 +63,8 @@
     "scope allow/forbid paths",
     "verification commands",
     "posture/risk/rollback fields",
-    "strict artifact hashes"
+    "strict artifact hashes",
+    "current repo HEAD differs from approval_ref.repo_head"
   ],
   "plan_input_hash_rule": "This field hashes approval-bearing plan inputs only, including atomicity and verification commands through scope.verify.commands. It excludes assumptions, non_goals, triage_records, learning, recall, readiness, selected_execution_set, execution_mode, approval_ref, integrity, execution, review, debug, runtime_events, helper output refs, and other post-approval evidence so approval does not self-invalidate when later owners append evidence. Title, labels, assumptions, and non-goals are soft-drift fields and do not invalidate approval by themselves.",
   "not_stale_when_changed": [
@@ -72,6 +74,7 @@
   "execute_entry_requires": [
     "approval_envelope_status complete",
     "approval_ref hashes match the current projection",
+    "approval_ref.repo_head matches the current repo HEAD or explicit no-vcs sentinel",
     "br claim exists for current actor/session",
     "prestate is captured before product mutation"
   ],

@@ -8,8 +8,8 @@ A collection of canonical beo skills and shared references for structured, contr
 ## Repository Structure
 
 - `skills/beo/*/SKILL.md` contains owner skill contracts.
-- `skills/beo/reference/references/` contains canonical shared doctrine.
-- `skills/beo/reference/registry/` contains machine-readable canonical registries.
+- `beo-reference` -> `references/` contains canonical shared doctrine.
+- `beo-reference` -> `registry/` contains machine-readable canonical registries.
 
 ## Core Dependencies
 
@@ -26,7 +26,7 @@ A collection of canonical beo skills and shared references for structured, contr
 | --- | --- |
 | skill contract | `beo-<skill>` |
 | reference index | `beo-reference` |
-| kernel invariants | `references/kernel.md` |
+| kernel invariants | `beo-reference` -> `references/kernel.md` |
 | lifecycle, triage, decomposition | `references/lifecycle.md`, `registry/pipeline.json` |
 | safety & path rules | `references/safety.md` |
 | execution modes & profiles | `registry/profiles.json` |
@@ -43,7 +43,8 @@ BEO always-on rules (kernel is canonical):
 3. Only a claimed atomic bead with current `PASS_EXECUTE` may mutate approved
    scope; strict mode is required for external/stateful/high-risk work.
 4. Human Gates are user-owned, memory is advisory, only `beo-review` closes
-   delivery, and learning never reopens delivery.
+   delivery (via verdict_accept for normal delivery, or registered abandon/cannot_deliver with user visibility), and learning never reopens delivery.
+5. Use `bv` robot flags only; never open bare `bv` TUI in agent workflow.
 <!-- BEO:MANAGED END -->
 
 ## Skill Loading Rule
@@ -52,7 +53,7 @@ A beo skill's `SKILL.md` must be loaded before any mutation owned by that skill.
 
 ## First 5 Minutes
 
-1. Read `beo-reference -> references/kernel.md`.
+1. Read `beo-reference` -> `references/kernel.md`.
 2. Read `.beads/artifacts/<issue-id>/TICKET.md` when acting on a bead.
 3. Load the active owner `SKILL.md` before any mutation.
 

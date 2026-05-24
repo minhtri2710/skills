@@ -7,10 +7,10 @@ BEO is a compact set of Claude skills and machine-checkable references for deliv
 | Path | Purpose |
 | --- | --- |
 | `skills/beo/*/SKILL.md` | Loadable owner contracts for each BEO role. |
-| `skills/beo/reference/references/` | Canonical prose doctrine loaded narrowly as needed. |
-| `skills/beo/reference/registry/` | Machine-readable contracts for pipeline, tickets, approvals, commands, and profiles. |
-| `skills/beo/reference/scripts/` | Deterministic helpers that check, recall, setup, and validate the control plane. |
-| `skills/beo/reference/templates/` | Ticket templates for quick, standard, and strict work. |
+| `beo-reference` -> `references/` | Canonical prose doctrine loaded narrowly as needed. |
+| `beo-reference` -> `registry/` | Machine-readable contracts for pipeline, tickets, approvals, commands, and profiles. |
+| `beo-reference` -> `scripts/...` | Deterministic helpers that check, recall, setup, and validate the control plane. |
+| `beo-reference` -> `templates/` | Ticket templates for quick, standard, and strict work. |
 
 ## Workflow spine
 
@@ -30,7 +30,7 @@ Support and control-plane skills stay out of the normal path:
 | `beo-setup` | Read-only integration health checks by default; memory maintenance requires explicit flags. |
 | `beo-reference` | Read-only doctrine and registry loader. |
 
-Canonical transition details live in `skills/beo/reference/registry/pipeline.json`.
+Canonical transition details live in `beo-reference` -> `registry/pipeline.json`.
 
 ## Authority boundaries
 
@@ -43,11 +43,11 @@ Keep one source of truth per decision:
 
 The full rules are in:
 
-- `skills/beo/reference/references/kernel.md`
-- `skills/beo/reference/references/lifecycle.md`
-- `skills/beo/reference/references/safety.md`
-- `skills/beo/reference/references/memory.md`
-- `skills/beo/reference/registry/command-contracts.json`
+- `beo-reference` -> `references/kernel.md`
+- `beo-reference` -> `references/lifecycle.md`
+- `beo-reference` -> `references/safety.md`
+- `beo-reference` -> `references/memory.md`
+- `beo-reference` -> `registry/command-contracts.json`
 
 ## Common commands
 
@@ -75,7 +75,7 @@ rtk python3 skills/beo/reference/scripts/beo_recall.py --issue <issue-id>
 
 `beo-learn` records only reusable cases: recurring mistakes, failure patterns, near misses, cannot-deliver patterns, reusable debug diagnoses, or unusually valuable success patterns. Notes are written through Obsidian CLI when configured, fall back to issue-local markdown when needed, and may be indexed by `qmd` strictly as memory maintenance.
 
-See `skills/beo/reference/references/memory.md` for the note contract and backend rules.
+See `beo-reference` -> `references/memory.md` for the note contract and backend rules.
 
 ## Development checks
 
@@ -86,5 +86,3 @@ rtk python3 skills/beo/reference/scripts/beo_registry_check.py
 rtk python3 -m compileall skills/beo/reference/scripts
 rtk git diff --check
 ```
-
-For skill-quality review, use the prompts in `skills/beo/evals/evals.json` and generate a review page with the skill-creator eval viewer.

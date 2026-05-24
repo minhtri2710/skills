@@ -1,0 +1,74 @@
+{
+  "schema": "beo-skill-manifest/v1",
+  "portability": "repo-local",
+  "canonical_authority": {
+    "registries": "skills/beo/reference/registry/",
+    "doctrine": "skills/beo/reference/references/",
+    "transitions": "skills/beo/reference/registry/pipeline.json",
+    "commands": "skills/beo/reference/registry/command-contracts.json"
+  },
+  "naming": {
+    "rule": "Directories use short repo-local names; SKILL.md frontmatter names use canonical beo-* names.",
+    "folder_rename_policy": "Do not rename folders without a dedicated migration bead."
+  },
+  "skills": [
+    {
+      "directory": "plan",
+      "name": "beo-plan",
+      "role": "Plan, decompose, and scope one Beads issue before validation.",
+      "class": "delivery",
+      "phase_order": 1
+    },
+    {
+      "directory": "validate",
+      "name": "beo-validate",
+      "role": "Grant or refuse PASS_EXECUTE for one planned atomic ticket.",
+      "class": "delivery",
+      "phase_order": 2
+    },
+    {
+      "directory": "execute",
+      "name": "beo-execute",
+      "role": "Mutate only approved scope and record execution evidence.",
+      "class": "delivery",
+      "phase_order": 3
+    },
+    {
+      "directory": "review",
+      "name": "beo-review",
+      "role": "Audit execution, accept, close, or route repair.",
+      "class": "delivery",
+      "phase_order": 4
+    },
+    {
+      "directory": "debug",
+      "name": "beo-debug",
+      "role": "Diagnose one blocker for execute or review without product mutation.",
+      "class": "support"
+    },
+    {
+      "directory": "learn",
+      "name": "beo-learn",
+      "role": "Persist reusable post-review or post-debug lessons as advisory memory.",
+      "class": "post_hook"
+    },
+    {
+      "directory": "author",
+      "name": "beo-author",
+      "role": "Maintain BEO doctrine, registries, templates, scripts, and skill contracts.",
+      "class": "maintenance"
+    },
+    {
+      "directory": "setup",
+      "name": "beo-setup",
+      "role": "Check or configure BEO tooling and authorized memory integrations.",
+      "class": "maintenance"
+    },
+    {
+      "directory": "reference",
+      "name": "beo-reference",
+      "role": "Read-only lookup of BEO doctrine, registries, templates, and command contracts.",
+      "class": "lookup"
+    }
+  ]
+}

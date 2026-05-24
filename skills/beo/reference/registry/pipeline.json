@@ -1,18 +1,93 @@
 {
-  "$schema": "./registry.schema.json#/definitions/pipeline",
+  "schema": "beo-pipeline/v3",
   "description": "BEO-on-Beads legal delivery/support transitions plus loadable maintenance skills. br owns lifecycle; BEO transitions express execution-safety ownership only.",
-  "normal_path": ["beo-plan", "beo-validate", "beo-execute", "beo-review"],
-  "owner_classes": {
-    "delivery": ["beo-plan", "beo-validate", "beo-execute", "beo-review"],
-    "support_runtime": ["beo-debug"],
-    "maintenance": ["beo-learn", "beo-author", "beo-setup", "beo-reference"]
+  "delivery_state_machine": {
+    "normal_path": ["beo-plan", "beo-validate", "beo-execute", "beo-review"],
+    "owner_classes": {
+      "delivery": ["beo-plan", "beo-validate", "beo-execute", "beo-review"]
+    },
+    "virtual_sources": ["start"],
+    "transitions": [
+      {"from": "start", "condition_id": "bead_selected", "to": "beo-plan", "target_class": "loadable_owner"},
+      {"from": "beo-plan", "condition_id": "plan_complete", "to": "beo-validate", "target_class": "loadable_owner"},
+      {"from": "beo-plan", "condition_id": "decomposition_recorded", "to": "parent_waits_children", "target_class": "terminal"},
+      {"from": "beo-plan", "condition_id": "requirements_missing", "to": "user", "target_class": "terminal"},
+      {"from": "beo-plan", "condition_id": "human_gate_blocks", "to": "user", "target_class": "terminal"},
+      {"from": "beo-plan", "condition_id": "abandoned", "to": "beo-review", "target_class": "loadable_owner"},
+      {"from": "beo-validate", "condition_id": "PASS_EXECUTE", "to": "beo-execute", "target_class": "loadable_owner"},
+      {"from": "beo-validate", "condition_id": "FAIL_PLAN", "to": "beo-plan", "target_class": "loadable_owner", "subreasons": ["fail_atomicity", "fail_scope", "fail_profile", "fail_human_gate", "fail_schema"]},
+      {"from": "beo-validate", "condition_id": "BLOCK_USER", "to": "user", "target_class": "terminal", "subreasons": ["fail_human_gate"]},
+      {"from": "beo-validate", "condition_id": "abandoned", "to": "beo-review", "target_class": "loadable_owner"},
+      {"from": "beo-execute", "condition_id": "execution_ready_for_review", "to": "beo-review", "target_class": "loadable_owner"},
+      {"from": "beo-execute", "condition_id": "approval_stale_or_invalid", "to": "beo-validate", "target_class": "loadable_owner"},
+      {"from": "beo-execute", "condition_id": "scope_delta_required", "to": "beo-plan", "target_class": "loadable_owner"},
+      {"from": "beo-execute", "condition_id": "blocker_found", "to": "beo-debug", "target_class": "support_runtime"},
+      {"from": "beo-execute", "condition_id": "user_blocker", "to": "user", "target_class": "terminal"},
+      {"from": "beo-execute", "condition_id": "abandoned", "to": "beo-review", "target_class": "loadable_owner"},
+      {"from": "beo-review", "condition_id": "entry_blocked_execution_evidence_incomplete", "to": "beo-execute", "target_class": "loadable_owner"},
+      {"from": "beo-review", "condition_id": "verdict_accept", "to": "done", "target_class": "terminal"},
+      {"from": "beo-review", "condition_id": "repair_same_scope", "to": "beo-validate", "target_class": "loadable_owner"},
+      {"from": "beo-review", "condition_id": "repair_rescope", "to": "beo-plan", "target_class": "loadable_owner"},
+      {"from": "beo-review", "condition_id": "cannot_deliver", "to": "user", "target_class": "terminal"},
+      {"from": "beo-review", "condition_id": "root_cause_diagnosis_needed", "to": "beo-debug", "target_class": "support_runtime"},
+      {"from": "beo-review", "condition_id": "repair_budget_exceeded", "to": "user", "target_class": "terminal"},
+      {"from": "beo-review", "condition_id": "abandoned", "to": "done", "target_class": "terminal"}
+    ]
   },
   "support_subroutines": {
     "beo-debug": {
       "return_event_kind": "return",
       "return_event_subtype": "debug",
       "callers": ["beo-execute", "beo-review"],
-      "return_rule": "Caller resumes only from latest matching debug return. Debug never routes delivery to user directly."
+      "return_rule": "Caller resumes only from latest matching debug return. Debug never routes delivery to user directly.",
+      "transitions": [
+        {"from": "beo-debug", "condition_id": "debug_returned", "to": "subroutine_done", "target_class": "terminal"},
+        {"from": "beo-debug", "condition_id": "debug_abandoned", "to": "subroutine_done", "target_class": "terminal"}
+      ]
+    }
+  },
+  "repair_loop_policy": {
+    "description": "Repair loop routes from beo-review have bounded repetition to prevent infinite loops.",
+    "repair_routes": [
+      {"condition_id": "repair_same_scope", "to": "beo-validate", "description": "Within-scope refinement; no scope/acceptance/gates change."},
+      {"condition_id": "repair_rescope", "to": "beo-plan", "description": "Scope/acceptance/gates must change; returns to planning."}
+    ],
+    "terminal_ceiling": [
+      {"condition_id": "repair_budget_exceeded", "to": "user", "description": "Mode repair budget exhausted; user decides continue or cannot_deliver."},
+      {"condition_id": "cannot_deliver", "to": "user", "description": "Terminal delivery blocker; requires user decision or issue reassignment."}
+    ],
+    "repair_counter": {
+      "increments_on": ["repair_same_scope", "repair_rescope"],
+      "resets_on": ["new_pass_execute_after_user_plan_restart", "issue_reassignment"],
+      "checked_by": "beo-review before emitting next repair route",
+      "budget_source": "profiles.json repair_budget_policy per mode"
+    },
+    "same_scope_repair_delta": {
+      "description": "repair_same_scope must preserve key approval boundaries; only code refinement within existing scope.",
+      "unchanged_boundaries": [
+        "scope.files.allow",
+        "generated_outputs",
+        "human_gates",
+        "acceptance_criteria",
+        "external_side_effects",
+        "stateful_external_systems",
+        "scope.files.forbid",
+        "scope.verify.commands"
+      ],
+      "allowed_changes": [
+        "code refinement within scope.files.allow",
+        "verification output improvement",
+        "execution evidence completion",
+        "soft field updates (assumptions, non_goals, comments)"
+      ],
+      "forbidden_changes": [
+        "new files in allow or forbid",
+        "new side effects or stateful systems",
+        "new or changed Human Gates",
+        "changed done_target or acceptance_criteria",
+        "new generated outputs",
+        "changed verification commands"
+      ]
     }
   },
   "post_verdict_hooks": {
@@ -20,48 +95,53 @@
       "from_owners": ["beo-review", "beo-debug"],
       "to": "beo-learn",
       "authority": "control_plane_only",
-      "rule": "Runs only after the source owner has recorded its normal delivery routing, verdict, or support return. It never replaces the delivery exit."
+      "rule": "Runs only after the source owner has recorded its normal delivery routing, verdict, or support return. It never replaces the delivery exit.",
+      "transitions": [
+        {"from": "beo-learn", "condition_id": "case_recorded", "to": "done", "target_class": "terminal"},
+        {"from": "beo-learn", "condition_id": "authoring_requested", "to": "beo-author", "target_class": "maintenance"},
+        {"from": "beo-learn", "condition_id": "insufficient_evidence", "to": "user", "target_class": "terminal"}
+      ]
     }
   },
-  "virtual_sources": ["start"],
-  "transitions": [
-    {"from": "start", "condition_id": "bead_selected", "to": "beo-plan", "target_class": "loadable_owner"},
-    {"from": "beo-plan", "condition_id": "plan_complete", "to": "beo-validate", "target_class": "loadable_owner"},
-    {"from": "beo-plan", "condition_id": "decomposition_recorded", "to": "parent_waits_children", "target_class": "terminal"},
-    {"from": "beo-plan", "condition_id": "requirements_missing", "to": "user", "target_class": "terminal"},
-    {"from": "beo-plan", "condition_id": "human_gate_blocks", "to": "user", "target_class": "terminal"},
-    {"from": "beo-plan", "condition_id": "abandoned", "to": "beo-review", "target_class": "loadable_owner"},
-    {"from": "beo-validate", "condition_id": "PASS_EXECUTE", "to": "beo-execute", "target_class": "loadable_owner"},
-    {"from": "beo-validate", "condition_id": "FAIL_PLAN", "to": "beo-plan", "target_class": "loadable_owner"},
-    {"from": "beo-validate", "condition_id": "BLOCK_USER", "to": "user", "target_class": "terminal"},
-    {"from": "beo-validate", "condition_id": "abandoned", "to": "beo-review", "target_class": "loadable_owner"},
-    {"from": "beo-execute", "condition_id": "execution_ready_for_review", "to": "beo-review", "target_class": "loadable_owner"},
-    {"from": "beo-execute", "condition_id": "approval_stale_or_invalid", "to": "beo-validate", "target_class": "loadable_owner"},
-    {"from": "beo-execute", "condition_id": "scope_delta_required", "to": "beo-plan", "target_class": "loadable_owner"},
-    {"from": "beo-execute", "condition_id": "blocker_found", "to": "beo-debug", "target_class": "support_runtime"},
-    {"from": "beo-execute", "condition_id": "user_blocker", "to": "user", "target_class": "terminal"},
-    {"from": "beo-execute", "condition_id": "abandoned", "to": "beo-review", "target_class": "loadable_owner"},
-    {"from": "beo-review", "condition_id": "entry_blocked_execution_evidence_incomplete", "to": "beo-execute", "target_class": "loadable_owner"},
-    {"from": "beo-review", "condition_id": "verdict_accept", "to": "done", "target_class": "terminal"},
-    {"from": "beo-review", "condition_id": "repair_same_scope", "to": "beo-validate", "target_class": "loadable_owner"},
-    {"from": "beo-review", "condition_id": "repair_rescope", "to": "beo-plan", "target_class": "loadable_owner"},
-    {"from": "beo-review", "condition_id": "cannot_deliver", "to": "user", "target_class": "terminal"},
-    {"from": "beo-review", "condition_id": "root_cause_diagnosis_needed", "to": "beo-debug", "target_class": "support_runtime"},
-    {"from": "beo-review", "condition_id": "repair_budget_exceeded", "to": "user", "target_class": "terminal"},
-    {"from": "beo-review", "condition_id": "abandoned", "to": "done", "target_class": "terminal"},
-    {"from": "beo-debug", "condition_id": "debug_returned", "to": "subroutine_done", "target_class": "terminal"},
-    {"from": "beo-debug", "condition_id": "debug_abandoned", "to": "subroutine_done", "target_class": "terminal"},
-
-    {"from": "beo-learn", "condition_id": "case_recorded", "to": "done", "target_class": "terminal"},
-    {"from": "beo-learn", "condition_id": "authoring_requested", "to": "beo-author", "target_class": "maintenance"},
-    {"from": "beo-learn", "condition_id": "insufficient_evidence", "to": "user", "target_class": "terminal"},
-    {"from": "beo-author", "condition_id": "skill_authored_or_updated", "to": "done", "target_class": "terminal"},
-    {"from": "beo-author", "condition_id": "reference_or_registry_updated", "to": "done", "target_class": "terminal"},
-    {"from": "beo-author", "condition_id": "no_change_needed", "to": "done", "target_class": "terminal"},
-    {"from": "beo-author", "condition_id": "user_review_needed", "to": "user", "target_class": "terminal"},
-    {"from": "beo-setup", "condition_id": "setup_complete", "to": "done", "target_class": "terminal"},
-    {"from": "beo-setup", "condition_id": "user_confirmation_needed", "to": "user", "target_class": "terminal"}
-  ],
+  "maintenance_skills": {
+    "beo-author": {
+      "description": "Create new skills, modify and improve existing skills.",
+      "transitions": [
+        {"from": "beo-author", "condition_id": "skill_authored_or_updated", "to": "done", "target_class": "terminal"},
+        {"from": "beo-author", "condition_id": "reference_or_registry_updated", "to": "done", "target_class": "terminal"},
+        {"from": "beo-author", "condition_id": "no_change_needed", "to": "done", "target_class": "terminal"},
+        {"from": "beo-author", "condition_id": "user_review_needed", "to": "user", "target_class": "terminal"}
+      ]
+    },
+    "beo-setup": {
+      "description": "Environment verification and index maintenance.",
+      "transitions": [
+        {"from": "beo-setup", "condition_id": "setup_complete", "to": "done", "target_class": "terminal"},
+        {"from": "beo-setup", "condition_id": "user_confirmation_needed", "to": "user", "target_class": "terminal"}
+      ]
+    }
+  },
+  "reservation_lifecycle_hooks": {
+    "beo-plan": {
+      "on_exit_transitions": {
+        "plan_complete": {
+          "action": "reserve_when_required",
+          "paths_from": "scope.files.allow",
+          "when": "profiles.reservation_policy.require_current_reservation_when"
+        }
+      }
+    },
+    "beo-review": {
+      "on_final_verdict": {
+        "action": "release",
+        "reasons": {
+          "verdict_accept": "executed",
+          "abandoned": "abandoned",
+          "cannot_deliver": "cannot_deliver"
+        }
+      }
+    }
+  },
   "invalid_transitions": [
     {"from": "beo-plan", "condition_id": "any", "to": "beo-execute", "reason": "beo-validate must grant PASS_EXECUTE"},
     {"from": "beo-review", "condition_id": "repair_same_scope", "to": "beo-execute", "reason": "same-scope repair still requires approval refresh"},

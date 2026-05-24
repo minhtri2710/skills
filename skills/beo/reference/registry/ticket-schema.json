@@ -3,51 +3,105 @@
   "description": "Schema contract for .beads/artifacts/<issue-id>/TICKET.md. Future-owned fields stay absent until their owner acts.",
   "schema_version": "beo-beads/v3",
   "owner_classes_ref": "pipeline.json",
-  "terminal_targets": ["done", "user", "subroutine_done", "parent_waits_children"],
-  "support_return_targets": ["caller"],
-
+  "terminal_targets": [
+    "done",
+    "user",
+    "subroutine_done",
+    "parent_waits_children"
+  ],
+  "support_return_targets": [
+    "caller"
+  ],
   "artifact_path": ".beads/artifacts/<issue-id>/TICKET.md",
-  "required_plan_intake_fields": ["schema_version", "issue_id", "mode", "request", "done", "human_gates"],
+  "required_plan_intake_fields": [
+    "schema_version",
+    "issue_id",
+    "mode",
+    "request",
+    "done_target",
+    "done",
+    "human_gates"
+  ],
   "triage_records": {
     "required_when": "bv materially influenced issue selection or decomposition",
     "authority": "informational only; never approval",
     "append_only": true,
-    "record_owner_rule": "beo-plan may append issue_selection and decomposition records. Later owners append new records only.",
-    "purposes": ["issue_selection", "decomposition"],
-    "fields": ["owner", "purpose", "command", "data_hash", "status", "selected_issue", "reason", "br_snapshot_ref"]
+    "record_owner_rule": "beo-plan may append issue_selection and decomposition records; triage_records are plan-owned only. Later phases do not append new triage records.",
+    "purposes": [
+      "issue_selection",
+      "decomposition"
+    ],
+    "fields": [
+      "owner",
+      "purpose",
+      "command",
+      "data_hash",
+      "status",
+      "selected_issue",
+      "reason",
+      "br_snapshot_ref"
+    ]
   },
   "atomicity": {
     "owner": "beo-plan",
     "required_for_pass_execute": true,
     "shape": {
-      "decision": ["atomic", "needs_decomposition"],
+      "decision": [
+        "atomic",
+        "needs_decomposition"
+      ],
       "reason": "string",
       "rejects_multi_task": true
     }
   },
   "scope_overlap": {
-    "status": ["none", "safe"],
-    "required_when_safe": ["overlaps"],
+    "status": [
+      "none",
+      "safe"
+    ],
+    "required_when_safe": [
+      "overlaps"
+    ],
     "overlaps": {
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["issue_id", "paths", "safe_reason", "evidence_ref"],
+        "required": [
+          "issue_id",
+          "paths",
+          "safe_reason",
+          "evidence_ref"
+        ],
         "properties": {
-          "issue_id": { "type": "string" },
+          "issue_id": {
+            "type": "string"
+          },
           "paths": {
             "type": "array",
             "items": {
               "type": "object",
-              "required": ["current", "other"],
+              "required": [
+                "current",
+                "other"
+              ],
               "properties": {
-                "current": { "type": "string" },
-                "other": { "type": "string" }
+                "current": {
+                  "type": "string"
+                },
+                "other": {
+                  "type": "string"
+                }
               }
             }
           },
-          "safe_reason": ["dependency_ordered", "disjoint_region", "user_authorized"],
-          "evidence_ref": { "type": "string" }
+          "safe_reason": [
+            "dependency_ordered",
+            "disjoint_region",
+            "user_authorized"
+          ],
+          "evidence_ref": {
+            "type": "string"
+          }
         }
       }
     }
@@ -58,48 +112,242 @@
     "rule": "Optional diagnosis summary/evidence field owned by beo-debug; runtime_events remain canonical for handoff/return state."
   },
   "owner_fields": {
-    "beo-plan": ["schema_version", "issue_id", "mode", "request", "done", "human_gates", "assumptions", "non_goals", "constraints", "scope", "acceptance_criteria", "atomicity", "flow_profile", "posture_profile", "generated_outputs", "external_side_effects", "stateful_external_systems", "risk_scope", "rollback_boundary", "authorization_refs", "strict", "triage_records", "runtime_events"],
-    "beo-validate": ["readiness", "selected_execution_set", "execution_mode", "approval_ref", "integrity", "runtime_events"],
-    "beo-execute": ["execution", "runtime_events"],
-    "beo-review": ["review", "runtime_events"],
-    "beo-debug": ["runtime_events", "debug"]
+    "beo-plan": [
+      "schema_version",
+      "issue_id",
+      "mode",
+      "request",
+      "done_target",
+      "done",
+      "human_gates",
+      "assumptions",
+      "non_goals",
+      "constraints",
+      "scope",
+      "acceptance_criteria",
+      "atomicity",
+      "flow_profile",
+      "posture_profile",
+      "generated_outputs",
+      "external_side_effects",
+      "stateful_external_systems",
+      "risk_scope",
+      "rollback_boundary",
+      "authorization_refs",
+      "strict",
+      "triage_records"
+    ],
+    "beo-validate": [
+      "readiness",
+      "selected_execution_set",
+      "execution_mode",
+      "approval_ref",
+      "integrity"
+    ],
+    "beo-execute": [
+      "execution"
+    ],
+    "beo-review": [
+      "review"
+    ],
+    "beo-debug": [
+      "debug"
+    ]
   },
   "future_owned_field_rule": {
-    "beo-plan": ["readiness", "approval_ref", "integrity", "execution", "review"],
-    "beo-validate": ["execution", "review"],
-    "beo-execute": ["review"]
+    "beo-plan": [
+      "readiness",
+      "approval_ref",
+      "integrity",
+      "execution",
+      "review"
+    ],
+    "beo-validate": [
+      "execution",
+      "review"
+    ],
+    "beo-execute": [
+      "review"
+    ]
   },
   "human_gates": {
-    "status": ["not_applicable", "resolved", "unresolved"],
-    "gate_types": ["clarification", "choice", "authorization", "secret", "execution_preview", "external_side_effect_authorization", "stateful_system_authorization"],
-    "secret_rule": "Secret answers store handles only, never secret values."
+    "status": [
+      "not_applicable",
+      "resolved",
+      "unresolved"
+    ],
+    "gate_types": [
+      "clarification",
+      "choice",
+      "authorization",
+      "secret",
+      "execution_preview",
+      "external_side_effect_authorization",
+      "stateful_system_authorization"
+    ],
+    "secret_rule": "Secret answers store handles only, never secret values.",
+    "authorization_gate_required_fields": [
+      "scope",
+      "approver_handle"
+    ],
+    "authorization_gate_validity": "Authorization gates must include valid_for_issue_id or expires_at."
   },
   "runtime_event": {
-    "required": ["id", "kind", "created_at", "owner", "issue_id", "condition_id", "basis_ref", "message"],
-    "kind": ["user_stop", "handoff", "return", "change_request", "abandon", "learning_candidate"],
-    "handoff_subtype": ["debug"],
-    "return_subtype": ["debug"],
-    "change_request_subtype": ["scope_delta", "repair_same_scope", "repair_rescope"],
+    "required": [
+      "id",
+      "kind",
+      "created_at",
+      "owner",
+      "issue_id",
+      "condition_id",
+      "basis_ref",
+      "message"
+    ],
+    "kind": [
+      "user_stop",
+      "handoff",
+      "return",
+      "change_request",
+      "abandon",
+      "learning_candidate"
+    ],
+    "handoff_subtype": [
+      "debug"
+    ],
+    "return_subtype": [
+      "debug"
+    ],
+    "change_request_subtype": [
+      "scope_delta",
+      "repair_same_scope",
+      "repair_rescope"
+    ],
     "append_only": true,
     "validator_rule": "beo_check.py validates required fields, owner, issue_id, registered values, handoff/return matching, abandon_reason, change_request routing, and learning candidate metadata. Advisory recall is a helper action, not a runtime handoff/return subtype.",
     "message_rule": "Short non-secret summary only.",
-    "handoff_debug_required_fields": ["caller_owner", "return_to", "return_condition_id", "question"],
-    "handoff_debug_return_to": ["beo-execute", "beo-review"],
-    "return_debug_required_fields": ["caller_owner", "return_to", "return_condition_id", "diagnosis_status", "diagnosis_ref"],
-    "diagnosis_status": ["root_cause_proven", "diagnosis_inconclusive", "blocker_is_user_owned"],
-    "abandon_required_fields": ["abandon_reason"],
-    "abandon_reason": ["user_cancelled", "pre_mutation_abandon", "post_mutation_preserved", "superseded", "unsafe_environment"],
-    "same_scope_repair_required_fields": ["requested_by", "finding_refs", "prior_approval_ref", "unchanged_boundaries"],
-    "same_scope_unchanged_boundaries": ["scope.files.allow", "generated_outputs", "human_gates", "acceptance_criteria", "external_side_effects", "stateful_external_systems", "scope.files.forbid", "scope.verify.commands"],
-    "learning_candidate_required_fields": ["source_phase", "case_type"]
+    "handoff_debug_required_fields": [
+      "caller_owner",
+      "caller_actor",
+      "return_to",
+      "return_condition_id",
+      "question"
+    ],
+    "handoff_debug_return_to": [
+      "beo-execute",
+      "beo-review"
+    ],
+    "return_debug_required_fields": [
+      "caller_owner",
+      "caller_actor",
+      "return_to",
+      "return_condition_id",
+      "diagnosis_status",
+      "diagnosis_ref"
+    ],
+    "diagnosis_status": [
+      "root_cause_proven",
+      "diagnosis_inconclusive",
+      "blocker_is_user_owned"
+    ],
+    "abandon_required_fields": [
+      "abandon_reason"
+    ],
+    "abandon_reason": [
+      "user_cancelled",
+      "pre_mutation_abandon",
+      "post_mutation_preserved",
+      "superseded",
+      "unsafe_environment"
+    ],
+    "same_scope_repair_required_fields": [
+      "requested_by",
+      "finding_refs",
+      "prior_approval_ref",
+      "unchanged_boundaries"
+    ],
+    "same_scope_unchanged_boundaries": [
+      "scope.files.allow",
+      "generated_outputs",
+      "human_gates",
+      "acceptance_criteria",
+      "external_side_effects",
+      "stateful_external_systems",
+      "scope.files.forbid",
+      "scope.verify.commands"
+    ],
+    "learning_candidate_required_fields": [
+      "source_phase",
+      "case_type",
+      "source_event_id"
+    ],
+    "learning_candidate_source_phase": [
+      "beo-review",
+      "beo-debug"
+    ],
+    "learning_candidate_rule": "source_phase must match owner; source_event_id is required. beo-debug candidates require a prior debug return and source_event_id must reference that prior return; beo-review candidates require a prior verdict or review routing event and source_event_id must reference that prior route. Learning candidates never reopen delivery or replace the source route."
   },
-  "review_verdict": ["accept", "repair_same_scope", "repair_rescope", "cannot_deliver", "abandoned"],
-  "review_reason_class": ["user_owned", "unsafe", "not_deliverable"],
+  "validation_failure_subreasons": [
+    "fail_atomicity",
+    "fail_scope",
+    "fail_profile",
+    "fail_human_gate",
+    "fail_schema"
+  ],
+  "review_verdict": [
+    "accept",
+    "repair_same_scope",
+    "repair_rescope",
+    "cannot_deliver",
+    "abandoned"
+  ],
+  "review_reason_class": [
+    "user_owned",
+    "unsafe",
+    "not_deliverable"
+  ],
+  "cannot_deliver_reasons": {
+    "description": "Terminal cannot_deliver taxonomy visible to operator and helper; routes to user for explicit continuation, reassignment, or issue closure decision.",
+    "reasons": [
+      "user_owned",
+      "unsafe_environment",
+      "unavailable_dependency",
+      "scope_invalid",
+      "tool_missing"
+    ],
+    "reason_descriptions": {
+      "user_owned": "Blocker requires user decision, authorization, secret, clarification, or external action outside BEO scope.",
+      "unsafe_environment": "Repository state, git status, or environment preconditions make delivery unsafe; requires user-driven cleanup or reset.",
+      "unavailable_dependency": "Required tool, library, service, or external system is unavailable and execution cannot proceed without it.",
+      "scope_invalid": "Approved scope is provably insufficient, contradictory, or blocked by immovable constraints; requires user-driven rescope or abandon.",
+      "tool_missing": "Required BEO helper, br, bv, or verification command is missing and no safe fallback exists."
+    },
+    "operator_rule": "cannot_deliver requires a registered reason and routes to user; it never silently fails or auto-abandons without user visibility."
+  },
+  "repair_budget_tracking": {
+    "description": "Review tracks repair attempts to enforce mode-specific budget ceiling and prevent infinite repair loops.",
+    "counter_location": "state.json review.repair_counter field, owned by beo-review",
+    "counter_rule": "Repair counter increments on each repair route emission (repair_same_scope, repair_rescope). Counter resets only on new PASS_EXECUTE after user-driven plan restart or issue reassignment.",
+    "budget_check": "Before emitting repair route, beo-review checks repair_counter < mode_budget from profiles.json repair_budget_policy.",
+    "budget_exceeded_route": "repair_budget_exceeded routes to user with current repair_counter, mode_budget, and explicit continuation options.",
+    "strict_mode_budget": "Strict mode repair budget is explicit per ticket or requires Human Gate confirmation per repair; no auto-repair ceiling."
+  },
   "strict": {
-    "required_fields": ["strict.reason", "authorization_refs", "risk_scope", "rollback_boundary"],
-    "artifacts": ["TICKET.md", "STRICT.md", "ROLLBACK.md"],
+    "required_fields": [
+      "strict.reason",
+      "authorization_refs",
+      "risk_scope",
+      "rollback_boundary"
+    ],
+    "artifacts": [
+      "TICKET.md",
+      "STRICT.md",
+      "ROLLBACK.md"
+    ],
     "artifact_owner": "beo-plan",
-    "artifact_hash_fields": ["strict.artifact_hashes.STRICT.md", "strict.artifact_hashes.ROLLBACK.md"],
+    "artifact_hash_fields": [
+      "strict.artifact_hashes.STRICT.md",
+      "strict.artifact_hashes.ROLLBACK.md"
+    ],
     "rule": "Strict mode is mandatory for external side effects, stateful external systems, security/privacy/access impact, cost/data/deploy risk, or irreversible operations."
   },
   "minimal_ticket": {
@@ -108,28 +356,139 @@
       "issue_id": "br-abc123",
       "mode": "quick",
       "request": "Bounded request.",
-      "done": ["User-facing completion criterion."],
-      "human_gates": {"status": "not_applicable", "gates": []},
-      "scope": {"files": {"allow": ["README.md"], "forbid": []}, "verify": {"commands": ["rtk git diff --check"]}},
-      "acceptance_criteria": ["User-facing completion criterion is met."],
-      "atomicity": {"decision": "atomic", "reason": "One executable unit.", "rejects_multi_task": true}
+      "done": [
+        "User-facing completion criterion."
+      ],
+      "human_gates": {
+        "status": "not_applicable",
+        "gates": []
+      },
+      "scope": {
+        "files": {
+          "allow": [
+            "README.md"
+          ],
+          "forbid": []
+        },
+        "verify": {
+          "commands": [
+            "rtk git diff --check"
+          ]
+        }
+      },
+      "acceptance_criteria": [
+        "User-facing completion criterion is met."
+      ],
+      "atomicity": {
+        "decision": "atomic",
+        "reason": "One executable unit.",
+        "rejects_multi_task": true
+      },
+      "done_target": "User-facing completion criterion."
     }
   },
   "quick_optional_field_rule": "Absent optional fields mean not applicable in quick mode unless ticket-schema requires them; profile-derived defaults are canonical in profiles.json posture_profiles.repo_only_low_risk and flow_profiles.tiny_repo_edit.",
   "profile_expansion_ref": "profiles.json",
   "stateful_external_systems": {
-    "status": ["none", "declared"],
+    "status": [
+      "none",
+      "declared"
+    ],
     "systems": {
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["name", "effect_ref"],
+        "required": [
+          "name",
+          "effect_ref"
+        ],
         "properties": {
-          "name": { "type": "string" },
-          "effect_ref": { "type": "string" }
+          "name": {
+            "type": "string"
+          },
+          "effect_ref": {
+            "type": "string"
+          }
         }
       }
     }
   },
-  "soft_drift_fields": ["issue_title", "labels", "assumptions", "non_goals", "ordinary_comments", "triage_records", "debug", "recall", "learning", "runtime_events", "execution_evidence", "review_evidence"]
+  "state_file": {
+    "path": ".beads/artifacts/<issue-id>/state.json",
+    "owner_fields": {
+      "beo-validate": [
+        "readiness",
+        "selected_execution_set",
+        "execution_mode",
+        "approval_ref",
+        "integrity"
+      ],
+      "beo-execute": [
+        "execution"
+      ],
+      "beo-review": [
+        "review"
+      ]
+    }
+  },
+  "events_file": {
+    "path": ".beads/artifacts/<issue-id>/runtime-events.jsonl",
+    "format": "jsonl",
+    "append_only": true,
+    "owners": [
+      "beo-plan",
+      "beo-validate",
+      "beo-execute",
+      "beo-review",
+      "beo-debug"
+    ]
+  },
+  "soft_drift_fields": [
+    "issue_title",
+    "labels",
+    "assumptions",
+    "non_goals",
+    "ordinary_comments",
+    "triage_records",
+    "debug",
+    "recall",
+    "learning",
+    "runtime_events",
+    "execution_evidence",
+    "review_evidence"
+  ],
+  "done_semantics": {
+    "done_target": {
+      "owner": "beo-plan",
+      "required_for_pass_execute": true,
+      "rule": "Single scalar atomic completion target; one independently approvable outcome."
+    },
+    "done": {
+      "owner": "beo-plan",
+      "rule": "List of subcriteria or details that support the single done_target; must not encode independent completion targets."
+    },
+    "acceptance_criteria": {
+      "owner": "beo-plan",
+      "rule": "Review checklist used to verify done_target and scope; should not merely duplicate done."
+    }
+  },
+  "soft_field_rule": "assumptions and non_goals are soft drift only; any fact that changes scope, safety, authorization, side effects, rollback, or acceptance must also be represented in approval-bearing fields.",
+  "prestate_refs": {
+    "files": {
+      "legacy_string": "sha256:<hex> or missing is accepted for compatibility",
+      "structured": {
+        "required": [
+          "kind",
+          "hash"
+        ],
+        "kind": [
+          "existing",
+          "expected_missing",
+          "generated_declared"
+        ],
+        "hash": "sha256:<hex> or missing",
+        "rule": "expected_missing and generated_declared may begin missing before mutation; existing must bind the prior hash."
+      }
+    }
+  }
 }
