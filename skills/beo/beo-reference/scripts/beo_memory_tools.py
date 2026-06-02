@@ -13,7 +13,7 @@ def resolve_obsidian_env() -> dict[str, str | Path | None]:
     else:
         vault_path = None
 
-    qmd_collection = os.environ.get("BEO_QMD_COLLECTION") or vault_name or "beo-learning"
+    qmd_collection = os.environ.get("BEO_QMD_COLLECTION") or vault_name or "beo-learnings"
     learning_dir = vault_path / "beo-learnings" if vault_path else None
 
     return {

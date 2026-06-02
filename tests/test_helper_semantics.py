@@ -50,14 +50,14 @@ class HelperSemanticsTest(unittest.TestCase):
             if args[:2] == ["obsidian", "help"]:
                 return 0, "obsidian help", ""
             if args[:2] == ["qmd", "collection"]:
-                return 0, '[{"name":"beo-learning"}]', ""
+                return 0, '[{"name":"beo-learnings"}]', ""
             if args[:2] == ["qmd", "status"]:
                 return 0, "Pending: 0 need embedding", ""
             return 0, "", ""
 
         with mock.patch("builtins.__import__", side_effect=import_without_yaml), \
              mock.patch.object(beo_setup.beo_io, "run_cmd", side_effect=fake_run_cmd), \
-             mock.patch.dict(os.environ, {"BEO_QMD_COLLECTION": "beo-learning"}, clear=True), \
+             mock.patch.dict(os.environ, {"BEO_QMD_COLLECTION": "beo-learnings"}, clear=True), \
              mock.patch.object(sys, "argv", ["beo_setup.py"]), \
              contextlib.redirect_stdout(io.StringIO()) as stdout:
             rc = beo_setup.main()
@@ -1055,7 +1055,7 @@ class HelperSemanticsTest(unittest.TestCase):
             if args[:2] == ["obsidian", "help"]:
                 return 0, "obsidian", ""
             if args == ["qmd", "collection", "list"]:
-                return 0, '[{"name":"beo-learning"}]', ""
+                return 0, '[{"name":"beo-learnings"}]', ""
             if args == ["qmd", "status"]:
                 return 0, "Pending: 0 need embedding", ""
             return 0, "{}", ""
@@ -1063,7 +1063,7 @@ class HelperSemanticsTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             with mock.patch.object(beo_setup.beo_io, "run_cmd", side_effect=fake_run_cmd), \
-                 mock.patch.dict(os.environ, {"BEO_QMD_COLLECTION": "beo-learning"}, clear=True), \
+                 mock.patch.dict(os.environ, {"BEO_QMD_COLLECTION": "beo-learnings"}, clear=True), \
                  mock.patch.object(sys, "argv", ["beo_setup.py", "--root", str(root), "--configure-memory"]), \
                  contextlib.redirect_stdout(io.StringIO()) as stdout:
                 rc = beo_setup.main()
