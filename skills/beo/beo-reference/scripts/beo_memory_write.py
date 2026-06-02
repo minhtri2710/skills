@@ -46,7 +46,7 @@ def validate_fallback_target(root: Path) -> Path:
     beads_dir = root / ".beads"
     if not beads_dir.is_dir():
         raise ValueError(f"root is not a Beads workspace: {root}")
-    return beads_dir / "learning"
+    return beads_dir / "learnings"
 
 
 def extract_frontmatter(markdown: str) -> dict[str, object]:

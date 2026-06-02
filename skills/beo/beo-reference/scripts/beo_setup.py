@@ -83,7 +83,7 @@ def main() -> int:
     vault_path = env["vault_path"]
     learning_dir = env["learning_dir"]
     qmd_collection = env["qmd_collection"]
-    local_learning_dir = root / ".beads" / "learning"
+    local_learning_dir = root / ".beads" / "learnings"
 
     results["local_learning"]["path"] = str(local_learning_dir)
     if local_learning_dir.is_dir():

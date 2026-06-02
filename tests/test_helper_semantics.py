@@ -1071,7 +1071,7 @@ class HelperSemanticsTest(unittest.TestCase):
         self.assertEqual(rc, 0)
         self.assertIn(["qmd", "collection", "list"], calls)
         self.assertTrue(report["qmd_collection"]["exists"])
-        self.assertEqual(report["local_learning"]["path"], str((root / ".beads" / "learning").resolve()))
+        self.assertEqual(report["local_learning"]["path"], str((root / ".beads" / "learnings").resolve()))
 
     def test_memory_write_helpers(self):
         import beo_memory_write

@@ -31,7 +31,7 @@ Recall is opt-in. Use it only when a prior lesson is explicitly useful, such as 
 
 1. qmd when configured.
 2. Hydrated matching markdown under the resolved Obsidian learning directory.
-3. Local fallback markdown under `.beads/learning/`.
+3. Local fallback markdown under `.beads/learnings/`.
 
 Snippets are leads only; hydrate matching notes before relying on them.
 
@@ -39,7 +39,7 @@ Snippets are leads only; hydrate matching notes before relying on them.
 
 `beo-learn` runs only when an explicit `learning_candidate` exists or the user asks to save a BEO lesson. Write the smallest safe markdown note through `beo_memory_write.py`.
 
-Notes must store structural handles only, never secrets, raw credentials, or customer-sensitive data. `beo-learn` writes the note only. It may emit `qmd_refresh_recommended`; qmd refresh/indexing belongs only to explicit `beo-setup` or authorized BEO maintenance. If Obsidian is unavailable, write to `.beads/learning/`.
+Notes must store structural handles only, never secrets, raw credentials, or customer-sensitive data. `beo-learn` writes the note only. It may emit `qmd_refresh_recommended`; qmd refresh/indexing belongs only to explicit `beo-setup` or authorized BEO maintenance. If Obsidian is unavailable, write to `.beads/learnings/`.
 
 ## Note shape
 

@@ -72,7 +72,7 @@ Reservations are BEO-local strict-mode path ownership evidence:
 ## 7. Memory & Learning Boundary
 
 - **Recall**: Opt-in and advisory only. Prior lessons do not grant approval or authority.
-- **Learning**: Save lessons via `beo-learn` only when an explicit `learning_candidate` exists or the user requests it. Default Vault: `<vault>/beo-learnings/`. Fallback: `.beads/learning/`.
+- **Learning**: Save lessons via `beo-learn` only when an explicit `learning_candidate` exists or the user requests it. Default Vault: `<vault>/beo-learnings/`. Fallback: `.beads/learnings/`.
 
 ---
 

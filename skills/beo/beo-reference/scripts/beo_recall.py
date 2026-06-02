@@ -104,7 +104,7 @@ def main() -> int:
     final_query = " ".join(word for word in query_text.split() if len(word) > 3) or "success failures lessons"
     terms = query_terms(final_query)
 
-    local_learning_dir = root / ".beads" / "learning"
+    local_learning_dir = root / ".beads" / "learnings"
     matches = search_markdown_tree(local_learning_dir, terms, 5)
 
     result = {

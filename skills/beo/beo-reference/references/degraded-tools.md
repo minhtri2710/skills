@@ -13,7 +13,7 @@ This file guidance focuses on setup checks. Authority invariants are canonical i
 | PyYAML | Required | Parse BEO YAML/JSON artifacts | Block helper execution. |
 | `bv` | Optional | Read-only graph orientation | Use `br ready --json` and `br show --json`. |
 | `qmd` | Optional | Advisory semantic recall | Disable semantic search. |
-| Obsidian | Optional | Reusable learning note vault | Fall back to `.beads/learning/`. |
+| Obsidian | Optional | Reusable learning note vault | Fall back to `.beads/learnings/`. |
 
 ## Minimum viable BEO
 
