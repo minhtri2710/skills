@@ -1,0 +1,126 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "BEO state.json version 1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "issue_id", "phase", "phase_sequence_id", "approval", "execution", "review", "metadata"],
+  "$defs": {
+    "safe_path": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?!.*[\\x00-\\x1F])(?![/\\\\])(?!.:)(?!\\.([/\\\\])?$)(?!.*(^|[/\\\\])\\.\\.([/\\\\]|$))\\S(?:.*\\S)?$"
+    }
+  },
+  "properties": {
+    "version": { "const": 1 },
+    "issue_id": { "type": "string", "minLength": 1 },
+    "phase": { "enum": ["planned", "approved", "executing", "executed", "reviewing", "reviewed", "blocked", "abandoned"] },
+    "phase_sequence_id": { "type": "integer", "minimum": 1 },
+    "approval": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "approved_by", "actor", "ticket_file_hash", "approval_projection_hash", "repo_head", "prestate", "failure_category", "approved_phase_sequence_id"],
+      "properties": {
+        "status": { "enum": ["pending", "PASS_EXECUTE", "failed", "blocked", "stale"] },
+        "approved_by": { "type": ["string", "null"] },
+        "actor": { "type": ["string", "null"] },
+        "ticket_file_hash": { "type": ["string", "null"] },
+        "approval_projection_hash": { "type": ["string", "null"] },
+        "repo_head": { "type": ["string", "null"] },
+        "prestate": { "type": "object" },
+        "failure_category": {
+          "type": ["string", "null"],
+          "enum": [
+            "claim_mismatch",
+            "issue_closed",
+            "issue_blocked",
+            "non_atomic",
+            "ticket_invalid",
+            "mode_requirements_missing",
+            "dirty_approved_path",
+            "dirty_generated_output",
+            "unsafe_path",
+            "protected_path",
+            "unauthorized_broad_glob",
+            "strict_reservation_missing",
+            "human_gate_unresolved",
+            "approval_predicate_failed",
+            "approval_projection_error",
+            null
+          ]
+        },
+        "approved_phase_sequence_id": { "type": ["integer", "null"], "minimum": 1 }
+      }
+    },
+    "execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["actor", "started_at", "completed_at", "changed_files", "verify_results", "evidence_refs"],
+      "properties": {
+        "actor": { "type": ["string", "null"] },
+        "started_at": { "type": ["string", "null"] },
+        "completed_at": { "type": ["string", "null"] },
+        "changed_files": { "type": "array", "items": { "$ref": "#/$defs/safe_path" } },
+        "verify_results": { "type": "array", "items": { "type": "object" } },
+        "evidence_refs": { "type": "array", "items": { "$ref": "#/$defs/safe_path" } }
+      }
+    },
+    "review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["actor", "verdict", "route_condition_id", "findings", "done_criteria_coverage", "repair_count", "closed_in_br"],
+      "properties": {
+        "actor": { "type": ["string", "null"] },
+        "verdict": { "type": ["string", "null"], "enum": ["accept", "repair_same_scope", "repair_rescope", "cannot_deliver", "abandoned", null] },
+        "route_condition_id": { "type": ["string", "null"], "enum": ["verdict_accept", "repair_same_scope", "repair_rescope", "cannot_deliver", "root_cause_diagnosis_needed", "abandoned", "user_review_needed", null] },
+        "findings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["severity", "category", "message", "evidence_refs", "recommended_route"],
+            "properties": {
+              "severity": { "enum": ["blocker", "major", "minor", "info"] },
+              "category": { "enum": ["scope", "verification", "done_criteria", "safety", "evidence", "regression", "process"] },
+              "message": { "type": "string", "minLength": 1 },
+              "evidence_refs": {
+                "type": "array",
+                "items": { "$ref": "#/$defs/safe_path" }
+              },
+              "recommended_route": {
+                "enum": ["repair_same_scope", "repair_rescope", "cannot_deliver", "root_cause_diagnosis_needed", "none"]
+              }
+            }
+          }
+        },
+        "done_criteria_coverage": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["criterion", "status", "evidence_refs"],
+            "properties": {
+              "criterion": { "type": "string", "minLength": 1 },
+              "status": { "enum": ["covered", "not_covered", "not_applicable"] },
+              "evidence_refs": {
+                "type": "array",
+                "items": { "$ref": "#/$defs/safe_path" }
+              }
+            }
+          }
+        },
+        "repair_count": { "type": "integer", "minimum": 0 },
+        "closed_in_br": { "type": "boolean" }
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["last_owner", "updated_at"],
+      "properties": {
+        "last_owner": { "type": ["string", "null"] },
+        "updated_at": { "type": ["string", "null"] }
+      }
+    }
+  }
+}

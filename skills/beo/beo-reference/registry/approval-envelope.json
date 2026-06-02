@@ -1,0 +1,110 @@
+{
+  "description": "BEO approval projection and validity binding. One projection hash is computed from approval-bearing TICKET.yaml fields, conditional ticket fields, computed validity fields, and strict reservation evidence when required.",
+  "validity_model": {
+    "description": "BEO approval assertions do not expire by elapsed time. They remain valid until an explicit predicate fails, a newer artifact supersedes them, or a human/operator revokes or removes the authority. Agents must not infer expiry from age alone.",
+    "base_predicates": [
+      "ticket_file_hash_unchanged",
+      "approval_projection_hash_unchanged",
+      "repo_head_unchanged",
+      "approved_prestate_unchanged",
+      "claim_still_valid",
+      "issue_open_and_unblocked"
+    ],
+    "strict_predicates": [
+      "reservation_active_and_not_revoked",
+      "human_gate_refs_not_revoked",
+      "external_authorization_refs_not_revoked",
+      "side_effect_contract_unchanged"
+    ],
+    "time_policy": {
+      "quick": "no_time_expiry",
+      "standard": "no_time_expiry",
+      "strict": "no_beo_time_expiry_external_authorization_bounds_are_predicates_only"
+    },
+    "invalidators": [
+      "ticket_file_hash_changed",
+      "approval_projection_hash_changed",
+      "repo_head_changed",
+      "approved_prestate_changed",
+      "claim_invalid",
+      "issue_closed_or_blocked",
+      "strict_reservation_revoked_or_superseded",
+      "human_gate_revoked",
+      "external_authorization_revoked",
+      "side_effect_contract_changed",
+      "machine_readable_safety_contract_changed"
+    ],
+    "not_invalidators": [
+      "elapsed_time_alone",
+      "ordinary_br_comments",
+      "ordinary_labels",
+      "check_artifact_paths",
+      "memory_output",
+      "recall_output",
+      "registry_prose_edits"
+    ],
+    "revocation_policy": "Do not infer revocation from ordinary comments, labels, or elapsed time. Revocation must be explicit and referenced."
+  },
+  "approval_fields": [
+    "approval.status",
+    "approval.approved_by",
+    "approval.actor",
+    "approval.ticket_file_hash",
+    "approval.approval_projection_hash",
+    "approval.repo_head",
+    "approval.prestate",
+    "approval.failure_category",
+    "approval.approved_phase_sequence_id"
+  ],
+  "ticket_projection_fields": [
+    "issue_id",
+    "request",
+    "done_criteria",
+    "scope.files.allow",
+    "scope.files.forbid",
+    "scope.generated_outputs",
+    "scope.verify.commands"
+  ],
+  "included_when_present_ticket_projection_fields": [
+    "human_gates"
+  ],
+  "computed_projection_fields": [
+    "ticket_file_hash",
+    "repo_head"
+  ],
+  "standard_ticket_projection_additions": [
+    "risk.summary",
+    "risk.rollback"
+  ],
+  "strict_ticket_projection_additions": [
+    "strict.reason",
+    "strict.authorization_refs",
+    "strict.rollback_refs",
+    "strict.external_side_effects",
+    "strict.stateful_external_systems"
+  ],
+  "strict_evidence_projection_additions": [
+    "reservation"
+  ],
+  "execution_start_definition": {
+    "description": "First durable state.json transition from an approved state whose approval.approved_phase_sequence_id equals the pre-transition phase_sequence_id, to executing with execution.actor and execution.started_at set.",
+    "product_mutation_before_execution_start": "forbidden"
+  },
+  "contract_hash_policy": {
+    "description": "BEO chooses raw helper-file hash invalidation intentionally for fail-closed simplicity. Any helper file change invalidates prior PASS_EXECUTE by design, even for behavior-preserving refactors. Note that approval_bearing_contracts covers machine-enforced behavior files; prose-only docs do not invalidate.",
+    "approval_bearing_contracts": [
+      "registry/approval-envelope.json",
+      "registry/profiles.json",
+      "registry/pipeline.json",
+      "registry/ticket.schema.json",
+      "registry/state.schema.json",
+      "registry/reservation-schema.json",
+      "registry/runtime-event.schema.json",
+      "registry/phase-contracts.json",
+      "scripts/beo_check_approval.py",
+      "scripts/beo_approval.py",
+      "scripts/beo_state.py",
+      "scripts/beo_reservation.py"
+    ]
+  }
+}

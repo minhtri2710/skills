@@ -1,0 +1,34 @@
+{
+  "description": "Small BEO mode registry. Profiles summarize authoring and validation requirements; concrete enforcement lives in ticket and approval helpers. protected_path_defaults apply to TICKET.yaml product scope, not authorized BEO control-plane artifact writes.",
+  "modes": {
+    "quick": {
+      "summary": "Repo-only low-risk work with explicit file scope and at least one verification command.",
+      "requires": ["scope.files.allow", "scope.verify.commands"]
+    },
+    "standard": {
+      "summary": "Quick requirements plus an explicit risk summary and rollback plan.",
+      "requires": ["scope.files.allow", "scope.verify.commands", "risk.summary", "risk.rollback"]
+    },
+    "strict": {
+      "summary": "Standard requirements plus resolved human gates, side-effect contracts, and a current actor-matching BEO reservation covering approved files and generated outputs.",
+      "requires": ["scope.files.allow", "scope.verify.commands", "risk.summary", "risk.rollback", "human_gates", "strict.reason", "strict.authorization_refs", "strict.rollback_refs", "strict.external_side_effects", "strict.stateful_external_systems"],
+      "external_evidence_requires": ["current_actor_matching_beo_reservation"]
+    }
+  },
+  "protected_path_defaults": [
+    ".git/**",
+    ".env",
+    ".env.*",
+    "**/.env",
+    "**/.env.*",
+    "secrets/**",
+    "credentials/**",
+    "*.pem",
+    "*.key",
+    "*.p12",
+    "*.pfx",
+    "id_rsa",
+    "id_ed25519",
+    ".beads/**"
+  ]
+}

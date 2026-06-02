@@ -1,0 +1,137 @@
+{
+  "schema": "beo-phase-contracts/v1",
+  "description": "Canonical machine-readable BEO skill permission matrix using typed emission categories.",
+  "classes": {
+    "delivery_owner": ["beo-plan", "beo-validate", "beo-execute", "beo-review"],
+    "support_subroutine": ["beo-debug", "beo-learn"],
+    "maintenance": ["beo-author", "beo-setup"],
+    "read_only_lookup": ["beo-reference"]
+  },
+  "skills": {
+    "beo-plan": {
+      "class": "delivery_owner",
+      "state_write_fields": ["initialize"],
+      "artifact_write_authorities": [
+        "ticket",
+        "br.decomposition_comments",
+        "br.labels.beo_blocked_user"
+      ],
+      "may_emit_delivery_conditions": ["planned", "decomposition_recorded", "user_review_needed"],
+      "may_emit_runtime_event_kinds": ["user_stop"],
+      "must_not": ["mutate_product_files", "grant_PASS_EXECUTE", "review", "close"]
+    },
+    "beo-validate": {
+      "class": "delivery_owner",
+      "state_write_fields": ["phase", "approval"],
+      "artifact_write_authorities": [
+        "strict_reservation",
+        "validation_evidence",
+        "br.labels.beo_blocked_user"
+      ],
+      "may_emit_delivery_conditions": ["PASS_EXECUTE", "validation_failed", "user_review_needed"],
+      "may_emit_runtime_event_kinds": ["user_stop"],
+      "must_not": ["patch_ticket_plan", "mutate_product_files", "review", "close"]
+    },
+    "beo-execute": {
+      "class": "delivery_owner",
+      "state_write_fields": ["phase", "execution"],
+      "artifact_write_authorities": [
+        "approved_product_files",
+        "declared_generated_outputs"
+      ],
+      "may_emit_delivery_conditions": [
+        "executed",
+        "root_cause_diagnosis_needed",
+        "approval_stale_or_invalid",
+        "containment_review_needed"
+      ],
+      "may_emit_runtime_event_kinds": ["handoff"],
+      "must_not": ["approve", "validate", "review", "close", "mutate_outside_approved_scope"]
+    },
+    "beo-review": {
+      "class": "delivery_owner",
+      "state_write_fields": ["phase", "review"],
+      "artifact_write_authorities": [
+        "br.final_route_comments",
+        "br.close_on_verdict_accept",
+        "reservation_release"
+      ],
+      "may_emit_delivery_conditions": [
+        "verdict_accept",
+        "repair_same_scope",
+        "repair_rescope",
+        "cannot_deliver",
+        "abandoned",
+        "root_cause_diagnosis_needed",
+        "user_review_needed"
+      ],
+      "may_emit_runtime_event_kinds": ["handoff", "change_request", "abandoned", "learning_candidate"],
+      "must_not": ["mutate_product_files", "grant_PASS_EXECUTE", "close_non_accepted_work", "emit_multiple_review_routes"]
+    },
+    "beo-debug": {
+      "class": "support_subroutine",
+      "state_write_fields": [],
+      "artifact_write_authorities": [],
+      "may_emit_support_outcomes": ["debug_returned", "debug_abandoned"],
+      "may_emit_runtime_event_kinds": ["return", "learning_candidate_suggestion"],
+      "must_not": ["repair_code", "grant_PASS_EXECUTE", "review", "close", "emit_learning_candidate"]
+    },
+    "beo-learn": {
+      "class": "support_subroutine",
+      "state_write_fields": [],
+      "artifact_write_authorities": [
+        "advisory_learning_note"
+      ],
+      "may_emit_support_outcomes": ["learning_recorded", "learning_skipped", "qmd_refresh_recommended", "user_review_needed"],
+      "must_not": ["mutate_delivery_state", "grant_PASS_EXECUTE", "alter_review_verdict", "close", "store_secrets", "refresh_or_reindex_qmd"]
+    },
+    "beo-author": {
+      "class": "maintenance",
+      "state_write_fields": [],
+      "artifact_write_authorities": [
+        "BEO_control_plane_files"
+      ],
+      "may_emit_maintenance_outcomes": [
+        "skill_authored_or_updated",
+        "reference_or_registry_updated",
+        "no_change_needed",
+        "user_review_needed"
+      ],
+      "must_not": ["mutate_product_delivery_scope", "grant_PASS_EXECUTE", "execute_product_ticket", "review_product_ticket", "close_delivery_issue"]
+    },
+    "beo-setup": {
+      "class": "maintenance",
+      "state_write_fields": [],
+      "artifact_write_authorities": [
+        "setup_status_output",
+        "explicitly_authorized_memory_setup"
+      ],
+      "may_emit_maintenance_outcomes": [
+        "setup_complete",
+        "setup_degraded",
+        "setup_blocked",
+        "user_confirmation_needed"
+      ],
+      "must_not": ["grant_PASS_EXECUTE", "review", "mutate_product_files", "close", "make_qmd_or_obsidian_authoritative"]
+    },
+    "beo-reference": {
+      "class": "read_only_lookup",
+      "state_write_fields": [],
+      "artifact_write_authorities": [],
+      "may_emit_lookup_outcomes": ["lookup_complete"],
+      "must_not": [
+        "mutate_product_files",
+        "mutate_BEO_artifacts",
+        "mutate_registries",
+        "mutate_memory",
+        "mutate_qmd_indexes",
+        "mutate_Beads_state",
+        "claim_issues",
+        "grant_PASS_EXECUTE",
+        "issue_review_verdicts",
+        "close",
+        "act_as_delivery_phase_owner"
+      ]
+    }
+  }
+}

@@ -1,0 +1,114 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "BEO runtime-events.jsonl event",
+  "description": "Optional append-only non-normal event log. Normal plan/validate/execute/review success transitions are state.json updates, not runtime events.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["issue_id", "kind", "phase", "actor", "timestamp", "payload"],
+  "properties": {
+    "issue_id": { "type": "string", "minLength": 1 },
+    "kind": { "enum": ["user_stop", "handoff", "return", "change_request", "abandoned", "learning_candidate", "learning_candidate_suggestion"] },
+    "phase": { "enum": ["planned", "approved", "executing", "executed", "reviewing", "reviewed", "blocked", "abandoned"] },
+    "actor": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The emitting BEO skill, such as beo-plan or beo-review. This is not BR_ACTOR/BEO_ACTOR."
+    },
+    "timestamp": { "type": "string", "minLength": 1 },
+    "payload": { "type": "object" }
+  },
+  "beo_contract_metadata": {
+    "payload_contracts": {
+      "user_stop": {
+        "required": ["gate_id", "reason", "needed_from_user", "resume_route"],
+        "additionalProperties": false,
+        "properties": {
+          "gate_id": { "type": "string", "minLength": 1 },
+          "reason": { "type": "string", "minLength": 1 },
+          "needed_from_user": { "type": "string", "minLength": 1 },
+          "resume_route": { "type": "string", "registry": "pipeline.condition_id" }
+        }
+      },
+      "handoff": {
+        "required": ["to", "condition_id", "reason", "evidence_refs"],
+        "properties": {
+          "to": { "type": "string" },
+          "condition_id": { "type": "string", "registry": "pipeline.condition_id" },
+          "reason": { "type": "string", "minLength": 1 },
+          "evidence_refs": { "type": "array", "items": { "type": "safe_evidence_ref" } }
+        },
+        "additionalProperties": true
+      },
+      "return": {
+        "required": ["to", "caller_skill", "caller_route_context", "root_cause_status", "evidence_refs", "recommended_next_route"],
+        "additionalProperties": false,
+        "properties": {
+          "to": { "type": "string", "minLength": 1 },
+          "caller_skill": { "type": "string", "minLength": 1 },
+          "caller_route_context": { "type": "string", "minLength": 1 },
+          "root_cause_status": { "enum": ["proven", "likely", "insufficient_evidence"] },
+          "evidence_refs": { "type": "array", "items": { "type": "safe_evidence_ref" } },
+          "recommended_next_route": { "type": "string", "registry": "pipeline.condition_id" }
+        }
+      },
+      "change_request": {
+        "required": ["subtype", "reason", "scope_delta", "recommended_route"],
+        "additionalProperties": false,
+        "properties": {
+          "subtype": { "enum": ["scope_change", "verification_change", "done_criteria_change", "risk_change", "human_gate_change", "other"] },
+          "reason": { "type": "string", "minLength": 1 },
+          "scope_delta": { "type": "object" },
+          "recommended_route": { "type": "string", "registry": "pipeline.condition_id" }
+        }
+      },
+      "abandoned": {
+        "required": ["reason", "requested_by", "final_state"],
+        "additionalProperties": false,
+        "properties": {
+          "reason": { "type": "string", "minLength": 1 },
+          "requested_by": { "type": "string", "minLength": 1 },
+          "final_state": { "type": "string", "minLength": 1 }
+        }
+      },
+      "learning_candidate": {
+        "required": ["trigger", "lesson", "safe_evidence_refs", "reuse_condition"],
+        "additionalProperties": false,
+        "properties": {
+          "trigger": { "type": "string", "minLength": 1 },
+          "lesson": { "type": "string", "minLength": 1 },
+          "safe_evidence_refs": { "type": "array", "items": { "type": "safe_evidence_ref" } },
+          "reuse_condition": { "type": "string", "minLength": 1 }
+        }
+      },
+      "learning_candidate_suggestion": {
+        "required": ["trigger", "hypothesis", "safe_evidence_refs", "caller_skill", "caller_route_context"],
+        "additionalProperties": false,
+        "properties": {
+          "trigger": { "type": "string", "minLength": 1 },
+          "hypothesis": { "type": "string", "minLength": 1 },
+          "safe_evidence_refs": { "type": "array", "items": { "type": "safe_evidence_ref" } },
+          "caller_skill": { "type": "string", "minLength": 1 },
+          "caller_route_context": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "owner_rules": {
+      "beo-plan": {
+        "may_emit": ["user_stop"]
+      },
+      "beo-validate": {
+        "may_emit": ["user_stop"]
+      },
+      "beo-execute": {
+        "may_emit": ["handoff"]
+      },
+      "beo-debug": {
+        "may_emit": ["return", "learning_candidate_suggestion"],
+        "must_not_emit": ["learning_candidate"]
+      },
+      "beo-review": {
+        "may_emit": ["handoff", "change_request", "abandoned", "learning_candidate"]
+      }
+    }
+  }
+}

@@ -1,0 +1,125 @@
+{
+  "schema": "beo-pipeline/v4",
+  "description": "Small BEO delivery pipeline over Beads. br owns lifecycle; BEO owns safety state for plan -> validate -> execute -> review.",
+  "normal_path": ["beo-plan", "beo-validate", "beo-execute", "beo-review"],
+  "transitions": [
+    { "from": "beo-plan", "condition_id": "planned", "to": "beo-validate" },
+    { "from": "beo-plan", "condition_id": "decomposition_recorded", "to": "user" },
+    { "from": "beo-plan", "condition_id": "user_review_needed", "to": "user" },
+    { "from": "beo-validate", "condition_id": "PASS_EXECUTE", "to": "beo-execute" },
+    { "from": "beo-validate", "condition_id": "validation_failed", "to": "beo-plan" },
+    { "from": "beo-validate", "condition_id": "user_review_needed", "to": "user" },
+    { "from": "beo-execute", "condition_id": "executed", "to": "beo-review" },
+    { "from": "beo-execute", "condition_id": "root_cause_diagnosis_needed", "to": "beo-debug" },
+    { "from": "beo-execute", "condition_id": "approval_stale_or_invalid", "to": "beo-validate" },
+    { "from": "beo-execute", "condition_id": "containment_review_needed", "to": "beo-review" },
+    { "from": "beo-review", "condition_id": "verdict_accept", "to": "done" },
+    { "from": "beo-review", "condition_id": "repair_same_scope", "to": "beo-validate" },
+    { "from": "beo-review", "condition_id": "repair_rescope", "to": "beo-plan" },
+    { "from": "beo-review", "condition_id": "cannot_deliver", "to": "user" },
+    { "from": "beo-review", "condition_id": "abandoned", "to": "user" },
+    { "from": "beo-review", "condition_id": "root_cause_diagnosis_needed", "to": "beo-debug" },
+    { "from": "beo-review", "condition_id": "user_review_needed", "to": "user" }
+  ],
+  "support_subroutines": {
+    "beo-debug": {
+      "callers": ["beo-execute", "beo-review"],
+      "may_emit_runtime_events": ["return", "learning_candidate_suggestion"],
+      "must_not_emit_runtime_events": ["learning_candidate"],
+      "transitions": [
+        { "from": "beo-debug", "condition_id": "debug_returned", "to": "caller" },
+        { "from": "beo-debug", "condition_id": "debug_abandoned", "to": "caller" }
+      ]
+    },
+    "beo-learn": {
+      "entry_conditions": ["explicit_learning_candidate", "explicit_user_request"],
+      "authority": "advisory_memory_only",
+      "outcomes": ["learning_recorded", "learning_skipped", "qmd_refresh_recommended", "user_review_needed"]
+    }
+  },
+  "maintenance_skills": {
+    "beo-author": ["skill_authored_or_updated", "reference_or_registry_updated", "no_change_needed", "user_review_needed"],
+    "beo-setup": ["setup_complete", "setup_degraded", "setup_blocked", "user_confirmation_needed"]
+  },
+  "lookup_skills": {
+    "beo-reference": ["lookup_complete"]
+  },
+  "route_classes": {
+    "final_success": ["verdict_accept"],
+    "user_terminal_open": ["cannot_deliver", "abandoned"],
+    "repair": ["repair_same_scope", "repair_rescope"],
+    "diagnostic": ["root_cause_diagnosis_needed"],
+    "approval": ["PASS_EXECUTE", "validation_failed", "approval_stale_or_invalid"],
+    "planning": ["planned", "decomposition_recorded", "user_review_needed"],
+    "containment": ["containment_review_needed"]
+  },
+  "review_route_mapping": {
+    "verdict_to_condition": {
+      "accept": "verdict_accept",
+      "repair_same_scope": "repair_same_scope",
+      "repair_rescope": "repair_rescope",
+      "cannot_deliver": "cannot_deliver",
+      "abandoned": "abandoned"
+    },
+    "null_verdict_conditions": ["root_cause_diagnosis_needed", "user_review_needed"]
+  },
+  "expected_receiver_phase_after_condition_note": "This mapping defines the final phase the receiver transitions to after accepting ownership. Emitting owners are NOT authorized to write this receiver phase directly; they must write a transition state (like blocked or planning) or keep executing/planning as authorized by phase-contracts.json.",
+  "expected_receiver_phase_after_condition": {
+    "planned": "planned",
+    "decomposition_recorded": "blocked",
+    "PASS_EXECUTE": "approved",
+    "executed": "executed",
+    "approval_stale_or_invalid": "blocked",
+    "containment_review_needed": "reviewing",
+    "root_cause_diagnosis_needed": "blocked",
+    "repair_same_scope": "blocked",
+    "repair_rescope": "planned",
+    "cannot_deliver": "blocked",
+    "abandoned": "abandoned",
+    "verdict_accept": "reviewed",
+    "user_review_needed": "blocked",
+    "validation_failed": "blocked"
+  },
+  "reentry_rules": {
+    "executing": {
+      "on_entry": [
+        "fresh_read_artifacts",
+        "recompute_approval_validity_predicates",
+        "inspect_dirty_paths",
+        "classify_partial_mutation"
+      ],
+      "internal_actions": {
+        "dirty_paths_in_approved_scope_classified": "continue_execute_without_emitting_condition"
+      },
+      "emitted_conditions": {
+        "approval_predicate_failed": "approval_stale_or_invalid",
+        "execution_attributable_dirty_paths_outside_scope": "containment_review_needed",
+        "unattributed_or_preexisting_dirty_paths_outside_scope": "root_cause_diagnosis_needed",
+        "partial_state_unknown": "root_cause_diagnosis_needed"
+      }
+    }
+  },
+  "validation_failure_routes": {
+    "dirty_approved_path": "user_review_needed",
+    "dirty_generated_output": "user_review_needed",
+    "claim_mismatch": "user_review_needed",
+    "issue_closed": "user_review_needed",
+    "issue_blocked": "user_review_needed",
+    "non_atomic": "validation_failed",
+    "human_gate_unresolved": "user_review_needed",
+    "unauthorized_broad_glob": "user_review_needed",
+    "protected_path": "validation_failed",
+    "unsafe_path": "validation_failed",
+    "strict_reservation_missing": "user_review_needed",
+    "approval_predicate_failed": "validation_failed",
+    "approval_projection_error": "validation_failed",
+    "ticket_invalid": "validation_failed",
+    "mode_requirements_missing": "validation_failed",
+    "default": "validation_failed"
+  },
+  "runtime_event_policy": {
+    "write_only_for_non_normal_events": true,
+    "forbidden_normal_event_conditions": ["planned", "PASS_EXECUTE", "executed", "verdict_accept"]
+  },
+  "reservation_release_on": ["verdict_accept", "cannot_deliver", "abandoned", "repair_rescope"]
+}

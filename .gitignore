@@ -1,0 +1,12 @@
+# beads runtime (auto-created by br daemon)
+
+# tool caches
+.cass/
+.bv/
+.gitnexus
+.env
+__pycache__/
+*.pyc
+
+# br doctor per-run artifacts
+.doctor/

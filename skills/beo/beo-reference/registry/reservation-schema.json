@@ -1,0 +1,149 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "BEO Reservation Record Schema",
+  "description": "JSON Schema contract for path reservation records in .beads/beo-reservations.jsonl.",
+  "type": "object",
+  "required": [
+    "reservation_id",
+    "issue_id",
+    "actor",
+    "paths",
+    "created_at",
+    "status",
+    "released_at",
+    "release_reason",
+    "superseded_by",
+    "revoked_by",
+    "revocation_ref"
+  ],
+  "properties": {
+    "reservation_id": {
+      "type": "string",
+      "pattern": "^res-[a-f0-9]{8}$"
+    },
+    "issue_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "actor": {
+      "type": "string",
+      "minLength": 1
+    },
+    "paths": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^(?!.*[\\x00-\\x1F])(?![/\\\\])(?!.:)(?!\\.([/\\\\])?$)(?!.*(^|[/\\\\])\\.\\.([/\\\\]|$))\\S(?:.*\\S)?$"
+      },
+      "minItems": 1
+    },
+    "created_at": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["active", "released", "superseded", "revoked"]
+    },
+    "released_at": {
+      "type": ["string", "null"],
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+    },
+    "release_reason": {
+      "type": ["string", "null"],
+      "enum": ["verdict_accept", "cannot_deliver", "abandoned", "repair_rescope", "human_released", null]
+    },
+    "superseded_by": {
+      "type": ["string", "null"],
+      "pattern": "^res-[a-f0-9]{8}$"
+    },
+    "revoked_by": {
+      "type": ["string", "null"],
+      "minLength": 1
+    },
+    "revocation_ref": {
+      "type": ["string", "null"],
+      "minLength": 1
+    }
+  },
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": { "status": { "const": "active" } },
+        "required": ["status"]
+      },
+      "then": {
+        "properties": {
+          "released_at": { "type": "null" },
+          "release_reason": { "type": "null" },
+          "superseded_by": { "type": "null" },
+          "revoked_by": { "type": "null" },
+          "revocation_ref": { "type": "null" }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "status": { "const": "released" } },
+        "required": ["status"]
+      },
+      "then": {
+        "properties": {
+          "released_at": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$" },
+          "release_reason": { "enum": ["verdict_accept", "cannot_deliver", "abandoned", "repair_rescope", "human_released"] },
+          "superseded_by": { "type": "null" },
+          "revoked_by": { "type": "null" },
+          "revocation_ref": { "type": "null" }
+        },
+        "required": ["released_at", "release_reason"]
+      }
+    },
+    {
+      "if": {
+        "properties": { "status": { "const": "superseded" } },
+        "required": ["status"]
+      },
+      "then": {
+        "properties": {
+          "released_at": { "type": "null" },
+          "release_reason": { "type": "null" },
+          "superseded_by": { "type": "string", "pattern": "^res-[a-f0-9]{8}$" },
+          "revoked_by": { "type": "null" },
+          "revocation_ref": { "type": "null" }
+        },
+        "required": ["superseded_by"]
+      }
+    },
+    {
+      "if": {
+        "properties": { "status": { "const": "revoked" } },
+        "required": ["status"]
+      },
+      "then": {
+        "properties": {
+          "superseded_by": { "type": "null" },
+          "revoked_by": { "type": "string", "minLength": 1 },
+          "revocation_ref": { "type": "string", "minLength": 1 }
+        },
+        "required": ["revoked_by", "revocation_ref"],
+        "oneOf": [
+          {
+            "properties": {
+              "released_at": { "type": "null" },
+              "release_reason": { "type": "null" }
+            }
+          },
+          {
+            "properties": {
+              "released_at": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$" },
+              "release_reason": { "enum": ["verdict_accept", "cannot_deliver", "abandoned", "repair_rescope", "human_released"] }
+            },
+            "required": ["released_at", "release_reason"]
+          }
+        ]
+      }
+    }
+  ]
+}
