@@ -1,5 +1,8 @@
 # BEO Phase Contracts
 
+> [!NOTE]
+> This reference is subordinate to [references/kernel.md](file:///Users/beowulf/Work/personal/beo-skills/skills/beo/beo-reference/references/kernel.md). `references/kernel.md` is the canonical owner of BEO rules and invariants.
+
 This file summarizes phase permissions. The canonical machine-readable permission matrix is `registry/phase-contracts.json`.
 
 ## Owner classes

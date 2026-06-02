@@ -1,8 +1,9 @@
 # Lifecycle, Decomposition, and Triage Authority
 
-`br` and `bv` are the external Beads tools used for issue tracking and orientation.
+> [!NOTE]
+> This reference is subordinate to [references/kernel.md](file:///Users/beowulf/Work/personal/beo-skills/skills/beo/beo-reference/references/kernel.md). `references/kernel.md` is the canonical owner of BEO rules and invariants.
 
-Artifact boundaries are canonical in `references/artifact-boundaries.md`.
+`br` and `bv` are the external Beads tools used for issue tracking and orientation.
 
 ## 1. Issue Triage and Claim Authority
 

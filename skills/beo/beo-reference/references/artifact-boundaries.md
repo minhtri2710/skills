@@ -1,5 +1,8 @@
 # Artifact Boundaries
 
+> [!NOTE]
+> This reference is subordinate to [references/kernel.md](file:///Users/beowulf/Work/personal/beo-skills/skills/beo/beo-reference/references/kernel.md). `references/kernel.md` is the canonical owner of BEO rules and invariants.
+
 This file owns BEO artifact placement rules. Other files should cite this file instead of restating these boundaries.
 
 ## Canonical ownership

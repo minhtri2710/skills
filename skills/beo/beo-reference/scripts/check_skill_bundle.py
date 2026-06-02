@@ -24,7 +24,7 @@ def _path_like_refs(text: str) -> set[str]:
 
 def _is_pseudo_ref(ref: str) -> bool:
     return (
-        ref.startswith(("http://", "https://", "br-comment:"))
+        ref.startswith(("http://", "https://", "br-comment:", "file://"))
         or "<" in ref
         or "pipeline.condition_id" in ref
         or "safe_evidence_ref" in ref

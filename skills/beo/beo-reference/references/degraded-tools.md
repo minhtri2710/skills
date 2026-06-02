@@ -1,6 +1,9 @@
 # Degraded Tool Guidance
 
-This file guidance focuses on setup checks. Authority invariants are canonical in `kernel.md`.
+> [!NOTE]
+> This reference is subordinate to [references/kernel.md](file:///Users/beowulf/Work/personal/beo-skills/skills/beo/beo-reference/references/kernel.md). `references/kernel.md` is the canonical owner of BEO rules and invariants.
+
+This file guidance focuses on setup checks. Authority invariants are canonical in `references/kernel.md`.
 
 ## Tool requirements
 
