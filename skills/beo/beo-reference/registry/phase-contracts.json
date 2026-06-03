@@ -12,7 +12,10 @@
       "class": "delivery_owner",
       "state_write_fields": ["initialize"],
       "artifact_write_authorities": [
+        "plan_artifact",
         "ticket",
+        "br.child_beads",
+        "br.dependency_edges",
         "br.decomposition_comments",
         "br.labels.beo_blocked_user"
       ],
@@ -28,7 +31,7 @@
         "validation_evidence",
         "br.labels.beo_blocked_user"
       ],
-      "may_emit_delivery_conditions": ["PASS_EXECUTE", "validation_failed", "user_review_needed"],
+      "may_emit_delivery_conditions": ["PASS_EXECUTE", "plan_validated", "validation_failed", "user_review_needed"],
       "may_emit_runtime_event_kinds": ["user_stop"],
       "must_not": ["patch_ticket_plan", "mutate_product_files", "review", "close"]
     },

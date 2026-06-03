@@ -1,12 +1,13 @@
 ---
 name: beo-review
-description: "Review executed BEO work for scope, evidence, and done criteria. Emits one route; only this skill may close accepted work."
+description: "Review one executed atomic BEO bead against PLAN.md/TICKET.yaml scope, evidence, verification, and done criteria. Emits one route; only this skill may close accepted work."
 ---
 # beo-review
 
 ## Read
 
 - `br show <issue-id> --json`
+- `.beads/artifacts/<parent-issue-id>/PLAN.md` when the atomic bead links to a parent plan
 - `.beads/artifacts/<issue-id>/TICKET.yaml`
 - `.beads/artifacts/<issue-id>/state.json`
 - `.beads/artifacts/<issue-id>/runtime-events.jsonl` when present
@@ -18,13 +19,14 @@ description: "Review executed BEO work for scope, evidence, and done criteria. E
 ## Do
 
 1. Fresh-read `br`, ticket, state, runtime events when present, phase-relevant registries named above, and any referenced evidence.
-2. Audit changed files against approved scope and generated outputs.
-3. Confirm verification results cover `scope.verify.commands` and `done_criteria`; record compact done-criteria coverage.
-4. Record findings with severity, category, message, evidence refs, and recommended route; the final route must be derivable from findings.
-5. Emit exactly one review route.
-6. For `root_cause_diagnosis_needed`, set the route condition, leave `review.verdict` null, and append a `handoff` runtime event before routing to `beo-debug`.
-7. Use `repair_same_scope` only when approved files, generated outputs, done criteria, verification, mode, risk, and Human Gates remain unchanged; otherwise use `repair_rescope`.
-8. Close with `br` only on `verdict_accept`; otherwise leave the issue open for repair or user action.
+2. If the atomic bead was decomposed from an epic/feature, compare completed work against the child bead description and referenced parent `PLAN.md` boundaries.
+3. Audit changed files against approved scope and generated outputs.
+4. Confirm verification results cover `scope.verify.commands` and `done_criteria`; record compact done-criteria coverage.
+5. Record findings with severity, category, message, evidence refs, and recommended route; the final route must be derivable from findings.
+6. Emit exactly one review route.
+7. For `root_cause_diagnosis_needed`, set the route condition, leave `review.verdict` null, and append a `handoff` runtime event before routing to `beo-debug`.
+8. Use `repair_same_scope` only when approved files, generated outputs, done criteria, verification, mode, risk, and Human Gates remain unchanged; otherwise use `repair_rescope`.
+9. Close with `br` only on `verdict_accept`; otherwise leave the issue open for repair or user action.
 
 ## Write
 

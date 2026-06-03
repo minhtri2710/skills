@@ -43,11 +43,11 @@ Support skills do not advance delivery state unless a delivery owner routes to t
 
 ## Minimal agent path
 
-1. Pick or inspect exactly one bead with `br`.
-2. Use `beo-plan` to claim, decompose if needed, and author `TICKET.yaml`.
-3. Use `beo-validate` to grant or deny `PASS_EXECUTE`.
-4. Use `beo-execute` to mutate approved scope and record evidence.
-5. Use `beo-review` to accept, repair, diagnose, or route to user.
+1. Pick or inspect exactly one bead with `br`; use `bv` only for read-only graph orientation.
+2. Use `beo-plan` to claim the bead. For epics/features, brainstorm the request with recommended questions, write `.beads/artifacts/<issue-id>/PLAN.md`, validate it, then decompose into atomic child beads. For atomic beads, author `TICKET.yaml`.
+3. Use `beo-validate` to validate epic/feature plan readiness or grant/deny `PASS_EXECUTE` for an atomic ticket.
+4. Use `beo-execute` to select one ready approved atomic bead, mutate approved scope, and record evidence.
+5. Use `beo-review` to review the atomic bead/task evidence, accept, repair, diagnose, or route to user.
 
 ## Canonical lookup
 

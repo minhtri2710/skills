@@ -43,12 +43,19 @@ Only atomic beads can be validated or executed. Epics and Features must be decom
 - **Feature**: Capability group; must be decomposed.
 - **Atomic Bead**: One independently approvable execution unit. Must have concrete `done_criteria`, one mode, one approval projection, a small explicit allowed file set, one verification contract, one verdict, and an independent revert/repair path.
 
-### Parent-Child Mechanics
+### Epic Planning Mechanics
 If a bead is not atomic:
-1. `beo-plan` creates child atomic beads using `br create ... --json`.
-2. Add dependency edges using `br dep add ... --json`.
-3. Add a summary comment to the parent bead using `br comments add ... --json`.
-4. Exit planning with `decomposition_recorded` and hand off to the user.
+1. `beo-plan` fresh-reads the epic/feature with `br show --json`, claims it, and combines the user request with the bead context.
+2. `beo-plan` asks structured clarification questions with a recommended option when the request, scope, constraints, verification, or decomposition boundary is unclear.
+3. Continue intake until the plan can state assumptions, scope, non-goals, risks, verification strategy, decomposition strategy, proposed atomic beads, and open decisions.
+4. Write the durable plan to `.beads/artifacts/<issue-id>/PLAN.md`.
+5. Emit `planned` so `beo-validate` validates the plan artifact before child-bead creation; `beo-validate` emits `plan_validated` without granting `PASS_EXECUTE`.
+6. After `plan_validated`, `beo-plan` creates child atomic beads using `br create ... --json`.
+7. Add dependency edges using `br dep add ... --json`.
+8. Add a summary comment to the parent bead using `br comments add ... --json` with a reference to `PLAN.md` and the child bead ids.
+9. Exit planning with `decomposition_recorded` and hand off to the user.
+
+Each child atomic bead description includes a one-sentence task summary, done criteria, expected touched artifacts or file scope, verification command(s), dependencies/blockers, and links back to the parent bead and `PLAN.md`.
 
 ---
 

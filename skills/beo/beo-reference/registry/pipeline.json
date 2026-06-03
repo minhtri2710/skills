@@ -7,6 +7,7 @@
     { "from": "beo-plan", "condition_id": "decomposition_recorded", "to": "user" },
     { "from": "beo-plan", "condition_id": "user_review_needed", "to": "user" },
     { "from": "beo-validate", "condition_id": "PASS_EXECUTE", "to": "beo-execute" },
+    { "from": "beo-validate", "condition_id": "plan_validated", "to": "beo-plan" },
     { "from": "beo-validate", "condition_id": "validation_failed", "to": "beo-plan" },
     { "from": "beo-validate", "condition_id": "user_review_needed", "to": "user" },
     { "from": "beo-execute", "condition_id": "executed", "to": "beo-review" },
@@ -50,7 +51,7 @@
     "repair": ["repair_same_scope", "repair_rescope"],
     "diagnostic": ["root_cause_diagnosis_needed"],
     "approval": ["PASS_EXECUTE", "validation_failed", "approval_stale_or_invalid"],
-    "planning": ["planned", "decomposition_recorded", "user_review_needed"],
+    "planning": ["planned", "plan_validated", "decomposition_recorded", "user_review_needed"],
     "containment": ["containment_review_needed"]
   },
   "review_route_mapping": {
@@ -66,6 +67,7 @@
   "expected_receiver_phase_after_condition_note": "This mapping defines the final phase the receiver transitions to after accepting ownership. Emitting owners are NOT authorized to write this receiver phase directly; they must write a transition state (like blocked or planning) or keep executing/planning as authorized by phase-contracts.json.",
   "expected_receiver_phase_after_condition": {
     "planned": "planned",
+    "plan_validated": "planned",
     "decomposition_recorded": "blocked",
     "PASS_EXECUTE": "approved",
     "executed": "executed",
