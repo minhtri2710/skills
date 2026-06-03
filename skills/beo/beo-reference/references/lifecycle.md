@@ -13,14 +13,24 @@ All issue transitions are governed by strict claim invariants to avoid parallel 
 1. **Orient**: If no issue is selected, use `bv` robot triage for graph orientation only.
 2. **Discover**: Use `br ready --json` for the canonical executable queue. Use `bv` only to choose between tracks or detect graph hazards.
 3. **Inspect**: Check canonical issue details with `br`.
-4. **Claim or verify claim**: Before the first plan-owned write, `beo-plan` claims the issue with `br update --actor <actor> <issue-id> --claim --json`. Later phase owners verify that the existing claim matches the acting owner and fail closed on mismatch. `--claim` takes no value.
-5. **Bind helper identity**: Run BEO helper checks with `BR_ACTOR` or `BEO_ACTOR` set to the claimed assignee. Helper claim checks compare that environment actor to the Beads claim.
+4. **Classify atomicity**: If the issue type is `epic` or `feature`, stop direct validation/execution and route to `beo-plan` decomposition. If the issue was confirmed misclassified but is actually atomic, correct the type with `br update <issue-id> --type task` before continuing; do not convert parent work to `task` just to bypass decomposition.
+5. **Claim or verify claim**: Before the first plan-owned write, `beo-plan` claims the issue with `br update <issue-id> --claim --actor <actor> --json`. Later phase owners verify that the existing claim matches the acting owner and fail closed on mismatch. `--claim` takes no value.
+6. **Bind helper identity**: Run BEO helper checks with `BR_ACTOR` or `BEO_ACTOR` set to the claimed assignee. Helper claim checks compare that environment actor to the Beads claim.
+7. **Flush claim state**: After a successful claim that must be visible to later checks or other agents, run `br sync --flush-only`.
 
 ### Claim Authority and Phase Boundaries
 - **Plan claim**: `beo-plan` establishes initial claim before decomposition, `TICKET.yaml` write, or planning comments.
 - **Later phase verification**: `beo-validate`, `beo-execute`, `beo-review` verify the existing claim matches the acting owner; they do not re-claim.
 - **Resume protocol**: Only `beo-plan`, after explicit user-driven resume or issue reassignment, may re-claim after the initial plan claim.
 - **Parent claim for decomposition**: Parent claim holds only while `beo-plan` creates child beads and dependency edges.
+
+### Common Lifecycle Failure Triage
+
+| Symptom | Cause | Resolution |
+| --- | --- | --- |
+| `issue is not atomic; route to beo-plan decomposition` or `issue must be decomposed before validation` | Issue type is `epic` or `feature` | Route to `beo-plan` decomposition; use `br update <issue-id> --type task` only when the issue is confirmed misclassified |
+| `br issue claim does not match acting actor` or `BR_ACTOR or BEO_ACTOR is required` | Missing or mismatched actor identity | `export BR_ACTOR=<actor>`, then `br update <issue-id> --claim --actor <actor> --json` and `br sync --flush-only` |
+| `error: unexpected argument '--message' found` | `br close` uses Beads-specific syntax, not git commit syntax | Use `br close <issue-id>` or `br close <issue-id> --reason "Completed" --actor <actor> --json`; never use `--message` |
 
 ---
 
@@ -76,3 +86,14 @@ BEO uses explicit artifact-validity phase handoffs.
 Labels on `br` are advisory indicators that reflect the active BEO state:
 - `beo:atomic`, `beo:quick`, `beo:standard`, `beo:strict`, `beo:blocked-user`, `beo:ready-review`.
 - **Abandoned vs Completed Closure**: Only `verdict_accept` routes to automatic `br close` with a resolution status of `completed` and a `beo:completed` label. When BEO delivery is `abandoned`, `beo-review` records the status in `state.json`, appends a BEO audit comment via `br comments add ... --json`, applies the `beo:abandoned` label, and stops, leaving the issue `open` in `br` for manual user closure.
+
+### Closure Command Syntax
+
+Use Beads-specific close options, not git-style commit flags:
+
+```bash
+br close <issue-id>
+br close <issue-id> --reason "Completed" --actor <actor> --json
+```
+
+`br close` does not accept `--message`; use `--reason` for the close reason.

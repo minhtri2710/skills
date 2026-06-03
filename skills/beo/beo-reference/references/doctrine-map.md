@@ -18,7 +18,7 @@ For any general operator question, check the primary BEO Kernel first. Load narr
 | Can I append this runtime event? | `registry/runtime-event.schema.json` | Allowed non-normal event kind and payload | Normal transition docs |
 | Is `PASS_EXECUTE` still valid? | `registry/approval-envelope.json` | Approval validity predicates and invalidation reason | Memory docs |
 | Which mode or path rule applies? | `registry/profiles.json` | Quick/standard/strict requirement, protected path, or broad-glob decision | Strict reservation schema unless strict mode needs it |
-| Can I claim, decompose, use `bv`, or close with `br`? | `references/lifecycle.md` | Subordinate command authority and `bv` advisory boundary | Safety docs unless mutation risk is disputed |
+| Can I claim, decompose, use `bv`, close with `br`, or debug lifecycle CLI syntax? | `references/lifecycle.md` | Subordinate lifecycle command authority, CLI syntax, and `bv` advisory boundary | Safety docs unless mutation risk is disputed |
 | Can I mutate this file or perform this side effect? | `references/safety.md` | Subordinate dirty-tree, side-effect, and recovery guidance | Memory docs |
 | Can memory inform this decision? | `references/memory.md` | Subordinate memory and learning guidance | Approval/state registries unless independently needed |
 | Is a missing tool blocking or degraded? | `references/degraded-tools.md` | Required/degraded tool status and fallback | Full setup script implementation |
