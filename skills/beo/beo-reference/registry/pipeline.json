@@ -121,7 +121,7 @@
   },
   "runtime_event_policy": {
     "write_only_for_non_normal_events": true,
-    "forbidden_normal_event_conditions": ["planned", "PASS_EXECUTE", "executed", "verdict_accept"]
+    "forbidden_normal_event_conditions": ["planned", "plan_validated", "PASS_EXECUTE", "executed", "verdict_accept"]
   },
   "reservation_release_on": ["verdict_accept", "cannot_deliver", "abandoned", "repair_rescope"]
 }

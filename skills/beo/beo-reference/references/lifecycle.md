@@ -22,7 +22,7 @@ All issue transitions are governed by strict claim invariants to avoid parallel 
 - **Plan claim**: `beo-plan` establishes initial claim before decomposition, `TICKET.yaml` write, or planning comments.
 - **Later phase verification**: `beo-validate`, `beo-execute`, `beo-review` verify the existing claim matches the acting owner; they do not re-claim.
 - **Resume protocol**: Only `beo-plan`, after explicit user-driven resume or issue reassignment, may re-claim after the initial plan claim.
-- **Parent claim for decomposition**: Parent claim holds only while `beo-plan` creates child beads and dependency edges.
+- **Parent claim for decomposition**: Parent claim covers `PLAN.md` authoring, plan-validation handoff/re-entry, and child bead/dependency creation. Later atomic child work still follows the one-claimed-atomic-issue invariant.
 
 ### Common Lifecycle Failure Triage
 

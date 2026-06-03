@@ -31,7 +31,7 @@ description: "Validate BEO PLAN.md readiness or grant/deny PASS_EXECUTE for atom
 
 ## Write
 
-- `state.json` phase and approval fields only
+- `state.json` phase and approval fields only for atomic ticket validation
 - `.beads/beo-reservations.jsonl` via `beo-reference -> scripts/beo_reservation.py` for strict-mode reservation create/supersede only
 - Optional validation evidence under `.beads/artifacts/<issue-id>/checks/`
 - Beads comments and labels for `user_stop` only, including `beo:blocked-user`

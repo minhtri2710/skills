@@ -7,7 +7,7 @@ description: "Implement one approved atomic BEO bead after PASS_EXECUTE. Use bv 
 ## Read
 
 - `bv` robot output only for optional read-only graph orientation or ready-work visualization
-- `br ready --json` when choosing work from the executable queue
+- `br ready --json` when choosing ready candidates
 - `br show <issue-id> --json`
 - `.beads/artifacts/<issue-id>/TICKET.yaml`
 - `.beads/artifacts/<issue-id>/state.json`
@@ -19,7 +19,7 @@ description: "Implement one approved atomic BEO bead after PASS_EXECUTE. Use bv 
 
 ## Do
 
-1. When no issue is already selected, use `bv` only to orient in the dependency graph, then use `br ready --json` and `br show --json` as the authoritative source for executable work.
+1. When no issue is already selected, use `bv` only to orient in the dependency graph, then use `br ready --json` and `br show --json` as the authoritative source for ready candidates.
 2. Fresh-read `br`, ticket, state, runtime events when present, and phase-relevant registries named above.
 3. Verify the issue is open, claimed, unblocked, atomic, and materially consistent with the ticket.
 4. Verify current `PASS_EXECUTE` validity predicates before first mutation.
