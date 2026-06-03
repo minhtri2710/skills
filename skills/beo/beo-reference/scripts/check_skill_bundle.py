@@ -29,7 +29,7 @@ def _is_pseudo_ref(ref: str) -> bool:
         or "pipeline.condition_id" in ref
         or "safe_evidence_ref" in ref
         or ref.startswith(".beads/")
-        or ref in {"state.json", "TICKET.yaml", "runtime-events.jsonl", "AGENTS.md", "README.md", "utils.py", "unrelated.py", "skills/beo/", "skills/beo/beo-reference/learnings/"}
+        or ref in {"state.json", "TICKET.yaml", "PLAN.md", "runtime-events.jsonl", "AGENTS.md", "README.md", "utils.py", "unrelated.py", ".git/**", "**/.env", "yes/no", "user/operator", "None — no blocking user/operator decisions remain", "skills/beo/", "skills/beo/beo-reference/learnings/"}
     )
 
 
@@ -54,6 +54,8 @@ def _check_ref_exists(errors: list[str], source: Path, ref: str) -> None:
         target = (REF_DIR / "scripts" / ref_path).resolve()
     elif source.is_relative_to(REF_DIR) and source.parent.name == "references" and ref_path == "AGENTS.template.md":
         target = (REF_DIR / "templates" / ref_path).resolve()
+    elif source.is_relative_to(REF_DIR) and re.fullmatch(r"beo-[a-z-]+/SKILL\.md", ref_path):
+        target = (BEO_ROOT / ref_path).resolve()
     elif source.is_relative_to(REF_DIR) and ref_path == "beo-author/SKILL.md":
         target = (BEO_ROOT / ref_path).resolve()
     else:
@@ -64,6 +66,19 @@ def _check_ref_exists(errors: list[str], source: Path, ref: str) -> None:
         except ValueError:
             display_source = source
         errors.append(f"Unresolved relative reference in {display_source}: {ref}")
+
+
+def _collect_enums(value: Any) -> set[Any]:
+    enums: set[Any] = set()
+    if isinstance(value, dict):
+        if isinstance(value.get("enum"), list):
+            enums.update(value["enum"])
+        for child in value.values():
+            enums.update(_collect_enums(child))
+    elif isinstance(value, list):
+        for child in value:
+            enums.update(_collect_enums(child))
+    return enums
 
 
 def run_checks() -> int:
@@ -142,7 +157,7 @@ def run_checks() -> int:
         if not p.exists():
             errors.append(f"Missing example: {p.relative_to(BEO_ROOT)}")
 
-    required_templates = ["AGENTS.template.md"]
+    required_templates = ["AGENTS.template.md", "PLAN.template.md"]
     for t in required_templates:
         p = REF_DIR / "templates" / t
         if not p.exists():
@@ -152,12 +167,14 @@ def run_checks() -> int:
     contracts_path = REF_DIR / "registry" / "phase-contracts.json"
     pipeline_path = REF_DIR / "registry" / "pipeline.json"
     events_path = REF_DIR / "registry" / "runtime-event.schema.json"
+    state_schema_path = REF_DIR / "registry" / "state.schema.json"
 
-    if contracts_path.exists() and pipeline_path.exists() and events_path.exists():
+    if contracts_path.exists() and pipeline_path.exists() and events_path.exists() and state_schema_path.exists():
         try:
             contracts = json.loads(contracts_path.read_text(encoding="utf-8"))
             pipeline = json.loads(pipeline_path.read_text(encoding="utf-8"))
             events = json.loads(events_path.read_text(encoding="utf-8"))
+            state_schema = json.loads(state_schema_path.read_text(encoding="utf-8"))
 
             classes = contracts.get("classes", {})
             skills_config = contracts.get("skills", {})
@@ -193,6 +210,24 @@ def run_checks() -> int:
             delivery_by_skill = {}
             for transition in pipeline.get("transitions", []):
                 delivery_by_skill.setdefault(transition["from"], set()).add(transition["condition_id"])
+            handoff_subtypes = set(pipeline.get("delivery_user_handoff_subtypes", []))
+            route_conditions = {t["condition_id"] for t in pipeline.get("transitions", [])}
+            if "user_review_needed" not in pipeline.get("route_classes", {}).get("user_handoff", []):
+                errors.append("pipeline.json must classify user_review_needed under route_classes.user_handoff")
+            if "user_review_needed" in pipeline.get("route_classes", {}).get("planning", []):
+                errors.append("pipeline.json must not classify user_review_needed under route_classes.planning")
+            mirrored_subtypes = sorted(handoff_subtypes & route_conditions)
+            if mirrored_subtypes:
+                errors.append(f"delivery_user_handoff_subtypes must remain metadata, not route IDs: {mirrored_subtypes}")
+            event_kind_enums = set(events.get("properties", {}).get("kind", {}).get("enum", []))
+            mirrored_event_subtypes = sorted(handoff_subtypes & event_kind_enums)
+            if mirrored_event_subtypes:
+                errors.append(f"delivery_user_handoff_subtypes must not be runtime-event kinds: {mirrored_event_subtypes}")
+            state_enums = {item for item in _collect_enums(state_schema) if isinstance(item, str)}
+            mirrored_state_subtypes = sorted(handoff_subtypes & state_enums)
+            if mirrored_state_subtypes:
+                errors.append(f"delivery_user_handoff_subtypes must not be state schema enum values: {mirrored_state_subtypes}")
+
             outcome_fields_by_class = {
                 "delivery_owner": "may_emit_delivery_conditions",
                 "support_subroutine": "may_emit_support_outcomes",
@@ -219,9 +254,13 @@ def run_checks() -> int:
                 "beo-reference": set(),
             }
             artifact_authorities = {
+                "plan_artifact",
                 "ticket",
+                "br.child_beads",
+                "br.dependency_edges",
                 "br.decomposition_comments",
                 "br.labels.beo_blocked_user",
+                "br.final_route_comments",
                 "strict_reservation",
                 "validation_evidence",
                 "approved_product_files",

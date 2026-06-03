@@ -18,13 +18,7 @@ If a path matches both allow and forbid, it is forbidden.
 
 ## Approval validity
 
-`PASS_EXECUTE` has no arbitrary elapsed-time invalidation.
-
-Approval remains valid until a bound predicate fails, a newer artifact supersedes it, or a human/operator revokes or removes the authority.
-
-Agents must not infer invalidity from elapsed time alone.
-
-Canonical machine-readable predicates: `registry/approval-envelope.json`.
+Approval validity is canonical in `references/kernel.md` and machine-readable predicates are in `registry/approval-envelope.json`. Agents must not infer invalidity from elapsed time alone.
 
 ## Containment failure triage
 

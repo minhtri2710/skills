@@ -1,6 +1,6 @@
-# Negative Trace: Repair Rescope Required
+# Debug Example: Repair Rescope Required
 
-This trace shows a review finding that cannot be repaired under the same scope because it requires modifying a file not in the approved files list.
+This debug example is for failure analysis only and is not required context for normal delivery routing. It shows a review finding that cannot be repaired under the same scope because it requires modifying a file not in the approved files list.
 
 ## Scenario
 

@@ -10,6 +10,7 @@ For any general operator question, check the primary BEO Kernel first. Load narr
 | Question | Load exactly | Decision produced | Never load |
 |---|---|---|---|
 | Where does this artifact or field belong? | `references/artifact-boundaries.md` | Canonical artifact owner and allowed placement | Lifecycle prose |
+| What must a parent epic/feature `PLAN.md` contain? | `templates/PLAN.template.md`; phase-specific behavior stays in the selected phase skill card (`beo-plan` when writing, `beo-validate` when validating) | Binding PLAN artifact shape for decomposition readiness | Ticket/state schemas unless writing atomic artifacts |
 | What may this skill read, write, or emit? | `registry/phase-contracts.json` | Binding phase permission, write authority, or emitted condition | Other skill cards |
 | Why does a phase permission or repair boundary exist? | `references/phase-contracts.md` | Subordinate guidance for phase/repair details | Full registry bundle |
 | Which route or condition name is legal? | `registry/pipeline.json` | Exact transition, support outcome, or forbidden normal event | Narrative lifecycle docs |

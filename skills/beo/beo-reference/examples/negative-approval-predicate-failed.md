@@ -1,6 +1,6 @@
-# Negative Trace: Approval Predicate Failed
+# Debug Example: Approval Predicate Failed
 
-This trace shows what happens when a ticket is approved, but the ticket file hash is modified on disk before execution starts.
+This debug example is for failure analysis only and is not required context for normal delivery routing. It shows what happens when a ticket is approved, but the ticket file hash is modified on disk before execution starts.
 
 ## Scenario
 

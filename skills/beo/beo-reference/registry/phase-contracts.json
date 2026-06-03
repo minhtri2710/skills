@@ -17,6 +17,7 @@
         "br.child_beads",
         "br.dependency_edges",
         "br.decomposition_comments",
+        "br.final_route_comments",
         "br.labels.beo_blocked_user"
       ],
       "may_emit_delivery_conditions": ["planned", "decomposition_recorded", "user_review_needed"],
@@ -29,6 +30,7 @@
       "artifact_write_authorities": [
         "strict_reservation",
         "validation_evidence",
+        "br.final_route_comments",
         "br.labels.beo_blocked_user"
       ],
       "may_emit_delivery_conditions": ["PASS_EXECUTE", "plan_validated", "validation_failed", "user_review_needed"],

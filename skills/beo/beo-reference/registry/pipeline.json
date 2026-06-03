@@ -51,9 +51,22 @@
     "repair": ["repair_same_scope", "repair_rescope"],
     "diagnostic": ["root_cause_diagnosis_needed"],
     "approval": ["PASS_EXECUTE", "validation_failed", "approval_stale_or_invalid"],
-    "planning": ["planned", "plan_validated", "decomposition_recorded", "user_review_needed"],
-    "containment": ["containment_review_needed"]
+    "planning": ["planned", "plan_validated", "decomposition_recorded"],
+    "containment": ["containment_review_needed"],
+    "user_handoff": ["user_review_needed"]
   },
+  "delivery_user_handoff_subtypes": [
+    "user_scope_decision_needed",
+    "user_dirty_tree_action_needed",
+    "user_human_gate_needed",
+    "user_external_side_effect_authorization_needed",
+    "user_irreversible_behavior_decision_needed",
+    "user_decomposition_boundary_decision_needed",
+    "user_review_verdict_decision_needed",
+    "user_claim_or_lifecycle_decision_needed",
+    "user_path_safety_decision_needed",
+    "user_strict_reservation_action_needed"
+  ],
   "review_route_mapping": {
     "verdict_to_condition": {
       "accept": "verdict_accept",

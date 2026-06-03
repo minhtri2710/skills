@@ -1,6 +1,6 @@
-# Negative Trace: Approved Path Dirty Before Validation
+# Debug Example: Approved Path Dirty Before Validation
 
-This trace demonstrates validation failing when a file in the approved scope is dirty before validation begins.
+This debug example is for failure analysis only and is not required context for normal delivery routing. It demonstrates validation failing when a file in the approved scope is dirty before validation begins.
 
 ## Scenario
 

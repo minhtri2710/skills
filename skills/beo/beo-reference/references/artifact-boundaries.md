@@ -11,7 +11,7 @@ This file owns BEO artifact placement rules. Other files should cite this file i
 |---|---|---|
 | `br` | issue lifecycle, status, claims, dependencies, comments, ready queue, closure | BEO approval/execution/review internals |
 | `bv` | read-only graph orientation | persisted lifecycle state, approval, verdict |
-| `PLAN.md` | epic requirement intake, assumptions, recommended brainstorm decisions, decomposition strategy, and proposed atomic beads | approval state, execution state, review verdict, product implementation |
+| `PLAN.md` | parent epic/feature requirement intake, clarification record, recommended assumptions, goals, non-goals, overall completion criteria, constraints, risks, verification strategy, decomposition strategy, proposed atomic child beads with suggested mode/risk, dependency graph, and unresolved user/operator decisions that block `plan_validated` until resolved | approval state, execution state, review verdict, product implementation, atomic ticket scope authority |
 | `TICKET.yaml` | request, done criteria, approved scope, verification commands, risk/strict contracts | br lifecycle, approval state, execution state, review verdict, runtime event log, learning notes |
 | `state.json` | approval, execution, review state | request/scope definition, br lifecycle, memory notes |
 | `runtime-events.jsonl` | append-only non-normal events | normal successful transitions |
@@ -23,6 +23,8 @@ This file owns BEO artifact placement rules. Other files should cite this file i
 - Beads lifecycle/status in `TICKET.yaml`.
 - `bv` triage ranking in `TICKET.yaml` or `state.json`.
 - epic brainstorm notes or proposed child-bead backlog in `TICKET.yaml`; put them in `.beads/artifacts/<issue-id>/PLAN.md`.
+- atomic approval fields in `PLAN.md`; parent plans guide decomposition but never grant `PASS_EXECUTE`.
+- parent epic/feature brainstorming in child `TICKET.yaml`; child Beads descriptions or decomposition comments should link back to the parent `PLAN.md`. Do not add a new parent/plan field to `TICKET.yaml` because `registry/ticket.schema.json` is closed with `additionalProperties: false`.
 - normal transitions in `runtime-events.jsonl`.
 - approval state or review verdict in `TICKET.yaml`.
 - learning notes in `beo-reference`.

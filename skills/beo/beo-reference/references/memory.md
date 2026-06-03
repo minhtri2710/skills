@@ -3,7 +3,7 @@
 > [!NOTE]
 > This reference is subordinate to [references/kernel.md](file:///Users/beowulf/Work/personal/beo-skills/skills/beo/beo-reference/references/kernel.md). `references/kernel.md` is the canonical owner of BEO rules and invariants.
 
-Memory authority boundary is canonical in `references/kernel.md` invariant #8 (under hard invariants): qmd and Obsidian never grant approval, execution permission, verdicts, closure, or Human Gate resolution.
+Memory authority boundary is canonical in `references/kernel.md` §7 Memory & Learning Boundary: qmd and Obsidian are advisory only and never grant approval, execution permission, verdicts, closure, or Human Gate resolution.
 
 ## Learning location
 

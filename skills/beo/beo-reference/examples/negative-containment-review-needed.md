@@ -1,6 +1,6 @@
-# Negative Trace: Containment Review Needed
+# Debug Example: Containment Review Needed
 
-This trace illustrates an interrupted execution that created attributable dirty paths outside of the approved scope.
+This debug example is for failure analysis only and is not required context for normal delivery routing. It illustrates an interrupted execution that created attributable dirty paths outside of the approved scope.
 
 ## Scenario
 
