@@ -12,6 +12,11 @@ import beo_io
 import beo_memory_tools
 
 
+MANAGED_START = "<!-- BEO:MANAGED START -->"
+MANAGED_END = "<!-- BEO:MANAGED END -->"
+AGENTS_TEMPLATE = Path(__file__).resolve().parent.parent / "templates" / "AGENTS.template.md"
+
+
 def collection_exists(output: str, collection: str) -> bool:
     try:
         data = json.loads(output)
@@ -49,15 +54,86 @@ def pending_embeddings(output: str) -> int | None:
     return None
 
 
+def load_agents_template(results: dict) -> str | None:
+    try:
+        return AGENTS_TEMPLATE.read_text()
+    except OSError as exc:
+        warn(results, f"Failed to read AGENTS template: {exc}")
+        return None
+
+
+def inspect_agents(root: Path, results: dict) -> dict:
+    agents_path = root / "AGENTS.md"
+    agents = {"path": str(agents_path)}
+    results["agents"] = agents
+    if not agents_path.exists():
+        agents.update({"status": "missing", "needs_install": True})
+        return agents
+    try:
+        content = agents_path.read_text()
+    except OSError as exc:
+        agents.update({"status": "unreadable", "needs_manual_repair": True})
+        warn(results, f"Failed to read AGENTS.md: {exc}")
+        return agents
+    start_count = content.count(MANAGED_START)
+    end_count = content.count(MANAGED_END)
+    if start_count == 1 and end_count == 1 and content.index(MANAGED_START) < content.index(MANAGED_END):
+        template = load_agents_template(results)
+        current_block = content[content.index(MANAGED_START):content.index(MANAGED_END) + len(MANAGED_END)]
+        template_block = template.strip() if template is not None else None
+        agents.update({"status": "managed_current" if current_block.strip() == template_block else "managed_stale", "managed_block": True})
+    elif start_count == 0 and end_count == 0:
+        agents.update({"status": "unmanaged_exists", "needs_install": True, "can_append_managed_block": True})
+    else:
+        agents.update({"status": "malformed_markers", "needs_manual_repair": True})
+    return agents
+
+
+def install_agents(root: Path, results: dict) -> None:
+    agents = inspect_agents(root, results)
+    template = load_agents_template(results)
+    if template is None:
+        agents.update({"install_attempted": True, "install_succeeded": False, "status": "template_missing"})
+        return
+    agents_path = Path(agents["path"])
+    if agents["status"] == "missing":
+        agents_path.write_text(template)
+        agents.update({"status": "installed", "install_attempted": True, "install_succeeded": True})
+        return
+    if agents["status"] in {"managed_current", "managed_stale"}:
+        content = agents_path.read_text()
+        start = content.index(MANAGED_START)
+        end = content.index(MANAGED_END) + len(MANAGED_END)
+        new_content = content[:start] + template.strip() + content[end:]
+        agents_path.write_text(new_content)
+        agents.update({"status": "managed_refreshed", "install_attempted": True, "install_succeeded": True})
+        return
+    if agents["status"] == "unmanaged_exists":
+        content = agents_path.read_text()
+        separator = "\n\n" if not content.endswith("\n") else "\n"
+        agents_path.write_text(content + separator + template.rstrip() + "\n")
+        agents.update({"status": "managed_appended", "install_attempted": True, "install_succeeded": True})
+        return
+    agents.update({"install_attempted": True, "install_succeeded": False})
+    if agents["status"] == "malformed_markers":
+        warn(results, "AGENTS.md has malformed BEO managed markers; manual repair required, not editing")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Check BEO-on-Beads integration health.")
     parser.add_argument("--configure-memory", action="store_true", help="Create local learning/qmd memory configuration when explicitly authorized.")
     parser.add_argument("--refresh-memory-index", action="store_true", help="Run qmd index/embed maintenance for configured learning notes.")
+    parser.add_argument("--install-agents", action="store_true", help="Create AGENTS.md from the BEO template when missing; refresh only the BEO managed block when present. Requires explicit authorization.")
     parser.add_argument("--root", default=".", help="Workspace root path")
     args = parser.parse_args()
     root = Path(args.root).resolve()
 
-    results = {"status": "ready", "dependencies": {}, "vault": {}, "local_learning": {}, "qmd_collection": {}, "errors": []}
+    results = {"status": "ready", "dependencies": {}, "agents": {}, "vault": {}, "local_learning": {}, "qmd_collection": {}, "errors": []}
+
+    if args.install_agents:
+        install_agents(root, results)
+    else:
+        inspect_agents(root, results)
 
     try:
         __import__("yaml")
@@ -170,9 +246,10 @@ def main() -> int:
                         results["qmd_collection"]["needs_refresh"] = True
 
     memory_config_failed = args.configure_memory and (results["local_learning"].get("needs_configuration") or results["qmd_collection"].get("needs_configuration"))
+    agents_config_failed = args.install_agents and not results["agents"].get("install_succeeded")
     if results["dependencies"].get("br") == "missing" or results["dependencies"].get("PyYAML") == "missing":
         results["status"] = "blocked"
-    elif memory_config_failed:
+    elif memory_config_failed or agents_config_failed:
         results["status"] = "degraded"
     else:
         # qmd/obsidian/bv being missing is optional and does not make BEO degraded

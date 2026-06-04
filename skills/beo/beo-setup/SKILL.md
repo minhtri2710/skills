@@ -14,6 +14,7 @@ description: "Check or configure BEO readiness. br is required; bv, qmd, and Obs
 
 - `check`: read-only readiness report; default mode.
 - `configure-memory`: authorized qmd/Obsidian/local learning setup.
+- `configure-agents`: authorized repo `AGENTS.md` bootstrap or managed-block refresh.
 - `explain-degraded`: explain missing optional tools.
 
 Any write requires explicit user authorization.
@@ -29,6 +30,7 @@ Any write requires explicit user authorization.
 
 - No delivery artifacts.
 - Local learning directory or qmd/Obsidian setup only when explicitly authorized.
+- Repo `AGENTS.md` only when explicitly authorized: create from the BEO template if missing, refresh only the `BEO:MANAGED` block if present, or append the managed block to an existing unmanaged file.
 - Setup status output only by default.
 
 ## Emit
@@ -41,6 +43,7 @@ Any write requires explicit user authorization.
 ## Never
 
 - Do not grant approval or review verdicts.
-- Do not mutate product files.
+- Do not mutate product files beyond the explicitly authorized repo `AGENTS.md` setup-control behavior.
+- Do not overwrite existing unmanaged `AGENTS.md` content; append the BEO managed block only when explicitly authorized.
 - Do not close issues.
 - Do not make qmd/Obsidian authoritative.

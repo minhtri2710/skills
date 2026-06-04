@@ -29,7 +29,12 @@ BEO delivery does not require:
 - `bv`,
 - qmd,
 - Obsidian CLI,
-- semantic memory.
+- semantic memory,
+- repo `AGENTS.md`.
+
+## AGENTS.md bootstrap
+
+A missing repo `AGENTS.md` is setup guidance, not a required-tool blocker. Authorized setup may create `AGENTS.md` from `templates/AGENTS.template.md` when missing, refresh only the `BEO:MANAGED` block when both markers already exist, or append the managed block to an existing unmanaged file without overwriting existing content. Malformed managed markers require manual repair; setup must not edit them.
 
 ## Reporting
 
@@ -37,6 +42,7 @@ BEO delivery does not require:
 
 - control-plane readiness: `ready|blocked`
 - advisory memory status: `ok|degraded|missing`
+- `AGENTS.md` bootstrap status: `missing|installed|managed_current|managed_stale|managed_refreshed|unmanaged_exists|managed_appended|malformed_markers`
 - operator guidance for the narrow missing dependency or degraded capability
 
 Keep degraded reports short, concrete, and separated by authority class.
