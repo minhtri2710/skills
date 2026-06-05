@@ -96,11 +96,48 @@ A valid atomic child bead must have:
 
 ## Proposed atomic beads
 
-Each proposed row must contain enough content to become a self-contained child Bead description. A child agent should be able to claim, validate, and implement the child from its Bead description without rereading this parent `PLAN.md`. Preserve parent traceability through Beads dependency edges and the parent decomposition comment, not by requiring child descriptions to say “see parent PLAN.md” for implementation context.
+Each proposed atomic bead is the source text for a future child Bead description. Write each item in markdown, with enough detail that `beo-plan` can copy or lightly normalize it into `br create --description` without reinterpreting the parent plan. A child agent should be able to claim, validate, and implement the child from its Bead description without rereading this parent `PLAN.md`.
 
-| Temp id | Title | Description | Done criteria | Expected scope | Verification | Dependencies | Suggested mode/risk |
-|---|---|---|---|---|---|---|---|
-| `A1` | `<title>` | `<one paragraph implementation task>` | `<criteria>` | `<files/areas>` | `<commands/checks>` | `<none/Ax>` | `<quick/standard/strict + mode rationale; risk/rollback, human gate, side-effect, reservation, or strict-contract notes when needed>` |
+Preserve parent traceability through Beads dependency edges and the parent decomposition comment, not by requiring child descriptions to send agents back to the parent plan for implementation context.
+
+### A1 — `<title>`
+
+#### Task
+
+<Full implementation request/context for this atomic task. Include relevant parent intent, domain terms, constraints, and any important assumptions needed by the child agent.>
+
+#### Done criteria
+
+- <specific acceptance criterion>
+- <specific acceptance criterion>
+
+#### Expected scope
+
+- <files/areas allowed or expected>
+- <explicit out-of-scope areas if useful>
+
+#### Verification
+
+- <commands/checks/manual review expected>
+- <evidence the child should produce>
+
+#### Dependencies and blockers
+
+- Depends on: <none | A-id/title>
+- Blocks: <none | A-id/title>
+- Blocking user/operator decision: <none | decision>
+
+#### Mode and risk notes
+
+- Suggested mode: <quick | standard | strict>
+- Rationale: <why this mode fits>
+- Risk/rollback/human-gate/side-effect/reservation notes: <none or details sufficient to author child TICKET.yaml>
+
+#### Atomicity rationale
+
+<Why this task is independently approvable, has a separate repair path, and should not be split or merged further.>
+
+Repeat the same markdown block for each proposed atomic bead (`A2`, `A3`, ...). When creating child Beads, `beo-plan` should normalize heading depth for rich markdown rendering in `br --description`/`bv`, not wrap the description in a code fence. Avoid parent-plan task checkboxes; once decomposition is recorded, Beads child issues and dependencies own task tracking.
 
 ## Dependency graph
 
@@ -122,25 +159,22 @@ If no blocking decisions remain, write `None — no blocking user/operator decis
 |---|---|---|---|
 | `<actual blocking decision only>` | `<reason>` | `<recommendation>` | `user/operator` |
 
-## Plan validation checklist
+## Plan validation summary
 
-- [ ] Parent bead id is present.
-- [ ] Goals and non-goals are explicit.
-- [ ] Brainstorm/options considered are recorded for non-trivial epic/feature planning, including one recommended direction with rationale and rejected or deferred alternatives with reasons.
-- [ ] Overall completion criteria are explicit.
-- [ ] Assumptions are explicit.
-- [ ] Scope and out-of-scope areas are explicit.
-- [ ] Verification strategy exists.
-- [ ] Proposed atomic beads have descriptions.
-- [ ] Proposed atomic beads have done criteria.
-- [ ] Proposed atomic beads have expected scope.
-- [ ] Proposed atomic beads have verification guidance.
-- [ ] Dependencies are declared.
-- [ ] Proposed atomic bead rows are self-contained enough to create child Beads whose descriptions include implementation context, done criteria, scope, verification guidance, dependencies/blockers, mode/risk notes, and atomicity rationale without requiring reread of the parent `PLAN.md`.
-- [ ] The plan states that decomposition traceability will be preserved through child Bead dependency edges when needed and the parent decomposition comment after `plan_validated`; do not require per-row link fields before child Beads exist, and do not require a non-schema `TICKET.yaml` field.
-- [ ] Each proposed atomic bead has suggested mode/risk detail sufficient to author quick, standard, or strict child tickets without re-interpreting risk.
-- [ ] No blocking open decisions remain; user/operator-owned blockers route `user_review_needed` instead of `plan_validated`.
+Write a short prose summary confirming whether the plan is ready for validation. Do not add task-completion checkboxes for the parent plan; after decomposition, child Beads and dependency edges are the task tracker.
 
-`beo-plan` marks checklist items only when the requirement is actually satisfied. Unchecked required checklist items cause `validation_failed` or `user_review_needed`, depending on whether BEO can repair the plan without user/operator authority.
+The summary must state whether:
 
-`beo-validate` must validate the actual PLAN content, not trust checklist marks alone. Checklist marks are planning evidence, not validation authority.
+- parent bead id is present,
+- goals and non-goals are explicit,
+- brainstorm/options considered are recorded for non-trivial epic/feature planning, including one recommended direction with rationale and rejected or deferred alternatives with reasons,
+- overall completion criteria are explicit,
+- assumptions are explicit,
+- scope and out-of-scope areas are explicit,
+- verification strategy exists,
+- proposed atomic beads are written as detailed markdown descriptions that include implementation context, done criteria, expected scope, verification guidance, dependencies/blockers, mode/risk notes, and atomicity rationale without requiring reread of the parent `PLAN.md`,
+- decomposition traceability will be preserved through child Bead dependency edges when needed and the parent decomposition comment after `plan_validated`, without requiring per-child link fields before child Beads exist or a non-schema `TICKET.yaml` field,
+- each proposed atomic bead has suggested mode/risk detail sufficient to author quick, standard, or strict child tickets without re-interpreting risk,
+- no blocking open decisions remain; user/operator-owned blockers route `user_review_needed` instead of `plan_validated`.
+
+`beo-validate` must validate the actual PLAN content, not trust this summary alone. The summary is planning evidence, not validation authority.
