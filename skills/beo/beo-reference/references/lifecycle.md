@@ -54,7 +54,7 @@ If a bead is not atomic:
 7. Add a summary comment to the parent bead using `br comments add ... --json` with a reference to `PLAN.md` and the child bead ids.
 8. Exit planning with `decomposition_recorded` and hand off to the user.
 
-Each child atomic bead description includes a one-sentence task summary, done criteria, expected touched artifacts or file scope, verification command(s), dependencies/blockers, and links back to the parent bead and `PLAN.md`.
+Each child atomic bead description is self-contained for implementation: it includes the task context/request, done criteria, expected touched artifacts or file scope, verification command(s), dependencies/blockers, suggested mode/risk notes, and atomicity rationale. Do not require a child implementer to reread the parent `PLAN.md`; preserve parent traceability through Beads dependency edges and the parent decomposition comment.
 
 ---
 

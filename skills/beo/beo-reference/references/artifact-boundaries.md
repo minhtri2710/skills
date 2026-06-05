@@ -24,7 +24,7 @@ This file owns BEO artifact placement rules. Other files should cite this file i
 - `bv` triage ranking in `TICKET.yaml` or `state.json`.
 - epic brainstorm notes or proposed child-bead backlog in `TICKET.yaml`; put them in `.beads/artifacts/<issue-id>/PLAN.md`.
 - atomic approval fields in `PLAN.md`; parent plans guide decomposition but never grant `PASS_EXECUTE`.
-- parent epic/feature brainstorming in child `TICKET.yaml`; child Beads descriptions or decomposition comments should link back to the parent `PLAN.md`. Do not add a new parent/plan field to `TICKET.yaml` because `registry/ticket.schema.json` is closed with `additionalProperties: false`.
+- parent epic/feature brainstorming in child `TICKET.yaml`. Child Bead descriptions must carry self-contained atomic implementation context; parent traceability belongs in Beads dependency edges and decomposition comments, not required child-body context. Do not add a new parent/plan field to `TICKET.yaml` because `registry/ticket.schema.json` is closed with `additionalProperties: false`.
 - normal transitions in `runtime-events.jsonl`.
 - approval state or review verdict in `TICKET.yaml`.
 - learning notes in `beo-reference`.

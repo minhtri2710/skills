@@ -96,6 +96,8 @@ A valid atomic child bead must have:
 
 ## Proposed atomic beads
 
+Each proposed row must contain enough content to become a self-contained child Bead description. A child agent should be able to claim, validate, and implement the child from its Bead description without rereading this parent `PLAN.md`. Preserve parent traceability through Beads dependency edges and the parent decomposition comment, not by requiring child descriptions to say “see parent PLAN.md” for implementation context.
+
 | Temp id | Title | Description | Done criteria | Expected scope | Verification | Dependencies | Suggested mode/risk |
 |---|---|---|---|---|---|---|---|
 | `A1` | `<title>` | `<one paragraph implementation task>` | `<criteria>` | `<files/areas>` | `<commands/checks>` | `<none/Ax>` | `<quick/standard/strict + mode rationale; risk/rollback, human gate, side-effect, reservation, or strict-contract notes when needed>` |
@@ -134,7 +136,8 @@ If no blocking decisions remain, write `None — no blocking user/operator decis
 - [ ] Proposed atomic beads have expected scope.
 - [ ] Proposed atomic beads have verification guidance.
 - [ ] Dependencies are declared.
-- [ ] The plan states that child beads created during decomposition will link back to the parent issue and `PLAN.md` through child bead descriptions, dependency edges when needed, and the parent decomposition comment after `plan_validated`; do not require per-row link fields before child Beads exist, and do not require a non-schema `TICKET.yaml` field.
+- [ ] Proposed atomic bead rows are self-contained enough to create child Beads whose descriptions include implementation context, done criteria, scope, verification guidance, dependencies/blockers, mode/risk notes, and atomicity rationale without requiring reread of the parent `PLAN.md`.
+- [ ] The plan states that decomposition traceability will be preserved through child Bead dependency edges when needed and the parent decomposition comment after `plan_validated`; do not require per-row link fields before child Beads exist, and do not require a non-schema `TICKET.yaml` field.
 - [ ] Each proposed atomic bead has suggested mode/risk detail sufficient to author quick, standard, or strict child tickets without re-interpreting risk.
 - [ ] No blocking open decisions remain; user/operator-owned blockers route `user_review_needed` instead of `plan_validated`.
 
