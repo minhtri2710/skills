@@ -34,7 +34,7 @@ BEO delivery does not require:
 
 ## AGENTS.md bootstrap
 
-A missing repo `AGENTS.md` is setup guidance, not a required-tool blocker. Authorized setup may create `AGENTS.md` from `templates/AGENTS.template.md` when missing, refresh only the `BEO:MANAGED` block when both markers already exist, or append the managed block to an existing unmanaged file without overwriting existing content. Malformed managed markers require manual repair; setup must not edit them.
+A missing repo `AGENTS.md` is setup guidance, not a required-tool blocker. Authorized setup may create `AGENTS.md` from `templates/AGENTS.template.md` when missing, always replace the current `BEO:MANAGED` block from the template when valid markers already exist, or append the managed block only when no managed block exists without overwriting unmanaged content. Malformed managed markers require manual repair; setup must not edit them.
 
 ## Reporting
 

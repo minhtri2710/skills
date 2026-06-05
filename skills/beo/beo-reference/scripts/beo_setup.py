@@ -123,7 +123,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Check BEO-on-Beads integration health.")
     parser.add_argument("--configure-memory", action="store_true", help="Create local learning/qmd memory configuration when explicitly authorized.")
     parser.add_argument("--refresh-memory-index", action="store_true", help="Run qmd index/embed maintenance for configured learning notes.")
-    parser.add_argument("--install-agents", action="store_true", help="Create AGENTS.md from the BEO template when missing; refresh only the BEO managed block when present. Requires explicit authorization.")
+    parser.add_argument("--install-agents", action="store_true", help="Create AGENTS.md from the BEO template when missing; replace the BEO managed block when valid markers are present. Requires explicit authorization.")
     parser.add_argument("--root", default=".", help="Workspace root path")
     args = parser.parse_args()
     root = Path(args.root).resolve()
