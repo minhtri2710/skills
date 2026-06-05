@@ -1081,6 +1081,41 @@ class HelperSemanticsTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             beo_memory_write.safe_note_name("../bad", "success_pattern", "valid", {"success_pattern"})
 
+    def test_memory_write_uses_local_fallback_without_obsidian_env(self):
+        import beo_memory_write
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / ".beads").mkdir()
+            with mock.patch.dict(os.environ, {}, clear=True):
+                result = beo_memory_write.write_learning(root, "note.md", "body")
+            self.assertEqual(result["memory_backend"], "local_markdown")
+            self.assertEqual(result["fallback_reason"], "obsidian_vault_unconfigured")
+            self.assertEqual(Path(result["path"]).parent, root / ".beads" / "learnings")
+
+    def test_memory_write_uses_obsidian_vault_when_configured(self):
+        import beo_memory_write
+        with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as vault:
+            root = Path(tmp)
+            vault_path = Path(vault).resolve()
+            (root / ".beads").mkdir()
+            with mock.patch.dict(os.environ, {"BEO_OBSIDIAN_VAULT": str(vault_path)}, clear=True):
+                result = beo_memory_write.write_learning(root, "note.md", "body")
+            self.assertEqual(result["memory_backend"], "obsidian_markdown")
+            self.assertEqual(Path(result["path"]).parent, vault_path / "beo-learnings")
+            self.assertTrue((vault_path / "beo-learnings" / "note.md").exists())
+
+    def test_memory_write_falls_back_when_obsidian_vault_missing(self):
+        import beo_memory_write
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / ".beads").mkdir()
+            missing_vault = root / "missing-vault"
+            with mock.patch.dict(os.environ, {"BEO_OBSIDIAN_VAULT": str(missing_vault)}, clear=True):
+                result = beo_memory_write.write_learning(root, "note.md", "body")
+            self.assertEqual(result["memory_backend"], "local_markdown")
+            self.assertEqual(result["fallback_reason"], "obsidian_vault_missing")
+            self.assertEqual(Path(result["path"]).parent, root / ".beads" / "learnings")
+
     def test_quick_fill_protected_paths_raise_value_error(self):
         import beo_quick_fill
         with tempfile.TemporaryDirectory() as tmp:

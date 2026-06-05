@@ -23,14 +23,15 @@ description: "Plan BEO work from Beads issues. Use for epic requirement intake, 
 1. Fresh-read the issue with `br`.
 2. Claim the issue before any plan, ticket, or lifecycle write.
 3. For an epic or feature, combine the user request with bead context and produce one clarification batch when needed. Each question must include why it matters, a recommended default, and the fallback assumption BEO will use if unanswered. Do not ask endless questions. If safe defaults exist, write `PLAN.md` with explicit assumptions. Use `user_review_needed` only when a missing decision affects risk mode, broad scope, human authorization, external side effects, irreversible behavior, or safe decomposition.
-4. Write `.beads/artifacts/<issue-id>/PLAN.md` using `beo-reference/templates/PLAN.template.md`. The plan must include parent-level completion criteria, explicit assumptions, scope boundaries, verification strategy, and proposed atomic beads detailed enough that `beo-plan` can later create child Beads without re-interpreting the parent requirement or risk/mode needs.
-5. Emit `planned -> beo-validate` for `PLAN.md` validation.
-6. Planning stop rule: after `PLAN.md` is written, emit `planned -> beo-validate` and stop. Do not create child beads until re-entering after `plan_validated`.
-7. On re-entry after `plan_validated`, create child atomic beads directly from the validated `PLAN.md` proposed atomic beads, dependency edges, and a parent summary comment that references `PLAN.md`, then stop. Do not reinterpret parent requirements outside the validated plan.
-8. For an atomic bead, record a compact atomicity rationale as a Beads comment or plan evidence ref, not as a `TICKET.yaml` field.
-9. Write the smallest current `version: 1` `TICKET.yaml` for quick, standard, or strict mode.
-10. Initialize `state.json` in planned state.
-11. When emitting `user_review_needed`, include a compact handoff subtype, blocking question, recommended option, fallback if any, and evidence refs in the Beads comment or handoff text. Do not emit a vague user handoff.
+4. For non-trivial epic or feature planning, perform a short brainstorm pass before converging. Record 2-4 plausible implementation or decomposition options, their tradeoffs, exactly one recommended option with rationale unless the selected direction is an explicit hybrid, and rejected or deferred options with concise reasons. Brainstorming is not neutral option listing: recommend a safe direction whenever BEO has enough authority. If a safe recommendation is blocked by user/operator authority, route `user_review_needed` with the recommended option or fallback under the rule above; otherwise choose a safe default and record assumptions. Use this brainstorm to derive clarification questions, assumptions, risks, and proposed atomic beads. Do not route to the user just to brainstorm; ask only blocking authority questions under the rule above.
+5. Write `.beads/artifacts/<issue-id>/PLAN.md` using `beo-reference/templates/PLAN.template.md`. The plan must include parent-level completion criteria, explicit assumptions, scope boundaries, verification strategy, brainstorm/options considered when non-trivial, and proposed atomic beads detailed enough that `beo-plan` can later create child Beads without re-interpreting the parent requirement or risk/mode needs.
+6. Emit `planned -> beo-validate` for `PLAN.md` validation.
+7. Planning stop rule: after `PLAN.md` is written, emit `planned -> beo-validate` and stop. Do not create child beads until re-entering after `plan_validated`.
+8. On re-entry after `plan_validated`, create child atomic beads directly from the validated `PLAN.md` proposed atomic beads, dependency edges, and a parent summary comment that references `PLAN.md`, then stop. Do not reinterpret parent requirements outside the validated plan.
+9. For an atomic bead, record a compact atomicity rationale as a Beads comment or plan evidence ref, not as a `TICKET.yaml` field.
+10. Write the smallest current `version: 1` `TICKET.yaml` for quick, standard, or strict mode.
+11. Initialize `state.json` in planned state.
+12. When emitting `user_review_needed`, include a compact handoff subtype, blocking question, recommended option, fallback if any, and evidence refs in the Beads comment or handoff text. Do not emit a vague user handoff.
 
 ## Write
 

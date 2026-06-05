@@ -39,7 +39,7 @@ Snippets are leads only; hydrate matching notes before relying on them.
 
 `beo-learn` runs only when an explicit `learning_candidate` exists or the user asks to save a BEO lesson. Write the smallest safe markdown note through `beo_memory_write.py`.
 
-Notes must store structural handles only, never secrets, raw credentials, or customer-sensitive data. `beo-learn` writes the note only. It may emit `qmd_refresh_recommended`; qmd refresh/indexing belongs only to explicit `beo-setup` or authorized BEO maintenance. If Obsidian is unavailable, write to `.beads/learnings/`.
+Notes must store structural handles only, never secrets, raw credentials, or customer-sensitive data. `beo-learn` writes the note only. It may emit `qmd_refresh_recommended`; qmd refresh/indexing belongs only to explicit `beo-setup` or authorized BEO maintenance. `beo_memory_write.py` writes to the configured Obsidian `<vault>/beo-learnings/` directory when `BEO_OBSIDIAN_VAULT` resolves to a writable vault path; otherwise it falls back to `.beads/learnings/`.
 
 ## Note shape
 

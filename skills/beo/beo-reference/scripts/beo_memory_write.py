@@ -10,6 +10,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 from beo_io import compact_text
+import beo_memory_tools
 
 SAFE_SLUG = re.compile(r"^[a-z0-9][a-z0-9-]{0,120}$")
 SAFE_ISSUE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,120}$")
@@ -89,15 +90,40 @@ def validate_learning_frontmatter(frontmatter: dict[str, object], issue: str | N
         raise ValueError("secret_policy must be handles_only")
 
 
-def write_learning(root: Path, note_name: str, markdown: str) -> Path:
-    learning_dir = validate_fallback_target(root)
+def write_note_to_dir(learning_dir: Path, note_name: str, markdown: str, backend: str, fallback_reason: str | None = None) -> dict[str, str]:
     path = learning_dir / note_name
     path.parent.mkdir(parents=True, exist_ok=True)
     if path.exists():
-        raise ValueError(f"learning note already exists at local path: {path}")
+        raise ValueError(f"learning note already exists at path: {path}")
     with path.open("x", encoding="utf-8") as handle:
         handle.write(markdown)
-    return path
+    result = {"memory_backend": backend, "backend": backend, "path": str(path)}
+    if fallback_reason:
+        result["fallback_reason"] = fallback_reason
+    return result
+
+
+def resolve_learning_target(root: Path) -> tuple[Path, str, str | None]:
+    fallback_dir = validate_fallback_target(root)
+    env = beo_memory_tools.resolve_obsidian_env()
+    vault_path = env["vault_path"]
+    learning_dir = env["learning_dir"]
+    if vault_path is None or learning_dir is None:
+        return fallback_dir, "local_markdown", "obsidian_vault_unconfigured"
+    if not isinstance(vault_path, Path) or not isinstance(learning_dir, Path):
+        return fallback_dir, "local_markdown", "obsidian_vault_invalid"
+    if not vault_path.is_dir():
+        return fallback_dir, "local_markdown", "obsidian_vault_missing"
+    try:
+        learning_dir.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        return fallback_dir, "local_markdown", "obsidian_learning_dir_unwritable"
+    return learning_dir, "obsidian_markdown", None
+
+
+def write_learning(root: Path, note_name: str, markdown: str) -> dict[str, str]:
+    learning_dir, backend, fallback_reason = resolve_learning_target(root)
+    return write_note_to_dir(learning_dir, note_name, markdown, backend, fallback_reason)
 
 
 def main(argv: list[str]) -> int:
@@ -129,15 +155,13 @@ def main(argv: list[str]) -> int:
         return fail(str(exc))
 
     try:
-        note_path = write_learning(root, note_name, markdown)
+        write_result = write_learning(root, note_name, markdown)
     except ValueError as exc:
         return fail(str(exc))
 
     result = {
         "status": "written",
-        "memory_backend": "local_markdown",
-        "backend": "local_markdown",
-        "path": str(note_path)
+        **write_result,
     }
     print(json.dumps(result, indent=2))
     return 0

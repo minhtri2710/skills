@@ -9,7 +9,7 @@
 
 ## Decision summary
 
-State the recommended implementation direction in 3-7 bullets.
+State the selected implementation/decomposition direction from the brainstorm in 3-7 bullets. This summary must align with the recommended option or selected hybrid from `Brainstorm and options considered`.
 
 ## Clarification record
 
@@ -20,6 +20,16 @@ Each question asked must include:
 - Why it matters
 - Recommended default
 - User answer, or fallback assumption if unanswered
+
+## Brainstorm and options considered
+
+For non-trivial epic or feature planning, explore plausible implementation or decomposition directions before converging. Include agent-resolvable uncertainty as assumptions, not blockers. Exactly one option must be marked recommended unless a blocking user/operator-owned decision prevents safe convergence; if using a hybrid, mark the hybrid as the recommended selected direction.
+
+| Option | Summary | Pros | Cons/Risks | Decision |
+|---|---|---|---|---|
+| `Option 1` | `<implementation or decomposition direction>` | `<benefits>` | `<tradeoffs or risks>` | `recommended — <why>`, `rejected — <why>`, or `deferred — <why>` |
+
+For trivial planning, write `Not needed — trivial atomic direction is clear`.
 
 ## Requirements
 
@@ -114,6 +124,7 @@ If no blocking decisions remain, write `None — no blocking user/operator decis
 
 - [ ] Parent bead id is present.
 - [ ] Goals and non-goals are explicit.
+- [ ] Brainstorm/options considered are recorded for non-trivial epic/feature planning, including one recommended direction with rationale and rejected or deferred alternatives with reasons.
 - [ ] Overall completion criteria are explicit.
 - [ ] Assumptions are explicit.
 - [ ] Scope and out-of-scope areas are explicit.
