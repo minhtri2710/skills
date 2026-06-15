@@ -51,7 +51,7 @@ For trivial planning, write `Not needed — trivial atomic direction is clear`.
 
 ## Overall completion criteria
 
-List the parent-level outcomes that make the full decomposed epic/feature complete.
+List the parent-level outcomes that make the full decomposed epic/feature complete. Include parent-epic closure as an explicit final step: after every child reaches `verdict_accept`, close the parent with `br close <parent-issue-id> --reason "Completed" --actor <actor> --json` — child closure does not cascade.
 
 - `<parent-level completion criterion>`
 

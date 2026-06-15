@@ -92,6 +92,7 @@ BEO uses explicit artifact-validity phase handoffs.
 Labels on `br` are advisory indicators that reflect the active BEO state:
 - `beo:atomic`, `beo:quick`, `beo:standard`, `beo:strict`, `beo:blocked-user`, `beo:ready-review`.
 - **Abandoned vs Completed Closure**: Only `verdict_accept` routes to automatic `br close` with a resolution status of `completed` and a `beo:completed` label. When BEO delivery is `abandoned`, `beo-review` records the status in `state.json`, appends a BEO audit comment via `br comments add ... --json`, applies the `beo:abandoned` label, and stops, leaving the issue `open` in `br` for manual user closure.
+- **Epic closure does not cascade**: `br close <child-id>` closes only the child bead. Closing all children leaves the parent epic `open`; closure does not propagate upward. After the last child's `verdict_accept` and `br close`, close the parent epic with a separate explicit `br close <epic-id> --reason "Completed" --actor <actor> --json`. List parent-epic closure as an explicit final step in the decomposition plan's completion criteria.
 
 ### Closure Command Syntax
 
