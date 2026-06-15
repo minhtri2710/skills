@@ -43,6 +43,13 @@ Only atomic beads can be validated or executed. Epics and Features must be decom
 - **Feature**: Capability group; must be decomposed.
 - **Atomic Bead**: One independently approvable execution unit. Must have concrete `done_criteria`, one mode, one approval projection, a small explicit allowed file set, one verification contract, one verdict, and an independent revert/repair path.
 
+### File Conflict Prevention
+
+Before finalizing decomposed atomic beads, cross-reference their expected file scopes. Multiple beads modifying the same source file creates race conditions when run as parallel subagents.
+
+- If 2+ beads share an expected file, merge them into a single agent (preferred for 2-3 beads) or add explicit dependency edges to enforce sequential ordering.
+- Document the merge or dependency rationale in the parent PLAN decomposition strategy or the child bead description.
+
 ### Epic Planning Mechanics
 If a bead is not atomic:
 1. `beo-plan` fresh-reads the epic/feature with `br show --json`, claims it, and combines the user request with the bead context.
