@@ -39,7 +39,11 @@ def _check_ref_exists(errors: list[str], source: Path, ref: str) -> None:
     if " -> " in ref:
         skill_name, path_part = ref.split(" -> ", 1)
         if skill_name == "beo-reference":
-            ref = f"../beo-reference/{path_part}"
+            if source.is_relative_to(REF_DIR):
+                # Source is already inside beo-reference; path_part is already correct.
+                ref = path_part
+            else:
+                ref = f"../beo-reference/{path_part}"
         else:
             errors.append(f"Unknown cross-skill reference format in {source}: {ref}")
             return
