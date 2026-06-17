@@ -1,13 +1,6 @@
 # Prompt Leverage Framework
 
-Use this reference to combine the two source ideas into one practical execution framework.
-
-## Source Synthesis
-
-- Agent Flywheel contributes behavior controls: intensity, wider search, deeper analysis, fresh eyes, first-principles thinking, and future-self clarity.
-- OpenAI prompt guidance contributes execution controls: clear objectives, explicit output contracts, tool persistence, dependency checks, verification loops, and completion criteria.
-
-Treat the final framework as:
+The framework follows a structured goal-to-done pipeline:
 
 `Goal -> Context -> Work Style -> Tool Rules -> Output Contract -> Verification -> Done`
 

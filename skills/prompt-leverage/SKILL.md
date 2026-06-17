@@ -24,18 +24,6 @@ Turn the user's current prompt into a stronger working prompt without changing t
 - Add verification and completion criteria for non-trivial tasks.
 - Keep prompts compact enough to be practical in repeated use.
 
-## Framework Blocks
-
-Use these blocks selectively.
-
-- `Objective`: state the task and what success looks like.
-- `Context`: list sources, files, constraints, and unknowns.
-- `Work Style`: set depth, breadth, care, and first-principles expectations.
-- `Tool Rules`: state when tools, browsing, or file inspection are required.
-- `Output Contract`: define structure, formatting, and level of detail.
-- `Verification`: require checks for correctness, edge cases, and better alternatives.
-- `Done Criteria`: define when the agent should stop.
-
 ## Output Modes
 
 Choose one mode based on the user request.

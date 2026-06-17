@@ -1,7 +1,7 @@
 # Degraded Tool Guidance
 
 > [!NOTE]
-> This reference is subordinate to [references/kernel.md](file:///Users/beowulf/Work/personal/beo-skills/skills/beo/beo-reference/references/kernel.md). `references/kernel.md` is the canonical owner of BEO rules and invariants.
+> This reference is subordinate to `references/kernel.md`. `references/kernel.md` is the canonical owner of BEO rules and invariants.
 
 This file guidance focuses on setup checks. Authority invariants are canonical in `references/kernel.md`.
 
@@ -14,6 +14,9 @@ This file guidance focuses on setup checks. Authority invariants are canonical i
 | `bv` | Optional | Read-only graph orientation | Use `br ready --json` and `br show --json`. |
 | `qmd` | Optional | Advisory semantic recall | Disable semantic search. |
 | Obsidian | Optional | Reusable learning note vault | Fall back to `.beads/learnings/`. |
+| `beo_verify.py` | Optional | Queryable verification runner | Skip verification_run events; `beo-execute` still records its own verify_results. |
+| `beo_score_trace.py` / `beo_score_context.py` | Optional | Advisory scoring helpers | Skip score events; no functional impact. |
+| `beo_audit.py` / `beo_propose.py` | Optional | Drift detection and proposal generation | Skip audit findings; `check_skill_bundle.py` still validates schema integrity. |
 
 ## Minimum viable BEO
 

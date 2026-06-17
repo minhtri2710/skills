@@ -16,6 +16,9 @@ SAFE_SLUG = re.compile(r"^[a-z0-9][a-z0-9-]{0,120}$")
 SAFE_ISSUE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,120}$")
 
 
+OKF_TYPES = {"learning", "decision", "reference"}
+
+
 def load_learning_case_types() -> set[str]:
     return {
         "success_pattern",
@@ -69,7 +72,7 @@ def extract_frontmatter(markdown: str) -> dict[str, object]:
 
 
 def validate_learning_frontmatter(frontmatter: dict[str, object], issue: str | None, case_type: str, mode: str) -> None:
-    required = {"basis_ref", "evidence_refs", "secret_policy"}
+    required = {"type", "basis_ref", "evidence_refs", "secret_policy"}
     if mode == "learning_candidate":
         required.update({"source_bead_id", "source_phase", "condition_id"})
     else:
@@ -86,8 +89,46 @@ def validate_learning_frontmatter(frontmatter: dict[str, object], issue: str | N
     evidence_refs = frontmatter["evidence_refs"]
     if not isinstance(evidence_refs, list) or not evidence_refs or not all(isinstance(ref, str) and ref.strip() for ref in evidence_refs):
         raise ValueError("evidence_refs must be a non-empty YAML list of strings")
+    if frontmatter["type"] not in OKF_TYPES:
+        raise ValueError(f"type must be one of {sorted(OKF_TYPES)}, got '{frontmatter['type']}'")
     if frontmatter["secret_policy"] != "handles_only":
         raise ValueError("secret_policy must be handles_only")
+
+
+def migrate_legacy_note(frontmatter: dict[str, object], markdown_body: str) -> dict[str, object]:
+    """Backfill the new required 'type' field for notes written before it was required.
+
+    Existing notes in `.beads/learnings/` or `<vault>/beo-learnings/` lack the
+    'type' key. The default for the legacy learning-note format is 'learning';
+    only override when the body or other frontmatter clearly indicates a
+    decision or reference. Returns a new dict; the input is not mutated.
+    """
+    if "type" in frontmatter:
+        return frontmatter
+    migrated = dict(frontmatter)
+    body_lower = markdown_body.lower()
+    if "decision" in body_lower and "reference" not in body_lower:
+        migrated["type"] = "decision"
+    elif "reference" in body_lower and "decision" not in body_lower:
+        migrated["type"] = "reference"
+    else:
+        migrated["type"] = "learning"
+    return migrated
+
+
+def _rewrite_frontmatter(markdown: str, frontmatter: dict[str, object]) -> str:
+    """Replace the frontmatter block in `markdown` with a YAML dump of `frontmatter`.
+
+    The closing `---` separator and the body after it are preserved. The new
+    frontmatter is emitted in key-sorted order for deterministic output.
+    """
+    import yaml  # type: ignore[import-not-found]
+    end = markdown.find("\n---", 4)
+    if end == -1:
+        raise ValueError("learning note frontmatter is not closed")
+    body = markdown[end:]
+    dumped = yaml.safe_dump(frontmatter, sort_keys=True, default_flow_style=False).rstrip("\n")
+    return f"---\n{dumped}\n{body}"
 
 
 def write_note_to_dir(learning_dir: Path, note_name: str, markdown: str, backend: str, fallback_reason: str | None = None) -> dict[str, str]:
@@ -142,6 +183,13 @@ def main(argv: list[str]) -> int:
         frontmatter = extract_frontmatter(markdown)
     except ValueError as exc:
         return fail(f"Frontmatter validation failed: {exc}")
+
+    # Backfill the new 'type' field for notes written before it was required.
+    body_start = markdown.find("\n---", 4) + 4
+    migrated = migrate_legacy_note(frontmatter, markdown[body_start:])
+    if migrated is not frontmatter:
+        frontmatter = migrated
+        markdown = _rewrite_frontmatter(markdown, frontmatter)
 
     case_type = args.case_type or str(frontmatter.get("case_type") or "success_pattern")
     issue_token = args.issue or "user-request"

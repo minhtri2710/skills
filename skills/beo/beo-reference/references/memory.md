@@ -1,9 +1,9 @@
 # Semantic Memory
 
 > [!NOTE]
-> This reference is subordinate to [references/kernel.md](file:///Users/beowulf/Work/personal/beo-skills/skills/beo/beo-reference/references/kernel.md). `references/kernel.md` is the canonical owner of BEO rules and invariants.
+> This reference is subordinate to `references/kernel.md`. `references/kernel.md` is the canonical owner of BEO rules and invariants.
 
-Memory authority boundary is canonical in `references/kernel.md` §7 Memory & Learning Boundary: qmd and Obsidian are advisory only and never grant approval, execution permission, verdicts, closure, or Human Gate resolution.
+Memory authority boundary is canonical in `references/kernel.md` (Memory & Learning Boundary section): qmd and Obsidian are advisory only and never grant approval, execution permission, verdicts, closure, or Human Gate resolution.
 
 ## Learning location
 
@@ -11,9 +11,7 @@ Default Obsidian learning directory:
 
 `<vault>/beo-learnings/`
 
-Do not write reusable learning outputs under:
-
-`skills/beo/beo-reference/learnings/`
+Do not write reusable learning outputs under the skills/beo/beo-reference/learnings/ directory.
 
 If a lesson becomes repeated workflow behavior, promote it into one of:
 
@@ -43,4 +41,28 @@ Notes must store structural handles only, never secrets, raw credentials, or cus
 
 ## Note shape
 
-Use plain markdown with YAML frontmatter containing source bead, source phase, condition, safe evidence refs, `secret_policy: handles_only`, and tags. The body should be short: Trigger, Lesson, Reuse/Prevention Rule, Evidence refs, and Non-authority disclaimer.
+Notes follow the [Open Knowledge Format (OKF)](https://github.com/GoogleCloudPlatform/knowledge-catalog/tree/main/okf) v0.1 conventions for interoperability.
+
+### YAML frontmatter
+
+Required:
+- `type` — one of `learning`, `decision`, `reference`
+- `basis_ref` — the durable reference this note is based on
+- `evidence_refs` — non-empty YAML list of repo-relative or durable refs
+- `secret_policy: handles_only`
+
+Contextual (required per mode):
+- `source_bead_id`, `source_phase`, `condition_id` — for `learning_candidate` mode
+- `source_type: user_request` — for `user_request` mode
+
+Optional (OKF conventions):
+- `tags` — YAML list of topic keywords for filtering
+- `timestamp` — ISO 8601 datetime of when the knowledge was captured
+- `title` — human-readable concept name
+- `description` — one-line summary for OKF consumers
+- `resource` — URL or path to original source
+- `case_type` — BEO-specific: `success_pattern`, `failure_pattern`, `near_miss`, `recurring_mistake`, `cannot_deliver_pattern`, `debug_pattern`, `authoring_candidate`
+
+### Body
+
+Use short markdown sections: Trigger, Lesson, Reuse/Prevention Rule, Evidence refs, and Non-authority disclaimer. The body is free-form for OKF consumers; BEO agents parse sections by convention, not by schema.

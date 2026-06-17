@@ -62,17 +62,19 @@
         "completed_at": { "type": ["string", "null"] },
         "changed_files": { "type": "array", "items": { "$ref": "#/$defs/safe_path" } },
         "verify_results": { "type": "array", "items": { "type": "object" } },
-        "evidence_refs": { "type": "array", "items": { "$ref": "#/$defs/safe_path" } }
+        "evidence_refs": { "type": "array", "items": { "$ref": "#/$defs/safe_path" } },
+        "trace_tier": { "enum": ["minimal", "standard", "detailed"] },
+        "interventions": { "type": "array", "items": { "type": "object" } }
       }
     },
     "review": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["actor", "verdict", "route_condition_id", "findings", "done_criteria_coverage", "repair_count", "closed_in_br"],
+      "required": ["actor", "verdict", "route_condition_id", "findings", "done_criteria_coverage", "repair_count", "closed_in_br", "reviewed_by"],
       "properties": {
         "actor": { "type": ["string", "null"] },
         "verdict": { "type": ["string", "null"], "enum": ["accept", "repair_same_scope", "repair_rescope", "cannot_deliver", "abandoned", null] },
-        "route_condition_id": { "type": ["string", "null"], "enum": ["verdict_accept", "repair_same_scope", "repair_rescope", "cannot_deliver", "root_cause_diagnosis_needed", "abandoned", "user_review_needed", null] },
+        "route_condition_id": { "type": ["string", "null"], "enum": ["verdict_accept", "executed_and_verified", "harness_change_needed", "repair_same_scope", "repair_rescope", "cannot_deliver", "root_cause_diagnosis_needed", "abandoned", "user_review_needed", null] },
         "findings": {
           "type": "array",
           "items": {
@@ -110,7 +112,8 @@
           }
         },
         "repair_count": { "type": "integer", "minimum": 0 },
-        "closed_in_br": { "type": "boolean" }
+        "closed_in_br": { "type": "boolean" },
+        "reviewed_by": { "type": "string", "enum": ["beo-execute", "beo-review"] }
       }
     },
     "metadata": {

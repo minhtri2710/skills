@@ -1,7 +1,7 @@
 # Artifact Boundaries
 
 > [!NOTE]
-> This reference is subordinate to [references/kernel.md](file:///Users/beowulf/Work/personal/beo-skills/skills/beo/beo-reference/references/kernel.md). `references/kernel.md` is the canonical owner of BEO rules and invariants.
+> This reference is subordinate to `references/kernel.md`. `references/kernel.md` is the canonical owner of BEO rules and invariants.
 
 This file owns BEO artifact placement rules. Other files should cite this file instead of restating these boundaries.
 
@@ -15,6 +15,7 @@ This file owns BEO artifact placement rules. Other files should cite this file i
 | `TICKET.yaml` | request, done criteria, approved scope, verification commands, risk/strict contracts | br lifecycle, approval state, execution state, review verdict, runtime event log, learning notes |
 | `state.json` | approval, execution, review state | request/scope definition, br lifecycle, memory notes |
 | `runtime-events.jsonl` | append-only non-normal events | normal successful transitions |
+| `harness-proposal.yaml` | delivery-to-author harness change proposal | approval state, execution state, review verdict, delivery scope |
 | qmd/Obsidian notes | advisory reusable lessons | approval, execution permission, verdict, closure, Human Gate authorization |
 | `AGENTS.md` managed block | compact repo-level reminder | detailed BEO doctrine |
 
@@ -30,3 +31,25 @@ This file owns BEO artifact placement rules. Other files should cite this file i
 - learning notes in `beo-reference`.
 - secrets, credentials, or customer-sensitive raw data in memory notes.
 - product delivery decisions in `beo-setup`, `beo-reference`, or `beo-author`.
+- delivery scope decisions in `harness-proposal.yaml`; proposals affect the harness, not the product.
+
+## Intervention records
+
+`intervention` is a non-normal runtime event kind recording an external input (human, reviewer, CI, or another agent) that affects the current delivery. It is **evidence, not lifecycle state**. Interventions:
+
+- May be appended to `runtime-events.jsonl` during any phase when an external input is observed.
+- Are mirrored into `state.json.execution.interventions[]` if the operator wants them to survive past the runtime event log.
+- Must not change `state.json.phase` or any approval field. They are records of context, not authority grants.
+- Are queried by `beo-execute` (and other delivery skills) by `trace_id` or `story_id` to surface prior context when re-entering an issue.
+
+If a recorded intervention has `impact: blocking`, the executing skill should treat it as a Human Gate and route accordingly (e.g. `user_review_needed`). It does not, by itself, invalidate a current `PASS_EXECUTE`.
+
+### Validation asymmetry
+
+`beo_state.validate_state` currently does not enforce the "must not change phase or approval fields" rule
+on intervention entries. Cross-event lookups (e.g. `beo-execute` querying by `trace_id`) use literal
+equality on `payload.trace_id` (or `story_id`), not a real index. This means:
+- An intervention with `recorded_at` before the current `phase` started is not rejected.
+- An intervention touching approval fields is not rejected (caller discipline only).
+- `trace_id`-based lookups are O(n) scans, not indexed.
+These are known limitations; callers must exercise discipline when recording or querying interventions.

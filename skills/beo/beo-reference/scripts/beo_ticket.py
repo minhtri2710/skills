@@ -137,6 +137,17 @@ def validate_human_gates(data: dict[str, Any], issue_id: str) -> None:
             raise ValueError(f"human_gates.gates[{index}].valid_for_issue_id must match issue_id")
 
 
+def _reject_glob_in_allow_paths(data: dict[str, Any]) -> None:
+    from beo_paths import has_glob
+    mode = data.get("mode")
+    fast_track = data.get("fast_track")
+    if mode == "quick" and fast_track is True:
+        allow_paths = data.get("scope", {}).get("files", {}).get("allow", [])
+        for path in allow_paths:
+            if has_glob(path):
+                raise ValueError(f"fast-track ticket with mode=quick must not use glob paths in scope.files.allow: {path}")
+
+
 def validate_plan_only(data: dict[str, Any]) -> None:
     schema = _load_plan_schema()
 
@@ -165,6 +176,7 @@ def validate_plan_only(data: dict[str, Any]) -> None:
         _require_string(criterion, "done_criteria")
     _scope(data)
     validate_human_gates(data, issue_id)
+    _reject_glob_in_allow_paths(data)
 
     if mode == "quick":
         for field in ["risk", "strict"]:
@@ -184,9 +196,12 @@ def validate_plan_only(data: dict[str, Any]) -> None:
         strict = data.get("strict")
         if not isinstance(strict, dict):
             raise ValueError("strict mode requires strict contract")
-        _reject_unknown(strict, {"reason", "authorization_refs", "rollback_refs", "external_side_effects", "stateful_external_systems"}, "strict")
+        _reject_unknown(strict, {"reason", "authorization_refs", "rollback_refs", "external_side_effects", "stateful_external_systems", "worktree_isolation"}, "strict")
         for field in ["reason"]:
             _require_string(strict.get(field), f"strict.{field}")
+        worktree_isolation = strict.get("worktree_isolation")
+        if worktree_isolation is not None and not isinstance(worktree_isolation, bool):
+            raise ValueError("strict.worktree_isolation must be a boolean")
         for field in ["authorization_refs", "rollback_refs", "external_side_effects", "stateful_external_systems"]:
             values = _as_list(strict.get(field), f"strict.{field}")
             if not values:

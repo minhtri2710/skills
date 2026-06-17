@@ -19,6 +19,12 @@ A collection of canonical beo skills and shared references for structured, contr
 | `bv` | 0.15.2+ | Beads Viewer |
 | `qmd` | latest | Vector search for learning recall |
 | `obsidian` | latest | Learning note persistence |
+| `beo_verify.py` | v1 | Runs TICKET.yaml scope verify commands and appends `verification_run` runtime events |
+| `beo_score_trace.py` | v1 | Advisory trace-quality scoring (minimal/standard/detailed tier) |
+| `beo_score_context.py` | v1 | Advisory context-coverage scoring against per-phase read list |
+| `beo_audit.py` | v1 | Drift checks: skill-card ↔ registry transitions, references, must_not, manifest |
+| `beo_propose.py` | v1 | Generate BEO change proposals from runtime events + learnings (never apply) |
+| `beo-climate` | skill + config.yaml | cadence-scanned drift/preventive maintenance |
 
 ## Canonical Reads
 
@@ -34,6 +40,10 @@ A collection of canonical beo skills and shared references for structured, contr
 | ticket schema | `registry/ticket.schema.json` |
 | semantic memory | `references/memory.md` |
 | command authority | `references/lifecycle.md` |
+| helper index | `references/command-manifest.md` |
+| per-phase context budget | `references/context-budget.md` |
+| user handoff format | `references/user-handoff.md` |
+| artifact placement rules | `references/artifact-boundaries.md` |
 
 <!-- BEO:MANAGED START -->
 BEO always-on rules (kernel is canonical):

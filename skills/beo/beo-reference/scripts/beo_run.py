@@ -20,6 +20,7 @@ Exit codes:
 from __future__ import annotations
 
 import os
+import shlex
 import sys
 import subprocess
 from pathlib import Path
@@ -36,14 +37,7 @@ import beo_state
 import beo_approval
 import beo_git
 import beo_ticket
-from beo_io import now
-
-
-def _truncated(text: str, limit: int) -> str:
-    """Truncate text to limit chars, appending indicator if cut."""
-    if len(text) <= limit:
-        return text
-    return text[:limit] + "...[truncated]"
+from beo_io import compact_text, now
 
 
 def _die(msg: str, code: int = 1) -> None:
@@ -180,7 +174,7 @@ def main() -> int:
     all_ok = True
 
     for cmd in verify_cmds:
-        proc = subprocess.run(cmd, cwd=root, shell=True, text=True, capture_output=True, check=False)
+        proc = subprocess.run(shlex.split(cmd), cwd=root, shell=False, text=True, capture_output=True, check=False)
         ok = proc.returncode == 0
         if not ok:
             all_ok = False
@@ -188,7 +182,8 @@ def main() -> int:
             {
                 "command": cmd,
                 "exit_code": proc.returncode,
-                "stdout_tail": _truncated((proc.stdout + proc.stderr), 400),
+                # compact_text default is 600; override to 400 to keep verify output concise
+                "output_tail": compact_text((proc.stdout + proc.stderr), 400),
             }
         )
         status = "OK" if ok else "FAIL"

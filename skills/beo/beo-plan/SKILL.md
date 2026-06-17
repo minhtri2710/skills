@@ -12,7 +12,6 @@ description: "Plan BEO work from Beads issues. Use for epic requirement intake, 
 - `.beads/artifacts/<issue-id>/state.json` when it already exists
 - `.beads/artifacts/<issue-id>/runtime-events.jsonl` when present
 - `beo-reference -> registry/ticket.schema.json` when writing or changing `TICKET.yaml`
-- `beo-reference -> registry/state.schema.json` before initializing `state.json`
 - `beo-reference -> registry/profiles.json` when checking scope or protected paths
 - `beo-reference -> registry/runtime-event.schema.json` before appending runtime events
 - `beo-reference -> registry/pipeline.json` when choosing the emitted route
@@ -28,12 +27,12 @@ description: "Plan BEO work from Beads issues. Use for epic requirement intake, 
    - Before finalizing proposed atomic beads, cross-reference their Expected scope. If 2+ beads share a file, note the merge or dependency in the decomposition strategy. Document the rationale to guide parallel dispatch later.
 6. Emit `planned -> beo-validate` for `PLAN.md` validation.
 7. Planning stop rule: after `PLAN.md` is written, emit `planned -> beo-validate` and stop. Do not create child beads until re-entering after `plan_validated`.
-8. On re-entry after `plan_validated`, create child atomic beads directly from the validated `PLAN.md` proposed atomic bead markdown blocks, dependency edges, and a parent summary comment that references `PLAN.md`, then stop. Each child bead description must preserve the full markdown task content from the plan, copied or lightly normalized for `br create --description`: include the implementation request/context, done criteria, expected scope, verification guidance, dependencies/blockers, suggested mode/risk notes, and atomicity rationale needed to plan/validate/execute that child without rereading the parent `PLAN.md`. Make child descriptions as detailed as the validated atomic task text allows; do not collapse them into one-line summaries. Do not require the child agent to reopen the parent plan for required implementation context. Do not reinterpret parent requirements outside the validated plan.
-   - When multiple child beads share an expected file, add dependency edges to enforce sequential ordering, or document the merge decision in the parent summary comment so the executor knows to combine them.
+8. On re-entry after `plan_validated`, create child atomic beads directly from the validated `PLAN.md` proposed atomic bead blocks, dependency edges, and a parent summary comment referencing `PLAN.md`, then stop. Each child bead description must follow the self-contained description format in `beo-reference -> references/lifecycle.md`. Make child descriptions as detailed as the validated task text; do not collapse into one-line summaries or reinterpret parent requirements outside the validated plan.
+   - When multiple child beads share an expected file, add dependency edges or document the merge decision in the parent summary comment.
 9. For an atomic bead, record a compact atomicity rationale in the child Bead description or as a Beads comment/plan evidence ref, not as a `TICKET.yaml` field.
 10. Write the smallest current `version: 1` `TICKET.yaml` for quick, standard, or strict mode.
 11. Initialize `state.json` in planned state.
-12. When emitting `user_review_needed`, include a compact handoff subtype, blocking question, recommended option, fallback if any, and evidence refs in the Beads comment or handoff text. Do not emit a vague user handoff.
+12. When emitting `user_review_needed`, follow the `user_review_needed` handoff format in `beo-reference -> references/user-handoff.md`.
 
 ## Write
 

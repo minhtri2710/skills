@@ -104,7 +104,8 @@
       "scripts/beo_check_approval.py",
       "scripts/beo_approval.py",
       "scripts/beo_state.py",
-      "scripts/beo_reservation.py"
+      "scripts/beo_reservation.py",
+      "scripts/beo_verify.py"
     ]
   }
 }

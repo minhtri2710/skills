@@ -1,7 +1,7 @@
 # Lifecycle, Decomposition, and Triage Authority
 
 > [!NOTE]
-> This reference is subordinate to [references/kernel.md](file:///Users/beowulf/Work/personal/beo-skills/skills/beo/beo-reference/references/kernel.md). `references/kernel.md` is the canonical owner of BEO rules and invariants.
+> This reference is subordinate to `references/kernel.md`. `references/kernel.md` is the canonical owner of BEO rules and invariants.
 
 `br` and `bv` are the external Beads tools used for issue tracking and orientation.
 
@@ -10,19 +10,19 @@
 All issue transitions are governed by strict claim invariants to avoid parallel conflict and preserve audit trails.
 
 ### Startup and Claim Sequence
-1. **Orient**: If no issue is selected, use `bv` robot triage for graph orientation only.
-2. **Discover**: Use `br ready --json` for the canonical executable queue. Use `bv` only to choose between tracks or detect graph hazards.
-3. **Inspect**: Check canonical issue details with `br`.
-4. **Classify atomicity**: If the issue type is `epic` or `feature`, stop direct validation/execution and route to `beo-plan` decomposition. If the issue was confirmed misclassified but is actually atomic, correct the type with `br update <issue-id> --type task` before continuing; do not convert parent work to `task` just to bypass decomposition.
-5. **Claim or verify claim**: Before the first plan-owned write, `beo-plan` claims the issue with `br update <issue-id> --claim --actor <actor> --json`. Later phase owners verify that the existing claim matches the acting owner and fail closed on mismatch. `--claim` takes no value.
-6. **Bind helper identity**: Run BEO helper checks with `BR_ACTOR` or `BEO_ACTOR` set to the claimed assignee. Helper claim checks compare that environment actor to the Beads claim.
-7. **Flush claim state**: After a successful claim that must be visible to later checks or other agents, run `br sync --flush-only`.
+1. **Orient**: `bv` robot triage for graph orientation only.
+2. **Discover**: `br ready --json` for the canonical queue; `bv` only for track choice or graph hazards.
+3. **Inspect**: Canonical issue details with `br show --json`.
+4. **Classify atomicity**: Epic/feature -> `beo-plan`. Misclassified atomic issues -> `br update --type task`. Do not downgrade just to bypass decomposition.
+5. **Claim**: `beo-plan` claims via `br update <issue-id> --claim --actor <actor> --json`. Later phases verify the claim matches, do not re-claim.
+6. **Bind helper**: BEO helpers use `BR_ACTOR`/`BEO_ACTOR` set to the claimed assignee.
+7. **Flush**: `br sync --flush-only` after a claim that must be visible to subsequent checks.
 
 ### Claim Authority and Phase Boundaries
-- **Plan claim**: `beo-plan` establishes initial claim before decomposition, `TICKET.yaml` write, or planning comments.
-- **Later phase verification**: `beo-validate`, `beo-execute`, `beo-review` verify the existing claim matches the acting owner; they do not re-claim.
-- **Resume protocol**: Only `beo-plan`, after explicit user-driven resume or issue reassignment, may re-claim after the initial plan claim.
-- **Parent claim for decomposition**: Parent claim covers `PLAN.md` authoring, plan-validation handoff/re-entry, and child bead/dependency creation. Later atomic child work still follows the one-claimed-atomic-issue invariant.
+- **Plan claim**: `beo-plan` establishes the initial claim.
+- **Later phases**: Verify claim matches acting owner; do not re-claim.
+- **Resume**: Only `beo-plan`, after user-driven resume or reassignment, may re-claim.
+- **Parent claim**: Covers `PLAN.md` authoring, plan handoffs, and child bead creation. Atomic child work follows the one-claimed-atomic-issue invariant.
 
 ### Common Lifecycle Failure Triage
 
@@ -39,29 +39,20 @@ All issue transitions are governed by strict claim invariants to avoid parallel 
 Only atomic beads can be validated or executed. Epics and Features must be decomposed.
 
 ### Decomposition Invariants
-- **Epic**: User-facing milestone; never executed directly.
-- **Feature**: Capability group; must be decomposed.
-- **Atomic Bead**: One independently approvable execution unit. Must have concrete `done_criteria`, one mode, one approval projection, a small explicit allowed file set, one verification contract, one verdict, and an independent revert/repair path.
+- Epic: never executed directly; Feature: must be decomposed; Atomic Bead: one independently approvable unit.
 
 ### File Conflict Prevention
 
-Before finalizing decomposed atomic beads, cross-reference their expected file scopes. Multiple beads modifying the same source file creates race conditions when run as parallel subagents.
-
-- If 2+ beads share an expected file, merge them into a single agent (preferred for 2-3 beads) or add explicit dependency edges to enforce sequential ordering.
-- Document the merge or dependency rationale in the parent PLAN decomposition strategy or the child bead description.
+Before finalizing decomposed beads, cross-reference their expected file scopes. If 2+ beads share a file, merge into one agent (preferred for 2-3) or add dependency edges to enforce ordering. Document the rationale in the parent PLAN decomposition strategy or child bead description.
 
 ### Epic Planning Mechanics
-If a bead is not atomic:
-1. `beo-plan` fresh-reads the epic/feature with `br show --json`, claims it, and combines the user request with the bead context.
-2. `beo-plan` uses one bounded clarification batch when needed, with recommended defaults and fallback assumptions; the full behavior is owned by `beo-plan/SKILL.md`.
-3. Write the durable plan to `.beads/artifacts/<issue-id>/PLAN.md` using `templates/PLAN.template.md`.
-4. Emit `planned` so `beo-validate` validates the plan artifact before child-bead creation; `beo-validate` emits `plan_validated` without granting `PASS_EXECUTE`.
-5. After `plan_validated`, `beo-plan` creates child atomic beads using `br create ... --json`.
-6. Add dependency edges using `br dep add ... --json`.
-7. Add a summary comment to the parent bead using `br comments add ... --json` with a reference to `PLAN.md` and the child bead ids.
-8. Exit planning with `decomposition_recorded` and hand off to the user.
+`beo-plan/SKILL.md` owns the full epic/feature planning procedure. The key mechanical commands used after `plan_validated`:
+1. Create child atomic beads: `br create ... --json`
+2. Add dependency edges: `br dep add ... --json`
+3. Add parent summary comment referencing `PLAN.md` + child bead IDs: `br comments add ... --json`
+4. Exit with `decomposition_recorded` dispatch.
 
-Each child atomic bead description is self-contained for implementation: it includes the task context/request, done criteria, expected touched artifacts or file scope, verification command(s), dependencies/blockers, suggested mode/risk notes, and atomicity rationale. Do not require a child implementer to reread the parent `PLAN.md`; preserve parent traceability through Beads dependency edges and the parent decomposition comment.
+Each child atomic bead description must be self-contained for implementation (task context, done criteria, expected scope, verification commands, dependencies, suggested mode/risk, atomicity rationale). Do not require child implementers to reread the parent `PLAN.md`; preserve parent traceability through Beads dependency edges and the parent decomposition comment.
 
 ---
 
@@ -73,7 +64,40 @@ Runtime events are append-only non-normal state entries in `.beads/artifacts/<is
 
 ---
 
-## 4. Repair Loop Policy
+## 4. Fast Track Path (Quick Mode Only)
+
+Fast track is an optional terminal shortcut for `quick` mode beads with `fast_track: true`.
+
+### Normal Path (4 phases)
+```
+beo-plan -> beo-validate -> beo-execute -> beo-review -> done
+```
+
+### Fast Track Path (3 phases, when ALL verifications pass)
+```
+beo-plan -> beo-validate -> beo-execute -> done
+```
+
+### Fast Track Fallback (when ANY verification fails)
+
+> See kernel.md §12 item 4. The fast track flag is ignored on failure; the bead routes to normal review.
+
+### Fast Track Invariants
+- Only for `quick` mode. Never `standard` or `strict`.
+- Requires explicit (non-glob) file scope.
+- Requires at least 1 verification command.
+- All verifications must pass. No partial acceptance.
+- `state.json` must record full verification results even on fast track.
+- Review phase is skipped; `beo-execute` writes a terminal review block with auto-accept.
+- The `state.review` block for fast-track is a **stub record** authored by `beo-execute`, not a real
+  review record authored by `beo-review`. The `review.reviewed_by` field distinguishes the two:
+  `"beo-execute"` for fast-track, `"beo-review"` for normal path. Stub records carry `verdict: null`,
+  `route_condition_id: "executed_and_verified"`, `closed_in_br: false`, and no findings or
+  done_criteria_coverage. They are not review verdicts and must not be treated as such.
+
+---
+
+## 5. Repair Loop Policy
 
 Repair boundary is canonical in `references/phase-contracts.md`.
 
@@ -83,31 +107,20 @@ Repair boundary is canonical in `references/phase-contracts.md`.
 
 ---
 
-## 5. Phase Handoff Boundaries
+## 6. Phase Handoff Boundaries
 
-BEO uses explicit artifact-validity phase handoffs.
-
-1. A phase owner may transition only after durable state/evidence is written.
-2. The next owner may start only after re-reading `br`, `TICKET.yaml`, `state.json`, `runtime-events.jsonl` when present, and the phase-relevant registries named by the owner skill.
-3. The boundary is artifact validity, not conversation turn.
-4. No phase may run commands, mutations, verification, approval, or review work belonging to the next phase until those artifacts have been re-read.
+Phase transitions are artifact-validity-based, not conversation-turn-based:
+1. A phase owner transitions only after writing durable state/evidence.
+2. The next owner starts only after re-reading `br`, `TICKET.yaml`, `state.json`, `runtime-events.jsonl` when present, and phase-relevant registries.
+3. No phase may run the next phase's commands until those artifacts have been re-read.
 
 ---
 
-## 6. Transition & Closure Labels
+## 7. Transition & Closure Labels
 
-Labels on `br` are advisory indicators that reflect the active BEO state:
-- `beo:atomic`, `beo:quick`, `beo:standard`, `beo:strict`, `beo:blocked-user`, `beo:ready-review`.
-- **Abandoned vs Completed Closure**: Only `verdict_accept` routes to automatic `br close` with a resolution status of `completed` and a `beo:completed` label. When BEO delivery is `abandoned`, `beo-review` records the status in `state.json`, appends a BEO audit comment via `br comments add ... --json`, applies the `beo:abandoned` label, and stops, leaving the issue `open` in `br` for manual user closure.
-- **Epic closure does not cascade**: `br close <child-id>` closes only the child bead. Closing all children leaves the parent epic `open`; closure does not propagate upward. After the last child's `verdict_accept` and `br close`, close the parent epic with a separate explicit `br close <epic-id> --reason "Completed" --actor <actor> --json`. List parent-epic closure as an explicit final step in the decomposition plan's completion criteria.
+Labels on `br` are advisory: `beo:atomic`, `beo:quick`, `beo:standard`, `beo:strict`, `beo:blocked-user`, `beo:ready-review`.
 
-### Closure Command Syntax
-
-Use Beads-specific close options, not git-style commit flags:
-
-```bash
-br close <issue-id>
-br close <issue-id> --reason "Completed" --actor <actor> --json
-```
-
-`br close` does not accept `--message`; use `--reason` for the close reason.
+- **Completed**: `verdict_accept` -> `br close` with `--reason "Completed" --actor <actor> --json` + `beo:completed` label.
+- **Abandoned**: `beo-review` records status in `state.json`, appends audit comment, applies `beo:abandoned` label, leaves issue open for manual closure.
+- **Epic closure**: does not cascade. Close parent explicitly after all children are closed.
+- **Syntax**: Use `br close <issue-id> --reason "Completed" --actor <actor> --json`. No `--message` flag.

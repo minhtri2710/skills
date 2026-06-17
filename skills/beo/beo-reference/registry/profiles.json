@@ -3,7 +3,11 @@
   "modes": {
     "quick": {
       "summary": "Repo-only low-risk work with explicit file scope and at least one verification command.",
-      "requires": ["scope.files.allow", "scope.verify.commands"]
+      "requires": ["scope.files.allow", "scope.verify.commands"],
+      "fast_track": {
+        "summary": "Opt-in flag to bypass review when all verifications pass. Only allowed for quick mode with explicit (non-glob) file scope.",
+        "additional_requires": ["scope.files.allow_all_explicit", "fast_track: true in TICKET.yaml"]
+      }
     },
     "standard": {
       "summary": "Quick requirements plus an explicit risk summary and rollback plan.",
@@ -12,7 +16,11 @@
     "strict": {
       "summary": "Standard requirements plus resolved human gates, side-effect contracts, and a current actor-matching BEO reservation covering approved files and generated outputs.",
       "requires": ["scope.files.allow", "scope.verify.commands", "risk.summary", "risk.rollback", "human_gates", "strict.reason", "strict.authorization_refs", "strict.rollback_refs", "strict.external_side_effects", "strict.stateful_external_systems"],
-      "external_evidence_requires": ["current_actor_matching_beo_reservation"]
+      "external_evidence_requires": ["current_actor_matching_beo_reservation"],
+      "worktree_isolation": {
+        "summary": "Optional flag to create an isolated git worktree for strict-mode execution. All mutations happen inside the worktree. On review accept, the worktree branch is merged; on other routes, the worktree is cleaned up without merging.",
+        "additional_requires": ["worktree_isolation: true in TICKET.yaml", "requires_clean_git_tree", "requires_git_worktree_command"]
+      }
     }
   },
   "protected_path_defaults": [

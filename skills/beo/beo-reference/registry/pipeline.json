@@ -11,7 +11,9 @@
     { "from": "beo-validate", "condition_id": "validation_failed", "to": "beo-plan" },
     { "from": "beo-validate", "condition_id": "user_review_needed", "to": "user" },
     { "from": "beo-execute", "condition_id": "executed", "to": "beo-review" },
+    { "from": "beo-execute", "condition_id": "executed_and_verified", "to": "done" },
     { "from": "beo-execute", "condition_id": "root_cause_diagnosis_needed", "to": "beo-debug" },
+    { "from": "beo-execute", "condition_id": "harness_change_needed", "to": "beo-author" },
     { "from": "beo-execute", "condition_id": "approval_stale_or_invalid", "to": "beo-validate" },
     { "from": "beo-execute", "condition_id": "containment_review_needed", "to": "beo-review" },
     { "from": "beo-review", "condition_id": "verdict_accept", "to": "done" },
@@ -20,6 +22,7 @@
     { "from": "beo-review", "condition_id": "cannot_deliver", "to": "user" },
     { "from": "beo-review", "condition_id": "abandoned", "to": "user" },
     { "from": "beo-review", "condition_id": "root_cause_diagnosis_needed", "to": "beo-debug" },
+    { "from": "beo-review", "condition_id": "harness_change_needed", "to": "beo-author" },
     { "from": "beo-review", "condition_id": "user_review_needed", "to": "user" }
   ],
   "support_subroutines": {
@@ -39,20 +42,38 @@
     }
   },
   "maintenance_skills": {
-    "beo-author": ["skill_authored_or_updated", "reference_or_registry_updated", "no_change_needed", "user_review_needed"],
+    "beo-climate": {
+      "outcomes": ["climate_scan_complete", "climate_issues_found", "climate_self_heal"],
+      "transitions": [
+        { "from": "beo-climate", "condition_id": "climate_scan_complete", "to": "user" },
+        { "from": "beo-climate", "condition_id": "climate_issues_found", "to": "user" },
+        { "from": "beo-climate", "condition_id": "climate_self_heal", "to": "user" }
+      ]
+    },
+    "beo-author": {
+      "outcomes": ["skill_authored_or_updated", "reference_or_registry_updated", "no_change_needed", "user_review_needed"],
+      "harness_proposal_callers": ["beo-execute", "beo-review"],
+      "transitions": [
+        { "from": "beo-author", "condition_id": "skill_authored_or_updated", "to": "caller" },
+        { "from": "beo-author", "condition_id": "reference_or_registry_updated", "to": "caller" },
+        { "from": "beo-author", "condition_id": "no_change_needed", "to": "caller" },
+        { "from": "beo-author", "condition_id": "user_review_needed", "to": "user" }
+      ]
+    },
     "beo-setup": ["setup_complete", "setup_degraded", "setup_blocked", "user_confirmation_needed"]
   },
   "lookup_skills": {
     "beo-reference": ["lookup_complete"]
   },
   "route_classes": {
-    "final_success": ["verdict_accept"],
+    "final_success": ["verdict_accept", "executed_and_verified"],
     "user_terminal_open": ["cannot_deliver", "abandoned"],
     "repair": ["repair_same_scope", "repair_rescope"],
     "diagnostic": ["root_cause_diagnosis_needed"],
     "approval": ["PASS_EXECUTE", "validation_failed", "approval_stale_or_invalid"],
     "planning": ["planned", "plan_validated", "decomposition_recorded"],
     "containment": ["containment_review_needed"],
+    "harness": ["harness_change_needed"],
     "user_handoff": ["user_review_needed"]
   },
   "delivery_user_handoff_subtypes": [
@@ -75,7 +96,7 @@
       "cannot_deliver": "cannot_deliver",
       "abandoned": "abandoned"
     },
-    "null_verdict_conditions": ["root_cause_diagnosis_needed", "user_review_needed"]
+    "null_verdict_conditions": ["root_cause_diagnosis_needed", "user_review_needed", "executed_and_verified", "harness_change_needed"]
   },
   "expected_receiver_phase_after_condition_note": "This mapping defines the final phase the receiver transitions to after accepting ownership. Emitting owners are NOT authorized to write this receiver phase directly; they must write a transition state (like blocked or planning) or keep executing/planning as authorized by phase-contracts.json.",
   "expected_receiver_phase_after_condition": {
@@ -86,6 +107,8 @@
     "executed": "executed",
     "approval_stale_or_invalid": "blocked",
     "containment_review_needed": "reviewing",
+    "harness_change_needed": "blocked",
+    "executed_and_verified": "reviewed",
     "root_cause_diagnosis_needed": "blocked",
     "repair_same_scope": "blocked",
     "repair_rescope": "planned",
@@ -134,7 +157,7 @@
   },
   "runtime_event_policy": {
     "write_only_for_non_normal_events": true,
-    "forbidden_normal_event_conditions": ["planned", "plan_validated", "PASS_EXECUTE", "executed", "verdict_accept"]
+    "forbidden_normal_event_conditions": ["planned", "plan_validated", "PASS_EXECUTE", "executed", "executed_and_verified", "verdict_accept"]
   },
-  "reservation_release_on": ["verdict_accept", "cannot_deliver", "abandoned", "repair_rescope"]
+  "reservation_release_on": ["verdict_accept", "executed_and_verified", "cannot_deliver", "abandoned", "repair_rescope"]
 }

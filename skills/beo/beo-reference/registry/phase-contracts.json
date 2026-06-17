@@ -4,7 +4,7 @@
   "classes": {
     "delivery_owner": ["beo-plan", "beo-validate", "beo-execute", "beo-review"],
     "support_subroutine": ["beo-debug", "beo-learn"],
-    "maintenance": ["beo-author", "beo-setup"],
+    "maintenance": ["beo-author", "beo-climate", "beo-setup"],
     "read_only_lookup": ["beo-reference"]
   },
   "skills": {
@@ -34,23 +34,26 @@
         "br.labels.beo_blocked_user"
       ],
       "may_emit_delivery_conditions": ["PASS_EXECUTE", "plan_validated", "validation_failed", "user_review_needed"],
-      "may_emit_runtime_event_kinds": ["user_stop"],
+      "may_emit_runtime_event_kinds": ["user_stop", "verification_run", "intervention"],
       "must_not": ["patch_ticket_plan", "mutate_product_files", "review", "close"]
     },
     "beo-execute": {
       "class": "delivery_owner",
-      "state_write_fields": ["phase", "execution"],
+      "state_write_fields": ["phase", "execution", "review"],
       "artifact_write_authorities": [
         "approved_product_files",
-        "declared_generated_outputs"
+        "declared_generated_outputs",
+        "harness_proposal"
       ],
       "may_emit_delivery_conditions": [
         "executed",
+        "executed_and_verified",
         "root_cause_diagnosis_needed",
         "approval_stale_or_invalid",
-        "containment_review_needed"
+        "containment_review_needed",
+        "harness_change_needed"
       ],
-      "may_emit_runtime_event_kinds": ["handoff"],
+      "may_emit_runtime_event_kinds": ["handoff", "verification_run", "intervention"],
       "must_not": ["approve", "validate", "review", "close", "mutate_outside_approved_scope"]
     },
     "beo-review": {
@@ -59,7 +62,8 @@
       "artifact_write_authorities": [
         "br.final_route_comments",
         "br.close_on_verdict_accept",
-        "reservation_release"
+        "reservation_release",
+        "harness_proposal"
       ],
       "may_emit_delivery_conditions": [
         "verdict_accept",
@@ -68,9 +72,10 @@
         "cannot_deliver",
         "abandoned",
         "root_cause_diagnosis_needed",
+        "harness_change_needed",
         "user_review_needed"
       ],
-      "may_emit_runtime_event_kinds": ["handoff", "change_request", "abandoned", "learning_candidate"],
+      "may_emit_runtime_event_kinds": ["handoff", "change_request", "abandoned", "learning_candidate", "verification_run", "intervention"],
       "must_not": ["mutate_product_files", "grant_PASS_EXECUTE", "close_non_accepted_work", "emit_multiple_review_routes"]
     },
     "beo-debug": {
@@ -94,7 +99,8 @@
       "class": "maintenance",
       "state_write_fields": [],
       "artifact_write_authorities": [
-        "BEO_control_plane_files"
+        "BEO_control_plane_files",
+        "harness_proposal"
       ],
       "may_emit_maintenance_outcomes": [
         "skill_authored_or_updated",
@@ -102,7 +108,19 @@
         "no_change_needed",
         "user_review_needed"
       ],
+      "may_emit_runtime_event_kinds": ["score"],
       "must_not": ["mutate_product_delivery_scope", "grant_PASS_EXECUTE", "execute_product_ticket", "review_product_ticket", "close_delivery_issue"]
+    },
+    "beo-climate": {
+      "class": "maintenance",
+      "state_write_fields": [],
+      "artifact_write_authorities": [],
+      "may_emit_maintenance_outcomes": [
+        "climate_scan_complete",
+        "climate_issues_found",
+        "climate_self_heal"
+      ],
+      "must_not": ["mutate_delivery_state", "grant_PASS_EXECUTE", "mutate_product_files", "close", "modify_skill_cards_or_registries_directly"]
     },
     "beo-setup": {
       "class": "maintenance",

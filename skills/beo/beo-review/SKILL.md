@@ -12,6 +12,7 @@ description: "Review one executed atomic BEO bead against its self-contained des
 - `.beads/artifacts/<issue-id>/state.json`
 - `.beads/artifacts/<issue-id>/runtime-events.jsonl` when present
 - `.beads/beo-reservations.jsonl` and `beo-reference -> registry/reservation-schema.json` before any route that may release an existing reservation
+- `beo-reference -> scripts/beo_worktree.py` when the bead has `worktree_isolation: true` (for merge or cleanup)
 - `beo-reference -> registry/pipeline.json` when choosing the emitted route
 - `beo-reference -> registry/runtime-event.schema.json` before appending non-normal events
 - `beo-reference -> registry/state.schema.json` when state update ownership or fields are unclear
@@ -34,12 +35,21 @@ description: "Review one executed atomic BEO bead against its self-contained des
 8. Emit exactly one review route.
 9. For `root_cause_diagnosis_needed`, set the route condition, leave `review.verdict` null, and append a `handoff` runtime event before routing to `beo-debug`.
 10. Use `repair_same_scope` only when approved files, generated outputs, done criteria, verification, mode, risk, and Human Gates remain unchanged; otherwise use `repair_rescope`.
-11. Close with `br` only on `verdict_accept`; otherwise leave the issue open for repair or user action.
-12. When emitting `user_review_needed`, set `review.route_condition_id` to `user_review_needed`, leave `review.verdict` null, record blocking findings with existing categories and `recommended_route: none` when no enum route applies, and include a compact handoff subtype, blocking question, recommended option, fallback if any, and evidence refs in the Beads comment or handoff text. Do not emit a vague user handoff or write a `user_stop` runtime event for review user decisions.
+11. For beads with `worktree_isolation: true`:
+    - On `verdict_accept`: merge the worktree branch via `beo-reference -> scripts/beo_worktree.py merge --issue <issue-id>`, then cleanup via `beo-reference -> scripts/beo_worktree.py cleanup --issue <issue-id> --reason accepted`.
+    - On `repair_same_scope` or `repair_rescope`: cleanup without merge via `beo-reference -> scripts/beo_worktree.py cleanup --issue <issue-id> --reason repair`.
+    - On `cannot_deliver` or `abandoned`: cleanup via `beo-reference -> scripts/beo_worktree.py cleanup --issue <issue-id> --reason <route>`.
+12. If during review a BEO harness improvement is identified:
+    - Write `.beads/artifacts/<issue-id>/harness-proposal.yaml` following `beo-reference -> registry/harness-proposal.schema.json`.
+    - Emit `harness_change_needed` -> `beo-author`. The review is paused; `beo-author` returns to caller after resolution.
+    - On return from `beo-author`, re-read state and continue review.
+13. Close with `br` only on `verdict_accept`; otherwise leave the issue open for repair or user action.
+14. When emitting `user_review_needed`, set `review.route_condition_id` to `user_review_needed`, leave `review.verdict` null, record blocking findings with existing categories and `recommended_route: none` when no enum route applies, and follow the `user_review_needed` handoff format in `beo-reference -> references/user-handoff.md`. Do not write a `user_stop` runtime event for review user decisions.
 
 ## Write
 
 - `state.json` phase and review fields only
+- `.beads/artifacts/<issue-id>/harness-proposal.yaml` when proposing a harness change
 - Beads comments/labels for the final route when needed, including compact `user_review_needed` route comments and labels only when an existing BEO label represents the state
 - Reservation release on `verdict_accept`, `cannot_deliver`, `abandoned`, and `repair_rescope` only for strict-mode active reservations or when a reservation exists
 - `runtime-events.jsonl` for non-normal review events, including `handoff` before `root_cause_diagnosis_needed`
@@ -53,7 +63,10 @@ description: "Review one executed atomic BEO bead against its self-contained des
 - `cannot_deliver` -> user
 - `abandoned` -> user
 - `root_cause_diagnosis_needed` -> `beo-debug`
+- `harness_change_needed` -> `beo-author`
 - `user_review_needed` -> user
+
+Non-normal `runtime-events.jsonl` events (advisory, optional): `verification_run` (when `beo_verify.py` is invoked during review), `intervention` (when external human, CI, or reviewer input is recorded).
 
 ## Never
 

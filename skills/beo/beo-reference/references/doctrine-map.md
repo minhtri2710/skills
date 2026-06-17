@@ -3,7 +3,7 @@
 For any general operator question, check the primary BEO Kernel first. Load narrow files only when detailed schema or registry validation is required.
 
 ## Primary Operator Rules
-- [kernel.md](file:///Users/beowulf/Work/personal/beo-skills/skills/beo/beo-reference/references/kernel.md): Binding hard invariants, delivery loop, authority splits, risk modes, approval validity, runtime events, reservations, memory, and repair policies.
+- [kernel.md](references/kernel.md): Binding hard invariants, delivery loop, authority splits, risk modes, approval validity, runtime events, reservations, memory, and repair policies.
 
 ## Subordinate Reference Map
 
@@ -22,6 +22,8 @@ For any general operator question, check the primary BEO Kernel first. Load narr
 | Can I claim, decompose, use `bv`, close with `br`, or debug lifecycle CLI syntax? | `references/lifecycle.md` | Subordinate lifecycle command authority, CLI syntax, and `bv` advisory boundary | Safety docs unless mutation risk is disputed |
 | Can I mutate this file or perform this side effect? | `references/safety.md` | Subordinate dirty-tree, side-effect, and recovery guidance | Memory docs |
 | Can memory inform this decision? | `references/memory.md` | Subordinate memory and learning guidance | Approval/state registries unless independently needed |
+| Is a harness change proposal valid? | `registry/harness-proposal.schema.json` | Binding proposal shape and allowed fields | Ticket or state schema |
+| Does a climate scan need to run? | `beo-climate/SKILL.md` plus `beo-climate/config.yaml` | Scan cadence, scope, and auto-heal allowlist | Delivery skill cards |
 | Is a missing tool blocking or degraded? | `references/degraded-tools.md` | Required/degraded tool status and fallback | Full setup script implementation |
 | Who owns a BEO maintenance rule change? | `beo-author/SKILL.md` plus this map | Canonical owner for the rule before editing | Unrelated skill cards |
 

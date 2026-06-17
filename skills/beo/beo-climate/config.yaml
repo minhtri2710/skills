@@ -1,0 +1,32 @@
+# BEO Climate Control Cadence Configuration
+# This file defines scan scheduling, scope, and auto-heal rules.
+
+cadence:
+  default: "weekly"
+  description: "How often the climate scan runs. Options: weekly, monthly, manual."
+  # Background agent scheduling is handled by the agent harness (pi schedule feature).
+
+scan_scope:
+  include:
+    - "skills/beo/**/*.md"       # All skill cards and references
+    - "skills/beo/**/registry/*.json"  # All registries
+  exclude:
+    - "skills/beo/**/scripts/*.py"     # Scripts are validated separately
+    - "skills/beo/**/templates/*.md"   # Templates are intentionally different from final artifacts
+    - "skills/beo/**/examples/*.md"    # Examples are illustrative, not authoritative
+
+auto_heal_allowlist:
+  description: "Auto-heal applies only to safe, mechanical fixes. Structural changes (new skills, new phases, permission changes) always require human triage."
+  # Each item maps to a beo_audit.py check_id so triage can route findings
+  # to the correct fix-up path. The mapping is also documented in
+  # beo-climate/SKILL.md. Do not add items whose fix requires a human
+  # decision (permission boundary, safety invariant, or pipeline condition).
+  items:
+
+    - id: "orphaned_reference"
+      audit_check_id: "C2"
+      summary: "skill card or prose reference references a missing file target that does not resolve to an existing path"
+    - id: "stale_schema_field"
+      audit_check_id: "C4"
+      summary: "runtime-event kind defined in payload_contracts but claimed by no actor, or in may_emit but never defined"
+      # Also checks: duplicate owner_rules keys, unknown actors

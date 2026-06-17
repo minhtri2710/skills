@@ -69,21 +69,71 @@ Reservations are BEO-local strict-mode path ownership evidence:
 
 ---
 
-## 7. Memory & Learning Boundary
+## 7. Worktree Isolation Policy
+
+Worktree isolation is an optional strict-mode feature for full filesystem isolation.
+
+1. **Creation**: Worktree is created by `beo-validate` before `PASS_EXECUTE`. Requires a clean git tree.
+2. **Ownership**: The worktree branch follows the naming convention `beo/<issue-id>/<actor>/<timestamp>`.
+3. **Execution**: All mutations happen inside the worktree. The main repo remains untouched.
+4. **Merge**: Only `beo-review` on `verdict_accept` may merge the worktree branch into the main repo.
+5. **Cleanup**: Worktree is always cleaned up on terminal routes (accept, cannot_deliver, abandoned) and repair routes.
+6. **Idempotency**: If a worktree already exists for the same issue (e.g., agent re-entry), the existing worktree is reused.
+7. **No Bypass**: Worktree isolation does not replace reservation, dirty prestate checks, or approval validity. All standard strict-mode invariants still apply.
+
+---
+
+## 8. Memory & Learning Boundary
 
 - **Recall**: Opt-in and advisory only. Prior lessons do not grant approval or authority.
 - **Learning**: Save lessons via `beo-learn` only when an explicit `learning_candidate` exists or the user requests it. Default Vault: `<vault>/beo-learnings/`. Fallback: `.beads/learnings/`.
 
 ---
 
-## 8. Repair Boundaries
+## 9. Climate Control Policy
+
+`beo-climate` is a proactive maintenance skill that runs periodic scans of BEO harness files.
+
+1. **Advisory only**: `beo-climate` never mutates delivery state, product files, or BEO control-plane files directly.
+2. **Findings become issues**: Scan results become Beads issues for human or `beo-author` triage.
+3. **Auto-heal allowlist**: Only safe, mechanical fix types may auto-route to `beo-author` via `climate_self_heal`. The allowlist is defined in `beo-climate/config.yaml`.
+4. **No delivery authority**: `beo-climate` cannot grant `PASS_EXECUTE`, close issues, or alter review verdicts.
+5. **Cadence**: Default is weekly. Configurable in `beo-climate/config.yaml`. Runs as a background agent, not blocking delivery.
+
+## 10. Harness Mutation Guardrails
+
+Delivery agents (beo-execute, beo-review) may propose BEO harness changes through a controlled handoff.
+
+1. **Proposal only**: Delivery agents write `harness-proposal.yaml`. They never mutate harness files directly.
+2. **Scope restriction**: Proposals must target paths under `skills/beo/`. Product delivery scope proposals are rejected.
+3. **beo-author gate**: Only `beo-author` applies harness changes. It reviews the proposal, validates safety, and applies or declines.
+4. **Idempotency**: Multiple `harness_change_needed` emissions for the same proposal are idempotent. The proposal hash is tracked in state.
+5. **No authority expansion**: A harness proposal cannot grant new permissions to the proposing agent. It changes the harness for future beads.
+6. **Invariant preservation**: Harness changes must not weaken the hard invariants in this kernel. `beo-author` must verify this before applying.
+7. **Continuation**: After `beo-author` returns, the delivery agent re-reads state and continues if the bead remains valid.
+
+## 11. Repair Boundaries
 
 - **`repair_same_scope`**: Used when the approved file set, generated outputs, done criteria, verification commands, mode, and Human Gates remain unchanged. Routes back to `beo-validate` (does not require re-planning).
 - **`repair_rescope`**: Used when scope (allow/forbid), done criteria, verification commands, mode, or Human Gates must change. Routes back to `beo-plan` for re-authoring.
 
 ---
 
-## 9. Interrupted Execution Recovery
+## 12. Fast Track (Quick Mode Optimization)
+
+Fast track is an opt-in flag for `quick` mode beads only. When `TICKET.yaml` has `fast_track: true`:
+
+1. All `quick` mode invariants still apply (explicit file scope, at least one verification command).
+2. `beo-validate` writes `PASS_EXECUTE` as normal. Fast track does not skip validation.
+3. `beo-execute` runs all verification commands. If ALL pass, emits `executed_and_verified` -> done (bypasses review).
+4. If ANY verification fails, falls back to `executed` -> `beo-review` (normal path).
+5. Fast track file scope must use explicit paths, not globs. This ensures deterministic scope enforcement.
+6. Evidence integrity still applies: all verification results and changed files must be recorded in `state.json`.
+7. `fast_track` is never allowed for `standard` or `strict` mode beads.
+
+The fast track exists to reduce phase overhead for trivial, low-risk changes where review ceremony adds no safety value.
+
+## 13. Interrupted Execution Recovery
 
 If re-entering with `state.phase = executing`:
 1. Recompute approval validity predicates and check dirty paths.

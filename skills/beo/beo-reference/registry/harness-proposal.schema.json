@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "BEO Harness Change Proposal",
+  "description": "Proposal from a delivery agent to modify BEO control-plane files (harness). Only beo-author may apply the change.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "proposal_id", "source_issue_id", "target", "change_type", "rationale", "proposed_diff", "safety_note"],
+  "properties": {
+    "version": { "const": 1 },
+    "proposal_id": {
+      "type": "string",
+      "pattern": "^prop-[a-f0-9]{8}$",
+      "description": "Unique proposal ID, generated as prop-<sha1 prefix>"
+    },
+    "source_issue_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The delivery bead issue that generated this proposal"
+    },
+    "target": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^skills/beo/",
+      "description": "BEO control-plane file path (relative to repo root, under skills/beo/). Must start with 'skills/beo/' per kernel §10 Harness Mutation Guardrails."
+    },
+    "change_type": {
+      "type": "string",
+      "enum": ["bugfix", "improvement", "new_feature", "deprecation"],
+      "description": "Nature of the proposed change"
+    },
+    "rationale": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Why this change helps delivery — what problem it solves"
+    },
+    "proposed_diff": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Unified diff or clear before/after description of the change"
+    },
+    "safety_note": {
+      "type": "string",
+      "minLength": 1,
+      "description": "What could break, what invariants are affected, rollback consideration"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["pending", "applied", "declined", "superseded"],
+      "default": "pending"
+    }
+  }
+}

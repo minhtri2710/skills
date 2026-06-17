@@ -7,7 +7,7 @@ from typing import Any
 
 # Define paths relative to the script location
 SCRIPT_DIR = Path(__file__).resolve().parent
-BEO_ROOT = SCRIPT_DIR.parents[1]  # /Users/.../beo-skills/skills/beo
+BEO_ROOT = SCRIPT_DIR.parents[1]  # <repo>/skills/beo (resolves dynamically)
 REF_DIR = BEO_ROOT / "beo-reference"
 
 
@@ -54,9 +54,7 @@ def _check_ref_exists(errors: list[str], source: Path, ref: str) -> None:
         target = (REF_DIR / "scripts" / ref_path).resolve()
     elif source.is_relative_to(REF_DIR) and source.parent.name == "references" and ref_path == "AGENTS.template.md":
         target = (REF_DIR / "templates" / ref_path).resolve()
-    elif source.is_relative_to(REF_DIR) and re.fullmatch(r"beo-[a-z-]+/SKILL\.md", ref_path):
-        target = (BEO_ROOT / ref_path).resolve()
-    elif source.is_relative_to(REF_DIR) and ref_path == "beo-author/SKILL.md":
+    elif source.is_relative_to(REF_DIR) and re.fullmatch(r"beo-[a-z-]+/.+", ref_path):
         target = (BEO_ROOT / ref_path).resolve()
     else:
         target = (source.parent / ref_path).resolve()
@@ -81,13 +79,32 @@ def _collect_enums(value: Any) -> set[Any]:
     return enums
 
 
+def _build_outcome_index(raw_map: Any) -> dict[str, set[str]]:
+    """Map skill -> set of (outcomes + transition condition_ids).
+
+    Accepts either a dict-shaped entry (``{outcomes, transitions}``) or a
+    legacy list/string entry, which is normalized to a set.
+    """
+    index: dict[str, set[str]] = {}
+    for key, value in raw_map.items():
+        if isinstance(value, dict):
+            index[key] = {
+                *value.get("outcomes", []),
+                *(transition.get("condition_id") for transition in value.get("transitions", [])),
+            }
+        else:
+            index[key] = set(value)
+    return index
+
+
 def run_checks() -> int:
     errors = []
 
-    # 1. Verify all 9 BEO SKILL.md files exist
+    # 1. Verify all 10 BEO SKILL.md files exist
     skills = [
         "beo-plan", "beo-validate", "beo-execute", "beo-review",
-        "beo-debug", "beo-learn", "beo-author", "beo-setup", "beo-reference"
+        "beo-debug", "beo-learn", "beo-author", "beo-climate",
+        "beo-setup", "beo-reference"
     ]
     for skill in skills:
         skill_path = BEO_ROOT / skill / "SKILL.md"
@@ -199,14 +216,9 @@ def run_checks() -> int:
             # Check transitions and typed outcome registries
             pipeline_conditions = {t["condition_id"] for t in pipeline.get("transitions", [])}
             runtime_event_kinds = set(events.get("properties", {}).get("kind", {}).get("enum", []))
-            support_by_skill = {}
-            for skill_name, config in pipeline.get("support_subroutines", {}).items():
-                support_by_skill[skill_name] = {
-                    *config.get("outcomes", []),
-                    *(transition.get("condition_id") for transition in config.get("transitions", [])),
-                }
-            maintenance_by_skill = {key: set(value) for key, value in pipeline.get("maintenance_skills", {}).items()}
-            lookup_by_skill = {key: set(value) for key, value in pipeline.get("lookup_skills", {}).items()}
+            support_by_skill = _build_outcome_index(pipeline.get("support_subroutines", {}))
+            maintenance_by_skill = _build_outcome_index(pipeline.get("maintenance_skills", {}))
+            lookup_by_skill = _build_outcome_index(pipeline.get("lookup_skills", {}))
             delivery_by_skill = {}
             for transition in pipeline.get("transitions", []):
                 delivery_by_skill.setdefault(transition["from"], set()).add(transition["condition_id"])
@@ -245,11 +257,12 @@ def run_checks() -> int:
             state_write_policy = {
                 "beo-plan": {"initialize"},
                 "beo-validate": {"phase", "approval"},
-                "beo-execute": {"phase", "execution"},
+                "beo-execute": {"phase", "execution", "review"},
                 "beo-review": {"phase", "review"},
                 "beo-debug": set(),
                 "beo-learn": set(),
                 "beo-author": set(),
+                "beo-climate": set(),
                 "beo-setup": set(),
                 "beo-reference": set(),
             }
@@ -265,7 +278,7 @@ def run_checks() -> int:
                 "validation_evidence",
                 "approved_product_files",
                 "declared_generated_outputs",
-                "br.final_route_comments",
+                "harness_proposal",
                 "br.close_on_verdict_accept",
                 "reservation_release",
                 "advisory_learning_note",

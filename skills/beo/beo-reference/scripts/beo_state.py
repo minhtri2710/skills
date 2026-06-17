@@ -20,7 +20,7 @@ REVIEW_FINDING_ROUTES = {"repair_same_scope", "repair_rescope", "cannot_deliver"
 OWNER_FIELDS = {
     "beo-plan": {"initialize"},
     "beo-validate": {"phase", "approval"},
-    "beo-execute": {"phase", "execution"},
+    "beo-execute": {"phase", "execution", "review"},
     "beo-review": {"phase", "review"},
     "beo-debug": set(),
     "beo-learn": set(),
@@ -29,6 +29,23 @@ OWNER_FIELDS = {
     "beo-reference": set(),
 }
 SYSTEM_FIELDS = {"version", "issue_id", "phase_sequence_id", "metadata"}
+
+
+# Per-field authority for harness_proposal writes.
+# Key: field name. Value: set of actors allowed to write that field.
+# Three actors (beo-execute, beo-review, beo-author) claim harness_proposal
+# in artifact_write_authorities; status is restricted to beo-author only.
+HARNESS_PROPOSAL_FIELD_AUTHORITY: dict[str, set[str]] = {
+    "version": {"beo-execute", "beo-review", "beo-author"},
+    "proposal_id": {"beo-execute", "beo-review", "beo-author"},
+    "source_issue_id": {"beo-execute", "beo-review", "beo-author"},
+    "target": {"beo-execute", "beo-review", "beo-author"},
+    "change_type": {"beo-execute", "beo-review", "beo-author"},
+    "rationale": {"beo-execute", "beo-review", "beo-author"},
+    "proposed_diff": {"beo-execute", "beo-review", "beo-author"},
+    "safety_note": {"beo-execute", "beo-review", "beo-author"},
+    "status": {"beo-author"},
+}
 
 
 def artifact_dir(root: Path, issue_id: str) -> Path:
@@ -61,6 +78,8 @@ def initial_state(issue_id: str) -> dict[str, Any]:
             "changed_files": [],
             "verify_results": [],
             "evidence_refs": [],
+            "trace_tier": None,
+            "interventions": [],
         },
         "review": {
             "actor": None,
@@ -70,6 +89,7 @@ def initial_state(issue_id: str) -> dict[str, Any]:
             "done_criteria_coverage": [],
             "repair_count": 0,
             "closed_in_br": False,
+            "reviewed_by": "beo-review",
         },
         "metadata": {
             "last_owner": None,
@@ -245,8 +265,8 @@ def validate_state(state: dict[str, Any], issue_id: str | None = None) -> None:
     review = state.get("review")
     metadata = state.get("metadata")
     approval_fields = {"status", "approved_by", "actor", "ticket_file_hash", "approval_projection_hash", "repo_head", "prestate", "failure_category", "approved_phase_sequence_id"}
-    execution_fields = {"actor", "started_at", "completed_at", "changed_files", "verify_results", "evidence_refs"}
-    review_fields = {"actor", "verdict", "route_condition_id", "findings", "done_criteria_coverage", "repair_count", "closed_in_br"}
+    execution_fields = {"actor", "started_at", "completed_at", "changed_files", "verify_results", "evidence_refs", "trace_tier", "interventions"}
+    review_fields = {"actor", "verdict", "route_condition_id", "findings", "done_criteria_coverage", "repair_count", "closed_in_br", "reviewed_by"}
     metadata_fields = {"last_owner", "updated_at"}
     if not isinstance(approval, dict) or approval.get("status") not in APPROVAL_STATUSES:
         raise ValueError("approval.status is invalid")
@@ -272,13 +292,35 @@ def validate_state(state: dict[str, Any], issue_id: str | None = None) -> None:
     missing_execution = sorted(execution_fields - set(execution))
     if missing_execution:
         raise ValueError(f"execution missing required field(s): {', '.join(missing_execution)}")
-    for field in ["actor", "started_at", "completed_at"]:
+    for field in ["actor", "started_at", "completed_at", "trace_tier"]:
         _validate_optional_string(execution.get(field), f"execution.{field}")
+    trace_tier_value = execution.get("trace_tier")
+    if trace_tier_value is not None and trace_tier_value not in {"minimal", "standard", "detailed"}:
+        raise ValueError("execution.trace_tier must be one of minimal, standard, detailed or null")
     _validate_safe_path_list(execution.get("changed_files"), "execution.changed_files")
     _validate_list(execution.get("verify_results"), "execution.verify_results")
     _validate_safe_path_list(execution.get("evidence_refs"), "execution.evidence_refs")
     if not all(isinstance(result, dict) for result in execution.get("verify_results", [])):
         raise ValueError("execution.verify_results entries must be objects")
+    _validate_list(execution.get("interventions"), "execution.interventions")
+    for index, intervention in enumerate(execution.get("interventions", [])):
+        if not isinstance(intervention, dict):
+            raise ValueError(f"execution.interventions[{index}] must be an object")
+        intervention_keys = set(intervention.keys())
+        allowed_keys = {"type", "source", "impact", "description", "recorded_at", "trace_id", "story_id"}
+        unknown = sorted(intervention_keys - allowed_keys)
+        if unknown:
+            raise ValueError(f"execution.interventions[{index}] contains unknown field(s): {', '.join(unknown)}")
+        intervention_type = intervention.get("type")
+        if intervention_type not in {"human", "reviewer", "ci", "agent"}:
+            raise ValueError(f"execution.interventions[{index}].type is invalid: {intervention_type}")
+        impact = intervention.get("impact")
+        if impact not in {"informational", "blocking", "helpful"}:
+            raise ValueError(f"execution.interventions[{index}].impact is invalid: {impact}")
+        for string_field in ("source", "description", "recorded_at"):
+            value = intervention.get(string_field)
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError(f"execution.interventions[{index}].{string_field} must be a non-empty string")
     if not isinstance(review, dict):
         raise ValueError("review must be an object")
     _reject_unknown_fields(review, review_fields, "review")
@@ -286,6 +328,9 @@ def validate_state(state: dict[str, Any], issue_id: str | None = None) -> None:
     if missing_review:
         raise ValueError(f"review missing required field(s): {', '.join(missing_review)}")
     _validate_optional_string(review.get("actor"), "review.actor")
+    reviewed_by = review.get("reviewed_by")
+    if reviewed_by not in {"beo-execute", "beo-review"}:
+        raise ValueError("review.reviewed_by must be 'beo-execute' or 'beo-review'")
     _validate_list(review.get("findings"), "review.findings")
     for index, finding in enumerate(review.get("findings", [])):
         if not isinstance(finding, dict):
@@ -432,6 +477,11 @@ def locked_update_state(
                     raise ValueError("execution start requires execution.started_at")
             elif before.get("phase") not in {"executing", "executed"}:
                 raise ValueError("beo-execute requires approved/executing/executed state")
+            review = after.get("review") if isinstance(after.get("review"), dict) else {}
+            if review.get("route_condition_id") == "verdict_accept":
+                raise ValueError("beo-execute may not emit verdict_accept; that route signals br close and is beo-review only")
+            if review.get("closed_in_br"):
+                raise ValueError("beo-execute may not set review.closed_in_br; beo-execute is not authorized to close in br")
         after["phase_sequence_id"] = int(before["phase_sequence_id"]) + 1
         after.setdefault("metadata", {})["updated_at"] = now()
         after["metadata"]["last_owner"] = owner
@@ -565,6 +615,21 @@ def validate_event_schema(event: dict[str, Any]) -> None:
             cond_id = payload.get("condition_id")
             if cond_id in forbidden_kinds:
                 raise ValueError(f"handoff condition_id must not be a normal transition: {cond_id}")
+
+
+def validate_harness_proposal_write(data: dict[str, Any], actor: str) -> None:
+    """Validate that the given actor may write each field in the harness proposal data.
+
+    `data` is a dict of fields the caller intends to write (not the full proposal).
+    `actor` is the BEO skill name requesting the write.
+    Raises ValueError if any field is not writable by the given actor.
+    """
+    for field in data:
+        allowed_actors = HARNESS_PROPOSAL_FIELD_AUTHORITY.get(field)
+        if allowed_actors is None:
+            raise ValueError(f"unknown harness_proposal field: {field}")
+        if actor not in allowed_actors:
+            raise ValueError(f"{actor} may not write harness_proposal.{field}; allowed: {', '.join(sorted(allowed_actors))}")
 
 
 def append_event(root: Path, issue_id: str, event: dict[str, Any]) -> None:
