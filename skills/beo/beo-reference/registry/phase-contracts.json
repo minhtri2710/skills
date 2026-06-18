@@ -1,6 +1,6 @@
 {
   "schema": "beo-phase-contracts/v1",
-  "description": "Canonical machine-readable BEO skill permission matrix using typed emission categories.",
+  "description": "Canonical machine-readable BEO skill contract matrix using typed emission categories.",
   "classes": {
     "delivery_owner": ["beo-plan", "beo-validate", "beo-execute", "beo-review"],
     "support_subroutine": ["beo-debug", "beo-learn"],
@@ -22,6 +22,9 @@
       ],
       "may_emit_delivery_conditions": ["planned", "decomposition_recorded", "user_review_needed"],
       "may_emit_runtime_event_kinds": ["user_stop"],
+      "decomposition_recorded_contract": {
+        "ticket_prewrite": "Write TICKET.yaml for every proposed atomic bead before emitting `decomposition_recorded`, not just the bead being dispatched next. Source text: parent PLAN.md 'Proposed atomic beads' blocks. Pre-written tickets let each child enter validation directly instead of requiring a separate planning pass to author its ticket at dispatch time."
+      },
       "must_not": ["mutate_product_files", "grant_PASS_EXECUTE", "review", "close"]
     },
     "beo-validate": {
@@ -35,6 +38,18 @@
       ],
       "may_emit_delivery_conditions": ["PASS_EXECUTE", "plan_validated", "validation_failed", "user_review_needed"],
       "may_emit_runtime_event_kinds": ["user_stop", "verification_run", "intervention"],
+      "validation_preconditions": {
+        "strict_destructive_schema": {
+          "trigger": "ticket.mode == 'strict' AND (ticket.request OR ticket.done_criteria OR ticket.strict.reason) mentions destructive schema change (drop enum, drop column, drop table, destructive migration, irreversible data shape)",
+          "required": [
+            "scope.files.allow contains at least one pre-check script path matching scripts/<descriptor>-precheck.*, scripts/verify-<descriptor>.*",
+            "done_criteria contains at least one item stating the pre-check script's expected exit code",
+            "human_gates contains at least one entry describing the operator action gated on pre-check pass"
+          ],
+          "on_missing": "validation_failed -> beo-plan with finding referencing the missing pre-check",
+          "rationale": "A Human Gate is a procedural check at review time, not a runtime check at apply time. The pre-check script is the runtime safety deliverable; the human gate is operator authorization to apply."
+        }
+      },
       "must_not": ["patch_ticket_plan", "mutate_product_files", "review", "close"]
     },
     "beo-execute": {

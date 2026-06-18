@@ -174,7 +174,19 @@ def main() -> int:
     all_ok = True
 
     for cmd in verify_cmds:
-        proc = subprocess.run(shlex.split(cmd), cwd=root, shell=False, text=True, capture_output=True, check=False)
+        argv = shlex.split(cmd)
+        if not argv:
+            # Empty/whitespace command would crash subprocess.run([]); treat
+            # it as a verification failure (ticket misconfiguration).
+            all_ok = False
+            verify_results.append({
+                "command": cmd,
+                "exit_code": -1,
+                "output_tail": compact_text("empty verify command", 400),
+            })
+            print(f"[verify] FAIL exit=-1 :: (empty command)")
+            continue
+        proc = subprocess.run(argv, cwd=root, shell=False, text=True, capture_output=True, check=False)
         ok = proc.returncode == 0
         if not ok:
             all_ok = False

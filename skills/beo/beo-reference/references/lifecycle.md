@@ -50,7 +50,8 @@ Before finalizing decomposed beads, cross-reference their expected file scopes. 
 1. Create child atomic beads: `br create ... --json`
 2. Add dependency edges: `br dep add ... --json`
 3. Add parent summary comment referencing `PLAN.md` + child bead IDs: `br comments add ... --json`
-4. Exit with `decomposition_recorded` dispatch.
+4. Pre-write `TICKET.yaml` for every proposed child atomic bead before emitting `decomposition_recorded` (using the validated `PLAN.md` "Proposed atomic beads" blocks as the source text). The full pre-write contract is in `beo-reference -> registry/phase-contracts.json` under `beo-plan.decomposition_recorded_contract`. Pre-written tickets let each child enter validation directly instead of requiring a separate planning pass to author its ticket.
+5. Exit with `decomposition_recorded` dispatch.
 
 Each child atomic bead description must be self-contained for implementation (task context, done criteria, expected scope, verification commands, dependencies, suggested mode/risk, atomicity rationale). Do not require child implementers to reread the parent `PLAN.md`; preserve parent traceability through Beads dependency edges and the parent decomposition comment.
 

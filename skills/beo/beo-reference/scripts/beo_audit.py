@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """BEO drift audit helper (advisory, read-only).
 
-Five checks: transition coverage, reference existence, must_not
-violations, runtime-event kind consistency, manifest consistency
-(--check-manifest only). Emits markdown or JSON; never writes.
+Checks: C1 transition coverage, C2 reference existence, C3 must_not
+violations, C4 runtime-event kind consistency, C5 manifest consistency
+(--check-manifest only), C6 harness proposal target scope, C7 actor
+consistency. Emits markdown or JSON; never writes.
 """
 from __future__ import annotations
 import argparse

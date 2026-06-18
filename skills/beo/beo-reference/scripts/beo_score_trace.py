@@ -173,16 +173,6 @@ def _has_text_at_least(value: Any, minimum: int) -> bool:
     return isinstance(value, str) and len(value.strip()) >= minimum
 
 
-def _check(trace: dict[str, Any], field: str) -> bool:
-    if field == "task_summary":
-        return _has_text_at_least(trace.get("task_summary"), 10)
-    if field == "intake_id_or_story_id":
-        return _has_value(trace.get("intake_id")) or _has_value(trace.get("story_id"))
-    if field == "errors_or_friction":
-        return _has_value(trace.get("errors")) or _has_value(trace.get("friction"))
-    return _has_value(trace.get(field))
-
-
 def _required_for_tier(tier: str) -> tuple[str, ...]:
     if tier == "minimal":
         return MINIMAL_REQUIRED

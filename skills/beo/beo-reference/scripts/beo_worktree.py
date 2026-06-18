@@ -146,13 +146,18 @@ def cmd_create(root: Path, issue_id: str, actor: str) -> int:
         if not wt_path.is_dir():
             # Worktree is registered with git but the path is missing or
             # not a directory (stale entry). Clear the stale path and the
-            # git registration, then fall through to fresh creation.
+            # git registration, then fall through to recreate the worktree.
             if wt_path.is_symlink() or wt_path.exists():
                 wt_path.unlink()
             subprocess.run(
                 ["git", "worktree", "prune"],
                 capture_output=True, text=True, cwd=root, check=False,
             )
+            # Reuse the existing branch instead of minting a fresh
+            # timestamped one. This preserves any commits made in the
+            # deleted worktree and avoids orphaning the old branch ref
+            # (which `git worktree prune` leaves behind as a dangling ref).
+            branch = existing
         else:
             ensure_beads_symlink(root, wt_path)
             result = run_git(["rev-parse", existing], cwd=root)

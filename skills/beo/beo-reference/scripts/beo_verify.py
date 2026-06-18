@@ -55,14 +55,15 @@ def _run_one_command(command: str, cwd: Path, worktree_path: str | None) -> dict
     start = time.monotonic()
     argv = shlex.split(command)
     if not argv:
+        # An empty command is a ticket misconfiguration; treat it as a
+        # failure (exit_code -1) so the bead does not pass verification.
+        # The empty "command" string itself is the diagnostic.
         return {
             "command": command,
             "exit_code": -1,
             "duration_ms": int((time.monotonic() - start) * 1000),
             "ran_at": ran_at,
             "worktree_path": worktree_path,
-            "status": "skipped",
-            "skip_reason": "empty_command",
         }
     try:
         proc = subprocess.run(

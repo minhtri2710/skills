@@ -24,8 +24,6 @@ from typing import Any
 
 from beo_io import now, stable_json
 
-HELPER_VERSION = "beo-propose/v1"
-
 PROPOSAL_KINDS = {"friction", "learning_candidate_suggestion"}
 PROPOSAL_DIR = os.environ.get("BEO_PROPOSAL_DIR", "skills/beo/beo-climate/proposals/pending")
 LEARNINGS_VAULT_SUBDIR = "beo-learnings"

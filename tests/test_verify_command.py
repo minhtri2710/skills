@@ -72,6 +72,17 @@ class VerifyRunTest(unittest.TestCase):
             self.assertFalse(payload["ok"])
             self.assertEqual(payload["summary"]["fail"], 1)
 
+    def test_run_empty_command_treated_as_failure(self):
+        # An empty verify command is a ticket misconfiguration: it must fail
+        # verification (not silently pass or be marked "skipped"), and must
+        # not crash subprocess.run([]). The public CLI validates empty commands
+        # away, so this exercises the _run_one_command helper directly.
+        import beo_verify
+        result = beo_verify._run_one_command("", Path("."), None)
+        self.assertEqual(result["exit_code"], -1)
+        self.assertNotIn("status", result)
+        self.assertNotIn("skip_reason", result)
+
     def test_refuses_planned_phase(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

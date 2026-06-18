@@ -28,11 +28,16 @@ description: "Validate BEO PLAN.md readiness or grant/deny PASS_EXECUTE for atom
 3. When plan validation fails, report missing sections or ambiguous atomic boundaries as findings. Do not patch the plan directly. Route `validation_failed -> beo-plan` unless the missing decision requires user authority, in which case route `user_review_needed -> user` with compact handoff details.
 4. For atomic ticket validation: confirm the bead is claimed, open, atomic, and unchanged enough for the ticket.
 5. Validate current `version: 1` ticket fields and mode requirements.
-6. For strict mode, create or supersede the current actor's BEO reservation before computing approval validity predicates.
-7. If strict ticket has `worktree_isolation: true`, create a git worktree via `beo-reference -> scripts/beo_worktree.py create --issue <issue-id> --actor <actor>` before writing `PASS_EXECUTE`. The worktree provides full filesystem isolation for execution. Reject if git tree is dirty.
-8. Reject dirty approved files, dirty declared generated outputs, unsafe paths, and unauthorized broad globs.
-9. Write `PASS_EXECUTE` or a failed/blocked approval state.
-10. When emitting `user_review_needed`, follow the `user_review_needed` handoff format in `beo-reference -> references/user-handoff.md`.
+6. Reject dirty approved files, dirty declared generated outputs, unsafe paths, and unauthorized broad globs.
+7. For strict-mode tickets whose `request`, `done_criteria`, or `strict.reason` describes a destructive schema change (drop enum, drop column, drop table, destructive migration, irreversible data shape), require a runnable pre-check script as a safety deliverable in addition to any Human Gate. Reject and route `validation_failed -> beo-plan` if any of the following is missing:
+   - A `scope.files.allow` entry for a pre-check script (e.g. `scripts/<descriptor>-precheck.ts`, `scripts/verify-<descriptor>.ts`, or `scripts/verify-<descriptor>.sql`).
+   - A `done_criteria` item stating the pre-check script's expected exit code.
+   - A `human_gates` entry for the operator action gated on pre-check pass.
+   The pre-check script is the runtime safety deliverable; the human gate is operator authorization to apply.
+8. For strict mode, create or supersede the current actor's BEO reservation before computing approval validity predicates.
+9. If strict ticket has `worktree_isolation: true`, create a git worktree via `beo-reference -> scripts/beo_worktree.py create --issue <issue-id> --actor <actor>` before writing `PASS_EXECUTE`. The worktree provides full filesystem isolation for execution. Reject if git tree is dirty.
+10. Write `PASS_EXECUTE` or a failed/blocked approval state.
+11. When emitting `user_review_needed`, follow the `user_review_needed` handoff format in `beo-reference -> references/user-handoff.md`.
 
 ## Write
 
