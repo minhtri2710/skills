@@ -5,7 +5,7 @@ This debug example is for failure analysis only and is not required context for 
 ## Scenario
 
 - `beo-execute` starts execution in `executing` phase.
-- An interrupted run modifies `unrelated.py` (which is not allowed in `TICKET.yaml`).
+- An interrupted run modifies `unrelated.py` (which is not allowed in `TICKET.json`).
 - Upon re-entering, `beo-execute` detects `unrelated.py` is modified and attributes it to the current BEO execution run.
 - `beo-execute` must fail closed and route to review for containment.
 

@@ -22,7 +22,7 @@ Owner classes are canonical in `registry/phase-contracts.json`.
 Two blocks complement the binding per-skill contract and apply during the planning and validation phases:
 
 - `beo-validate.validation_preconditions` — mandatory content-based preconditions that `beo-validate` must apply after ticket-shape validation and before granting `PASS_EXECUTE`. A missing precondition is a hard reject routed `validation_failed -> beo-plan`. Currently scoped to strict-mode destructive schema changes that require a runnable pre-check script in addition to any Human Gate.
-- `beo-plan.decomposition_recorded_contract` — advisory conventions for what `beo-plan` writes at the `decomposition_recorded` transition. Currently scoped to pre-writing `TICKET.yaml` for every proposed atomic bead before emitting `decomposition_recorded`, so each child can enter validation directly without a separate planning pass.
+- `beo-plan.decomposition_recorded_contract` — advisory conventions for what `beo-plan` writes at the `decomposition_recorded` transition. Currently scoped to pre-writing `TICKET.json` for every proposed atomic bead before emitting `decomposition_recorded`, so each child can enter validation directly without a separate planning pass.
 
 Neither block grants new write authority; per-skill `artifact_write_authorities` and `must_not` remain binding. `validation_preconditions` is enforced (a missing precondition rejects); `decomposition_recorded_contract` is advisory guidance.
 

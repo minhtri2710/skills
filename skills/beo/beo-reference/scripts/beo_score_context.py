@@ -2,7 +2,7 @@
 """Advisory context coverage scorer.
 
 Counts SKILL.md and reference files actually loaded during execution and
-compares to the minimum required by TICKET.yaml.mode. Does not write
+compares to the minimum required by TICKET.json.mode. Does not write
 state.json. Appends a single `score` event to runtime-events.jsonl under its own
 actor name `beo-score-context`.
 """
@@ -52,7 +52,7 @@ def _classify(path: str) -> str | None:
         return "skill_card"
     if "/beo-reference/references/" in normalized or normalized.startswith("references/"):
         return "reference"
-    if normalized.endswith("TICKET.yaml") and (
+    if normalized.endswith("TICKET.json") and (
         "/.beads/artifacts/" in normalized or normalized.startswith("beads/artifacts/")
     ):
         return "ticket"
@@ -136,7 +136,7 @@ def _tally(paths: list[str], ticket: dict[str, Any] | None, state: dict[str, Any
     """Count classified paths and fold in the loaded ticket/state.
 
     The explicit ticket/state increment is gated on the corresponding
-    count being zero, so a TICKET.yaml or state.json path that already
+    count being zero, so a TICKET.json or state.json path that already
     appears in `paths` (e.g. from `evidence_refs`) does not double-count.
     """
     counts = {"skill_card": 0, "reference": 0, "ticket": 0, "state": 0}
@@ -240,7 +240,7 @@ def append_score_event(root: Path, issue_id: str, result: dict[str, Any]) -> Non
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Score context coverage against TICKET.yaml.mode")
+    parser = argparse.ArgumentParser(description="Score context coverage against TICKET.json.mode")
     parser.add_argument("--issue", required=True)
     parser.add_argument("--root", default=".")
     args = parser.parse_args()

@@ -23,7 +23,7 @@
       "may_emit_delivery_conditions": ["planned", "decomposition_recorded", "user_review_needed"],
       "may_emit_runtime_event_kinds": ["user_stop"],
       "decomposition_recorded_contract": {
-        "ticket_prewrite": "Write TICKET.yaml for every proposed atomic bead before emitting `decomposition_recorded`, not just the bead being dispatched next. Source text: parent PLAN.md 'Proposed atomic beads' blocks. Pre-written tickets let each child enter validation directly instead of requiring a separate planning pass to author its ticket at dispatch time."
+        "ticket_prewrite": "Write TICKET.json for every proposed atomic bead before emitting `decomposition_recorded`, not just the bead being dispatched next. Source text: parent PLAN.md 'Proposed atomic beads' blocks. Pre-written tickets let each child enter validation directly instead of requiring a separate planning pass to author its ticket at dispatch time."
       },
       "must_not": ["mutate_product_files", "grant_PASS_EXECUTE", "review", "close"]
     },

@@ -55,10 +55,9 @@ def check_protected_paths(root: Path, paths: list[str]) -> list[str]:
 
 def main() -> int:
     import argparse
-    import yaml
     import beo_ticket
 
-    parser = argparse.ArgumentParser(description="BEO quick-mode TICKET.yaml auto-fill tool")
+    parser = argparse.ArgumentParser(description="BEO quick-mode TICKET.json auto-fill tool")
     parser.add_argument("--issue", required=True, help="Active Bead issue ID")
     parser.add_argument("--root", default=".", help="Workspace root path")
     parser.add_argument("--request", required=True, help="Short request for the quick ticket")
@@ -66,7 +65,7 @@ def main() -> int:
     parser.add_argument("--path", action="append", required=True, dest="paths", help="Explicit allowed scope path; repeatable")
     parser.add_argument("--generated-output", action="append", default=[], dest="generated_outputs", help="Declared generated output path; repeatable")
     parser.add_argument("--verify", action="append", required=True, dest="verify", help="Verification command; repeatable")
-    parser.add_argument("--overwrite", action="store_true", help="Overwrite existing TICKET.yaml; maintenance/authoring only")
+    parser.add_argument("--overwrite", action="store_true", help="Overwrite existing TICKET.json; maintenance/authoring only")
     parser.add_argument("--confirm", action="store_true", help="Auto-confirm write without prompt")
     args = parser.parse_args()
 
@@ -111,14 +110,14 @@ def main() -> int:
         },
     }
 
-    proposed_yaml = yaml.safe_dump(ticket_data, sort_keys=False, default_flow_style=False)
-    print("\n--- Proposed Auto-Filled TICKET.yaml Draft ---\n")
-    print(proposed_yaml)
+    proposed_json = json.dumps(ticket_data, indent=2, sort_keys=False)
+    print("\n--- Proposed Auto-Filled TICKET.json Draft ---\n")
+    print(proposed_json)
     print("----------------------------------------------\n")
 
     if not args.confirm and sys.stdin.isatty():
         try:
-            choice = input("Do you want to write this TICKET.yaml to the active Bead directory? (y/n): ").strip().lower()
+            choice = input("Do you want to write this TICKET.json to the active Bead directory? (y/n): ").strip().lower()
             if choice not in {"y", "yes"}:
                 print("Aborted.")
                 return 0
@@ -128,9 +127,9 @@ def main() -> int:
 
     try:
         dest_path = beo_ticket.write_ticket(root, args.issue, ticket_data, overwrite=args.overwrite)
-        print(f"SUCCESS: Auto-filled TICKET.yaml written to {dest_path.relative_to(root)}")
+        print(f"SUCCESS: Auto-filled TICKET.json written to {dest_path.relative_to(root)}")
     except Exception as exc:
-        print(f"ERROR: Failed to write TICKET.yaml: {exc}")
+        print(f"ERROR: Failed to write TICKET.json: {exc}")
         return 1
 
     return 0

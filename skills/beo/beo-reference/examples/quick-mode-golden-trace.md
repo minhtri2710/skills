@@ -16,24 +16,28 @@ This is an agent pattern contract showing the expected state transitions and art
 }
 ```
 
-## After beo-plan: TICKET.yaml
+## After beo-plan: TICKET.json
 
-```yaml
-version: 1
-issue_id: br-101
-mode: quick
-request: "Fix typo in README.md from 'recieve' to 'receive'"
-done_criteria:
-  - "The word 'receive' is correctly spelled in README.md"
-scope:
-  files:
-    allow:
-      - README.md
-    forbid: []
-  generated_outputs: []
-  verify:
-    commands:
-      - "grep -i 'receive' README.md"
+```json
+{
+  "version": 1,
+  "issue_id": "br-101",
+  "mode": "quick",
+  "request": "Fix typo in README.md from 'recieve' to 'receive'",
+  "done_criteria": [
+    "The word 'receive' is correctly spelled in README.md"
+  ],
+  "scope": {
+    "files": {
+      "allow": ["README.md"],
+      "forbid": []
+    },
+    "generated_outputs": [],
+    "verify": {
+      "commands": ["grep -i 'receive' README.md"]
+    }
+  }
+}
 ```
 
 ## After beo-plan: state.json

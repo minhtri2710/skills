@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """BEO verification runner for atomic beads.
 
-Runs TICKET.yaml.scope.verify.commands and records per-command results to
+Runs TICKET.json.scope.verify.commands and records per-command results to
 runtime-events.jsonl. Returns the results in JSON for the caller
 (beo-execute, beo-review) to durably record into state.json.execution.verify_results.
 
@@ -48,7 +48,7 @@ def _run_one_command(command: str, cwd: Path, worktree_path: str | None) -> dict
 
     The command is tokenized with shlex and executed without a shell so that
     metacharacters in a verify command cannot trigger arbitrary execution.
-    TICKET.yaml is human-approved, but the harness should not rely on the
+    TICKET.json is human-approved, but the harness should not rely on the
     author to sanitize their own commands.
     """
     ran_at = now()
@@ -241,7 +241,7 @@ def main() -> int:
             "VERIFY COMMAND SECURITY: Each verify command is exec'd directly via execve "
             "(shell=False, no shell interpreter). Pipes, redirects, &&, ||, ;, and "
             "env-var expansion are NOT supported. For multi-step commands, list them as "
-            "separate items in scope.verify.commands in TICKET.yaml."
+            "separate items in scope.verify.commands in TICKET.json."
         ),
     )
     parser.add_argument("--all", action="store_true", help="Run all atomic beads with executable phases")

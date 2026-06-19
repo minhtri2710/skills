@@ -18,7 +18,7 @@ sys.path.insert(0, str(SCRIPTS))
 
 
 def write_minimal(root: Path, issue_id: str, mode: str = "quick"):
-    """Write TICKET.yaml and state.json for a test bead."""
+    """Write TICKET.json and state.json for a test bead."""
     from beo_ticket import write_ticket
     from beo_state import initial_state, atomic_write_json
     from beo_paths import artifact_dir
@@ -355,19 +355,19 @@ class ScoreContextRubricTest(unittest.TestCase):
         self.assertIn("state_loaded", result["missing_required"])
 
     def test_ticket_fallback_skipped_when_evidence_refs_has_ticket(self):
-        """When evidence_refs already contains a TICKET.yaml path, the ticket-presence fallback does not add a second count."""
-        # TICKET.yaml appears only in evidence_refs (not in scope.allow)
-        paths = [".beads/artifacts/br-x/TICKET.yaml"]
+        """When evidence_refs already contains a TICKET.json path, the ticket-presence fallback does not add a second count."""
+        # TICKET.json appears only in evidence_refs (not in scope.allow)
+        paths = [".beads/artifacts/br-x/TICKET.json"]
         ticket = {"mode": "detailed", "scope": {"files": {"allow": ["README.md"], "forbid": []}}}
         result = self._ctx(paths, ticket=ticket, tier="detailed")
         self.assertEqual(result["counts"]["ticket"], 1)
 
     def test_ticket_fallback_used_when_no_ticket_path_in_inputs(self):
-        """When no TICKET.yaml path appears in evidence_refs or scope.allow, the ticket-presence fallback still counts 1."""
+        """When no TICKET.json path appears in evidence_refs or scope.allow, the ticket-presence fallback still counts 1."""
         paths = ["skills/beo/beo-execute/SKILL.md", "skills/beo/beo-validate/SKILL.md",
                  "skills/beo/beo-review/SKILL.md", "skills/beo/beo-reference/references/lifecycle.md",
                  "skills/beo/beo-reference/references/safety.md", "skills/beo/beo-reference/references/kernel.md"]
-        # Ticket with issue_id triggers the fallback; no TICKET.yaml path in inputs
+        # Ticket with issue_id triggers the fallback; no TICKET.json path in inputs
         ticket = {"issue_id": "br-x", "mode": "detailed", "scope": {"files": {"allow": ["README.md"], "forbid": []}}}
         # Pass a state so state_loaded=True (detailed tier requires state)
         state = {"issue_id": "br-x", "execution": {"trace_tier": "detailed", "evidence_refs": paths}, "review": {}}

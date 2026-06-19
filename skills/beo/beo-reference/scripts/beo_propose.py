@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """BEO proposal generator (advisory, propose-only).
 
-Scans runtime-events.jsonl, harness-proposal.yaml, and learning notes
+Scans runtime-events.jsonl, harness-proposal.json, and learning notes
 for BEO change signals (friction, learning_candidate_suggestion,
 advisory learning notes) and writes a deduplicated prop-<sha1>.md file
 per distinct trigger into `<root>/skills/beo/beo-climate/proposals/pending/`.
@@ -66,11 +66,11 @@ def _scan_runtime_events(root: Path) -> list[tuple[Path, dict[str, Any]]]:
 
 
 def _scan_harness_proposals(root: Path) -> list[Path]:
-    """Return paths to all harness-proposal.yaml files under .beads/artifacts/."""
+    """Return paths to all harness-proposal.json files under .beads/artifacts/."""
     artifacts = root / ".beads" / "artifacts"
     if not artifacts.exists():
         return []
-    return sorted(artifacts.glob("*/harness-proposal.yaml"))
+    return sorted(artifacts.glob("*/harness-proposal.json"))
 
 
 def _scan_learning_notes(root: Path) -> list[Path]:
@@ -128,13 +128,9 @@ def _trigger_from_event(event: dict[str, Any]) -> dict[str, str] | None:
 
 
 def _trigger_from_harness_proposal(path: Path) -> dict[str, str] | None:
-    """Map a harness-proposal.yaml to a trigger dict, or None if empty/unreadable."""
+    """Map a harness-proposal.json to a trigger dict, or None if empty/unreadable."""
     try:
-        import yaml
-    except ImportError:
-        return {"harness_proposal": f"unreadable (PyYAML missing): {path.name}"}
-    try:
-        data = yaml.safe_load(path.read_text(encoding="utf-8"))
+        data = json.loads(path.read_text(encoding="utf-8"))
     except Exception:
         return {"harness_proposal": f"unreadable: {path.name}"}
     if not isinstance(data, dict):

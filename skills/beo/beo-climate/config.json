@@ -1,0 +1,32 @@
+{
+  "cadence": {
+    "default": "weekly",
+    "description": "How often the climate scan runs. Options: weekly, monthly, manual."
+  },
+  "scan_scope": {
+    "include": [
+      "skills/beo/**/*.md",
+      "skills/beo/**/registry/*.json"
+    ],
+    "exclude": [
+      "skills/beo/**/scripts/*.py",
+      "skills/beo/**/templates/*.md",
+      "skills/beo/**/examples/*.md"
+    ]
+  },
+  "auto_heal_allowlist": {
+    "description": "Auto-heal applies only to safe, mechanical fixes. Structural changes (new skills, new phases, permission changes) always require human triage.",
+    "items": [
+      {
+        "id": "orphaned_reference",
+        "audit_check_id": "C2",
+        "summary": "skill card or prose reference references a missing file target that does not resolve to an existing path"
+      },
+      {
+        "id": "stale_schema_field",
+        "audit_check_id": "C4",
+        "summary": "runtime-event kind defined in payload_contracts but claimed by no actor, or in may_emit but never defined"
+      }
+    ]
+  }
+}

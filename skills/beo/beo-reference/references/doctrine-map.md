@@ -14,7 +14,7 @@ For any general operator question, check the primary BEO Kernel first. Load narr
 | What may this skill read, write, or emit? | `registry/phase-contracts.json` | Binding phase permission, write authority, or emitted condition | Other skill cards |
 | Why does a phase permission or repair boundary exist? | `references/phase-contracts.md` | Subordinate guidance for phase/repair details | Full registry bundle |
 | Which route or condition name is legal? | `registry/pipeline.json` | Exact transition, support outcome, or forbidden normal event | Narrative lifecycle docs |
-| Is this `TICKET.yaml` valid? | `registry/ticket.schema.json` | Binding ticket shape and allowed fields | Historical examples |
+| Is this `TICKET.json` valid? | `registry/ticket.schema.json` | Binding ticket shape and allowed fields | Historical examples |
 | Is this `state.json` write valid? | `registry/state.schema.json` | Binding state shape and owner write policy | Ticket schema |
 | Can I append this runtime event? | `registry/runtime-event.schema.json` | Allowed non-normal event kind and payload | Normal transition docs |
 | Is `PASS_EXECUTE` still valid? | `registry/approval-envelope.json` | Approval validity predicates and invalidation reason | Memory docs |
@@ -23,7 +23,7 @@ For any general operator question, check the primary BEO Kernel first. Load narr
 | Can I mutate this file or perform this side effect? | `references/safety.md` | Subordinate dirty-tree, side-effect, and recovery guidance | Memory docs |
 | Can memory inform this decision? | `references/memory.md` | Subordinate memory and learning guidance | Approval/state registries unless independently needed |
 | Is a harness change proposal valid? | `registry/harness-proposal.schema.json` | Binding proposal shape and allowed fields | Ticket or state schema |
-| Does a climate scan need to run? | `beo-climate/SKILL.md` plus `beo-climate/config.yaml` | Scan cadence, scope, and auto-heal allowlist | Delivery skill cards |
+| Does a climate scan need to run? | `beo-climate/SKILL.md` plus `beo-climate/config.json` | Scan cadence, scope, and auto-heal allowlist | Delivery skill cards |
 | Is a missing tool blocking or degraded? | `references/degraded-tools.md` | Required/degraded tool status and fallback | Full setup script implementation |
 | Who owns a BEO maintenance rule change? | `beo-author/SKILL.md` plus this map | Canonical owner for the rule before editing | Unrelated skill cards |
 

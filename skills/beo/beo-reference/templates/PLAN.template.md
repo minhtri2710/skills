@@ -131,7 +131,7 @@ Preserve parent traceability through Beads dependency edges and the parent decom
 
 - Suggested mode: <quick | standard | strict>
 - Rationale: <why this mode fits>
-- Risk/rollback/human-gate/side-effect/reservation notes: <none or details sufficient to author child TICKET.yaml>
+- Risk/rollback/human-gate/side-effect/reservation notes: <none or details sufficient to author child TICKET.json>
 
 #### Atomicity rationale
 
@@ -173,7 +173,7 @@ The summary must state whether:
 - scope and out-of-scope areas are explicit,
 - verification strategy exists,
 - proposed atomic beads are written as detailed markdown descriptions that include implementation context, done criteria, expected scope, verification guidance, dependencies/blockers, mode/risk notes, and atomicity rationale without requiring reread of the parent `PLAN.md`,
-- decomposition traceability will be preserved through child Bead dependency edges when needed and the parent decomposition comment after `plan_validated`, without requiring per-child link fields before child Beads exist or a non-schema `TICKET.yaml` field,
+- decomposition traceability will be preserved through child Bead dependency edges when needed and the parent decomposition comment after `plan_validated`, without requiring per-child link fields before child Beads exist or a non-schema `TICKET.json` field,
 - each proposed atomic bead has suggested mode/risk detail sufficient to author quick, standard, or strict child tickets without re-interpreting risk,
 - no blocking open decisions remain; user/operator-owned blockers route `user_review_needed` instead of `plan_validated`.
 

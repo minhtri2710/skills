@@ -135,12 +135,9 @@ def main() -> int:
     else:
         inspect_agents(root, results)
 
-    try:
-        __import__("yaml")
-        results["dependencies"]["PyYAML"] = "present"
-    except ImportError:
-        results["dependencies"]["PyYAML"] = "missing"
-        results["errors"].append("PyYAML is required for TICKET.yaml parsing, BEO helper checks, state/event updates, and learning frontmatter validation")
+    # TICKET.json, harness-proposal.json, and learning frontmatter are all
+    # parsed from stdlib (json + a minimal frontmatter parser in
+    # beo_memory_write). No third-party Python packages are required.
 
     for binary in ["br", "bv", "qmd", "obsidian"]:
         argv = [binary, "--version"] if binary != "obsidian" else [binary, "help"]

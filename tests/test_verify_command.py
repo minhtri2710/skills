@@ -138,7 +138,7 @@ class VerifyErrorPathsTest(unittest.TestCase):
             root = Path(tmp)
             artifact = root / ".beads" / "artifacts" / "br-bad"
             artifact.mkdir(parents=True)
-            (artifact / "TICKET.yaml").write_text("not a valid ticket: [:]", encoding="utf-8")
+            (artifact / "TICKET.json").write_text("not a valid ticket", encoding="utf-8")
             write_state(root, "br-bad", phase="approved")
             import beo_verify
             with mock_argv(["beo_verify.py", "run", "--issue", "br-bad", "--root", str(root)]), \

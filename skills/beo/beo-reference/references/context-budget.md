@@ -7,7 +7,7 @@ This file documents per-lane token budgets and per-phase read lists so a deliver
 
 ## Lane budgets
 
-| Lane | TICKET.yaml mode | Token budget |
+| Lane | TICKET.json mode | Token budget |
 | --- | --- | --- |
 | tiny | `quick` | ~4K |
 | normal | `standard` | ~8K |
@@ -19,13 +19,13 @@ Numbers are agent working context after system prompt and BEO skill cards alread
 
 The five delivery phases are intake, planning, implementation, validation, and trace. Each phase has a minimum read set per lane. "Required" means the file MUST be loaded; "optional" means load only if the ticket references it.
 
-### Phase: intake (TICKET.yaml mode determines lane)
+### Phase: intake (TICKET.json mode determines lane)
 
 | Lane | Required reads | Optional reads |
 | --- | --- | --- |
 | tiny | `beo-plan/SKILL.md` (or the active skill) | `references/degraded-tools.md` |
 | normal | tiny + `beo-reference/SKILL.md`, `references/doctrine-map.md` | `references/safety.md`, `beo-setup/SKILL.md` |
-| high-risk | normal + `references/kernel.md`, `registry/phase-contracts.json` | `beo-climate/SKILL.md`, `beo-climate/config.yaml` |
+| high-risk | normal + `references/kernel.md`, `registry/phase-contracts.json` | `beo-climate/SKILL.md`, `beo-climate/config.json` |
 
 ### Phase: planning
 

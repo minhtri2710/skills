@@ -51,7 +51,7 @@ This file is the machine-and-human-readable manifest. `beo_audit.py --check-mani
 - **Setup**: environment readiness, AGENTS.md bootstrap
 - **Memory**: qmd/Obsidian integration, recall, learning writes
 - **Scoring**: trace and context quality (advisory)
-- **Verification**: runs TICKET.yaml scope verify commands (machine-enforced)
+- **Verification**: runs TICKET.json scope verify commands (machine-enforced)
 - **Audit**: drift checks (C1–C7), proposal generation (advisory)
 
 ## Operator question → helper

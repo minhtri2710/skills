@@ -143,18 +143,17 @@ class TriggerFromLearningNoteTest(unittest.TestCase):
 
 
 class TriggerFromHarnessProposalTest(unittest.TestCase):
-    def test_missing_yaml_module_returns_unreadable_trigger(self):
-        """If PyYAML is unavailable, the function returns an 'unreadable' trigger, never raises."""
+    def test_unreadable_json_returns_unreadable_trigger(self):
+        """If a harness-proposal.json is unreadable, the function returns an 'unreadable' trigger, never raises."""
         import beo_propose
-        with tempfile.NamedTemporaryFile("w", suffix=".yaml", delete=False) as f:
-            f.write("change_type: bugfix\n")
+        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as f:
+            f.write("not valid json {{{")
             path = Path(f.name)
         try:
-            with mock.patch.dict(sys.modules, {"yaml": None}):
-                trigger = beo_propose._trigger_from_harness_proposal(path)
+            trigger = beo_propose._trigger_from_harness_proposal(path)
             self.assertIsNotNone(trigger)
             self.assertIn("harness_proposal", trigger)
-            self.assertIn("PyYAML missing", trigger["harness_proposal"])
+            self.assertIn("unreadable", trigger["harness_proposal"])
         finally:
             path.unlink()
 

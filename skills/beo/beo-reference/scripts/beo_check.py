@@ -126,7 +126,7 @@ def validate_issue_freshness(ticket: dict[str, Any], issue: dict[str, Any]) -> l
     issue_request = issue_field(issue, "request", "planned_request", default=None)
     request = str(ticket.get("request") or "")
     if isinstance(issue_request, str) and request and issue_request and issue_request != request:
-        errors.append("br issue request differs from TICKET.yaml request")
+        errors.append("br issue request differs from TICKET.json request")
     ticket_labels = set(labels_of(issue))
     if "non-atomic" in ticket_labels or "needs-decomposition" in ticket_labels:
         errors.append("br issue is marked non-atomic")

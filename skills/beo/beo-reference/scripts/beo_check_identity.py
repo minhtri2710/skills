@@ -60,7 +60,7 @@ def claim_valid(issue: dict[str, Any], actor: str) -> bool:
 def validate_identity(root: Path, issue_id: str, ticket_path: Path, ticket: dict[str, Any], issue: dict[str, Any], ticket_path_for) -> list[str]:
     errors: list[str] = []
     if ticket.get("version") != 1:
-        errors.append(f"unsupported TICKET.yaml version: {ticket.get('version')}")
+        errors.append(f"unsupported TICKET.json version: {ticket.get('version')}")
     if ticket.get("issue_id") != issue_id:
         errors.append("ticket issue_id must match selected issue")
     expected_path = ticket_path_for(root, issue_id)

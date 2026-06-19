@@ -9,7 +9,7 @@ description: "Implement one approved atomic BEO bead after PASS_EXECUTE. Use bv 
 - `bv` robot output only for optional read-only graph orientation or ready-work visualization
 - `br ready --json` when choosing ready candidates
 - `br show <issue-id> --json`
-- `.beads/artifacts/<issue-id>/TICKET.yaml`
+- `.beads/artifacts/<issue-id>/TICKET.json`
 - `.beads/artifacts/<issue-id>/state.json`
 - `.beads/artifacts/<issue-id>/runtime-events.jsonl` when present
 - `beo-reference -> registry/approval-envelope.json` before checking approval validity predicates or mutating files
@@ -31,11 +31,11 @@ description: "Implement one approved atomic BEO bead after PASS_EXECUTE. Use bv 
 8. Run ticket verification commands inside the worktree.
 9. Record changed files, verification results, and evidence refs in `state.json`. For worktree-isolated beads, record paths as repo-relative (strip worktree prefix).
 10. If during execution a BEO harness improvement is identified (better validation rule, missing script, registry fix):
-    - Write `.beads/artifacts/<issue-id>/harness-proposal.yaml` following `beo-reference -> registry/harness-proposal.schema.json`.
+    - Write `.beads/artifacts/<issue-id>/harness-proposal.json` following `beo-reference -> registry/harness-proposal.schema.json`.
     - Emit `harness_change_needed` -> `beo-author`. The current bead pauses; `beo-author` returns to caller after resolution.
     - On return from `beo-author`, re-read state and continue execution if the bead remains valid.
     - Stop here; do not proceed to steps 11-12 (fast track or normal route).
-11. If `TICKET.yaml` has `fast_track: true`:
+11. If `TICKET.json` has `fast_track: true`:
    - Check all verification results. If ALL pass: write `state.json` with `phase: "reviewed"` and
      `review.route_condition_id: "executed_and_verified"`, `review.verdict: null`, `review.findings: []`,
      `review.repair_count: 0`, `review.closed_in_br: false`, `review.reviewed_by: "beo-execute"`.
@@ -56,7 +56,7 @@ description: "Implement one approved atomic BEO bead after PASS_EXECUTE. Use bv 
 - Declared generated outputs only
 - `state.json` phase and execution fields; also `state.json` review.route_condition_id and review.reviewed_by when fast track auto-completes (verdict stays null; closed_in_br stays false)
 - `state.json.execution.interventions[]` (optional mirror of `intervention` runtime events that should survive the runtime event log)
-- `.beads/artifacts/<issue-id>/harness-proposal.yaml` when proposing a harness change
+- `.beads/artifacts/<issue-id>/harness-proposal.json` when proposing a harness change
 - `runtime-events.jsonl` for `handoff` only when routing to `beo-debug` or `beo-review`
 - Optional check evidence
 

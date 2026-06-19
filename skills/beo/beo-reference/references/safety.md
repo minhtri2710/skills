@@ -27,7 +27,7 @@ If a path matches both allow and forbid, forbid wins.
 | Symptom | Cause | Resolution |
 | --- | --- | --- |
 | `review-entry requires executed or reviewing state` | The review check is running against the wrong current phase | Re-read `state.json` and run the check that matches the current phase |
-| `approval.<field> is stale` or `PASS_EXECUTE approval is stale for execution entry` | `TICKET.yaml`, git `HEAD`, prestate, or the approval projection changed after validation | Re-run the BEO validation path so helper scripts recompute approval fields; do not hand-edit approval hashes |
+| `approval.<field> is stale` or `PASS_EXECUTE approval is stale for execution entry` | `TICKET.json`, git `HEAD`, prestate, or the approval projection changed after validation | Re-run the BEO validation path so helper scripts recompute approval fields; do not hand-edit approval hashes |
 | Hash values in `state.json` disagree with current artifacts | Manual ticket edits or new commits invalidated the prior approval envelope | Return to validation and let `compute_approval_fields` update approval evidence synchronously |
 
 ## Reservation

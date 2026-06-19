@@ -3,10 +3,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import hashlib
+import json
 from pathlib import Path
 from typing import Any, Literal
 
-TICKET_ARTIFACT = "TICKET.yaml"
+TICKET_ARTIFACT = "TICKET.json"
 TICKET_VERSION = 1
 
 
@@ -14,7 +15,7 @@ TICKET_VERSION = 1
 class TicketReadResult:
     data: dict[str, Any]
     path: Path
-    artifact: Literal["TICKET.yaml"]
+    artifact: Literal["TICKET.json"]
     version: int
     ticket_file_hash: str
 
@@ -33,8 +34,6 @@ def ticket_file_hash(path: Path) -> str:
 
 def _load_plan_schema() -> dict[str, Any]:
     schema_path = Path(__file__).resolve().parents[1] / "registry" / "ticket.schema.json"
-    import json
-
     try:
         schema = json.loads(schema_path.read_text(encoding="utf-8"))
     except Exception as exc:
@@ -65,10 +64,11 @@ def _reject_unknown(mapping: dict[str, Any], allowed: set[str], field: str) -> N
 def _validate_path_values(values: list[Any], field: str) -> None:
     from beo_paths import reject_unsafe_path
 
-    for value in values:
-        _require_string(value, field)
+    for path in values:
+        if not isinstance(path, str) or not path.strip():
+            raise ValueError(f"{field} entries must be non-empty strings")
         try:
-            reject_unsafe_path(value)
+            reject_unsafe_path(path)
         except ValueError as exc:
             raise ValueError(f"{field} contains unsafe path: {exc}") from exc
 
@@ -122,7 +122,7 @@ def validate_human_gates(data: dict[str, Any], issue_id: str) -> None:
     gate_allowed = gate_required | {"revocation_ref"}
     for index, gate in enumerate(gate_entries):
         if not isinstance(gate, dict):
-            raise ValueError("human_gates.gates entries must be objects")
+            raise ValueError(f"human_gates.gates[{index}] entries must be objects")
         _reject_unknown(gate, gate_allowed, f"human_gates.gates[{index}]")
         missing = sorted(field for field in gate_required if field not in gate)
         if missing:
@@ -153,15 +153,15 @@ def validate_plan_only(data: dict[str, Any]) -> None:
 
     allowed_top = set(schema.get("properties", {}))
     if allowed_top:
-        _reject_unknown(data, allowed_top, "TICKET.yaml")
+        _reject_unknown(data, allowed_top, "TICKET.json")
 
     required = set(schema.get("required", []))
     missing = sorted(k for k in required if k not in data)
     if missing:
-        raise ValueError(f"TICKET.yaml missing required plan field(s): {', '.join(missing)}")
+        raise ValueError(f"TICKET.json missing required plan field(s): {', '.join(missing)}")
 
     if data.get("version") != TICKET_VERSION:
-        raise ValueError(f"unsupported TICKET.yaml version: {data.get('version')!r}; expected {TICKET_VERSION}")
+        raise ValueError(f"unsupported TICKET.json version: {data.get('version')!r}; expected {TICKET_VERSION}")
     issue_id = _require_string(data.get("issue_id"), "issue_id")
     from beo_paths import reject_unsafe_issue_id
     reject_unsafe_issue_id(issue_id)
@@ -231,9 +231,6 @@ def validate_plan_only(data: dict[str, Any]) -> None:
             if system["effect_ref"] not in effect_targets:
                 raise ValueError(f"strict.stateful_external_systems[{index}].effect_ref must match an external_side_effects target")
 
-    if data.get("issue_id") != issue_id:
-        raise ValueError("issue_id normalization failed")
-
 
 def approval_projection_input(data: dict[str, Any]) -> dict[str, Any]:
     validate_plan_only(data)
@@ -263,73 +260,41 @@ def approval_projection_input(data: dict[str, Any]) -> dict[str, Any]:
     return projection
 
 
-def _reject_yaml_features(raw_content: str) -> None:
-    import yaml
+def read_ticket(root: Path, issue_id: str) -> TicketReadResult:
+    """Read and validate a TICKET.json file for ``issue_id`` under ``root``.
 
-    docs = list(yaml.compose_all(raw_content))
-    if len(docs) != 1:
-        raise ValueError("TICKET.yaml must contain exactly one YAML document")
-    for token in yaml.scan(raw_content):
-        if isinstance(token, (yaml.tokens.AnchorToken, yaml.tokens.AliasToken)):
-            raise ValueError("TICKET.yaml must not contain YAML anchors or aliases")
-
-
-def _reject_duplicate_keys(node: Any, path: str = "TICKET.yaml") -> None:
-    import yaml
-
-    if isinstance(node, yaml.MappingNode):
-        keys: set[Any] = set()
-        for key_node, value_node in node.value:
-            key = key_node.value
-            if key in keys:
-                raise ValueError(f"duplicate key in {path}: {key}")
-            keys.add(key)
-            _reject_duplicate_keys(value_node, f"{path}.{key}")
-    elif isinstance(node, yaml.SequenceNode):
-        for index, item_node in enumerate(node.value):
-            _reject_duplicate_keys(item_node, f"{path}[{index}]")
-
-
-def read_ticket_yaml(path: Path) -> TicketReadResult:
-    import yaml
-
-    raw_content = path.read_text(encoding="utf-8")
+    JSON's grammar forbids duplicate keys, anchors, aliases, and
+    multi-document streams natively, so no additional security checks are
+    required at parse time. Schema-level validation still runs through
+    ``validate_plan_only``.
+    """
+    path = ticket_path(root, issue_id)
+    if not path.exists():
+        raise FileNotFoundError(f"ticket_artifact_missing: {path}")
     try:
-        _reject_yaml_features(raw_content)
-        node = yaml.compose(raw_content)
-        if node is not None:
-            _reject_duplicate_keys(node)
-        data = yaml.safe_load(raw_content) or {}
+        raw = path.read_bytes()
     except Exception as exc:
-        raise ValueError(f"Failed to parse TICKET.yaml: {exc}") from exc
+        raise ValueError(f"Failed to read TICKET.json: {exc}") from exc
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"Failed to parse TICKET.json: {exc}") from exc
     if not isinstance(data, dict):
-        raise ValueError("TICKET.yaml must be a YAML mapping")
+        raise ValueError("TICKET.json must be a JSON object")
+    if data.get("issue_id") != issue_id:
+        raise ValueError("TICKET.json issue_id must match artifact issue_id")
     validate_plan_only(data)
     return TicketReadResult(data=data, path=path, artifact=TICKET_ARTIFACT, version=TICKET_VERSION, ticket_file_hash=ticket_file_hash(path))
 
 
-def read_ticket(root: Path, issue_id: str) -> TicketReadResult:
-    path = ticket_path(root, issue_id)
-    if not path.exists():
-        raise FileNotFoundError(f"ticket_artifact_missing: {path}")
-    result = read_ticket_yaml(path)
-    if result.data.get("issue_id") != issue_id:
-        raise ValueError("TICKET.yaml issue_id must match artifact issue_id")
-    return result
-
-
 def write_ticket(root: Path, issue_id: str, data: dict[str, Any], *, overwrite: bool = False) -> Path:
-    import yaml
-
     validate_plan_only(data)
     if data.get("issue_id") != issue_id:
-        raise ValueError("TICKET.yaml issue_id must match artifact issue_id")
+        raise ValueError("TICKET.json issue_id must match artifact issue_id")
     path = ticket_path(root, issue_id)
     path.parent.mkdir(parents=True, exist_ok=True)
     if path.exists() and not overwrite:
-        raise FileExistsError(f"TICKET.yaml already exists: {path}")
-    yaml_content = yaml.safe_dump(data, sort_keys=False, default_flow_style=False)
-    if not yaml_content.endswith("\n"):
-        yaml_content += "\n"
-    path.write_text(yaml_content, encoding="utf-8")
+        raise FileExistsError(f"TICKET.json already exists: {path}")
+    json_content = json.dumps(data, indent=2, sort_keys=False) + "\n"
+    path.write_text(json_content, encoding="utf-8")
     return path

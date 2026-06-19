@@ -5,7 +5,7 @@ This debug example is for failure analysis only and is not required context for 
 ## Scenario
 
 - `beo-validate` grants `PASS_EXECUTE` and transitions phase to `approved`.
-- Before `beo-execute` transitions phase to `executing`, someone edits `TICKET.yaml`.
+- Before `beo-execute` transitions phase to `executing`, someone edits `TICKET.json`.
 - Upon entering `beo-execute`, the helper recomputes approval predicates and detects `ticket_file_hash` has changed.
 - The approval is marked stale and execution is blocked.
 

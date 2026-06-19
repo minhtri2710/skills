@@ -7,7 +7,7 @@ description: "Diagnose BEO execution or review blockers without repair authority
 ## Read
 
 - `br show <issue-id> --json`
-- `.beads/artifacts/<issue-id>/TICKET.yaml` and `state.json`
+- `.beads/artifacts/<issue-id>/TICKET.json` and `state.json`
 - `.beads/artifacts/<issue-id>/runtime-events.jsonl` when present
 - Caller-provided evidence/log files
 - `beo-reference -> registry/runtime-event.schema.json` before appending caller-routed runtime events

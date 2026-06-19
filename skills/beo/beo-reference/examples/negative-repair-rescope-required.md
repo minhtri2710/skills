@@ -6,7 +6,7 @@ This debug example is for failure analysis only and is not required context for 
 
 - `beo-execute` completes execution.
 - During `beo-review`, the auditor finds that a bug fix was incomplete and needs changes in `utils.py`.
-- However, `utils.py` is not in the allowed list of `TICKET.yaml`.
+- However, `utils.py` is not in the allowed list of `TICKET.json`.
 - The reviewer must issue a finding requiring a rescope.
 
 ## Finding record in state.json

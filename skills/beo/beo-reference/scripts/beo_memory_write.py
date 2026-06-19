@@ -55,19 +55,18 @@ def validate_fallback_target(root: Path) -> Path:
 
 def extract_frontmatter(markdown: str) -> dict[str, object]:
     if not markdown.startswith("---\n"):
-        raise ValueError("learning note must start with YAML frontmatter")
+        raise ValueError("learning note must start with frontmatter")
     end = markdown.find("\n---", 4)
     if end == -1:
         raise ValueError("learning note frontmatter is not closed")
     try:
-        import yaml  # type: ignore[import-not-found]
-        frontmatter = yaml.safe_load(markdown[4:end]) or {}
-    except ImportError as exc:
-        raise ValueError("PyYAML is required to validate learning note frontmatter") from exc
+        frontmatter = _parse_frontmatter_block(markdown[4:end])
+    except ValueError:
+        raise
     except Exception as exc:
-        raise ValueError(f"learning note frontmatter is invalid YAML: {exc}") from exc
+        raise ValueError(f"learning note frontmatter is invalid: {exc}") from exc
     if not isinstance(frontmatter, dict):
-        raise ValueError("learning note frontmatter must be a YAML mapping")
+        raise ValueError("learning note frontmatter must be a mapping")
     return frontmatter
 
 
@@ -88,7 +87,7 @@ def validate_learning_frontmatter(frontmatter: dict[str, object], issue: str | N
         raise ValueError(f"case_type '{frontmatter['case_type']}' in frontmatter must match --case-type '{case_type}'")
     evidence_refs = frontmatter["evidence_refs"]
     if not isinstance(evidence_refs, list) or not evidence_refs or not all(isinstance(ref, str) and ref.strip() for ref in evidence_refs):
-        raise ValueError("evidence_refs must be a non-empty YAML list of strings")
+        raise ValueError("evidence_refs must be a non-empty list of strings")
     if frontmatter["type"] not in OKF_TYPES:
         raise ValueError(f"type must be one of {sorted(OKF_TYPES)}, got '{frontmatter['type']}'")
     if frontmatter["secret_policy"] != "handles_only":
@@ -117,18 +116,164 @@ def migrate_legacy_note(frontmatter: dict[str, object], markdown_body: str) -> d
 
 
 def _rewrite_frontmatter(markdown: str, frontmatter: dict[str, object]) -> str:
-    """Replace the frontmatter block in `markdown` with a YAML dump of `frontmatter`.
+    """Replace the frontmatter block in `markdown` with a fresh dump of `frontmatter`.
 
-    The closing `---` separator and the body after it are preserved. The new
-    frontmatter is emitted in key-sorted order for deterministic output.
+    The closing ``---`` separator and the body after it are preserved. The
+    new frontmatter is emitted in key-sorted order for deterministic output.
     """
-    import yaml  # type: ignore[import-not-found]
     end = markdown.find("\n---", 4)
     if end == -1:
         raise ValueError("learning note frontmatter is not closed")
     body = markdown[end:]
-    dumped = yaml.safe_dump(frontmatter, sort_keys=True, default_flow_style=False).rstrip("\n")
+    dumped = _dump_frontmatter(frontmatter)
     return f"---\n{dumped}\n{body}"
+
+
+# ---- Minimal frontmatter parser (no PyYAML dependency) ---------------------
+#
+# BEO learning frontmatter uses a small YAML subset:
+#   * top-level mapping: ``key: value`` lines
+#   * flow-style lists: ``key: [a, b, c]``
+#   * block-style lists: ``key:\\n  - item``
+#   * scalars: strings (plain or quoted), integers, booleans, null
+# This parser is intentionally narrow. It rejects YAML features BEO never
+# produces (anchors, aliases, multi-doc streams, complex keys, flow mappings)
+# so any unrecognised token raises a clear error rather than silently
+# being misread. Trailing whitespace is trimmed. Comments are NOT supported
+# inside the frontmatter block; the body that follows the closing ``---``
+# may contain them.
+
+_FRONTMATTER_FLOW_LIST = re.compile(r"^\[(.*)\]\s*$")
+_FRONTMATTER_SCALAR_NULL = {"null", "Null", "NULL", "~", ""}
+_FRONTMATTER_SCALAR_TRUE = {"true", "True", "TRUE"}
+_FRONTMATTER_SCALAR_FALSE = {"false", "False", "FALSE"}
+
+
+def _split_flow_list_items(inner: str) -> list[str]:
+    """Split a flow-list body on top-level commas (no nested flow support)."""
+    items: list[str] = []
+    depth = 0
+    current: list[str] = []
+    for char in inner:
+        if char in "[{":
+            depth += 1
+            current.append(char)
+        elif char in "]}":
+            depth -= 1
+            current.append(char)
+        elif char == "," and depth == 0:
+            items.append("".join(current).strip())
+            current = []
+        else:
+            current.append(char)
+    if current:
+        items.append("".join(current).strip())
+    return [item for item in items if item != ""]
+
+
+def _parse_scalar(token: str) -> object:
+    token = token.strip()
+    if token == "" or token in _FRONTMATTER_SCALAR_NULL:
+        return None
+    if token in _FRONTMATTER_SCALAR_TRUE:
+        return True
+    if token in _FRONTMATTER_SCALAR_FALSE:
+        return False
+    if (token.startswith('"') and token.endswith('"')) or (token.startswith("'") and token.endswith("'")):
+        return token[1:-1]
+    try:
+        return int(token)
+    except ValueError:
+        pass
+    try:
+        return float(token)
+    except ValueError:
+        pass
+    return token
+
+
+def _parse_frontmatter_block(block: str) -> dict[str, object]:
+    """Parse a frontmatter block (text between the two ``---`` markers) into a dict.
+
+    Raises ``ValueError`` with a precise location on any unsupported construct.
+    """
+    lines = block.split("\n")
+    result: dict[str, object] = {}
+    i = 0
+    while i < len(lines):
+        raw = lines[i]
+        if raw.strip() == "" or raw.lstrip().startswith("#"):
+            i += 1
+            continue
+        if raw.startswith(" ") or raw.startswith("\t"):
+            raise ValueError(f"unexpected indented line at position {i}: {raw!r}")
+        if ":" not in raw:
+            raise ValueError(f"expected 'key: value' at position {i}: {raw!r}")
+        key, _, value = raw.partition(":")
+        key = key.strip()
+        if not key:
+            raise ValueError(f"empty key at position {i}: {raw!r}")
+        value = value.lstrip()
+        if value == "":
+            # Either ``key:`` with nothing after, or ``key:`` followed by a block list.
+            # Block list items may be indented (standard YAML) or flush at column 0
+            # (tolerated by pyyaml, used in many BEO learning notes).
+            block_items: list[object] = []
+            j = i + 1
+            while j < len(lines):
+                stripped = lines[j].lstrip()
+                if lines[j].startswith(" ") or lines[j].startswith("\t"):
+                    if not stripped.startswith("- "):
+                        raise ValueError(f"expected list item at position {j}: {lines[j]!r}")
+                    block_items.append(_parse_scalar(stripped[2:]))
+                    j += 1
+                    continue
+                if stripped.startswith("- "):
+                    block_items.append(_parse_scalar(stripped[2:]))
+                    j += 1
+                    continue
+                break
+            if block_items:
+                result[key] = block_items
+                i = j
+                continue
+            result[key] = None
+            i += 1
+            continue
+        flow = _FRONTMATTER_FLOW_LIST.match(value)
+        if flow:
+            inner = flow.group(1)
+            result[key] = [_parse_scalar(item) for item in _split_flow_list_items(inner)]
+            i += 1
+            continue
+        result[key] = _parse_scalar(value)
+        i += 1
+    return result
+
+
+def _dump_scalar(value: object) -> str:
+    if value is None:
+        return "null"
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, (int, float)):
+        return str(value)
+    if isinstance(value, list):
+        return "[" + ", ".join(_dump_scalar(item) for item in value) + "]"
+    text = str(value)
+    # Quote strings that would otherwise re-parse as bool/null/number,
+    # and strings with structural chars or surrounding whitespace.
+    if (
+        any(ch in text for ch in [":", "#", "[", "]", "{", "}", ","])
+        or text.strip() != text
+        or not isinstance(_parse_scalar(text), str)
+    ):
+        return json.dumps(text)
+    return text
+
+
+def _dump_frontmatter(frontmatter: dict[str, object]) -> str:
+    return "\n".join(f"{key}: {_dump_scalar(frontmatter[key])}" for key in sorted(frontmatter))
 
 
 def write_note_to_dir(learning_dir: Path, note_name: str, markdown: str, backend: str, fallback_reason: str | None = None) -> dict[str, str]:

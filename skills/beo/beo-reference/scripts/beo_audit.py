@@ -15,13 +15,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-try:
-    import yaml  # type: ignore[import-not-found]
-    _YAML_AVAILABLE = True
-except ImportError:
-    yaml = None  # type: ignore[assignment]
-    _YAML_AVAILABLE = False
-
 HELPER_VERSION = "beo-audit/v1"
 SKILL_NAMES = ["beo-plan", "beo-validate", "beo-execute", "beo-review", "beo-debug", "beo-learn", "beo-author", "beo-climate", "beo-setup", "beo-reference"]
 # Helper actors that emit runtime-events.jsonl entries but are not BEO skills.
@@ -146,8 +139,8 @@ def _is_pseudo_ref(ref: str) -> bool:
     if ref.startswith(("beo-", "br-", "bv-")):  # skill name prefix
         return True
     artifact_names = {
-        "state.json", "TICKET.yaml", "PLAN.md", "AGENTS.md", "AGENTS.template.md",
-        "runtime-events.jsonl", "harness-proposal.yaml", "beo-reservations.jsonl",
+        "state.json", "TICKET.json", "PLAN.md", "AGENTS.md", "AGENTS.template.md",
+        "runtime-events.jsonl", "harness-proposal.json", "beo-reservations.jsonl",
         "CONTEXT_RULES.md", "user-handoff.md", "README.md",
     }
     return ref in artifact_names
@@ -467,29 +460,23 @@ def check_manifest_consistency(root: Path) -> list[Finding]:
 
 
 def check_harness_proposal_targets(root: Path) -> list[Finding]:
-    """Scan .beads/artifacts/*/harness-proposal.yaml for target scope violations.
+    """Scan .beads/artifacts/*/harness-proposal.json for target scope violations.
 
     Per kernel §10, proposals must target paths under skills/beo/. This check
-    (C6) scans all harness-proposal.yaml files found at delivery time and
+    (C6) scans all harness-proposal.json files found at delivery time and
     reports any whose target does not start with 'skills/beo/'.
     """
     findings: list[Finding] = []
     artifacts_dir = root / ".beads" / "artifacts"
     if not artifacts_dir.is_dir():
         return findings
-    if not _YAML_AVAILABLE:
-        findings.append(Finding(
-            "C6", SEVERITY_WARNING,
-            "PyYAML is not installed; cannot parse harness-proposal.yaml files",
-        ))
-        return findings
-    for proposal_path in sorted(artifacts_dir.rglob("harness-proposal.yaml")):
+    for proposal_path in sorted(artifacts_dir.rglob("harness-proposal.json")):
         try:
-            data = yaml.safe_load(proposal_path.read_text(encoding="utf-8"))
+            data = json.loads(proposal_path.read_text(encoding="utf-8"))
         except Exception as exc:
             findings.append(Finding(
                 "C6", SEVERITY_WARNING,
-                f"{proposal_path.relative_to(root)}: unreadable or invalid YAML: {exc}",
+                f"{proposal_path.relative_to(root)}: unreadable or invalid JSON: {exc}",
             ))
             continue
         if not isinstance(data, dict):

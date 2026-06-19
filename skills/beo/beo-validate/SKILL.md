@@ -8,7 +8,7 @@ description: "Validate BEO PLAN.md readiness or grant/deny PASS_EXECUTE for atom
 
 - `br show <issue-id> --json`
 - `.beads/artifacts/<issue-id>/PLAN.md` when validating epic/feature decomposition readiness
-- `.beads/artifacts/<issue-id>/TICKET.yaml` when validating an atomic ticket
+- `.beads/artifacts/<issue-id>/TICKET.json` when validating an atomic ticket
 - `.beads/artifacts/<issue-id>/state.json` when present
 - `.beads/artifacts/<issue-id>/runtime-events.jsonl` when present
 - `.beads/beo-reservations.jsonl` and `beo-reference -> registry/reservation-schema.json` for strict mode

@@ -9,7 +9,7 @@ description: "Proactive BEO maintenance cadence. Runs periodic scans for doc-cod
 - All BEO skill cards (`beo-*/SKILL.md`) for doc-code consistency checks
 - All BEO references (`beo-reference/references/*.md`)
 - All BEO registries (`beo-reference/registry/*.json`)
-- Update cadence config: `config.yaml`
+- Update cadence config: `config.json`
 - `beo-reference -> references/doctrine-map.md` for rule ownership
 
 ## Do
@@ -43,12 +43,12 @@ description: "Proactive BEO maintenance cadence. Runs periodic scans for doc-cod
 
 ## Config
 
-Scan configuration lives in `config.yaml`:
+Scan configuration lives in `config.json`:
 - `cadence`: default schedule for background runs.
 - `scan_scope`: which files to include/exclude.
 - `auto_heal_allowlist`: safe fix types that `beo-climate` may auto-route to `beo-author`. Each item is an object with three required fields:
   - `id`: stable identifier for the allowlist entry (e.g., `missing_emit_condition_in_pipeline`).
-  - `audit_check_id`: the `beo_audit.py` check_id that surfaces this finding (e.g., `C1`, `C2`, `C4`). This binds the climate scan to the audit's named checks; triage uses the `check_id` to route the finding to the matching fix-up path.
+  - `audit_check_id`: the `beo_audit.py` check_id that surfaces this finding (e.g., `C1`, `C2`, `C4`). This binds the climate scan to the audit's named checks; triage uses the `check_id` to route the finding to the matching fix-up path. `C4` (`stale_schema_field`) additionally covers duplicate `owner_rules` keys and unknown actors.
   - `summary`: human-readable description of what the allowlist entry covers.
   Items whose fix would change a safety invariant, add a skill, alter phase permissions, or modify a `kernel.md` rule must NOT be added — they always require human triage.
 

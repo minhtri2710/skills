@@ -1,5 +1,5 @@
 {
-  "description": "BEO approval projection and validity binding. One projection hash is computed from approval-bearing TICKET.yaml fields, conditional ticket fields, computed validity fields, and strict reservation evidence when required.",
+  "description": "BEO approval projection and validity binding. One projection hash is computed from approval-bearing TICKET.json fields, conditional ticket fields, computed validity fields, and strict reservation evidence when required.",
   "validity_model": {
     "description": "BEO approval assertions do not expire by elapsed time. They remain valid until an explicit predicate fails, a newer artifact supersedes them, or a human/operator revokes or removes the authority. Agents must not infer expiry from age alone.",
     "base_predicates": [

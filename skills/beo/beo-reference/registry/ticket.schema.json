@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "BEO TICKET.yaml version 1",
-  "description": "BEO TICKET.yaml version 1. Owns request, done criteria, approved scope, verification commands, and risk/strict contracts. Does not own br lifecycle, approval state, execution state, review verdict, runtime events, or learning notes.",
+  "title": "BEO TICKET.json version 1",
+  "description": "BEO TICKET.json version 1. Owns request, done criteria, approved scope, verification commands, and risk/strict contracts. Does not own br lifecycle, approval state, execution state, review verdict, runtime events, or learning notes.",
   "type": "object",
   "additionalProperties": false,
   "required": ["version", "issue_id", "mode", "request", "done_criteria", "scope"],

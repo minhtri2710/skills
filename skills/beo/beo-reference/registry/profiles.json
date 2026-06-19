@@ -1,12 +1,12 @@
 {
-  "description": "Small BEO mode registry. Profiles summarize authoring and validation requirements; concrete enforcement lives in ticket and approval helpers. protected_path_defaults apply to TICKET.yaml product scope, not authorized BEO control-plane artifact writes.",
+  "description": "Small BEO mode registry. Profiles summarize authoring and validation requirements; concrete enforcement lives in ticket and approval helpers. protected_path_defaults apply to TICKET.json product scope, not authorized BEO control-plane artifact writes.",
   "modes": {
     "quick": {
       "summary": "Repo-only low-risk work with explicit file scope and at least one verification command.",
       "requires": ["scope.files.allow", "scope.verify.commands"],
       "fast_track": {
         "summary": "Opt-in flag to bypass review when all verifications pass. Only allowed for quick mode with explicit (non-glob) file scope.",
-        "additional_requires": ["scope.files.allow_all_explicit", "fast_track: true in TICKET.yaml"]
+        "additional_requires": ["scope.files.allow_all_explicit", "fast_track: true in TICKET.json"]
       }
     },
     "standard": {
@@ -19,7 +19,7 @@
       "external_evidence_requires": ["current_actor_matching_beo_reservation"],
       "worktree_isolation": {
         "summary": "Optional flag to create an isolated git worktree for strict-mode execution. All mutations happen inside the worktree. On review accept, the worktree branch is merged; on other routes, the worktree is cleaned up without merging.",
-        "additional_requires": ["worktree_isolation: true in TICKET.yaml", "requires_clean_git_tree", "requires_git_worktree_command"]
+        "additional_requires": ["worktree_isolation: true in TICKET.json", "requires_clean_git_tree", "requires_git_worktree_command"]
       }
     }
   },

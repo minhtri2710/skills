@@ -138,13 +138,13 @@ class ScoreContextClassifyTest(unittest.TestCase):
         return beo_score_context._classify(path)
 
     def test_classify_ticket_with_leading_dot(self):
-        """A path like '.beads/artifacts/br-123/TICKET.yaml' must be classified as 'ticket'."""
-        result = self._classify(".beads/artifacts/br-123/TICKET.yaml")
+        """A path like '.beads/artifacts/br-123/TICKET.json' must be classified as 'ticket'."""
+        result = self._classify(".beads/artifacts/br-123/TICKET.json")
         self.assertEqual(result, "ticket")
 
     def test_classify_ticket_with_absolute_prefix(self):
-        """A path like '/repo/.beads/artifacts/br-123/TICKET.yaml' must be classified as 'ticket'."""
-        result = self._classify("/repo/.beads/artifacts/br-123/TICKET.yaml")
+        """A path like '/repo/.beads/artifacts/br-123/TICKET.json' must be classified as 'ticket'."""
+        result = self._classify("/repo/.beads/artifacts/br-123/TICKET.json")
         self.assertEqual(result, "ticket")
 
 
@@ -152,13 +152,13 @@ class HarnessProposalTargetTest(unittest.TestCase):
     """Tests for C6 — harness proposal target scope enforcement."""
 
     def _make_proposal(self, root: Path, target: str, issue_id: str = "br-test") -> Path:
-        """Create a harness-proposal.yaml under .beads/artifacts/ and return its path."""
-        import yaml
+        """Create a harness-proposal.json under .beads/artifacts/ and return its path."""
+        import json
         proposal_dir = root / ".beads" / "artifacts" / issue_id
         proposal_dir.mkdir(parents=True, exist_ok=True)
-        proposal_path = proposal_dir / "harness-proposal.yaml"
+        proposal_path = proposal_dir / "harness-proposal.json"
         with open(proposal_path, "w") as f:
-            yaml.dump({
+            json.dump({
                 "version": 1,
                 "proposal_id": f"prop-{issue_id[-8:]}",
                 "source_issue_id": issue_id,
@@ -167,7 +167,7 @@ class HarnessProposalTargetTest(unittest.TestCase):
                 "rationale": "test",
                 "proposed_diff": "test",
                 "safety_note": "test",
-            }, f)
+            }, f, indent=2)
         return proposal_path
 
     def test_c6_accepts_valid_target(self):
@@ -204,14 +204,14 @@ class HarnessProposalTargetTest(unittest.TestCase):
 
 
 class ClimateConfigTest(unittest.TestCase):
-    """Tests for beo-climate/config.yaml audit_check_id mappings."""
+    """Tests for beo-climate/config.json audit_check_id mappings."""
 
     def _load_climate_config(self) -> dict:
-        """Load and return the beo-climate config.yaml."""
-        import yaml
-        config_path = Path(__file__).resolve().parents[1] / "skills" / "beo" / "beo-climate" / "config.yaml"
-        with open(config_path, "r") as f:
-            return yaml.safe_load(f)
+        """Load and return the beo-climate config.json."""
+        import json
+        config_path = Path(__file__).resolve().parents[1] / "skills" / "beo" / "beo-climate" / "config.json"
+        with open(config_path, "r", encoding="utf-8") as f:
+            return json.load(f)
 
     def test_auto_heal_check_ids_are_valid(self):
         """Every auto_heal_allowlist item must reference a known audit check_id."""

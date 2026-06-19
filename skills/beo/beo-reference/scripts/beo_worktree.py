@@ -83,7 +83,7 @@ def worktree_branch(issue_id: str, actor: str, timestamp: str) -> str:
 def ensure_beads_symlink(root: Path, wt_path: Path) -> None:
     """Symlink worktree's .beads to main repo's .beads. Raises on failure.
 
-    State sharing is required for the BEO workflow: state.json, TICKET.yaml,
+    State sharing is required for the BEO workflow: state.json, TICKET.json,
     and runtime-events.jsonl written inside the worktree must be visible to
     the main repo where the next phase runs. A silent fallback that lets the
     worktree have an isolated .beads directory breaks the entire pipeline.

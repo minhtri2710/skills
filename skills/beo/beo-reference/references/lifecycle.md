@@ -50,7 +50,7 @@ Before finalizing decomposed beads, cross-reference their expected file scopes. 
 1. Create child atomic beads: `br create ... --json`
 2. Add dependency edges: `br dep add ... --json`
 3. Add parent summary comment referencing `PLAN.md` + child bead IDs: `br comments add ... --json`
-4. Pre-write `TICKET.yaml` for every proposed child atomic bead before emitting `decomposition_recorded` (using the validated `PLAN.md` "Proposed atomic beads" blocks as the source text). The full pre-write contract is in `beo-reference -> registry/phase-contracts.json` under `beo-plan.decomposition_recorded_contract`. Pre-written tickets let each child enter validation directly instead of requiring a separate planning pass to author its ticket.
+4. Pre-write `TICKET.json` for every proposed child atomic bead before emitting `decomposition_recorded` (using the validated `PLAN.md` "Proposed atomic beads" blocks as the source text). The full pre-write contract is in `beo-reference -> registry/phase-contracts.json` under `beo-plan.decomposition_recorded_contract`. Pre-written tickets let each child enter validation directly instead of requiring a separate planning pass to author its ticket.
 5. Exit with `decomposition_recorded` dispatch.
 
 Each child atomic bead description must be self-contained for implementation (task context, done criteria, expected scope, verification commands, dependencies, suggested mode/risk, atomicity rationale). Do not require child implementers to reread the parent `PLAN.md`; preserve parent traceability through Beads dependency edges and the parent decomposition comment.
@@ -61,7 +61,7 @@ Each child atomic bead description must be self-contained for implementation (ta
 
 Runtime event kinds and payload contracts are canonical in `registry/runtime-event.schema.json`.
 
-Runtime events are append-only non-normal state entries in `.beads/artifacts/<issue-id>/runtime-events.jsonl`. They are not written for normal transitions, and they are not plan-owned `TICKET.yaml` fields.
+Runtime events are append-only non-normal state entries in `.beads/artifacts/<issue-id>/runtime-events.jsonl`. They are not written for normal transitions, and they are not plan-owned `TICKET.json` fields.
 
 ---
 
@@ -112,7 +112,7 @@ Repair boundary is canonical in `references/phase-contracts.md`.
 
 Phase transitions are artifact-validity-based, not conversation-turn-based:
 1. A phase owner transitions only after writing durable state/evidence.
-2. The next owner starts only after re-reading `br`, `TICKET.yaml`, `state.json`, `runtime-events.jsonl` when present, and phase-relevant registries.
+2. The next owner starts only after re-reading `br`, `TICKET.json`, `state.json`, `runtime-events.jsonl` when present, and phase-relevant registries.
 3. No phase may run the next phase's commands until those artifacts have been re-read.
 
 ---

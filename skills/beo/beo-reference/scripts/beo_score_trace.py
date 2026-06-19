@@ -3,7 +3,7 @@
 
 Reads state.json and runtime-events.jsonl for a delivery bead and scores
 the trace 0-3 against the tier implied by state.execution.trace_tier or
-TICKET.yaml.mode. Does not write state.json. Appends a single
+TICKET.json.mode. Does not write state.json. Appends a single
 `score` event to runtime-events.jsonl under its own actor name
 `beo-score-trace`.
 """

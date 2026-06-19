@@ -7,7 +7,7 @@ Usage:
     python3 beo_run.py <issue_id> [<changed_file> ...]
 
 Prerequisites:
-    - TICKET.yaml already written in .beads/artifacts/<issue_id>/
+    - TICKET.json already written in .beads/artifacts/<issue_id>/
     - Product edits already made (script records evidence, does not mutate product)
     - BEO_ACTOR or BR_ACTOR environment variable set
 
@@ -19,14 +19,13 @@ Exit codes:
 """
 from __future__ import annotations
 
+import json
 import os
 import shlex
 import sys
 import subprocess
 from pathlib import Path
 from typing import Any
-
-import yaml
 
 # Ensure sibling modules are importable
 _SCRIPTS = Path(__file__).resolve().parent
@@ -104,15 +103,15 @@ def main() -> int:
         _die("no .beads directory found in path")
 
     base = root / ".beads" / "artifacts" / issue_id
-    ticket_path = base / "TICKET.yaml"
+    ticket_path = base / "TICKET.json"
 
     if not ticket_path.exists():
-        _die(f"TICKET.yaml not found at {ticket_path.relative_to(root)}")
+        _die(f"TICKET.json not found at {ticket_path.relative_to(root)}")
 
     # Fresh-read ticket
-    ticket = yaml.safe_load(ticket_path.read_text())
+    ticket = json.loads(ticket_path.read_text())
     if not isinstance(ticket, dict):
-        _die("TICKET.yaml must be a mapping")
+        _die("TICKET.json must be an object")
 
     if ticket.get("mode", "quick") != "quick":
         print(f"WARNING: mode is '{ticket.get('mode')}', not 'quick'. Proceeding anyway.", file=sys.stderr)

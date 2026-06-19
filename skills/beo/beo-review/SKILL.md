@@ -1,6 +1,6 @@
 ---
 name: beo-review
-description: "Review one executed atomic BEO bead against its self-contained description, TICKET.yaml scope, evidence, verification, and done criteria. Emits one route; only this skill may close accepted work."
+description: "Review one executed atomic BEO bead against its self-contained description, TICKET.json scope, evidence, verification, and done criteria. Emits one route; only this skill may close accepted work."
 ---
 # beo-review
 
@@ -8,7 +8,7 @@ description: "Review one executed atomic BEO bead against its self-contained des
 
 - `br show <issue-id> --json`
 - `.beads/artifacts/<parent-issue-id>/PLAN.md` only when review evidence or an explicit inconsistency requires parent-boundary audit; child descriptions should be self-contained
-- `.beads/artifacts/<issue-id>/TICKET.yaml`
+- `.beads/artifacts/<issue-id>/TICKET.json`
 - `.beads/artifacts/<issue-id>/state.json`
 - `.beads/artifacts/<issue-id>/runtime-events.jsonl` when present
 - `.beads/beo-reservations.jsonl` and `beo-reference -> registry/reservation-schema.json` before any route that may release an existing reservation
@@ -21,13 +21,13 @@ description: "Review one executed atomic BEO bead against its self-contained des
 
 1. Fresh-read `br`, ticket, state, runtime events when present, phase-relevant registries named above, and any referenced evidence.
 2. Review rubric:
-   - Scope: every changed file is allowed by `TICKET.yaml` or declared generated outputs.
+   - Scope: every changed file is allowed by `TICKET.json` or declared generated outputs.
    - Intent: the implementation satisfies the self-contained child bead description.
    - Done criteria: each criterion is covered by evidence or explicitly marked not covered.
    - Verification: recorded command results actually support the done criteria, not merely command execution.
    - Regression surface: obvious adjacent behavior affected by the touched files is considered.
    - Repair boundary: same-scope repair is allowed only when file set, generated outputs, done criteria, verification, mode, risk, and Human Gates remain unchanged.
-3. If the atomic bead was decomposed from an epic/feature, review against the self-contained child bead description. Read the parent `PLAN.md` only when the child description is ambiguous, review evidence explicitly references it, or a suspected parent-boundary conflict cannot be resolved from the child bead and `TICKET.yaml`.
+3. If the atomic bead was decomposed from an epic/feature, review against the self-contained child bead description. Read the parent `PLAN.md` only when the child description is ambiguous, review evidence explicitly references it, or a suspected parent-boundary conflict cannot be resolved from the child bead and `TICKET.json`.
 4. Audit changed files against approved scope and generated outputs.
 5. Confirm verification results cover `scope.verify.commands` and `done_criteria`; record compact done-criteria coverage.
 6. Only emit `verdict_accept` when scope, intent, done criteria coverage, and verification evidence all support acceptance. If evidence is missing but work may be correct, route repair or user decision; do not accept on trust.
@@ -40,7 +40,7 @@ description: "Review one executed atomic BEO bead against its self-contained des
     - On `repair_same_scope` or `repair_rescope`: cleanup without merge via `beo-reference -> scripts/beo_worktree.py cleanup --issue <issue-id> --reason repair`.
     - On `cannot_deliver` or `abandoned`: cleanup via `beo-reference -> scripts/beo_worktree.py cleanup --issue <issue-id> --reason <route>`.
 12. If during review a BEO harness improvement is identified:
-    - Write `.beads/artifacts/<issue-id>/harness-proposal.yaml` following `beo-reference -> registry/harness-proposal.schema.json`.
+    - Write `.beads/artifacts/<issue-id>/harness-proposal.json` following `beo-reference -> registry/harness-proposal.schema.json`.
     - Emit `harness_change_needed` -> `beo-author`. The review is paused; `beo-author` returns to caller after resolution.
     - On return from `beo-author`, re-read state and continue review.
 13. Close with `br` only on `verdict_accept`; otherwise leave the issue open for repair or user action.
@@ -49,7 +49,7 @@ description: "Review one executed atomic BEO bead against its self-contained des
 ## Write
 
 - `state.json` phase and review fields only
-- `.beads/artifacts/<issue-id>/harness-proposal.yaml` when proposing a harness change
+- `.beads/artifacts/<issue-id>/harness-proposal.json` when proposing a harness change
 - Beads comments/labels for the final route when needed, including compact `user_review_needed` route comments and labels only when an existing BEO label represents the state
 - Reservation release on `verdict_accept`, `cannot_deliver`, `abandoned`, and `repair_rescope` only for strict-mode active reservations or when a reservation exists
 - `runtime-events.jsonl` for non-normal review events, including `handoff` before `root_cause_diagnosis_needed`

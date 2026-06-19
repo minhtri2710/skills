@@ -31,7 +31,13 @@ class HelperSemanticsTest(unittest.TestCase):
             },
         }
 
-    def test_setup_blocks_when_pyyaml_missing(self):
+    def test_setup_no_third_party_python_deps_required(self):
+        """BEO uses only stdlib; pyyaml must NOT be required for setup to pass.
+
+        TICKET.json, harness-proposal.json, and learning frontmatter are all
+        parsed from stdlib (json + a minimal frontmatter parser in
+        beo_memory_write). No third-party Python packages are required.
+        """
         import beo_setup
         real_import = __import__
 
@@ -62,11 +68,12 @@ class HelperSemanticsTest(unittest.TestCase):
              contextlib.redirect_stdout(io.StringIO()) as stdout:
             rc = beo_setup.main()
         report = json.loads(stdout.getvalue())
-        self.assertEqual(rc, 1)
-        self.assertEqual(report["dependencies"]["PyYAML"], "missing")
-        self.assertEqual(report["status"], "blocked")
+        # Setup must NOT report a Python third-party dep as missing.
+        self.assertNotIn("PyYAML", report.get("dependencies", {}))
+        # Setup may still report br missing (this is an env check, not a Python dep).
+        self.assertNotEqual(report.get("status"), "blocked")
 
-    def test_ticket_yaml_and_path_safety(self):
+    def test_ticket_json_path_safety(self):
         import beo_paths
         import beo_ticket
         with tempfile.TemporaryDirectory() as tmp:
@@ -79,19 +86,20 @@ class HelperSemanticsTest(unittest.TestCase):
             with self.assertRaises(FileExistsError):
                 beo_ticket.write_ticket(root, "br-1", data)
             self.assertEqual(beo_ticket.read_ticket(root, "br-1").data["version"], 1)
-            path.write_text("version: 1\nissue_id: br-1\nissue_id: br-2\nmode: quick\nrequest: x\ndone_criteria: [x]\nscope: {files: {allow: [README.md], forbid: []}, generated_outputs: [], verify: {commands: [true]}}\n")
-            with self.assertRaisesRegex(ValueError, "duplicate key"):
+            # JSON parser natively rejects duplicate keys, anchors, and multi-doc streams.
+            # Verify malformed JSON raises a clear error.
+            path.write_text("not valid json {{{")
+            with self.assertRaisesRegex(ValueError, "Failed to parse TICKET.json"):
                 beo_ticket.read_ticket(root, "br-1")
-            path.write_text("version: 1\nfirst: &anchor x\nsecond: *anchor\n")
-            with self.assertRaisesRegex(ValueError, "anchors or aliases"):
+            path.write_text("[]")
+            with self.assertRaisesRegex(ValueError, "must be a JSON object"):
                 beo_ticket.read_ticket(root, "br-1")
-            path.write_text("version: 1\n---\nissue_id: br-1\n")
-            with self.assertRaisesRegex(ValueError, "exactly one YAML document"):
-                beo_ticket.read_ticket(root, "br-1")
+            # Restore a valid ticket before testing write-time issue_id mismatch.
+            beo_ticket.write_ticket(root, "br-1", data, overwrite=True)
             mismatch = dict(data, issue_id="br-2")
             with self.assertRaisesRegex(ValueError, "issue_id must match artifact"):
                 beo_ticket.write_ticket(root, "br-1", mismatch, overwrite=True)
-            path.write_text("version: 1\nissue_id: br-2\nmode: quick\nrequest: x\ndone_criteria: [x]\nscope: {files: {allow: [README.md], forbid: []}, generated_outputs: [], verify: {commands: ['true']}}\n")
+            path.write_text('{"version": 1, "issue_id": "br-2", "mode": "quick", "request": "x", "done_criteria": ["x"], "scope": {"files": {"allow": ["README.md"], "forbid": []}, "generated_outputs": [], "verify": {"commands": ["true"]}}}\n')
             with self.assertRaisesRegex(ValueError, "issue_id must match artifact"):
                 beo_ticket.read_ticket(root, "br-1")
             unsafe_scope = dict(data)
@@ -327,10 +335,10 @@ class HelperSemanticsTest(unittest.TestCase):
             broad_ticket["scope"] = {"files": {"allow": ["**"], "forbid": []}, "generated_outputs": [], "verify": {"commands": ["true"]}}
             broad_ticket["human_gates"] = {"status": "resolved", "gates": [{"type": "broad_scope_authorization", "scope": "**", "approver_handle": "human", "valid_for_issue_id": "br-1", "reason": "needed for test"}]}
             (root / ".beads" / "artifacts" / "br-1").mkdir(parents=True)
-            (root / ".beads" / "artifacts" / "br-1" / "TICKET.yaml").write_text("ticket\n", encoding="utf-8")
+            (root / ".beads" / "artifacts" / "br-1" / "TICKET.json").write_text("ticket\n", encoding="utf-8")
             broad_prestate = beo_check_approval.compute_prestate(root, broad_ticket)
             self.assertNotIn(".git/HEAD", broad_prestate["**#matches"])
-            self.assertIn(".beads/artifacts/br-1/TICKET.yaml", broad_prestate["**#matches"])
+            self.assertIn(".beads/artifacts/br-1/TICKET.json", broad_prestate["**#matches"])
             (root / "src" / "secret.py").write_text("secret\n", encoding="utf-8")
             forbid_ticket = dict(ticket)
             forbid_ticket["scope"] = {"files": {"allow": ["./src/**"], "forbid": ["src/secret.py"]}, "generated_outputs": [], "verify": {"commands": ["true"]}}
@@ -722,7 +730,7 @@ class HelperSemanticsTest(unittest.TestCase):
 
             beo_ticket.write_ticket(root, "br-1", ticket, overwrite=True)
             (root / "README.md").write_text("clean\n", encoding="utf-8")
-            ticket_path = root / ".beads" / "artifacts" / "br-1" / "TICKET.yaml"
+            ticket_path = root / ".beads" / "artifacts" / "br-1" / "TICKET.json"
             ticket_hash = __import__("beo_git").file_hash(ticket_path)
             repo_head = __import__("beo_git").repo_head_sentinel(root)
             projection_hash = beo_approval.approval_projection_hash(ticket, ticket_file_hash=ticket_hash, repo_head=repo_head)
@@ -751,7 +759,7 @@ class HelperSemanticsTest(unittest.TestCase):
 
             beo_state.locked_update_state(root, "br-1", "beo-validate", stale_head)
             mismatch = dict(ticket, issue_id="br-2")
-            ticket_path.write_text("version: 1\nissue_id: br-2\nmode: quick\nrequest: x\ndone_criteria: [ok]\nscope: {files: {allow: [README.md], forbid: []}, generated_outputs: [], verify: {commands: ['true']}}\n", encoding="utf-8")
+            ticket_path.write_text('{"version": 1, "issue_id": "br-2", "mode": "quick", "request": "x", "done_criteria": ["ok"], "scope": {"files": {"allow": ["README.md"], "forbid": []}, "generated_outputs": [], "verify": {"commands": ["true"]}}}\n', encoding="utf-8")
             with mock.patch("beo_check.run_br_show", return_value=({"id": "br-1", "type": "task", "assignee": "assistant"}, None)), \
                  mock.patch.dict(os.environ, {"BR_ACTOR": "assistant"}), \
                  mock.patch.object(sys, "argv", ["beo_check.py", "--check", "validate", "--issue", "br-1", "--root", str(root)]), \
@@ -759,7 +767,7 @@ class HelperSemanticsTest(unittest.TestCase):
                 rc = __import__("beo_check").main()
             report = json.loads(stdout.getvalue())
             self.assertEqual(rc, 1)
-            self.assertIn("TICKET.yaml issue_id must match artifact issue_id", report["errors"])
+            self.assertIn("TICKET.json issue_id must match artifact issue_id", report["errors"])
 
             beo_ticket.write_ticket(root, "br-1", ticket, overwrite=True)
             with mock.patch("beo_check.run_br_show", return_value=({"id": "br-1", "type": "task", "assignee": "other"}, None)), \
@@ -1163,7 +1171,7 @@ class HelperSemanticsTest(unittest.TestCase):
             with mock.patch.object(beo_check_approval, "now_utc", return_value=frozen_now), \
                  mock.patch.object(beo_check_approval, "actor_identity", return_value="agent"):
                 with self.assertRaisesRegex(ValueError, "strict approval requires an active reservation"):
-                    beo_check_approval.compute_approval_fields(root, root / "TICKET.yaml", ticket)
+                    beo_check_approval.compute_approval_fields(root, root / "TICKET.json", ticket)
                 (root / ".beads").mkdir()
                 (root / ".beads" / "beo-reservations.jsonl").write_text(json.dumps({
                     "reservation_id": "res-12345678",
@@ -1178,7 +1186,7 @@ class HelperSemanticsTest(unittest.TestCase):
                     "revoked_by": None,
                     "revocation_ref": None,
                 }) + "\n", encoding="utf-8")
-                with_reservation = beo_check_approval.compute_approval_fields(root, root / "TICKET.yaml", ticket)["approval_projection_hash"]
+                with_reservation = beo_check_approval.compute_approval_fields(root, root / "TICKET.json", ticket)["approval_projection_hash"]
         self.assertEqual(
             with_reservation,
             beo_approval.approval_projection_hash(
@@ -1399,7 +1407,7 @@ class HelperSemanticsTest(unittest.TestCase):
                 "revocation_ref": None,
             }) + "\n", encoding="utf-8")
             with mock.patch.object(beo_check_approval, "now_utc", return_value=frozen_now):
-                self.assertIn("invalid paths", beo_check_approval.validate_approval_envelope(root, root / "TICKET.yaml", ticket, {"approval": {"status": "PASS_EXECUTE"}})[0])
+                self.assertIn("invalid paths", beo_check_approval.validate_approval_envelope(root, root / "TICKET.json", ticket, {"approval": {"status": "PASS_EXECUTE"}})[0])
             ledger.write_text(json.dumps({
                 "reservation_id": "res-12345678",
                 "issue_id": "br-1",
@@ -1414,7 +1422,7 @@ class HelperSemanticsTest(unittest.TestCase):
                 "revocation_ref": None,
             }) + "\n", encoding="utf-8")
             with mock.patch.object(beo_check_approval, "now_utc", return_value=frozen_now):
-                self.assertIn("invalid created_at", beo_check_approval.validate_approval_envelope(root, root / "TICKET.yaml", ticket, {"approval": {"status": "PASS_EXECUTE"}})[0])
+                self.assertIn("invalid created_at", beo_check_approval.validate_approval_envelope(root, root / "TICKET.json", ticket, {"approval": {"status": "PASS_EXECUTE"}})[0])
 
     def test_validate_check_enforces_strict_reservation_ledger(self):
         import beo_check

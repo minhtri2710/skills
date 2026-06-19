@@ -45,7 +45,7 @@ Support skills do not advance delivery state unless a delivery owner routes to t
 ## Minimal agent path
 
 1. Pick or inspect exactly one bead with `br`; use `bv` only for read-only graph orientation.
-2. Use `beo-plan` to claim the bead. For epics/features, brainstorm the request with recommended questions, write `.beads/artifacts/<issue-id>/PLAN.md`, validate it, then decompose into atomic child beads. For epics/features, `PLAN.md` is the only parent planning artifact; child beads are created only after `beo-validate` emits `plan_validated`. For atomic beads, author `TICKET.yaml`.
+2. Use `beo-plan` to claim the bead. For epics/features, brainstorm the request with recommended questions, write `.beads/artifacts/<issue-id>/PLAN.md`, validate it, then decompose into atomic child beads. For epics/features, `PLAN.md` is the only parent planning artifact; child beads are created only after `beo-validate` emits `plan_validated`. For atomic beads, author `TICKET.json`.
 3. Use `beo-validate` to validate epic/feature plan readiness or grant/deny `PASS_EXECUTE` for an atomic ticket.
 4. Use `beo-execute` to select one ready approved atomic bead, mutate approved scope, and record evidence.
 5. Use `beo-review` to review the atomic bead/task evidence, accept, repair, diagnose, or route to user.
@@ -64,7 +64,7 @@ Per-phase context budget lives in `beo-reference/references/context-budget.md`.
 
 BEO ships advisory helpers in `beo-reference/scripts/` for queryable verification, quality-tiered scoring, and control-plane drift detection. These are owned by the delivery skills that invoke them and never grant authority.
 
-- `beo_verify.py` (Verification): runs `TICKET.yaml.scope.verify.commands` and appends `verification_run` events. Added to `approval_bearing_contracts` because it is machine-enforced.
+- `beo_verify.py` (Verification): runs `TICKET.json.scope.verify.commands` and appends `verification_run` events. Added to `approval_bearing_contracts` because it is machine-enforced.
 - `beo_score_trace.py`, `beo_score_context.py` (Scoring): advisory scoring against tier requirements (minimal/standard/detailed). Output score 0-3 plus a diff of missing fields.
 - `beo_audit.py` (Audit): drift checks across skill cards, registries, references, must_not lists, and the command manifest. `--check-manifest` enables manifest drift detection.
 - `beo_propose.py` (Audit): generates `beo-climate/proposals/pending/prop-*.md` from friction/learning-candidate events. Never applies changes.

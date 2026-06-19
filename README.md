@@ -22,7 +22,7 @@ Authority:
 
 - `br` owns issue lifecycle, claims, dependencies, comments, and closure.
 - `bv` is read-only graph orientation only.
-- `TICKET.yaml` owns request, done criteria, approved scope, verification commands, and risk/strict contracts.
+- `TICKET.json` owns request, done criteria, approved scope, verification commands, and risk/strict contracts.
 - `state.json` owns approval, execution, and review state.
 - `runtime-events.jsonl` is optional and records only non-normal events.
 - `qmd` and Obsidian are advisory memory only.

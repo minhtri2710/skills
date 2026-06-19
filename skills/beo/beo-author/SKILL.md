@@ -16,7 +16,7 @@ When a repeated behavior becomes durable workflow doctrine, update the canonical
 
 - The explicit BEO maintenance request or harness change proposal
 - The affected BEO file(s)
-- `.beads/artifacts/<issue-id>/harness-proposal.yaml` when responding to `harness_change_needed`
+- `.beads/artifacts/<issue-id>/harness-proposal.json` when responding to `harness_change_needed`
 - `beo-reference -> registry/harness-proposal.schema.json` before validating a harness proposal
 - Narrow `beo-reference` docs/registries that own the affected rule; start with `beo-reference -> references/doctrine-map.md` when authority is unclear
 
@@ -25,9 +25,9 @@ When a repeated behavior becomes durable workflow doctrine, update the canonical
 1. Confirm the request is BEO control-plane maintenance, not product delivery.
 2. Identify the canonical artifact that owns the rule.
 3. For harness change proposals from delivery agents:
-   - Read `.beads/artifacts/<issue-id>/harness-proposal.yaml` and validate against `beo-reference -> registry/harness-proposal.schema.json`.
+   - Read `.beads/artifacts/<issue-id>/harness-proposal.json` and validate against `beo-reference -> registry/harness-proposal.schema.json`.
    - Review the `proposed_diff` and `safety_note`. Confirm the change is safe, scoped to `skills/beo/`, and does not weaken safety invariants.
-   - If approved: apply the change to the target file(s), update `harness-proposal.yaml` status to `applied`, emit `skill_authored_or_updated` or `reference_or_registry_updated` -> caller.
+   - If approved: apply the change to the target file(s), update `harness-proposal.json` status to `applied`, emit `skill_authored_or_updated` or `reference_or_registry_updated` -> caller.
    - If declined: update status to `declined`, include rationale, emit `no_change_needed` -> caller.
    - If ambiguous or risky: route `user_review_needed` -> user.
 4. For direct BEO maintenance requests, follow the normal procedure.
@@ -38,7 +38,7 @@ When a repeated behavior becomes durable workflow doctrine, update the canonical
 ## Write
 
 - BEO doctrine, registry, schema, template, helper script, skill-card, or ADR changes within scope
-- `.beads/artifacts/<issue-id>/harness-proposal.yaml` status updates (applied/declined)
+- `.beads/artifacts/<issue-id>/harness-proposal.json` status updates (applied/declined)
 - User-review notes when the requested maintenance is ambiguous or risky
 
 ## Emit

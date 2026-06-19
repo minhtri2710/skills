@@ -10,7 +10,7 @@ beo-plan -> beo-validate -> beo-execute -> beo-review
 
 - **`br`**: Owns issue lifecycle, claim, dependencies, comments, ready queue, and closure.
 - **`bv`**: Optional read-only graph orientation (never required for delivery readiness).
-- **`TICKET.yaml`**: Declarative contract owning request, done criteria, approved scope, verification commands, and risk/mode contracts. Must not include claim/lifecycle fields.
+- **`TICKET.json`**: Declarative contract owning request, done criteria, approved scope, verification commands, and risk/mode contracts. Must not include claim/lifecycle fields.
 - **`state.json`**: Owns approval, execution, and review state. Must not mirror lifecycle or closure state except as evidence refs or review verdict.
 - **`runtime-events.jsonl`**: Optional append-only log of non-normal events. Must not record normal transition events.
 - **qmd/Obsidian**: Optional advisory memory. Cannot grant approval, execution permission, verdicts, closure, or Human Gate resolution.
@@ -23,8 +23,8 @@ beo-plan -> beo-validate -> beo-execute -> beo-review
 2. **Fresh-Read**: Fresh-read `br` status and artifacts at each phase entry.
 3. **Approval Gates**: Mutate product files only after `PASS_EXECUTE` is written to `state.json`.
 4. **Scope Containment**: Mutate only `scope.files.allow` and declared `scope.generated_outputs`.
-5. **Human Gates**: Broad globs require explicit resolved Human Gate authorization in `TICKET.yaml`.
-6. **Side-Effects**: Stateful or external side effects require `strict` mode contracts in `TICKET.yaml`.
+5. **Human Gates**: Broad globs require explicit resolved Human Gate authorization in `TICKET.json`.
+6. **Side-Effects**: Stateful or external side effects require `strict` mode contracts in `TICKET.json`.
 7. **Dirty Prestate**: Dirty approved files or generated outputs before validation fail closed.
 8. **No Expiry**: BEO assertions and approvals do not expire by elapsed time.
 9. **Closure Rule**: Only `beo-review` may close accepted work through `br` (strictly via `verdict_accept`).
@@ -96,15 +96,15 @@ Worktree isolation is an optional strict-mode feature for full filesystem isolat
 
 1. **Advisory only**: `beo-climate` never mutates delivery state, product files, or BEO control-plane files directly.
 2. **Findings become issues**: Scan results become Beads issues for human or `beo-author` triage.
-3. **Auto-heal allowlist**: Only safe, mechanical fix types may auto-route to `beo-author` via `climate_self_heal`. The allowlist is defined in `beo-climate/config.yaml`.
+3. **Auto-heal allowlist**: Only safe, mechanical fix types may auto-route to `beo-author` via `climate_self_heal`. The allowlist is defined in `beo-climate/config.json`.
 4. **No delivery authority**: `beo-climate` cannot grant `PASS_EXECUTE`, close issues, or alter review verdicts.
-5. **Cadence**: Default is weekly. Configurable in `beo-climate/config.yaml`. Runs as a background agent, not blocking delivery.
+5. **Cadence**: Default is weekly. Configurable in `beo-climate/config.json`. Runs as a background agent, not blocking delivery.
 
 ## 10. Harness Mutation Guardrails
 
 Delivery agents (beo-execute, beo-review) may propose BEO harness changes through a controlled handoff.
 
-1. **Proposal only**: Delivery agents write `harness-proposal.yaml`. They never mutate harness files directly.
+1. **Proposal only**: Delivery agents write `harness-proposal.json`. They never mutate harness files directly.
 2. **Scope restriction**: Proposals must target paths under `skills/beo/`. Product delivery scope proposals are rejected.
 3. **beo-author gate**: Only `beo-author` applies harness changes. It reviews the proposal, validates safety, and applies or declines.
 4. **Idempotency**: Multiple `harness_change_needed` emissions for the same proposal are idempotent. The proposal hash is tracked in state.
@@ -121,7 +121,7 @@ Delivery agents (beo-execute, beo-review) may propose BEO harness changes throug
 
 ## 12. Fast Track (Quick Mode Optimization)
 
-Fast track is an opt-in flag for `quick` mode beads only. When `TICKET.yaml` has `fast_track: true`:
+Fast track is an opt-in flag for `quick` mode beads only. When `TICKET.json` has `fast_track: true`:
 
 1. All `quick` mode invariants still apply (explicit file scope, at least one verification command).
 2. `beo-validate` writes `PASS_EXECUTE` as normal. Fast track does not skip validation.

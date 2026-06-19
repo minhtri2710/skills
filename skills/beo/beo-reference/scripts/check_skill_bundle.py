@@ -29,7 +29,7 @@ def _is_pseudo_ref(ref: str) -> bool:
         or "pipeline.condition_id" in ref
         or "safe_evidence_ref" in ref
         or ref.startswith(".beads/")
-        or ref in {"state.json", "TICKET.yaml", "PLAN.md", "runtime-events.jsonl", "AGENTS.md", "README.md", "utils.py", "unrelated.py", ".git/**", "**/.env", "yes/no", "user/operator", "None — no blocking user/operator decisions remain", "skills/beo/", "skills/beo/beo-reference/learnings/"}
+        or ref in {"state.json", "TICKET.json", "harness-proposal.json", "PLAN.md", "runtime-events.jsonl", "AGENTS.md", "README.md", "utils.py", "unrelated.py", ".git/**", "**/.env", "yes/no", "user/operator", "None — no blocking user/operator decisions remain", "skills/beo/", "skills/beo/beo-reference/learnings/"}
     )
 
 
