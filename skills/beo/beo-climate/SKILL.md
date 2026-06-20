@@ -54,6 +54,7 @@ Scan configuration lives in `config.json`:
 
 ## Never
 
+- Binding: `beo-reference -> registry/phase-contracts.json` `must_not[]` is canonical; prose below mirrors it (audit C8).
 - Do not mutate delivery state or product files.
 - Do not grant `PASS_EXECUTE`.
 - Do not close delivery issues.

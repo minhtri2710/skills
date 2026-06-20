@@ -32,6 +32,7 @@ description: "Save optional advisory BEO learning notes from explicit learning c
 
 ## Never
 
+- Binding: `beo-reference -> registry/phase-contracts.json` `must_not[]` is canonical; prose below mirrors it (audit C8).
 - Do not mutate delivery state.
 - Do not grant `PASS_EXECUTE`.
 - Do not alter review verdicts or close issues.

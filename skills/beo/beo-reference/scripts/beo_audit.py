@@ -2,9 +2,10 @@
 """BEO drift audit helper (advisory, read-only).
 
 Checks: C1 transition coverage, C2 reference existence, C3 must_not
-violations, C4 runtime-event kind consistency, C5 manifest consistency
-(--check-manifest only), C6 harness proposal target scope, C7 actor
-consistency. Emits markdown or JSON; never writes.
+violations (Write section), C4 runtime-event kind consistency, C5 manifest
+consistency (--check-manifest only), C6 harness proposal target scope, C7
+actor consistency, C8 must_not Never-section coverage. Emits markdown or
+JSON; never writes.
 """
 from __future__ import annotations
 import argparse
@@ -62,6 +63,7 @@ def _ref_root(root: Path) -> Path:
 
 def load_skill_cards(root: Path) -> dict[str, str]:
     """Return mapping of skill_name -> SKILL.md file content."""
+    root = Path(root)
     beo_root = root / "skills" / "beo"
     out: dict[str, str] = {}
     for name in SKILL_NAMES:
@@ -296,7 +298,7 @@ def check_reference_existence(root: Path, skill_cards: dict[str, str]) -> list[F
 
 # Approximate must_not -> Write-section-keyword mapping. If any of the
 # pipe-separated keywords appears in a skill's Write bullets, report
-# a violation. Entries with identical values are aliased at lookup.
+# a violation.
 _MUST_NOT_KEYWORDS: dict[str, str] = {
     "mutate_product_files": "product files|mutate product",
     "mutate_product_delivery_scope": "mutate product delivery scope|product delivery scope",
@@ -340,7 +342,7 @@ def check_must_not_violations(
         must_not_list = contract.get("must_not", []) or []
         write_blob = "\n".join(extract_write_bullets(skill_cards.get(skill_name, "")))
         for ban in must_not_list:
-            keywords = _MUST_NOT_KEYWORDS.get(ban, ban.replace("_", " "))
+            keywords = _MUST_NOT_KEYWORDS.get(ban, ban.replace("_", " ").lower())
             for keyword in keywords.split("|"):
                 if keyword and keyword in write_blob:
                     findings.append(Finding(
@@ -349,6 +351,57 @@ def check_must_not_violations(
                         f"skill card {skill_name}/SKILL.md Write section mentions banned authority '{ban}' (matched '{keyword}')",
                     ))
                     break
+    return findings
+
+
+def check_must_not_coverage(
+    phase_contracts: dict[str, Any],
+    skill_cards: dict[str, str],
+) -> list[Finding]:
+    """C8: every registry must_not token must be mirrored in the skill Never section.
+
+    Catches drift where phase-contracts.json adds a must_not constraint
+    that the skill card's Never prose does not reflect. Complements C3,
+    which checks the Write section for banned authorities. Direction:
+    each registry token -> at least one of its significant words appears
+    in the skill's ## Never body (prose only; the "- Binding:" cite line
+    is excluded so its vocabulary can't mask drift). Words of 3 chars or
+    fewer (connectives like 'and', 'not', 'the') are dropped to avoid
+    loose matches; a token with no significant words (e.g. all-≤3-char)
+    cannot be verified by stem matching and is flagged as unverifiable.
+    Matching is word-boundary anchored so 'store' in 'restore' does not
+    cover 'store_secrets'. Missing coverage is a drift warning.
+    """
+    findings: list[Finding] = []
+    for skill_name, contract in phase_contracts.get("skills", {}).items():
+        must_not_list = contract.get("must_not", []) or []
+        never_body = _section_body(skill_cards.get(skill_name, ""), "## Never").lower()
+        # Drop the canonical-source cite line ("- Binding: ...") so its own
+        # vocabulary (canonical, phase, audit, prose, ...) cannot falsely
+        # satisfy a token's stem coverage and mask real drift.
+        never_body = "\n".join(
+            ln for ln in never_body.splitlines()
+            if not ln.strip().startswith("- binding:")
+        )
+        for ban in must_not_list:
+            stems = [w for w in ban.lower().split("_") if len(w) > 3]
+            # Word-boundary anchored so 'store' in 'restore' or 'approve' in
+            # 'approved' does not falsely cover an unrelated token.
+            covered = bool(stems) and any(
+                re.search(r"\b" + re.escape(stem) + r"\b", never_body)
+                for stem in stems
+            )
+            if not covered:
+                note = (
+                    "(no significant stem words; unverifiable)" if not stems
+                    else "(phase-contracts.json drift risk)"
+                )
+                findings.append(Finding(
+                    "C8",
+                    SEVERITY_WARNING,
+                    f"skill card {skill_name}/SKILL.md Never section does not mirror "
+                    f"registry must_not token '{ban}' {note}",
+                ))
     return findings
 
 
@@ -585,6 +638,7 @@ def run_audit(root: Path, *, check_manifest: bool) -> tuple[list[Finding], list[
         ("C4: runtime-event kind consistency", check_runtime_event_kinds(registries["runtime-event.schema.json"], root)),
         ("C6: harness proposal target scope", check_harness_proposal_targets(root)),
         ("C7: actor consistency", check_actor_consistency(registries["runtime-event.schema.json"], root)),
+        ("C8: must_not coverage", check_must_not_coverage(registries["phase-contracts.json"], skill_cards)),
     )
     for label, result in plan:
         checks_run.append(label)

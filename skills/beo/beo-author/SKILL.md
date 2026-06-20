@@ -52,6 +52,7 @@ Non-normal `runtime-events.jsonl` events (advisory, optional): `score` (when `be
 
 ## Never
 
+- Binding: `beo-reference -> registry/phase-contracts.json` `must_not[]` is canonical; prose below mirrors it (audit C8).
 - Do not mutate product delivery scope.
 - Do not grant `PASS_EXECUTE`.
 - Do not execute or review product tickets.

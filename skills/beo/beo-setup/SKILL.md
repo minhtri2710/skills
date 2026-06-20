@@ -42,6 +42,7 @@ Any write requires explicit user authorization.
 
 ## Never
 
+- Binding: `beo-reference -> registry/phase-contracts.json` `must_not[]` is canonical; prose below mirrors it (audit C8).
 - Do not grant approval or review verdicts.
 - Do not mutate product files beyond the explicitly authorized repo `AGENTS.md` setup-control behavior.
 - Do not overwrite existing unmanaged `AGENTS.md` content; preserve content outside a replaced managed block, and never append a second BEO managed block.

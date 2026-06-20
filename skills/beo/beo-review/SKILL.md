@@ -70,6 +70,7 @@ Non-normal `runtime-events.jsonl` events (advisory, optional): `verification_run
 
 ## Never
 
+- Binding: `beo-reference -> registry/phase-contracts.json` `must_not[]` is canonical; prose below mirrors it (audit C8).
 - Do not mutate product files.
 - Do not grant `PASS_EXECUTE`.
 - Do not close non-accepted work.

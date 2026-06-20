@@ -73,6 +73,7 @@ Non-normal `runtime-events.jsonl` events (advisory, optional): `verification_run
 
 ## Never
 
+- Binding: `beo-reference -> registry/phase-contracts.json` `must_not[]` is canonical; prose below mirrors it (audit C8).
 - Do not approve, validate, or close.
 - Do not perform manual review (fast track auto-accept is an automated safety optimization, not a substitute for human or `beo-review` judgment).
 - Do not treat `bv` as lifecycle, claim, approval, or closure authority.

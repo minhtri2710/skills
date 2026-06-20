@@ -70,6 +70,27 @@ class AuditDriftDetectionTest(unittest.TestCase):
         findings = beo_audit.check_must_not_violations(phase_contracts, skill_cards)
         self.assertIsInstance(findings, list)
 
+    def test_c3_fallback_lowercases_unknown_token(self):
+        """A token absent from _MUST_NOT_KEYWORDS must still match case-insensitively.
+
+        The fallback derives keywords from the token via replace('_',' ').
+        write_blob is lowercased by extract_write_bullets, so the fallback
+        must also lowercase or uppercase tokens silently miss violations.
+        """
+        import beo_audit
+        phase_contracts = {
+            "skills": {
+                "beo-test": {"must_not": ["Modify_REGISTRY_FileS"]},
+            },
+        }
+        skill_cards = {
+            "beo-test": "# Test\n\n## Write\n\n- modify registry files here\n",
+        }
+        findings = beo_audit.check_must_not_violations(phase_contracts, skill_cards)
+        c3 = [f for f in findings if f.check_id == "C3"]
+        self.assertEqual(len(c3), 1)
+        self.assertIn("Modify_REGISTRY_FileS", c3[0].message)
+
     def test_extract_emit_identifiers_finds_known_conditions(self):
         """Extract emit identifiers should find conditions in a SKILL.md Emit section."""
         import beo_audit
@@ -95,6 +116,137 @@ class AuditDriftDetectionTest(unittest.TestCase):
         findings, checks = beo_audit.run_audit(root_str, check_manifest=False)
         self.assertIsInstance(findings, list)
         self.assertIsInstance(checks, list)
+
+
+class MustNotCoverageTest(unittest.TestCase):
+    """Tests for C8 — must_not Never-section coverage drift detection."""
+
+    def test_c8_current_repo_has_no_drift(self):
+        """Baseline guard: current repo Never sections cover all registry must_not tokens.
+
+        If this fails, either a registry must_not token was added without
+        updating the skill card Never prose (real drift), or the stem-word
+        matcher needs widening. Investigate each finding before adjusting.
+        """
+        import beo_audit
+        repo_root = Path(__file__).resolve().parents[1]
+        phase_contracts = beo_audit.load_json_registry(repo_root, "phase-contracts.json")
+        skill_cards = beo_audit.load_skill_cards(repo_root)
+        findings = beo_audit.check_must_not_coverage(phase_contracts, skill_cards)
+        self.assertEqual(
+            findings, [],
+            f"C8 drift detected: {[f.message for f in findings]}",
+        )
+
+    def test_c8_flags_token_missing_from_never_section(self):
+        """A registry must_not token absent from Never prose must produce a C8 warning."""
+        import beo_audit
+        phase_contracts = {
+            "skills": {
+                "beo-test": {
+                    "must_not": ["mutate_product_files", "grant_PASS_EXECUTE", "totally_new_constraint"],
+                },
+            },
+        }
+        skill_cards = {
+            "beo-test": "# Test\n\n## Never\n\n- Do not mutate product files.\n- Do not grant PASS_EXECUTE.\n",
+        }
+        findings = beo_audit.check_must_not_coverage(phase_contracts, skill_cards)
+        c8 = [f for f in findings if f.check_id == "C8"]
+        self.assertEqual(len(c8), 1)
+        self.assertEqual(c8[0].severity, beo_audit.SEVERITY_WARNING)
+        self.assertIn("totally_new_constraint", c8[0].message)
+
+    def test_c8_no_findings_when_tokens_covered_in_never(self):
+        """Tokens whose stems appear in Never prose must not produce findings."""
+        import beo_audit
+        phase_contracts = {
+            "skills": {
+                "beo-test": {
+                    "must_not": ["mutate_product_files", "close", "review"],
+                },
+            },
+        }
+        skill_cards = {
+            "beo-test": "# Test\n\n## Never\n\n- Do not mutate product files.\n- Do not review or close work.\n",
+        }
+        findings = beo_audit.check_must_not_coverage(phase_contracts, skill_cards)
+        self.assertEqual(findings, [])
+
+    def test_c8_ignores_canonical_cite_line_vocabulary(self):
+        """The Binding cite line's own words must not falsely cover a token.
+
+        The cite line ("- Binding: phase-contracts.json ... (audit C8)") sits
+        inside the Never section. Its words (canonical, phase, audit, prose)
+        must not satisfy stem coverage for an unrelated token, or real drift
+        would be masked.
+        """
+        import beo_audit
+        phase_contracts = {
+            "skills": {
+                "beo-test": {"must_not": ["audit_logs"]},
+            },
+        }
+        skill_cards = {
+            "beo-test": (
+                "# Test\n\n## Never\n\n"
+                "- Binding: `phase-contracts.json` `must_not[]` is canonical; "
+                "prose below mirrors it (audit C8).\n"
+                "- Do not mutate product files.\n"
+            ),
+        }
+        findings = beo_audit.check_must_not_coverage(phase_contracts, skill_cards)
+        c8 = [f for f in findings if f.check_id == "C8"]
+        self.assertEqual(len(c8), 1)
+        self.assertIn("audit_logs", c8[0].message)
+
+    def test_c8_word_boundary_not_substring(self):
+        """Substring inside an unrelated word must not satisfy coverage.
+
+        Stem 'store' must not be covered by prose containing 'restore';
+        stem 'approve' must not be covered by 'approved'. Without
+        word-boundary anchoring these would mask real drift.
+        """
+        import beo_audit
+        phase_contracts = {
+            "skills": {"beo-test": {"must_not": ["store_secrets", "approve"]}},
+        }
+        skill_cards = {
+            "beo-test": "# Test\n\n## Never\n\n- Do not restore data.\n- Only approved scope may be mutated.\n",
+        }
+        findings = beo_audit.check_must_not_coverage(phase_contracts, skill_cards)
+        c8 = [f for f in findings if f.check_id == "C8"]
+        self.assertEqual(len(c8), 2)
+        flagged = {f.message.split("'")[1] for f in c8}
+        self.assertEqual(flagged, {"store_secrets", "approve"})
+
+    def test_c8_flags_token_with_no_significant_stems(self):
+        """A token whose words are all <=3 chars must be flagged as unverifiable.
+
+        Stem matching can't verify such a token (e.g. 'act'), so it must
+        not be silently skipped — a human needs to see it. This closes
+        the blind spot where drift would go invisible.
+        """
+        import beo_audit
+        phase_contracts = {"skills": {"beo-test": {"must_not": ["act"]}}}
+        skill_cards = {"beo-test": "# Test\n\n## Never\n\n- do not act.\n"}
+        findings = beo_audit.check_must_not_coverage(phase_contracts, skill_cards)
+        c8 = [f for f in findings if f.check_id == "C8"]
+        self.assertEqual(len(c8), 1)
+        self.assertIn("act", c8[0].message)
+        self.assertIn("unverifiable", c8[0].message)
+
+    def test_c8_flags_when_never_section_absent(self):
+        """A skill with must_not but no Never section must flag every token."""
+        import beo_audit
+        phase_contracts = {
+            "skills": {
+                "beo-test": {"must_not": ["mutate_product_files", "close"]},
+            },
+        }
+        skill_cards = {"beo-test": "# Test\n\n## Write\n\n- nothing relevant\n"}
+        findings = beo_audit.check_must_not_coverage(phase_contracts, skill_cards)
+        self.assertEqual(len(findings), 2)
 
 
 class ManifestRegexTest(unittest.TestCase):
