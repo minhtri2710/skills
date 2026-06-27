@@ -49,6 +49,11 @@ description: "Implement one approved atomic BEO bead after PASS_EXECUTE. Use bv 
 12. Otherwise, emit `executed` -> `beo-review`. Append a `handoff` runtime event only before emitting
     `root_cause_diagnosis_needed` or `containment_review_needed`.
 13. Optional: if a prior `intervention` runtime event exists for the same `trace_id` or `story_id` (per `beo-reference -> registry/runtime-event.schema.json` intervention payload), include its evidence ref in `state.json.execution.evidence_refs` before emitting. This is a context-aggregation step, not a phase change.
+14. When dispatching execution work to a background or parallel subagent (operator-initiated, not beo-execute-internal):
+    - Append a `handoff` runtime event with the subagent id and target `trace_id` (or `story_id`) before any product mutation. This preserves audit trail and satisfies Hard Invariant #3 (`beo-reference -> references/kernel.md` §2.3) in spirit when the actor is parallelizing.
+    - Confirm the subagent model tier can read files before dispatch. Model tiers that fail on file reads (e.g. haiku-tier in observed failures) are not safe for code-touching subagents; use a tier that handles file I/O.
+    - Record the subagent id and intended scope in a Beads comment on the issue as a durable audit-trail row.
+    - Do not skip `state.json` phase updates; the operator (or a follow-up call to `beo_run.py`) still owns the `executing` -> `executed` -> `reviewed` sequence.
 
 ## Write
 

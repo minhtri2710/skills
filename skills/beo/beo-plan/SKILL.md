@@ -34,6 +34,13 @@ description: "Plan BEO work from Beads issues. Use for epic requirement intake, 
 10. Write the smallest current `version: 1` `TICKET.json` for quick, standard, or strict mode. A child bead whose ticket was pre-written under step 8 keeps that ticket; correct it in place if a `validation_failed` finding requires it, rather than authoring a new one.
 11. Initialize `state.json` in planned state.
 12. When emitting `user_review_needed`, follow the `user_review_needed` handoff format in `beo-reference -> references/user-handoff.md`.
+13. For an epic whose work is delivered as a set of child beads, include `br close <epic-id> --reason done --actor <owner>` as an explicit item in the parent `PLAN.md` done_criteria checklist. `verdict_accept` on a child does not cascade to the parent epic in `br`; the parent stays `open` until a separate explicit close. Plan for this from the start of decomposition, not as an implicit last step.
+14. When planning a structural refactoring that mixes dependency fixes, dead code removal, and access-control tightening (visibility, `pub` scope, export surface), sequence the child beads as **fix -> subtract -> restrict**:
+    - **fix** dependency violations first (e.g. reverse imports, module boundary leaks).
+    - **subtract** dead artifacts next, with each removal operating on the minimal post-fix surface.
+    - **restrict** access last, against the smallest remaining item set.
+    Reversing any pair creates rework; tightening access before removing dead code means undoing access changes on items that were about to be deleted. Apply this ordering even for non-Rust refactors; the principle generalizes.
+15. When discovery (grep, AST, annotation scan) inventories items as candidates for removal by some annotation (`#[allow(dead_code)]`, `// TODO: remove`, `@deprecated`, `@SuppressWarnings`), record each item as `annotated - verify before removing`, not as `dead code to remove`. Annotations are author-time claims, not compiler guarantees; they can be stale. For each candidate, verify the claim independently (remove the annotation and recompile, grep for callers, check that the removal condition is currently met) before including the removal in scope. This is a planning-time check, not an execution-time check.
 
 ## Write
 

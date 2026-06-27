@@ -36,7 +36,11 @@ This file is the machine-and-human-readable manifest. `beo_audit.py --check-mani
 | `beo_score_trace.py` | `--issue <id> [--root .]` | Scoring | json | 0, 1, 2 |
 | `beo_setup.py` | `beo_setup.py [--check]` | Setup | json | 0, 1, 2 |
 | `beo_state.py` | imported | (state) | none (library) | n/a |
+| `beo_state_io.py` | imported | (state io) | none (library) | n/a |
+| `beo_state_update.py` | imported | (state update) | none (library) | n/a |
+| `beo_state_validate.py` | imported | Validation | none (library) | n/a |
 | `beo_ticket.py` | imported | Validation | none (library) | n/a |
+| `beo_ticket_migrate.py` | `beo_ticket_migrate.py [--root PATH] [--dry-run] [--delete-old]` | Migration | json | 0, 1 |
 | `beo_verify.py` | `run --issue <id> [--root .]` or `--all` | Verification | json | 0, 1, 2 |
 | `beo_worktree.py` | subcommand-driven | Isolation | json | 0, 1, 2 |
 | `check_skill_bundle.py` | `check_skill_bundle.py` | Validation | markdown | 0, 1 |

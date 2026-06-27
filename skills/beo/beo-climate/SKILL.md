@@ -61,3 +61,24 @@ Scan configuration lives in `config.json`:
 - Do not alter review verdicts.
 - Do not modify skill cards or registries directly (route to `beo-author` instead).
 - Do not auto-apply fixes outside the `auto_heal_allowlist`.
+
+## C9: stale learning evidence_refs
+
+`beo_audit.py` C9 scans `<BEO_OBSIDIAN_VAULT>/beo-learnings/*.md` (or `~/second-brain` by default) for OKF v0.1 notes whose `evidence_refs` entries no longer resolve. C9 is opt-in: it is a no-op when no vault is configured or `beo-learnings/` is missing.
+
+- **Source:** obsidian vault, not the BEO control plane. The check crosses scope boundaries on purpose: a learning note is durable memory of past work, and its evidence must point at something that still exists.
+- **Severity:** always `warning`. Never critical, never auto-healed. A stale evidence_ref is a refresh signal, not a contract violation.
+- **Resolution strategy:** try resolving each ref as (1) absolute or `~`-relative, (2) relative to the vault root, (3) relative to the repo root. The first hit wins; if none hit, the ref is stale.
+- **Reference implementation:** `/ce-compound-refresh` (EveryInc/compound-engineering-plugin). The plugin reviews stale learnings against current code; C9 surfaces the candidates that need review.
+- **Operator action:** route findings to `beo-author` for refresh, supersede, or retire. Do NOT add C9 to `config.json auto_heal_allowlist`; the decision to refresh a learning is content, not mechanics.
+
+Many real-world C9 findings are "evidence moved" or "evidence is a narrative identifier, not a file path" (e.g. subagent ids, commit SHAs, issue titles). Triage accordingly: rename the ref, drop it, or note that it is a text label rather than a path.
+
+## Future metric sources (advisory, not yet wired)
+
+The audit is currently scoped to in-repo control-plane drift (C1–C8) and obsidian learnings (C9). Two external metric sources are not yet wired but are candidates for future checks. Operators integrating them should treat them as read-only advisory data; the audit never writes to them.
+
+- `bv --robot-burndown <sprint>` (`Dicklesworthstone/beads_viewer`, v0.17.0+): sprint burndown data, scope changes, at-risk items. Requires an active sprint. Useful for a future C10: "sprint drift" check that surfaces issues whose state is stalled despite a `PASS_EXECUTE`.
+- `bv --robot-alerts` (`bv` v0.17.0+): stale issues, blocking cascades, priority mismatches. The canonical invocation is `bv --robot-alerts --severity critical --format json`. Useful as a complementary signal to the in-repo C1–C8 checks when a project has both a control plane and an active Beads issue tree.
+
+Both require the project to be initialized with `br init` (or `bd init` for the Go port) and have a `.beads/` directory. They are not part of the C1–C8 contract; adding them is a beo-author scope change that requires updating `phase-contracts.json` to expose the metric channel.

@@ -4,12 +4,14 @@
 Checks: C1 transition coverage, C2 reference existence, C3 must_not
 violations (Write section), C4 runtime-event kind consistency, C5 manifest
 consistency (--check-manifest only), C6 harness proposal target scope, C7
-actor consistency, C8 must_not Never-section coverage. Emits markdown or
+actor consistency, C8 must_not Never-section coverage, C9 stale learning
+evidence_refs (advisory, opt-in via BEO_OBSIDIAN_VAULT). Emits markdown or
 JSON; never writes.
 """
 from __future__ import annotations
 import argparse
 import json
+import os
 import re
 import sys
 from dataclasses import dataclass
@@ -512,6 +514,126 @@ def check_manifest_consistency(root: Path) -> list[Finding]:
     return findings
 
 
+# C9: stale learning evidence_refs. Operates on the BEO Obsidian vault
+# (BEO_OBSIDIAN_VAULT, default ~/second-brain). For each OKF v0.1 note
+# in <vault>/beo-learnings/, parse frontmatter and verify that each
+# evidence_refs entry still resolves. A stale ref points at a file that
+# has moved, been renamed, or been deleted, and indicates the learning
+# note needs to be refreshed (per /ce-compound-refresh semantics).
+#
+# C9 is opt-in: if no vault is configured or the beo-learnings directory
+# is missing, the check returns no findings (silent no-op). C9 findings
+# are always SEVERITY_WARNING and never auto-healed; refreshed learnings
+# are a content decision, not a mechanical fix.
+_FRONT_KV_RE = re.compile(r"^([A-Za-z_][A-Za-z0-9_]*):\s*(.*)$")
+
+
+def _parse_okf_frontmatter(content: str) -> dict[str, Any]:
+    """Parse minimal YAML frontmatter (one level, OKF v0.1 shape).
+
+    Deliberately narrow: only flat key:value and a single list-of-strings
+    shape. evidence_refs and tags are common list fields; everything
+    else is treated as a scalar string. Returns {} when no frontmatter
+    is present or it cannot be parsed.
+    """
+    if not content.startswith("---\n"):
+        return {}
+    end = content.find("\n---\n", 4)
+    if end < 0:
+        return {}
+    block = content[4:end]
+    out: dict[str, Any] = {}
+    pending_list: str | None = None
+    for line in block.splitlines():
+        if line.startswith("  - "):
+            if pending_list:
+                val = line[4:].strip().strip('"').strip("'")
+                bucket = out.get(pending_list)
+                if isinstance(bucket, list):
+                    bucket.append(val)
+            continue
+        m = _FRONT_KV_RE.match(line)
+        if not m:
+            pending_list = None
+            continue
+        key, raw = m.group(1), m.group(2).strip()
+        if raw == "" or raw == "|" or raw == ">":
+            pending_list = key
+            out[key] = []
+        elif raw.startswith("[") and raw.endswith("]"):
+            inner = raw[1:-1]
+            items = [s.strip().strip('"').strip("'") for s in inner.split(",") if s.strip()]
+            out[key] = items
+            pending_list = None
+        else:
+            out[key] = raw.strip('"').strip("'")
+            pending_list = None
+    return out
+
+
+def _resolve_learning_ref(ref: str, vault: Path, repo: Path) -> Path | None:
+    """Resolve a learning evidence_ref to an existing path, or None.
+
+    Strategies, in order:
+      1. Absolute or ~-relative: expand and check.
+      2. Relative: try vault-rooted first, then repo-rooted.
+    """
+    if ref.startswith("/") or ref.startswith("~"):
+        try:
+            p = Path(ref).expanduser().resolve()
+        except OSError:
+            return None
+        return p if p.exists() else None
+    for base in (vault, repo):
+        try:
+            candidate = (base / ref).resolve()
+        except OSError:
+            continue
+        try:
+            if candidate.exists():
+                return candidate
+        except OSError:
+            continue
+    return None
+
+
+def check_stale_learning_evidence_refs(root: Path) -> list[Finding]:
+    """C9: scan BEO learning notes for evidence_refs that no longer resolve.
+
+    Source: <BEO_OBSIDIAN_VAULT>/beo-learnings/*.md (or ~/second-brain
+    by default). For each note, parse OKF v0.1 frontmatter; for each
+    evidence_refs entry, attempt to resolve. Findings are advisory;
+    operators (or `beo-author` after triage) decide whether to refresh,
+    supersede, or retire the note.
+    """
+    findings: list[Finding] = []
+    raw_vault = os.environ.get("BEO_OBSIDIAN_VAULT")
+    vault = Path(raw_vault).expanduser().resolve() if raw_vault else (Path.home() / "second-brain").resolve()
+    learnings_dir = vault / "beo-learnings"
+    if not learnings_dir.is_dir():
+        return findings
+    repo = Path(root).resolve()
+    for note_path in sorted(learnings_dir.glob("*.md")):
+        try:
+            content = note_path.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        frontmatter = _parse_okf_frontmatter(content)
+        evidence_refs = frontmatter.get("evidence_refs", [])
+        if not isinstance(evidence_refs, list):
+            continue
+        for ref in evidence_refs:
+            if not isinstance(ref, str) or not ref.strip():
+                continue
+            if _resolve_learning_ref(ref, vault, repo) is None:
+                findings.append(Finding(
+                    "C9",
+                    SEVERITY_WARNING,
+                    f"learning '{note_path.name}' has unresolvable evidence_ref: {ref}",
+                ))
+    return findings
+
+
 def check_harness_proposal_targets(root: Path) -> list[Finding]:
     """Scan .beads/artifacts/*/harness-proposal.json for target scope violations.
 
@@ -639,6 +761,7 @@ def run_audit(root: Path, *, check_manifest: bool) -> tuple[list[Finding], list[
         ("C6: harness proposal target scope", check_harness_proposal_targets(root)),
         ("C7: actor consistency", check_actor_consistency(registries["runtime-event.schema.json"], root)),
         ("C8: must_not coverage", check_must_not_coverage(registries["phase-contracts.json"], skill_cards)),
+        ("C9: stale learning evidence_refs", check_stale_learning_evidence_refs(root)),
     )
     for label, result in plan:
         checks_run.append(label)
