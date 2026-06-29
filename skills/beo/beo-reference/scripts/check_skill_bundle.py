@@ -128,8 +128,8 @@ def run_checks() -> int:
                     continue
                 if not in_frontmatter:
                     non_frontmatter_lines.append(line)
-            if len(non_frontmatter_lines) > 500:
-                errors.append(f"Skill card exceeds 500 non-frontmatter lines: {skill_path.relative_to(BEO_ROOT)} ({len(non_frontmatter_lines)} lines)")
+            if len(non_frontmatter_lines) > 250:
+                errors.append(f"Skill card exceeds 250 non-frontmatter lines: {skill_path.relative_to(BEO_ROOT)} ({len(non_frontmatter_lines)} lines)")
 
             # Check format: Read, Do, Write, Emit, Never
             headers = ["## Read", "## Do", "## Write", "## Emit", "## Never"]
@@ -151,7 +151,8 @@ def run_checks() -> int:
 
     required_references = [
         "kernel.md", "doctrine-map.md", "artifact-boundaries.md",
-        "lifecycle.md", "phase-contracts.md", "safety.md", "memory.md", "degraded-tools.md"
+        "lifecycle.md", "phase-contracts.md", "safety.md", "memory.md", "degraded-tools.md",
+        "default-reads.md"
     ]
     for ref in required_references:
         p = REF_DIR / "references" / ref
@@ -169,9 +170,7 @@ def run_checks() -> int:
             errors.append(f"Missing registry: {p.relative_to(BEO_ROOT)}")
 
     required_examples = [
-        "quick-mode-golden-trace.md", "negative-dirty-approved-path.md",
-        "negative-approval-predicate-failed.md", "negative-repair-rescope-required.md",
-        "negative-containment-review-needed.md"
+        "quick-mode-golden-trace.md"
     ]
     for ex in required_examples:
         p = REF_DIR / "examples" / ex

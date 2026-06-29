@@ -14,10 +14,8 @@ When a repeated behavior becomes durable workflow doctrine, update the canonical
 
 ## Read
 
-- The explicit BEO maintenance request or harness change proposal
-- The affected BEO file(s)
-- `.beads/artifacts/<issue-id>/harness-proposal.json` when responding to `harness_change_needed`
-- `beo-reference -> registry/harness-proposal.schema.json` before validating a harness proposal
+- The BEO maintenance request (or harness change proposal) and the affected BEO file(s)
+- `.beads/artifacts/<issue-id>/harness-proposal.json` (when responding to `harness_change_needed`) and `beo-reference -> registry/harness-proposal.schema.json` (before validating)
 - Narrow `beo-reference` docs/registries that own the affected rule; start with `beo-reference -> references/doctrine-map.md` when authority is unclear
 
 ## Do
@@ -52,7 +50,7 @@ Non-normal `runtime-events.jsonl` events (advisory, optional): `score` (when `be
 
 ## Never
 
-- Binding: `beo-reference -> registry/phase-contracts.json` `must_not[]` is canonical; prose below mirrors it (audit C8).
+- See `beo-reference -> registry/phase-contracts.json` `must_not[]`; audit C8 enforces drift.
 - Do not mutate product delivery scope.
 - Do not grant `PASS_EXECUTE`.
 - Do not execute or review product tickets.

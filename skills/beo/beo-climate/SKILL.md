@@ -54,7 +54,7 @@ Scan configuration lives in `config.json`:
 
 ## Never
 
-- Binding: `beo-reference -> registry/phase-contracts.json` `must_not[]` is canonical; prose below mirrors it (audit C8).
+- See `beo-reference -> registry/phase-contracts.json` `must_not[]`; audit C8 enforces drift.
 - Do not mutate delivery state or product files.
 - Do not grant `PASS_EXECUTE`.
 - Do not close delivery issues.
@@ -76,9 +76,4 @@ Many real-world C9 findings are "evidence moved" or "evidence is a narrative ide
 
 ## Future metric sources (advisory, not yet wired)
 
-The audit is currently scoped to in-repo control-plane drift (C1–C8) and obsidian learnings (C9). Two external metric sources are not yet wired but are candidates for future checks. Operators integrating them should treat them as read-only advisory data; the audit never writes to them.
-
-- `bv --robot-burndown <sprint>` (`Dicklesworthstone/beads_viewer`, v0.17.0+): sprint burndown data, scope changes, at-risk items. Requires an active sprint. Useful for a future C10: "sprint drift" check that surfaces issues whose state is stalled despite a `PASS_EXECUTE`.
-- `bv --robot-alerts` (`bv` v0.17.0+): stale issues, blocking cascades, priority mismatches. The canonical invocation is `bv --robot-alerts --severity critical --format json`. Useful as a complementary signal to the in-repo C1–C8 checks when a project has both a control plane and an active Beads issue tree.
-
-Both require the project to be initialized with `br init` (or `bd init` for the Go port) and have a `.beads/` directory. They are not part of the C1–C8 contract; adding them is a beo-author scope change that requires updating `phase-contracts.json` to expose the metric channel.
+Two external metric sources are not yet wired: `bv --robot-burndown <sprint>` (sprint drift, future C10) and `bv --robot-alerts --severity critical --format json` (stale issues, blocking cascades, priority mismatches). Both are read-only advisory, require `br init` and an active `.beads/` directory, and need phase-contracts.json updates via beo-author before adoption.

@@ -42,7 +42,7 @@ Returns: `caller_skill`, `caller_route_context`, `root_cause_status` (`proven | 
 
 ## Never
 
-- Binding: `beo-reference -> registry/phase-contracts.json` `must_not[]` is canonical; prose below mirrors it (audit C8).
+- See `beo-reference -> registry/phase-contracts.json` `must_not[]`; audit C8 enforces drift.
 - Do not repair code.
 - Do not grant approval.
 - Do not issue review verdicts.

@@ -6,38 +6,30 @@ description: "Validate BEO PLAN.md readiness or grant/deny PASS_EXECUTE for atom
 
 ## Read
 
-- `br show <issue-id> --json`
+- `beo-reference -> references/default-reads.md`
 - `.beads/artifacts/<issue-id>/PLAN.md` when validating epic/feature decomposition readiness
-- `.beads/artifacts/<issue-id>/TICKET.json` when validating an atomic ticket
-- `.beads/artifacts/<issue-id>/state.json` when present
-- `.beads/artifacts/<issue-id>/runtime-events.jsonl` when present
-- `.beads/beo-reservations.jsonl` and `beo-reference -> registry/reservation-schema.json` for strict mode
-- `beo-reference -> scripts/beo_reservation.py` before creating, superseding, or checking strict reservations
-- `beo-reference -> scripts/beo_worktree.py` when strict ticket has `worktree_isolation: true`
 - `beo-reference -> registry/ticket.schema.json` for ticket shape
 - `beo-reference -> registry/approval-envelope.json` before writing `PASS_EXECUTE`
 - `beo-reference -> registry/profiles.json` for protected paths and broad globs
-- `beo-reference -> registry/runtime-event.schema.json` before appending runtime events
-- `beo-reference -> registry/pipeline.json` when choosing the emitted route
+- `beo-reference -> registry/reservation-schema.json` and `.beads/beo-reservations.jsonl` for strict mode
+- `beo-reference -> scripts/beo_reservation.py` before creating, superseding, or checking strict reservations
+- `beo-reference -> scripts/beo_worktree.py` when strict ticket has `worktree_isolation: true`
 - `beo-reference -> templates/PLAN.template.md` when validating epic/feature decomposition readiness
 
 ## Do
 
 1. Fresh-read `br`, ticket/plan, state when present, runtime events when present, and phase-relevant registries named above.
-2. For epic/feature plan validation: validate `.beads/artifacts/<issue-id>/PLAN.md` against `beo-reference/templates/PLAN.template.md`. Confirm it references the parent bead, states goals and non-goals, gives overall completion criteria, records assumptions, records brainstorm/options considered for non-trivial planning with one recommended selected direction and rationale unless a blocking user/operator-owned decision prevents safe convergence, aligns the decision summary with that recommendation, defines scope boundaries, gives a verification strategy, and proposes atomic child beads as detailed markdown task descriptions with self-contained implementation context, done criteria, expected scope, verification guidance, dependencies, suggested mode/risk, and atomicity rationale sufficient to author child Beads and quick, standard, or strict child tickets without rereading the parent `PLAN.md`. Do not require parent-plan task-completion checkboxes; decomposition tracking belongs to child Beads and dependency edges. Emit `plan_validated`, `validation_failed`, or `user_review_needed`; then stop. Never write `PASS_EXECUTE` for parent plans, and never emit `plan_validated` while a blocking user/operator-owned open decision remains.
+2. For epic/feature plan validation: validate `.beads/artifacts/<issue-id>/PLAN.md` against `beo-reference/templates/PLAN.template.md`. Confirm it references the parent bead, states goals and non-goals, gives overall completion criteria, records assumptions, records brainstorm/options considered for non-trivial planning with one recommended selected direction and rationale that aligns the decision summary with that recommendation unless a blocking user/operator-owned decision prevents safe convergence, defines scope boundaries, gives a verification strategy, and proposes atomic child beads as detailed markdown task descriptions with self-contained implementation context, done criteria, expected scope, verification guidance, dependencies, suggested mode/risk, and atomicity rationale sufficient to author child Beads and quick, standard, or strict child tickets without rereading the parent `PLAN.md`. Do not require parent-plan task-completion checkboxes; decomposition tracking belongs to child Beads and dependency edges. Emit `plan_validated`, `validation_failed`, or `user_review_needed`; then stop. Never write `PASS_EXECUTE` for parent plans, and never emit `plan_validated` while a blocking user/operator-owned open decision remains.
 3. When plan validation fails, report missing sections or ambiguous atomic boundaries as findings. Do not patch the plan directly. Route `validation_failed -> beo-plan` unless the missing decision requires user authority, in which case route `user_review_needed -> user` with compact handoff details.
-4. For atomic ticket validation: confirm the bead is claimed, open, atomic, and unchanged enough for the ticket.
-5. Validate current `version: 1` ticket fields and mode requirements.
-6. Reject dirty approved files, dirty declared generated outputs, unsafe paths, and unauthorized broad globs.
-7. For strict-mode tickets whose `request`, `done_criteria`, or `strict.reason` describes a destructive schema change (drop enum, drop column, drop table, destructive migration, irreversible data shape), require a runnable pre-check script as a safety deliverable in addition to any Human Gate. Reject and route `validation_failed -> beo-plan` if any of the following is missing:
+4. For atomic ticket validation: confirm the bead is claimed, open, atomic, and unchanged enough for the ticket; validate current `version: 1` ticket fields and mode requirements; reject dirty approved files, dirty declared generated outputs, unsafe paths, and unauthorized broad globs.
+5. For strict-mode tickets whose `request`, `done_criteria`, or `strict.reason` describes a destructive schema change (drop enum, drop column, drop table, destructive migration, irreversible data shape), require a runnable pre-check script as a safety deliverable in addition to any Human Gate. Reject and route `validation_failed -> beo-plan` if any of the following is missing:
    - A `scope.files.allow` entry for a pre-check script (e.g. `scripts/<descriptor>-precheck.ts`, `scripts/verify-<descriptor>.ts`, or `scripts/verify-<descriptor>.sql`).
    - A `done_criteria` item stating the pre-check script's expected exit code.
    - A `human_gates` entry for the operator action gated on pre-check pass.
-   The pre-check script is the runtime safety deliverable; the human gate is operator authorization to apply.
-8. For strict mode, create or supersede the current actor's BEO reservation before computing approval validity predicates.
-9. If strict ticket has `worktree_isolation: true`, create a git worktree via `beo-reference -> scripts/beo_worktree.py create --issue <issue-id> --actor <actor>` before writing `PASS_EXECUTE`. The worktree provides full filesystem isolation for execution. Reject if git tree is dirty.
-10. Write `PASS_EXECUTE` or a failed/blocked approval state.
-11. When emitting `user_review_needed`, follow the `user_review_needed` handoff format in `beo-reference -> references/user-handoff.md`.
+   The pre-check script is the runtime safety deliverable; the human gate is operator authorization to apply. Done when: all 3 sub-conditions are present, OR the ticket is rejected via `validation_failed -> beo-plan`.
+6. For strict mode, create or supersede the current actor's BEO reservation before computing approval validity predicates. If strict ticket has `worktree_isolation: true`, create a git worktree via `beo-reference -> scripts/beo_worktree.py create --issue <issue-id> --actor <actor>` before writing `PASS_EXECUTE`. The worktree provides full filesystem isolation for execution. Reject if git tree is dirty.
+7. Write `PASS_EXECUTE` or a failed/blocked approval state.
+8. When emitting `user_review_needed`, follow the `user_review_needed` handoff format in `beo-reference -> references/user-handoff.md`.
 
 ## Write
 
@@ -58,7 +50,7 @@ Non-normal `runtime-events.jsonl` events (advisory, optional): `verification_run
 
 ## Never
 
-- Binding: `beo-reference -> registry/phase-contracts.json` `must_not[]` is canonical; prose below mirrors it (audit C8).
+- See `beo-reference -> registry/phase-contracts.json` `must_not[]`; audit C8 enforces drift.
 - Do not patch the plan.
 - Do not mutate product files.
 - Do not execute verification commands that change product state.

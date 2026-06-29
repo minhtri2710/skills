@@ -32,7 +32,7 @@ description: "Save optional advisory BEO learning notes from explicit learning c
 
 ## Never
 
-- Binding: `beo-reference -> registry/phase-contracts.json` `must_not[]` is canonical; prose below mirrors it (audit C8).
+- See `beo-reference -> registry/phase-contracts.json` `must_not[]`; audit C8 enforces drift.
 - Do not mutate delivery state.
 - Do not grant `PASS_EXECUTE`.
 - Do not alter review verdicts or close issues.
@@ -41,29 +41,17 @@ description: "Save optional advisory BEO learning notes from explicit learning c
 
 ## Skillify mapping (advisory)
 
-The OKF v0.1 note shape covers the "what" of a learning (type, basis, evidence). Garry Tan's `Skillify` 10-step checklist (`Clippings/How-to-really-stop-your-agents-from-making-the-same-mistakes.md` `#80a487`) is the broader promotion workflow that turns an ad-hoc failure into a permanent, structurally-unreachable bug. The OKF note participates in steps 1, 2, and 8 of that workflow; the rest live outside the note itself.
+The 10-step Skillify promotion workflow is broader than BEO. Of the 10 steps, BEO scope covers 1 (skill card), 2 (deterministic code), and 10 (brain filing); the other 7 steps (3-9: tests, evals, resolver trigger, DRY audit, E2E smoke) live in the operator's product repo and the broader `writing-great-skills` skill.
 
-| Skillify step | Where it lives | BEO coverage |
+| Scope | Steps | BEO coverage |
 | --- | --- | --- |
-| 1. `SKILL.md` (the contract) | This skill card, or a BEO skill being authored | OKF frontmatter `type: learning`, `basis_ref` |
-| 2. Deterministic code (`scripts/*.mjs`) | The promoted fix in the product repo | OKF `evidence_refs` (when the entry is a script path) |
-| 3. Unit tests | Product repo test tree | out of OKF scope; track via `tags: [unittest]` |
-| 4. Integration tests | Product repo test tree | out of OKF scope; track via `tags: [integration-test]` |
-| 5. LLM evals | Eval suite in the product repo | out of OKF scope; track via `tags: [llm-eval]` |
-| 6. Resolver trigger (entry in `AGENTS.md`) | Operator's `AGENTS.md` or `CLAUDE.md` | out of OKF scope; record in body, not frontmatter |
-| 7. Resolver eval (verify the trigger routes) | Run by the operator, not by `beo-learn` | out of OKF scope |
-| 8. Resolvable + DRY audit | Promotion review before publish | out of OKF scope; track via `case_type: authoring_candidate` |
-| 9. E2E smoke test | Product repo CI | out of OKF scope |
-| 10. Brain filing rules | Obsidian layout + critical-patterns rollup | OKF `tags`, `case_type`; rolled up in `beo-learnings/critical-patterns.md` |
+| BEO scope | 1, 2, 10 | OKF `type: learning` frontmatter, `evidence_refs` for script paths, `tags`/`case_type` for brain filing |
+| Operator scope | 3-9 | Tests, evals, resolver trigger, DRY audit, E2E smoke — track via `tags` and `case_type: authoring_candidate` |
 
-The 10-step checklist is the promotion bar; the OKF note is the artifact. A note that does not have a path to step 2 (deterministic code) is still valid as an advisory observation, but it has not yet been "skillified" in the structural sense.
+The 10-step checklist is the promotion bar; the OKF note is the artifact. A note without a path to step 2 (deterministic code) is still valid as an advisory observation, but is not yet "skillified" in the structural sense.
 
 ### Optional BEO-specific frontmatter
 
-These fields are BEO extensions, not OKF v0.1 fields. They are optional. The parser in `beo_audit.py C9` recognizes them but they do not affect OKF compliance.
-
-- `skillify_state: <incomplete|partial|complete>` — current state of the 10-step promotion. `incomplete` means only the note exists. `partial` means some steps are done. `complete` means all ten steps have evidence.
-- `skillify_steps: [1, 2, 3]` — list of step numbers that have evidence. The interpretation is per-step and recorded in the note body, not the frontmatter.
-- `refresh_after: 2026-09-01` — optional ISO date after which the note should be reviewed. `beo_audit.py` (C9) does not enforce this date but the operator's `beo-climate` cadence scan can surface it.
-
-A note with no `skillify_*` fields is treated as `incomplete` by default; this is non-blocking. The fields exist so that promotion is tracked, not so that it is gated.
+- `skillify_state: <incomplete|partial|complete>` — current state of the 10-step promotion. Default: `incomplete` if the field is missing; non-blocking.
+- `skillify_steps: [1, 2, 3]` — list of step numbers that have evidence. Per-step interpretation lives in the note body.
+- `refresh_after: 2026-09-01` — optional ISO date; surfaced by `beo-climate` cadence scan, not enforced by `beo_audit.py` C9.

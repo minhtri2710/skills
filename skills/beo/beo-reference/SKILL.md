@@ -34,7 +34,7 @@ Canonical lookup router: `references/doctrine-map.md`. Helper index: `references
 
 ## Never
 
-- Binding: `beo-reference -> registry/phase-contracts.json` `must_not[]` is canonical; prose below mirrors it (audit C8).
+- See `beo-reference -> registry/phase-contracts.json` `must_not[]`; audit C8 enforces drift.
 - Do not mutate product files, BEO artifacts, registries, memory, qmd indexes, or Beads state.
 - Do not claim issues.
 - Do not grant `PASS_EXECUTE`.
