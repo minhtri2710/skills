@@ -427,5 +427,66 @@ class DuplicateOwnerRulesTest(unittest.TestCase):
             self.assertIn("duplicate", c4[0].message)
 
 
+class StaleLearningEvidenceRefTest(unittest.TestCase):
+    """Tests for C9 — learning evidence_ref resolution, including dual-root."""
+
+    def test_resolve_learning_ref_accepts_list_of_bases(self):
+        """_resolve_learning_ref must accept a list of bases (vault + repos).
+
+        Regression guard for the dual-root fix: the signature changed from
+        (vault, repo) to (bases) so a single C9 run can resolve both skills/
+        refs and product .beads/src refs.
+        """
+        import beo_audit
+        with tempfile.TemporaryDirectory() as tmp:
+            base_a = Path(tmp) / "a"
+            base_b = Path(tmp) / "b"
+            base_a.mkdir()
+            base_b.mkdir()
+            (base_b / "target.txt").write_text("x", encoding="utf-8")
+            # ref only exists under base_b, with base_a searched first
+            resolved = beo_audit._resolve_learning_ref("target.txt", [base_a, base_b])
+            self.assertIsNotNone(resolved)
+            self.assertEqual(resolved, (base_b / "target.txt").resolve())
+            # ref present under neither base
+            self.assertIsNone(beo_audit._resolve_learning_ref("missing.txt", [base_a, base_b]))
+
+    def test_c9_extra_repos_resolve_product_refs_from_skills_root(self):
+        """C9 with extra_repos resolves a product-repo ref while --root is elsewhere.
+
+        Mirrors the real dual-root case: skills repo is --root, but a learning
+        note cites a product path like .beads/issues.jsonl. Without extra_repos
+        the ref is a false positive; with it, C9 stays quiet.
+        """
+        import beo_audit
+        with tempfile.TemporaryDirectory() as skills_tmp, tempfile.TemporaryDirectory() as prod_tmp:
+            skills_root = Path(skills_tmp)
+            prod_root = Path(prod_tmp)
+            # Simulate a product-repo evidence file absent from the skills root
+            (prod_root / ".beads").mkdir()
+            (prod_root / ".beads" / "issues.jsonl").write_text("[]", encoding="utf-8")
+            ref = ".beads/issues.jsonl"
+            bases_default = [skills_root]  # only --root
+            bases_dual = [skills_root, prod_root]  # --root + --learning-repo
+            self.assertIsNone(
+                beo_audit._resolve_learning_ref(ref, bases_default),
+                "ref must NOT resolve from skills root alone (dual-root gap)",
+            )
+            self.assertIsNotNone(
+                beo_audit._resolve_learning_ref(ref, bases_dual),
+                "ref MUST resolve once the product repo is an extra base",
+            )
+
+    def test_c9_extra_repos_dedupe_and_default_none_is_backward_compatible(self):
+        """extra_repos=None must behave as the empty list (backward compat)."""
+        import beo_audit
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            # Should not raise and should return a list (no learnings dir here)
+            findings_none = beo_audit.check_stale_learning_evidence_refs(root, None)
+            findings_empty = beo_audit.check_stale_learning_evidence_refs(root, [])
+            self.assertEqual(findings_none, findings_empty)
+
+
 if __name__ == "__main__":
     unittest.main()

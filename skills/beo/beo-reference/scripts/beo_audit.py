@@ -571,12 +571,15 @@ def _parse_okf_frontmatter(content: str) -> dict[str, Any]:
     return out
 
 
-def _resolve_learning_ref(ref: str, vault: Path, repo: Path) -> Path | None:
+def _resolve_learning_ref(ref: str, bases: list[Path]) -> Path | None:
     """Resolve a learning evidence_ref to an existing path, or None.
 
     Strategies, in order:
       1. Absolute or ~-relative: expand and check.
-      2. Relative: try vault-rooted first, then repo-rooted.
+      2. Relative: try each base root in order. Bases are searched
+         vault-first, then the skills repo (--root), then any extra
+         product repos (--learning-repo); a single C9 run can thus
+         resolve both skills/ refs and product .beads/src refs.
     """
     if ref.startswith("/") or ref.startswith("~"):
         try:
@@ -584,7 +587,7 @@ def _resolve_learning_ref(ref: str, vault: Path, repo: Path) -> Path | None:
         except OSError:
             return None
         return p if p.exists() else None
-    for base in (vault, repo):
+    for base in bases:
         try:
             candidate = (base / ref).resolve()
         except OSError:
@@ -597,7 +600,7 @@ def _resolve_learning_ref(ref: str, vault: Path, repo: Path) -> Path | None:
     return None
 
 
-def check_stale_learning_evidence_refs(root: Path) -> list[Finding]:
+def check_stale_learning_evidence_refs(root: Path, extra_repos: list[Path] | None = None) -> list[Finding]:
     """C9: scan BEO learning notes for evidence_refs that no longer resolve.
 
     Source: <BEO_OBSIDIAN_VAULT>/beo-learnings/*.md (or ~/second-brain
@@ -613,6 +616,14 @@ def check_stale_learning_evidence_refs(root: Path) -> list[Finding]:
     if not learnings_dir.is_dir():
         return findings
     repo = Path(root).resolve()
+    # Resolver bases: vault first, then the skills repo (--root), then any
+    # extra product repos (--learning-repo) so one run resolves both skills/
+    # refs and product .beads/src refs. Dedupe to keep resolution deterministic.
+    bases: list[Path] = [vault, repo]
+    for extra in extra_repos or []:
+        ex = Path(extra).resolve()
+        if ex not in bases:
+            bases.append(ex)
     for note_path in sorted(learnings_dir.glob("*.md")):
         try:
             content = note_path.read_text(encoding="utf-8")
@@ -625,7 +636,7 @@ def check_stale_learning_evidence_refs(root: Path) -> list[Finding]:
         for ref in evidence_refs:
             if not isinstance(ref, str) or not ref.strip():
                 continue
-            if _resolve_learning_ref(ref, vault, repo) is None:
+            if _resolve_learning_ref(ref, bases) is None:
                 findings.append(Finding(
                     "C9",
                     SEVERITY_WARNING,
@@ -741,7 +752,7 @@ def render_json_report(timestamp: str, findings: list[Finding], checks_run: list
     }, indent=2, sort_keys=True)
 
 
-def run_audit(root: Path, *, check_manifest: bool) -> tuple[list[Finding], list[str]]:
+def run_audit(root: Path, *, check_manifest: bool, learning_repos: list[Path] | None = None) -> tuple[list[Finding], list[str]]:
     root = Path(root)
     findings: list[Finding] = []
     checks_run: list[str] = []
@@ -761,7 +772,7 @@ def run_audit(root: Path, *, check_manifest: bool) -> tuple[list[Finding], list[
         ("C6: harness proposal target scope", check_harness_proposal_targets(root)),
         ("C7: actor consistency", check_actor_consistency(registries["runtime-event.schema.json"], root)),
         ("C8: must_not coverage", check_must_not_coverage(registries["phase-contracts.json"], skill_cards)),
-        ("C9: stale learning evidence_refs", check_stale_learning_evidence_refs(root)),
+        ("C9: stale learning evidence_refs", check_stale_learning_evidence_refs(root, learning_repos)),
     )
     for label, result in plan:
         checks_run.append(label)
@@ -775,11 +786,25 @@ def run_audit(root: Path, *, check_manifest: bool) -> tuple[list[Finding], list[
 def main() -> int:
     parser = argparse.ArgumentParser(description="BEO control-plane drift audit (advisory, read-only)")
     parser.add_argument("--root", default=".", help="Repository root (default: cwd)")
+    parser.add_argument(
+        "--learning-repo",
+        action="append",
+        default=None,
+        metavar="PATH",
+        help="Additional root for resolving learning evidence_refs (repeatable). "
+             "Needed when C9 refs point into a product repo (e.g. .beads/, src/) "
+             "but --root is the skills repo. Default: only --root and the vault are used.",
+    )
     parser.add_argument("--check-manifest", action="store_true", help="Enable command-manifest consistency check")
     parser.add_argument("--json", action="store_true", help="Emit machine-readable JSON instead of markdown")
     args = parser.parse_args()
     from beo_io import now as _now
-    findings, checks_run = run_audit(Path(args.root).resolve(), check_manifest=args.check_manifest)
+    learning_repos = [Path(p).resolve() for p in (args.learning_repo or [])]
+    findings, checks_run = run_audit(
+        Path(args.root).resolve(),
+        check_manifest=args.check_manifest,
+        learning_repos=learning_repos,
+    )
     timestamp = _now()
     if args.json:
         sys.stdout.write(render_json_report(timestamp, findings, checks_run) + "\n")

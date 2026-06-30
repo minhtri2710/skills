@@ -16,7 +16,7 @@ This file is the machine-and-human-readable manifest. `beo_audit.py --check-mani
 | Command | Main args | Responsibility | Output shape | Exit codes |
 | --- | --- | --- | --- | --- |
 | `beo_approval.py` | imported by other scripts | Approval | none (library) | n/a |
-| `beo_audit.py` | `[--check-manifest] [--root .] [--json]` | Audit | markdown or json | 0, 1 |
+| `beo_audit.py` | `[--check-manifest] [--root .] [--learning-repo PATH] [--json]` | Audit | markdown or json | 0, 1 |
 | `beo_check.py` | `--check <name> --issue <id> [--root .]` | Validation | json | 0, 1 |
 | `beo_check_approval.py` | imported | Approval | none (library) | n/a |
 | `beo_check_events.py` | imported | Validation | none (library) | n/a |
