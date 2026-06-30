@@ -66,9 +66,11 @@ Scan configuration lives in `config.json`:
 
 `beo_audit.py` C9 scans `<BEO_OBSIDIAN_VAULT>/beo-learnings/*.md` (or `~/second-brain` by default) for OKF v0.1 notes whose `evidence_refs` entries no longer resolve. C9 is opt-in: it is a no-op when no vault is configured or `beo-learnings/` is missing.
 
+- **Dual-root note:** evidence_refs often span two roots — the skills repo (`skills/...`) and a product repo (`.beads/...`, `src/...`). Run the audit with both: `beo_audit.py --root <skills-repo> --learning-repo <product-repo>` (the flag is repeatable). With only `--root`, product-rooted refs surface as false positives.
+
 - **Source:** obsidian vault, not the BEO control plane. The check crosses scope boundaries on purpose: a learning note is durable memory of past work, and its evidence must point at something that still exists.
 - **Severity:** always `warning`. Never critical, never auto-healed. A stale evidence_ref is a refresh signal, not a contract violation.
-- **Resolution strategy:** try resolving each ref as (1) absolute or `~`-relative, (2) relative to the vault root, (3) relative to the repo root. The first hit wins; if none hit, the ref is stale.
+- **Resolution strategy:** try resolving each ref as (1) absolute or `~`-relative, (2) relative to the vault root, (3) relative to the repo root (`--root`), (4) relative to any extra root passed via `--learning-repo` (repeatable). The first hit wins; if none hit, the ref is stale.
 - **Reference implementation:** `/ce-compound-refresh` (EveryInc/compound-engineering-plugin). The plugin reviews stale learnings against current code; C9 surfaces the candidates that need review.
 - **Operator action:** route findings to `beo-author` for refresh, supersede, or retire. Do NOT add C9 to `config.json auto_heal_allowlist`; the decision to refresh a learning is content, not mechanics.
 
