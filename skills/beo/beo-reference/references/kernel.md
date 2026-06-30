@@ -29,6 +29,7 @@ beo-plan -> beo-validate -> beo-execute -> beo-review
 8. **No Expiry**: BEO assertions and approvals do not expire by elapsed time.
 9. **Closure Rule**: Only `beo-review` may close accepted work through `br` (strictly via `verdict_accept`).
 10. **Evidence Integrity**: All evidence refs must be durable, repo-relative, and free of secrets or unredacted customer data.
+11. **CLI Surface**: All Beads state reads and mutations go through the `br`/`bv` CLI — `br ready --json`, `br show --json`, `br create`, `br close`, `br dep`, `br coordination status --json`. Never generate scripts (Python/shell) to edit `issues.jsonl`/`beads.db` or to parse them when a `br` command exists; direct writes bypass CLI locking, validation, and the `--actor` audit trail that phases rely on. Command detail lives in `references/lifecycle.md`.
 
 ---
 

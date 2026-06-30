@@ -31,6 +31,7 @@ All issue transitions are governed by strict claim invariants to avoid parallel 
 | `issue is not atomic; route to beo-plan decomposition` or `issue must be decomposed before validation` | Issue type is `epic` or `feature` | Route to `beo-plan` decomposition; use `br update <issue-id> --type task` only when the issue is confirmed misclassified |
 | `br issue claim does not match acting actor` or `BR_ACTOR or BEO_ACTOR is required` | Missing or mismatched actor identity | `export BR_ACTOR=<actor>`, then `br update <issue-id> --claim --actor <actor> --json` and `br sync --flush-only` |
 | `error: unexpected argument '--message' found` | `br close` uses Beads-specific syntax, not git commit syntax | Use `br close <issue-id>` or `br close <issue-id> --reason "Completed" --actor <actor> --json`; never use `--message` |
+| Agent parses `.beads/issues.jsonl`/`beads.db` directly, or writes a one-off `.beads/*.py` to mutate state | Bypassing the `br` CLI surface (Hard Invariant §2.11) | Use the `br`/`bv` CLI for all reads/mutations (`br ready --json`, `br show --json`, `br create`, `br close`, `br dep`, `br coordination status --json`). Never generate scripts to edit or parse Beads state |
 
 ---
 
