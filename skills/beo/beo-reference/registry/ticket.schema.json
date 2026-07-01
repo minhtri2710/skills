@@ -53,6 +53,33 @@
               }
             }
           }
+        },
+        "behaviour_gate": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type", "command"],
+          "description": "Optional stronger behaviour sensor (mutation testing, approved fixtures) beyond scope.verify.commands, mainly for standard/strict beads. BEO runs the command and records the result; it does not own the sensor. Absence is advisory, not a validation failure.",
+          "properties": {
+            "type": { "enum": ["mutation", "fixtures", "custom"] },
+            "command": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Exec'd directly via execve (shell=False, no shell). Pipes/redirects/&&/|| are NOT supported."
+            }
+          }
+        },
+        "structural_check": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["command"],
+          "description": "Optional computational feedforward structural check (boundary/import/architecture) run by beo-validate before PASS_EXECUTE when declared. Absence is advisory.",
+          "properties": {
+            "command": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Exec'd directly via execve (shell=False, no shell). Non-zero exit blocks PASS_EXECUTE."
+            }
+          }
         }
       }
     },

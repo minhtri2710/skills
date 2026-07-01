@@ -5,8 +5,8 @@ Checks: C1 transition coverage, C2 reference existence, C3 must_not
 violations (Write section), C4 runtime-event kind consistency, C5 manifest
 consistency (--check-manifest only), C6 harness proposal target scope, C7
 actor consistency, C8 must_not Never-section coverage, C9 stale learning
-evidence_refs (advisory, opt-in via BEO_OBSIDIAN_VAULT). Emits markdown or
-JSON; never writes.
+evidence_refs (advisory, opt-in via BEO_OBSIDIAN_VAULT), C10 AGENTS.md
+managed-block drift vs template. Emits markdown or JSON; never writes.
 """
 from __future__ import annotations
 import argparse
@@ -715,6 +715,55 @@ def check_actor_consistency(events_schema: dict[str, Any], root: Path) -> list[F
     return findings
 
 
+_MANAGED_START = "<!-- BEO:MANAGED START -->"
+_MANAGED_END = "<!-- BEO:MANAGED END -->"
+
+
+def _extract_managed_block(text: str) -> str | None:
+    """Return the content between BEO:MANAGED markers, or None if absent/unbalanced."""
+    i = text.find(_MANAGED_START)
+    j = text.find(_MANAGED_END)
+    if i == -1 or j == -1 or j < i:
+        return None
+    return text[i + len(_MANAGED_START):j]
+
+
+def check_agents_managed_block_drift(root: Path) -> list[Finding]:
+    """C10: repo-root AGENTS.md managed block must match the canonical template.
+
+    The template (templates/AGENTS.template.md) is the source of truth for the
+    compact repo-level reminder that `beo-setup configure-agents` copies into a
+    project's AGENTS.md. Catches drift where the template changed but AGENTS.md
+    was not refreshed — the most common entry-point invariant gap. Findings are
+    warnings (operator runs `beo-setup configure-agents`); never auto-healed.
+    """
+    findings: list[Finding] = []
+    template_path = _ref_root(root) / "templates" / "AGENTS.template.md"
+    agents_path = Path(root) / "AGENTS.md"
+    if not template_path.exists():
+        return findings
+    template_block = _extract_managed_block(template_path.read_text(encoding="utf-8"))
+    if template_block is None:
+        return findings  # template itself lacks markers; cannot check
+    if not agents_path.exists():
+        return findings  # repo has no AGENTS.md; not BEO-managed here
+    agents_block = _extract_managed_block(agents_path.read_text(encoding="utf-8"))
+    if agents_block is None:
+        findings.append(Finding(
+            "C10", SEVERITY_WARNING,
+            "AGENTS.md has no BEO:MANAGED block but a template exists; "
+            "run `beo-setup configure-agents` to bootstrap",
+        ))
+        return findings
+    if agents_block.strip() != template_block.strip():
+        findings.append(Finding(
+            "C10", SEVERITY_WARNING,
+            "AGENTS.md managed block drifts from templates/AGENTS.template.md; "
+            "run `beo-setup configure-agents` to refresh",
+        ))
+    return findings
+
+
 def render_markdown_report(timestamp: str, findings: list[Finding], checks_run: list[str]) -> str:
     grouped: dict[str, list[Finding]] = {s: [] for s in SEVERITIES}
     for finding in findings:
@@ -773,6 +822,7 @@ def run_audit(root: Path, *, check_manifest: bool, learning_repos: list[Path] | 
         ("C7: actor consistency", check_actor_consistency(registries["runtime-event.schema.json"], root)),
         ("C8: must_not coverage", check_must_not_coverage(registries["phase-contracts.json"], skill_cards)),
         ("C9: stale learning evidence_refs", check_stale_learning_evidence_refs(root, learning_repos)),
+        ("C10: AGENTS.md managed-block drift", check_agents_managed_block_drift(root)),
     )
     for label, result in plan:
         checks_run.append(label)

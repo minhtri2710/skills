@@ -200,6 +200,24 @@ def main() -> int:
         status = "OK" if ok else "FAIL"
         print(f"[verify] {status} exit={proc.returncode} :: {cmd[:80]}")
 
+    # Optional behaviour_gate (scope.behaviour_gate) — same exec rules as verify.
+    bg = ticket.get("scope", {}).get("behaviour_gate")
+    if isinstance(bg, dict):
+        bg_cmd = bg.get("command")
+        if isinstance(bg_cmd, str) and bg_cmd.strip():
+            argv = shlex.split(bg_cmd)
+            if not argv:
+                all_ok = False
+                verify_results.append({"command": bg_cmd, "exit_code": -1, "output_tail": compact_text("empty behaviour_gate command", 400), "gate": "behaviour"})
+                print("[behaviour_gate] FAIL exit=-1 :: (empty command)")
+            else:
+                proc = subprocess.run(argv, cwd=root, shell=False, text=True, capture_output=True, check=False)
+                ok = proc.returncode == 0
+                if not ok:
+                    all_ok = False
+                verify_results.append({"command": bg_cmd, "exit_code": proc.returncode, "output_tail": compact_text((proc.stdout + proc.stderr), 400), "gate": "behaviour", "gate_type": bg.get("type")})
+                print(f"[behaviour_gate] {'OK' if ok else 'FAIL'} exit={proc.returncode} :: {bg_cmd[:80]}")
+
     if not all_ok:
         _die("verification command(s) failed — bead left in approved state for repair", code=2)
 

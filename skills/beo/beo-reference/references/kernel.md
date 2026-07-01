@@ -142,3 +142,11 @@ If re-entering with `state.phase = executing`:
 3. If dirty paths are outside approved scope and attributable to the interrupted run, route to `beo-review` via `containment_review_needed` or `beo-debug` via `root_cause_diagnosis_needed`.
 4. If outside-scope dirtiness is unattributed or partial mutation cannot be classified, route to `beo-debug`.
 
+## 14. Harness Scope Boundary
+
+BEO is a thin process/control-plane harness over Beads. It regulates delivery flow (claim, scope, approval, verification, review, closure), not internal code maintainability, architecture fitness, or functional behaviour. Those are product-repo harness responsibilities, invoked by BEO only through opt-in ticket contracts (`scope.verify.commands`, optional `scope.structural_check`, optional `scope.behaviour_gate`). A ticket may declare a product-repo sensor as a gate; BEO runs it and records the result but does not own the sensor. See `references/artifact-boundaries.md` (Harness scope boundary).
+
+## 15. Strict Cross-Check Policy
+
+`verdict_accept` for `strict` mode beads requires a second-reviewer cross-check signal recorded in `state.json.review.cross_check` (`reviewer` + `verdict`). This counters the non-determinism of a single inferential review pass on high-risk work. A `cross_check.verdict` of `disagree` or `uncertain` blocks `verdict_accept` and routes repair or `user_review_needed`. Quick and standard modes are unaffected. When no second reviewer is available (e.g. no advisor/second-model API), route `user_review_needed` rather than self-accepting strict work.
+

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import shlex
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -111,6 +112,35 @@ def validate_plan(root: Path, ticket: dict[str, Any], issue: dict[str, Any] | No
     return errors
 
 
+def run_structural_check(root: Path, ticket: dict[str, Any]) -> list[str]:
+    """Run an optional scope.structural_check feedforward gate (computational).
+
+    Declared command is exec'd via execve (shell=False). Non-zero exit is a
+    validation failure that blocks PASS_EXECUTE. Absence is advisory (no error).
+    Used for boundary/import/architecture checks ahead of execution.
+    """
+    gate = ticket.get("scope", {}).get("structural_check")
+    if not isinstance(gate, dict):
+        return []
+    command = gate.get("command")
+    if not isinstance(command, str) or not command.strip():
+        return ["scope.structural_check.command is declared but empty"]
+    argv = shlex.split(command)
+    if not argv:
+        return [f"scope.structural_check.command could not be parsed: {command}"]
+    try:
+        proc = subprocess.run(argv, cwd=root, shell=False, text=True, capture_output=True, check=False)
+    except FileNotFoundError:
+        return [f"scope.structural_check command not found: {argv[0]}"]
+    if proc.returncode != 0:
+        detail = (proc.stderr or proc.stdout or "").strip()
+        msg = f"scope.structural_check failed (exit {proc.returncode}): {command}"
+        if detail:
+            msg += f" — {detail[:300]}"
+        return [msg]
+    return []
+
+
 def changed_files(root: Path) -> list[str]:
     from beo_check_scope import changed_files as scope_changed_files
 
@@ -155,6 +185,20 @@ def validate_containment(root: Path, ticket: dict[str, Any]) -> list[str]:
     return result.errors
 
 
+def _result_passed(result: dict[str, Any]) -> bool:
+    """A verify/gate result passes on a passing status OR exit_code 0.
+
+    Producers differ: beo_verify/beo_run emit exit_code; some callers write a
+    status field. Accept either so enforcement does not depend on an
+    undocumented convention.
+    """
+    status = str(result.get("status", "")).lower()
+    if status in {"passed", "success", "ok"}:
+        return True
+    exit_code = result.get("exit_code")
+    return isinstance(exit_code, int) and exit_code == 0
+
+
 def validate_review(root: Path, ticket: dict[str, Any], state: dict[str, Any] | None = None) -> list[str]:
     errors = validate_containment(root, ticket)
     state = state or {}
@@ -170,15 +214,35 @@ def validate_review(root: Path, ticket: dict[str, Any], state: dict[str, Any] | 
     if not isinstance(results, list) or not results:
         errors.append("execution verify_results are required before review")
         return errors
-    passed_statuses = {"passed", "success", "ok"}
     result_by_command = {result.get("command"): result for result in results if isinstance(result, dict)}
     for command in verify_commands(ticket):
         result = result_by_command.get(command)
         if result is None:
             errors.append(f"verification command missing result: {command}")
             continue
-        if str(result.get("status", "")).lower() not in passed_statuses:
+        if not _result_passed(result):
             errors.append(f"verification command did not pass: {command}")
+    # Optional behaviour_gate (scope.behaviour_gate) — computationally enforced.
+    gate = ticket.get("scope", {}).get("behaviour_gate")
+    if isinstance(gate, dict):
+        gate_command = gate.get("command")
+        if isinstance(gate_command, str) and gate_command:
+            result = result_by_command.get(gate_command)
+            if result is None:
+                errors.append(f"behaviour_gate command missing result: {gate_command}")
+            elif not _result_passed(result):
+                errors.append(f"behaviour_gate command did not pass: {gate_command}")
+    # Strict-mode cross_check at acceptance (kernel §15): enforce only once a
+    # verdict_accept route is recorded, so review-entry preconditions do not
+    # fire before the reviewer has acted.
+    if ticket.get("mode") == "strict":
+        review = state.get("review") if isinstance(state.get("review"), dict) else {}
+        if review.get("route_condition_id") == "verdict_accept":
+            cross = review.get("cross_check")
+            if not isinstance(cross, dict):
+                errors.append("strict mode verdict_accept requires review.cross_check (kernel §15)")
+            elif cross.get("verdict") != "agree":
+                errors.append(f"strict mode verdict_accept requires review.cross_check.verdict == 'agree' (got {cross.get('verdict')!r})")
     return errors
 
 
@@ -219,6 +283,7 @@ def main() -> int:
             errors.extend(validate_identity(root, args.issue, ticket_path, ticket, issue, ticket_path_for))
         if args.check == "validate":
             errors.extend(validate_plan(root, ticket, issue))
+            errors.extend(run_structural_check(root, ticket))
             errors.extend(validate_working_tree_prestate(root, ticket))
             try:
                 from beo_check_approval import compute_approval_fields

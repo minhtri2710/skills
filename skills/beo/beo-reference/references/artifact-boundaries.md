@@ -33,6 +33,19 @@ This file owns BEO artifact placement rules. Other files should cite this file i
 - product delivery decisions in `beo-setup`, `beo-reference`, or `beo-author`.
 - delivery scope decisions in `harness-proposal.json`; proposals affect the harness, not the product.
 
+## Harness scope boundary
+
+BEO is a **process / control-plane harness**: it regulates *how* delivery flows (claim, scope containment, approval, verification, review, closure). It is deliberately not a maintainability, architecture-fitness, or behaviour harness for product code — those sensors live in the product repository and BEO invokes them only through declared, opt-in ticket contracts.
+
+| Harness axis | Owner | Invoked via |
+|---|---|---|
+| Process / control-plane | BEO (`skills/beo/`) | claim, scope containment, `PASS_EXECUTE`, review rubric, closure |
+| Maintainability | Product repo | linters, formatters, complexity/dead-code checks wired into `scope.verify.commands` |
+| Architecture fitness | Product repo | structural boundary tests, perf tests, observability checks wired into `scope.verify.commands` or `scope.structural_check` |
+| Behaviour | Product repo (+ opt-in `scope.behaviour_gate`) | test suites, mutation testing, approved fixtures |
+
+BEO runs a declared product-repo sensor and records its result; it never owns or replaces the sensor. Teams should not expect BEO to carry sensing it is not designed for — wire product-repo harnesses into the declared verify/gate commands instead.
+
 ## Intervention records
 
 `intervention` is a non-normal runtime event kind recording an external input (human, reviewer, CI, or another agent) that affects the current delivery. It is **evidence, not lifecycle state**. Interventions:

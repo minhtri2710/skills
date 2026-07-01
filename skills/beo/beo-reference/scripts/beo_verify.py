@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """BEO verification runner for atomic beads.
 
-Runs TICKET.json.scope.verify.commands and records per-command results to
+Runs TICKET.json.scope.verify.commands (and an optional scope.behaviour_gate
+command when declared) and records per-command results to
 runtime-events.jsonl. Returns the results in JSON for the caller
 (beo-execute, beo-review) to durably record into state.json.execution.verify_results.
 
@@ -115,6 +116,7 @@ def _emit_event(root: Path, issue_id: str, result: dict[str, Any], outcome: str)
             "ran_at": result["ran_at"],
             "duration_ms": result.get("duration_ms", 0),
             "worktree_path": result.get("worktree_path"),
+            "gate": result.get("gate"),
         },
     }
     try:
@@ -140,6 +142,23 @@ def _resolve_run_target(root: Path, ticket: dict[str, Any], issue_id: str) -> tu
     if wt_path.is_dir():
         return wt_path, str(wt_path), False
     return root, None, True
+
+
+def _behaviour_gate_command(ticket: dict[str, Any]) -> tuple[str | None, str | None]:
+    """Return (command, gate_type) for an optional scope.behaviour_gate, else (None, None).
+
+    behaviour_gate is an opt-in stronger behaviour sensor (mutation testing,
+    approved fixtures). It runs as an additional tagged verify command so
+    beo-review can distinguish it from normal scope.verify.commands.
+    """
+    gate = ticket.get("scope", {}).get("behaviour_gate")
+    if not isinstance(gate, dict):
+        return None, None
+    command = gate.get("command")
+    gate_type = gate.get("type")
+    if not isinstance(command, str) or not command.strip():
+        return None, None
+    return command, gate_type
 
 
 def verify_issue(root: Path, issue_id: str) -> dict[str, Any]:
@@ -173,20 +192,28 @@ def verify_issue(root: Path, issue_id: str) -> dict[str, Any]:
         return {**refusal, "refusal_reason": "state.phase is planned; PASS_EXECUTE required"}
 
     commands = verify_commands(ticket)
+    bg_command, bg_type = _behaviour_gate_command(ticket)
+    # Unified run list: (command, gate, gate_type). gate None == normal verify.
+    run_list: list[tuple[str, str | None, str | None]] = [(c, None, None) for c in commands]
+    if bg_command:
+        run_list.append((bg_command, "behaviour", bg_type))
+
     cwd, worktree_path, worktree_missing = _resolve_run_target(root, ticket, issue_id)
 
     summary = {"pass": 0, "fail": 0, "skipped": 0}
     results: list[dict[str, Any]] = []
-    for command in commands:
+    for command, gate, gate_type in run_list:
         if worktree_missing:
             result = _skipped_result(command, "worktree_missing")
-            results.append(result)
-            summary["skipped"] += 1
-            _emit_event(root, issue_id, result, "skipped")
-            continue
-        result = _run_one_command(command, cwd, worktree_path)
+            outcome = "skipped"
+        else:
+            result = _run_one_command(command, cwd, worktree_path)
+            outcome = "pass" if result["exit_code"] == 0 else "fail"
+        if gate:
+            result["gate"] = gate
+            if gate_type:
+                result["gate_type"] = gate_type
         results.append(result)
-        outcome = "pass" if result["exit_code"] == 0 else "fail"
         summary[outcome] += 1
         _emit_event(root, issue_id, result, outcome)
 

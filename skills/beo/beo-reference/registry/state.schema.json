@@ -113,7 +113,18 @@
         },
         "repair_count": { "type": "integer", "minimum": 0 },
         "closed_in_br": { "type": "boolean" },
-        "reviewed_by": { "type": "string", "enum": ["beo-execute", "beo-review"] }
+        "reviewed_by": { "type": "string", "enum": ["beo-execute", "beo-review"] },
+        "cross_check": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["reviewer", "verdict"],
+          "description": "Required for strict-mode verdict_accept. A second-reviewer cross-check signal; absent otherwise.",
+          "properties": {
+            "reviewer": { "type": "string", "minLength": 1 },
+            "verdict": { "enum": ["agree", "disagree", "uncertain"] },
+            "evidence_refs": { "type": "array", "items": { "$ref": "#/$defs/safe_path" } }
+          }
+        }
       }
     },
     "metadata": {

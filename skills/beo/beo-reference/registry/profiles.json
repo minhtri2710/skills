@@ -23,6 +23,11 @@
       }
     }
   },
+  "optional_scope_gates": {
+    "description": "Opt-in product-repo sensor gates declared in TICKET.json scope. BEO runs the command and records the result; it never owns the sensor. See references/artifact-boundaries.md (Harness scope boundary).",
+    "behaviour_gate": "Optional, mainly standard/strict. A stronger behaviour sensor (mutation testing, approved fixtures) beyond scope.verify.commands. type: mutation|fixtures|custom; command exec'd via execve.",
+    "structural_check": "Optional, any mode. A computational feedforward structural check (boundary/import/architecture) run by beo-validate before PASS_EXECUTE."
+  },
   "protected_path_defaults": [
     ".git/**",
     ".env",

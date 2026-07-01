@@ -8,5 +8,6 @@ BEO is active in this repo.
 - `br` owns lifecycle; `bv`, qmd, and Obsidian never grant authority.
 - Use the `br`/`bv` CLI for all `.beads/` reads and mutations (`br ready --json`, `br show <id> --json`, `br close`); never parse `issues.jsonl`/`beads.db` directly (kernel §2.11; detail in `beo-reference -> references/lifecycle.md`). Orient with `br robot-docs guide`; per-project command help via `br agents --add`.
 - Do not execute without validation-owned `PASS_EXECUTE`; review owns accepted closure.
+- `strict`-mode `verdict_accept` requires a recorded second-reviewer cross-check (`state.json.review.cross_check`); see kernel §15.
 - Do not scatter BEO workflow rules outside this managed block; update `skills/beo/` canonical references instead.
 <!-- BEO:MANAGED END -->

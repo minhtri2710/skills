@@ -11,6 +11,7 @@ description: "Review one executed atomic BEO bead against its self-contained des
 - `.beads/beo-reservations.jsonl` and `beo-reference -> registry/reservation-schema.json` before any route that may release an existing reservation
 - `beo-reference -> scripts/beo_worktree.py` when the bead has `worktree_isolation: true` (for merge or cleanup)
 - `beo-reference -> registry/state.schema.json` when state update ownership or fields are unclear
+- `beo-reference -> scripts/beo_check.py` before verdict_accept (run `--check review-entry --issue <id>` to mechanically enforce verify/`behaviour_gate` passage and strict `cross_check`)
 
 ## Do
 
@@ -19,11 +20,11 @@ description: "Review one executed atomic BEO bead against its self-contained des
    - Scope: every changed file is allowed by `TICKET.json` or declared generated outputs.
    - Intent: the implementation satisfies the self-contained child bead description.
    - Done criteria: each criterion is covered by evidence or explicitly marked not covered.
-   - Verification: recorded command results actually support the done criteria, not merely command execution.
+   - Verification: recorded command results (including any declared `scope.behaviour_gate`) actually support the done criteria, not merely command execution. If `scope.behaviour_gate` is declared, its result must be present and passing before `verdict_accept`.
    - Regression surface: obvious adjacent behavior affected by the touched files is considered.
    - Repair boundary: same-scope repair is allowed only when file set, generated outputs, done criteria, verification, mode, risk, and Human Gates remain unchanged.
    Done when: each of the 6 rubric items evaluated and recorded as evidence-backed pass/fail.
-3. Audit changed files against approved scope and generated outputs; confirm verification results cover `scope.verify.commands` and `done_criteria`; record compact done-criteria coverage. Only emit `verdict_accept` when scope, intent, done criteria coverage, and verification evidence all support acceptance. If evidence is missing but work may be correct, route repair or user decision; do not accept on trust. Done when: every changed file in approved scope or generated outputs; verification covers both `scope.verify.commands` and `done_criteria`; coverage recorded; `verdict_accept` only when all 4 conditions (scope, intent, coverage, evidence) hold.
+3. Audit changed files against approved scope and generated outputs; confirm verification results cover `scope.verify.commands` and `done_criteria`; record compact done-criteria coverage. Only emit `verdict_accept` when scope, intent, done criteria coverage, and verification evidence all support acceptance, and — for `strict` mode — a `review.cross_check` second-reviewer signal with `verdict: agree` is recorded (kernel §15; if no second reviewer is available, route `user_review_needed`). Mechanically confirm via `beo_check.py --check review-entry --issue <id> --root <root>` before `verdict_accept`; it enforces verify and `behaviour_gate` passage and, for strict, the `cross_check` signal. If evidence is missing but work may be correct, route repair or user decision; do not accept on trust. Done when: every changed file in approved scope or generated outputs; verification covers both `scope.verify.commands` and `done_criteria`; coverage recorded; `verdict_accept` only when all 4 conditions (scope, intent, coverage, evidence) hold.
 4. Record findings with severity, category, message, evidence refs, and recommended route; the final route must be derivable from findings. For `user_review_needed`, the route may be derived from `review.route_condition_id`, blocking findings with `recommended_route: none`, and the Beads decision envelope. Emit exactly one review route.
 5. For `root_cause_diagnosis_needed`, set the route condition, leave `review.verdict` null, and append a `handoff` runtime event before routing to `beo-debug`. Use `repair_same_scope` only when approved files, generated outputs, done criteria, verification, mode, risk, and Human Gates remain unchanged; otherwise use `repair_rescope`.
 6. For beads with `worktree_isolation: true`:

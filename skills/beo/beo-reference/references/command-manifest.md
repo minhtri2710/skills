@@ -42,6 +42,7 @@ This file is the machine-and-human-readable manifest. `beo_audit.py --check-mani
 | `beo_ticket.py` | imported | Validation | none (library) | n/a |
 | `beo_ticket_migrate.py` | `beo_ticket_migrate.py [--root PATH] [--dry-run] [--delete-old]` | Migration | json | 0, 1 |
 | `beo_verify.py` | `run --issue <id> [--root .]` or `--all` | Verification | json | 0, 1, 2 |
+| `beo_metrics.py` | `beo_metrics.py [--root .] [--issue <id>]` | Telemetry | json | 0 |
 | `beo_worktree.py` | subcommand-driven | Isolation | json | 0, 1, 2 |
 | `check_skill_bundle.py` | `check_skill_bundle.py` | Validation | markdown | 0, 1 |
 
@@ -56,7 +57,8 @@ This file is the machine-and-human-readable manifest. `beo_audit.py --check-mani
 - **Memory**: qmd/Obsidian integration, recall, learning writes
 - **Scoring**: trace and context quality (advisory)
 - **Verification**: runs TICKET.json scope verify commands (machine-enforced)
-- **Audit**: drift checks (C1–C8), proposal generation (advisory)
+- **Audit**: drift checks (C1–C10), proposal generation (advisory)
+- **Telemetry**: sensor firing-rate aggregation (advisory)
 
 ## Operator question → helper
 
@@ -70,5 +72,6 @@ This file is the machine-and-human-readable manifest. `beo_audit.py --check-mani
 | Is the bead well-traced? | `beo_score_trace.py` |
 | Is context coverage good? | `beo_score_context.py` |
 | Did the verify commands pass? | `beo_verify.py` |
+| What's the sensor firing rate? | `beo_metrics.py` |
 | Are skill cards and registries consistent? | `check_skill_bundle.py` or `beo_audit.py` |
 | What's missing from this delivery? | `beo_propose.py` |
