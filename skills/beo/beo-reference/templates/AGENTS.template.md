@@ -6,6 +6,7 @@ BEO is active in this repo.
 - Supporting skills: `beo-debug` (when blocked), `beo-learn` (capture notes), `beo-reference` (read-only lookup), `beo-author` (maintain BEO itself). Load via `skills/beo/<name>/SKILL.md`.
 - Use one claimed Beads issue and one BEO owner at a time.
 - `br` owns lifecycle; `bv`, qmd, and Obsidian never grant authority.
+- Use the `br`/`bv` CLI for all `.beads/` reads and mutations (`br ready --json`, `br show <id> --json`, `br close`); never parse `issues.jsonl`/`beads.db` directly (kernel §2.11; detail in `beo-reference -> references/lifecycle.md`). Orient with `br robot-docs guide`; per-project command help via `br agents --add`.
 - Do not execute without validation-owned `PASS_EXECUTE`; review owns accepted closure.
 - Do not scatter BEO workflow rules outside this managed block; update `skills/beo/` canonical references instead.
 <!-- BEO:MANAGED END -->

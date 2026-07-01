@@ -11,6 +11,7 @@ Canonical lookup router: `references/doctrine-map.md`. Helper index: `references
 - The user's BEO rule, schema, transition, command authority, or safety lookup request.
 - `references/doctrine-map.md` first to choose the narrowest source.
 - `references/command-manifest.md` when the user wants to know which Python helper to run.
+- `br robot-docs guide` and `br capabilities --format json` (in-tool) when the user asks how to use the `br`/`bv` CLI; CLI syntax/authority detail lives in `references/lifecycle.md`.
 - `references/context-budget.md` when the user asks about what to load at a given phase.
 - `references/kernel.md` when authority, lifecycle, safety, closure, or invariant questions are involved.
 - The narrow registry, schema, template, script contract, or reference file needed for the lookup.
