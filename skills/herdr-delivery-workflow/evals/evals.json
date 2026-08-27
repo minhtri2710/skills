@@ -1,0 +1,41 @@
+{
+  "skill_name": "herdr-delivery-workflow",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I'm inside Herdr. Implement the requested API change with a separate coding agent, keep the work isolated, then have another agent review the exact implementation commit before you call it done. Don't push or merge anything.",
+      "expected_output": "Chooses the delivery path; records the intake lane, scope, ownership, base, checks, plan, and exclusions; creates only the needed implementation/reviewer panes or worktrees; waits on lifecycle events; requires an exact committed HEAD and evidence report; performs an independent no-mutation review on that exact head; routes any fix back to the implementation agent; does not push or merge.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "Use Herdr to review commit 0123456789abcdef0123456789abcdef01234567 in the current project. I only want an independent review of that head; do not create an implementation agent and do not change files.",
+      "expected_output": "Uses the review-only path; verifies Herdr context and the named exact head; does not create an implementation agent or extra coordinator; instructs the reviewer not to mutate; checks HEAD and porcelain before and after; checks lane/plan/validation consistency and relevant proof boundaries; returns PASS, FAIL, or BLOCKED with evidence bound to that SHA.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "I'm in Herdr. Split a sibling pane to the right in the same directory and run `pnpm test` there, leaving my current pane focused.",
+      "expected_output": "Chooses the lightweight base-Herdr path; verifies HERDR_ENV, preserves the caller cwd and focus, splits one sibling pane with no focus, runs the command in that pane, and does not create a worktree, implementation/reviewer pipeline, extra coordinator, or recurring watch.",
+      "files": []
+    },
+    {
+      "id": 4,
+      "prompt": "In Herdr, update the authentication storage format and add a dual-read fallback so old sessions keep working. It may require migration and changes to the public API. Have an agent implement it and another review it, but don't make any irreversible or external changes without my decision.",
+      "expected_output": "Classifies the request as high-risk; records the reason and affected security/data/public-contract boundaries; treats dual-read/fallback and migration as a design gate; records constraints, alternatives, failure modes, owner, validation, stop conditions, and the required Human decision in an active plan before implementation; does not silently implement the compatibility path or perform external/irreversible actions.",
+      "files": []
+    },
+    {
+      "id": 5,
+      "prompt": "I'm in Herdr and a small adapter around the database keeps retrying, caching partial state, and translating errors because the database client doesn't expose the lifecycle information we need. Review whether this is a safe local fix or whether the owner module needs repair, and tell me what evidence would distinguish a justified deviation from a structural problem.",
+      "expected_output": "Reads the structural-misfit policy as conditional lenses; checks mechanism, ownership, lifecycle, information sufficiency, duplicate state, retry/failure semantics, and proof laundering; compares the local patch with an owner-clean route; reports evidence, concrete tax, disconfirming check, and one of STANDARD_FIT, JUSTIFIED_DEVIATION, or STRUCTURAL_CONCERN without treating the lenses as a mandatory checklist or manufacturing blockers.",
+      "files": []
+    },
+    {
+      "id": 6,
+      "prompt": "I'm implementing a normal Herdr task in an isolated worktree. The change unexpectedly touches authorization and could delete user data, even though the original request looked local and reversible. Continue only if the workflow remains safe.",
+      "expected_output": "Stops before crossing the original boundary; recognizes that the new authorization/data-loss risk changes the lane from normal to high-risk; emits SCOPE_REOPEN with the old and proposed lanes, changed boundary, and decision needed; updates the plan/validation requirements and waits for the required coordinator or Human decision instead of continuing under the old intake.",
+      "files": []
+    }
+  ]
+}
