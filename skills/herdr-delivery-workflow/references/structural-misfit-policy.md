@@ -63,6 +63,14 @@ Look for transport send, acknowledgment, queue drain, connection state, timestam
 
 Look for downstream parsing of payloads, timing, logs, or counters to infer a typed semantic product the owner should publish directly; a mock, replica, fixture, source scan, compile success, or isolated green suite cited for a production causal chain it never reaches; or individually green components with no production entry connecting them to the named authority.
 
+## Second opinion
+
+A `COUNCIL_REQUEST` is an optional bounded gate, not a stage of delivery. Use it only after ordinary local analysis leaves patch-versus-foundation materially undecided, and only when the decision is expensive to reverse.
+
+Staff one read-only advisor: a different agent kind than the implementation agent when available, its own worktree, no mutation, no subagents, no background work, and one evidence-bound `Assessment` block as its final report. Name the exact head, the competing routes, and the specific question. The coordinator retains the ruling; an advisor recommends and never accepts, edits, or routes work.
+
+Do not staff an advisor for routine bounded work, do not stack advisors to break a tie, and do not manufacture dissent when the evidence supports agreement.
+
 ## Assessment result
 
 When a lens is triggered, report only what the evidence supports:

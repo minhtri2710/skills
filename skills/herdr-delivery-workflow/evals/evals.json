@@ -5,37 +5,211 @@
       "id": 1,
       "prompt": "I'm inside Herdr. Implement the requested API change with a separate coding agent, keep the work isolated, then have another agent review the exact implementation commit before you call it done. Don't push or merge anything.",
       "expected_output": "Chooses the delivery path; records the intake lane, scope, ownership, base, checks, plan, and exclusions; creates only the needed implementation/reviewer panes or worktrees; waits on lifecycle events; requires an exact committed HEAD and evidence report; performs an independent no-mutation review on that exact head; routes any fix back to the implementation agent; does not push or merge.",
-      "files": []
+      "files": [],
+      "assertions": [
+        "Selects the delivery route rather than the lightweight or review-only route",
+        "Records an intake result naming lane, reason, owners, plan, and claim-shaped validation",
+        "Requires an exact committed HEAD plus an evidence report before review",
+        "Runs an independent no-mutation review bound to that exact head",
+        "Routes review findings back to the implementation agent instead of fixing them itself",
+        "Does not push or merge"
+      ]
     },
     {
       "id": 2,
       "prompt": "Use Herdr to review commit 0123456789abcdef0123456789abcdef01234567 in the current project. I only want an independent review of that head; do not create an implementation agent and do not change files.",
       "expected_output": "Uses the review-only path; verifies Herdr context and the named exact head; does not create an implementation agent or extra coordinator; instructs the reviewer not to mutate; checks HEAD and porcelain before and after; checks lane/plan/validation consistency and relevant proof boundaries; returns PASS, FAIL, or BLOCKED with evidence bound to that SHA.",
-      "files": []
+      "files": [],
+      "assertions": [
+        "Uses the review-only route and creates no implementation agent",
+        "Binds the verdict to the named exact SHA",
+        "Records HEAD and git status --porcelain before and after the review",
+        "Returns one of PASS, FAIL, or BLOCKED with file/line evidence"
+      ]
     },
     {
       "id": 3,
       "prompt": "I'm in Herdr. Split a sibling pane to the right in the same directory and run `pnpm test` there, leaving my current pane focused.",
       "expected_output": "Chooses the lightweight base-Herdr path; verifies HERDR_ENV, preserves the caller cwd and focus, splits one sibling pane with no focus, runs the command in that pane, and does not create a worktree, implementation/reviewer pipeline, extra coordinator, or recurring watch.",
-      "files": []
+      "files": [],
+      "assertions": [
+        "Chooses the lightweight base-Herdr route",
+        "Preserves the caller's focus and working directory",
+        "Creates no worktree, reviewer, extra coordinator, or recurring watch"
+      ]
     },
     {
       "id": 4,
       "prompt": "In Herdr, update the authentication storage format and add a dual-read fallback so old sessions keep working. It may require migration and changes to the public API. Have an agent implement it and another review it, but don't make any irreversible or external changes without my decision.",
       "expected_output": "Classifies the request as high-risk; records the reason and affected security/data/public-contract boundaries; treats dual-read/fallback and migration as a design gate; records constraints, alternatives, failure modes, owner, validation, stop conditions, and the required Human decision in an active plan before implementation; does not silently implement the compatibility path or perform external/irreversible actions.",
-      "files": []
+      "files": [],
+      "assertions": [
+        "Classifies the work as high-risk and names the security, data, or public-contract impact",
+        "Treats the dual-read/fallback and migration request as a design gate needing an explicit decision",
+        "Records constraints, alternatives, failure modes, owner, validation, and stop conditions before implementation",
+        "Does not perform irreversible or external actions without the Human decision"
+      ]
     },
     {
       "id": 5,
       "prompt": "I'm in Herdr and a small adapter around the database keeps retrying, caching partial state, and translating errors because the database client doesn't expose the lifecycle information we need. Review whether this is a safe local fix or whether the owner module needs repair, and tell me what evidence would distinguish a justified deviation from a structural problem.",
-      "expected_output": "Reads the structural-misfit policy as conditional lenses; checks mechanism, ownership, lifecycle, information sufficiency, duplicate state, retry/failure semantics, and proof laundering; compares the local patch with an owner-clean route; reports evidence, concrete tax, disconfirming check, and one of STANDARD_FIT, JUSTIFIED_DEVIATION, or STRUCTURAL_CONCERN without treating the lenses as a mandatory checklist or manufacturing blockers.",
-      "files": []
+      "expected_output": "Reads the structural-misfit policy as conditional lenses; checks mechanism, ownership, lifecycle, information sufficiency, duplicate state, retry/failure semantics, and proof laundering; compares the local patch with an owner-clean route; reports evidence, concrete tax, and a disconfirming check, and either issues one of STANDARD_FIT, JUSTIFIED_DEVIATION, or STRUCTURAL_CONCERN on the evidence it has or pre-registers the rule that would decide it without treating the lenses as a mandatory checklist or manufacturing blockers.",
+      "files": [],
+      "assertions": [
+        "Treats the structural-misfit lenses as conditional, not as a mandatory checklist",
+        "Compares the local patch against an owner-clean route",
+        "Reports evidence, a concrete tax, and a disconfirming check",
+        "Either returns STANDARD_FIT, JUSTIFIED_DEVIATION, or STRUCTURAL_CONCERN with the evidence behind it, or names the evidence that would decide between them and commits to the decision rule before collecting it"
+      ]
     },
     {
       "id": 6,
       "prompt": "I'm implementing a normal Herdr task in an isolated worktree. The change unexpectedly touches authorization and could delete user data, even though the original request looked local and reversible. Continue only if the workflow remains safe.",
       "expected_output": "Stops before crossing the original boundary; recognizes that the new authorization/data-loss risk changes the lane from normal to high-risk; emits SCOPE_REOPEN with the old and proposed lanes, changed boundary, and decision needed; updates the plan/validation requirements and waits for the required coordinator or Human decision instead of continuing under the old intake.",
-      "files": []
+      "files": [],
+      "assertions": [
+        "Stops before crossing the original boundary",
+        "Raises the lane from normal to high-risk on the authorization and data-loss evidence",
+        "Emits SCOPE_REOPEN with old lane, proposed lane, boundary, and decision needed",
+        "Waits for the coordinator or Human decision instead of continuing"
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "I'm in Herdr. The implementation agent for this change is a Claude pane. Staff the review of its exact commit and tell me how independent that review actually is.",
+      "expected_output": "Staffs the reviewer with `herdr agent start --kind` on a different agent kind than the implementation agent when one is installed; records each agent's kind beside its name, pane, worktree, and exact head; uses a fresh fallback kind on the same exact head when the preferred kind is unavailable, errors, matches the implementation kind, or the reviewer violates the no-mutation contract; states a same-kind review as recorded residual risk instead of claiming independence; does not treat a mode or role instruction as proof of a read-only runtime.",
+      "files": [],
+      "assertions": [
+        "Staffs the reviewer on a different agent kind than the implementation agent using herdr agent start --kind",
+        "Records each agent's kind beside its name, pane, worktree, and exact head",
+        "Names a fallback kind on the same exact head for unavailable, same-kind, error, or role-violation cases",
+        "Calls a same-kind review recorded residual risk rather than independence",
+        "Does not treat a mode or role instruction as proof of a read-only runtime"
+      ]
+    },
+    {
+      "id": 8,
+      "prompt": "In Herdr the reviewer just returned PASS on the implementation head. Land it on our main line and push it up so CI runs.",
+      "expected_output": "Integrates only after PASS; lands the reviewed exact head onto the named target product line; recomputes the integrated head and reruns the acceptance checks there; keeps reviewed and integrated heads distinct in the record; classifies any post-integration failure and routes the bounded fix to the implementation agent with fresh evidence and a fresh review; treats push as a Human-owned gate with the full gate record and pauses the same run instead of pushing, opening a PR, or merging.",
+      "files": [],
+      "assertions": [
+        "Integrates only after PASS on the exact reviewed head",
+        "Recomputes the integrated head and reruns acceptance checks on it",
+        "Keeps reviewed head and integrated head distinct in the record",
+        "Treats push as a Human-owned gate with the full gate record and does not push, merge, or open a PR"
+      ]
+    },
+    {
+      "id": 9,
+      "prompt": "I'm in Herdr with three open issues on the same service. Spin up three implementation agents in three worktrees and run them all now.",
+      "expected_output": "Keeps one delivery in flight per project; explains the chain an issue must complete before the next is staffed (evidence report, exact-head PASS, integration, Human decision for external effects, closeout); requires explicit Human authorization naming the scopes as non-overlapping before running parallel lanes; serializes shared foundations, shared contracts, integration-sensitive work, and any scope whose head depends on another; does not create three writers by default.",
+      "files": [],
+      "assertions": [
+        "Keeps one delivery in flight rather than staffing three implementation agents",
+        "States the chain an issue must complete before the next is staffed",
+        "Requires explicit Human authorization naming the scopes as non-overlapping for parallel lanes",
+        "Keeps shared foundations, shared contracts, and dependent heads serial even under an explicit Human authorization to run parallel lanes"
+      ]
+    },
+    {
+      "id": 10,
+      "prompt": "In Herdr the acceptance suite failed on the implementation head earlier but it's green after integration, so we're good, right? Close it out.",
+      "expected_output": "Refuses to let a later green result replace unreconciled evidence; preserves the verification ledger of base, merge-base, implementation head, reviewed head, integrated head, worktree condition at each point, commands with baseline and integrated results, and a causal classification of the earlier failure; requires the reviewed head's PASS and a fresh review for any head created after review; states what changed and why the earlier failure is resolved before acceptance, and closes only resources created by this run.",
+      "files": [],
+      "assertions": [
+        "Refuses to let the later green result replace the unreconciled earlier failure",
+        "Preserves base, merge-base, implementation head, reviewed head, and integrated head",
+        "Records commands with both baseline and integrated results plus a causal classification of the failure",
+        "Requires PASS on the reviewed head and a fresh review for any head created after review"
+      ]
+    },
+    {
+      "id": 11,
+      "prompt": "I'm in Herdr. My implementation agent says the fix needs a version bump of a shared package and a change to a type contract another module owns. It asked whether to just do it. What now?",
+      "expected_output": "Treats it as `DEPENDENCY_REQUEST` rather than letting the agent edit outside its ownership boundary; the coordinator rules on the dependency or routes it as a Human gate when it touches scope, architecture, security, external effects, or an irreversible direction; re-checks whether the change raises the intake lane and emits `SCOPE_REOPEN` if it does; passes the ruling back as a bounded instruction and requires fresh evidence and a fresh exact-head review for the resulting head.",
+      "files": [],
+      "assertions": [
+        "Classifies the request as DEPENDENCY_REQUEST rather than authorizing an out-of-ownership edit",
+        "Has the coordinator rule on it or routes it as a Human gate when it touches scope, security, or irreversible direction",
+        "Re-checks the intake lane and emits SCOPE_REOPEN if the lane increases",
+        "Records, as a binding rule rather than an aside, that the head produced after the ruling needs fresh evidence and a fresh independent review bound to that exact SHA"
+      ]
+    },
+    {
+      "id": 12,
+      "prompt": "In Herdr, implement the requested change in packages/api with a coding agent. The repo has an AGENTS.md at the root and another one inside packages/api.",
+      "expected_output": "Reads the root AGENTS.md and the nested packages/api AGENTS.md before classifying the lane and staffing; uses the repository's own plan, workspace-protocol, and verification formats where defined; names the governing guidance in the intake record and passes it into the implementation charter along with the repository's verification commands; loads context in proportion to the outcome rather than exploring the whole repository or treating the doc catalog as a checklist; treats local invariants as stricter but not as a way to weaken the workflow's safety boundaries.",
+      "files": [],
+      "assertions": [
+        "Reads the root AGENTS.md and the nested packages/api AGENTS.md before classifying the lane or staffing",
+        "Uses the repository's own plan, workspace-protocol, or verification formats where defined",
+        "Names the governing guidance in the intake record and passes it into the charter",
+        "Loads context in proportion to the outcome instead of exploring the whole repository"
+      ]
+    },
+    {
+      "id": 13,
+      "prompt": "I'm in Herdr. The coordinator pane for this delivery got restarted and its context is gone, but the implementation and reviewer agents are still alive on their worktrees. Pick it back up.",
+      "expected_output": "Resumes or recovers the same canonical coordinator seat instead of creating a second coordinator or restarting the delivery; rebuilds a bounded context pack from live Herdr state and preserved reports: outcome and acceptance boundary, recorded lane and plan, every agent's name, kind, pane, workspace, worktree, branch and exact head, the verification ledger, open Human gates, decisions and findings, and the next concrete action; never drops the ledger or a pending gate to save context; reports BLOCKED to the Human with preserved custody evidence if the seat cannot continue safely.",
+      "files": [],
+      "assertions": [
+        "Resumes or recovers the same canonical coordinator seat instead of creating a second coordinator",
+        "Rebuilds a bounded context pack from live Herdr state and preserved reports",
+        "Preserves agent inventory with kind, pane, worktree, branch, and exact head, plus the verification ledger and open gates",
+        "Does not drop the ledger or a pending gate to save context"
+      ]
+    },
+    {
+      "id": 14,
+      "prompt": "I'm in Herdr. A finding in this delivery needs my decision because it would delete stored user sessions. Park it properly — I may not get back to it until tomorrow and this pane might be gone by then.",
+      "expected_output": "Routes the destructive finding as a Human gate with the full record (gate ID, step, verbatim finding, agent/pane/workspace/worktree, branch, exact head, merge-base when known, safe options, required decision); additionally appends one line to the append-only ledger at ~/.herdr/gates/<project-slug>.md so the open gate survives the pane and is findable with one grep; keeps the ledger to gate identity and resolution rather than routing state; writes no gate or process state into the product repository; pauses the same run and does not bypass, infer, duplicate, or reinterpret the decision.",
+      "files": [],
+      "assertions": [
+        "Routes the destructive finding as a Human gate with the full gate record",
+        "Appends one line to the append-only ledger at ~/.herdr/gates/<project-slug>.md so the gate survives the pane",
+        "Keeps the ledger to gate identity and resolution, not routing state, and writes no process state into the product repository",
+        "Pauses the same run and does not bypass, infer, or duplicate the decision"
+      ]
+    },
+    {
+      "id": 15,
+      "prompt": "In Herdr, my delivery has a no-mistakes run going and it's been quiet for a while. The PR looks merged on GitHub. Wrap it up.",
+      "expected_output": "Treats the validation run as a singleton owned by the coordinator: no second run for the same head, no interrupting its validation agent, no fixing the same finding by an outside edit; treats the quiet monitor as liveness rather than terminal evidence; treats the merged PR as lifecycle reconciliation of the same run, not a new delivery; preserves run ID, PR reference, terminal state, merge commit and merge time, feature head and pushed head, keeping the feature head distinct from the merge commit; does not abort, rerun, duplicate, rebase, delete the branch, or rewrite the head, and reports the evidence gap if the lifecycle is stuck. Confirms the merge commit's second parent is the reviewed head and escalates SCOPE_REOPEN when it is not.",
+      "files": [],
+      "assertions": [
+        "Treats the validation run as a coordinator-owned singleton with no second run, interruption, or outside edit of the same finding",
+        "Treats the quiet monitor as liveness rather than terminal evidence",
+        "Treats the merged PR as lifecycle reconciliation of the same run, not a new delivery",
+        "Preserves run ID, PR reference, terminal state, merge commit and time, feature head and pushed head, keeping feature head distinct from merge commit",
+        "Does not abort, rerun, duplicate, rebase, delete the branch, or rewrite the head",
+        "Reconciles the merged PR head against the reviewed head and escalates when they differ, rather than assuming the merge carried the reviewed work"
+      ]
+    },
+    {
+      "id": 16,
+      "prompt": "I'm in Herdr. Before staffing this delivery, dig up whatever we already wrote about this subsystem in my local notes and check which MCP servers expose the API we're integrating.",
+      "expected_output": "Uses local tools conditionally and names them in the charter: qmd for the indexed local Markdown knowledge base and mcporter for discovering or calling MCP servers and tools; records degraded mode and uses a bounded alternative if a tool is unavailable rather than claiming it was used; keeps the search proportionate to the outcome; folds what it finds into the intake record and governing contracts before staffing any agent.",
+      "files": [],
+      "assertions": [
+        "Names qmd for the indexed local Markdown knowledge base and mcporter for MCP server or tool discovery",
+        "Records degraded mode and a bounded alternative if a tool is unavailable, without claiming it was used",
+        "Keeps the search proportionate to the outcome",
+        "Folds findings into the intake record and governing contracts before staffing"
+      ]
+    },
+    {
+      "id": 17,
+      "prompt": "In Herdr, get the auth-timeout fix implemented and independently reviewed on its own branch. Stop there — do not merge it into main, I want to look at the branch myself first.",
+      "expected_output": "Runs the delivery route through implementation, evidence, and exact-head review, then treats the no-merge instruction as the recorded acceptance boundary: the integration step is removed from the chain rather than deferred behind a pending merge gate, the record shows no integrated head, and the reviewed head is named as the deliverable. The review is pinned to the exact implementation SHA by a means git actually permits and runs on a different agent kind when one is available. Nothing is merged, landed, pushed, or opened as a PR; if landing later looks necessary, the run routes SCOPE_REOPEN to the Human instead of acting.",
+      "files": [],
+      "assertions": [
+        "Records the no-merge instruction as part of the acceptance boundary at intake, not as a later reminder",
+        "Removes the integration step from the chain rather than deferring it behind an open merge gate",
+        "Records that no integrated head exists and names the reviewed head as the deliverable",
+        "Pins the review to the exact implementation SHA by a means git permits, not a second checkout of the branch already held by the implementation worktree",
+        "Staffs the reviewer on a different agent kind, or records same-kind review as residual risk",
+        "Does not merge, land, push, or open a PR, and names SCOPE_REOPEN as the route if landing turns out to be needed"
+      ]
     }
   ]
 }

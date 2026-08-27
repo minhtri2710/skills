@@ -13,10 +13,17 @@ The review request names:
 - governing contracts and validation claims;
 - merge-base when applicable;
 - worktree or workspace used for review;
+- the agent kind running the review and the agent kind that produced the head;
 - required checks;
 - coordinator receiving the verdict.
 
 Before review, record the review tree's exact `HEAD` and `git status --porcelain`. Use a separate worktree when practical. A second pane on the same dirty tree is not independent evidence.
+
+Run the review on a different agent kind than the implementation agent when another kind is installed, and record every agent's kind beside its name, pane, workspace, worktree, branch, and exact head. A review-only route never reads the coordinator policy, so the roster has to be built here.
+
+Choose the reviewer kind and its fallback kind before staffing, and pin both to the same exact head. The fallback covers the kind being uninstalled, the agent erroring or never reaching a verdict, the only remaining kind being the implementation kind, and the reviewer breaking its read-only role. Deciding this in advance is what keeps a substitution visible: a reviewer that dies mid-review otherwise gets replaced by whatever is convenient, which is usually the implementation kind, and the swap never reaches the record. When the review does end up on the same kind, say so as residual risk in the verdict instead of calling it independence.
+
+Name the reviewer with the exact head it reviews and rename it with `herdr agent rename` whenever that head changes, so the agent listing alone proves which head a verdict covers. A name pointing at a head the reviewer no longer sits on is worse than no name, because it invites belief.
 
 ## No-mutation contract
 
