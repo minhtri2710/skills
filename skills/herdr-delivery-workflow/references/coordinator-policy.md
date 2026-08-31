@@ -4,13 +4,13 @@ Use this policy for delivery or bounded monitoring. It defines the coordinator's
 
 ## Intake and risk
 
-Read `intake-policy.md` before creating panes, agents, worktrees, or tabs. It is the single source of truth for lanes, hard gates, design gates, high-risk plans, intake records, and `SCOPE_REOPEN`.
+Read `intake-policy.md` before creating panes, agents, or tabs. It is the single source of truth for lanes, hard gates, design gates, high-risk plans, intake records, and `SCOPE_REOPEN`.
 
 Keep the current run context explicit:
 
 - `Lane`, `Reason`, `Owners`, `Plan`, and `Validation`;
 - outcome and acceptance boundary;
-- target repository/product line, exclusions, base, merge-base, and current worktree condition;
+- target repository/product line, exclusions, base, merge-base, and current working-tree condition;
 - one writer and one owner for each moving scope;
 - dependencies, stop conditions, and next action;
 - Human-owned gates;
@@ -20,25 +20,25 @@ Pass the recorded lane, plan reference, governing contracts, and validation clai
 
 ## Ownership and topology
 
-The coordinator is the single routing and acceptance owner for the run. Use one writer per moving scope. Create a dedicated worktree for concurrent writers, requested isolation, or an independent review. Keep each agent's name, pane ID, workspace ID, worktree path, branch, and exact head together in the run context.
+The coordinator is the single routing and acceptance owner for the run. The delivery uses one checkout: the caller's existing working tree, one branch, one writer. Do not create a second working tree for isolation, concurrency, or review. Isolation comes from sequencing instead: one agent acts on the tree at a time, and the tree is quiet at a known exact head before the next stage starts. Keep each agent's name, pane ID, workspace ID, branch, and exact head together in the run context.
 
 Preserve the caller's focus and working directory by default. Use `--no-focus`, `--current`, or an explicit ID. Read every returned ID from Herdr JSON before using it. Do not create extra coordinator roles, hidden workers, native-provider subagents, schedules, background orchestration, or a second state system.
 
 ## Agent kind and review independence
 
-Herdr selects the runtime with `herdr agent start <name> --kind <kind>`. Record the kind of every agent beside its name, pane ID, workspace ID, worktree path, branch, and exact head. Staff the reviewer on a different kind than the implementation agent whenever another kind is installed; a same-kind review is recorded residual risk, not independence.
+Herdr selects the runtime with `herdr agent start <name> --kind <kind>`. Take the preferred implementation and reviewer kinds and the pre-chosen fallback from the project config when one is recorded; an explicit Human instruction in the current request overrides it. Record the kind of every agent beside its name, pane ID, workspace ID, branch, and exact head. Staff the reviewer on a different kind than the implementation agent whenever another kind is installed; a same-kind review is recorded residual risk, not independence.
 
 Use a fresh fallback reviewer of another available kind, on the same exact head, when the preferred kind is unavailable, errors, matches the implementation kind, or the reviewer violates the no-mutation contract. A mode setting, prompt, or role instruction is not proof of a read-only runtime: record what the runtime actually permits and treat an unproven boundary as residual risk, not as verified isolation.
 
-## Flight slot and parallelism
+## Flight slot and sequencing
 
 Keep one delivery in flight per project. A delivery leaves the flight slot only through the whole chain: implementation evidence report, independent `PASS` on that exact head, integration onto the product line, the Human decision for any external effect, then closeout of the resources this run created. Only then staff the next delivery.
 
-Parallel lanes require an explicit Human authorization naming both scopes as non-overlapping; without it, serialize. Parallelize only genuinely non-overlapping ownership. Serialize shared foundations, shared contracts, integration-sensitive work, and any scope whose exact head depends on another.
+The delivery itself is a sequential loop: plan, implement, review, and on a `FAIL` repair and review again. The repair loop is bounded: default two repair cycles, overridden by `repair-cap` in the project config. When the cap is reached without a `PASS`, stop the loop, classify each open finding as recurring or new, and route a Human gate — or `SCOPE_REOPEN` when the evidence shows the scope grew — instead of another cycle. Stages never overlap, because they share one working tree. There is no parallel-writer lane. A second implementation agent on the same checkout is not a lane, it is two writers on one tree, and the resulting head belongs to neither of them. When several scopes are requested at once, name the order and run them one at a time; if the Human asks for true parallelism, say plainly that this workflow provides no isolation for it rather than staffing it anyway.
 
 ## Integration
 
-Integration is conditional on the recorded scope, and it happens after `PASS`, never before. It applies only when intake named a target product line and the Human has not withheld landing. An instruction to stop at review, not to merge, or to leave the branch untouched is the recorded scope; treat it as binding and end the delivery at the reviewed head, naming that head as the deliverable. Widening from review to integration without that authority crosses the acceptance boundary and needs `SCOPE_REOPEN`.
+Integration is conditional on the recorded scope, and it happens after `PASS`, never before. It applies only when intake named a target product line and the Human has not withheld landing. An instruction to stop at review, not to merge, or to leave the branch untouched is the recorded scope; treat it as binding and end the delivery at the reviewed head, naming that head as the deliverable. Widening from review to integration without that authority crosses the acceptance boundary; if landing later turns out to be needed, the route is `SCOPE_REOPEN` to the Human, never acting on it.
 
 When integration does apply, land the reviewed exact head onto the named target product line, then recompute the integrated head and rerun the acceptance checks there. Keep the reviewed head and the integrated head distinct in the record.
 
@@ -56,10 +56,16 @@ Each protocol message from an implementation agent or reviewer has one route:
 
 - `SCOPE_REOPEN` — stop before the old boundary, rerun intake, and route the coordinator or Human decision the new lane requires.
 - `DEPENDENCY_REQUEST` — rule on the dependency or cross-scope question, or route it as a Human gate when it touches scope, architecture, security, external effects, or an irreversible direction. Never let the agent resolve it by editing outside its ownership.
-- `BLOCKED` — inspect the agent, preserve the partial evidence and worktree state, then either unblock with a bounded instruction or route the blocker upward. A blocked run is not a failed run and is not restarted by duplication.
+- `BLOCKED` — inspect the agent, preserve the partial evidence and working-tree state, then either unblock with a bounded instruction or route the blocker upward. A blocked run is not a failed run and is not restarted by duplication.
 - `COUNCIL_REQUEST` — decide whether a bounded second opinion is worth it before spending one. Read `structural-misfit-policy.md` and follow its second-opinion route.
 
-Whatever the ruling, a head produced after it is a new head: it needs fresh evidence and a fresh independent review at that exact SHA, because no earlier verdict covers work that did not exist when the verdict was given.
+Write the ruling record when the message is classified, before any pause. A Human-gate route leaves RULING pending until the Human decides, but the record and its BINDING line are written now, not after the gate resolves. The BINDING line is fixed text — copy it verbatim; it is a binding rule, not an aside:
+
+```text
+RULING: <decision and its bounded scope | pending Human gate <GATE-ID>>
+ROUTE: <coordinator-ruled | human-gate>
+BINDING: any head produced after this ruling is a new head — it needs fresh evidence and a fresh independent review bound to that exact SHA; no earlier verdict covers work that did not exist when the verdict was given
+```
 
 Answer the message; do not convert it into a scope change of your own. Do not ask for routine approval of ordinary engineering decisions, and do not treat a finished agent turn as an escalation.
 
@@ -70,7 +76,7 @@ Keep one canonical coordinator for the delivery. Resume or recover that seat bef
 When the run context grows past what can hold the verification ledger, gate records, and agent inventory reliably, compact or relaunch the seat with a bounded context pack. Take that signal from provider metadata, Herdr lifecycle metadata, or an explicit self-report; do not poll for it. The pack preserves:
 
 - the role, outcome, acceptance boundary, and recorded intake lane and plan;
-- every agent's name, kind, pane, workspace, worktree, branch, and exact head;
+- every agent's name, kind, pane, workspace, branch, and exact head;
 - the verification ledger and every open Human gate;
 - decisions made, findings routed, and the next concrete action.
 
@@ -88,9 +94,9 @@ Before review, recompute the implementation repository's:
 
 A moving branch, missing commit, stale report, or unexplained dirty state is not reviewable. Return it to the implementation agent or route the blocker.
 
-Accept only after an independent reviewer returns `PASS` for that exact head and the coordinator confirms the review tree did not move or become dirty. Any implementation change after review creates a new head and requires a fresh review.
+Accept only after an independent reviewer returns `PASS` for that exact head and the coordinator confirms the checkout did not move or become dirty during the review. Any implementation change after review creates a new head and requires a fresh review.
 
-Preserve one verification ledger for the whole run: base, merge-base, implementation head, reviewed head, integrated head, the worktree condition at each of those points, the agent kind behind each head and verdict, the complete acceptance commands, their baseline results, their integrated results, and a causal classification of every failure. A later green result never silently replaces unreconciled evidence: state what changed and why the earlier failure is resolved.
+Preserve one verification ledger for the whole run: base, merge-base, implementation head, reviewed head, integrated head, the working-tree condition at each of those points, the agent kind behind each head and verdict, the complete acceptance commands, their baseline results, their integrated results, and a causal classification of every failure. A later green result never silently replaces unreconciled evidence: state what changed and why the earlier failure is resolved.
 
 ## Coordinator boundaries
 

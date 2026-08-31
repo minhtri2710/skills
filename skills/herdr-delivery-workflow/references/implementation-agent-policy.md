@@ -1,6 +1,6 @@
 # Implementation Agent Policy
 
-Use this policy before sending an editing charter. The implementation agent owns one bounded outcome inside one Herdr worktree.
+Use this policy before sending an editing charter. The implementation agent owns one bounded outcome inside the delivery's single checkout, which it shares with every later stage.
 
 ## Charter
 
@@ -10,7 +10,7 @@ The coordinator's prompt names all of the following:
 - recorded intake `Lane`, `Reason`, `Owners`, `Plan`, and `Validation`;
 - governing repository contracts;
 - target repository and product line;
-- worktree path, branch, base, and merge-base;
+- checkout path, branch, base, and merge-base;
 - files or modules owned;
 - files or modules out of scope;
 - repository instructions and verification commands;
@@ -18,7 +18,9 @@ The coordinator's prompt names all of the following:
 - prohibition on subagents, detached commands, background jobs, push, PR mutation, merge, deploy, and other external effects unless explicitly authorized;
 - final evidence-report format and coordinator target.
 
-The agent must verify the worktree, branch, base, and ownership before editing. It makes ordinary local implementation decisions within that boundary and raises a blocker when a dependency, shared contract, ownership overlap, material risk, or missing Human decision appears. It must not lower the recorded intake lane. If evidence reveals greater blast radius, irreversibility, uncertainty, ownership impact, or proof weakness, stop before crossing the boundary and report `SCOPE_REOPEN` with the changed risk and proposed lane.
+Two parts of the charter carry different force. The ownership boundary — owned paths, exclusions, lane, gates, and prohibitions — is binding. The solution shape — the plan reference, a suggested approach, or any named files-to-change — is a provisional map, not a verdict: the coordinator must not embed a predetermined implementation or a disguised conclusion in the charter, and states open questions as open. The agent evaluates the premise against the code it finds; when evidence contradicts the charter's assumptions, it raises the matching protocol message instead of complying silently.
+
+The agent must verify the checkout, branch, base, and ownership before editing. It makes ordinary local implementation decisions within that boundary and raises a blocker when a dependency, shared contract, ownership overlap, material risk, or missing Human decision appears. It must not lower the recorded intake lane. If evidence reveals greater blast radius, irreversibility, uncertainty, ownership impact, or proof weakness, stop before crossing the boundary and report `SCOPE_REOPEN` with the changed risk and proposed lane.
 
 ## Escalation
 
@@ -34,14 +36,14 @@ Decision needed: <coordinator or Human decision>
 
 - `SCOPE_REOPEN` — evidence increases blast radius, irreversibility, uncertainty, ownership impact, or proof weakness beyond the recorded lane.
 - `DEPENDENCY_REQUEST` — the outcome needs a dependency change, a shared contract change, another owner's files, or a cross-scope decision.
-- `BLOCKED` — an execution or evidence blocker prevents honest progress: missing base, unusable worktree, failing environment, or a check that cannot prove the claim.
+- `BLOCKED` — an execution or evidence blocker prevents honest progress: missing base, unusable checkout, failing environment, or a check that cannot prove the claim.
 - `COUNCIL_REQUEST` — only after local patch-versus-foundation triage, when the owner-clean route and the local patch remain materially undecided on the evidence at hand.
 
 Send the message and stop before crossing the boundary. Do not silently change shared contracts, external systems, credentials, permissions, or another agent's files.
 
 ## Execution
 
-Keep execution foreground and bounded. Implement the smallest complete slice, run the repository checks that prove the claim, and keep the worktree state explainable. Do not create another coordinator, worker hierarchy, schedule, recurring watch, or alternate delivery path.
+Keep execution foreground and bounded. Implement the smallest complete slice, run the repository checks that prove the claim, and keep the working-tree state explainable. Review runs later in this same checkout, so hand it over quiet: commit the work, leave no background job still writing, report at that exact head, and stop editing until a new bounded instruction arrives. Do not create another coordinator, worker hierarchy, schedule, recurring watch, or alternate delivery path.
 
 When a local wrapper, fallback, retry loop, cache, adapter, or compatibility path begins to own lifecycle, authority, synchronization, failure, or proof semantics that belong to the foundation, read `structural-misfit-policy.md`. Report the relevant evidence and owner-clean alternative; do not silently expand the workaround.
 

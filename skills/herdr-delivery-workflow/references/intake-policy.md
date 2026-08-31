@@ -1,12 +1,16 @@
 # Intake Policy
 
-Use this policy before creating a pane, agent, tab, workspace, worktree, or bounded watch for delivery work. Intake is a routing gate, not a ceremony checklist. Choose the smallest lane that honestly covers blast radius, reversibility, uncertainty, and proof weakness.
+Use this policy before creating a pane, agent, tab, workspace, or bounded watch for delivery work. Intake is a routing gate, not a ceremony checklist. Choose the smallest lane that honestly covers blast radius, reversibility, uncertainty, and proof weakness.
 
 ## Repository guidance
 
 Before classifying the lane or staffing an agent, read the repository's root `AGENTS.md` and the nested `AGENTS.md` files covering the paths this work owns. The root file carries the repository map, global invariants, canonical docs, and commands; a nested file carries subtree ownership, local invariants, local commands, and guardrails. Use the repository's own plan, workspace-protocol, and verification formats when it defines them.
 
 Load context in proportion to the work: the repository map plus the contracts the outcome actually needs. Do not force indiscriminate exploration and do not turn a document catalog into a mandatory checklist. Repository guidance may add stricter local invariants; it may not weaken this workflow's safety boundaries. Name the guidance that governs the work in the intake record and pass it into every charter.
+
+## Project config
+
+Read the Human-owned project config at `~/.herdr/projects/<project-slug>/config.md` before classifying the lane or staffing an agent; `project-config.md` owns its format, precedence, and guards. Record the applied keys, or `Config: none`, in the intake record. A `lane-defaults` entry raises a lane floor only; hard-gate classes and Human gates are not configurable.
 
 ## Lanes
 
@@ -77,6 +81,7 @@ Reason: <material reason for the lane>
 Owners: <coordinator, implementation/review owners, governing contracts>
 Plan: <active plan reference or none>
 Validation: <claim-shaped checks and expected outcomes>
+Config: <applied project-config keys or none>
 ```
 
 Include target repository/product line, exclusions, base/merge-base, dependencies, Human gates, and Herdr resources created by the run alongside this result. Pass the lane, plan reference, governing contracts, and validation claims into every relevant charter.

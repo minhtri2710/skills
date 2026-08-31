@@ -1,0 +1,35 @@
+# Project Config
+
+A project may keep standing delivery preferences in a Human-owned config file:
+
+```text
+~/.herdr/projects/<project-slug>/config.md
+```
+
+The same directory holds the project's gate ledger (`gates.md`, defined in `human-gates-and-closeout.md`). Read the config at the start of a delivery or review-only route, before staffing any agent; the lightweight route does not read it. When the file is absent, use the workflow defaults and record `Config: none` in the intake record, or beside the review boundary on a review-only route.
+
+## Format
+
+One `key: value` line per setting; every key is optional:
+
+```markdown
+# Delivery config — <project-slug>
+
+- implementation-kind: <preferred agent kind>
+- reviewer-kind: <preferred reviewer kind>
+- reviewer-fallback: <pre-chosen fallback reviewer kind>
+- checks: <claim-shaped commands, `;`-separated>
+- lane-defaults: <path or change class = tiny|normal|high-risk, comma-separated>
+- target-line: <default integration product line>
+- always-gate: <decisions always routed to the Human, comma-separated>
+- repair-cap: <max repair cycles before escalation>
+```
+
+Report an unknown key to the Human instead of guessing its meaning; do not act on it.
+
+## Precedence and guards
+
+- An explicit Human instruction in the current request overrides the config; the config overrides workflow defaults.
+- The config may add stricter local preferences; it may not weaken this workflow's safety boundaries. A `lane-defaults` entry raises a lane floor and never lowers a lane below what the hard-gate classes in `intake-policy.md` require. `always-gate` adds Human gates; no key removes one, authorizes an external write, or skips review.
+- The config is Human-owned and read-only during a run. The run edits it only when the Human explicitly asks to record a setting, and reports the change plainly.
+- Record the applied keys, or `Config: none`, in the intake record, and pass applied staffing and validation values into the affected charters.
