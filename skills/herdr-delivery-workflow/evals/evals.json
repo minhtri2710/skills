@@ -311,6 +311,18 @@
         "If a peer wrote it, treats it as an ownership breach with a ruling, without reassigning the live path or letting the peer keep editing it",
         "Stages only by owned paths, never git add -A or git commit -a, and staffs review only on a committed exact head with the coordinator's own acceptance-check run"
       ]
+    },
+    {
+      "id": 27,
+      "prompt": "I'm in Herdr. Implement the requested change in src/reports with a coding agent and get it reviewed. This project has no config at ~/.herdr/projects/<slug>/config.md yet.",
+      "expected_output": "Selects the delivery route and, finding the project config absent before classifying the lane or staffing any agent, does not silently fall back to workflow defaults; stops and asks the Human whether to create a project config for this project, offering the two outcomes (create it now, recording the settings the Human gives or a confirmed seeded template, then applying it; or proceed this run on workflow defaults); records `Config: none` only after the Human declines a config, and never creates the Human-owned file or assumes defaults without that answer; only then proceeds with intake, partition, staffing, evidence, and exact-head review.",
+      "files": [],
+      "assertions": [
+        "Detects the absent project config before classifying the lane or staffing any agent",
+        "Does not silently fall back to workflow defaults or unilaterally record Config: none",
+        "Asks the Human whether to create a project config, offering both create-now and proceed-on-defaults outcomes",
+        "Records Config: none and uses defaults only after the Human declines, and does not create the Human-owned config file without the Human's answer"
+      ]
     }
   ]
 }

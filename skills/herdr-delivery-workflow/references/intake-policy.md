@@ -10,7 +10,7 @@ Load context in proportion to the work: the repository map plus the contracts th
 
 ## Project config
 
-Read the Human-owned project config at `~/.herdr/projects/<project-slug>/config.md` before classifying the lane or staffing an agent; `project-config.md` owns its format, precedence, and guards. Record the applied keys, or `Config: none`, in the intake record. A `lane-defaults` entry raises a lane floor only; hard-gate classes and Human gates are not configurable.
+Read the Human-owned project config at `~/.herdr/projects/<project-slug>/config.md` before classifying the lane or staffing an agent; `project-config.md` owns its format, precedence, and guards. When the file is absent, do not assume defaults: ask the Human whether to create one for this project and act only on their answer, recording `Config: none` only after they decline (`project-config.md`). Record the applied keys, or `Config: none`, in the intake record. A `lane-defaults` entry raises a lane floor only; hard-gate classes and Human gates are not configurable.
 
 ## Lanes
 

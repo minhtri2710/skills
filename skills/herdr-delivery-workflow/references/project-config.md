@@ -6,7 +6,7 @@ A project may keep standing delivery preferences in a Human-owned config file:
 ~/.herdr/projects/<project-slug>/config.md
 ```
 
-The same directory holds the project's gate ledger (`gates.md`, defined in `human-gates-and-closeout.md`). Read the config at the start of a delivery or review-only route, before staffing any agent; the lightweight route does not read it. When the file is absent, use the workflow defaults and record `Config: none` in the intake record, or beside the review boundary on a review-only route.
+The same directory holds the project's gate ledger (`gates.md`, defined in `human-gates-and-closeout.md`). Read the config at the start of a delivery or review-only route, before staffing any agent; the lightweight route does not read it. When the file is present, apply it. When it is absent, do not silently fall back to defaults: stop and ask the Human whether to create one for this project, offering the two outcomes — create the config now (record the settings they give, or seed the template below with the values this run would use and confirm them, then apply it) or proceed this run on workflow defaults — and act only on their answer. Record `Config: none`, in the intake record or beside the review boundary on a review-only route, only after the Human declines a config. Never create the file or assume defaults without that answer.
 
 ## Format
 
