@@ -48,13 +48,14 @@ Preserve the run ID, exact head, branch, findings, every response, and the termi
 
 Route pipeline findings by class. Mechanical, low-risk findings the pipeline owns are handled inside the run. A finding that challenges the Human's stated intent, or that touches destructive scope, security, credentials, external effects, or material scope, is a Human gate: route it with the gate record, pause the same run until the Human decides, then resume that same run through its own command.
 
-A quiet monitor is a liveness signal, not terminal evidence. When the forge reports the pull request merged or closed after checks passed, treat it as a lifecycle reconciliation of the same run rather than a new delivery. Write the reconciliation record when the terminal state is observed. The ESCALATION line is fixed text — copy it verbatim whatever this run's heads show, because it states when a mismatch escalates, not what happened this run:
+A quiet monitor is a liveness signal, not terminal evidence. When the forge reports the pull request merged or closed after checks passed, treat it as a lifecycle reconciliation of the same run rather than a new delivery. Write the reconciliation record when the terminal state is observed. The CUSTODY and ESCALATION lines are fixed text — copy them verbatim whatever this run shows, because they state the standing rules, not what happened this run:
 
 ```text
 RUN: <validation run ID>
 PR: <reference> state=<merged | closed> merge-commit=<SHA> merged-at=<ISO time>
 HEADS: feature=<exact SHA> pushed=<exact SHA> reviewed=<exact SHA> — feature head recorded distinct from the merge commit
 RECONCILE: merged headRefOid=<SHA> vs reviewed head=<SHA>; merge-commit parents=<SHAs>
+CUSTODY: the validation run is a coordinator-owned singleton — never a second run for the same head, never interrupting its validation agent, never applying the same finding through an outside edit
 ESCALATION: when the merged head and the reviewed head differ, or the reviewed head is not among the merge commit's parents, route SCOPE_REOPEN and say plainly that work was merged this run never reviewed; a matching head reference alone is not proof the merge carried the reviewed work — a squash or force-push can leave the reference matching while the merged content is something no reviewer saw
 ```
 
@@ -64,7 +65,7 @@ Do not abort, rerun, duplicate, rebase, delete the branch, or rewrite the head t
 
 Before final acceptance, preserve the implementation report, exact reviewed head, reviewer verdict, integrated head when integration happened, changed files, check results on both the reviewed and the integrated head, skipped-check reasons, a causal classification of every failure, residual risks, and next action. Acceptance requires claim-shaped checks plus `PASS` for the same exact head. A later green result does not replace an unreconciled earlier failure.
 
-Close only panes, tabs, workspaces, and agents created by this run. The checkout itself is the caller's and is never removed; leave it on the branch and head the record names. Cleanup is safe only when:
+Close only panes, tabs, workspaces, and agents created by this run. The checkout itself is the caller's and is never removed — and never moved: no checkout of another branch, no reset, no rebase, no clean as part of closeout. Leave it on the branch and head the record names; wrapping up changes Herdr resources, not the tree. Cleanup is safe only when:
 
 - no process is running;
 - no unexplained tracked change remains;
@@ -90,6 +91,7 @@ REVIEW: <PASS/FAIL/BLOCKED, exact head, reviewer agent kind>
 CHECKS: <command=exit code list on the reviewed head>
 INTEGRATED CHECKS: <command=exit code list on the integrated head, or none>
 CHANGED: <verbatim or concise changed-file list>
+CHECKOUT: <branch>@<exact head> — the caller's checkout stays on the branch and head the record names; closeout never checks out, resets, rebases, or cleans it
 RISKS: <residual risks and skipped checks>
 NEXT: <one concrete next action>
 ```
