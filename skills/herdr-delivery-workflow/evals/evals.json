@@ -4,12 +4,12 @@
     {
       "id": 1,
       "prompt": "I'm inside Herdr. Implement the requested API change with a separate coding agent, keep the work isolated, then have another agent review the exact implementation commit before you call it done. Don't push or merge anything.",
-      "expected_output": "Chooses the delivery path; records the intake lane, scope, ownership, base, checks, plan, and exclusions; creates only the needed implementation and reviewer panes in the caller's existing checkout; waits on lifecycle events; requires an exact committed HEAD and evidence report; performs an independent no-mutation review on that exact head; routes any fix back to the implementation agent; does not push or merge.",
+      "expected_output": "Chooses the delivery path; records the intake lane, scope, ownership, base, checks, plan, exclusions, and a partition (one scope unless the analysis shows disjoint owned paths); creates only the needed implementation and reviewer panes in the caller's existing checkout; waits on lifecycle events; requires each implementation agent's evidence report, then quiesces, stages by owned paths, commits, and runs the acceptance checks on that exact head itself; performs an independent no-mutation review on that exact head; routes any fix back to the owning implementation agent; does not push or merge.",
       "files": [],
       "assertions": [
         "Selects the delivery route rather than the lightweight or review-only route",
-        "Records an intake result naming lane, reason, owners, plan, and claim-shaped validation",
-        "Requires an exact committed HEAD plus an evidence report before review",
+        "Records an intake result naming lane, reason, owners, plan, claim-shaped validation, and a partition with owned paths",
+        "Has the coordinator commit the implementation agents' work at a quiesce point and run the acceptance checks on that exact head before review, rather than accepting an agent's own commit or check results as evidence",
         "Runs an independent no-mutation review bound to that exact head",
         "Sends a charter whose ownership boundary is binding but whose solution shape stays provisional, without a predetermined implementation or disguised conclusion",
         "Does not push or merge"
@@ -77,21 +77,21 @@
     },
     {
       "id": 7,
-      "prompt": "I'm in Herdr. The implementation agent for this change is a Claude pane; codex and gemini are also installed on this machine. Staff the review of its exact commit and tell me how independent that review actually is.",
-      "expected_output": "Staffs the reviewer with `herdr agent start --kind` on a different agent kind than the implementation agent when one is installed; records each agent's kind beside its name, pane, and exact head; uses a fresh fallback kind on the same exact head when the preferred kind is unavailable, errors, matches the implementation kind, or the reviewer violates the no-mutation contract; states a same-kind review as recorded residual risk instead of claiming independence; does not treat a mode or role instruction as proof of a read-only runtime.",
+      "prompt": "I'm in Herdr. The two implementation agents for this change are both Claude panes; codex and gemini are also installed on this machine. The coordinator has committed their scopes. Staff the review of that exact commit and tell me how independent that review actually is.",
+      "expected_output": "Staffs the reviewer with `herdr agent start --kind` on a kind that differs from every implementation agent's kind when one is installed; records each agent's kind beside its name, pane, and owned paths or exact head, with one IMPLEMENTATION line per agent; uses a fresh fallback kind on the same exact head when the preferred kind is unavailable, errors, matches an implementation kind, or the reviewer violates the no-mutation contract; states a review on any implementation agent's kind as recorded residual risk instead of claiming independence; does not treat a mode or role instruction as proof of a read-only runtime.",
       "files": [],
       "assertions": [
-        "Staffs the reviewer on a different agent kind than the implementation agent using herdr agent start --kind",
-        "Records each agent's kind beside its name, pane, and exact head",
-        "Names a pre-chosen fallback kind pinned to the same exact head and states all four fallback triggers: unavailable kind, error or no verdict, only remaining kind being the implementation kind, and a read-only or no-mutation violation",
-        "States that a same-kind review would count as recorded residual risk, not independence",
+        "Staffs the reviewer on a kind that differs from every implementation agent's kind using herdr agent start --kind",
+        "Records each agent's kind beside its name and pane, with one IMPLEMENTATION line per implementation agent and the reviewer pinned to the exact head",
+        "Names a pre-chosen fallback kind pinned to the same exact head and states all four fallback triggers: unavailable kind, error or no verdict, only remaining kind being an implementation kind, and a read-only or no-mutation violation",
+        "States that a review matching any implementation agent's kind would count as recorded residual risk, not independence",
         "Does not treat a mode or role instruction as proof of a read-only runtime"
       ]
     },
     {
       "id": 8,
       "prompt": "In Herdr the reviewer just returned PASS on the implementation head. Land it on our main line and push it up so CI runs.",
-      "expected_output": "Integrates only after PASS; lands the reviewed exact head onto the named target product line; recomputes the integrated head and reruns the acceptance checks there; keeps reviewed and integrated heads distinct in the record; classifies any post-integration failure and routes the bounded fix to the implementation agent with fresh evidence and a fresh review; treats the push instruction in the live request as the Human's decision: records the push gate, appends its ledger line as status=resolved:instruction, and pushes only the head the instruction names, while any gate the request does not plainly decide still pauses the run.",
+      "expected_output": "Integrates only after PASS; lands the reviewed exact head onto the named target product line; recomputes the integrated head and reruns the acceptance checks there; keeps reviewed and integrated heads distinct in the record; classifies any post-integration failure and routes the bounded fix to the owning implementation agent with fresh evidence and a fresh review; treats the push instruction in the live request as the Human's decision: records the push gate, appends its ledger line as status=resolved:instruction, and pushes only the head the instruction names, while any gate the request does not plainly decide still pauses the run.",
       "files": [],
       "assertions": [
         "Integrates only after PASS on the exact reviewed head",
@@ -103,37 +103,25 @@
     {
       "id": 9,
       "prompt": "I'm in Herdr with three open issues on the same service. Spin up three implementation agents and run them all now.",
-      "expected_output": "Keeps one delivery in flight per project; explains the chain an issue must complete before the next is staffed (evidence report, exact-head PASS, integration, Human decision for external effects, closeout); refuses parallel writers outright because the delivery shares one checkout, names the order the three issues will run in, and says plainly that this workflow provides no isolation for true parallelism instead of staffing it; does not create three writers.",
+      "expected_output": "Keeps one delivery in flight per project; explains the chain an issue must complete before the next is staffed (evidence reports, coordinator quiet-head evidence, exact-head PASS, integration, Human decision for external effects, closeout); explains that parallelism in this workflow exists only inside one issue through a path partition, never across issues sharing a checkout; names the order the three issues will run in; does not create three implementation agents for three issues.",
       "files": [],
       "assertions": [
-        "Keeps one delivery in flight rather than staffing three implementation agents",
+        "Keeps one delivery in flight rather than staffing three implementation agents for three issues",
         "States the chain an issue must complete before the next is staffed",
-        "Refuses to staff a second writer on the same checkout rather than offering a parallel lane",
-        "Names the serial order for the three issues and says the workflow provides no isolation for true parallelism"
+        "Explains that parallel implementation agents are available only within one issue through a recorded path partition, not across issues on the same checkout",
+        "Names the serial order for the three issues"
       ]
     },
     {
       "id": 10,
       "prompt": "In Herdr the acceptance suite failed on the implementation head earlier but it's green after integration, so we're good, right? Close it out.",
-      "expected_output": "Refuses to let a later green result replace unreconciled evidence; preserves the verification ledger of base, merge-base, implementation head, reviewed head, integrated head, working-tree condition at each point, commands with baseline and integrated results, and a causal classification of the earlier failure; requires the reviewed head's PASS and a fresh review for any head created after review; states what changed and why the earlier failure is resolved before acceptance, and closes only resources created by this run.",
+      "expected_output": "Refuses to let a later green result replace unreconciled evidence; preserves the verification ledger of base, merge-base, the partition and each scope's commit, candidate head, reviewed head, integrated head, working-tree condition at each point, commands with baseline and integrated results, and a causal classification of the earlier failure; requires the reviewed head's PASS and a fresh review for any head created after review; states what changed and why the earlier failure is resolved before acceptance, and closes only resources created by this run.",
       "files": [],
       "assertions": [
         "Refuses to let the later green result replace the unreconciled earlier failure",
-        "Preserves base, merge-base, implementation head, reviewed head, and integrated head",
+        "Preserves base, merge-base, each scope's commit, candidate head, reviewed head, and integrated head",
         "Records commands with both baseline and integrated results plus a causal classification of the failure",
         "Requires PASS on the reviewed head and a fresh review for any head created after review"
-      ]
-    },
-    {
-      "id": 11,
-      "prompt": "I'm in Herdr. My implementation agent says the fix needs a version bump of a shared package and a change to a type contract another module owns. It asked whether to just do it. What now?",
-      "expected_output": "Treats it as `DEPENDENCY_REQUEST` rather than letting the agent edit outside its ownership boundary; the coordinator rules on the dependency or routes it as a Human gate when it touches scope, architecture, security, external effects, or an irreversible direction; re-checks whether the change raises the intake lane and emits `SCOPE_REOPEN` if it does; passes the ruling back as a bounded instruction and requires fresh evidence and a fresh exact-head review for the resulting head.",
-      "files": [],
-      "assertions": [
-        "Classifies the request as DEPENDENCY_REQUEST rather than authorizing an out-of-ownership edit",
-        "Has the coordinator rule on it or routes it as a Human gate when it touches scope, security, or irreversible direction",
-        "Re-checks the intake lane and emits SCOPE_REOPEN if the lane increases",
-        "Records, as a binding rule rather than an aside, that the head produced after the ruling needs fresh evidence and a fresh independent review bound to that exact SHA"
       ]
     },
     {
@@ -151,12 +139,12 @@
     {
       "id": 13,
       "prompt": "I'm in Herdr. The coordinator pane for this delivery got restarted and its context is gone, but the implementation and reviewer agents are still alive on the delivery checkout. Pick it back up.",
-      "expected_output": "Resumes or recovers the same canonical coordinator seat instead of creating a second coordinator or restarting the delivery; rebuilds a bounded context pack from live Herdr state and preserved reports: outcome and acceptance boundary, recorded lane and plan, every agent's name, kind, pane, workspace, branch and exact head, the verification ledger, open Human gates, decisions and findings, and the next concrete action; never drops the ledger or a pending gate to save context; reports BLOCKED to the Human with preserved custody evidence if the seat cannot continue safely.",
+      "expected_output": "Resumes or recovers the same canonical coordinator seat instead of creating a second coordinator or restarting the delivery; rebuilds a bounded context pack from live Herdr state and preserved reports: outcome and acceptance boundary, recorded lane and plan, every agent's name, kind, pane, workspace, owned paths, and the reviewer's exact head, the verification ledger, open Human gates, decisions and findings, and the next concrete action; never drops the ledger or a pending gate to save context; reports BLOCKED to the Human with preserved custody evidence if the seat cannot continue safely.",
       "files": [],
       "assertions": [
         "Resumes or recovers the same canonical coordinator seat instead of creating a second coordinator",
         "Rebuilds a bounded context pack from live Herdr state and preserved reports",
-        "Preserves agent inventory with kind, pane, branch, and exact head, plus the verification ledger and open gates",
+        "Preserves agent inventory with kind, pane, owned paths, and the reviewer's exact head, plus the verification ledger and open gates",
         "Does not drop the ledger or a pending gate to save context"
       ]
     },
@@ -201,13 +189,13 @@
     {
       "id": 17,
       "prompt": "In Herdr, get the auth-timeout fix implemented and independently reviewed on its own branch. Stop there — do not merge it into main, I want to look at the branch myself first.",
-      "expected_output": "Runs the delivery route through implementation, evidence, and exact-head review, then treats the no-merge instruction as the recorded acceptance boundary: the integration step is removed from the chain rather than deferred behind a pending merge gate, the record shows no integrated head, and the reviewed head is named as the deliverable. The review runs in the same checkout once the implementation agent is idle and the tree is quiet at that exact SHA, on a different agent kind when one is available. Nothing is merged, landed, pushed, or opened as a PR; if landing later looks necessary, the run routes SCOPE_REOPEN to the Human instead of acting.",
+      "expected_output": "Runs the delivery route through implementation, evidence, and exact-head review, then treats the no-merge instruction as the recorded acceptance boundary: the integration step is removed from the chain rather than deferred behind a pending merge gate, the record shows no integrated head, and the reviewed head is named as the deliverable. The review runs in the same checkout once every implementation agent is idle, the coordinator has committed the scopes, and the tree is quiet at that exact SHA, on a different agent kind when one is available. Nothing is merged, landed, pushed, or opened as a PR; if landing later looks necessary, the run routes SCOPE_REOPEN to the Human instead of acting.",
       "files": [],
       "assertions": [
         "Records the no-merge instruction as part of the acceptance boundary at intake, not as a later reminder",
         "Removes the integration step from the chain rather than deferring it behind an open merge gate",
         "Records that no integrated head exists and names the reviewed head as the deliverable",
-        "Reviews in the shared checkout only after the implementation agent is idle, with HEAD at the exact SHA and porcelain recorded before and after",
+        "Reviews in the shared checkout only after every implementation agent is idle and the coordinator has committed, with HEAD at the exact SHA and porcelain recorded before and after",
         "Staffs the reviewer on a different agent kind, or records same-kind review as residual risk",
         "Does not merge, land, push, or open a PR, and names SCOPE_REOPEN as the route if landing turns out to be needed"
       ]
@@ -215,10 +203,10 @@
     {
       "id": 18,
       "prompt": "In Herdr, the reviewer just returned PASS on this issue and I've accepted it. Clean up the agents you spun up for it before moving on to the next issue.",
-      "expected_output": "Treats teardown as part of the same closeout that accepts the issue: preserves each agent's final evidence report first, then tears down the implementation and reviewer agents this run created for the issue by closing the panes it created to host them, since there is no agent stop command and the agent clears when its pane closes; leaves the caller's own pane and the shared checkout untouched; verifies the safe-cleanup preconditions (no process running, no unexplained tracked change, reports preserved, no pending Human gate or dependent work) and leaves any agent still working, blocked on a gate, or holding dependent work open with a stated reason; does not use pane release-agent as a shutdown; only then frees the flight slot for the next issue.",
+      "expected_output": "Treats teardown as part of the same closeout that accepts the issue: preserves each agent's final evidence report first, then tears down every implementation agent in the partition and the reviewer this run created for the issue by closing the panes it created to host them, since there is no agent stop command and the agent clears when its pane closes; leaves the caller's own pane and the shared checkout untouched; verifies the safe-cleanup preconditions (no process running, no unexplained tracked change, reports preserved, no pending Human gate or dependent work) and leaves any agent still working, blocked on a gate, or holding dependent work open with a stated reason; does not use pane release-agent as a shutdown; only then frees the flight slot for the next issue.",
       "files": [],
       "assertions": [
-        "Tears down the issue's implementation and reviewer agents by closing the panes this run created, not with a nonexistent agent stop command",
+        "Tears down every implementation agent in the partition and the reviewer by closing the panes this run created, not with a nonexistent agent stop command",
         "Preserves each agent's evidence report before closing its pane",
         "Leaves the caller's own pane and the shared checkout untouched, and does not use pane release-agent as a teardown",
         "Checks the safe-cleanup preconditions and leaves any agent still working, blocked, or holding dependent work open with a stated reason",
@@ -248,6 +236,80 @@
         "Classifies each open finding as recurring or new using the evidence from both reviews",
         "Routes a Human gate or SCOPE_REOPEN with the preserved evidence rather than continuing the loop",
         "Shows each repair head received fresh evidence and a fresh independent review in the ledger"
+      ]
+    },
+    {
+      "id": 21,
+      "prompt": "I'm in Herdr. The issue is 'add CSV export': it needs a new exporter in packages/export/, a new button and hook in apps/web/src/reports/, and an endpoint in services/api/src/reports/. The three parts don't share any files. Use several agents so it goes faster, and get it reviewed.",
+      "expected_output": "Runs the delivery route; analyzes the issue against the code before staffing and records a partition of three scopes with disjoint owned paths, confirming no scope changes a contract another scope consumes (otherwise runs that contract slice first alone); staffs one implementation agent per scope in its own pane on the same checkout and branch; each charter names its owned paths, its peer scopes, the shared-tree rules (no git write commands, no repo-wide --fix or codegen, advisory checks, no edits outside owned paths); waits on each agent by name; at quiesce confirms porcelain is confined to owned paths, stages each scope by path, commits, and runs the full acceptance checks on that head; reviews that exact head on a different kind; routes findings to the owning agent.",
+      "files": [],
+      "assertions": [
+        "Analyzes the issue against the code and records a partition with concrete disjoint owned paths per scope before staffing any agent",
+        "Staffs one implementation agent per scope in parallel on the same checkout and branch, with no worktree",
+        "Charters each agent with its owned paths, the peer scopes, and the shared-tree rules including no git write commands and no repo-wide formatter, --fix, codegen, or lockfile changes",
+        "Treats each agent's own check results as advisory and has the coordinator run the acceptance checks on the committed quiet head as the evidence",
+        "Quiesces only when every agent is idle, confirms porcelain stays inside the owned paths, stages by owned paths (not git add -A), and commits as the coordinator",
+        "Reviews the exact coordinator-committed head on a kind different from every implementation agent's kind"
+      ]
+    },
+    {
+      "id": 22,
+      "prompt": "I'm coordinating a partitioned delivery in Herdr. Agent api-scope (owns services/api/src/reports/) says it needs to add a field to the shared ReportRow type in packages/types/src/report.ts, which agent web-scope is currently editing. api-scope asked whether to just do it. What now?",
+      "expected_output": "Treats it as DEPENDENCY_REQUEST; refuses to let api-scope edit a path owned by web-scope, and refuses to reassign the path while web-scope is live; rules that ownership of a live peer's path changes only at a quiesce point after web-scope is idle and its scope committed, or routes the change as a sequential contract slice since a shared type is a contract other scopes consume; writes the RULING/ROUTE/BINDING record with the verbatim BINDING line; re-checks whether the change raises the lane and emits SCOPE_REOPEN if so; requires fresh evidence and a fresh exact-head review for the resulting head.",
+      "files": [],
+      "assertions": [
+        "Classifies the request as DEPENDENCY_REQUEST rather than authorizing an out-of-ownership edit",
+        "Does not reassign a path owned by a live peer; transfers ownership only after that peer is idle and its work is committed, or routes the shared type change as a sequential contract slice",
+        "Writes the ruling record with the verbatim BINDING line stating that the resulting head needs fresh evidence and a fresh independent review bound to that exact SHA",
+        "Re-checks the intake lane and emits SCOPE_REOPEN if the shared contract change increases it"
+      ]
+    },
+    {
+      "id": 23,
+      "prompt": "In Herdr, implement 'rename the Customer.status enum values and update every caller' with as many agents as you can. The enum lives in packages/domain/src/customer.ts and there are callers in apps/web, services/api, and services/billing.",
+      "expected_output": "Analyzes the issue and recognizes it cannot be partitioned honestly as requested: the enum is a contract every caller consumes, so it runs as a contract slice first with a single agent, quiesced and committed, and only then considers partitioning the caller updates by disjoint paths against the new head if the checks can still be satisfied on the final head; refuses to staff parallel agents that would all depend on an unfinished contract change; records the partition honestly (single scope or contract slice then scopes) instead of a partition that exists to look parallel; does not create a worktree.",
+      "files": [],
+      "assertions": [
+        "Identifies the enum change as a contract other scopes consume and runs it first as a single sequential slice before any partition",
+        "Does not staff parallel implementation agents whose scopes depend on an unfinished contract change",
+        "Records the partition honestly, as a single scope or a contract slice followed by disjoint caller scopes, rather than splitting to appear parallel",
+        "Keeps the work on one checkout and one branch with no worktree"
+      ]
+    },
+    {
+      "id": 24,
+      "prompt": "I'm in Herdr. Both implementation agents for this issue report done. web-scope owns apps/web/src/reports/ and api-scope owns services/api/src/reports/, but git status --porcelain also shows pnpm-lock.yaml and packages/types/src/report.ts modified. Commit it and get it reviewed.",
+      "expected_output": "Refuses to commit the tree as-is: the two entries fall outside every scope's owned paths and are unexplained, which is an ownership breach or stray process rather than something to smooth over; identifies which agent produced them by asking each agent or reading their reports' Outside-owned-paths line, and routes BLOCKED or DEPENDENCY_REQUEST as appropriate; does not use git add -A or git commit -a; does not review until the tree is explainable and committed by owned paths; treats the agents' own check results as advisory and runs the acceptance checks on the committed head before review.",
+      "files": [],
+      "assertions": [
+        "Refuses to commit while porcelain shows entries outside every scope's owned paths that the record does not explain",
+        "Identifies the origin of the out-of-partition changes through the agents or their reports rather than guessing or silently including them",
+        "Stages only by owned paths and never with git add -A or git commit -a",
+        "Does not staff the review until the tree is explained and committed at an exact head, with the coordinator's own acceptance-check run as evidence"
+      ]
+    },
+    {
+      "id": 25,
+      "prompt": "I'm in Herdr. Three implementation agents for this issue report done: web-scope owns apps/web/src/exports/, api-scope owns services/api/src/exports/, domain-scope owns packages/domain/src/exports/. Intake recorded HEAD 4f2a9c1 on feat/exports with an empty stash list. Now git rev-parse HEAD returns 9b71e04, git log -1 shows a commit 'wip: exports' from a few minutes ago, and git stash list shows one entry 'WIP on feat/exports'. Commit the scopes and get review going.",
+      "expected_output": "Refuses to quiesce-commit on the moved head: the HEAD change and the new stash prove an implementation agent ran a git write, so the commit may carry a peer's half-written files and the stash hides work from porcelain; preserves the state (does not reset, drop the stash, amend, or rewrite history on its own), identifies which agent did it by asking each agent or reading their panes, and routes BLOCKED with the recorded head, the observed head, and the stash entry; does not stage or commit on top of 9b71e04 and does not staff a reviewer until the tree is explained and a clean candidate head exists.",
+      "files": [],
+      "assertions": [
+        "Compares the observed HEAD and stash list against the head and stash list recorded at intake and treats the difference as an agent git write, not as progress",
+        "Does not commit, stage, or review on top of the moved head and does not build a candidate head from it",
+        "Preserves the state: no reset, stash drop, amend, or history rewrite without a Human decision",
+        "Identifies the responsible agent through the agents or their panes and routes BLOCKED naming the recorded head, observed head, and stash entry"
+      ]
+    },
+    {
+      "id": 26,
+      "prompt": "I'm in Herdr. web-scope (owns apps/web/src/billing/) and api-scope (owns services/api/src/billing/) both reported done. api-scope's report lists Edited files: services/api/src/billing/invoice.ts and services/api/src/billing/invoice.test.ts. git status --porcelain --untracked-files=all under services/api/src/billing/ also shows services/api/src/billing/types.ts modified, which api-scope did not claim. Nothing outside the two scopes is dirty and HEAD has not moved. Stage and commit both scopes and send it to review.",
+      "expected_output": "Does not commit api-scope while services/api/src/billing/types.ts is unclaimed: an entry inside a scope that its owner did not list under Edited files was written by a peer, a hook, or a process, so it is an unexplained entry even though it sits inside owned paths; asks api-scope and web-scope which of them wrote it (or reads the panes), and if web-scope did, treats it as an ownership breach and rules on it (DEPENDENCY_REQUEST ruling or BLOCKED) rather than transferring the path or silently including the file in api-scope's commit; does not use git add -A; only after the origin is named and the change is either owned or removed does it stage by owned paths, commit, run the acceptance checks itself, and staff review on the exact head.",
+      "files": [],
+      "assertions": [
+        "Reconciles each scope's porcelain entries against the owner's Edited files list and flags types.ts as unclaimed even though it is inside api-scope's owned paths",
+        "Does not include the unclaimed file in any commit until its origin is named by the agents or their panes",
+        "If a peer wrote it, treats it as an ownership breach with a ruling, without reassigning the live path or letting the peer keep editing it",
+        "Stages only by owned paths, never git add -A or git commit -a, and staffs review only on a committed exact head with the coordinator's own acceptance-check run"
       ]
     }
   ]

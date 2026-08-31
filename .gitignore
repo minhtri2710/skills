@@ -10,3 +10,6 @@ __pycache__/
 
 # br doctor per-run artifacts
 .doctor/
+
+# skill eval run outputs (skill-creator workspaces)
+skills/*-workspace/

@@ -67,7 +67,7 @@ Look for downstream parsing of payloads, timing, logs, or counters to infer a ty
 
 A `COUNCIL_REQUEST` is an optional bounded gate, not a stage of delivery. Use it only after ordinary local analysis leaves patch-versus-foundation materially undecided, and only when the decision is expensive to reverse.
 
-Staff one read-only advisor: a different agent kind than the implementation agent when available, read-only access to the shared checkout at the exact head, no mutation, no subagents, no background work, and one evidence-bound `Assessment` block as its final report. Name the exact head, the competing routes, and the specific question. The coordinator retains the ruling; an advisor recommends and never accepts, edits, or routes work.
+Staff one read-only advisor: a kind that differs from every implementation agent's kind when available, read-only access to the shared checkout at the exact head when one exists or at the recorded quiesce state otherwise, no mutation, no subagents, no background work, and one evidence-bound `Assessment` block as its final report. Name the exact head or quiesce state, the competing routes, and the specific question. The coordinator retains the ruling; an advisor recommends and never accepts, edits, or routes work.
 
 Do not staff an advisor for routine bounded work, do not stack advisors to break a tie, and do not manufacture dissent when the evidence supports agreement.
 

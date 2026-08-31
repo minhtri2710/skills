@@ -67,8 +67,8 @@ Before final acceptance, preserve the implementation report, exact reviewed head
 
 Close only panes, tabs, workspaces, and agents created by this run. The checkout itself is the caller's and is never removed — and never moved: no checkout of another branch, no reset, no rebase, no clean as part of closeout. Leave it on the branch and head the record names; wrapping up changes Herdr resources, not the tree. Cleanup is safe only when:
 
-- no process is running;
-- no unexplained tracked change remains;
+- no process is running in any pane this run created;
+- no unexplained tracked change remains — every implementation agent's work is committed or its remaining diff is explained;
 - required reports and artifacts are preserved;
 - no pending Human gate or dependent work remains.
 
@@ -76,7 +76,7 @@ Leave user-owned or pre-existing resources untouched. If a created resource rema
 
 ## Per-issue agent teardown
 
-Each delivery is one issue, and it created its own agents — typically an implementation agent and a reviewer, recorded in the run context by name, kind, and pane. When that issue is accepted or otherwise closed, tear down the agents this run staffed for it before the flight slot moves to the next issue, so agents do not accumulate across sequential deliveries. Tie the teardown to the same closeout that closes the issue's other resources, under the same safe-cleanup preconditions above; do not defer it into a separate pass.
+Each delivery is one issue, and it created its own agents — one implementation agent per scope in the partition and a reviewer, recorded in the run context by name, kind, pane, and owned paths. When that issue is accepted or otherwise closed, tear down the agents this run staffed for it before the flight slot moves to the next issue, so agents do not accumulate across sequential deliveries. Tie the teardown to the same closeout that closes the issue's other resources, under the same safe-cleanup preconditions above; do not defer it into a separate pass.
 
 An agent is torn down by closing the pane this run created to host it: the agent name clears when the agent exits or its pane closes (`references/herdr-cli.md` owns the exact mechanic). Preserve the agent's final evidence report before closing its pane, since the transcript dies with the pane. Never close the caller's own pane or the agent occupying it, never close a pane an agent shares with unrelated work this run did not create, and do not use `pane release-agent` as a teardown — it is a detection-plane report, not a shutdown. If an agent is still working, blocked on a Human gate, or holds dependent work another open issue needs, leave it open and state the concrete reason rather than forcing it down.
 
@@ -90,7 +90,7 @@ INTEGRATED: <exact integrated SHA or none>
 REVIEW: <PASS/FAIL/BLOCKED, exact head, reviewer agent kind>
 CHECKS: <command=exit code list on the reviewed head>
 INTEGRATED CHECKS: <command=exit code list on the integrated head, or none>
-CHANGED: <verbatim or concise changed-file list>
+CHANGED: <verbatim or concise changed-file list, grouped by scope when the partition had more than one>
 CHECKOUT: <branch>@<exact head> — the caller's checkout stays on the branch and head the record names; closeout never checks out, resets, rebases, or cleans it
 RISKS: <residual risks and skipped checks>
 NEXT: <one concrete next action>

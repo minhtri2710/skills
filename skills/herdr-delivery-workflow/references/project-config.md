@@ -23,6 +23,7 @@ One `key: value` line per setting; every key is optional:
 - target-line: <default integration product line>
 - always-gate: <decisions always routed to the Human, comma-separated>
 - repair-cap: <max repair cycles before escalation>
+- worker-cap: <max implementation agents in one partition; default 3>
 ```
 
 Report an unknown key to the Human instead of guessing its meaning; do not act on it.
@@ -30,6 +31,6 @@ Report an unknown key to the Human instead of guessing its meaning; do not act o
 ## Precedence and guards
 
 - An explicit Human instruction in the current request overrides the config; the config overrides workflow defaults.
-- The config may add stricter local preferences; it may not weaken this workflow's safety boundaries. A `lane-defaults` entry raises a lane floor and never lowers a lane below what the hard-gate classes in `intake-policy.md` require. `always-gate` adds Human gates; no key removes one, authorizes an external write, or skips review.
+- The config may add stricter local preferences; it may not weaken this workflow's safety boundaries. A `lane-defaults` entry raises a lane floor and never lowers a lane below what the hard-gate classes in `intake-policy.md` require. `always-gate` adds Human gates; no key removes one, authorizes an external write, or skips review. `worker-cap` bounds how many implementation agents share the tree at once; it never permits overlapping owned paths or an agent that commits.
 - The config is Human-owned and read-only during a run. The run edits it only when the Human explicitly asks to record a setting, and reports the change plainly.
 - Record the applied keys, or `Config: none`, in the intake record, and pass applied staffing and validation values into the affected charters.

@@ -1,6 +1,6 @@
 # Intake Policy
 
-Use this policy before creating a pane, agent, tab, workspace, or bounded watch for delivery work. Intake is a routing gate, not a ceremony checklist. Choose the smallest lane that honestly covers blast radius, reversibility, uncertainty, and proof weakness.
+Use this policy before creating a pane, agent, tab, workspace, or bounded watch for delivery work. Intake is a routing gate, not a ceremony checklist; it also decides how the one issue in flight is partitioned across implementation agents. Choose the smallest lane that honestly covers blast radius, reversibility, uncertainty, and proof weakness.
 
 ## Repository guidance
 
@@ -71,6 +71,21 @@ Before implementation, make a small active plan. Use a repository-defined plan f
 
 The plan remains active until the coordinator accepts the work or explicitly closes or supersedes it. Do not create a large planning framework merely to imitate a formal process.
 
+## Partition
+
+After the lane is classified and before any implementation agent is staffed, analyze the issue against the code and decide how many implementation agents it gets. The delivery runs on one branch in one shared working tree, so the only thing that keeps two agents from corrupting each other's work is that they never touch the same path. The partition is that guarantee, written down before anyone edits.
+
+One scope is the base case and needs no justification. Split into several scopes only when all of the following hold on the evidence, not on the issue title:
+
+- each scope's owned paths are disjoint from every other scope's, stated as concrete paths or globs;
+- no scope changes a contract another scope consumes — an interface, exported type, schema, shared config, dependency manifest, lockfile, generated file, or build definition. A change like that is a contract slice: run it first with one agent, quiesce and commit, then partition the rest against the new head. A contract that does not exist yet is different: when the coordinator pins it in both charters — path, signature, and behavior — the producing and consuming scopes can run in parallel, because neither edits a file the other owns and the final head is what gets checked; the consumer's charter then says the module is absent while it works and that it mocks the pin rather than stubbing the producer's path; leave it unpinned and the consumer becomes a second wave;
+- each scope's claim can be checked on the final quiet head with the recorded acceptance commands;
+- the scope count stays within `worker-cap` (default 3, project config). Merge small scopes rather than queueing a second wave.
+
+Paths no scope owns — the root config, lockfiles, generated output, shared fixtures — belong to no implementation agent. A change there is routed by the coordinator as a sequential slice or a `DEPENDENCY_REQUEST` ruling, never picked up by whichever agent reaches it first.
+
+Each scope inherits the delivery's lane, plan, gates, and validation claims; the partition never lowers any of them. If the analysis shows the issue cannot be split honestly, say so and run one scope; a partition that exists to look parallel is two writers on one tree with a label.
+
 ## Intake record
 
 Before mutation, state this compact result in the coordinator's current run context:
@@ -81,10 +96,11 @@ Reason: <material reason for the lane>
 Owners: <coordinator, implementation/review owners, governing contracts>
 Plan: <active plan reference or none>
 Validation: <claim-shaped checks and expected outcomes>
+Partition: <scope name: owned paths, one line per scope; contract slice first when one exists>
 Config: <applied project-config keys or none>
 ```
 
-Include target repository/product line, exclusions, base/merge-base, dependencies, Human gates, and Herdr resources created by the run alongside this result. Pass the lane, plan reference, governing contracts, and validation claims into every relevant charter.
+Include target repository/product line, exclusions, base/merge-base, dependencies, Human gates, and Herdr resources created by the run alongside this result. Pass the lane, plan reference, governing contracts, validation claims, and the scope's owned paths and peer scopes into every relevant charter.
 
 ## Reopen rule
 
