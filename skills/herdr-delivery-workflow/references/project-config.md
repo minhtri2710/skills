@@ -17,18 +17,18 @@ One `key: value` line per setting; every key is optional:
 ```markdown
 # Delivery config — <project-slug>
 
-- implementation-kind: <preferred agent kind>
-- reviewer-kind: <preferred reviewer kind>
-- reviewer-fallback: <pre-chosen fallback reviewer kind>
-- implementation-args: <native arguments passed after `--` on `herdr agent start` for the implementation kind: model selection and the pre-authorization of the read-only and verify commands the charter names>
-- reviewer-args: <the same for the reviewer kind; read-only inspection and verify commands only>
-- reviewer-fallback-args: <the same for the fallback reviewer kind>
+- engineer-kind: <preferred agent kind for Engineer Peers>
+- reviewer-kind: <preferred agent kind for the Reviewer Peer>
+- reviewer-fallback: <pre-chosen fallback Reviewer kind>
+- engineer-args: <native arguments passed after `--` on `herdr agent start` for the Engineer kind: model selection and the pre-authorization of the read-only and verify commands the charter names, plus `herdr agent prompt <lead-name>`>
+- reviewer-args: <the same for the Reviewer kind; read-only inspection and verify commands, plus the report prompt>
+- reviewer-fallback-args: <the same for the fallback Reviewer kind>
 - checks: <claim-shaped commands, `;`-separated>
 - lane-defaults: <path or change class = tiny|normal|high-risk, comma-separated>
 - target-line: <default integration product line>
 - always-gate: <decisions always routed to the Human, comma-separated>
 - repair-cap: <max repair cycles before escalation>
-- worker-cap: <max implementation agents in one partition; default 3>
+- worker-cap: <max Engineers in one partition; default 3>
 ```
 
 Report an unknown key to the Human instead of guessing its meaning; do not act on it.
@@ -36,7 +36,7 @@ Report an unknown key to the Human instead of guessing its meaning; do not act o
 ## Precedence and guards
 
 - An explicit Human instruction in the current request overrides the config; the config overrides workflow defaults.
-- The config may add stricter local preferences; it may not weaken this workflow's safety boundaries. A `lane-defaults` entry raises a lane floor and never lowers a lane below what the hard-gate classes in `intake-policy.md` require. `always-gate` adds Human gates; no key removes one, authorizes an external write, or skips review. `worker-cap` bounds how many implementation agents share the tree at once; it never permits overlapping owned paths or an agent that commits.
-- `*-args` values pre-arm routine command approval so agents do not stall on per-command prompts; they never authorize push, PR mutation, merge, deploy, or another external write. `reviewer-args` and `reviewer-fallback-args` should withhold write authority to the tree; when the only mode that pre-authorizes checks can also write, the staffing record names that as residual risk, because the reviewer's no-mutation contract is then enforced only by charter.
+- The config may add stricter local preferences; it may not weaken this workflow's safety boundaries. A `lane-defaults` entry raises a lane floor and never lowers a lane below what the hard-gate classes in `intake-policy.md` require. `always-gate` adds Human gates; no key removes one, authorizes an external write, or skips review. `worker-cap` bounds how many Engineers share the tree at once; it never permits overlapping owned paths or an agent that commits.
+- `*-args` values pre-arm routine command approval so agents do not stall on per-command prompts; they never authorize push, PR mutation, merge, deploy, or another external write. `reviewer-args` and `reviewer-fallback-args` should withhold write authority to the tree; when the only mode that pre-authorizes checks can also write, the staffing record names that as residual risk, because the Reviewer's no-mutation contract is then enforced only by charter.
 - The config is Human-owned and read-only during a run. The run edits it only when the Human explicitly asks to record a setting, and reports the change plainly.
 - Record the applied keys, or `Config: none`, in the intake record, and pass applied staffing and validation values into the affected charters.

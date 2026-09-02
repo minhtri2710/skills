@@ -67,9 +67,9 @@ Look for downstream parsing of payloads, timing, logs, or counters to infer a ty
 
 A `COUNCIL_REQUEST` is an optional bounded gate, not a stage of delivery. Use it only after ordinary local analysis leaves patch-versus-foundation materially undecided, and only when the decision is expensive to reverse.
 
-Staff one read-only advisor: a kind that differs from every implementation agent's kind when available, read-only access to the shared checkout at the exact head when one exists or at the recorded quiesce state otherwise, no mutation, no subagents, no background work, and one evidence-bound `Assessment` block as its final report. Name the exact head or quiesce state, the competing routes, and the specific question. The coordinator retains the ruling; an advisor recommends and never accepts, edits, or routes work.
+Staff one Architect Peer (`peer-policy.md`, "Disposition: Architect"): a kind that differs from every Engineer's kind when available, read-only access to the shared checkout at the exact head when one exists or at the recorded quiesce state otherwise, no mutation, no subagents, no background work, a sealed seat, and one evidence-bound `Assessment` block sent to the Lead by prompt as its final report. Name the exact head or quiesce state, the competing routes, and the specific question. The Lead retains the ruling; an Architect recommends and never accepts, edits, or routes work.
 
-Do not staff an advisor for routine bounded work, do not stack advisors to break a tie, and do not manufacture dissent when the evidence supports agreement.
+Do not staff an Architect for routine bounded work, do not stack Architects to break a tie, and do not manufacture dissent when the evidence supports agreement.
 
 ## Assessment result
 

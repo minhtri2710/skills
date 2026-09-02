@@ -94,17 +94,16 @@ herdr agent start <name> --kind <kind> --pane <pane-id>
 herdr agent start <name> --kind <kind> --pane <pane-id> -- <agent-args...>
 ```
 
-Use the kind the user requested, and run `herdr agent` for the installed kind list. Native agent arguments go only after `--`. A successful `agent start` returns only after Herdr detects the expected agent in that pane and considers it ready for input; startup defaults to a 30-second timeout. If the agent is blocked during startup the command returns `agent_not_ready` immediately but keeps the name usable for `agent read` and `agent send-keys`; wait for idle before prompting.
+Use the kind the user requested, and run `herdr agent` for the installed kind list. Native agent arguments go only after `--`. A successful `agent start` returns only after Herdr detects the expected agent in that pane and considers it ready for input; startup defaults to a 30-second timeout. If the agent is blocked during startup the command returns `agent_not_ready` immediately but keeps the name usable for `agent read` and `agent send-keys`; wait for it to settle before prompting.
 
 ```bash
-herdr agent prompt <name> "<bounded task>" --wait --timeout 120000
-herdr agent wait <name> --timeout 120000
-herdr agent wait <name> --until blocked --timeout 120000
+herdr agent prompt <name> "<bounded task>"
+herdr agent wait <name> --timeout 30000
 ```
 
-`agent prompt` honors the pane's live bracketed-paste mode and sends text followed by encoded Enter. It refuses an agent already sitting at an approval or question dialog with `agent_blocked` before sending any input. `--wait` waits for the first settled `idle`, `done`, or `blocked`; do not repeat those defaults with `--until`. A prompt sent from a non-working state must produce an observed lifecycle change within five seconds, otherwise Herdr returns `agent_prompt_stalled` instead of waiting indefinitely; that wait tracks lifecycle state, not one turn. Use `--until` only for a state-specific need, such as waiting for a running agent to request input.
+`agent prompt` honors the pane's live bracketed-paste mode and sends text followed by encoded Enter. It refuses an agent already sitting at an approval or question dialog with `agent_blocked` before sending any input. Do not pass `--wait`: no seat in this workflow waits on another. `agent wait` has one site, after `agent_not_ready` at startup, to let a freshly started agent settle before its charter; its default states cover that — `idle` means send the charter, `blocked` means a startup dialog to route as a Human decision — and it is never used on a Peer that has work.
 
-Do not poll `herdr agent list`, sleep in a loop, or re-issue status commands in place of a wait.
+Reports arrive as prompts. A Peer's report wakes the Lead mid-turn or opens a new Lead turn, so the Lead ends its turn after dispatching and after each wake, and before ending any turn runs `herdr agent list` once to reconcile live Peers with the reports received (`lead-policy.md`, "Lifecycle and reports"). Do not poll `herdr agent list`, sleep in a loop, re-issue status commands, or block on a Peer with any wait.
 
 Inspect through the resolved agent:
 
@@ -113,7 +112,39 @@ herdr agent get <name>
 herdr agent read <name> --source recent-unwrapped --lines 120
 ```
 
-After a failed wait or a `blocked` state, read `agent get` and `agent read` before deciding anything. A blocked approval dialog is a Human decision: route it and never answer it by inference. `herdr agent send-keys <name> esc` writes logical keys and exists to resume an interactive UI after that decision, not to drive the agent's work.
+After a `blocked` state or a Peer that went quiet without a report, read `agent get` and `agent read` before deciding anything. A blocked approval dialog is a Human decision: route it and never answer it by inference. `herdr agent send-keys <name> esc` writes logical keys and exists to resume an interactive UI after that decision, not to drive the agent's work.
+
+## Name a seat
+
+```bash
+herdr agent rename "$HERDR_PANE_ID" lead-<project-slug>
+herdr agent rename <target> --clear
+```
+
+Rename works on an unnamed agent, including the caller's own. A name follows the pane occupant and clears when that agent exits, so a seat that must be prompted by others — the Lead, the Supervisor, a Reviewer named after its head — is named before anyone needs it.
+
+## Report to the Lead by prompt
+
+A Peer sends its report, verdict, or protocol message to the Lead's seat name, without `--wait`, after printing it in its own pane:
+
+```bash
+herdr agent prompt lead-<project-slug> "$(cat <<'REPORT'
+# Report — <scope name>
+...
+REPORT
+)"
+```
+
+The quoted heredoc keeps a multi-line Markdown message intact through the shell. A rejected send — `agent_blocked` because the Lead sits at a dialog, or any error — is not retried: the Peer stops, and the Lead reads the pane at its next wake. This is the only `herdr` command a Peer runs.
+
+## Notify the Human
+
+```bash
+herdr notification show "<title>" --body "<one line>" --sound request
+herdr notification show "<title>" --body "<one line>" --sound done
+```
+
+A notification reaches the Human, not an agent. Popups depend on the Human's `[ui.toast] delivery` key in `~/.config/herdr/config.toml`; its default is `off`, so the notification is silent until the Human sets `herdr`, `terminal`, or `system`. That is the Human's config, never edit it. `human-gates-and-closeout.md` owns the only two sites: `--sound request` when a Human gate opens, `--sound done` at the final handoff. Do not notify for routine progress, Peer completions, or verdicts.
 
 ## Read sources
 
