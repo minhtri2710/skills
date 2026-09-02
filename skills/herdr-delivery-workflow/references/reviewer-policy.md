@@ -18,7 +18,7 @@ The review request names:
 - required checks;
 - coordinator receiving the verdict.
 
-Review runs in the delivery's single checkout, from its own pane, after the implementation stage has stopped. That is honest evidence only when the tree is frozen: every implementation agent is idle, the coordinator has committed every scope, `git rev-parse HEAD` equals the named implementation SHA, and `git status --porcelain` is empty apart from entries the coordinator has already explained in the record. Record `HEAD` and porcelain before the review and again after it, and discard the verdict if either moved. A review taken while any implementation agent is still editing is not evidence, however clean the diff looked; with several agents on one tree, one of them being idle proves nothing about the others.
+Review runs in the delivery's single checkout, from its own pane, after the implementation stage has stopped. That is honest evidence only when the tree is frozen: every implementation agent is idle, the coordinator has committed every scope, `git rev-parse HEAD` equals the named implementation SHA, and `git --no-optional-locks status --porcelain --untracked-files=all` is empty apart from entries the coordinator has already explained in the record. Record `HEAD` and porcelain before the review and again after it, and discard the verdict if either moved. A review taken while any implementation agent is still editing is not evidence, however clean the diff looked; with several agents on one tree, one of them being idle proves nothing about the others.
 
 Run the review on a kind that differs from every implementation agent's kind when another kind is installed, and record every agent's kind beside its name, pane, workspace, and owned paths or exact head. A review-only route never reads the coordinator policy, so the roster has to be built here.
 
@@ -32,9 +32,11 @@ FALLBACK: kind=<kind>, pinned to the same exact head; triggers: preferred kind u
 INDEPENDENCE: <different-kind | same-kind> — a same-kind review, matching any implementation agent's kind, counts as recorded residual risk, not independence
 ```
 
+Staff the reviewer with its read-only inspection and verify commands pre-authorized through the native arguments after `--` on `herdr agent start` (`reviewer-args` in the project config when recorded), so the coordinator does not hand-approve each check; write authority stays withheld. If the only available mode that pre-authorizes checks can also write, record that in the staffing record as residual risk.
+
 Deciding the fallback in advance is what keeps a substitution visible: a reviewer that dies mid-review otherwise gets replaced by whatever is convenient, which is usually an implementation kind, and the swap never reaches the record. When the review does end up on the same kind, the INDEPENDENCE line and the verdict both say so as residual risk.
 
-Name the reviewer with the exact head it reviews and rename it with `herdr agent rename` whenever that head changes, so the agent listing alone proves which head a verdict covers. A name pointing at a head the reviewer no longer sits on is worse than no name, because it invites belief.
+Name the reviewer after the head it reviews with an abbreviated SHA that fits the agent name rule in `herdr-cli.md` — `review-<first 12 hex of the SHA>`, since a full SHA exceeds the 32-character limit and may start with a digit — and rename it with `herdr agent rename` whenever that head changes, so the agent listing alone proves which head a verdict covers; the full SHA lives in the `HEAD` and `REVIEWER` lines of the staffing record. A name pointing at a head the reviewer no longer sits on is worse than no name, because it invites belief.
 
 ## No-mutation contract
 
@@ -50,6 +52,6 @@ Return exactly one of:
 - `FAIL` — one or more evidence-backed findings violate it;
 - `BLOCKED` — the named head, report, repository, or required evidence is missing or non-exact.
 
-Include file/line evidence, commands and results, residual risks, and the exact reviewed SHA. A verdict applies only to the named SHA. After the verdict, recompute `HEAD` and `git status --porcelain`; discard the verdict if either changed.
+Include file/line evidence, commands and results, residual risks, and the exact reviewed SHA. A verdict applies only to the named SHA. After the verdict, recompute `HEAD` and `git --no-optional-locks status --porcelain --untracked-files=all`; discard the verdict if either changed.
 
 A `FAIL` is routed by the coordinator to the implementation agent that owns the affected paths for a bounded fix; a finding that spans scopes is the coordinator's to sequence, not the reviewer's to assign. If a finding increases scope, architecture, ownership, or proof risk, return `SCOPE_REOPEN` before implementation continues. The coordinator never repairs source code from the review. Every fix creates a new exact head and requires a new review.

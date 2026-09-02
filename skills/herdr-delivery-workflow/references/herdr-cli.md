@@ -55,6 +55,7 @@ Agent commands accept a unique live agent name or the pane ID hosting that agent
 Lifecycle states:
 
 - `idle` — ready for input, and its tab has been seen in the focused Herdr UI;
+- `working` — actively processing a turn; not settled, not inspectable as a result;
 - `done` — the same underlying idle state after unseen background work finishes;
 - `blocked` — Herdr recognized an approval or question UI;
 - `unknown` — an agent is present but Herdr cannot classify it confidently; this never proves completion.

@@ -123,7 +123,7 @@ Before review, recompute the implementation repository's:
 - full `git rev-parse HEAD`;
 - merge-base;
 - changed-file list;
-- `git status --porcelain`;
+- `git --no-optional-locks status --porcelain --untracked-files=all`;
 - every acceptance command and real exit code.
 
 A moving branch, missing commit, stale report, unexplained dirty state, or an implementation agent that is still working is not reviewable. Return it to the owning agent or route the blocker.

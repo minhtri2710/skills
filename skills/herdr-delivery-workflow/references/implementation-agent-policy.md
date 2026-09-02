@@ -20,6 +20,8 @@ The coordinator's prompt names all of the following:
 - prohibition on subagents, detached commands, background jobs, push, PR mutation, merge, deploy, and other external effects unless explicitly authorized;
 - final evidence-report format and coordinator target.
 
+Pre-authorize exactly the read-only and verify commands the charter names when starting the agent, through the native arguments after `--` on `herdr agent start` (`implementation-args` in the project config when recorded). This removes per-command approval prompts for routine checks; it never pre-authorizes push, PR mutation, merge, deploy, or another external write.
+
 Two parts of the charter carry different force. The ownership boundary — owned paths, exclusions, lane, gates, and prohibitions — is binding. The solution shape — the plan reference, a suggested approach, or any named files-to-change — is a provisional map, not a verdict: the coordinator must not embed a predetermined implementation or a disguised conclusion in the charter, and states open questions as open. The agent evaluates the premise against the code it finds; when evidence contradicts the charter's assumptions, it raises the matching protocol message instead of complying silently.
 
 The agent must verify the checkout, branch, base, and ownership before editing. It makes ordinary local implementation decisions within that boundary and raises a blocker when a dependency, shared contract, ownership overlap, material risk, or missing Human decision appears. It must not lower the recorded intake lane. If evidence reveals greater blast radius, irreversibility, uncertainty, ownership impact, or proof weakness, stop before crossing the boundary and report `SCOPE_REOPEN` with the changed risk and proposed lane.
