@@ -29,7 +29,6 @@ Do not eagerly load all BEO references. Load:
 ### Maintenance
 
 - `beo-author`
-- `beo-climate`
 - `beo-setup`
 
 ### Read-only lookup
@@ -67,6 +66,6 @@ BEO ships advisory helpers in `beo-reference/scripts/` for queryable verificatio
 - `beo_verify.py` (Verification): runs `TICKET.json.scope.verify.commands` and appends `verification_run` events. Added to `approval_bearing_contracts` because it is machine-enforced.
 - `beo_score_trace.py`, `beo_score_context.py` (Scoring): advisory scoring against tier requirements (minimal/standard/detailed). Output score 0-3 plus a diff of missing fields.
 - `beo_audit.py` (Audit): drift checks across skill cards, registries, references, must_not lists, and the command manifest. `--check-manifest` enables manifest drift detection.
-- `beo_propose.py` (Audit): generates `beo-climate/proposals/pending/prop-*.md` from friction/learning-candidate events. Never applies changes.
+- `beo_propose.py` (Audit): generates `beo-author/proposals/pending/prop-*.md` from friction/learning-candidate events. Never applies changes.
 
 `beo_reference` (lookup) routes operators to the right helper via `references/command-manifest.md`. See `references/command-manifest.md` for the full helper index, output shape, and exit code contract.

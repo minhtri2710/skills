@@ -25,7 +25,7 @@ The five delivery phases are intake, planning, implementation, validation, and t
 | --- | --- | --- |
 | tiny | `beo-plan/SKILL.md` (or the active skill) | `references/degraded-tools.md` |
 | normal | tiny + `beo-reference/SKILL.md`, `references/doctrine-map.md` | `references/safety.md`, `beo-setup/SKILL.md` |
-| high-risk | normal + `references/kernel.md`, `registry/phase-contracts.json` | `beo-climate/SKILL.md`, `beo-climate/config.json` |
+| high-risk | normal + `references/kernel.md`, `registry/phase-contracts.json` | — |
 
 ### Phase: planning
 
@@ -62,7 +62,7 @@ The five delivery phases are intake, planning, implementation, validation, and t
 ## Out of budget (do NOT load)
 
 - Full `beo-reference/scripts/` source (use `--help` or summary instead).
-- All 10 skill cards at once (load only the active owner + adjacent phases).
+- All 9 skill cards at once (load only the active owner + adjacent phases).
 - Full `runtime-events.jsonl` if it exceeds 1K lines (sample last 50 events).
 - Obsidian vault content (use `qmd` semantic search for targeted recall).
 

@@ -40,14 +40,6 @@
     }
   },
   "maintenance_skills": {
-    "beo-climate": {
-      "outcomes": ["climate_scan_complete", "climate_issues_found", "climate_self_heal"],
-      "transitions": [
-        { "from": "beo-climate", "condition_id": "climate_scan_complete", "to": "user" },
-        { "from": "beo-climate", "condition_id": "climate_issues_found", "to": "user" },
-        { "from": "beo-climate", "condition_id": "climate_self_heal", "to": "user" }
-      ]
-    },
     "beo-author": {
       "outcomes": ["skill_authored_or_updated", "reference_or_registry_updated", "no_change_needed", "user_review_needed"],
       "harness_proposal_callers": ["beo-execute", "beo-review"],

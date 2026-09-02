@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import Any
 
 HELPER_VERSION = "beo-audit/v1"
-SKILL_NAMES = ["beo-plan", "beo-validate", "beo-execute", "beo-review", "beo-debug", "beo-learn", "beo-author", "beo-climate", "beo-setup", "beo-reference"]
+SKILL_NAMES = ["beo-plan", "beo-validate", "beo-execute", "beo-review", "beo-debug", "beo-learn", "beo-author", "beo-setup", "beo-reference"]
 # Helper actors that emit runtime-events.jsonl entries but are not BEO skills.
 # These are scripts in beo-reference/scripts/ that perform advisory or
 # verification work and need a stable actor name in owner_rules. They are

@@ -91,15 +91,15 @@ Worktree isolation is an optional strict-mode feature for full filesystem isolat
 
 ---
 
-## 9. Climate Control Policy
+## 9. Maintenance Scan Policy
 
-`beo-climate` is a proactive maintenance skill that runs periodic scans of BEO harness files.
+`beo-author` owns mechanical maintenance scans of BEO harness files and triages their findings.
 
-1. **Advisory only**: `beo-climate` never mutates delivery state, product files, or BEO control-plane files directly.
-2. **Findings become issues**: Scan results become Beads issues for human or `beo-author` triage.
-3. **Auto-heal allowlist**: Only safe, mechanical fix types may auto-route to `beo-author` via `climate_self_heal`. The allowlist is defined in `beo-climate/config.json`.
-4. **No delivery authority**: `beo-climate` cannot grant `PASS_EXECUTE`, close issues, or alter review verdicts.
-5. **Cadence**: Default is weekly. Configurable in `beo-climate/config.json`. Runs as a background agent, not blocking delivery.
+1. **Scan**: Run `beo_audit.py --check-manifest --json` to check BEO control-plane consistency.
+2. **Mechanical fixes**: `beo-author` may directly apply safe C2 orphaned-reference and C4 stale-schema-field fixes.
+3. **User review**: All other findings, including C9 stale learning evidence_refs, route to the user via `user_review_needed`.
+4. **Outcomes**: A scan with no findings emits `no_change_needed`; a direct fix emits `reference_or_registry_updated`.
+5. **No delivery authority**: `beo-author` cannot grant `PASS_EXECUTE`, close issues, or alter review verdicts.
 
 ## 10. Harness Mutation Guardrails
 

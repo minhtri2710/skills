@@ -4,7 +4,7 @@
 Scans runtime-events.jsonl, harness-proposal.json, and learning notes
 for BEO change signals (friction, learning_candidate_suggestion,
 advisory learning notes) and writes a deduplicated prop-<sha1>.md file
-per distinct trigger into `<root>/skills/beo/beo-climate/proposals/pending/`.
+per distinct trigger into `<root>/skills/beo/beo-author/proposals/pending/`.
 
 This script NEVER applies any change — it only generates proposal files
 for beo-author to triage. It is fully idempotent: re-running creates
@@ -25,7 +25,7 @@ from typing import Any
 from beo_io import now, stable_json
 
 PROPOSAL_KINDS = {"friction", "learning_candidate_suggestion"}
-PROPOSAL_DIR = os.environ.get("BEO_PROPOSAL_DIR", "skills/beo/beo-climate/proposals/pending")
+PROPOSAL_DIR = os.environ.get("BEO_PROPOSAL_DIR", "skills/beo/beo-author/proposals/pending")
 LEARNINGS_VAULT_SUBDIR = "beo-learnings"
 LEARNINGS_LOCAL_SUBDIR = ".beads/learnings"
 

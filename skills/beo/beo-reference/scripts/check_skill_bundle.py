@@ -97,10 +97,10 @@ def _build_outcome_index(raw_map: dict[str, dict[str, Any]]) -> dict[str, set[st
 def run_checks() -> int:
     errors = []
 
-    # 1. Verify all 10 BEO SKILL.md files exist
+    # 1. Verify all 9 BEO SKILL.md files exist
     skills = [
         "beo-plan", "beo-validate", "beo-execute", "beo-review",
-        "beo-debug", "beo-learn", "beo-author", "beo-climate",
+        "beo-debug", "beo-learn", "beo-author",
         "beo-setup", "beo-reference"
     ]
     for skill in skills:
@@ -254,7 +254,6 @@ def run_checks() -> int:
                 "beo-debug": set(),
                 "beo-learn": set(),
                 "beo-author": set(),
-                "beo-climate": set(),
                 "beo-setup": set(),
                 "beo-reference": set(),
             }

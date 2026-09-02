@@ -23,7 +23,7 @@ For any general operator question, check the primary BEO Kernel first. Load narr
 | Can I mutate this file or perform this side effect? | `references/safety.md` | Subordinate dirty-tree, side-effect, and recovery guidance | Memory docs |
 | Can memory inform this decision? | `references/memory.md` | Subordinate memory and learning guidance | Approval/state registries unless independently needed |
 | Is a harness change proposal valid? | `registry/harness-proposal.schema.json` | Binding proposal shape and allowed fields | Ticket or state schema |
-| Does a climate scan need to run? | `beo-climate/SKILL.md` plus `beo-climate/config.json` | Scan cadence, scope, and auto-heal allowlist | Delivery skill cards |
+| Does a maintenance scan need to run? | `beo-author/SKILL.md` plus `beo-reference -> scripts/beo_audit.py` | Scan execution, check_id triage, and maintenance outcomes | Delivery skill cards |
 | Is a missing tool blocking or degraded? | `references/degraded-tools.md` | Required/degraded tool status and fallback | Full setup script implementation |
 | Who owns a BEO maintenance rule change? | `beo-author/SKILL.md` plus this map | Canonical owner for the rule before editing | Unrelated skill cards |
 

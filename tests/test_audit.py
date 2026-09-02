@@ -355,33 +355,6 @@ class HarnessProposalTargetTest(unittest.TestCase):
             self.assertEqual(len(c6_findings), 0)
 
 
-class ClimateConfigTest(unittest.TestCase):
-    """Tests for beo-climate/config.json audit_check_id mappings."""
-
-    def _load_climate_config(self) -> dict:
-        """Load and return the beo-climate config.json."""
-        import json
-        config_path = Path(__file__).resolve().parents[1] / "skills" / "beo" / "beo-climate" / "config.json"
-        with open(config_path, "r", encoding="utf-8") as f:
-            return json.load(f)
-
-    def test_auto_heal_check_ids_are_valid(self):
-        """Every auto_heal_allowlist item must reference a known audit check_id."""
-        import beo_audit
-        known_check_ids = beo_audit.get_check_ids()
-        self.assertIn("C1", known_check_ids, "get_check_ids should include C1-C7")
-        config = self._load_climate_config()
-        items = config.get("auto_heal_allowlist", {}).get("items", [])
-        self.assertGreater(len(items), 0, "auto_heal_allowlist should have at least one item")
-        for item in items:
-            check_id = item.get("audit_check_id")
-            self.assertIn(check_id, known_check_ids,
-                          f"Item '{item.get('id')}' has unknown audit_check_id '{check_id}'; "
-                          f"expected one of {sorted(known_check_ids)}")
-            self.assertIsInstance(item.get("summary"), str)
-            self.assertGreater(len(item["summary"]), 0)
-
-
 class DuplicateOwnerRulesTest(unittest.TestCase):
     """Tests for _find_duplicate_owner_rules JSON-based duplicate detection."""
 

@@ -4,7 +4,7 @@
   "classes": {
     "delivery_owner": ["beo-plan", "beo-validate", "beo-execute", "beo-review"],
     "support_subroutine": ["beo-debug", "beo-learn"],
-    "maintenance": ["beo-author", "beo-climate", "beo-setup"],
+    "maintenance": ["beo-author", "beo-setup"],
     "read_only_lookup": ["beo-reference"]
   },
   "skills": {
@@ -119,17 +119,6 @@
         "user_review_needed"
       ],
       "must_not": ["mutate_product_delivery_scope", "grant_PASS_EXECUTE", "execute_product_ticket", "review_product_ticket", "close_delivery_issue"]
-    },
-    "beo-climate": {
-      "class": "maintenance",
-      "state_write_fields": [],
-      "artifact_write_authorities": [],
-      "may_emit_maintenance_outcomes": [
-        "climate_scan_complete",
-        "climate_issues_found",
-        "climate_self_heal"
-      ],
-      "must_not": ["mutate_delivery_state", "grant_PASS_EXECUTE", "mutate_product_files", "close", "modify_skill_cards_or_registries_directly"]
     },
     "beo-setup": {
       "class": "maintenance",

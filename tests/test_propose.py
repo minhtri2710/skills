@@ -188,7 +188,7 @@ class MainSmokeTest(unittest.TestCase):
             self.assertEqual(rc, 0)
             payload = json.loads(out.getvalue())
             self.assertGreaterEqual(payload["proposals_created"], 1)
-            proposal_dir = Path(tmp) / "skills" / "beo" / "beo-climate" / "proposals" / "pending"
+            proposal_dir = Path(tmp) / "skills" / "beo" / "beo-author" / "proposals" / "pending"
             self.assertFalse(proposal_dir.exists(), "dry-run must not create the proposal directory")
 
     def test_main_writes_proposal_file(self):
@@ -207,7 +207,7 @@ class MainSmokeTest(unittest.TestCase):
             self.assertEqual(rc, 0)
             payload = json.loads(out.getvalue())
             self.assertEqual(payload["proposals_created"], 1)
-            proposal_dir = Path(tmp) / "skills" / "beo" / "beo-climate" / "proposals" / "pending"
+            proposal_dir = Path(tmp) / "skills" / "beo" / "beo-author" / "proposals" / "pending"
             self.assertTrue(proposal_dir.exists())
             files = list(proposal_dir.glob("prop-*.md"))
             self.assertEqual(len(files), 1)
@@ -229,7 +229,7 @@ class MainSmokeTest(unittest.TestCase):
             for _ in range(2):
                 with mock.patch.object(sys, "argv", argv), contextlib.redirect_stdout(io.StringIO()) as out:
                     beo_propose.main()
-            proposal_dir = Path(tmp) / "skills" / "beo" / "beo-climate" / "proposals" / "pending"
+            proposal_dir = Path(tmp) / "skills" / "beo" / "beo-author" / "proposals" / "pending"
             files = list(proposal_dir.glob("prop-*.md"))
             self.assertEqual(len(files), 1, f"expected 1 proposal, got {len(files)}: {files}")
 
