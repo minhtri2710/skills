@@ -101,12 +101,12 @@ def _skipped_result(command: str, reason: str) -> dict[str, Any]:
     }
 
 
-def _emit_event(root: Path, issue_id: str, result: dict[str, Any], outcome: str) -> None:
+def _emit_event(root: Path, issue_id: str, phase: str, result: dict[str, Any], outcome: str) -> None:
     """Append a verification_run event. Best-effort; never raises."""
     event = {
         "issue_id": issue_id,
         "kind": "verification_run",
-        "phase": "executing",
+        "phase": phase,
         "actor": ACTOR,
         "timestamp": now(),
         "payload": {
@@ -215,7 +215,7 @@ def verify_issue(root: Path, issue_id: str) -> dict[str, Any]:
                 result["gate_type"] = gate_type
         results.append(result)
         summary[outcome] += 1
-        _emit_event(root, issue_id, result, outcome)
+        _emit_event(root, issue_id, state["phase"], result, outcome)
 
     return {
         "ok": summary["fail"] == 0,

@@ -57,6 +57,12 @@ class VerifyRunTest(unittest.TestCase):
             self.assertTrue(payload["ok"])
             self.assertEqual(payload["summary"]["pass"], 1)
             self.assertEqual(payload["summary"]["fail"], 0)
+            from beo_state import read_events
+            events = read_events(root, "br-1")
+            self.assertEqual(len(events), 1)
+            self.assertEqual(events[0]["kind"], "verification_run")
+            self.assertEqual(events[0]["phase"], "approved")
+            self.assertEqual(events[0]["payload"]["outcome"], "pass")
 
     def test_run_failing_command_exits_one(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -75,7 +75,3 @@ Scan configuration lives in `config.json`:
 - **Operator action:** route findings to `beo-author` for refresh, supersede, or retire. Do NOT add C9 to `config.json auto_heal_allowlist`; the decision to refresh a learning is content, not mechanics.
 
 Many real-world C9 findings are "evidence moved" or "evidence is a narrative identifier, not a file path" (e.g. subagent ids, commit SHAs, issue titles). Triage accordingly: rename the ref, drop it, or note that it is a text label rather than a path.
-
-## Future metric sources (advisory, not yet wired)
-
-Two external metric sources are not yet wired: `bv --robot-burndown <sprint>` (sprint drift, future C10) and `bv --robot-alerts --severity critical --format json` (stale issues, blocking cascades, priority mismatches). Both are read-only advisory, require `br init` and an active `.beads/` directory, and need phase-contracts.json updates via beo-author before adoption.

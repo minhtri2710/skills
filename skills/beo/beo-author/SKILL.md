@@ -46,7 +46,7 @@ When a repeated behavior becomes durable workflow doctrine, update the canonical
 - `no_change_needed` -> caller
 - `user_review_needed` -> user
 
-Non-normal `runtime-events.jsonl` events (advisory, optional): `score` (when `beo_score_trace.py` or `beo_score_context.py` is invoked for advisory scoring). beo-author may invoke a scorer and re-emit under its own name (forward-compat slot).
+Non-normal `runtime-events.jsonl` events (advisory, optional): `score` (when `beo_score_trace.py` or `beo_score_context.py` is invoked for advisory scoring). beo-author may invoke a scorer and re-emit under its own name.
 
 ## Never
 

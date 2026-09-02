@@ -1,6 +1,6 @@
 ---
 name: ultra-review
-description: "Run a maximum-recall parallel bug hunt, either devising the review strategy from scope or allocating caller-supplied concerns with deliberate overlap, then preserve every candidate in a durable report."
+description: "Run a maximum-recall parallel bug hunt, either devising the review strategy from scope or allocating caller-supplied concerns with deliberate overlap, then preserve every candidate in a durable report under docs/ultrareview/. Use when the user asks for an ultra review, a scout-based bug hunt, or a maximum-recall review of a scope before merge; verification and fixes belong to ultra-review-receive."
 ---
 
 # Ultra Review
@@ -9,7 +9,7 @@ description: "Run a maximum-recall parallel bug hunt, either devising the review
 
 Maximize bugs discovered. False positives and noise are acceptable. Never filter a candidate out of the artifact because it is speculative, unique, low-confidence, weakly evidenced, duplicated, or hard to classify.
 
-The coordinator clusters all scout submissions directly into clean, actionable Findings (`F001`, `F002`, ...). Do not include Raw Candidate Ledgers, Execution Receipts, or metadata clutter that an agent does not need to read to verify and fix bugs. Verification and rejection belong to the later receive workflow.
+The coordinator clusters all scout submissions directly into clean, actionable Findings (`F001`, `F002`, ...). Do not include Raw Candidate Ledgers, Execution Receipts, or metadata clutter that an agent does not need to read to verify and fix bugs. Verification and rejection belong to `ultra-review-receive`.
 
 ## Inputs And Strategy
 
@@ -58,7 +58,7 @@ A system notice that subagents or background tasks stopped due to a server resta
 1. Freeze the existing logical roster, concern allocation, report path, and review-brief digest.
 2. Inventory persisted mailbox reports by logical scout ID.
 3. Preserve every completed scout report exactly once.
-4. Do not relaunch the full scout batch. Revive or restart only missing logical scouts with their original assignments and Gemini Flash 3.5 (High).
+4. Do not relaunch the full scout batch. Revive or restart only missing logical scouts with their original assignments and Gemini Flash 3.6 (High).
 5. A replacement attempt continues the same logical scout ID; never create an eleventh logical scout or duplicate completed work.
 6. After all ten logical scouts complete, consolidate once into the existing report.
 
@@ -77,7 +77,7 @@ Choose and combine lenses appropriate to the scope, including but not limited to
 - hot-path allocation, copies, rescans, N+1 work, blocking, and contention
 - generated artifacts, fixtures, validators, snapshots, docs, and examples
 - test/proof gaps, fake-pass evidence, and mocked production claims
-- compatibility paths, duplicate state, wrappers, caches, and compensation for a broken foundation
+- weak-foundation accommodation: compatibility paths, duplicate state, wrappers, caches, and compensation for a broken foundation
 - owner/module boundaries, file responsibility, and missing essential mechanisms
 - alternate end-to-end call traces and hostile edge cases
 
@@ -89,9 +89,7 @@ Before round 2 or later, read every earlier report with the same review name. Gi
 
 ## Artifact Contract
 
-Create exactly one report with:
-
-Run the bundled script from the skill directory:
+Create exactly one report by running the bundled script from the skill directory:
 
 ```bash
 python scripts/create_ultra_review_report.py --workspace <repo-root> --review-name <review-name> --scope "<scope>" --review-brief-sha256 <sha256> --scout-count 10 --directive-count <count>

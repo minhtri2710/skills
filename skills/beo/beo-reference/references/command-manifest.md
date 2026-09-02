@@ -40,7 +40,6 @@ This file is the machine-and-human-readable manifest. `beo_audit.py --check-mani
 | `beo_state_update.py` | imported | (state update) | none (library) | n/a |
 | `beo_state_validate.py` | imported | Validation | none (library) | n/a |
 | `beo_ticket.py` | imported | Validation | none (library) | n/a |
-| `beo_ticket_migrate.py` | `beo_ticket_migrate.py [--root PATH] [--dry-run] [--delete-old]` | Migration | json | 0, 1 |
 | `beo_verify.py` | `run --issue <id> [--root .]` or `--all` | Verification | json | 0, 1, 2 |
 | `beo_metrics.py` | `beo_metrics.py [--root .] [--issue <id>]` | Telemetry | json | 0 |
 | `beo_worktree.py` | subcommand-driven | Isolation | json | 0, 1, 2 |
