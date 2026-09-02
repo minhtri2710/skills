@@ -681,9 +681,15 @@ class HelperSemanticsTest(unittest.TestCase):
             broad_dirty_ticket = self.quick_ticket()
             broad_dirty_ticket["scope"] = {"files": {"allow": ["**"], "forbid": ["secret.txt"]}, "generated_outputs": [], "verify": {"commands": ["true"]}}
             (root / "secret.txt").write_text("dirty forbidden\n", encoding="utf-8")
-            self.assertEqual(__import__("beo_check").validate_working_tree_prestate(root, unrelated_forbid_ticket), [])
+            self.assertEqual(__import__("beo_check").validate_working_tree_prestate(root, unrelated_forbid_ticket, []), [])
+            (root / "README.md").write_text("allowed dirty\n", encoding="utf-8")
             self.assertEqual(
-                __import__("beo_check").validate_working_tree_prestate(root, broad_dirty_ticket),
+                __import__("beo_check").validate_working_tree_prestate(root, unrelated_forbid_ticket, ["README.md"]),
+                [],
+            )
+            (root / "README.md").write_text("clean\n", encoding="utf-8")
+            self.assertEqual(
+                __import__("beo_check").validate_working_tree_prestate(root, broad_dirty_ticket, []),
                 ["forbidden-scope path is dirty before validation: secret.txt"],
             )
             self.assertEqual(
@@ -692,7 +698,7 @@ class HelperSemanticsTest(unittest.TestCase):
             )
             (root / "secret.txt").unlink()
             with mock.patch("beo_check.subprocess.run", return_value=mock.Mock(returncode=1, stderr="fatal", stdout="")):
-                self.assertEqual(__import__("beo_check").validate_working_tree_prestate(root, ticket), ["unable to inspect working tree: fatal"])
+                self.assertEqual(__import__("beo_check").validate_working_tree_prestate(root, ticket, []), ["unable to inspect working tree: fatal"])
                 self.assertEqual(__import__("beo_check").validate_containment(root, ticket), ["unable to inspect working tree: fatal"])
 
             profiles_path = root / "skills" / "beo" / "beo-reference" / "registry" / "profiles.json"

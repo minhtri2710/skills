@@ -10,7 +10,6 @@ from datetime import date
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from beo_io import compact_text
 
 SAFE_SLUG = re.compile(r"^[a-z0-9][a-z0-9-]{0,120}$")
 SAFE_ISSUE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,120}$")

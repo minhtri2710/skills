@@ -44,7 +44,7 @@ from beo_ticket import read_ticket
 from beo_approval import verify_commands
 
 
-def _run_one_command(command: str, cwd: Path, worktree_path: str | None) -> dict[str, Any]:
+def run_one_command(command: str, cwd: Path, worktree_path: str | None) -> dict[str, Any]:
     """Execute one verify command and return a per-command result entry.
 
     The command is tokenized with shlex and executed without a shell so that
@@ -144,7 +144,7 @@ def _resolve_run_target(root: Path, ticket: dict[str, Any], issue_id: str) -> tu
     return root, None, True
 
 
-def _behaviour_gate_command(ticket: dict[str, Any]) -> tuple[str | None, str | None]:
+def behaviour_gate_command(ticket: dict[str, Any]) -> tuple[str | None, str | None]:
     """Return (command, gate_type) for an optional scope.behaviour_gate, else (None, None).
 
     behaviour_gate is an opt-in stronger behaviour sensor (mutation testing,
@@ -192,7 +192,7 @@ def verify_issue(root: Path, issue_id: str) -> dict[str, Any]:
         return {**refusal, "refusal_reason": "state.phase is planned; PASS_EXECUTE required"}
 
     commands = verify_commands(ticket)
-    bg_command, bg_type = _behaviour_gate_command(ticket)
+    bg_command, bg_type = behaviour_gate_command(ticket)
     # Unified run list: (command, gate, gate_type). gate None == normal verify.
     run_list: list[tuple[str, str | None, str | None]] = [(c, None, None) for c in commands]
     if bg_command:
@@ -207,7 +207,7 @@ def verify_issue(root: Path, issue_id: str) -> dict[str, Any]:
             result = _skipped_result(command, "worktree_missing")
             outcome = "skipped"
         else:
-            result = _run_one_command(command, cwd, worktree_path)
+            result = run_one_command(command, cwd, worktree_path)
             outcome = "pass" if result["exit_code"] == 0 else "fail"
         if gate:
             result["gate"] = gate

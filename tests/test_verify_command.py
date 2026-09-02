@@ -5,6 +5,8 @@ from __future__ import annotations
 import contextlib
 import io
 import json
+import os
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -43,6 +45,64 @@ def write_state(root: Path, issue_id: str, phase: str = "approved"):
 
 
 class VerifyRunTest(unittest.TestCase):
+    def test_beo_run_uses_shared_verifier_results(self):
+        with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as bin_tmp:
+            root = Path(tmp)
+            subprocess.run(["git", "init"], cwd=root, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            (root / ".beads" / "artifacts" / "br-run").mkdir(parents=True)
+            ticket = {
+                "version": 1,
+                "issue_id": "br-run",
+                "mode": "quick",
+                "request": "x",
+                "done_criteria": ["ok"],
+                "scope": {
+                    "files": {"allow": ["README.md"], "forbid": []},
+                    "generated_outputs": [],
+                    "verify": {"commands": ["verify-command"]},
+                },
+            }
+            (root / ".beads" / "artifacts" / "br-run" / "TICKET.json").write_text(json.dumps(ticket), encoding="utf-8")
+            import beo_state
+            beo_state.initialize_state(root, "br-run")
+
+            bin_dir = Path(bin_tmp)
+            br = bin_dir / "br"
+            br.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+            br.chmod(0o755)
+            verify_result = {
+                "command": "verify-command",
+                "exit_code": 0,
+                "duration_ms": 7,
+                "ran_at": "2026-01-01T00:00:00Z",
+                "worktree_path": None,
+            }
+            behaviour_result = {
+                "command": "behaviour-command",
+                "exit_code": 0,
+                "duration_ms": 9,
+                "ran_at": "2026-01-01T00:00:01Z",
+                "worktree_path": None,
+            }
+            import beo_run
+            with mock.patch.object(sys, "argv", ["beo_run.py", "br-run"]):
+                with mock.patch.object(beo_run.Path, "cwd", return_value=root):
+                    with mock.patch.dict(os.environ, {"BEO_ACTOR": "assistant", "PATH": f"{bin_dir}{os.pathsep}{os.environ['PATH']}"}, clear=False):
+                        with mock.patch.object(beo_run, "run_one_command", side_effect=[verify_result, behaviour_result]) as run_command:
+                            with mock.patch.object(beo_run, "behaviour_gate_command", return_value=("behaviour-command", "fixtures")):
+                                rc = beo_run.main()
+
+            self.assertEqual(rc, 0)
+            self.assertEqual(run_command.call_args_list[0].args, ("verify-command", root.resolve(), None))
+            self.assertEqual(run_command.call_args_list[1].args, ("behaviour-command", root.resolve(), None))
+            state = beo_state.read_state(root, "br-run")
+            self.assertEqual(state["approval"]["prestate"], {"README.md": None})
+            self.assertEqual(state["execution"]["verify_results"], [
+                verify_result,
+                {**behaviour_result, "gate": "behaviour", "gate_type": "fixtures"},
+            ])
+            self.assertEqual(set(state["execution"]["verify_results"][0]), {"command", "exit_code", "duration_ms", "ran_at", "worktree_path"})
+
     def test_run_passing_command_exits_zero(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -82,9 +142,9 @@ class VerifyRunTest(unittest.TestCase):
         # An empty verify command is a ticket misconfiguration: it must fail
         # verification (not silently pass or be marked "skipped"), and must
         # not crash subprocess.run([]). The public CLI validates empty commands
-        # away, so this exercises the _run_one_command helper directly.
+        # away, so this exercises the run_one_command helper directly.
         import beo_verify
-        result = beo_verify._run_one_command("", Path("."), None)
+        result = beo_verify.run_one_command("", Path("."), None)
         self.assertEqual(result["exit_code"], -1)
         self.assertNotIn("status", result)
         self.assertNotIn("skip_reason", result)

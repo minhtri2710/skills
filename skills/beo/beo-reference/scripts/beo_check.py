@@ -143,19 +143,21 @@ def validate_runtime_events(events: Any, issue_id: str) -> list[str]:
     return errors
 
 
-def validate_working_tree_prestate(root: Path, ticket: dict[str, Any]) -> list[str]:
+def validate_working_tree_prestate(root: Path, ticket: dict[str, Any], allowed_dirty_paths: list[str]) -> list[str]:
     approved = allow_paths(ticket) + generated_outputs(ticket)
     forbidden = forbid_patterns(ticket)
+    allowed_dirty = set(allowed_dirty_paths)
     try:
         dirty = set(changed_files(root))
     except RuntimeError as exc:
         return [f"unable to inspect working tree: {exc}"]
     dirty_approved = sorted(path for path in dirty if any(path_matches_pattern(path, pattern) for pattern in approved))
     dirty_forbidden = sorted(path for path in dirty_approved if any(path_matches_pattern(path, pattern) for pattern in forbidden))
+    dirty_unapproved = sorted(path for path in dirty_approved if path not in allowed_dirty)
     if dirty_forbidden:
         return [f"forbidden-scope path is dirty before validation: {path}" for path in dirty_forbidden]
-    if dirty_approved:
-        return [f"approved-scope path is dirty before validation: {path}" for path in dirty_approved]
+    if dirty_unapproved:
+        return [f"approved-scope path is dirty before validation: {path}" for path in dirty_unapproved]
     return []
 
 
@@ -545,7 +547,7 @@ def main() -> int:
         if args.check == "validate":
             errors.extend(validate_plan(root, ticket, issue))
             errors.extend(run_structural_check(root, ticket))
-            errors.extend(validate_working_tree_prestate(root, ticket))
+            errors.extend(validate_working_tree_prestate(root, ticket, []))
             try:
                 compute_approval_fields(root, ticket_path, ticket)
             except ValueError as exc:

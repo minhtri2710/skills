@@ -21,7 +21,6 @@ from __future__ import annotations
 
 import json
 import os
-import shlex
 import sys
 import subprocess
 from pathlib import Path
@@ -35,7 +34,9 @@ if str(_SCRIPTS) not in sys.path:
 import beo_state
 import beo_approval
 import beo_ticket
-from beo_io import compact_text, now, repo_head_sentinel
+from beo_check import changed_files, compute_prestate, validate_working_tree_prestate
+from beo_io import now, repo_head_sentinel
+from beo_verify import behaviour_gate_command, run_one_command
 
 
 def _die(msg: str, code: int = 1) -> None:
@@ -50,47 +51,13 @@ def _actor() -> str:
     return actor
 
 
-def _parse_porcelain_path(line: str) -> str:
-    """Extract working-tree path from a git status --porcelain line.
-
-    Handles normal entries (XY path) and rename/copy entries (R/C XY old -> new).
-    The " -> " separator only applies when column 0 is R or C.
-    """
-    rest = line[3:].strip() if len(line) > 3 else line.strip()
-    # Rename/copy: column 0 is R or C, path uses " -> " separator
-    if len(line) > 2 and line[0] in ("R", "C") and " -> " in rest:
-        return rest.split(" -> ", 1)[1]
-    return rest
-
-
-def _dirty_prestate_check(root: Path, allowed_changed: list[str]) -> list[str]:
-    """Return list of dirty paths NOT in the allowed changed set."""
-    proc = subprocess.run(
-        ["git", "status", "--porcelain"],
-        cwd=root, text=True, capture_output=True, check=False,
-    )
-    if proc.returncode != 0:
-        print("  [prestate] git status failed; skipping dirty check", file=sys.stderr)
-        return []
-    allowed = set(allowed_changed)
-    unexpected: list[str] = []
-    for line in proc.stdout.strip().split("\n"):
-        line = line.strip()
-        if not line:
-            continue
-        path = _parse_porcelain_path(line)
-        if path and path not in allowed:
-            unexpected.append(path)
-    return unexpected
-
-
 def main() -> int:
     if len(sys.argv) < 2:
         print(__doc__, file=sys.stderr)
         return 1
 
     issue_id = sys.argv[1]
-    changed_files = sys.argv[2:]
+    recorded_changed_files = sys.argv[2:]
     actor = _actor()
 
     # root detection: walk up from cwd looking for .beads
@@ -124,19 +91,22 @@ def main() -> int:
     # Compute approval hashes
     ticket_file_hash = beo_ticket.ticket_file_hash(ticket_path)
     repo_head = repo_head_sentinel(root)
-    proj_input = beo_ticket.approval_projection_input(ticket)
-    proj_input["ticket_file_hash"] = ticket_file_hash
-    proj_input["repo_head"] = repo_head
-    approval_projection_hash = beo_approval.sha256_text(
-        beo_approval.stable_json(proj_input)
+    approval_projection_hash = beo_approval.approval_projection_hash(
+        ticket,
+        ticket_file_hash=ticket_file_hash,
+        repo_head=repo_head,
     )
 
     # Dirty prestate check
     print(f"[prestate] checking dirty paths outside changed_files...")
-    unexpected = _dirty_prestate_check(root, changed_files)
+    current_changed_files = changed_files(root)
+    prestate_errors = validate_working_tree_prestate(root, ticket, recorded_changed_files)
+    if prestate_errors:
+        _die("; ".join(prestate_errors))
+    unexpected = sorted(path for path in current_changed_files if path not in recorded_changed_files)
     if unexpected:
         print(f"  WARNING: unexpected dirty paths: {unexpected}", file=sys.stderr)
-        print(f"  Continuing; these will be recorded in prestate evidence.", file=sys.stderr)
+        print(f"  Continuing; these are outside the bead's approved scope.", file=sys.stderr)
 
     # ----------------------------------------------------------------
     # Phase 1: validate -> PASS_EXECUTE
@@ -151,11 +121,7 @@ def main() -> int:
                 "ticket_file_hash": ticket_file_hash,
                 "approval_projection_hash": approval_projection_hash,
                 "repo_head": repo_head,
-                "prestate": {
-                    "approved_scope_dirty_paths": changed_files,
-                    "unexpected_dirty_paths": unexpected,
-                    "note": "approved scope dirty with this bead's changes",
-                },
+                "prestate": compute_prestate(root, ticket),
                 "failure_category": None,
             }
         )
@@ -172,50 +138,26 @@ def main() -> int:
     all_ok = True
 
     for cmd in verify_cmds:
-        argv = shlex.split(cmd)
-        if not argv:
-            # Empty/whitespace command would crash subprocess.run([]); treat
-            # it as a verification failure (ticket misconfiguration).
-            all_ok = False
-            verify_results.append({
-                "command": cmd,
-                "exit_code": -1,
-                "output_tail": compact_text("empty verify command", 400),
-            })
-            print(f"[verify] FAIL exit=-1 :: (empty command)")
-            continue
-        proc = subprocess.run(argv, cwd=root, shell=False, text=True, capture_output=True, check=False)
-        ok = proc.returncode == 0
+        result = run_one_command(cmd, root, None)
+        ok = result["exit_code"] == 0
         if not ok:
             all_ok = False
-        verify_results.append(
-            {
-                "command": cmd,
-                "exit_code": proc.returncode,
-                # compact_text default is 600; override to 400 to keep verify output concise
-                "output_tail": compact_text((proc.stdout + proc.stderr), 400),
-            }
-        )
+        verify_results.append(result)
         status = "OK" if ok else "FAIL"
-        print(f"[verify] {status} exit={proc.returncode} :: {cmd[:80]}")
+        print(f"[verify] {status} exit={result['exit_code']} :: {cmd[:80]}")
 
     # Optional behaviour_gate (scope.behaviour_gate) — same exec rules as verify.
-    bg = ticket.get("scope", {}).get("behaviour_gate")
-    if isinstance(bg, dict):
-        bg_cmd = bg.get("command")
-        if isinstance(bg_cmd, str) and bg_cmd.strip():
-            argv = shlex.split(bg_cmd)
-            if not argv:
-                all_ok = False
-                verify_results.append({"command": bg_cmd, "exit_code": -1, "output_tail": compact_text("empty behaviour_gate command", 400), "gate": "behaviour"})
-                print("[behaviour_gate] FAIL exit=-1 :: (empty command)")
-            else:
-                proc = subprocess.run(argv, cwd=root, shell=False, text=True, capture_output=True, check=False)
-                ok = proc.returncode == 0
-                if not ok:
-                    all_ok = False
-                verify_results.append({"command": bg_cmd, "exit_code": proc.returncode, "output_tail": compact_text((proc.stdout + proc.stderr), 400), "gate": "behaviour", "gate_type": bg.get("type")})
-                print(f"[behaviour_gate] {'OK' if ok else 'FAIL'} exit={proc.returncode} :: {bg_cmd[:80]}")
+    bg_cmd, bg_type = behaviour_gate_command(ticket)
+    if bg_cmd:
+        result = run_one_command(bg_cmd, root, None)
+        ok = result["exit_code"] == 0
+        if not ok:
+            all_ok = False
+        result["gate"] = "behaviour"
+        if bg_type:
+            result["gate_type"] = bg_type
+        verify_results.append(result)
+        print(f"[behaviour_gate] {'OK' if ok else 'FAIL'} exit={result['exit_code']} :: {bg_cmd[:80]}")
 
     if not all_ok:
         _die("verification command(s) failed — bead left in approved state for repair", code=2)
@@ -225,7 +167,7 @@ def main() -> int:
         state["phase"] = "executing"
         state["execution"]["actor"] = actor
         state["execution"]["started_at"] = now()
-        state["execution"]["changed_files"] = changed_files
+        state["execution"]["changed_files"] = recorded_changed_files
         return state
 
     beo_state.locked_update_state(root, issue_id, "beo-execute", _start_exec)
@@ -261,7 +203,7 @@ def main() -> int:
     # Now record the review verdict.
     done_criteria = ticket.get("done_criteria", [])
     coverage = [
-        {"criterion": c, "status": "covered", "evidence_refs": changed_files}
+        {"criterion": c, "status": "covered", "evidence_refs": recorded_changed_files}
         for c in done_criteria
     ]
 

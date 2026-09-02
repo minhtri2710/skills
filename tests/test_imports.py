@@ -22,6 +22,7 @@ class ImportTest(unittest.TestCase):
         import beo_setup  # noqa: F401
         import beo_audit  # noqa: F401
         import beo_propose  # noqa: F401
+        import beo_run  # noqa: F401
         import beo_verify  # noqa: F401
         import beo_score_trace  # noqa: F401
         import beo_score_context  # noqa: F401

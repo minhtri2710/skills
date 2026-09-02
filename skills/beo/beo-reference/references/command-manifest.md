@@ -24,7 +24,7 @@ This file is the machine-and-human-readable manifest. `beo_audit.py --check-mani
 | `beo_propose.py` | `[--root .]` | Audit | json | 0, 1 |
 | `beo_recall.py` | `beo_recall.py <query> [--root .]` | Memory | json | 0, 1 |
 | `beo_reservation.py` | subcommand-driven | Reservation | json | 0, 1, 2 |
-| `beo_run.py` | `beo_run.py --issue <id> [--root .]` | (orchestrator) | mixed | 0, 1, 2 |
+| `beo_run.py` | `beo_run.py <issue_id> [<changed_file> ...]` | (orchestrator) | mixed | 0, 1, 2, 3 |
 | `beo_score_context.py` | `--issue <id> [--root .]` | Scoring | json | 0, 1, 2 |
 | `beo_score_trace.py` | `--issue <id> [--root .]` | Scoring | json | 0, 1, 2 |
 | `beo_setup.py` | `beo_setup.py [--check]` | Setup | json | 0, 1, 2 |
