@@ -26,9 +26,20 @@ The Lead's prompt names all of the following for every disposition:
 - the Lead's agent name — the only prompt target the Peer may use — and the report format;
 - prohibition on unrelated cleanup, scope expansion, orchestration, and external effects.
 
+The charter is self-contained. It carries every value the Peer needs, copied in, and never tells the Peer to read this skill's references or the project config: those are the Lead's layer, and a Peer that reads the Lead's policy starts reasoning about routing, acceptance, and other seats instead of its own bounded outcome.
+
 Two parts of the charter carry different force. The boundary — disposition, owned paths or reviewed head, exclusions, lane, gates, and prohibitions — is binding. The solution shape — the plan reference, a suggested approach, any named files-to-change — is provisional: the Lead must not embed a predetermined implementation or a disguised conclusion in the charter, and states open questions as open. When evidence contradicts the charter's assumptions, the Peer raises the matching protocol message instead of complying silently.
 
-Pre-authorize exactly the read-only and verify commands the charter names, plus `herdr agent prompt <lead-name>`, through the native arguments after `--` on `herdr agent start` (`engineer-args`, `reviewer-args`, or `reviewer-fallback-args` in the project config when recorded). This removes per-command approval prompts for routine checks; it never pre-authorizes push, PR mutation, merge, deploy, or another external write, and for a Reviewer or Architect it withholds write authority to the tree.
+## Permission posture
+
+A Peer that stops at an approval dialog for `git diff` or the test command is the most common stall in this workflow, and the Lead cannot answer that dialog. So the posture is set once, at `herdr agent start`, through the kind's native arguments after `--`, and recorded beside the kind. Kinds differ in what they offer, and the flags change between releases, so learn them from the kind's own `--help` at staffing rather than from memory, and take recorded values from the project config (`engineer-args`, `reviewer-args`, `reviewer-fallback-args`) when present. Choose the finest posture the kind offers:
+
+- `allowlisted` — the kind accepts a command allowlist or a scoped permission mode: pre-authorize exactly the read-only and verify commands the charter names plus `herdr agent prompt <lead-name>`, and for a Reviewer or Architect a mode that withholds writes to the tree.
+- `bypassed` — the kind offers only a blanket skip of every permission prompt. Pass it only when the project config records it for this kind; the key is the Human's standing waiver, and the posture is residual risk in the staffing record, never proof of read-only. A bypassed Peer's charter forbids subagents, background work, and every external write in words, and the Lead reads its diff at quiesce because nothing else stood between it and the tree.
+- `none` — the kind has no permission model and runs every tool without asking. Record it as such; it carries the same residual risk as `bypassed`, the same charter prohibitions, and the same diff reading, and the waiver is the config key that named the kind (`engineer-kind`, `reviewer-kind`, `reviewer-fallback`), since choosing a kind that cannot ask is the Human's choice to run it unasked.
+- `prompting` — no argument was passed, either because the config records none and the kind offers no allowlist, or because the Lead's own runtime refused to pass the argument. Start the Peer anyway and record which: a refusal from the Lead's harness is a fact about the Lead's permissions, not a Human ruling, and is never reported as one. Every dialog this Peer raises is then a Human interaction the Lead routes (`human-gates-and-closeout.md`, "Approval dialogs"); say so in the charter so the Peer treats a pause at a dialog as expected rather than as a failure to report.
+
+No posture pre-authorizes push, PR mutation, merge, deploy, credentials, or another external write, and no posture changes what the charter permits: the posture decides whether the runtime enforces the boundary or only the charter does. Record it per Peer as `posture=<allowlisted | bypassed | none | prompting>` in the staffing record.
 
 ## Escalation
 
@@ -119,7 +130,7 @@ Finish with one report in this shape:
 <the Lead's next concrete action>
 ```
 
-Every check appears with its real exit code and the note that it ran on the shared tree. A skipped check includes its reason. `Outside owned paths` is `none` unless something went wrong, in which case naming it is the point. `Edited files` comes from your own actions, not from git: the Lead compares it with the porcelain for your paths, and a file there you did not claim is how a peer's stray write gets caught. Recompute the report after every edit.
+Every check appears with its real exit code and the note that it ran on the shared tree. A skipped check includes its reason. `Outside owned paths` is `none` unless something went wrong, in which case naming it is the point. `Edited files` comes from your own actions, not from git: the Lead compares it with the porcelain for your paths, and a file there you did not claim is how a peer's stray write gets caught. A report missing either list is invalid and comes back for the missing evidence; the Lead does not fill it in from git. Recompute the report after every edit.
 
 ## Disposition: Reviewer
 
@@ -143,14 +154,14 @@ Run the review on a kind that differs from every Engineer's kind when another ki
 Choose the Reviewer kind and its fallback kind before staffing, and pin both to the same exact head. Take the preferred Reviewer kind and fallback from the Human-owned project config (`project-config.md`, at `~/.herdr/projects/<project-slug>/config.md`) when one is recorded; an explicit Human instruction in the current request overrides it. Write the staffing record before the review starts. The FALLBACK trigger list and the INDEPENDENCE rule are fixed text — copy them verbatim into the record whatever the scenario, because they state when a substitution fires and what a same-kind review would mean, not what happened this run:
 
 ```text
-ENGINEER: <name> kind=<kind> pane=<id> owned=<paths or none>   (one line per Engineer)
+ENGINEER: <name> kind=<kind> posture=<allowlisted | bypassed | none | prompting> pane=<id> owned=<paths or none>   (one line per Engineer)
 HEAD: <exact SHA committed by the Lead>
-REVIEWER: <name> kind=<kind> pane=<id> head=<same exact SHA>
-FALLBACK: kind=<kind>, pinned to the same exact head; triggers: preferred kind uninstalled or unavailable; Reviewer errors or reaches no verdict; only remaining kind is an Engineer kind; Reviewer breaks read-only — a no-mutation violation
+REVIEWER: <name> kind=<kind> posture=<allowlisted | bypassed | none | prompting> pane=<id> head=<same exact SHA>
+FALLBACK: kind=<kind>, pinned to the same exact head; triggers: preferred kind uninstalled or unavailable; Reviewer errors or reaches no verdict; only remaining kind is an Engineer kind; Reviewer breaks read-only — a no-mutation violation; Reviewer launches a subagent or background work or times out — a boundary failure
 INDEPENDENCE: <different-kind | same-kind> — a same-kind review, matching any Engineer's kind, counts as recorded residual risk, not independence
 ```
 
-Deciding the fallback in advance is what keeps a substitution visible: a Reviewer that dies mid-review otherwise gets replaced by whatever is convenient, which is usually an Engineer kind, and the swap never reaches the record. When the review does end up on the same kind, the INDEPENDENCE line and the verdict both say so as residual risk. If the only available mode that pre-authorizes checks can also write, record that in the staffing record as residual risk.
+Deciding the fallback in advance is what keeps a substitution visible: a Reviewer that dies mid-review otherwise gets replaced by whatever is convenient, which is usually an Engineer kind, and the swap never reaches the record. When the review does end up on the same kind, the INDEPENDENCE line and the verdict both say so as residual risk. A Reviewer posture of `bypassed` or `none` is residual risk on the same line: the no-mutation contract is then enforced only by charter and by the tree comparison before and after the verdict.
 
 Name the Reviewer after the head it reviews with an abbreviated SHA that fits the agent name rule in `herdr-cli.md` — `review-<first 12 hex of the SHA>`, since a full SHA exceeds the 32-character limit and may start with a digit — and rename it with `herdr agent rename` whenever that head changes, so the agent listing alone proves which head a verdict covers; the full SHA lives in the `HEAD` and `REVIEWER` lines of the staffing record. A name pointing at a head the Reviewer no longer sits on is worse than no name, because it invites belief.
 

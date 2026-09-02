@@ -24,7 +24,7 @@ The Supervisor may:
 
 - ask the Lead why it chose a strategy, a partition, a lane, or a ruling, by prompt: `herdr agent prompt lead-<project-slug> "<question>"`, no `--wait`;
 - report bias, risk, or a broken process to the Human in its own pane;
-- relay a Human decision to the Lead verbatim, by prompt, naming it as the Human's decision;
+- relay a Human decision to the Lead verbatim, by prompt, naming it as the Human's decision — only a message the Human actually sent; a denial the Supervisor's own runtime produced, or a preference it inferred, is never relayed as one (`human-gates-and-closeout.md`, "Attribution");
 - propose a patch to a policy, profile, or charter, as a recommendation to the Human — never by editing the skill, the project config, or the repository during a run;
 - write the notebook below;
 - with an explicit Human permission for this case, staff a replacement Lead and hand it the context pack (`lead-policy.md`, "Seat identity and continuity") when the current Lead cannot recover, clearing the old seat name first so the replacement takes it.
@@ -69,3 +69,15 @@ Keep the notebook at `~/.herdr/projects/<project-slug>/supervisor-notebook.md`, 
 ```
 
 An entry that only says the Lead was wrong is not an entry. Record the mechanism and the evidence, so the Human can decide whether the pattern repeats and whether a policy should change. Product repositories carry no supervisor state.
+
+Name the anti-pattern from this vocabulary when one fits, so entries across runs can be grouped; otherwise write `none` and describe the mechanism:
+
+- **pre-solving** — the Lead's charter fixes the implementation and the Peer complies instead of judging;
+- **sheep compliance** — a Peer or Reviewer agrees with the charter or report without a disconfirming attempt;
+- **self-acceptance** — a settled Peer, a green check, or a status label is treated as acceptance;
+- **test-shaped proof** — checks that exercise the change's shape but not the claim the acceptance boundary makes;
+- **authority laundering** — a denial, dialog, config key, or inference is recorded or relayed as a Human decision;
+- **polling debt** — a seat waits, sleeps, or re-lists agents instead of ending its turn and being woken;
+- **stall by pre-arm miss** — a Peer sits at a routine approval the posture should have covered, and nobody notices until the Human looks;
+- **Lead as writer** — the Lead edits source after a finding instead of routing it to the owning Engineer;
+- **supervisor overreach** — the Supervisor instructs a Peer, answers a gate, or turns a hypothesis into an order.

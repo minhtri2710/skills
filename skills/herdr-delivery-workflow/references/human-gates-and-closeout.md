@@ -10,7 +10,7 @@ Route a decision immediately when it involves:
 - destructive or irreversible action;
 - credentials, permissions, or security-sensitive behavior;
 - material scope, architecture, dependency, data, or contract change;
-- an approval or question shown by the agent UI.
+- an approval or question shown by the agent UI, other than the routine command approval "Approval dialogs" below sets apart.
 
 Preserve the same work and custody. The gate record contains:
 
@@ -24,6 +24,19 @@ Preserve the same work and custody. The gate record contains:
 Pause the same run while the gate is pending. As soon as the gate record and its ledger line exist, notify the Human once — `herdr notification show "Gate <GATE-ID>: <one-line finding>" --body "<decision required>" --sound request` — and, when a Supervisor seat is recorded, send it the attention event (`lead-policy.md`, "Seats"). Neither replaces the gate record in the message; they only make sure the Human looks. Do not bypass, answer by inference, duplicate the work, rebase, push, merge, or reinterpret the decision. After the Human responds, resume the same bounded run and revalidate anything affected.
 
 A plain instruction in the Human's current request is itself the Human's decision. When the live request explicitly names a gated action — such as the push or merge to perform — record the gate and append its ledger line as `status=resolved:instruction` instead of pausing, then perform only the action the instruction names, at the head this run reviewed. Only the current request qualifies: a prior request, a config key, or an inferred preference never resolves a gate. Any gate the request does not plainly decide still routes to the Human and pauses the run. If the resumed run produces a new head, that head carries the same requirement as any repair head: fresh evidence and a fresh independent review bound to that exact SHA. A verdict earned before the gate does not transfer to a head created after it.
+
+## Attribution
+
+Only a message from the Human is a Human decision: a line in the current request, an answer to a gate, or a decision the Supervisor relays verbatim and names as the Human's. Nothing else qualifies, however much it looks like authority. A denied tool call, a harness or classifier refusing a command or a launch argument, an approval dialog left standing, a config key, a prior request, or a policy inference is a constraint on the seat that met it — record it as `Runtime denial: <command> — <effect on this run>`, take the nearest allowed action, and route `BLOCKED` to the Human when there is none. Presenting such a constraint as the Human's ruling launders authority: the record then shows a decision nobody made, and every seat downstream builds on it. An agent running under an automatic permission mode cannot tell a classifier denial from a Human ruling by how it feels; it can only tell by asking where the message came from.
+
+## Approval dialogs
+
+A Peer at a dialog (`blocked`) has stopped, and the Lead never answers the dialog for it. What the Lead does depends on what the dialog asks:
+
+- A routine command approval — the runtime asking to run a read-only or verify command the charter named, or the report prompt — is a pre-arm miss: the posture set at staffing did not cover it. Notify the Human once, `herdr notification show "Approval <peer-name>: <command>" --body "charter-named command awaiting the Human" --sound request`, record the miss beside the Peer's posture so the next staffing pre-arms it, and write no gate record and no ledger line, because no delivery decision is pending. After the Human clears it, the Peer continues on its own.
+- Any other dialog — a write, an external effect, credentials, a question about scope, or a command the charter did not name — is a Human gate with the full record, ledger line, and notification above.
+
+Either way the Lead ends its turn: the Peer reports when it finishes, and the roster check at the next wake shows whether the dialog is still standing.
 
 ## Gate ledger
 

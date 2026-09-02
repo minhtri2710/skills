@@ -83,7 +83,7 @@
       "assertions": [
         "Staffs the Reviewer on a kind that differs from every Engineer's kind using herdr agent start --kind",
         "Records each agent's kind beside its name and pane, with one ENGINEER line per Engineer and the Reviewer pinned to the exact head",
-        "Names a pre-chosen fallback kind pinned to the same exact head and states all four fallback triggers: unavailable kind, error or no verdict, only remaining kind being an Engineer kind, and a read-only or no-mutation violation",
+        "Names a pre-chosen fallback kind pinned to the same exact head and states all five fallback triggers: unavailable kind, error or no verdict, only remaining kind being an Engineer kind, a read-only or no-mutation violation, and a boundary failure (subagent, background work, or timeout)",
         "States that a review matching any Engineer's kind would count as recorded residual risk, not independence",
         "Does not treat a mode or role instruction as proof of a read-only runtime"
       ]

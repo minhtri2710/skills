@@ -94,7 +94,7 @@ herdr agent start <name> --kind <kind> --pane <pane-id>
 herdr agent start <name> --kind <kind> --pane <pane-id> -- <agent-args...>
 ```
 
-Use the kind the user requested, and run `herdr agent` for the installed kind list. Native agent arguments go only after `--`. A successful `agent start` returns only after Herdr detects the expected agent in that pane and considers it ready for input; startup defaults to a 30-second timeout. If the agent is blocked during startup the command returns `agent_not_ready` immediately but keeps the name usable for `agent read` and `agent send-keys`; wait for it to settle before prompting.
+Use the kind the user requested, and run `herdr agent` for the installed kind list. Native agent arguments go only after `--`; the permission arguments among them set the Peer's posture, which `peer-policy.md`, "Permission posture", defines — learn a kind's flags from its own `--help` at staffing, since they differ by kind and release. A successful `agent start` returns only after Herdr detects the expected agent in that pane and considers it ready for input; startup defaults to a 30-second timeout. If the agent is blocked during startup the command returns `agent_not_ready` immediately but keeps the name usable for `agent read` and `agent send-keys`; wait for it to settle before prompting.
 
 ```bash
 herdr agent prompt <name> "<bounded task>"
@@ -112,7 +112,7 @@ herdr agent get <name>
 herdr agent read <name> --source recent-unwrapped --lines 120
 ```
 
-After a `blocked` state or a Peer that went quiet without a report, read `agent get` and `agent read` before deciding anything. A blocked approval dialog is a Human decision: route it and never answer it by inference. `herdr agent send-keys <name> esc` writes logical keys and exists to resume an interactive UI after that decision, not to drive the agent's work.
+After a `blocked` state or a Peer that went quiet without a report, read `agent get` and `agent read` before deciding anything. A blocked dialog is answered only by the Human: classify it as a routine command approval or a gate (`human-gates-and-closeout.md`, "Approval dialogs") and never answer it by inference. `herdr agent send-keys <name> esc` writes logical keys and exists to resume an interactive UI after that decision, not to drive the agent's work.
 
 ## Name a seat
 
@@ -144,7 +144,7 @@ herdr notification show "<title>" --body "<one line>" --sound request
 herdr notification show "<title>" --body "<one line>" --sound done
 ```
 
-A notification reaches the Human, not an agent. Popups depend on the Human's `[ui.toast] delivery` key in `~/.config/herdr/config.toml`; its default is `off`, so the notification is silent until the Human sets `herdr`, `terminal`, or `system`. That is the Human's config, never edit it. `human-gates-and-closeout.md` owns the only two sites: `--sound request` when a Human gate opens, `--sound done` at the final handoff. Do not notify for routine progress, Peer completions, or verdicts.
+A notification reaches the Human, not an agent. Popups depend on the Human's `[ui.toast] delivery` key in `~/.config/herdr/config.toml`; its default is `off`, so the notification is silent until the Human sets `herdr`, `terminal`, or `system`. That is the Human's config, never edit it. `human-gates-and-closeout.md` owns the only sites: `--sound request` when a Human gate opens or a Peer stands at a routine approval only the Human can clear, `--sound done` at the final handoff. Do not notify for routine progress, Peer completions, or verdicts.
 
 ## Read sources
 
