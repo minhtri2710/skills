@@ -101,7 +101,7 @@ beo-plan -> beo-validate -> beo-execute -> done
 
 ## 5. Repair Loop Policy
 
-Repair boundary is canonical in `references/phase-contracts.md`.
+Repair boundary is canonical in `references/kernel.md` (§11).
 
 - `beo-review` emits exactly one route. Final verdict routes are accept, repair same scope, repair rescope, cannot deliver, or abandoned; `root_cause_diagnosis_needed` is a non-final diagnostic handoff route.
 - Repair counters are recorded in `state.json` for review visibility only.

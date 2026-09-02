@@ -34,9 +34,8 @@ if str(_SCRIPTS) not in sys.path:
 
 import beo_state
 import beo_approval
-import beo_git
 import beo_ticket
-from beo_io import compact_text, now
+from beo_io import compact_text, now, repo_head_sentinel
 
 
 def _die(msg: str, code: int = 1) -> None:
@@ -124,7 +123,7 @@ def main() -> int:
 
     # Compute approval hashes
     ticket_file_hash = beo_ticket.ticket_file_hash(ticket_path)
-    repo_head = beo_git.repo_head_sentinel(root)
+    repo_head = repo_head_sentinel(root)
     proj_input = beo_ticket.approval_projection_input(ticket)
     proj_input["ticket_file_hash"] = ticket_file_hash
     proj_input["repo_head"] = repo_head

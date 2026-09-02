@@ -6,7 +6,7 @@ description: "Plan BEO work from Beads issues. Use for epic requirement intake, 
 
 ## Read
 
-- `beo-reference -> references/default-reads.md`
+- `beo-reference -> references/kernel.md#17-default-reads-for-delivery-skills`
 - `.beads/artifacts/<issue-id>/PLAN.md` when writing or decomposing the parent plan
 - `beo-reference -> registry/ticket.schema.json` for ticket shape
 - `beo-reference -> registry/profiles.json` for scope and protected paths

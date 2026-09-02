@@ -48,7 +48,7 @@ The five delivery phases are intake, planning, implementation, validation, and t
 | Lane | Required reads | Optional reads |
 | --- | --- | --- |
 | tiny | `beo-validate/SKILL.md` | `beo_check.py --help` |
-| normal | tiny + `references/lifecycle.md`, `registry/approval-envelope.json` | `beo_check_approval.py` |
+| normal | tiny + `references/lifecycle.md`, `registry/approval-envelope.json` | `beo_check.py` (approval section) |
 | high-risk | normal + `references/kernel.md`, `references/safety.md`, `registry/phase-contracts.json` | `beo_reservation.py` |
 
 ### Phase: trace

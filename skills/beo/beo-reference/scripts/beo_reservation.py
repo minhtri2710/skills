@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any
 
 sys.path.insert(0, str(Path(__file__).parent))
-from beo_check_identity import actor_identity
+from beo_io import actor_identity
 from beo_paths import normalize_posix, path_token_covers, path_tokens_overlap, reject_unsafe_path
 
 RESERVATION_FILE = ".beads/beo-reservations.jsonl"

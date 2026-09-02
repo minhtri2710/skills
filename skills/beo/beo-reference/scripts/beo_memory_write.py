@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import sys
 from datetime import date
@@ -10,7 +11,6 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 from beo_io import compact_text
-import beo_memory_tools
 
 SAFE_SLUG = re.compile(r"^[a-z0-9][a-z0-9-]{0,120}$")
 SAFE_ISSUE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,120}$")
@@ -92,41 +92,6 @@ def validate_learning_frontmatter(frontmatter: dict[str, object], issue: str | N
         raise ValueError(f"type must be one of {sorted(OKF_TYPES)}, got '{frontmatter['type']}'")
     if frontmatter["secret_policy"] != "handles_only":
         raise ValueError("secret_policy must be handles_only")
-
-
-def migrate_legacy_note(frontmatter: dict[str, object], markdown_body: str) -> dict[str, object]:
-    """Backfill the new required 'type' field for notes written before it was required.
-
-    Existing notes in `.beads/learnings/` or `<vault>/beo-learnings/` lack the
-    'type' key. The default for the legacy learning-note format is 'learning';
-    only override when the body or other frontmatter clearly indicates a
-    decision or reference. Returns a new dict; the input is not mutated.
-    """
-    if "type" in frontmatter:
-        return frontmatter
-    migrated = dict(frontmatter)
-    body_lower = markdown_body.lower()
-    if "decision" in body_lower and "reference" not in body_lower:
-        migrated["type"] = "decision"
-    elif "reference" in body_lower and "decision" not in body_lower:
-        migrated["type"] = "reference"
-    else:
-        migrated["type"] = "learning"
-    return migrated
-
-
-def _rewrite_frontmatter(markdown: str, frontmatter: dict[str, object]) -> str:
-    """Replace the frontmatter block in `markdown` with a fresh dump of `frontmatter`.
-
-    The closing ``---`` separator and the body after it are preserved. The
-    new frontmatter is emitted in key-sorted order for deterministic output.
-    """
-    end = markdown.find("\n---", 4)
-    if end == -1:
-        raise ValueError("learning note frontmatter is not closed")
-    body = markdown[end:]
-    dumped = _dump_frontmatter(frontmatter)
-    return f"---\n{dumped}\n{body}"
 
 
 # ---- Minimal frontmatter parser (no PyYAML dependency) ---------------------
@@ -251,29 +216,17 @@ def _parse_frontmatter_block(block: str) -> dict[str, object]:
     return result
 
 
-def _dump_scalar(value: object) -> str:
-    if value is None:
-        return "null"
-    if isinstance(value, bool):
-        return "true" if value else "false"
-    if isinstance(value, (int, float)):
-        return str(value)
-    if isinstance(value, list):
-        return "[" + ", ".join(_dump_scalar(item) for item in value) + "]"
-    text = str(value)
-    # Quote strings that would otherwise re-parse as bool/null/number,
-    # and strings with structural chars or surrounding whitespace.
-    if (
-        any(ch in text for ch in [":", "#", "[", "]", "{", "}", ","])
-        or text.strip() != text
-        or not isinstance(_parse_scalar(text), str)
-    ):
-        return json.dumps(text)
-    return text
-
-
-def _dump_frontmatter(frontmatter: dict[str, object]) -> str:
-    return "\n".join(f"{key}: {_dump_scalar(frontmatter[key])}" for key in sorted(frontmatter))
+def resolve_obsidian_env() -> dict[str, str | Path | None]:
+    """Resolve Obsidian and QMD environment variables with safe defaults."""
+    vault_name = os.environ.get("BEO_OBSIDIAN_VAULT_NAME") or os.environ.get("BEO_OBSIDIAN_VAULT_ID") or None
+    vault_path_str = os.environ.get("BEO_OBSIDIAN_VAULT")
+    vault_path = Path(vault_path_str).expanduser().resolve() if vault_path_str else None
+    return {
+        "vault_name": vault_name,
+        "vault_path": vault_path,
+        "qmd_collection": os.environ.get("BEO_QMD_COLLECTION") or vault_name or "beo-learnings",
+        "learning_dir": vault_path / "beo-learnings" if vault_path else None,
+    }
 
 
 def write_note_to_dir(learning_dir: Path, note_name: str, markdown: str, backend: str, fallback_reason: str | None = None) -> dict[str, str]:
@@ -291,7 +244,7 @@ def write_note_to_dir(learning_dir: Path, note_name: str, markdown: str, backend
 
 def resolve_learning_target(root: Path) -> tuple[Path, str, str | None]:
     fallback_dir = validate_fallback_target(root)
-    env = beo_memory_tools.resolve_obsidian_env()
+    env = resolve_obsidian_env()
     vault_path = env["vault_path"]
     learning_dir = env["learning_dir"]
     if vault_path is None or learning_dir is None:
@@ -328,13 +281,6 @@ def main(argv: list[str]) -> int:
         frontmatter = extract_frontmatter(markdown)
     except ValueError as exc:
         return fail(f"Frontmatter validation failed: {exc}")
-
-    # Backfill the new 'type' field for notes written before it was required.
-    body_start = markdown.find("\n---", 4) + 4
-    migrated = migrate_legacy_note(frontmatter, markdown[body_start:])
-    if migrated is not frontmatter:
-        frontmatter = migrated
-        markdown = _rewrite_frontmatter(markdown, frontmatter)
 
     case_type = args.case_type or str(frontmatter.get("case_type") or "success_pattern")
     issue_token = args.issue or "user-request"

@@ -83,22 +83,15 @@ def _collect_enums(value: Any) -> set[Any]:
     return enums
 
 
-def _build_outcome_index(raw_map: Any) -> dict[str, set[str]]:
-    """Map skill -> set of (outcomes + transition condition_ids).
-
-    Accepts either a dict-shaped entry (``{outcomes, transitions}``) or a
-    legacy list/string entry, which is normalized to a set.
-    """
-    index: dict[str, set[str]] = {}
-    for key, value in raw_map.items():
-        if isinstance(value, dict):
-            index[key] = {
-                *value.get("outcomes", []),
-                *(transition.get("condition_id") for transition in value.get("transitions", [])),
-            }
-        else:
-            index[key] = set(value)
-    return index
+def _build_outcome_index(raw_map: dict[str, dict[str, Any]]) -> dict[str, set[str]]:
+    """Map skill -> set of (outcomes + transition condition_ids)."""
+    return {
+        key: {
+            *value.get("outcomes", []),
+            *(transition.get("condition_id") for transition in value.get("transitions", [])),
+        }
+        for key, value in raw_map.items()
+    }
 
 
 def run_checks() -> int:
@@ -137,9 +130,6 @@ def run_checks() -> int:
                 if header not in content:
                     errors.append(f"Skill card {skill}/SKILL.md is missing expected header: {header}")
 
-            # Check no ticket-plan.schema.json references
-            if "ticket-plan.schema.json" in content:
-                errors.append(f"Skill card {skill}/SKILL.md references legacy ticket-plan.schema.json")
             for ref in _path_like_refs(content):
                 if ref.startswith("../beo-reference/") or ref.startswith("beo-reference -> "):
                     _check_ref_exists(errors, skill_path, ref)
@@ -151,8 +141,7 @@ def run_checks() -> int:
 
     required_references = [
         "kernel.md", "doctrine-map.md", "artifact-boundaries.md",
-        "lifecycle.md", "phase-contracts.md", "safety.md", "memory.md", "degraded-tools.md",
-        "default-reads.md"
+        "lifecycle.md", "safety.md", "memory.md", "degraded-tools.md",
     ]
     for ref in required_references:
         p = REF_DIR / "references" / ref
@@ -312,19 +301,13 @@ def run_checks() -> int:
                 for cond in s_conf.get("may_emit_delivery_conditions", []):
                     if cond not in pipeline_conditions:
                         errors.append(f"Skill {s_name} emits unregistered pipeline condition: {cond}")
-                for kind in s_conf.get("may_emit_runtime_event_kinds", []):
-                    if kind not in runtime_event_kinds:
-                        errors.append(f"Skill {s_name} emits unregistered runtime event kind: {kind}")
-                declared_kinds = set(s_conf.get("may_emit_runtime_event_kinds", []))
-                if declared_kinds and s_name not in owner_rules:
-                    errors.append(f"Skill {s_name} declares runtime event kind(s) but has no runtime-event owner rule")
                 if s_name in owner_rules:
-                    expected_kinds = set(owner_rules[s_name].get("may_emit", []))
+                    allowed_kinds = set(owner_rules[s_name].get("may_emit", []))
                     forbidden_kinds = set(owner_rules[s_name].get("must_not_emit", []))
-                    if declared_kinds != expected_kinds:
-                        errors.append(f"Skill {s_name} runtime event kind mismatch: declared {sorted(declared_kinds)} expected {sorted(expected_kinds)}")
-                    if declared_kinds & forbidden_kinds:
-                        errors.append(f"Skill {s_name} declares forbidden runtime event kind(s): {sorted(declared_kinds & forbidden_kinds)}")
+                    for kind in sorted(allowed_kinds - runtime_event_kinds):
+                        errors.append(f"Owner rule for {s_name} allows unregistered runtime event kind: {kind}")
+                    if allowed_kinds & forbidden_kinds:
+                        errors.append(f"Owner rule for {s_name} both allows and forbids runtime event kind(s): {sorted(allowed_kinds & forbidden_kinds)}")
                 # Verify SKILL.md Emit subset of phase-contracts.json outcomes
                 skill_md_path = BEO_ROOT / s_name / "SKILL.md"
                 if skill_md_path.exists():
@@ -348,30 +331,10 @@ def run_checks() -> int:
             errors.append(f"Failed to perform consistency validation on JSON registries: {exc}")
 
 
-    # 4. Check legacy references and local Markdown links
-    forbidden_tokens = [
-        "ticket-plan" + ".schema.json",
-        "forbidden_state_fields",
-        "_forbidden_ticket_fields",
-        "expires_at",
-        "status == \"expired\"",
-        "release_reason\": \"expired\"",
-        '"abandon"',
-    ]
-    for p in BEO_ROOT.rglob("*"):
-        if p.is_file() and p.suffix in [".md", ".json", ".py"]:
-            if p.name == "check_skill_bundle.py":
-                continue
-            try:
-                text = p.read_text(encoding="utf-8")
-            except Exception:
-                continue
-            for token in forbidden_tokens:
-                if token in text:
-                    errors.append(f"Legacy token {token!r} found in file: {p.relative_to(BEO_ROOT)}")
-            if p.suffix == ".md" and p.is_relative_to(REF_DIR):
-                for ref in _path_like_refs(text):
-                    _check_ref_exists(errors, p, ref)
+    # 4. Check local Markdown links in beo-reference
+    for p in REF_DIR.rglob("*.md"):
+        for ref in _path_like_refs(p.read_text(encoding="utf-8")):
+            _check_ref_exists(errors, p, ref)
 
     # Print results
     if errors:

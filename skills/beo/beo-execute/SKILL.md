@@ -6,7 +6,7 @@ description: "Implement one approved atomic BEO bead after PASS_EXECUTE. Use bv 
 
 ## Read
 
-- `beo-reference -> references/default-reads.md`
+- `beo-reference -> references/kernel.md#17-default-reads-for-delivery-skills`
 - `bv` robot output only for optional read-only graph orientation or ready-work visualization
 - `br ready --json` when choosing ready candidates
 - `beo-reference -> registry/approval-envelope.json` before checking approval validity predicates or mutating files

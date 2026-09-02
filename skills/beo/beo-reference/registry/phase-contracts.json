@@ -21,7 +21,6 @@
         "br.labels.beo_blocked_user"
       ],
       "may_emit_delivery_conditions": ["planned", "decomposition_recorded", "user_review_needed"],
-      "may_emit_runtime_event_kinds": ["user_stop"],
       "decomposition_recorded_contract": {
         "ticket_prewrite": "Write TICKET.json for every proposed atomic bead before emitting `decomposition_recorded`, not just the bead being dispatched next. Source text: parent PLAN.md 'Proposed atomic beads' blocks. Pre-written tickets let each child enter validation directly instead of requiring a separate planning pass to author its ticket at dispatch time."
       },
@@ -37,7 +36,6 @@
         "br.labels.beo_blocked_user"
       ],
       "may_emit_delivery_conditions": ["PASS_EXECUTE", "plan_validated", "validation_failed", "user_review_needed"],
-      "may_emit_runtime_event_kinds": ["user_stop", "verification_run", "intervention"],
       "validation_preconditions": {
         "strict_destructive_schema": {
           "trigger": "ticket.mode == 'strict' AND (ticket.request OR ticket.done_criteria OR ticket.strict.reason) mentions destructive schema change (drop enum, drop column, drop table, destructive migration, irreversible data shape)",
@@ -68,7 +66,6 @@
         "containment_review_needed",
         "harness_change_needed"
       ],
-      "may_emit_runtime_event_kinds": ["handoff", "verification_run", "intervention"],
       "must_not": ["approve", "validate", "review", "close", "mutate_outside_approved_scope"]
     },
     "beo-review": {
@@ -90,7 +87,6 @@
         "harness_change_needed",
         "user_review_needed"
       ],
-      "may_emit_runtime_event_kinds": ["handoff", "change_request", "abandoned", "learning_candidate", "verification_run", "intervention"],
       "must_not": ["mutate_product_files", "grant_PASS_EXECUTE", "close_non_accepted_work", "emit_multiple_review_routes"]
     },
     "beo-debug": {
@@ -98,7 +94,6 @@
       "state_write_fields": [],
       "artifact_write_authorities": [],
       "may_emit_support_outcomes": ["debug_returned", "debug_abandoned"],
-      "may_emit_runtime_event_kinds": ["return", "learning_candidate_suggestion"],
       "must_not": ["repair_code", "grant_PASS_EXECUTE", "review", "close", "emit_learning_candidate"]
     },
     "beo-learn": {
@@ -123,7 +118,6 @@
         "no_change_needed",
         "user_review_needed"
       ],
-      "may_emit_runtime_event_kinds": ["score"],
       "must_not": ["mutate_product_delivery_scope", "grant_PASS_EXECUTE", "execute_product_ticket", "review_product_ticket", "close_delivery_issue"]
     },
     "beo-climate": {

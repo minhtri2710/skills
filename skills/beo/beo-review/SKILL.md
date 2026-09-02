@@ -6,7 +6,7 @@ description: "Review one executed atomic BEO bead against its self-contained des
 
 ## Read
 
-- `beo-reference -> references/default-reads.md`
+- `beo-reference -> references/kernel.md#17-default-reads-for-delivery-skills`
 - `.beads/artifacts/<parent-issue-id>/PLAN.md` only when review evidence or an explicit inconsistency requires parent-boundary audit; child descriptions should be self-contained
 - `.beads/beo-reservations.jsonl` and `beo-reference -> registry/reservation-schema.json` before any route that may release an existing reservation
 - `beo-reference -> scripts/beo_worktree.py` when the bead has `worktree_isolation: true` (for merge or cleanup)

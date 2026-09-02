@@ -150,3 +150,30 @@ BEO is a thin process/control-plane harness over Beads. It regulates delivery fl
 
 `verdict_accept` for `strict` mode beads requires a second-reviewer cross-check signal recorded in `state.json.review.cross_check` (`reviewer` + `verdict`). This counters the non-determinism of a single inferential review pass on high-risk work. A `cross_check.verdict` of `disagree` or `uncertain` blocks `verdict_accept` and routes repair or `user_review_needed`. Quick and standard modes are unaffected. When no second reviewer is available (e.g. no advisor/second-model API), route `user_review_needed` rather than self-accepting strict work.
 
+---
+
+## 16. Owner Classes & Phase Contracts
+
+`registry/phase-contracts.json` is the canonical machine-readable contract. Per-skill entries record class, `state_write_fields`, `artifact_write_authorities`, `may_emit_*` conditions, `must_not`, and (when applicable) `validation_preconditions` or `decomposition_recorded_contract`. Runtime-event emission rights are owned by `registry/runtime-event.schema.json` (`beo_contract_metadata.owner_rules`), not by the phase contract.
+
+- Only delivery owners advance delivery state.
+- Support subroutines return evidence or advisory output to a delivery owner.
+- Maintenance skills mutate only BEO control-plane materials or explicitly authorized setup.
+- `beo-reference` is read-only.
+- `beo-validate.validation_preconditions` are mandatory content gates applied after ticket-shape validation and before `PASS_EXECUTE`; a missing precondition is a hard reject routed `validation_failed -> beo-plan`.
+- `beo-plan.decomposition_recorded_contract` is advisory: pre-write `TICKET.json` for every proposed atomic bead before emitting `decomposition_recorded` so each child can enter validation directly.
+- Neither block grants new write authority; per-skill `artifact_write_authorities` and `must_not` remain binding.
+- `br.final_route_comments` means phase-final route or handoff comments, not review-only comments. The `user_review_needed` handoff format lives in `references/user-handoff.md`.
+
+---
+
+## 17. Default Reads for Delivery Skills
+
+`beo-plan`, `beo-validate`, `beo-execute`, and `beo-review` load these at every phase entry; per-skill extras stay in each card's `## Read` section and are the only authoritative pointer to phase-specific inputs.
+
+- `br show <issue-id> --json`
+- `.beads/artifacts/<issue-id>/TICKET.json` (read or authored, depending on phase)
+- `.beads/artifacts/<issue-id>/state.json`
+- `.beads/artifacts/<issue-id>/runtime-events.jsonl` when present
+- `registry/pipeline.json` for the emitted route
+- `registry/runtime-event.schema.json` before appending runtime events

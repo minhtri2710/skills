@@ -18,17 +18,10 @@ This file is the machine-and-human-readable manifest. `beo_audit.py --check-mani
 | `beo_approval.py` | imported by other scripts | Approval | none (library) | n/a |
 | `beo_audit.py` | `[--check-manifest] [--root .] [--learning-repo PATH] [--json]` | Audit | markdown or json | 0, 1 |
 | `beo_check.py` | `--check <name> --issue <id> [--root .]` | Validation | json | 0, 1 |
-| `beo_check_approval.py` | imported | Approval | none (library) | n/a |
-| `beo_check_events.py` | imported | Validation | none (library) | n/a |
-| `beo_check_identity.py` | imported | Validation | none (library) | n/a |
-| `beo_check_scope.py` | imported | Scope | none (library) | n/a |
-| `beo_git.py` | imported | Isolation | none (library) | n/a |
-| `beo_io.py` | imported | (utility) | none (library) | n/a |
-| `beo_memory_tools.py` | imported | Memory | none (library) | n/a |
+| `beo_io.py` | imported | (utility: subprocess, hashing, git head, actor identity) | none (library) | n/a |
 | `beo_memory_write.py` | `beo_memory_write.py <vault> <note-path>` | Memory | json | 0, 1, 2 |
 | `beo_paths.py` | imported | Scope | none (library) | n/a |
 | `beo_propose.py` | `[--root .]` | Audit | json | 0, 1 |
-| `beo_quick_fill.py` | `beo_quick_fill.py --issue <id> [--root .]` | Validation | json | 0, 1, 2 |
 | `beo_recall.py` | `beo_recall.py <query> [--root .]` | Memory | json | 0, 1 |
 | `beo_reservation.py` | subcommand-driven | Reservation | json | 0, 1, 2 |
 | `beo_run.py` | `beo_run.py --issue <id> [--root .]` | (orchestrator) | mixed | 0, 1, 2 |
@@ -36,12 +29,8 @@ This file is the machine-and-human-readable manifest. `beo_audit.py --check-mani
 | `beo_score_trace.py` | `--issue <id> [--root .]` | Scoring | json | 0, 1, 2 |
 | `beo_setup.py` | `beo_setup.py [--check]` | Setup | json | 0, 1, 2 |
 | `beo_state.py` | imported | (state) | none (library) | n/a |
-| `beo_state_io.py` | imported | (state io) | none (library) | n/a |
-| `beo_state_update.py` | imported | (state update) | none (library) | n/a |
-| `beo_state_validate.py` | imported | Validation | none (library) | n/a |
 | `beo_ticket.py` | imported | Validation | none (library) | n/a |
 | `beo_verify.py` | `run --issue <id> [--root .]` or `--all` | Verification | json | 0, 1, 2 |
-| `beo_metrics.py` | `beo_metrics.py [--root .] [--issue <id>]` | Telemetry | json | 0 |
 | `beo_worktree.py` | subcommand-driven | Isolation | json | 0, 1, 2 |
 | `check_skill_bundle.py` | `check_skill_bundle.py` | Validation | markdown | 0, 1 |
 
@@ -57,7 +46,6 @@ This file is the machine-and-human-readable manifest. `beo_audit.py --check-mani
 - **Scoring**: trace and context quality (advisory)
 - **Verification**: runs TICKET.json scope verify commands (machine-enforced)
 - **Audit**: drift checks (C1–C10), proposal generation (advisory)
-- **Telemetry**: sensor firing-rate aggregation (advisory)
 
 ## Operator question → helper
 
@@ -71,6 +59,5 @@ This file is the machine-and-human-readable manifest. `beo_audit.py --check-mani
 | Is the bead well-traced? | `beo_score_trace.py` |
 | Is context coverage good? | `beo_score_context.py` |
 | Did the verify commands pass? | `beo_verify.py` |
-| What's the sensor firing rate? | `beo_metrics.py` |
 | Are skill cards and registries consistent? | `check_skill_bundle.py` or `beo_audit.py` |
 | What's missing from this delivery? | `beo_propose.py` |

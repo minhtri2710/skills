@@ -6,7 +6,7 @@ description: "Validate BEO PLAN.md readiness or grant/deny PASS_EXECUTE for atom
 
 ## Read
 
-- `beo-reference -> references/default-reads.md`
+- `beo-reference -> references/kernel.md#17-default-reads-for-delivery-skills`
 - `.beads/artifacts/<issue-id>/PLAN.md` when validating epic/feature decomposition readiness
 - `beo-reference -> registry/ticket.schema.json` for ticket shape
 - `beo-reference -> registry/approval-envelope.json` before writing `PASS_EXECUTE`

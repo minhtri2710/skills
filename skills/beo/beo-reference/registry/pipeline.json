@@ -28,8 +28,6 @@
   "support_subroutines": {
     "beo-debug": {
       "callers": ["beo-execute", "beo-review"],
-      "may_emit_runtime_events": ["return", "learning_candidate_suggestion"],
-      "must_not_emit_runtime_events": ["learning_candidate"],
       "transitions": [
         { "from": "beo-debug", "condition_id": "debug_returned", "to": "caller" },
         { "from": "beo-debug", "condition_id": "debug_abandoned", "to": "caller" }
@@ -60,10 +58,14 @@
         { "from": "beo-author", "condition_id": "user_review_needed", "to": "user" }
       ]
     },
-    "beo-setup": ["setup_complete", "setup_degraded", "setup_blocked", "user_confirmation_needed"]
+    "beo-setup": {
+      "outcomes": ["setup_complete", "setup_degraded", "setup_blocked", "user_confirmation_needed"]
+    }
   },
   "lookup_skills": {
-    "beo-reference": ["lookup_complete"]
+    "beo-reference": {
+      "outcomes": ["lookup_complete"]
+    }
   },
   "route_classes": {
     "final_success": ["verdict_accept", "executed_and_verified"],

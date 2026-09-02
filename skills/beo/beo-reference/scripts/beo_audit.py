@@ -212,8 +212,7 @@ def _pipeline_transition_iter(pipeline: dict[str, Any]) -> list[tuple[str, str, 
     for name, payload in pipeline.get("support_subroutines", {}).items():
         sections.append((name, payload.get("transitions", [])))
     for name, payload in pipeline.get("maintenance_skills", {}).items():
-        if isinstance(payload, dict):
-            sections.append((name, payload.get("transitions", [])))
+        sections.append((name, payload.get("transitions", [])))
     for section, transitions in sections:
         for transition in transitions:
             out.append((section, transition.get("from", "?"), transition.get("condition_id", "?")))

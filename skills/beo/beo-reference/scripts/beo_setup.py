@@ -9,7 +9,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 import beo_io
-import beo_memory_tools
+import beo_memory_write
 
 
 MANAGED_START = "<!-- BEO:MANAGED START -->"
@@ -151,7 +151,7 @@ def main() -> int:
         else:
             results["dependencies"][binary] = "present" if binary == "obsidian" else (out.split("\n")[0] if out else "present")
 
-    env = beo_memory_tools.resolve_obsidian_env()
+    env = beo_memory_write.resolve_obsidian_env()
     vault_name = env["vault_name"]
     vault_path = env["vault_path"]
     learning_dir = env["learning_dir"]
