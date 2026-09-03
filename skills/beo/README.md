@@ -68,4 +68,4 @@ BEO ships advisory helpers in `beo-reference/scripts/` for queryable verificatio
 - `beo_audit.py` (Audit): drift checks across skill cards, registries, references, must_not lists, and the command manifest. `--check-manifest` enables manifest drift detection.
 - `beo_propose.py` (Audit): generates `beo-author/proposals/pending/prop-*.md` from friction/learning-candidate events. Never applies changes.
 
-`beo_reference` (lookup) routes operators to the right helper via `references/command-manifest.md`. See `references/command-manifest.md` for the full helper index, output shape, and exit code contract.
+`beo-reference` (lookup) routes operators to the right helper via `references/command-manifest.md`. See `references/command-manifest.md` for the full helper index, output shape, and exit code contract.

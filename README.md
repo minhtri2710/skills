@@ -1,6 +1,8 @@
 # BEO Skills
 
-BEO is a repo-local Agent Skills package for safe Beads-backed delivery.
+Agent Skills bundle. BEO, a repo-local package for safe Beads-backed delivery, lives under `skills/beo/`; standalone skills live beside it under `skills/`.
+
+## BEO
 
 Normal path:
 
@@ -30,17 +32,30 @@ Authority:
 Requirements:
 
 - `br` is required.
-- A git worktree is required for delivery containment.
-- PyYAML is required for helper artifact parsing.
+- Python 3 standard library only; no third-party packages.
+- Git worktree isolation is optional and used only by strict mode.
 - `bv`, qmd, and Obsidian are optional degraded tools.
 
 No legacy compatibility: BEO accepts only current `version: 1` artifacts.
 
-Useful checks:
+## Standalone skills
+
+| Skill | Use |
+| --- | --- |
+| `architecture-premise-audit` | Audit a whole project for a wrong system archetype before trusting repository vocabulary. |
+| `frontend-design` | Implement a UI change whose rendered hierarchy, flow, or responsive behavior is part of acceptance. |
+| `herdr-delivery-workflow` | Control Herdr and run bounded delivery with the Supervisor / Lead / Peer role model. |
+| `prompt-leverage` | Strengthen a raw prompt into an execution-ready instruction set. |
+| `repo-refresh` | Remove stale docs, plans, tests, proof machinery, and debris from an explicitly named repository. |
+| `test-proof-debt-audit` | Audit one behavioral claim and the test or gate cited as its proof. |
+| `ultra-review` | Run a maximum-recall parallel bug hunt and keep every candidate in a report under `docs/ultrareview/`. |
+| `ultra-review-receive` | Verify and disposition every ultra-review finding, then apply only authorized fixes. |
+
+## Useful checks
 
 ```bash
 .venv/bin/python -m unittest discover -s tests
 .venv/bin/python skills/beo/beo-reference/scripts/check_skill_bundle.py
-.venv/bin/python skills/beo/beo-reference/scripts/beo_audit.py --check-manifest --json
+.venv/bin/python skills/beo/beo-reference/scripts/beo_audit.py --check-manifest --json [--learning-repo <product-repo>]
 git diff --check
 ```
