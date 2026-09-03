@@ -90,7 +90,8 @@ class VerifyRunTest(unittest.TestCase):
                     with mock.patch.dict(os.environ, {"BEO_ACTOR": "assistant", "PATH": f"{bin_dir}{os.pathsep}{os.environ['PATH']}"}, clear=False):
                         with mock.patch.object(beo_run, "run_one_command", side_effect=[verify_result, behaviour_result]) as run_command:
                             with mock.patch.object(beo_run, "behaviour_gate_command", return_value=("behaviour-command", "fixtures")):
-                                rc = beo_run.main()
+                                with contextlib.redirect_stdout(io.StringIO()):
+                                    rc = beo_run.main()
 
             self.assertEqual(rc, 0)
             self.assertEqual(run_command.call_args_list[0].args, ("verify-command", root.resolve(), None))

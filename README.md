@@ -39,7 +39,8 @@ No legacy compatibility: BEO accepts only current `version: 1` artifacts.
 Useful checks:
 
 ```bash
-rtk python3 -m compileall skills/beo/beo-reference/scripts
-rtk python3 -m unittest discover -s tests -v
-rtk git diff --check
+.venv/bin/python -m unittest discover -s tests
+.venv/bin/python skills/beo/beo-reference/scripts/check_skill_bundle.py
+.venv/bin/python skills/beo/beo-reference/scripts/beo_audit.py --check-manifest --json
+git diff --check
 ```

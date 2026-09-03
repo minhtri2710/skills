@@ -1,6 +1,7 @@
 # beads runtime (auto-created by br daemon)
 
 # tool caches
+skills-lock.json
 .cass/
 .bv/
 .gitnexus
