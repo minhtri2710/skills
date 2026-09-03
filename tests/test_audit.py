@@ -2,10 +2,12 @@
 """Unit tests for beo_audit.py (G4 — drift detection)."""
 from __future__ import annotations
 
+import os
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 REFERENCE_ROOT = Path(__file__).resolve().parents[1] / "skills" / "beo" / "beo-reference"
 SCRIPTS = REFERENCE_ROOT / "scripts"
@@ -459,6 +461,94 @@ class StaleLearningEvidenceRefTest(unittest.TestCase):
             findings_none = beo_audit.check_stale_learning_evidence_refs(root, None)
             findings_empty = beo_audit.check_stale_learning_evidence_refs(root, [])
             self.assertEqual(findings_none, findings_empty)
+
+
+class C9SharedParserTest(unittest.TestCase):
+    """Tests for C9's shared frontmatter parser and fail-loud findings."""
+
+    VALID_NOTE = """---
+type: "learning"
+basis_ref: "skills/beo/beo-reference/references/memory.md"
+evidence_refs:
+  - "evidence.md"
+secret_policy: "handles_only"
+source_type: "user_request"
+case_type: "success_pattern"
+---
+Short body.
+"""
+
+    @classmethod
+    def note_without_field(cls, field: str) -> str:
+        lines = cls.VALID_NOTE.splitlines(keepends=True)
+        result: list[str] = []
+        removing = False
+        for line in lines:
+            if not removing and line.startswith(f"{field}:"):
+                removing = True
+                continue
+            if removing and line.startswith("  - "):
+                continue
+            removing = False
+            result.append(line)
+        return "".join(result)
+
+    def run_c9(self, note: str, ref_exists: bool = False) -> list[object]:
+        import beo_audit
+
+        with tempfile.TemporaryDirectory() as vault_tmp, tempfile.TemporaryDirectory() as root_tmp:
+            vault = Path(vault_tmp)
+            root = Path(root_tmp)
+            learnings = vault / "beo-learnings"
+            learnings.mkdir()
+            (learnings / "note.md").write_text(note, encoding="utf-8")
+            if ref_exists:
+                (root / "evidence.md").write_text("evidence", encoding="utf-8")
+            with mock.patch.dict(os.environ, {"BEO_OBSIDIAN_VAULT": str(vault)}, clear=True):
+                findings = beo_audit.check_stale_learning_evidence_refs(root, None)
+            self.assertTrue(all(finding.check_id == "C9" for finding in findings))
+            return findings
+
+    def test_valid_existing_ref_has_no_findings(self):
+        self.assertEqual(self.run_c9(self.VALID_NOTE, ref_exists=True), [])
+
+    def test_unresolvable_ref_has_one_finding(self):
+        findings = self.run_c9(self.VALID_NOTE)
+        self.assertEqual(len(findings), 1)
+        self.assertIn("unresolvable evidence_ref", findings[0].message)
+
+    def test_missing_frontmatter_has_one_finding(self):
+        note = self.VALID_NOTE.split("---\n", 2)[-1]
+        findings = self.run_c9(note)
+        self.assertEqual(len(findings), 1)
+        self.assertIn("unparseable frontmatter", findings[0].message)
+
+    def test_folded_continuation_has_one_finding(self):
+        note = self.VALID_NOTE.replace("basis_ref: \"skills/beo/beo-reference/references/memory.md\"", "basis_ref: a\n  b")
+        findings = self.run_c9(note)
+        self.assertEqual(len(findings), 1)
+        self.assertIn("unparseable frontmatter", findings[0].message)
+
+    def test_empty_evidence_refs_has_one_finding(self):
+        note = self.note_without_field("evidence_refs").replace("basis_ref:", "evidence_refs: []\nbasis_ref:", 1)
+        findings = self.run_c9(note)
+        self.assertEqual(len(findings), 1)
+        self.assertIn("missing or empty evidence_refs", findings[0].message)
+
+    def test_missing_evidence_refs_has_one_finding(self):
+        findings = self.run_c9(self.note_without_field("evidence_refs"))
+        self.assertEqual(len(findings), 1)
+        self.assertIn("missing or empty evidence_refs", findings[0].message)
+
+    def test_missing_learnings_directory_is_silent(self):
+        import beo_audit
+
+        with tempfile.TemporaryDirectory() as vault_tmp, tempfile.TemporaryDirectory() as root_tmp:
+            vault = Path(vault_tmp)
+            root = Path(root_tmp)
+            with mock.patch.dict(os.environ, {"BEO_OBSIDIAN_VAULT": str(vault)}, clear=True):
+                findings = beo_audit.check_stale_learning_evidence_refs(root, None)
+            self.assertEqual(findings, [])
 
 
 if __name__ == "__main__":

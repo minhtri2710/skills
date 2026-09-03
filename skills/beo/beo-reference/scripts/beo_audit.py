@@ -18,6 +18,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from beo_memory_write import extract_frontmatter
+
 HELPER_VERSION = "beo-audit/v1"
 SKILL_NAMES = ["beo-plan", "beo-validate", "beo-execute", "beo-review", "beo-debug", "beo-learn", "beo-author", "beo-setup", "beo-reference"]
 # Helper actors that emit runtime-events.jsonl entries but are not BEO skills.
@@ -513,62 +515,13 @@ def check_manifest_consistency(root: Path) -> list[Finding]:
     return findings
 
 
-# C9: stale learning evidence_refs. Operates on the BEO Obsidian vault
-# (BEO_OBSIDIAN_VAULT, default ~/second-brain). For each OKF v0.1 note
-# in <vault>/beo-learnings/, parse frontmatter and verify that each
-# evidence_refs entry still resolves. A stale ref points at a file that
-# has moved, been renamed, or been deleted, and indicates the learning
-# note needs to be refreshed (per /ce-compound-refresh semantics).
-#
-# C9 is opt-in: if no vault is configured or the beo-learnings directory
-# is missing, the check returns no findings (silent no-op). C9 findings
-# are always SEVERITY_WARNING and never auto-healed; refreshed learnings
-# are a content decision, not a mechanical fix.
-_FRONT_KV_RE = re.compile(r"^([A-Za-z_][A-Za-z0-9_]*):\s*(.*)$")
-
-
-def _parse_okf_frontmatter(content: str) -> dict[str, Any]:
-    """Parse minimal YAML frontmatter (one level, OKF v0.1 shape).
-
-    Deliberately narrow: only flat key:value and a single list-of-strings
-    shape. evidence_refs and tags are common list fields; everything
-    else is treated as a scalar string. Returns {} when no frontmatter
-    is present or it cannot be parsed.
-    """
-    if not content.startswith("---\n"):
-        return {}
-    end = content.find("\n---\n", 4)
-    if end < 0:
-        return {}
-    block = content[4:end]
-    out: dict[str, Any] = {}
-    pending_list: str | None = None
-    for line in block.splitlines():
-        if line.startswith("  - "):
-            if pending_list:
-                val = line[4:].strip().strip('"').strip("'")
-                bucket = out.get(pending_list)
-                if isinstance(bucket, list):
-                    bucket.append(val)
-            continue
-        m = _FRONT_KV_RE.match(line)
-        if not m:
-            pending_list = None
-            continue
-        key, raw = m.group(1), m.group(2).strip()
-        if raw == "" or raw == "|" or raw == ">":
-            pending_list = key
-            out[key] = []
-        elif raw.startswith("[") and raw.endswith("]"):
-            inner = raw[1:-1]
-            items = [s.strip().strip('"').strip("'") for s in inner.split(",") if s.strip()]
-            out[key] = items
-            pending_list = None
-        else:
-            out[key] = raw.strip('"').strip("'")
-            pending_list = None
-    return out
-
+# C9: stale learning evidence_refs. For each note in the BEO Obsidian
+# vault's beo-learnings/ directory, parse frontmatter with the shared
+# beo_memory_write.extract_frontmatter parser and verify each evidence_refs
+# entry still resolves. Unparseable frontmatter, missing or empty
+# evidence_refs, blank refs, and unresolvable refs are each C9 WARNINGs.
+# The check is a silent no-op only when the vault or beo-learnings/
+# directory does not exist. Findings are never auto-healed.
 
 def _resolve_learning_ref(ref: str, bases: list[Path]) -> Path | None:
     """Resolve a learning evidence_ref to an existing path, or None.
@@ -628,12 +581,30 @@ def check_stale_learning_evidence_refs(root: Path, extra_repos: list[Path] | Non
             content = note_path.read_text(encoding="utf-8")
         except OSError:
             continue
-        frontmatter = _parse_okf_frontmatter(content)
-        evidence_refs = frontmatter.get("evidence_refs", [])
-        if not isinstance(evidence_refs, list):
+        try:
+            frontmatter = extract_frontmatter(content)
+        except ValueError as exc:
+            findings.append(Finding(
+                "C9",
+                SEVERITY_WARNING,
+                f"learning '{note_path.name}' has unparseable frontmatter: {exc}",
+            ))
+            continue
+        evidence_refs = frontmatter.get("evidence_refs")
+        if not isinstance(evidence_refs, list) or not evidence_refs:
+            findings.append(Finding(
+                "C9",
+                SEVERITY_WARNING,
+                f"learning '{note_path.name}' has missing or empty evidence_refs",
+            ))
             continue
         for ref in evidence_refs:
             if not isinstance(ref, str) or not ref.strip():
+                findings.append(Finding(
+                    "C9",
+                    SEVERITY_WARNING,
+                    f"learning '{note_path.name}' has a blank evidence_ref",
+                ))
                 continue
             if _resolve_learning_ref(ref, bases) is None:
                 findings.append(Finding(

@@ -53,20 +53,16 @@ def validate_fallback_target(root: Path) -> Path:
 
 
 def extract_frontmatter(markdown: str) -> dict[str, object]:
+    if "\r" in markdown:
+        raise ValueError("learning note must use LF line endings")
     if not markdown.startswith("---\n"):
         raise ValueError("learning note must start with frontmatter")
-    end = markdown.find("\n---", 4)
+    end = markdown.find("\n---\n", 4)
+    if end == -1 and markdown.endswith("\n---"):
+        end = len(markdown) - 4
     if end == -1:
         raise ValueError("learning note frontmatter is not closed")
-    try:
-        frontmatter = _parse_frontmatter_block(markdown[4:end])
-    except ValueError:
-        raise
-    except Exception as exc:
-        raise ValueError(f"learning note frontmatter is invalid: {exc}") from exc
-    if not isinstance(frontmatter, dict):
-        raise ValueError("learning note frontmatter must be a mapping")
-    return frontmatter
+    return _parse_frontmatter_block(markdown[4:end])
 
 
 def validate_learning_frontmatter(frontmatter: dict[str, object], issue: str | None, case_type: str, mode: str) -> None:
@@ -96,63 +92,60 @@ def validate_learning_frontmatter(frontmatter: dict[str, object], issue: str | N
 # ---- Minimal frontmatter parser (no PyYAML dependency) ---------------------
 #
 # BEO learning frontmatter uses a small YAML subset:
-#   * top-level mapping: ``key: value`` lines
-#   * flow-style lists: ``key: [a, b, c]``
-#   * block-style lists: ``key:\\n  - item``
-#   * scalars: strings (plain or quoted), integers, booleans, null
-# This parser is intentionally narrow. It rejects YAML features BEO never
-# produces (anchors, aliases, multi-doc streams, complex keys, flow mappings)
-# so any unrecognised token raises a clear error rather than silently
-# being misread. Trailing whitespace is trimmed. Comments are NOT supported
-# inside the frontmatter block; the body that follows the closing ``---``
-# may contain them.
+#   * top-level ``key: value`` lines
+#   * flow lists ``[a, b]`` with quote-aware splitting
+#   * block lists with items indented or flush-left
+#   * every scalar is a string with surrounding quotes stripped, or None when empty
+#   * full-line ``#`` comments and blank lines are skipped
+# Everything else raises ``ValueError`` with a position.
 
 _FRONTMATTER_FLOW_LIST = re.compile(r"^\[(.*)\]\s*$")
-_FRONTMATTER_SCALAR_NULL = {"null", "Null", "NULL", "~", ""}
-_FRONTMATTER_SCALAR_TRUE = {"true", "True", "TRUE"}
-_FRONTMATTER_SCALAR_FALSE = {"false", "False", "FALSE"}
 
 
 def _split_flow_list_items(inner: str) -> list[str]:
-    """Split a flow-list body on top-level commas (no nested flow support)."""
+    """Split a flow-list body on top-level commas, respecting quoted runs."""
     items: list[str] = []
     depth = 0
+    quote: str | None = None
     current: list[str] = []
+
+    def append_item() -> None:
+        item = _parse_scalar("".join(current))
+        if item is not None:
+            items.append(item)
+
     for char in inner:
-        if char in "[{":
+        if quote is not None:
+            current.append(char)
+            if char == quote:
+                quote = None
+        elif char in "'\"":
+            quote = char
+            current.append(char)
+        elif char in "[{":
             depth += 1
             current.append(char)
         elif char in "]}":
             depth -= 1
             current.append(char)
         elif char == "," and depth == 0:
-            items.append("".join(current).strip())
+            append_item()
             current = []
         else:
             current.append(char)
-    if current:
-        items.append("".join(current).strip())
-    return [item for item in items if item != ""]
+    append_item()
+    return items
 
 
-def _parse_scalar(token: str) -> object:
+def _parse_scalar(token: str) -> str | None:
     token = token.strip()
-    if token == "" or token in _FRONTMATTER_SCALAR_NULL:
+    if token == "":
         return None
-    if token in _FRONTMATTER_SCALAR_TRUE:
-        return True
-    if token in _FRONTMATTER_SCALAR_FALSE:
-        return False
-    if (token.startswith('"') and token.endswith('"')) or (token.startswith("'") and token.endswith("'")):
+    if len(token) >= 2 and (
+        (token.startswith('"') and token.endswith('"'))
+        or (token.startswith("'") and token.endswith("'"))
+    ):
         return token[1:-1]
-    try:
-        return int(token)
-    except ValueError:
-        pass
-    try:
-        return float(token)
-    except ValueError:
-        pass
     return token
 
 
@@ -206,8 +199,7 @@ def _parse_frontmatter_block(block: str) -> dict[str, object]:
             continue
         flow = _FRONTMATTER_FLOW_LIST.match(value)
         if flow:
-            inner = flow.group(1)
-            result[key] = [_parse_scalar(item) for item in _split_flow_list_items(inner)]
+            result[key] = _split_flow_list_items(flow.group(1))
             i += 1
             continue
         result[key] = _parse_scalar(value)
@@ -275,7 +267,10 @@ def main(argv: list[str]) -> int:
     args = parser.parse_args(argv)
 
     root = Path(args.root).resolve()
-    markdown = Path(args.markdown_file).read_text(encoding="utf-8")
+    try:
+        markdown = Path(args.markdown_file).read_text(encoding="utf-8")
+    except OSError as exc:
+        return fail(f"cannot read --markdown-file: {exc}")
     try:
         frontmatter = extract_frontmatter(markdown)
     except ValueError as exc:
