@@ -1054,7 +1054,7 @@ class HelperSemanticsTest(unittest.TestCase):
         with contextlib.redirect_stdout(io.StringIO()):
             self.assertEqual(check_skill_bundle.run_checks(), 0)
 
-    def test_setup_qmd_and_recall_use_direct_commands(self):
+    def test_setup_qmd_uses_direct_commands(self):
         import beo_setup
         calls = []
 

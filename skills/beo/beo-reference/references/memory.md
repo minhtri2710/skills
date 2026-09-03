@@ -21,12 +21,6 @@ If a lesson becomes repeated workflow behavior, promote it into one of:
 - helper script,
 - `AGENTS.template.md` managed block.
 
-## Recall
-
-Recall is opt-in. Use it only when a prior lesson is explicitly useful, such as a similar previous failure, a user request for recall, or review/debug needing prior context.
-
-`beo_recall.py` builds a keyword query from the issue's `br` title, description, labels, and ticket terms, then searches recursively for matching Markdown files under `.beads/learnings/`. It returns ranked local snippets as advisory leads; hydrate matching notes before relying on them.
-
 ## Learning writes
 
 `beo-learn` runs only when an explicit `learning_candidate` exists or the user asks to save a BEO lesson. Write the smallest safe markdown note through `beo_memory_write.py`.

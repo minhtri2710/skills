@@ -19,15 +19,14 @@ This file is the machine-and-human-readable manifest. `beo_audit.py --check-mani
 | `beo_audit.py` | `[--check-manifest] [--root .] [--learning-repo PATH] [--json]` | Audit | markdown or json | 0, 1 |
 | `beo_check.py` | `--check <name> --issue <id> [--root .]` | Validation | json | 0, 1 |
 | `beo_io.py` | imported | (utility: subprocess, hashing, git head, actor identity) | none (library) | n/a |
-| `beo_memory_write.py` | `beo_memory_write.py <vault> <note-path>` | Memory | json | 0, 1, 2 |
+| `beo_memory_write.py` | `--mode <learning_candidate|user_request> --markdown-file <path> [--issue <id>] [--case-type <type>] [--slug <slug>] [--root .]` | Memory | json | 0, 1, 2 |
 | `beo_paths.py` | imported | Scope | none (library) | n/a |
 | `beo_propose.py` | `[--root .]` | Audit | json | 0, 1 |
-| `beo_recall.py` | `beo_recall.py <query> [--root .]` | Memory | json | 0, 1 |
 | `beo_reservation.py` | subcommand-driven | Reservation | json | 0, 1, 2 |
 | `beo_run.py` | `beo_run.py <issue_id> [<changed_file> ...]` | (orchestrator) | mixed | 0, 1, 2, 3 |
 | `beo_score_context.py` | `--issue <id> [--root .]` | Scoring | json | 0, 1, 2 |
 | `beo_score_trace.py` | `--issue <id> [--root .]` | Scoring | json | 0, 1, 2 |
-| `beo_setup.py` | `beo_setup.py [--check]` | Setup | json | 0, 1, 2 |
+| `beo_setup.py` | `[--configure-memory] [--refresh-memory-index] [--install-agents] [--root .]` | Setup | json | 0, 1, 2 |
 | `beo_state.py` | imported | (state) | none (library) | n/a |
 | `beo_ticket.py` | imported | Validation | none (library) | n/a |
 | `beo_verify.py` | `run --issue <id> [--root .]` or `--all` | Verification | json | 0, 1, 2 |
@@ -42,7 +41,7 @@ This file is the machine-and-human-readable manifest. `beo_audit.py --check-mani
 - **Reservation**: strict-mode path ownership evidence
 - **Isolation**: git worktree lifecycle
 - **Setup**: environment readiness, AGENTS.md bootstrap
-- **Memory**: qmd/Obsidian integration, recall, learning writes
+- **Memory**: qmd/Obsidian integration, learning writes
 - **Scoring**: trace and context quality (advisory)
 - **Verification**: runs TICKET.json scope verify commands (machine-enforced)
 - **Audit**: drift checks (C1–C10), proposal generation (advisory)

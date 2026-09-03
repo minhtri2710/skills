@@ -86,7 +86,6 @@ Worktree isolation is an optional strict-mode feature for full filesystem isolat
 
 ## 8. Memory & Learning Boundary
 
-- **Recall**: Opt-in and advisory only. Prior lessons do not grant approval or authority.
 - **Learning**: Save lessons via `beo-learn` only when an explicit `learning_candidate` exists or the user requests it. Default Vault: `<vault>/beo-learnings/`. Fallback: `.beads/learnings/`.
 
 ---

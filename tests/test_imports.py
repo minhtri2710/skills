@@ -17,7 +17,6 @@ class ImportTest(unittest.TestCase):
         import beo_check  # noqa: F401
         import beo_reservation  # noqa: F401
         import beo_state  # noqa: F401
-        import beo_recall  # noqa: F401
         import beo_memory_write  # noqa: F401
         import beo_setup  # noqa: F401
         import beo_audit  # noqa: F401

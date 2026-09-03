@@ -40,7 +40,6 @@
       "ordinary_labels",
       "check_artifact_paths",
       "memory_output",
-      "recall_output",
       "registry_prose_edits"
     ],
     "revocation_policy": "Do not infer revocation from ordinary comments, labels, or elapsed time. Revocation must be explicit and referenced."
