@@ -270,7 +270,7 @@ def cmd_cleanup(root: Path, issue_id: str, reason: str) -> int:
 
     # Remove worktree. If the path is a non-directory file or symlink,
     # remove it directly; git worktree remove requires a directory.
-    if wt_path.is_dir():
+    if wt_path.is_dir() and not wt_path.is_symlink():
         result = subprocess.run(
             ["git", "worktree", "remove", "--force", str(wt_path)],
             capture_output=True, text=True, cwd=root,

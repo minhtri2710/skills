@@ -394,6 +394,27 @@ class GitRepoTestCase(unittest.TestCase):
         ).stdout
         self.assertNotIn(str(worktree.resolve()), worktree_list)
 
+    def test_cleanup_unlinks_symlinked_path_without_touching_target(self):
+        target = Path(self.tmpdir.name) / "target"
+        target.mkdir()
+        (target / "keep.txt").write_text("keep\n", encoding="utf-8")
+        link = beo_worktree.worktree_path("br-1")
+        link.parent.mkdir(parents=True, exist_ok=True)
+        link.symlink_to(target, target_is_directory=True)
+
+        rc, result = self.invoke(
+            beo_worktree.cmd_cleanup, self.root, "br-1", "stale-link"
+        )
+
+        self.assertEqual(rc, 0, result)
+        self.assertEqual(result["status"], "success")
+        self.assertNotIn("branch", result)
+        self.assertNotIn("errors", result)
+        self.assertFalse(link.is_symlink())
+        self.assertFalse(link.exists())
+        self.assertTrue(target.is_dir())
+        self.assertTrue((target / "keep.txt").is_file())
+
     def test_cleanup_nothing_to_clean_echoes_reason(self):
         rc, result = self.invoke(
             beo_worktree.cmd_cleanup, self.root, "br-1", "aborted by reviewer"
