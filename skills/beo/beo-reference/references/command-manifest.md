@@ -19,18 +19,18 @@ This file is the machine-and-human-readable manifest. `beo_audit.py --check-mani
 | `beo_audit.py` | `[--check-manifest] [--root .] [--learning-repo PATH] [--json]` | Audit | markdown or json | 0, 1 |
 | `beo_check.py` | `--check <name> --issue <id> [--root .]` | Validation | json | 0, 1 |
 | `beo_io.py` | imported | (utility: subprocess, hashing, git head, actor identity) | none (library) | n/a |
-| `beo_memory_write.py` | `--mode <learning_candidate|user_request> --markdown-file <path> [--issue <id>] [--case-type <type>] [--slug <slug>] [--root .]` | Memory | json | 0, 1, 2 |
+| `beo_memory_write.py` | `--mode <learning_candidate|user_request> --markdown-file <path> [--issue <id>] [--case-type <type>] [--slug <slug>] [--root .]` | Memory | json | 0, 1 |
 | `beo_paths.py` | imported | Scope | none (library) | n/a |
 | `beo_propose.py` | `[--root .]` | Audit | json | 0, 1 |
-| `beo_reservation.py` | subcommand-driven | Reservation | json | 0, 1, 2 |
+| `beo_reservation.py` | subcommand-driven | Reservation | json | 0, 1 |
 | `beo_run.py` | `beo_run.py <issue_id> [<changed_file> ...]` | (orchestrator) | mixed | 0, 1, 2, 3 |
-| `beo_score_context.py` | `--issue <id> [--root .]` | Scoring | json | 0, 1, 2 |
-| `beo_score_trace.py` | `--issue <id> [--root .]` | Scoring | json | 0, 1, 2 |
-| `beo_setup.py` | `[--configure-memory] [--refresh-memory-index] [--install-agents] [--root .]` | Setup | json | 0, 1, 2 |
+| `beo_score_context.py` | `--issue <id> [--root .]` | Scoring | json | 0, 1 |
+| `beo_score_trace.py` | `--issue <id> [--root .]` | Scoring | json | 0, 1 |
+| `beo_setup.py` | `[--configure-memory] [--refresh-memory-index] [--install-agents] [--root .]` | Setup | json | 0, 1 |
 | `beo_state.py` | imported | (state) | none (library) | n/a |
 | `beo_ticket.py` | imported | Validation | none (library) | n/a |
 | `beo_verify.py` | `run --issue <id> [--root .]` or `--all` | Verification | json | 0, 1, 2 |
-| `beo_worktree.py` | subcommand-driven | Isolation | json | 0, 1, 2 |
+| `beo_worktree.py` | subcommand-driven | Isolation | json | 0, 1 |
 | `check_skill_bundle.py` | `check_skill_bundle.py` | Validation | markdown | 0, 1 |
 
 ## Responsibility classes

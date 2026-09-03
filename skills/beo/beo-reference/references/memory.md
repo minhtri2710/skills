@@ -33,6 +33,8 @@ Notes follow the [Open Knowledge Format (OKF)](https://github.com/GoogleCloudPla
 
 ### YAML frontmatter
 
+`beo_memory_write.py` reads every frontmatter value as a string with surrounding quotes stripped, or as a list of strings; unquoted numbers, booleans, and `null` are not converted.
+
 Required:
 - `type` — one of `learning`, `decision`, `reference`
 - `basis_ref` — the durable reference this note is based on
