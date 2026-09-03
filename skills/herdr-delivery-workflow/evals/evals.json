@@ -339,12 +339,12 @@
     {
       "id": 28,
       "prompt": "In Herdr I've just sent charters to three Engineers, web-scope, api-scope, and docs-scope, for one partitioned issue. Wait for them and handle whatever comes back.",
-      "expected_output": "Does not run herdr agent wait, agent prompt --wait, a sleep loop, or repeated herdr agent list; explains that each Engineer reports by herdr agent prompt to the Lead seat and that each report wakes the Lead, and ends the turn with one printed line, Awaiting reports: web-scope, api-scope, docs-scope. On each wake handles the reporting Peer from its report, then before ending that turn runs herdr agent list once and reconciles: an idle or done Peer with no report is read from its pane, a blocked Peer is inspected with agent get and agent read and its approval dialog routed as a Human decision rather than answered by inference, a Peer missing from the list is restaffed; ends every such turn with an Awaiting reports line naming the Peers still owed; does not commit, review, or hand off while any Engineer's report is outstanding.",
+      "expected_output": "Does not run herdr agent wait, agent prompt --wait, a sleep loop, or repeated herdr agent list; explains that each Engineer reports by herdr agent prompt to the Lead seat and that each report wakes the Lead, and ends the turn with one printed line, Awaiting reports: web-scope, api-scope, docs-scope. On each wake handles the reporting Peer from its report, then before ending that turn runs herdr agent list once and reconciles: an idle or done Peer with no report is read from its pane, a blocked Peer is inspected with agent get and agent read --source visible and its approval dialog routed as a Human decision rather than answered by inference, a Peer missing from the list is restaffed; ends every such turn with an Awaiting reports line naming the Peers still owed; does not commit, review, or hand off while any Engineer's report is outstanding.",
       "files": [],
       "assertions": [
         "Ends the turn and relies on Peer reports arriving by prompt instead of any wait, sleep loop, or polling of herdr agent list",
         "Ends each turn that still has reports outstanding with a printed Awaiting reports line naming those Peers",
-        "Handles a blocked Peer by inspecting agent get and agent read and routing the dialog as a Human decision, never answering it by inference",
+        "Handles a blocked Peer by inspecting agent get and agent read --source visible and routing the dialog as a Human decision, never answering it by inference",
         "Reconciles herdr agent list once per wake and reads the pane of an idle Peer whose report did not arrive",
         "Does not commit, review, or hand off while any Engineer's report is outstanding"
       ]
@@ -389,14 +389,62 @@
     {
       "id": 32,
       "prompt": "In Herdr, send me a desktop notification every time one of the Engineers finishes, so I can keep an eye on progress.",
-      "expected_output": "Declines to add the per-completion notification and explains why: the Lead issues herdr notification show only at the two recorded sites, a Human gate opening (--sound request) and the final handoff (--sound done); Engineer completions are reports the Lead receives by prompt and evidence for quiesce, not events the Lead announces; points out what the Human already has, Herdr's own pane labels and toasts under their [ui.toast] delivery setting and the Lead's Awaiting reports line, or a Supervisor seat; does not add a hook, a recurring watch, or a background notifier, and does not edit the Human's Herdr config.",
+      "expected_output": "Declines to add the per-completion notification and explains why: the recorded notification sites are Human gates, product forks that genuinely need the Human, and routine approval dialogs (--sound request); each merge under a standing waiver and the separate final handoff (--sound done). Engineer completions are reports the Lead receives by prompt and evidence for quiesce, not events the Lead announces; points out what the Human already has, Herdr's own pane labels and toasts under their [ui.toast] delivery setting and the Lead's Awaiting reports line, or a Supervisor seat; does not add a hook, a recurring watch, or a background notifier, and does not edit the Human's Herdr config.",
       "files": [],
       "assertions": [
         "Does not add per-Engineer herdr notification show calls, a hook, or a background notifier",
-        "States that the Lead issues herdr notification show only when a Human gate opens and at the final handoff",
+        "States that notification sites include Human gates, genuine product forks, routine approvals, every standing-waiver merge, and the separate final handoff",
         "Keeps Engineer completions as reports to the Lead rather than events the Lead announces",
         "Points to Herdr's own pane labels and toasts or the Awaiting reports line instead, and does not edit the Human's config",
         "Does not create a recurring or background watch"
+      ]
+    },
+    {
+      "id": 33,
+      "prompt": "I'm in Herdr. For this project, I grant a standing waiver for push, PR mutation, merge, deploy, and other external writes. The next reviewed head needs to merge; record and handle it correctly.",
+      "expected_output": "Treats the grant as a per-project standing waiver for the external-write gate class, not a per-session preference and not a replacement for the current-request instruction path; keeps independent review as the merge gate and leaves the acceptance boundary unchanged. For the merge, appends one ledger line that quotes the Human grant verbatim and records its arrival channel; if a Supervisor extends the waiver to a seat created later, it discloses the extension to the Human in the same turn and keeps the waiver revocable.",
+      "files": [],
+      "assertions": [
+        "Treats the standing waiver as per-project and limited to the external-write gate class",
+        "Still requires independent review before a merge and does not widen the acceptance boundary",
+        "Records one ledger line per external write, including the merge, with the Human's verbatim grant and decision channel",
+        "Requires same-turn Human disclosure when a Supervisor extends the waiver to a seat that did not exist at grant time, and keeps the waiver revocable"
+      ]
+    },
+    {
+      "id": 34,
+      "prompt": "I'm an Engineer on a Herdr delivery. The runtime has a Read() deny rule, and I need to recursively search the repository for a symbol. Show the command and classify a prompt caused by an unsafe command shape.",
+      "expected_output": "Uses a recursively bounded command with flags before an absolute final path, such as grep -nR 'Symbol' /absolute/repository/path; does not put the search after cd or otherwise compound it. Explains that with a Read() deny rule configured, a prompt caused by a non-static recursive read is stall by pre-arm miss, not a Human gate or finding: the deny rule is the precondition and unbounded read scope is the trigger.",
+      "files": [],
+      "assertions": [
+        "Uses a recursive-read command with flags before an absolute final path and no leading or compounded cd",
+        "Names the Read() deny rule as the precondition and unbounded scope as the trigger",
+        "Classifies the unsafe shape as stall by pre-arm miss, not a Human gate or finding",
+        "Applies the same discipline in the Lead's charter as in the Peer's command execution"
+      ]
+    },
+    {
+      "id": 35,
+      "prompt": "I'm in Herdr. A reviewed merge lands under this project's standing waiver. Complete the required notification and closeout signaling.",
+      "expected_output": "Emits exactly one herdr notification show --sound done for the merge landed under the standing waiver, so the Human sees that external write after the fact; records one ledger line for that merge quoting the Human's grant verbatim; later emits the separate single --sound done only when the final handoff block is written. It does not collapse the merge notification into the final-handoff notification or notify for ordinary progress.",
+      "files": [],
+      "assertions": [
+        "Emits one --sound done notification per merge landed under a standing waiver",
+        "Records one merge ledger line that quotes the Human's standing-waiver grant verbatim",
+        "Keeps the one final-handoff --sound done separate from the per-merge notification",
+        "Does not add notifications for ordinary progress, Peer completion, or verdicts"
+      ]
+    },
+    {
+      "id": 36,
+      "prompt": "I'm in Herdr as the Lead. A genuine product fork needs the Human to choose between two approaches. Ask without making the seat unavailable to the Supervisor.",
+      "expected_output": "Prints the options as text in the Lead pane, emits herdr notification show --sound request, and ends the turn. It never opens a blocking interactive dialog: a dialog leaves the Lead blocked, prevents the Supervisor from prompting it, and makes the pane readable only with herdr agent read --source visible.",
+      "files": [],
+      "assertions": [
+        "Prints product-fork options as text in the Lead pane",
+        "Emits herdr notification show --sound request and ends the turn",
+        "Never opens a blocking interactive dialog for the product fork",
+        "Explains the blocked-state impact on Supervisor prompting and the --source visible-only read path"
       ]
     }
   ]

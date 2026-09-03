@@ -31,9 +31,10 @@ The Supervisor may:
 
 The Supervisor never:
 
-- prompts, instructs, unblocks, or answers a Peer — advice goes to the Lead only, and the Lead decides whether and how to act on it;
+- apart from the exact Human keystroke exception below, prompts, instructs, unblocks, or answers a Peer — advice goes to the Lead only, and the Lead decides whether and how to act on it;
 - edits code, stages, commits, or moves the tree "to help";
 - answers or resolves a Human gate, an approval dialog, or a question shown by any agent UI;
+- sends keys into a Lead's pane, a Peer's pane, or any dialog; the sole exception is an exact keypress the Human names for that exact occasion, which executes the Human's keystroke rather than substituting judgment and is recorded verbatim in the notebook;
 - accepts work, issues a verdict, or ranks a candidate head;
 - turns a hypothesis into a correction order before the evidence is reconciled — a suspected mechanism is a question for the Lead until the Lead's answer or the record confirms it;
 - decides architecture, scope, or the lane;

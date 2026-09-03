@@ -112,7 +112,7 @@ herdr agent get <name>
 herdr agent read <name> --source recent-unwrapped --lines 120
 ```
 
-After a `blocked` state or a Peer that went quiet without a report, read `agent get` and `agent read` before deciding anything. A blocked dialog is answered only by the Human: classify it as a routine command approval or a gate (`human-gates-and-closeout.md`, "Approval dialogs") and never answer it by inference. `herdr agent send-keys <name> esc` writes logical keys and exists to resume an interactive UI after that decision, not to drive the agent's work.
+After a `blocked` state, read `agent get` and `agent read --source visible` before deciding anything; for a quiet non-blocked Peer without a report, use `agent read --source recent-unwrapped`. A blocked dialog is answered only by the Human: classify it as a routine command approval or a gate (`human-gates-and-closeout.md`, "Approval dialogs") and never answer it by inference. `herdr agent send-keys <name> esc` writes logical keys and exists to resume an interactive UI after that decision, not to drive the agent's work.
 
 ## Name a seat
 
@@ -144,7 +144,7 @@ herdr notification show "<title>" --body "<one line>" --sound request
 herdr notification show "<title>" --body "<one line>" --sound done
 ```
 
-A notification reaches the Human, not an agent. Popups depend on the Human's `[ui.toast] delivery` key in `~/.config/herdr/config.toml`; its default is `off`, so the notification is silent until the Human sets `herdr`, `terminal`, or `system`. That is the Human's config, never edit it. `human-gates-and-closeout.md` owns the only sites: `--sound request` when a Human gate opens or a Peer stands at a routine approval only the Human can clear, `--sound done` at the final handoff. Do not notify for routine progress, Peer completions, or verdicts.
+A notification reaches the Human, not an agent. Popups depend on the Human's `[ui.toast] delivery` key in `~/.config/herdr/config.toml`; its default is `off`, so the notification is silent until the Human sets `herdr`, `terminal`, or `system`. That is the Human's config, never edit it. `human-gates-and-closeout.md` owns the only sites: `--sound request` when a Human gate opens, a product fork needs the Human, or a Peer stands at a routine approval only the Human can clear; `--sound done` once per merge under a standing waiver and once at final handoff. Do not notify for routine progress, Peer completions, or verdicts.
 
 ## Read sources
 
@@ -152,6 +152,8 @@ A notification reaches the Human, not an agent. Popups depend on the Human's `[u
 - `recent` — recent rendered output including soft wraps;
 - `recent-unwrapped` — recent output with soft wraps joined; prefer it for logs, transcripts, and reports;
 - `detection` — the plain-text bottom-buffer snapshot used for agent detection.
+
+Observed behavior in herdr 0.8.2: a blocked seat cannot be read from scrollback — `herdr agent read <seat> --source recent-unwrapped` and `--source recent` require a seat readable there and write `{"error":{"code":"agent_not_idle",...}}` to stderr with a non-zero exit. All three sources succeed against a non-blocked seat, so `blocked` is the discriminator. `--source visible` reads the viewport and works while the seat is at a dialog, so read a blocked seat from the viewport. If a future binary answers a blocked seat on another source, keep that rule.
 
 `--lines` asks for more rows from the pane's screen and host scrollback. If raising it reveals no more of a completed response, the agent is probably running on the terminal's alternate screen: rows that leave it never enter host scrollback, so no line count recovers them. Only then, ask the agent to write its complete response as Markdown in a temporary directory and reply with the path, then read that file directly. Do not request file output in the initial prompt.
 
