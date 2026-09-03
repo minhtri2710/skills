@@ -85,7 +85,7 @@ herdr pane wait-output <pane-id> --match "test result" --timeout 120000
 herdr pane read <pane-id> --source recent-unwrapped --lines 120
 ```
 
-`pane run` atomically sends the command text and Enter. `pane wait-output` searches the selected snapshot immediately, so output that already exists can match; use `--match <text>` for a literal substring or `--regex <pattern>` for a Rust regular expression. Omitting `--timeout` allows an indefinite wait, so pass one.
+`pane run` atomically sends the command text and Enter. `pane wait-output` searches the selected snapshot immediately, so output that already exists can match; use `--match <text>` for a literal substring or `--regex <pattern>` for a Rust regular expression. Omitting `--timeout` allows an indefinite wait, so pass one. When the pane has a `working` or `blocked` agent, `pane read` returns only the viewport without an error, so a large `--lines` is not proof of a complete read.
 
 ## Start and drive an agent
 
@@ -105,14 +105,14 @@ herdr agent wait <name> --timeout 30000
 
 Reports arrive as prompts. A Peer's report wakes the Lead mid-turn or opens a new Lead turn, so the Lead ends its turn after dispatching and after each wake, and before ending any turn runs `herdr agent list` once to reconcile live Peers with the reports received (`lead-policy.md`, "Lifecycle and reports"). Do not poll `herdr agent list`, sleep in a loop, re-issue status commands, or block on a Peer with any wait.
 
-Inspect through the resolved agent:
+Inspect through the resolved agent; the scrollback read here is for an `idle` or `done` Peer:
 
 ```bash
 herdr agent get <name>
 herdr agent read <name> --source recent-unwrapped --lines 120
 ```
 
-After a `blocked` state, read `agent get` and `agent read --source visible` before deciding anything; for a quiet non-blocked Peer without a report, use `agent read --source recent-unwrapped`. A blocked dialog is answered only by the Human: classify it as a routine command approval or a gate (`human-gates-and-closeout.md`, "Approval dialogs") and never answer it by inference. `herdr agent send-keys <name> esc` writes logical keys and exists to resume an interactive UI after that decision, not to drive the agent's work.
+After a `blocked` state, read `agent get` and `agent read --source visible` before deciding anything; for an `idle` or `done` Peer without a report, use `agent read --source recent-unwrapped`. A blocked dialog is answered only by the Human: classify it as a routine command approval or a gate (`human-gates-and-closeout.md`, "Approval dialogs") and never answer it by inference. `herdr agent send-keys <name> esc` writes logical keys and exists to resume an interactive UI after that decision, not to drive the agent's work.
 
 ## Name a seat
 
@@ -153,7 +153,7 @@ A notification reaches the Human, not an agent. Popups depend on the Human's `[u
 - `recent-unwrapped` — recent output with soft wraps joined; prefer it for logs, transcripts, and reports;
 - `detection` — the plain-text bottom-buffer snapshot used for agent detection.
 
-Observed behavior in herdr 0.8.2: a blocked seat cannot be read from scrollback — `herdr agent read <seat> --source recent-unwrapped` and `--source recent` require a seat readable there and write `{"error":{"code":"agent_not_idle",...}}` to stderr with a non-zero exit. All three sources succeed against a non-blocked seat, so `blocked` is the discriminator. `--source visible` reads the viewport and works while the seat is at a dialog, so read a blocked seat from the viewport. If a future binary answers a blocked seat on another source, keep that rule.
+Observed behavior in herdr 0.8.2: `herdr agent read <seat> --source recent` and `--source recent-unwrapped` return rows from the visible viewport without scrollback and capture scrollback only when `--lines` exceeds the viewport. That capture works only for an `idle` or `done` seat. For a `working` or `blocked` seat, a request past the viewport exits non-zero and writes stderr JSON with error code `agent_not_idle`. The gate is seat state (`idle`/`done` versus `working`/`blocked`) and the trigger is `--lines` above the viewport; neither alone causes the failure. `--source visible` and `--source detection` always work and cap at the viewport. `herdr pane read <pane-id> --source recent-unwrapped` against a pane whose agent is `working` or `blocked` exits successfully but silently returns only the viewport, so a large `--lines` is not proof of a complete read. To read past the viewport, wait for `idle` or `done`; while `working` or `blocked`, use `herdr agent read --source visible` for the viewport and never use `pane read` to reach past it. This is observed behavior of this binary version.
 
 `--lines` asks for more rows from the pane's screen and host scrollback. If raising it reveals no more of a completed response, the agent is probably running on the terminal's alternate screen: rows that leave it never enter host scrollback, so no line count recovers them. Only then, ask the agent to write its complete response as Markdown in a temporary directory and reply with the path, then read that file directly. Do not request file output in the initial prompt.
 

@@ -95,7 +95,7 @@ When the same command fails the same way twice — a launch that returns an erro
 
 A transient API/runtime error that kills the Lead's turn is not a decision, finding, or gate; as with a runtime refusal (`lead-policy.md`, "Lead boundaries"), resume from recorded state rather than re-deriving it and wake the Supervisor so the interruption is visible. For long mechanical steps, the Lead may lower its own effort or model to reduce this exposure.
 
-When a product fork genuinely needs the Human, print the options as text in the Lead's pane, emit `herdr notification show --sound request`, and end the turn. Never open a blocking interactive dialog: it blocks the Supervisor's prompt channel to the Lead and leaves the pane readable only with `--source visible` (`herdr-cli.md`, "Read sources").
+When a product fork genuinely needs the Human, print the options as text in the Lead's pane, emit `herdr notification show --sound request`, and end the turn. Never open a blocking interactive dialog: it blocks the Supervisor's prompt channel to the Lead and leaves the pane readable with `--source visible` only up to its viewport (`herdr-cli.md`, "Read sources").
 
 That check is triggered by an event, never by a schedule. A Peer that dies or stalls while no other event reaches the Lead is caught by the Human, who compares the `Awaiting reports` line with Herdr's pane labels and toasts and prompts the Lead; the Lead does not guard against that case itself. `idle` or `done` only means the Peer can be inspected; it does not establish completion or acceptance. Do not duplicate an active run merely because a response is slow.
 

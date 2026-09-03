@@ -438,13 +438,25 @@
     {
       "id": 36,
       "prompt": "I'm in Herdr as the Lead. A genuine product fork needs the Human to choose between two approaches. Ask without making the seat unavailable to the Supervisor.",
-      "expected_output": "Prints the options as text in the Lead pane, emits herdr notification show --sound request, and ends the turn. It never opens a blocking interactive dialog: a dialog leaves the Lead blocked, prevents the Supervisor from prompting it, and makes the pane readable only with herdr agent read --source visible.",
+      "expected_output": "Prints the options as text in the Lead pane, emits herdr notification show --sound request, and ends the turn. It never opens a blocking interactive dialog: a dialog leaves the Lead blocked, prevents the Supervisor from prompting it, and makes the pane readable only up to its viewport with herdr agent read --source visible.",
       "files": [],
       "assertions": [
         "Prints product-fork options as text in the Lead pane",
         "Emits herdr notification show --sound request and ends the turn",
         "Never opens a blocking interactive dialog for the product fork",
-        "Explains the blocked-state impact on Supervisor prompting and the --source visible-only read path"
+        "Explains the blocked-state impact on Supervisor prompting and the viewport-limited --source visible read path"
+      ]
+    },
+    {
+      "id": 37,
+      "prompt": "I'm in Herdr. A long herdr agent read --source recent-unwrapped request against a seat that is currently working returned agent_not_idle. Get the transcript without losing evidence.",
+      "expected_output": "Recognizes that agent_not_idle means the working seat was asked to read past its viewport: the state gate is working or blocked versus idle or done, and the trigger is --lines above the viewport. Does not retry recent-unwrapped with a larger --lines value; reads the current viewport with herdr agent read --source visible or waits for idle or done before making the long read. Does not fall back to herdr pane read for the long transcript, because it exits successfully while silently truncating to the viewport.",
+      "files": [],
+      "assertions": [
+        "Does not retry herdr agent read --source recent-unwrapped with a larger --lines value while the seat is working",
+        "Reads the viewport with herdr agent read --source visible or waits for idle or done before reading past it",
+        "Explains agent_not_idle as the combination of a working or blocked seat and a --lines request above the viewport",
+        "Does not use herdr pane read as a long-read fallback because it silently truncates to the viewport"
       ]
     }
   ]
