@@ -62,9 +62,11 @@ Either way the Lead ends its turn: the Peer reports when it finishes, and the ro
 A gate that lives only in the Lead's run context dies with the pane. The ledger exists from the project's first gate: append one line per gate to `~/.herdr/projects/<project-slug>/gates.md`, beside the project config, creating the directory when needed:
 
 ```text
-<GATE-ID> | <ISO time> | <one-line finding> | <branch>@<exact head> | options A/B/C | status=open|resolved:<choice> | channel=direct-seat-pane:<typed|dialog>|supervisor-relay:<typed|dialog> | quote="<literal Human words>" | record=timely|reconstruction source=<source>
+<GATE-ID> | <ISO time> | <one-line finding> | <branch>@<exact head> | options A/B/C | status=open|resolved:<choice> | channel=direct-seat-pane:<typed|dialog>|supervisor-relay:<typed|dialog> | quote="<literal Human words>" | record=timely|reconstruction source=<source> | push=<push-base>..<push-head> count=<non-zero commit count> boundary-check="<the subtraction's output, empty when no path fell outside the boundary>"
 GATE-17 | 2025-04-16T12:00:00Z | merge reviewed head | main@abc123 | merge | status=resolved:standing-waiver | channel=supervisor-relay:typed | quote="Merge the reviewed head under the standing waiver." | record=timely
 ```
+
+The last three fields appear only on the ledger line for a record-only push, which is the one gate class that carries them ("Standing waiver"); every other gate line ends at `record=`.
 
 The channel says whether the Human typed directly in this seat's pane or the Supervisor relayed it, and whether the Human chose from a dialog; it is metadata only. For a direct Human instruction or relay, `quote=` remains the Human's literal words and a relay adds nothing to it. For a Supervisor-framed selection, `quote=` records the option label the Human selected plus any words the Human added, excluding the Supervisor's `(Recommended)` marker; for a delegation, it quotes the delegation while the values chosen under it are attributed to the deciding seat. For every external write under a standing waiver, including every merge, append one line per write and quote the Human's grant verbatim; for a record-only push, also record `boundary-check=""` with the empty enforcement output. There is no backfill: when a resolved gate was not recorded then, append a line marked `reconstruction` with the source it was reconstructed from.
 
