@@ -40,7 +40,7 @@ A Peer that stops at an approval dialog for `git diff` or the test command is th
 - `human-started: <arg>` — the project config records a blanket skip for a kind that offers nothing finer, and the Lead's own runtime refuses to pass it. The Lead does not silently downgrade to `prompting` and does not staff the seat itself: it states the exact `herdr agent start` line, notifies the Human once with `herdr notification show --sound request`, and the Human starts the seat. The Human's hands may be the Supervisor's pane on an explicit permission for that occasion (`supervisor-policy.md`, "Authority"); the Supervisor executes the Human's instruction and gains no staffing authority of its own. Record the posture with who typed it, and treat the seat exactly as `bypassed` from there: same residual risk, same charter prohibitions, same diff reading.
 - `prompting` — no argument was passed, either because the config records none and the kind offers no allowlist, or because the Lead's own runtime refused to pass an argument the config does not record. Start the Peer anyway and record which: a refusal from the Lead's harness is a fact about the Lead's permissions, not a Human ruling, and is never reported as one. Every dialog this Peer raises is then a Human interaction the Lead routes (`human-gates-and-closeout.md`, "Approval dialogs"); say so in the charter so the Peer treats a pause at a dialog as expected rather than as a failure to report.
 
-Where the kind offers a native disable flag for skill loading, pass it at staffing alongside the posture arguments — for the `pi` kind, `--no-skills`. No posture pre-authorizes push, PR mutation, merge, deploy, credentials, or another external write, and no posture changes what the charter permits: the posture decides whether the runtime enforces the boundary or only the charter does. Record it per Peer as `posture=<allowlisted | bypassed | none | prompting>` in the staffing record.
+Where the kind offers a native disable flag for skill loading, pass it at staffing alongside the posture arguments — for the `pi` kind, `--no-skills`. No posture pre-authorizes push, PR mutation, merge, deploy, credentials, or another external write, and no posture changes what the charter permits: the posture decides whether the runtime enforces the boundary or only the charter does. Record it per Peer as `posture=<allowlisted | bypassed | none | human-started | prompting>` in the staffing record.
 
 ## Escalation
 
@@ -158,9 +158,9 @@ Choose the Reviewer kind and its fallback kind before staffing, and pin both to 
 ```text
 MODE: <partitioned | solo-Lead>
 LEAD: kind=<kind> model=<model>
-ENGINEER: <name> kind=<kind> model=<model> posture=<allowlisted | bypassed | none | prompting> pane=<id> owned=<paths or none>   (one line per Engineer; none in solo-Lead)
+ENGINEER: <name> kind=<kind> model=<model> posture=<allowlisted | bypassed | none | human-started | prompting> pane=<id> owned=<paths or none>   (one line per Engineer; none in solo-Lead)
 HEAD: <exact SHA committed by the Lead>
-REVIEWER: <name> kind=<kind> model=<model> posture=<allowlisted | bypassed | none | prompting> pane=<id> head=<same exact SHA>
+REVIEWER: <name> kind=<kind> model=<model> posture=<allowlisted | bypassed | none | human-started | prompting> pane=<id> head=<same exact SHA>
 FALLBACK: kind=<kind> model=<model>, pinned to the same exact head; triggers: preferred kind uninstalled or unavailable; Reviewer errors or reaches no verdict; only remaining kind is an Engineer kind; Reviewer breaks read-only — a no-mutation violation; Reviewer launches a subagent or background work or times out — a boundary failure
 INDEPENDENCE: <different-kind | same-kind-distinct-model | same-kind-same-model | different-kind-and-model> — a different kind is normal independence; a same-kind review with a distinct model pinned through `reviewer-fallback-args` is independence-by-model with disclosed kind-collision residual risk; a same-kind review with the same or an unpinned model is an unusable conflict; in solo-Lead mode, both kind and model must differ from the Lead
 ```
