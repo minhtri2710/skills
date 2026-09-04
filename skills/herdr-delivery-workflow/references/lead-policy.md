@@ -4,7 +4,7 @@ Use this policy for delivery or bounded monitoring. It defines the Lead's author
 
 ## Intake and risk
 
-Read `intake-policy.md` before creating panes, agents, or tabs. It is the single source of truth for lanes, hard gates, design gates, high-risk plans, the partition, intake records, and `REOPEN_REQUEST`.
+Read `intake-policy.md` before creating panes, agents, or tabs. It is the single source of truth for lanes, hard gates, design gates, high-risk plans, the partition, and intake records; the `REOPEN_REQUEST` shape lives here, under "Escalation routing".
 
 Keep the current run context explicit:
 
@@ -72,7 +72,7 @@ Committing is custody, not repair in partitioned mode. The Lead stages and commi
 
 ## Integration
 
-Integration is conditional on the recorded scope, and it happens after `PASS`, never before. It applies only when intake named a target product line and the Human has not withheld landing. An instruction to stop at review, not to merge, or to leave the branch untouched is the recorded scope; treat it as binding and end the delivery at the reviewed head, naming that head as the deliverable. Widening from review to integration without that authority crosses the acceptance boundary; if landing later turns out to be needed, the route is `REOPEN_REQUEST` to the Human, never acting on it.
+Integration is conditional on the recorded scope, and it happens after `PASS`, never before. It applies only when intake named a target product line and the Human has not withheld landing. An instruction to stop at review, not to merge, or to leave the branch untouched is the recorded scope; treat it as binding and end the delivery at the reviewed head, naming that head as the deliverable. Widening from review to integration without that authority crosses the acceptance boundary; if landing later turns out to be needed, the route is `REOPEN_REQUEST` to the Human, never acting on it. Name `REOPEN_REQUEST` in the handoff itself, in the shape under "Escalation routing": route, do not widen, and do not leave the next step open for someone else to widen.
 
 When integration does apply, land the reviewed exact head onto the named target product line, then recompute the integrated head and rerun the acceptance checks there. Keep the reviewed head and the integrated head distinct in the record. Record the post-merge CI run ID in the relevant ledger line, end the turn, and at the next slice intake or wake check that run exactly once by ID with one command; never await it inside the merging turn and never poll it. A red result is a finding on the product line and is resolved before staffing anyone for new work.
 
@@ -109,6 +109,20 @@ Each protocol message from a Peer has one route:
 - `DEPENDENCY_REQUEST` — rule on the dependency or cross-scope question, or route it as a Human gate when it touches scope, architecture, security, external effects, or an irreversible direction. Never let the Peer resolve it by editing outside its ownership. When the request is for a path: a path no scope owns and no shared-path rule covers may be granted to the requester and recorded in the partition; a path another Engineer owns transfers only at a quiesce point, after that owner is idle and its work is committed, because reassigning a live path recreates two writers on one file; a shared or contract path becomes a sequential slice, run alone after the current scopes quiesce.
 - `BLOCKED` — inspect the Peer, preserve the partial evidence and working-tree state, then either unblock with a bounded instruction or route the blocker upward. A blocked run is not a failed run and is not restarted by duplication.
 - `COUNCIL_REQUEST` — decide whether a bounded second opinion is worth it before spending one. Read `structural-misfit-policy.md` and follow its second-opinion route; the seat it opens is an Architect Peer (`peer-policy.md`).
+
+`REOPEN_REQUEST` has one shape, whether the Lead emits it or a Peer does. Copy the field names verbatim:
+
+```text
+REOPEN_REQUEST
+Reason: <what changed>
+Evidence: <file/line, command output, or runtime observation>
+Old lane: <lane>
+Proposed lane: <lane>
+Boundary: <what the new scope or risk crosses>
+Decision needed: <Lead or Human decision>
+```
+
+A message missing `Old lane` and `Proposed lane` is a `BLOCKED` or a `DEPENDENCY_REQUEST` wearing the wrong name: the lane pair is what makes it a reopen. A message missing `Evidence` is an opinion. Emitting it is the whole route — naming `REOPEN_REQUEST` is what stops the next turn from quietly widening the boundary instead, and a next step that leaves the wider action open without naming it has already widened.
 
 Write the ruling record when the message is classified, before any pause. A Human-gate route leaves RULING pending until the Human decides, but the record and its BINDING line are written now, not after the gate resolves. The BINDING line is fixed text — copy it verbatim; it is a binding rule, not an aside:
 
@@ -156,10 +170,29 @@ A moving branch, missing commit, stale report, unexplained dirty state, or a sta
 
 Accept only after an independent Reviewer returns `PASS` for that exact head and the Lead confirms the checkout did not move or become dirty during the review. Any implementation change after review creates a new head and requires a fresh review.
 
-Preserve one verification ledger for the whole run: base, merge-base, the partition, each scope's commit, the candidate head, the reviewed head, the integrated head, the working-tree condition at each of those points, the agent kind behind each scope and each verdict, the complete acceptance commands, their baseline results, their integrated results, and a causal classification of every failure. A later green result never silently replaces unreconciled evidence: state what changed and why the earlier failure is resolved.
+Preserve one verification ledger for the whole run, in this shape:
+
+```text
+LEDGER
+Base: <full SHA>
+Merge-base: <full SHA>
+Partition: <scope name: owned paths, one line per scope; or the solo-Lead scope>
+Scope commits: <scope name: full SHA, one line per scope; solo-Lead: the one scope commit>
+Acceptance commands: <every command, verbatim>
+
+HEAD <full SHA> | <candidate | repair-1 | repair-2 | reviewed | integrated>
+  Tree: <porcelain and stash list at this head>
+  Kind: <agent kind behind each scope at this head>
+  Baseline results: <command: real exit code, one line per command>
+  Integrated results: <command: real exit code, one line per command; or n/a>
+  Verdict: <PASS | FAIL | BLOCKED> by <reviewer seat, kind> on this exact SHA
+  Failures: <causal classification of every failure at this head, or none>
+```
+
+Repeat the `HEAD` section for every head the run produces — the candidate, each repair head, the reviewed head, the integrated head — so each one is visibly carrying its own fresh evidence and its own fresh verdict. A head with no `Verdict` line has not been reviewed, and a repair head that inherits the section above it has not been evidenced. A later green result never silently replaces unreconciled evidence: state what changed and why the earlier failure is resolved.
 
 ## Lead boundaries
 
 The Lead may route work, decide the mode and partition, stage and commit at a quiesce point, classify findings, verify evidence, and decide whether the stated acceptance boundary is met. A refusal from the Lead's own runtime — a denied tool call, a classifier that blocks a launch argument — is a fact about the Lead's permissions, not a ruling on the delivery: record it, take the nearest allowed action, and when none exists route `BLOCKED`; never present it to a Peer, the Supervisor, or the record as the Human's decision (`human-gates-and-closeout.md`, "Attribution"). In a partitioned run, the Lead does not write source content: after a review finding it sends the bounded fix to the owning Engineer. In an intake-declared solo-Lead run, with zero Engineers staffed for the whole run, the Lead may write and repair the declared source scope; the review gate must still run on a different kind and model and must gate the merge. Scope, architecture, dependency, security, external-effect, and irreversible changes require the appropriate Human decision before crossing the boundary.
 
-When new evidence increases blast radius, irreversibility, uncertainty, ownership impact, or proof weakness, stop before crossing the old boundary and emit `REOPEN_REQUEST` with the old lane, proposed lane, changed boundary, and decision needed. Do not lower intake to preserve momentum.
+When new evidence increases blast radius, irreversibility, uncertainty, ownership impact, or proof weakness, stop before crossing the old boundary and emit `REOPEN_REQUEST` in the shape under "Escalation routing". Do not lower intake to preserve momentum.

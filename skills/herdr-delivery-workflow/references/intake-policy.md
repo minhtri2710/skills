@@ -96,6 +96,7 @@ Reason: <material reason for the lane>
 Lead: lead-<project-slug>
 Supervisor: supervisor | none
 Owners: <Lead, Engineer/Reviewer owners, governing contracts>
+Guidance: <the repository guidance that governs this work, or none found>
 Plan: <active plan reference or none>
 Validation: <claim-shaped checks and expected outcomes>
 Mode: partitioned | solo-Lead
@@ -107,15 +108,6 @@ Include target repository/product line, exclusions, base/merge-base, dependencie
 
 ## Reopen rule
 
-An implementation or review finding that fails a premise of the charter, or increases blast radius, irreversibility, uncertainty, ownership impact, or proof weakness, reopens intake. Stop before crossing the new boundary and report:
-
-```text
-REOPEN_REQUEST
-Reason: <what changed>
-Old lane: <lane>
-Proposed lane: <lane>
-Boundary: <new scope or risk>
-Decision needed: <Lead or Human decision>
-```
+An implementation or review finding that fails a premise of the charter, or increases blast radius, irreversibility, uncertainty, ownership impact, or proof weakness, reopens intake. Stop before crossing the new boundary and report `REOPEN_REQUEST` in the one shape it has, under `lead-policy.md`, "Escalation routing".
 
 Do not lower the lane to keep work moving. Do not let a local fix silently become a contract, architecture, security, data, or external-effect change.

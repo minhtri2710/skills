@@ -46,14 +46,14 @@ Where the kind offers a native disable flag for skill loading, pass it at staffi
 Raise one bounded protocol message to the Lead instead of deciding outside the boundary. Do not manufacture dissent, speculative blockers, or routine progress reports.
 
 ```text
-REOPEN_REQUEST | DEPENDENCY_REQUEST | BLOCKED | COUNCIL_REQUEST
+DEPENDENCY_REQUEST | BLOCKED | COUNCIL_REQUEST
 Reason: <what the evidence shows>
 Evidence: <file/line, command output, or runtime observation>
 Boundary: <what would be crossed without a decision>
 Decision needed: <Lead or Human decision>
 ```
 
-- `REOPEN_REQUEST` — a foundation, dependency, lifecycle, API, ownership, or verification premise of the charter fails, or evidence increases blast radius, irreversibility, uncertainty, ownership impact, or proof weakness beyond the recorded lane.
+- `REOPEN_REQUEST` — a foundation, dependency, lifecycle, API, ownership, or verification premise of the charter fails, or evidence increases blast radius, irreversibility, uncertainty, ownership impact, or proof weakness beyond the recorded lane. It carries the old and the proposed lane, so it has its own shape: the Lead copies it verbatim from `lead-policy.md`, "Escalation routing", into the charter.
 - `DEPENDENCY_REQUEST` — the outcome needs a dependency change, a shared contract change, a path outside the owned paths, another scope's files, or a cross-scope decision. Name the path and why; the Lead rules on ownership, and a path a peer scope owns changes hands only after that scope is idle and committed.
 - `BLOCKED` — an execution or evidence blocker prevents honest progress: missing base, unusable checkout, failing environment, or a check that cannot prove the claim.
 - `COUNCIL_REQUEST` — only after local patch-versus-foundation triage, when the owner-clean route and the local patch remain materially undecided on the evidence at hand.
