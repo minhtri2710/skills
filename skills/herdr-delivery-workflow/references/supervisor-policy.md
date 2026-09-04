@@ -4,7 +4,7 @@ Use this policy when the Human asks this agent to supervise a delivery or a proj
 
 ## Seat
 
-The Supervisor is a Human-staffed seat: the Human starts it in its own pane and names it `supervisor` (`herdr agent rename "$HERDR_PANE_ID" supervisor` when the Human's own session takes the role). One Supervisor may observe several projects; each Lead finds it by that name at intake and records `Supervisor: supervisor`. A delivery with no such seat runs unsupervised, and the Lead never creates one.
+The Supervisor is a Human-staffed seat: the Human starts it in its own pane and names it `supervisor` (`herdr agent rename "$HERDR_PANE_ID" supervisor` when the Human's own session takes the role). After a terminal restart or seat relaunch, the Supervisor re-names its own surviving or replacement seat and confirms the name with `herdr agent list`; it never assumes the old name survived. One Supervisor may observe several projects; each Lead finds it by that name at intake and records `Supervisor: supervisor`. A delivery with no such seat runs unsupervised, and the Lead never creates one.
 
 The Supervisor is not a second Lead and not a Peer. It holds no partition, no commit authority, no gate, and no acceptance. Record at the start of the seat: the projects and Leads observed, the checkouts and their branches, the policies to audit, and the escalation path to the Human — which is the Supervisor's own pane, and the Human's attention through `herdr notification show` when a finding cannot wait.
 
@@ -24,7 +24,7 @@ The Supervisor may:
 
 - ask the Lead why it chose a strategy, a partition, a lane, or a ruling, by prompt: `herdr agent prompt lead-<project-slug> "<question>"`, no `--wait`;
 - report bias, risk, or a broken process to the Human in its own pane;
-- relay a Human decision to the Lead verbatim, by prompt, naming it as the Human's decision — only a message the Human actually sent; a denial the Supervisor's own runtime produced, or a preference it inferred, is never relayed as one (`human-gates-and-closeout.md`, "Attribution");
+- relay a Human decision to the Lead verbatim, by prompt, naming it as the Human's decision — when the Human selects from Supervisor-framed options, the selection is resolved by the Human and the option label plus any Human-added words are recorded; `(Recommended)` is advice from the Supervisor, not part of the Human's words. When the Human delegates instead of selecting, quote the delegation and attribute every value chosen under it to the seat that chose it. Unsent input-box text is never Human-authored. A denial the Supervisor's own runtime produced, or a preference it inferred, is never relayed as one (`human-gates-and-closeout.md`, "Attribution");
 - propose a patch to a policy, profile, or charter, as a recommendation to the Human — never by editing the skill, the project config, or the repository during a run;
 - write the notebook below;
 - with an explicit Human permission for this case, staff a replacement Lead and hand it the context pack (`lead-policy.md`, "Seat identity and continuity") when the current Lead cannot recover, clearing the old seat name first so the replacement takes it.
@@ -80,5 +80,5 @@ Name the anti-pattern from this vocabulary when one fits, so entries across runs
 - **authority laundering** — a denial, dialog, config key, or inference is recorded or relayed as a Human decision;
 - **polling debt** — a seat waits, sleeps, or re-lists agents instead of ending its turn and being woken;
 - **stall by pre-arm miss** — a Peer sits at a routine approval the posture should have covered, and nobody notices until the Human looks;
-- **Lead as writer** — the Lead edits source after a finding instead of routing it to the owning Engineer;
+- **Lead as writer** — in any partitioned run with one or more Engineers, the Lead edits source after a finding instead of routing it to the owning Engineer;
 - **supervisor overreach** — the Supervisor instructs a Peer, answers a gate, or turns a hypothesis into an order.

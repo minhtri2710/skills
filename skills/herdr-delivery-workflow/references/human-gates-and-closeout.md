@@ -27,11 +27,26 @@ A plain instruction in the Human's current request is itself the Human's decisio
 
 The Human may issue a **standing waiver** for the external-write gate class — push, PR mutation, merge, deploy, or another external write — for a delivery project. It resolves that gate class only: independent review still gates a merge and the acceptance boundary is unchanged. A standing waiver is per-project, not per Human session; when a Supervisor extends one to a seat that did not exist when the Human granted it, the Supervisor discloses that extension to the Human in the same turn, and the waiver remains revocable.
 
+As a clause of that standing waiver, a direct push to the product line without review is permitted only for a record-only class declared at intake for that run: pure record artifacts confined to the run's named, generic path boundary, with zero runtime, code, configuration, or build surface. Before each such push, the Lead binds `<push-base>` to the exact current tip of the destination product line and `<push-head>` to the exact head being pushed, then requires `git rev-list --count <push-base>..<push-head>` to be non-zero. If either ref cannot be resolved, or the count is zero, the check is not passing evidence. The Lead then enumerates the union of paths touched by every commit in that range, including merge commits, and subtracts the declared boundary, for example:
+
+```bash
+git rev-list <push-base>..<push-head> |
+while read -r commit; do
+  git diff-tree --root -m --no-commit-id --name-only -r "$commit"
+done |
+sed '/^$/d' |
+sort -u |
+awk -v boundary='<declared-record-boundary>' \
+  '$0 != boundary && index($0, boundary "/") != 1'
+```
+
+This computes the union of paths touched by all commits being pushed, not the index or only the final tree diff. The output must be empty, and the ledger line for that push names `<push-base>..<push-head>`, its non-zero commit count, and `boundary-check=""` to mean that this check — which could have produced outside-boundary paths — produced none. Append one ledger line per push. Any path outside the declared boundary, or any non-record surface, goes through the normal review and PR path; this is a waiver clause, not a project-config key.
+
 When a merge lands under a standing waiver, emit one `herdr notification show --sound done` per merge landed so the Human sees each external write after the fact. This is in addition to the single `--sound done` at final handoff.
 
 ## Attribution
 
-Only a message from the Human is a Human decision: a line in the current request, an answer to a gate, or a decision the Supervisor relays verbatim and names as the Human's. Nothing else qualifies, however much it looks like authority. A denied tool call, a harness or classifier refusing a command or a launch argument, an approval dialog left standing, text a prompt-suggestion feature pre-fills into an agent's input box — never an instruction or a Human decision — a config key, a prior request, or a policy inference is a constraint on the seat that met it — record it as `Runtime denial: <command> — <effect on this run>`, take the nearest allowed action, and route `BLOCKED` to the Human when there is none. Presenting such a constraint as the Human's ruling launders authority: the record then shows a decision nobody made, and every seat downstream builds on it. An agent running under an automatic permission mode cannot tell a classifier denial from a Human ruling by how it feels; it can only tell by asking where the message came from.
+Only a message from the Human is a Human decision: a line in the current request, an answer to a gate, or a decision the Supervisor relays verbatim and names as the Human's. When the Human selects from options the Supervisor framed, the selection is resolved by the Human: record the option label selected and any words the Human added, while a `(Recommended)` marker remains the Supervisor's advice and is not part of the Human's words. When the Human delegates instead of selecting, quote the delegation and attribute every value chosen under it to the seat that chose it; the Supervisor does not record its recommendation as the ruling. Unsent text in a seat's input box is never Human-authored or a decision. Nothing else qualifies, however much it looks like authority. A denied tool call, a harness or classifier refusing a command or a launch argument, an approval dialog left standing, a config key, a prior request, or a policy inference is a constraint on the seat that met it — record it as `Runtime denial: <command> — <effect on this run>`, take the nearest allowed action, and route `BLOCKED` to the Human when there is none. Presenting such a constraint as the Human's ruling launders authority: the record then shows a decision nobody made, and every seat downstream builds on it. An agent running under an automatic permission mode cannot tell a classifier denial from a Human ruling by how it feels; it can only tell by asking where the message came from.
 
 ## Approval dialogs
 
@@ -51,9 +66,9 @@ A gate that lives only in the Lead's run context dies with the pane. The ledger 
 GATE-17 | 2025-04-16T12:00:00Z | merge reviewed head | main@abc123 | merge | status=resolved:standing-waiver | channel=supervisor-relay:typed | quote="Merge the reviewed head under the standing waiver." | record=timely
 ```
 
-The channel says whether the Human typed directly in this seat's pane or the Supervisor relayed it, and whether the Human chose from a dialog; it is metadata only. The quote remains the Human's literal words, and a relay adds nothing to it. For every external write under a standing waiver, including every merge, append one line per write and quote the Human's grant verbatim. There is no backfill: when a resolved gate was not recorded then, append a line marked `reconstruction` with the source it was reconstructed from.
+The channel says whether the Human typed directly in this seat's pane or the Supervisor relayed it, and whether the Human chose from a dialog; it is metadata only. For a direct Human instruction or relay, `quote=` remains the Human's literal words and a relay adds nothing to it. For a Supervisor-framed selection, `quote=` records the option label the Human selected plus any words the Human added, excluding the Supervisor's `(Recommended)` marker; for a delegation, it quotes the delegation while the values chosen under it are attributed to the deciding seat. For every external write under a standing waiver, including every merge, append one line per write and quote the Human's grant verbatim; for a record-only push, also record `boundary-check=""` with the empty enforcement output. There is no backfill: when a resolved gate was not recorded then, append a line marked `reconstruction` with the source it was reconstructed from.
 
-The ledger is a record, not a control plane. It carries gate identity and resolution only — never routing state, task queues, or a second source of truth for delivery. It is append-only: resolve a gate by appending a resolution line, never by rewriting or deleting an existing one. The full gate record still goes to the Human in the message; the ledger exists so any open gate is findable with one grep after a restart. Product repositories carry no gate or process state.
+The ledger is a record, not a control plane. It carries gate identity and resolution only — never routing state, task queues, or a second source of truth for delivery. It is append-only: resolve a gate by appending a resolution line, never by rewriting or deleting an existing one. The full gate record still goes to the Human in the message; the ledger exists so any open gate is findable with one grep after a restart. Gate and process state — the ledger, Supervisor notebook, routing, task queues, and any alternate delivery source of truth — stays outside the product repository. Acceptance artifacts that a ledger line cites may be tracked in the product repository, because they are evidence its own history should carry.
 
 ## Validation-run custody
 
@@ -88,7 +103,7 @@ Before final acceptance, preserve the implementation report, exact reviewed head
 Close only panes, tabs, workspaces, and agents created by this run. The checkout itself is the caller's and is never removed — and never moved: no checkout of another branch, no reset, no rebase, no clean as part of closeout. Leave it on the branch and head the record names; wrapping up changes Herdr resources, not the tree. Cleanup is safe only when:
 
 - no process is running in any pane this run created;
-- no unexplained tracked change remains — every Engineer's work is committed or its remaining diff is explained;
+- no unexplained tracked change remains — every partitioned Engineer's work is committed or its remaining diff is explained, and a solo-Lead's remaining diff is explained;
 - required reports and artifacts are preserved;
 - no pending Human gate or dependent work remains.
 
@@ -96,7 +111,7 @@ Leave user-owned or pre-existing resources untouched. If a created resource rema
 
 ## Per-issue agent teardown
 
-Each delivery is one issue, and it created its own agents — one Engineer per scope in the partition, a Reviewer, and any Architect a council opened, recorded in the run context by name, kind, pane, and owned paths. When that issue is accepted or otherwise closed, tear down the agents this run staffed for it before the flight slot moves to the next issue, so agents do not accumulate across sequential deliveries. Tie the teardown to the same closeout that closes the issue's other resources, under the same safe-cleanup preconditions above; do not defer it into a separate pass.
+Each delivery is one issue, and it created its own agents — in partitioned mode, one Engineer per scope plus a Reviewer and any Architect a council opened; in solo-Lead mode, no Engineer plus a Reviewer and any Architect a council opened — recorded in the run context by name, kind, pane, and owned paths. When that issue is accepted or otherwise closed, tear down the agents this run staffed for it before the flight slot moves to the next issue, so agents do not accumulate across sequential deliveries. Tie the teardown to the same closeout that closes the issue's other resources, under the same safe-cleanup preconditions above; do not defer it into a separate pass.
 
 An agent is torn down by closing the pane this run created to host it: the agent name clears when the agent exits or its pane closes (`references/herdr-cli.md` owns the exact mechanic). Preserve the agent's final evidence report before closing its pane, since the transcript dies with the pane. Never close the caller's own pane or the agent occupying it, never close the Supervisor's pane — it is Human-staffed and outlives the delivery — never close a pane an agent shares with unrelated work this run did not create, and do not use `pane release-agent` as a teardown — it is a detection-plane report, not a shutdown. If an agent is still working, blocked on a Human gate, or holds dependent work another open issue needs, leave it open and state the concrete reason rather than forcing it down.
 

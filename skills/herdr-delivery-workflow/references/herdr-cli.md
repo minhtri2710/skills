@@ -34,7 +34,7 @@ Herdr injects the caller's context into every managed pane:
 printf '%s\n' "$HERDR_WORKSPACE_ID" "$HERDR_TAB_ID" "$HERDR_PANE_ID"
 ```
 
-Prefer `--current` when a pane command targets the calling pane. Omitting a target may hit the UI-focused pane, which can belong to the user or another client.
+Pass `--current` or an explicit pane ID whenever a pane command targets the calling pane. A positional target omitted — including for `herdr pane split`, which defaults to the globally focused pane — may hit a pane in another workspace or another client's session; the explicit current-pane target is mandatory rather than a ritual, because focus is not a safe workspace or client boundary.
 
 Read live state with:
 
@@ -50,7 +50,7 @@ Prefer `herdr agent` as the default control surface: it validates agent identity
 
 A pane exists whether or not it contains an agent. Pane commands control raw terminals, shells, tests, and servers. Agent commands control a recognized coding agent occupying a pane and are the only surface that validates agent identity and lifecycle state. `agent start` requires an existing available shell pane; it never creates, splits, or moves layout. An available shell pane sits at its interactive prompt with no foreground command, editor, or agent running.
 
-Agent commands accept a unique live agent name or the pane ID hosting that agent, never a terminal ID or a bare agent-kind label. Names match `[a-z][a-z0-9_-]{0,31}`, stay unique among live agents, follow the current pane occupant, and are cleared when that agent exits, is released, or is replaced.
+Agent commands accept a unique live agent name or the pane ID hosting that agent, never a terminal ID or a bare agent-kind label. Names match `[a-z][a-z0-9_-]{0,31}`, stay unique among live agents, follow the current pane occupant, and are cleared when that agent exits, is released, or is replaced. A terminal restart can also clear a seat name while the underlying agent session survives on a new terminal; the surviving seat must be re-named and confirmed from the live agent list.
 
 Lifecycle states:
 
@@ -121,7 +121,7 @@ herdr agent rename "$HERDR_PANE_ID" lead-<project-slug>
 herdr agent rename <target> --clear
 ```
 
-Rename works on an unnamed agent, including the caller's own. A name follows the pane occupant and clears when that agent exits, so a seat that must be prompted by others — the Lead, the Supervisor, a Reviewer named after its head — is named before anyone needs it.
+Rename works on an unnamed agent, including the caller's own. A name follows the pane occupant and clears when that agent exits, so a seat that must be prompted by others — the Lead, the Supervisor, a Reviewer named after its head — is named before anyone needs it. A terminal restart is a fourth way a name is lost, even when the underlying session survives; re-name the surviving session and confirm it with `herdr agent list`.
 
 ## Report to the Lead by prompt
 
