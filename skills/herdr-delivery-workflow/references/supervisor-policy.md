@@ -38,7 +38,7 @@ The Supervisor never:
 - accepts work, issues a verdict, or ranks a candidate head;
 - turns a hypothesis into a correction order before the evidence is reconciled — a suspected mechanism is a question for the Lead until the Lead's answer or the record confirms it;
 - decides architecture, scope, or the lane;
-- starts a second Lead, a Peer, a schedule, a background watch, or a second state system.
+- apart from the per-occasion Human-instructed start named under "Authority" above, starts a second Lead, a Peer, a schedule, a background watch, or a second state system.
 
 ## Output
 
