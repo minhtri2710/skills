@@ -153,7 +153,16 @@ A notification reaches the Human, not an agent. Popups depend on the Human's `[u
 - `recent-unwrapped` — recent output with soft wraps joined; prefer it for logs, transcripts, and reports;
 - `detection` — the plain-text bottom-buffer snapshot used for agent detection.
 
-Observed behavior in herdr 0.8.2: `herdr agent read <seat> --source recent` and `--source recent-unwrapped` return rows from the visible viewport without scrollback and capture scrollback only when `--lines` exceeds the viewport. That capture works only for an `idle` or `done` seat. For a `working` or `blocked` seat, a request past the viewport exits non-zero and writes stderr JSON with error code `agent_not_idle`. The gate is seat state (`idle`/`done` versus `working`/`blocked`) and the trigger is `--lines` above the viewport; neither alone causes the failure. `--source visible` and `--source detection` always work and cap at the viewport. `herdr pane read <pane-id> --source recent-unwrapped` against a pane whose agent is `working` or `blocked` exits successfully but silently returns only the viewport, so a large `--lines` is not proof of a complete read. To read past the viewport, wait for `idle` or `done`; while `working` or `blocked`, use `herdr agent read --source visible` for the viewport and never use `pane read` to reach past it. This is observed behavior of this binary version.
+Observed behavior in herdr 0.8.2: `herdr agent read <seat> --source recent` and `--source recent-unwrapped` return rows from the visible viewport without scrollback and capture scrollback only when `--lines` exceeds the viewport. That capture works only for an `idle` or `done` seat. For a `working` or `blocked` seat, a request past the viewport exits non-zero and writes stderr JSON with error code `agent_not_idle`.
+
+`agent_not_idle` has two conditions and needs both together:
+
+- **gate — seat state:** `working` or `blocked`, rather than `idle` or `done`;
+- **trigger — read length:** a `--lines` value above the viewport.
+
+Neither alone causes it. A `--lines` above the viewport against an `idle` or `done` seat succeeds, and a viewport-sized read against a `working` or `blocked` seat succeeds. So the fix is never a larger `--lines`: it is either the viewport (`--source visible`) now, or the same read once the seat is `idle` or `done`.
+
+`--source visible` and `--source detection` always work and cap at the viewport. `herdr pane read <pane-id> --source recent-unwrapped` against a pane whose agent is `working` or `blocked` exits successfully but silently returns only the viewport, so a large `--lines` is not proof of a complete read. To read past the viewport, wait for `idle` or `done`; while `working` or `blocked`, use `herdr agent read --source visible` for the viewport and never use `pane read` to reach past it. This is observed behavior of this binary version.
 
 `--lines` asks for more rows from the pane's screen and host scrollback. If raising it reveals no more of a completed response, the agent is probably running on the terminal's alternate screen: rows that leave it never enter host scrollback, so no line count recovers them. Only then, ask the agent to write its complete response as Markdown in a temporary directory and reply with the path, then read that file directly. Do not request file output in the initial prompt.
 

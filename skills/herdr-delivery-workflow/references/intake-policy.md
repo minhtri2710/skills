@@ -88,6 +88,11 @@ Each scope inherits the delivery's lane, plan, gates, and validation claims; the
 
 ## Intake record
 
+The repository's own format wins. Before reproducing the block below, check the guidance
+already read for a repository-defined intake, workspace-protocol, or verification format;
+where one exists, write the record in that format and carry these fields into it. The block
+below is the fallback for a repository that defines none, not the first choice.
+
 Before mutation, state this compact result in the Lead's current run context:
 
 ```text
