@@ -18,14 +18,15 @@
     {
       "id": 2,
       "prompt": "Use Herdr to review commit 0123456789abcdef0123456789abcdef01234567 in the current project. I only want an independent review of that head; do not create an Engineer and do not change files.",
-      "expected_output": "Uses the review-only path; verifies Herdr context and the named exact head; does not create an Engineer or extra Lead; instructs the Reviewer not to mutate; checks HEAD and porcelain before and after; checks lane/plan/validation consistency and relevant proof boundaries; returns PASS, FAIL, or BLOCKED with evidence bound to that SHA.",
+      "expected_output": "Uses the review-only path; verifies Herdr context and resolves the named exact head before staffing anyone; does not create an Engineer or extra Lead; instructs the Reviewer not to mutate. The named head governs which branch is correct. When it resolves, the run records HEAD and porcelain before and after the review, checks lane/plan/validation consistency and relevant proof boundaries, disconfirms the material claims, and returns PASS, FAIL, or BLOCKED with file/line evidence bound to that SHA. When it does not resolve, no Reviewer is staffed and no review is performed: the run returns BLOCKED naming that SHA, carrying the failing command as the evidence, and claims no porcelain-after and no review finding.",
       "files": [],
       "assertions": [
         "Uses the review-only route and creates no Engineer",
-        "Binds the verdict to the named exact SHA",
-        "Records HEAD and git --no-optional-locks status --porcelain --untracked-files=all before and after the review",
-        "Attempts to disconfirm the material claims with concrete failure scenarios instead of confirming the implementation narrative",
-        "Returns one of PASS, FAIL, or BLOCKED with file/line evidence"
+        "Resolves the named head before staffing anyone, and does not reach a review verdict on a head it could not resolve; a run that states both branches satisfies this when the unresolved branch routes BLOCKED",
+        "Binds the outcome to the named exact SHA, including where the outcome is BLOCKED because that SHA did not resolve",
+        "Where a review was performed, records HEAD and git --no-optional-locks status --porcelain --untracked-files=all before it and again after it; where the head did not resolve, claims no before/after comparison for a review that did not run",
+        "Where a review was performed, attempts to disconfirm the material claims with concrete failure scenarios instead of confirming the implementation narrative; where the head did not resolve, makes no review finding at all",
+        "Returns exactly one of PASS, FAIL, or BLOCKED, with file/line evidence where a review was performed, or the failing command as the evidence where the head did not resolve"
       ]
     },
     {
