@@ -99,7 +99,7 @@ Before mutation, state this compact result in the Lead's current run context:
 Lane: tiny | normal | high-risk
 Reason: <material reason for the lane>
 Lead: lead-<project-slug>
-Supervisor: supervisor | none
+Supervisor: supervisor | none | unreachable
 Owners: <Lead, Engineer/Reviewer owners, governing contracts>
 Guidance: <the repository guidance that governs this work, or none found>
 Plan: <active plan reference or none>
