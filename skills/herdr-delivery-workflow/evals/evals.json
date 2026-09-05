@@ -377,7 +377,7 @@
     },
     {
       "id": 31,
-      "prompt": "I'm in Herdr as the Lead. Staff the Engineer for the api-scope partition (owns services/api/src/reports/) with the codex kind and send it its charter.",
+      "prompt": "I'm in Herdr as the Lead. This change is split into two scopes on one branch: api-scope owns services/api/src/reports/ and must make the report endpoints accept an explicit date range instead of the fixed 30-day window; web-scope owns web/src/reports/ and is already staffed. The root config, the lockfile, and generated output are shared and belong to neither scope. api-scope's acceptance claim is that its own test command passes on the final quiet head. Staff the Engineer for api-scope with the codex kind and send it its charter.",
       "expected_output": "Names its own Lead seat first if not already named (herdr agent rename \"$HERDR_PANE_ID\" lead-<project-slug>); starts the Engineer with herdr agent start --kind codex on an available pane, pre-authorizing after -- exactly the read-only and verify commands the charter names plus herdr agent prompt lead-<project-slug> (engineer-args from the project config when recorded), never push, merge, or another external write; sends a charter with a Disposition: Engineer line, the recorded lane, plan, contracts, validation, checkout, branch, base, merge-base, owned paths, peer scopes and shared paths, scoped verification commands, the shared-tree rules, the Lead's seat name, and the report-by-prompt rule (print the report in its pane, send it with herdr agent prompt lead-<project-slug> without --wait, stop, never retry a rejected send); keeps the solution shape provisional and the boundary binding.",
       "files": [],
       "assertions": [
