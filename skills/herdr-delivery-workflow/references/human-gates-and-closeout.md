@@ -25,7 +25,7 @@ Pause the same run while the gate is pending. As soon as the gate record and its
 
 A plain instruction in the Human's current request is itself the Human's decision. When the live request explicitly names a gated action — such as the push or merge to perform — record the gate and append its ledger line as `status=resolved:instruction` instead of pausing, then perform only the action the instruction names, at the head this run reviewed. Only the current request qualifies: a prior request, a config key, or an inferred preference never resolves a gate. Any gate the request does not plainly decide still routes to the Human and pauses the run. If the resumed run produces a new head, that head carries the same requirement as any repair head: fresh evidence and a fresh independent review bound to that exact SHA. A verdict earned before the gate does not transfer to a head created after it.
 
-The Human may issue a **standing waiver** for the external-write gate class — push, PR mutation, merge, deploy, or another external write — for a delivery project. It resolves that gate class only: independent review still gates a merge and the acceptance boundary is unchanged. A standing waiver is per-project, not per Human session; when a Supervisor extends one to a seat that did not exist when the Human granted it, the Supervisor discloses that extension to the Human in the same turn, and the waiver remains revocable.
+The Human may issue a **standing waiver** for the external-write gate class — push, PR mutation, merge, deploy, or another external write — for a delivery project. It resolves that gate class only: independent review still gates a merge and the acceptance boundary is unchanged.
 
 As a clause of that standing waiver, a direct push to the product line without review is permitted only for a record-only class declared at intake for that run: pure record artifacts confined to the run's named, generic path boundary, with zero runtime, code, configuration, or build surface. Before each such push, the Lead binds `<push-base>` to the exact current tip of the destination product line and `<push-head>` to the exact head being pushed, then requires `git rev-list --count <push-base>..<push-head>` to be non-zero. If either ref cannot be resolved, or the count is zero, the check is not passing evidence. The Lead then enumerates the union of paths touched by every commit in that range, including merge commits, and subtracts the declared boundary, for example:
 
@@ -43,6 +43,13 @@ awk -v boundary='<declared-record-boundary>' \
 This computes the union of paths touched by all commits being pushed, not the index or only the final tree diff. The output must be empty, and the ledger line for that push names `<push-base>..<push-head>`, its non-zero commit count, and `boundary-check=""` to mean that this check — which could have produced outside-boundary paths — produced none. Append one ledger line per push. Any path outside the declared boundary, or any non-record surface, goes through the normal review and PR path; this is a waiver clause, not a project-config key.
 
 When a merge lands under a standing waiver, emit one `herdr notification show --sound done` per merge landed so the Human sees each external write after the fact. This is in addition to the single `--sound done` at final handoff.
+
+**Supervisor extends a standing waiver to a new seat.** A standing waiver is per-project, not per Human session. When a Supervisor extends one to a seat that did not exist when the Human granted it, that extension has two parts and needs both:
+
+- **Disclose it in the same turn.** The Supervisor discloses the extension to the Human in the same turn it extends the waiver.
+- **Keep it revocable.** The waiver remains revocable.
+
+Neither part stands in for the other.
 
 ## Attribution
 
