@@ -174,7 +174,7 @@ There is no `herdr agent stop`. An agent clears when it exits, is replaced, or t
 herdr pane close <pane-id>
 ```
 
-Read the agent's evidence report first, since the pane's transcript is gone once it closes. When a native agent should exit cleanly first, send its own quit sequence with `herdr agent send-keys <name> ...`, wait for it to leave the pane, then close the pane. Close only a pane this run created to host that agent; never close the caller's pane, a pane hosting an agent this run did not staff, or a pane an agent shares with unrelated work. `herdr pane release-agent` is a low-level detection-plane report used with `--source`/`--agent`, not a teardown — do not use it to shut an agent down.
+Read the agent's evidence report first, since the pane's transcript is gone once it closes. When a native agent should exit cleanly first, send its own quit sequence with `herdr agent send-keys <name> ...`, wait for it to leave the pane, then close the pane. Close only a pane this run created to host that agent — a pane the Supervisor opened as the Human's hands to host a seat this run staffed counts as created by this run; never close the caller's pane, a pane hosting an agent this run did not staff, or a pane an agent shares with unrelated work. `herdr pane release-agent` is a low-level detection-plane report used with `--source`/`--agent`, not a teardown — do not use it to shut an agent down.
 
 ## Safety
 
