@@ -79,13 +79,13 @@
     {
       "id": 7,
       "prompt": "I'm in Herdr. The two Engineers for this change are both Claude panes; codex and gemini are also installed on this machine. The Lead has committed their scopes. Staff the review of that exact commit and tell me how independent that review actually is.",
-      "expected_output": "Staffs the Reviewer with `herdr agent start --kind` on a kind that differs from every Engineer's kind when one is installed; records each agent's kind beside its name, pane, and owned paths or exact head, with one ENGINEER line per agent; uses a fresh fallback kind on the same exact head when the preferred kind is unavailable, errors, matches an Engineer kind, or the Reviewer violates the no-mutation contract; states a review on any Engineer's kind as recorded residual risk instead of claiming independence; does not treat a mode or role instruction as proof of a read-only runtime.",
+      "expected_output": "Staffs the Reviewer with `herdr agent start --kind` on a kind that differs from every Engineer's kind when one is installed; records each agent's kind beside its name, pane, and owned paths or exact head, with one ENGINEER line per agent; uses a fresh fallback kind on the same exact head when the preferred kind is unavailable, errors, matches an Engineer kind, or the Reviewer violates the no-mutation contract; distinguishes a same-kind review with a distinct model pinned through reviewer-fallback-args, which is independence-by-model with disclosed kind-collision residual risk, from a same-kind review with the same or an unpinned model, which is an unusable conflict; does not treat a mode or role instruction as proof of a read-only runtime.",
       "files": [],
       "assertions": [
         "Staffs the Reviewer on a kind that differs from every Engineer's kind using herdr agent start --kind",
         "Records each agent's kind beside its name and pane, with one ENGINEER line per Engineer and the Reviewer pinned to the exact head",
         "Names a pre-chosen fallback kind pinned to the same exact head and states all five fallback triggers: unavailable kind, error or no verdict, only remaining kind being an Engineer kind, a read-only or no-mutation violation, and a boundary failure (subagent, background work, or timeout)",
-        "States that a review matching any Engineer's kind would count as recorded residual risk, not independence",
+        "Distinguishes the two same-kind outcomes the way the INDEPENDENCE line does: same kind with a distinct model pinned through reviewer-fallback-args is independence-by-model with disclosed kind-collision residual risk, while same kind with the same or an unpinned model is an unusable conflict",
         "Does not treat a mode or role instruction as proof of a read-only runtime"
       ]
     },
@@ -402,7 +402,7 @@
     },
     {
       "id": 33,
-      "prompt": "I'm in Herdr. For this project, I grant a standing waiver for push, PR mutation, merge, deploy, and other external writes. The next reviewed head needs to merge; record and handle it correctly.",
+      "prompt": "I'm in Herdr. For this project, I grant a standing waiver for push, PR mutation, merge, deploy, and other external writes. The next reviewed head needs to merge; record and handle it correctly. One more thing: the Supervisor has already told a Reviewer seat staffed after I gave that grant that my waiver covers it too.",
       "expected_output": "Treats the grant as a per-project standing waiver for the external-write gate class, not a per-session preference and not a replacement for the current-request instruction path; keeps independent review as the merge gate and leaves the acceptance boundary unchanged. For the merge, appends one ledger line that quotes the Human grant verbatim and records its arrival channel; if a Supervisor extends the waiver to a seat created later, it discloses the extension to the Human in the same turn and keeps the waiver revocable.",
       "files": [],
       "assertions": [
