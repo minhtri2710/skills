@@ -30,7 +30,7 @@ If directives `D01`, `D02`, ... were supplied:
 For both modes:
 
 - launch exactly 10 scouts, named consecutively `scout-01` through `scout-10`
-- use Gemini Flash 3.6 (High) for every scout and sub-agent
+- run every scout and sub-agent on one model, chosen by the caller: this skill names none, and the overlap it depends on must come from assignment and search angle, never from a difference in model
 - give every scout at least one assigned concern
 - give every scout permission to report any incidental bug inside scope, even outside its assigned concerns
 - use overlap to create genuinely different traces, lifecycle phases, owners, adversarial cases, or disconfirming approaches—not identical copies of one prompt
@@ -58,7 +58,7 @@ A system notice that subagents or background tasks stopped due to a server resta
 1. Freeze the existing logical roster, concern allocation, report path, and review-brief digest.
 2. Inventory persisted mailbox reports by logical scout ID.
 3. Preserve every completed scout report exactly once.
-4. Do not relaunch the full scout batch. Revive or restart only missing logical scouts with their original assignments and Gemini Flash 3.6 (High).
+4. Do not relaunch the full scout batch. Revive or restart only missing logical scouts with their original assignments, on the model the original batch ran on.
 5. A replacement attempt continues the same logical scout ID; never create an eleventh logical scout or duplicate completed work.
 6. After all ten logical scouts complete, consolidate once into the existing report.
 
