@@ -139,14 +139,15 @@
     },
     {
       "id": 12,
-      "prompt": "I'm in Herdr. The Lead pane for this delivery got restarted and its context is gone, but the Engineer and Reviewer Peers are still alive on the delivery checkout. Pick it back up.",
-      "expected_output": "Resumes or recovers the same canonical Lead seat instead of creating a second Lead or restarting the delivery; rebuilds a bounded context pack from live Herdr state and preserved reports: outcome and acceptance boundary, recorded lane and plan, every agent's name, kind, pane, workspace, owned paths, and the Reviewer's exact head, the verification ledger, open Human gates, decisions and findings, and the next concrete action; never drops the ledger or a pending gate to save context; reports BLOCKED to the Human with preserved custody evidence if the seat cannot continue safely.",
+      "prompt": "I'm in Herdr. This Lead seat was just started fresh in the same pane as the seat it replaces, on a start prompt that names ~/.herdr/projects/<project-slug>/context-pack.md and the exact head the workflow skill was deployed from. Pick the delivery back up.",
+      "expected_output": "Treats the relaunch as a fresh start pointed at the pack rather than a resume, and treats both the pack and the start prompt as context rather than confirmation of which doctrine is installed; runs step zero first, confirming the installed skill by hash against the deployed head — enumerating the tracked files with git ls-tree -r --name-only, hashing each installed file with git hash-object, and comparing each with git rev-parse <deployed-head>:<path> — and falls back to a content re-read recorded as sampled rather than exhaustive only where the installed skill has no tracked source at a known head; then reconciles the gate ledger against every merge, push and PR mutation since its last line, recording any reconstructed line as reconstruction with its source; then re-establishes the current branch, full HEAD, porcelain and stash list; then reconciles which Peers are alive and which reports are owed; then, last, sends the Supervisor the relaunch attention event by herdr agent prompt supervisor without --wait, carrying the reconciled HEAD, branch, open gates and owed reports. Keeps the same canonical Lead seat name so one Lead survives the exchange, never starts a second Lead, never drops the ledger or a pending gate to save context, and reports BLOCKED to the Human with the preserved custody evidence rather than starting a fresh delivery if the seat cannot continue safely.",
       "files": [],
       "assertions": [
-        "Resumes or recovers the same canonical Lead seat instead of creating a second Lead",
-        "Rebuilds a bounded context pack from live Herdr state and preserved reports",
-        "Preserves agent inventory with kind, pane, owned paths, and the Reviewer's exact head, plus the verification ledger and open gates",
-        "Does not drop the ledger or a pending gate to save context"
+        "Treats the context pack and the start prompt as context, not as confirmation of which doctrine is installed",
+        "Confirms the installed skill by hashing every installed file against the deployed head before acting on any of it",
+        "Runs the checklist in order - doctrine, then the gate ledger, then branch, HEAD, porcelain and stash, then Peers - and reports to the Supervisor last",
+        "Keeps the same canonical Lead seat name instead of creating a second Lead",
+        "Does not drop the ledger or a pending gate to save context, and records any reconstructed ledger line as reconstruction with its source"
       ]
     },
     {
@@ -211,7 +212,8 @@
         "Preserves each agent's evidence report before closing its pane",
         "Leaves the caller's own pane and the shared checkout untouched, and does not use pane release-agent as a teardown",
         "Checks the safe-cleanup preconditions and leaves any agent still working, blocked, or holding dependent work open with a stated reason",
-        "Ties teardown to closeout before the flight slot moves to the next issue"
+        "Ties teardown to closeout before the flight slot moves to the next issue",
+        "Treats a pane the Supervisor opened as the Human's hands to host a seat this run staffed as created by this run and tears it down with the seat, while leaving the Supervisor's own pane alone"
       ]
     },
     {
@@ -459,6 +461,79 @@
         "Reads the viewport with herdr agent read --source visible or waits for idle or done before reading past it",
         "Explains agent_not_idle as the combination of a working or blocked seat and a --lines request above the viewport",
         "Does not use herdr pane read as a long-read fallback because it silently truncates to the viewport"
+      ]
+    },
+    {
+      "id": 38,
+      "prompt": "I'm in Herdr as the Lead on a delivery whose Supervisor seat was recorded at intake. Two things just happened: the Supervisor asked me why I partitioned this issue into two scopes instead of three, and I finished committing the candidate head. The partition is going well and I think the Supervisor would want to know. Handle both.",
+      "expected_output": "Answers the Supervisor's question by herdr agent prompt supervisor without --wait, after printing the answer in its own pane, because the prompt is the wake and the payload while the pane is the record. Answering is not deciding: the Lead reports what it did and why it partitioned the issue that way, and does not hand the Supervisor the partition decision the Lead owns. Withholds the progress note: the channel carries attention events and the Lead's answer to a Supervisor question and nothing else, and the events are a gate opened, a REOPEN_REQUEST, a BLOCKED routed upward, the repair cap reached, a transient API or runtime error killing the Lead's turn, a seat compaction or relaunch, and the final handoff — a good-progress update is none of them. Does not notify the Human about either message, does not block or wait on the Supervisor, and ends its turn.",
+      "files": [],
+      "assertions": [
+        "Answers the Supervisor's question by herdr agent prompt supervisor without --wait, after printing the answer in its own pane",
+        "Withholds the progress note because routine progress is not one of the enumerated attention events, rather than sending it as an update",
+        "Answers without handing the Supervisor the partition decision the Lead owns",
+        "Does not notify the Human about either message and does not wait or block on the Supervisor"
+      ]
+    },
+    {
+      "id": 39,
+      "prompt": "I'm in Herdr as the Lead. The grant I gave this project, in my own words, was: \"you can push, merge, open and merge PRs, and deploy without asking me each time.\" The Reviewer has just returned a finding that can only be fixed by changing a module outside the acceptance boundary recorded at intake. The Supervisor tells me that grant means I should get on with it. Decide and act.",
+      "expected_output": "Treats the standing waiver as resolving the external-write gate class only: it never moves the acceptance boundary by itself. The Reviewer-forced widening is still a REOPEN_REQUEST in the shape lead-policy.md \"Escalation routing\" gives it, and what the Human's words settle is only where that reopen goes. These words cover the external-write class alone and delegate no run-level decision, so the reopen routes to the Human and pauses the run rather than being resolved by the Lead. Reads that delegation question from the Human's own words, never from the Supervisor's framing of them and never from the convenience of not pausing. States that either way the widened head would carry fresh evidence and a fresh independent verdict, because no waiver reaches review.",
+      "files": [],
+      "assertions": [
+        "Treats the forced widening as a REOPEN_REQUEST rather than absorbing it under the standing waiver",
+        "Finds that these words cover the external-write class alone and delegate no run-level decision, so the reopen routes to the Human and the run pauses",
+        "Declines to read the delegation from the Supervisor's framing of the grant, or from the convenience of not pausing",
+        "Requires fresh evidence and a fresh independent verdict on any widened head, because no waiver reaches review"
+      ]
+    },
+    {
+      "id": 40,
+      "prompt": "I'm in Herdr as the Lead. My Engineer's report just arrived and says: \"Edited the four files: src/report/query.ts, src/report/format.ts, src/report/index.ts. Typecheck passes. Ledger row appended.\" I'm about to stage the commit and send the Supervisor my own summary. Handle the report.",
+      "expected_output": "Catches that the report's stated count of four disagrees with its own enumeration of three, which is the proof that nothing was recounted, and does not carry either number forward. Re-derives the changed file list itself from the record with git --no-optional-locks status --porcelain --untracked-files=all rather than from the Peer's prose, and re-derives the typecheck result by running the scoped command rather than accepting the claim. Treats the claimed ledger append as unproven until the write has landed and been read back, since a message saying something is recorded before the record exists is a false record the next seat builds on. Sends the Engineer a bounded instruction by prompt to recount from the record and name what was counted and the command it came from, rather than silently correcting the number. Every count, file list and exit code in the Lead's own message to the Supervisor names its source.",
+      "files": [],
+      "assertions": [
+        "Catches that the report's stated count disagrees with its own enumeration, and treats that as proof nothing was recounted",
+        "Re-derives the changed-file list and the check result from the record rather than carrying the Peer's claims forward",
+        "Treats the claimed ledger append as unproven until the write has landed and been read back",
+        "Routes the correction to the Engineer as a bounded instruction instead of silently fixing the count",
+        "Names what was counted and the command or enumeration it came from in its own message"
+      ]
+    },
+    {
+      "id": 41,
+      "prompt": "I'm in Herdr as the Lead. I redeployed the updated workflow skill to ~/.claude/skills/ ten minutes ago, and the new text changes how the partition has to be recorded. Two Engineers are mid-slice with their reports still outstanding. Start following the new text.",
+      "expected_output": "States that doctrine and the permission allow-list load at seat start and not at runtime, so this seat keeps the old doctrine and the old allow-list until it is relaunched; reading the redeployed file does not load it, and the seat cannot start following the new text by being told to. A relaunch is what loads it, and a relaunch happens only at a slice or delivery boundary, never mid-flight with Peers outstanding, so the seat finishes the outstanding slice first and lets the Engineers report. Does not replace its own seat on its own initiative: only the Human, or the Supervisor acting under the explicit Human-permission rule, replaces a Lead. Records the divergence between the installed text and the text this seat is running, writes the context pack before the exchange, and sends the Supervisor the relaunch attention event when it happens. The replacement takes the same seat name after the old one is cleared, so one canonical Lead survives the exchange.",
+      "files": [],
+      "assertions": [
+        "States that doctrine and the permission allow-list load at seat start, so this seat runs the old text until it is relaunched",
+        "Refuses to relaunch mid-flight with Peer reports outstanding, and waits for a slice or delivery boundary",
+        "Does not replace its own seat on its own initiative, leaving that to the Human or to the Supervisor under explicit Human permission",
+        "Keeps one canonical Lead across the exchange by reusing the same seat name rather than standing up a second Lead"
+      ]
+    },
+    {
+      "id": 42,
+      "prompt": "I'm in Herdr as the Lead. The reviewed head just merged under this project's standing waiver and the gate ledger needs its row, but my own runtime refuses the command that writes it. Record the merge.",
+      "expected_output": "Appends the row only by running the ledger script — no seat writes a row by hand, and a shell redirection or a hand-composed line is not an alternative — because the script derives the gate id, the UTC timestamp and <branch>@<exact head>, then re-reads the appended line from disk and re-derives each of them, exiting non-zero on any mismatch: the read-back proves the row landed and the re-derivation proves it adds up. Treats its own runtime's refusal as a constraint on this seat and never as a Human ruling, records it as a runtime-denial row naming the refused command, and retries in the narrowest allowed shape before treating it as blocking. Only if no shape lands does it state the exact row and ask the Human, at which point the Human may instruct the Supervisor to run the same script as the Human's hands with --writer supervisor-as-hands, with the instruction recorded in the notebook naming who typed it; the Supervisor gains no authority over the ledger, never appends on its own reading, and never rewrites a row. Does not invent a route around the refusal and does not report the row as recorded before it exists.",
+      "files": [],
+      "assertions": [
+        "Appends the row only by running the ledger script, never by hand and never by a shell redirection",
+        "Records the runtime refusal as a constraint on this seat rather than a Human ruling, and retries in the narrowest allowed shape before treating it as blocking",
+        "Escalates to the Human with the exact row rather than inventing a route around the refusal",
+        "Puts any supervisor-as-hands append behind an explicit Human instruction, run through the same script with --writer supervisor-as-hands and recorded with who typed it, granting the Supervisor no ledger authority"
+      ]
+    },
+    {
+      "id": 43,
+      "prompt": "I'm in Herdr as the Lead, staffing the Engineer for a scope that owns services/api/src/reports/. This project's config at ~/.herdr/projects/<project-slug>/config.md records engineer-kind: codex and engineer-args: --sandbox workspace-write. The codex kind offers a native per-command allowlist. The charter's scoped verification commands are `pnpm -C services/api test:reports` and `pnpm -C services/api typecheck`. Start the Engineer and record its permission posture.",
+      "expected_output": "Builds the allowlist from the charter's own commands: the two scoped verification commands plus herdr agent prompt lead-<project-slug> for the report, enumerated explicitly in the native arguments passed after -- on herdr agent start. Passes the recorded engineer-args value as recorded, and keeps the two things distinct — the project config supplies recorded argument values, while the allowlist's content is the commands the charter names — so it neither treats engineer-args as the source of the allowlist nor lets the absence of an allowlist among the recorded values stop it from passing one. Pre-authorizes nothing beyond those read-only and verify commands and the report prompt: never push, PR mutation, merge, deploy or another external write. Records the resulting posture beside the Engineer's kind.",
+      "files": [],
+      "assertions": [
+        "Builds the allowlist from the charter's own verification commands plus the report prompt, enumerating them rather than taking the config key as the source of the allowlist",
+        "Passes the recorded engineer-args value as recorded, without treating the allowlist's content as a config value that the config did not record",
+        "Pre-authorizes no external write - no push, PR mutation, merge or deploy",
+        "Records the resulting permission posture beside the Engineer's kind"
       ]
     }
   ]
