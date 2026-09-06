@@ -114,6 +114,7 @@ and full content.
    - Durable solution hypothesis
    - Disconfirming check
 4. Build a Verification Queue containing every finding and its read-only disconfirming check.
+5. Derive every count the report states (findings, candidates, scouts, negatives, out-of-scope items) from its own enumeration in the report, by script, immediately before the report is finalized. Never restate a count from memory or from an earlier draft, especially after a context compaction.
 
 ## Report Shape
 
