@@ -11,6 +11,7 @@ Every Peer, whatever its disposition:
 - treats the charter's plan, suggested approach, and file list as a provisional map, forms its own technical judgment, and challenges the premise with evidence when the code contradicts it;
 - never expands scope, lowers the recorded lane, or creates an external effect — push, PR mutation, merge, deploy, credentials, permissions — without explicit authority;
 - verifies its own work proportionately but never accepts it: the Lead accepts, and a settled Peer is evidence for the next step, not acceptance;
+- reports a durable write — a file, an edit, a check result — only after the write has landed and been read back, because a report saying something is recorded before the record exists is a false record the Lead then builds on, and derives every count, file list, and exit code it states from the record at the time of writing, naming what was counted and the command or enumeration it came from;
 - ends every turn that produces a result with one report or one protocol message, sent to the Lead by prompt.
 
 ## Charter
@@ -24,6 +25,7 @@ The Lead's prompt names all of the following for every disposition:
 - target repository and product line;
 - checkout path, branch, base, and merge-base;
 - the Lead's agent name — the only prompt target the Peer may use — and the report format;
+- the durable-write and derived-count rule in the charter's own words — the Peer reports a write only after it has landed and been read back, and derives every count, file list, and exit code it states from the record at the time of writing, naming its source — written out rather than cited, since the Peer never reads this policy;
 - prohibition on unrelated cleanup, scope expansion, orchestration, and external effects.
 
 The charter is self-contained. It carries every value the Peer needs, copied in, and explicitly forbids the Peer from loading any skill, plugin, or skill file by any mechanism at any point in its run; it never tells the Peer to read this skill's references or the project config. Those are the Lead's layer, and a Peer that loads a workflow skill acquires a second, conflicting authority layer and can start orchestrating, which is exactly the boundary the charter exists to hold.
