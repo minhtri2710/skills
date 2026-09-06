@@ -69,7 +69,6 @@ def upgrade_prompt(raw_prompt: str, task: str | None) -> str:
         f"""
         Objective:
         - Complete this task: {normalized}
-        - Optimize for a correct, useful result rather than a merely plausible one.
 
         Context:
         - Preserve the user's original intent and constraints.
@@ -78,9 +77,6 @@ def upgrade_prompt(raw_prompt: str, task: str | None) -> str:
         Work Style:
         - Task type: {detected_task}
         - Effort level: {intensity}
-        - Understand the problem broadly enough to avoid narrow mistakes, then go deep where the risk or complexity is highest.
-        - Use first-principles reasoning before proposing changes.
-        - For non-trivial work, review the result once with fresh eyes before finalizing.
 
         Tool Rules:
         - {tool_rules}

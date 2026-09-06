@@ -78,4 +78,4 @@ A score of 0 is not a hard failure — it is advisory for the operator to widen 
 
 ## Source
 
-Inspired by the `repository-harness` plan's context-rules reference (draft, 2026-06-16). BEO numbers reflect the larger skill-card footprint (10 cards × 4-5K each) — harness used 2K/5K/10K which is too tight for BEO.
+The lane budgets above are sized for the BEO skill-card footprint: 9 cards at 4-5K each.

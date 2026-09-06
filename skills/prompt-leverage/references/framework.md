@@ -16,12 +16,10 @@ Specify relevant files, URLs, constraints, assumptions, and information boundari
 
 ### Work Style
 
-Control how the agent approaches the task.
+Control how the agent approaches the task. Use constraints specific to this task; generic reasoning coaching adds tokens without changing what the agent does.
 
-- Go broad first when system understanding matters.
-- Go deep where risk or complexity is highest.
-- Use first-principles reasoning before changing things.
-- Re-check with fresh eyes for non-trivial tasks.
+- Name where breadth matters and where depth matters in this particular system.
+- Name the invariants, prior decisions, or areas the agent must not change.
 
 ### Tool Rules
 
