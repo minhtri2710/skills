@@ -71,7 +71,7 @@ A Peer does not wait to be read. Every turn that ends in a report, a verdict, or
 2. send the same text to the Lead with `herdr agent prompt <lead-name> "<text>"` — no `--wait`, no `--until`; a Peer never waits on the Lead;
 3. stop. Do not edit, run checks, or start anything after the report until a new bounded instruction arrives.
 
-The prompt is the wake and the payload; the pane is the record. When the send fails — including `agent_blocked` because the Lead is at a dialog — do not retry and do not loop: stop, the Lead reads the pane at its next wake. A multi-line message goes through a quoted heredoc, `herdr agent prompt <lead-name> "$(cat <<'REPORT' ... REPORT)"`, so its Markdown arrives intact. That is the only `herdr` command a Peer runs; a Peer never prompts another Peer, the Supervisor, or the Human.
+The prompt is the wake and the payload; the pane is the record. When the send fails — including `agent_blocked` because the Lead is at a dialog — do not retry and do not loop: stop, the Lead reads the pane at its next wake. The asymmetry is deliberate: a Peer's unsent report is recovered by the Lead's end-of-turn roster check, which reads the pane of an `idle` or `done` Peer that sent nothing, while a report the Lead owes the Supervisor has no such reader and is the only message in this workflow with a bounded retry. A multi-line message goes through a quoted heredoc, `herdr agent prompt <lead-name> "$(cat <<'REPORT' ... REPORT)"`, so its Markdown arrives intact. That is the only `herdr` command a Peer runs; a Peer never prompts another Peer, the Supervisor, or the Human.
 
 ## Disposition: Engineer
 

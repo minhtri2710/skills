@@ -99,9 +99,10 @@ Use the kind the user requested, and run `herdr agent` for the installed kind li
 ```bash
 herdr agent prompt <name> "<bounded task>"
 herdr agent wait <name> --timeout 30000
+herdr agent wait <name> --until idle --until done --timeout 120000
 ```
 
-`agent prompt` honors the pane's live bracketed-paste mode and sends text followed by encoded Enter. It refuses an agent already sitting at an approval or question dialog with `agent_blocked` before sending any input. Do not pass `--wait`: no seat in this workflow waits on another. `agent wait` has one site, after `agent_not_ready` at startup, to let a freshly started agent settle before its charter; its default states cover that — `idle` means send the charter, `blocked` means a startup dialog to route as a Human decision — and it is never used on a Peer that has work.
+`agent prompt` honors the pane's live bracketed-paste mode and sends text followed by encoded Enter. It refuses an agent already sitting at an approval or question dialog with `agent_blocked` before sending any input. Do not pass `--wait`: no seat in this workflow blocks on another's turn. `agent wait` has exactly two sites. The first is after `agent_not_ready` at startup, to let a freshly started agent settle before its charter; its default states cover that — `idle` means send the charter, `blocked` means a startup dialog to route as a Human decision. The second is the Lead's one bounded recovery for a report it owes the Supervisor whose send was refused (`lead-policy.md`, "Seats"); that site names its states explicitly, `--until idle --until done`, because the default set also matches `blocked` and would return immediately against the very seat that refused the send, and because a claude seat settles to `done` rather than `idle`, so `--until idle` alone waits out its whole timeout against a reachable Supervisor. Neither site is ever used on a Peer.
 
 Reports arrive as prompts. A Peer's report wakes the Lead mid-turn or opens a new Lead turn, so the Lead ends its turn after dispatching and after each wake, and before ending any turn runs `herdr agent list` once to reconcile live Peers with the reports received (`lead-policy.md`, "Lifecycle and reports"). Do not poll `herdr agent list`, sleep in a loop, re-issue status commands, or block on a Peer with any wait.
 
@@ -135,7 +136,7 @@ REPORT
 )"
 ```
 
-The quoted heredoc keeps a multi-line Markdown message intact through the shell. A rejected send — `agent_blocked` because the Lead sits at a dialog, or any error — is not retried: the Peer stops, and the Lead reads the pane at its next wake. This is the only `herdr` command a Peer runs.
+The quoted heredoc keeps a multi-line Markdown message intact through the shell. A rejected send — `agent_blocked` because the Lead sits at a dialog, or any error — is not retried: the Peer stops, and the Lead reads the pane at its next wake. The Lead's own refused report to the Supervisor is the single exception in this workflow, because nothing reads the Lead's pane the way the Lead reads a Peer's. This is the only `herdr` command a Peer runs.
 
 ## Notify the Human
 

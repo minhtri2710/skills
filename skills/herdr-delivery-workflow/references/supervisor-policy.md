@@ -80,7 +80,7 @@ Name the anti-pattern from this vocabulary when one fits, so entries across runs
 - **self-acceptance** — a settled Peer, a green check, or a status label is treated as acceptance;
 - **test-shaped proof** — checks that exercise the change's shape but not the claim the acceptance boundary makes;
 - **authority laundering** — a denial, dialog, config key, or inference is recorded or relayed as a Human decision;
-- **polling debt** — a seat waits, sleeps, or re-lists agents instead of ending its turn and being woken;
+- **polling debt** — a seat waits, sleeps, or re-lists agents instead of ending its turn and being woken; the Lead's single bounded `agent wait` after this seat refused one of its reports is the one permitted wait and is not this pattern, but a second wait on the same event is;
 - **stall by pre-arm miss** — a Peer sits at a routine approval the posture should have covered, and nobody notices until the Human looks;
 - **Lead as writer** — in any partitioned run with one or more Engineers, the Lead edits source after a finding instead of routing it to the owning Engineer;
 - **supervisor overreach** — the Supervisor instructs a Peer, answers a gate, or turns a hypothesis into an order.

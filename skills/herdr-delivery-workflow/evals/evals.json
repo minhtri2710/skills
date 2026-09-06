@@ -535,6 +535,20 @@
         "Pre-authorizes no external write - no push, PR mutation, merge or deploy",
         "Records the resulting permission posture beside the Engineer's kind"
       ]
+    },
+    {
+      "id": 44,
+      "prompt": "I'm in Herdr as the Lead. A Human gate just opened and I sent the attention event with herdr agent prompt supervisor, but it came back {\"error\":{\"code\":\"agent_blocked\",\"message\":\"agent supervisor is blocked and requires interactive input\"}} and exit 1 — the Supervisor is sitting at its own question dialog. The Supervisor seat is a claude kind. What do I do with that event?",
+      "expected_output": "Treats the event as owed rather than lost: re-reads herdr agent list first, since the list is the authority on the seat name and agent_not_found would be a different failure, then runs herdr agent wait supervisor --until idle --until done --timeout 120000 once and re-sends the same text once. Names both states, because the default state set of agent wait also matches blocked and would return immediately against the seat that just refused the send, and because a claude seat settles to done rather than idle so --until idle alone would wait out the whole timeout against a reachable Supervisor. Does not answer the Supervisor's dialog, does not loop, and does not open a standing watch: if the wait times out or the second send is refused, it prints the event in the Lead's own pane tagged UNDELIVERED with the error code, keeps it as owed in the run context, and makes sending it the first action of the next turn. Applies this only to the Lead-to-Supervisor direction; a Peer whose report is refused still stops without retrying, because the Lead's end-of-turn roster check reads that Peer's pane.",
+      "files": [],
+      "assertions": [
+        "Re-reads herdr agent list before concluding anything, and distinguishes agent_blocked from agent_not_found, which no wait fixes",
+        "Uses herdr agent wait with both --until idle and --until done and a bounded --timeout, and does not rely on the default state set or on --until idle alone",
+        "Re-sends the same event exactly once and never loops, sleeps, or opens a standing watch",
+        "On timeout or a second refusal, prints the event in the Lead's own pane tagged UNDELIVERED with the error code, carries it as owed, and sends it first on the next turn",
+        "Never answers the Supervisor's dialog and never treats the refusal as a Human decision",
+        "Keeps the recovery to the Lead-to-Supervisor direction; a Peer whose send is refused still stops and is read from its pane by the Lead"
+      ]
     }
   ]
 }
