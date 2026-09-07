@@ -112,6 +112,8 @@ Do not abort, rerun, duplicate, rebase, delete the branch, or rewrite the head t
 
 Before final acceptance, preserve the implementation report, exact reviewed head, Reviewer verdict, integrated head when integration happened, changed files, check results on both the reviewed and the integrated head, skipped-check reasons, a causal classification of every failure, residual risks, and next action. Acceptance requires claim-shaped checks plus `PASS` for the same exact head. A later green result does not replace an unreconciled earlier failure.
 
+A change is not landed where it runs by being merged. When the delivery changed an artifact the repository installs outside the checkout — a skill, hook, agent profile, script, or config the runtime loads from its own path — acceptance requires one of two, recorded either way: the installed copy is at the accepted head and a deploy row is appended for it, or the record states the artifact has no installed copy. Deploy is a gated act, so a Lead without a standing waiver reaches neither: it routes the deploy gate and the run pauses there, as any pending gate makes it pause, and the delivery is `needs-human-gate` rather than accepted. The obligation is dischargeable from every posture — deploy under a waiver, record that nothing is installed, or route the gate — which is what keeps it from being a boundary whose enforcement cannot reach its own case. Derive the answer rather than recalling it, with the comparison `lead-policy.md` gives a relaunching seat for the doctrine — enumerate the artifact's tracked files with `git ls-tree`, hash each installed file with `git hash-object`, and compare each against `git rev-parse "${head}:<path>"`, braced so the shell cannot read the `:` as a history modifier — pointed now at whatever this delivery changed. A merged fix to an artifact that runs from an installed copy has changed a file in git and nothing else; when the fix was to a destructive or gating behavior, the unfixed behavior stays live while the record says it was fixed, and every later slice builds on a record that is false about where the fix is.
+
 Close only panes, tabs, workspaces, and agents created by this run. The checkout itself is the caller's and is never removed — and never moved: no checkout of another branch, no reset, no rebase, no clean as part of closeout. Leave it on the branch and head the record names; wrapping up changes Herdr resources, not the tree. Cleanup is safe only when:
 
 - no process is running in any pane this run created;
@@ -140,6 +142,7 @@ REVIEW: <PASS/FAIL/BLOCKED, exact head, Reviewer agent kind>
 CHECKS: <command=exit code list on the reviewed head>
 INTEGRATED CHECKS: <command=exit code list on the integrated head, or none>
 CHANGED: <verbatim or concise changed-file list, grouped by scope when the partition had more than one>
+DEPLOYED: <artifact=installed path, files compared, differences, deploy row id; or "none installed"; or "gate <id> pending">
 CHECKOUT: <branch>@<exact head> — the caller's checkout stays on the branch and head the record names; closeout never checks out, resets, rebases, or cleans it
 RISKS: <residual risks and skipped checks>
 NEXT: <one concrete next action>
