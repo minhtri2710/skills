@@ -162,10 +162,12 @@ def check(row: str, repo: Path, boundary: list[str]) -> None:
     `boundary` is the declared path boundary the push block was derived
     against. It is not carried in the row — the ledgers are append-only and
     rows written before this check existed would become unparseable — so the
-    caller supplies it. Omitting it is not a way past the check: with no
-    boundary every touched path falls outside it, so the re-derived
-    `boundary-check` cannot match a row claiming none, and the check fails
-    through the ordinary comparison rather than through a guard.
+    caller supplies it, and a push row cannot be checked without it. An empty
+    boundary is not the safe default it looks like: it puts every touched path
+    outside the boundary, so the derivation reproduces the entire changed set
+    in sorted order, and a row over-claiming that whole set — the shape six
+    rows across two ledgers already carry — matches and passes. Fail-closed
+    is therefore a refusal to derive, not a comparison against nothing.
     """
     if not ID_RE.match(row):
         raise RowError("row does not start with a gate id")
@@ -212,6 +214,13 @@ def check(row: str, repo: Path, boundary: list[str]) -> None:
         if not p:
             raise RowError(f"push block {field!r} is malformed")
         base, phead = p.group("base"), p.group("head")
+        if not boundary:
+            raise RowError(
+                "this row carries a push block and no boundary was declared; pass the "
+                "--boundary paths the push was judged against. Deriving against an empty "
+                "boundary puts every path outside it, which passes any row that claims "
+                "the whole changed set"
+            )
         count, outside = derive_push(repo, base, phead, boundary)
         if count != p.group("count"):
             raise RowError(
@@ -246,7 +255,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--push-base", help="the intake's recorded merge-base; the head is derived")
     parser.add_argument("--boundary", action="append", default=[],
                         help="a declared boundary path; repeatable. Required by --check "
-                             "on a row carrying a push block, which re-derives it")
+                             "on a row carrying a push block, and enforced there: without it "
+                             "the check refuses to derive rather than deriving against nothing")
     parser.add_argument("--note", default="")
     parser.add_argument("--quote", default="")
     args = parser.parse_args(argv)

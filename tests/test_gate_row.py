@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import contextlib
 import io
+import re
 import subprocess
 import sys
 import tempfile
@@ -41,8 +42,13 @@ class GateRowTest(unittest.TestCase):
         self.addCleanup(self._tmp.cleanup)
 
     def run_main(self, argv: list[str]) -> int:
-        """Run the CLI with its stdout and stderr captured, so a test run stays readable."""
-        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+        """Run the CLI with its stdout and stderr captured, so a test run stays readable.
+
+        stderr is kept on `self.err`: a refusal that exits 1 for the wrong reason
+        is still a passing exit code, so the message is part of the assertion.
+        """
+        self.err = io.StringIO()
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(self.err):
             return gate_row.main(argv)
 
     def append(self, *extra: str) -> int:
@@ -223,17 +229,51 @@ class GateRowTest(unittest.TestCase):
                 with self.assertRaises(gate_row.RowError):
                     gate_row.check(tampered, self.repo, boundary)
 
-    def test_check_cannot_verify_a_push_row_without_the_declared_boundary(self):
-        """Fail-closed falls out of the shared derivation, with no guard clause.
+    def test_check_refuses_a_push_row_when_no_boundary_was_declared(self):
+        """The refusal is a guard, because the comparison alone fails open.
 
-        No boundary means every touched path is outside it, so the re-derived
-        `boundary-check` cannot equal the `""` the row claims.
+        An empty boundary puts every touched path outside it, so the derivation
+        reproduces the whole changed set in sorted order. That refuses a row
+        claiming `""` but accepts one claiming everything — see
+        `test_a_row_over_claiming_the_whole_changed_set_is_refused`. So the
+        missing argument has to be refused outright, not derived against.
         """
         _, boundary = self.valid_push_row()
         argv = ["--ledger", str(self.ledger), "--repo", str(self.repo), "--check"]
         self.assertEqual(self.run_main(argv), 1)
+        self.assertIn("no boundary was declared", self.err.getvalue())
         self.assertEqual(
             self.run_main(argv + [a for b in boundary for a in ("--boundary", b)]), 0)
+
+    def test_a_row_over_claiming_the_whole_changed_set_is_refused(self):
+        """The shape six rows across two ledgers already carry.
+
+        `--boundary` is `action="append"`, one flag per path; a seat that passes
+        all its paths joined in a single flag declares one string no path can
+        match, so every path lands outside and the row records the entire
+        changed set. That row asserts a breach that did not happen, and against
+        an empty boundary the derivation reproduces it exactly.
+        """
+        row, boundary = self.valid_push_row()
+        p = re.search(r'boundary-check="([^"]*)"', row)
+        self.assertEqual(p.group(1), "", "the control row declares no breach")
+        base = self.rev("HEAD~2")
+        changed = sorted({
+            path
+            for commit in self.git("rev-list", f"{base}..HEAD").splitlines()
+            for path in self.git("diff-tree", "--root", "-m", "--no-commit-id",
+                                 "--name-only", "-r", commit).splitlines()
+            if path
+        })
+        self.assertTrue(set(boundary) & set(changed), "the range touches the boundary")
+        over = row.replace('boundary-check=""', f'boundary-check="{" ".join(changed)}"')
+        self.assertNotEqual(over, row)
+        self.ledger.write_text(over + "\n")
+        argv = ["--ledger", str(self.ledger), "--repo", str(self.repo), "--check"]
+        self.assertEqual(self.run_main(argv), 1)
+        self.assertEqual(
+            self.run_main(argv + [a for b in boundary for a in ("--boundary", b)]), 1)
+        self.assertIn("outside the declared boundary", self.err.getvalue())
 
 
 if __name__ == "__main__":
