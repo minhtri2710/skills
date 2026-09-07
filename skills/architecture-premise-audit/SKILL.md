@@ -50,10 +50,16 @@ A slice may cross modules, and one module may contain several slices.
 2. **Build the expected atlas.** From product needs and established domain
    mechanisms, list the responsibilities that should exist, likely owners,
    scaling variables, and work that must be bounded or isolated.
-3. **Build the observed map.** Trace production entry points, authoritative
-   state, durable effects, expensive operations, queues, schedulers, external
-   outputs, deployment boundaries, and cited proof. Do not copy the repository's
-   decomposition without testing it.
+3. **Build the observed map, and record it as the coverage ledger.** Trace
+   production entry points, authoritative state, durable effects, expensive
+   operations, queues, schedulers, external outputs, deployment boundaries, and
+   cited proof. Record one ledger row for each item as you discover it: the item,
+   which of those nine categories it belongs to, and where it is represented.
+   Record a category you traced and found empty as a row stating that derived
+   absence. This ledger is the artifact step 6 stops on and output item 2
+   reports. A later step that discovers an item this trace missed returns here to
+   record it and re-runs the steps after; no step appends a row while checking
+   coverage. Do not copy the repository's decomposition without testing it.
 4. **Compare every slice.** Ask what demonstrated requirement forces each
    mechanism, whether cost follows useful work, whether normal and exceptional
    paths are reversed, and whether removing or relocating the mechanism loses
@@ -62,9 +68,12 @@ A slice may cross modules, and one module may contain several slices.
    exact amplification route, construct the cleaner counterfactual, identify
    machinery that disappears, give the strongest counterargument, and state
    evidence that would falsify the finding.
-6. **Check coverage.** Stop only when every discovered ingress, authoritative
-   state family, durable effect, expensive operation, and external output is
-   represented in the coverage ledger or explicitly excluded by scope.
+6. **Check coverage.** Stop only when every row step 3 recorded in the coverage
+   ledger — in all nine of its categories, not a subset — has been carried into a
+   comparison at step 4 or 5, or carries a stated exclusion with the rule that
+   excludes it. Judge each row by the category step 3 gave it. An empty ledger
+   does not satisfy this gate: it means step 3 traced nothing, and the audit
+   returns there rather than terminating.
 
 Do not report generic improvements. Classify supported candidates as architecture
 defect, owner defect, implementation drift, justified divergence, quarantined
@@ -83,7 +92,7 @@ Lead with one verdict:
 Then provide only the material sections needed to support it:
 
 1. expected-versus-observed map;
-2. compact coverage ledger and exclusions;
+2. the coverage ledger built at step 3, compact, with its exclusions;
 3. ranked findings with production evidence, hidden premise, tax, and
    amplification route;
 4. counterfactual architecture and machinery removed or relocated;
