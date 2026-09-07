@@ -1,6 +1,8 @@
 <coding_guidelines>
 # AGENTS.md -- beo
 
+These instructions govern only the BEO skill system under `skills/beo/`; they do not govern unrelated skills in this repository, such as `herdr-delivery-workflow`.
+
 ## What This Repo Is
 
 A collection of canonical beo skills and shared references for structured, contract-driven feature development using `br` and `bv`.
@@ -70,5 +72,5 @@ A beo skill's `SKILL.md` must be loaded before any mutation owned by that skill.
 
 ## Manual Doctrine Review
 
-Shared-reference changes should be read against representative prose pressure scenarios for ambiguity. This review is manual and non-executable; it is not a checker, fixture, eval, benchmark, or release gate.
+Shared-reference changes should be read against representative prose pressure scenarios for ambiguity. This review is manual and non-executable; it is not a checker, fixture, eval, benchmark, or release gate. Do not wrap this review in an automated or directory-versioned harness or represent it as scored or numbered cases.
 </coding_guidelines>
