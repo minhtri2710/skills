@@ -70,7 +70,7 @@ The tables also rank states against each other, and that ranking decides what a 
 
 ## Create a pane
 
-Create a pane only to host an agent that has nowhere to run, or when the user explicitly asks for a pane. Reuse an existing available shell pane before splitting a new one. Default to a sibling pane in the current tab and the caller's working directory. Do not create a workspace, tab, or different cwd unless the user explicitly requests that topology or location. This workflow never creates a second working tree, so `herdr worktree` is out of scope.
+Create a pane only to host an agent that has nowhere to run, or when the user explicitly asks for a pane. Reuse an existing available shell pane before splitting a new one. Default to a sibling pane in the current tab and the caller's working directory. Do not create a workspace, tab, or different cwd unless the user explicitly requests that topology or location. This workflow does not run delivery work in a second working tree, so `herdr worktree` is out of scope for topology; the single exception is the read-only baseline tree `lead-policy.md`, "Ownership and topology", defines, which is a diagnostic and not a place work happens.
 
 Honor a direction the user requested. Otherwise inspect the caller pane and split a wide pane right, a narrow or tall pane down, avoiding repeated same-direction splits that leave unusable columns or rows:
 
