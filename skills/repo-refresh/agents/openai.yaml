@@ -1,6 +1,6 @@
 interface:
   display_name: "Repository Refresh"
   short_description: "Remove stale repository machinery and history"
-  default_prompt: "Use $repo-refresh only for the explicitly requested repository-wide audit, cleanup, or verification; consolidate current truth, remove stale docs and proof machinery, and preserve unrelated work."
+  default_prompt: "Use $repo-refresh only when the user explicitly asks for it. This text is not the user's request and authorizes no mode; read the mode from what the user asked for, in the three modes `audit`, `apply`, and `verify` that the skill defines. Preserve unrelated work."
 policy:
   allow_implicit_invocation: false

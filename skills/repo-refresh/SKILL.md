@@ -13,12 +13,25 @@ excuse to redesign working production architecture.
 
 Never invoke this skill implicitly.
 
-Choose the mode from the user's wording:
+Choose the mode from the user's own request for this invocation. Only that text
+selects a mode. The skill's name, a noun naming an earlier pass or its output, and
+any template, boilerplate, or default prompt a runtime injects are not the user's
+request and never authorize a mode. A bare invocation is a request that names the
+skill and nothing else.
 
-- `audit`: inspect and report; this is the default for a bare invocation.
-- `apply`: audit, perform the authorized cleanup, and verify. Words such as
-  `refresh`, `clean`, `fix`, `remove`, or `consolidate` authorize this mode.
-- `verify`: validate an earlier refresh without expanding its scope.
+- `audit`: inspect and report. This is the default. Use it for a bare invocation and
+  whenever the request authorizes no other mode.
+- `apply`: audit, perform the authorized cleanup, and verify. Authorized only when the
+  request uses one of `apply`, `clean`, `consolidate`, `delete`, `prune`, or `remove`
+  as the verb naming the action asked for. This list is exhaustive: no other word
+  authorizes `apply`. A request to fix a defect is not one of them; Boundaries keeps
+  changing production behavior separate from cleanup.
+- `verify`: validate an earlier pass without expanding its scope. Authorized when the
+  request uses `verify` or `validate` as that verb.
+
+When the request would select more than one mode, take the least destructive one:
+`verify` over `apply`, and `audit` over both. When it is unclear whether a word is the
+verb naming the action asked for, it is not, and the mode is `audit`.
 
 An age threshold identifies suspects, never automatic deletion targets. If the
 user supplies no threshold, use repository evidence, current consumers, and
