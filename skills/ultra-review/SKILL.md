@@ -130,5 +130,7 @@ Preserve these headings:
 End with:
 
 ```text
-Use $ultra-review-receive to verify <report path> and implement confirmed owner-clean fixes.
+Use $ultra-review-receive to verify <report path>.
 ```
+
+The report asks for verification and never for remediation. A reviewer that writes its own closing line does not add one either: a report that requests fixes is a producer authorizing work on its own findings, and the receiving skill's write gate reads the request it is given.

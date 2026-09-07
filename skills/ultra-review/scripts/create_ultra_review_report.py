@@ -99,7 +99,7 @@ TODO
 
 ## Next Receive Prompt
 
-Use $ultra-review-receive to verify {report_path.as_posix()} and implement confirmed owner-clean fixes.
+Use $ultra-review-receive to verify {report_path.as_posix()}.
 """
 
 
