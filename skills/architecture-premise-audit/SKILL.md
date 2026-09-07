@@ -60,24 +60,39 @@ A slice may cross modules, and one module may contain several slices.
    reports. A later step that discovers an item this trace missed returns here to
    record it and re-runs the steps after; no step appends a row while checking
    coverage. Do not copy the repository's decomposition without testing it.
-4. **Compare every slice.** Ask what demonstrated requirement forces each
-   mechanism, whether cost follows useful work, whether normal and exceptional
-   paths are reversed, and whether removing or relocating the mechanism loses
-   an established requirement.
-5. **Deep-check serious candidates.** Trace real callers and consumers, name the
-   exact amplification route, construct the cleaner counterfactual, identify
-   machinery that disappears, give the strongest counterargument, and state
-   evidence that would falsify the finding.
+4. **Form the slices, then compare every one of them.** Group the ledger rows
+   step 3 recorded into audit slices by product responsibility, so that each
+   slice identifies everything the Audit Slice section lists and every row
+   belongs to at least one slice; a row that fits no slice is a slice of its own
+   until a comparison shows otherwise. Then ask of each slice what demonstrated
+   requirement forces each mechanism, whether cost follows useful work, whether
+   normal and exceptional paths are reversed, and whether removing or relocating
+   the mechanism loses an established requirement. A comparison becomes a serious
+   candidate when it names a mechanism whose forcing requirement you could not
+   find in production, or whose cost does not follow useful work; record which of
+   the two promoted it. A comparison you cannot settle either way is a candidate,
+   not a dismissal.
+5. **Deep-check serious candidates.** For each one, trace real callers and
+   consumers, name the hidden premise the mechanism would have to be true for and
+   the ongoing tax the product pays for it, name the exact amplification route,
+   construct the cleaner counterfactual, identify machinery that disappears, give
+   the strongest counterargument, and state evidence that would falsify the
+   finding.
 6. **Check coverage.** Stop only when every row step 3 recorded in the coverage
    ledger — in all nine of its categories, not a subset — has been carried into a
    comparison at step 4 or 5, or carries a stated exclusion with the rule that
    excludes it. Judge each row by the category step 3 gave it. An empty ledger
    does not satisfy this gate: it means step 3 traced nothing, and the audit
    returns there rather than terminating.
-
-Do not report generic improvements. Classify supported candidates as architecture
-defect, owner defect, implementation drift, justified divergence, quarantined
-scaffold, or insufficient evidence.
+7. **Classify and decide.** Once the coverage gate passes, classify every
+   candidate step 4 promoted as architecture defect, owner defect, implementation
+   drift, justified divergence, quarantined scaffold, or insufficient evidence —
+   one of those six, and no other label. Then rank the findings by the cost of
+   leaving each in place, rank the decisions they force, most costly to reverse
+   first, and for each slice write the
+   fitness scenario its scaling or adversarial variable makes realistic: what that
+   variable does next, and which classified findings decide whether the current
+   architecture holds under it. Do not report generic improvements.
 
 ## Verdict And Output
 
@@ -96,9 +111,10 @@ Then provide only the material sections needed to support it:
 3. ranked findings with production evidence, hidden premise, tax, and
    amplification route;
 4. counterfactual architecture and machinery removed or relocated;
-5. counterargument and falsifier for each serious finding;
-6. `STOP_OPTIMIZING` and `PROBABLY_JUSTIFIED` items;
-7. prioritized decisions and realistic fitness scenarios.
+5. counterargument and falsifier for each finding step 5 deep-checked;
+6. the candidates step 7 classified justified divergence or quarantined
+   scaffold, with the reason each is not a defect;
+7. the prioritized decisions and the per-slice fitness scenarios from step 7.
 
 Make the best evidence-supported judgment available. Expose assumptions, but do
 not end with an unranked option menu or an interview questionnaire.
