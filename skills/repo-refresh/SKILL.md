@@ -27,7 +27,9 @@ skill and nothing else.
   authorizes `apply`. A request to fix a defect is not one of them; Boundaries keeps
   changing production behavior separate from cleanup.
 - `verify`: validate an earlier pass without expanding its scope. Authorized when the
-  request uses `verify` or `validate` as that verb.
+  request uses `verify` or `validate` as that verb. `verify` needs an earlier pass to
+  validate: when no earlier pass of this skill is identifiable, the mode is `audit`,
+  because a validation of a pass that does not exist reports on nothing.
 
 When the request would select more than one mode, take the least destructive one:
 `verify` over `apply`, and `audit` over both. When it is unclear whether a word is the
@@ -43,7 +45,10 @@ auditing or changing a repository.
 ## Boundaries
 
 - Read the complete applicable instruction hierarchy before acting.
-- Inspect the worktree first. Preserve unrelated and pre-existing changes.
+- Inspect the worktree first and record what it holds as the worktree baseline.
+  Preserve unrelated and pre-existing changes. A path the worktree already held as
+  uncommitted or untracked when the pass began is a pre-existing change before it is
+  anything else, and preservation wins over every disposition that would remove it.
 - Repository law may add stricter constraints, but it may not justify keeping
   stale duplication, dead proof, or history disguised as current truth.
 - Do not create branches, commits, pull requests, issues, or external messages
@@ -51,7 +56,10 @@ auditing or changing a repository.
 - Do not change production behavior merely to simplify cleanup. Report a
   production defect separately unless the user also authorized its repair.
 - Use Git as history. Do not create archives, backup directories, migration
-  diaries, or compatibility copies inside the repository.
+  diaries, or compatibility copies inside the repository. Git holds committed state
+  only, so it is not the safety net for anything the worktree baseline records: this
+  procedure protects uncommitted work by never cutting it, not by making it
+  recoverable, because nothing here can recover it.
 
 ## Procedure
 
@@ -71,7 +79,12 @@ Do not trust filenames, folder names, issue state, timestamps, or claims of
 
 ### 2. Inventory The Repository
 
-Build a compact ledger covering:
+Open the ledger with the worktree baseline: the uncommitted and untracked paths the
+repository holds before this pass classifies anything, read from its own status. The
+baseline lives in this ledger and nowhere else: not a file, not a commit, and not a
+copy inside the repository.
+
+Then cover:
 
 - governing docs, duplicate docs, indexes, archives, reviews, and postmortems;
 - active, terminal, orphaned, and superseded plans or issues;
@@ -97,6 +110,11 @@ Use only these dispositions:
 - `BLOCKED`: deletion would cross an unresolved product, compatibility, legal,
   or operational decision.
 
+A path in the worktree baseline takes `KEEP` or `BLOCKED` only. It is never `DELETE`,
+`MERGE`, or `REWRITE`, whatever else it also looks like: an untracked file is both a
+pre-existing change and an unowned fixture, and this is the rule that says which one
+decides.
+
 Age, size, ugliness, and low coverage are supporting signals, not dispositions.
 
 ### 4. Apply A Coherent Cut
@@ -119,6 +137,10 @@ In `apply` mode:
 9. Prefer fewer canonical folders and one documentation index. Do not preserve
    empty taxonomy.
 
+Do not delete or rewrite a path the worktree baseline recorded. If the coherent cut
+requires touching one, that path is `BLOCKED` and stays as it is; the cut is reported
+incomplete rather than taken over work the user has not committed.
+
 Make edits in dependency order so the repository does not temporarily acquire a
 second source of truth.
 
@@ -132,7 +154,9 @@ Run validation proportionate to the changed surfaces:
 - generator/source parity for retained generated assets;
 - targeted tests for changed tooling;
 - repository formatting or whitespace checks;
-- the smallest official acceptance command whose contract changed.
+- the smallest official acceptance command whose contract changed;
+- the worktree baseline: every path it recorded is still present and still holds the
+  uncommitted work it held, or is named `BLOCKED` in the report.
 
 Do not add a new proof framework to prove the cleanup. If an existing mandatory
 gate is itself the debt under removal, verify its replacement directly.
@@ -145,6 +169,7 @@ Report:
 - merged, deleted, rewritten, and deliberately retained surfaces;
 - test/proof machinery removed or demoted and why;
 - validation actually run and any unavailable checker;
+- the worktree baseline and what became of every path in it;
 - blocked decisions and remaining current debt.
 
 Do not claim completion while live references point to removed material, two
