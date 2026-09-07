@@ -9,7 +9,8 @@ Row shape, one line, ` | ` between fields:
 
     G<id> | <ISO time> | kind=<kind> | <branch>@<head> | status=<status>
       [| channel=<channel>] [| writer=<seat>] | record=<timely|reconstruction>
-      [| push=<base>..<head> count=<n> boundary-check="<paths outside the boundary>"]
+      [| push=<base>..<head> count=<n> boundary="<declared paths>"
+         boundary-check="<paths outside the boundary>"]
       | note=<one line> | quote="<verbatim>"
 
 `quote=` is terminal and holds verbatim text — the Human's words on a gate row,
@@ -33,7 +34,8 @@ WRITER_RE = re.compile(r"^[a-z][a-z0-9_-]*$")
 HEAD_RE = re.compile(r"^(?P<branch>[^ |@]+)@(?P<head>[0-9a-f]{7,40})$")
 PUSH_RE = re.compile(
     r'^push=(?P<base>[0-9a-f]{7,40})\.\.(?P<head>[0-9a-f]{7,40}) '
-    r'count=(?P<count>\d+) boundary-check="(?P<boundary>[^"]*)"$'
+    r'count=(?P<count>\d+) boundary="(?P<declared>[^"]*)" '
+    r'boundary-check="(?P<boundary>[^"]*)"$'
 )
 ID_RE = re.compile(r"^G(\d+) ")
 RECORD_VALUES = ("timely", "reconstruction")
@@ -89,15 +91,25 @@ def derive_push(repo: Path, base: str, head: str, boundary: list[str]) -> tuple[
             ).splitlines() if path
         )
     outside = sorted(path for path in changed
-                     if not any(path == b or path.startswith(b.rstrip("/") + "/")
+                     if not any(b == "." or path == b or path.startswith(b.rstrip("/") + "/")
                                 for b in boundary))
     if any('"' in path or "|" in path or path.split() != [path] for path in outside):
         raise RowError("a path outside the boundary contains a delimiter character")
     return count, outside
 
 
-def push_field(base: str, head: str, count: str, outside: list[str]) -> str:
-    return f'push={base}..{head} count={count} boundary-check="{" ".join(outside)}"'
+def push_field(base: str, head: str, count: str,
+               boundary: list[str], outside: list[str]) -> str:
+    """The push block, carrying the derivation's input beside its output.
+
+    `boundary-check` alone is uninterpretable: it means "nothing outside the
+    boundary" and does not say what the boundary was, so the same empty value
+    reads as a tight check or a vacuous one. Carrying the declared paths makes
+    the block re-derivable from the row and git alone, with nothing supplied
+    from a seat's memory at check time.
+    """
+    return (f'push={base}..{head} count={count} '
+            f'boundary="{" ".join(boundary)}" boundary-check="{" ".join(outside)}"')
 
 
 def build(args: argparse.Namespace, repo: Path, ledger: Path) -> str:
@@ -149,25 +161,28 @@ def build(args: argparse.Namespace, repo: Path, ledger: Path) -> str:
                 f"origin/{branch} is {remote[0] if remote else 'absent'}, not {pushed} — "
                 "the push this row claims has not landed"
             )
+        if not args.boundary:
+            raise RowError(
+                "a push row needs --boundary: the declared paths the push was judged "
+                "against are part of the row, and refusing here keeps the bad row out "
+                "of an append-only file rather than rejecting it after it lands"
+            )
         count, outside = derive_push(repo, args.push_base, pushed, args.boundary)
-        fields.append(push_field(args.push_base, pushed, count, outside))
+        fields.append(push_field(args.push_base, pushed, count, args.boundary, outside))
     fields.append(f"note={note}")
     fields.append(f'quote="{quote}"')
     return " | ".join(fields)
 
 
-def check(row: str, repo: Path, boundary: list[str]) -> None:
+def check(row: str, repo: Path) -> None:
     """Re-derive every derived field in an existing row and compare.
 
-    `boundary` is the declared path boundary the push block was derived
-    against. It is not carried in the row — the ledgers are append-only and
-    rows written before this check existed would become unparseable — so the
-    caller supplies it, and a push row cannot be checked without it. An empty
-    boundary is not the safe default it looks like: it puts every touched path
-    outside the boundary, so the derivation reproduces the entire changed set
-    in sorted order, and a row over-claiming that whole set — the shape six
-    rows across two ledgers already carry — matches and passes. Fail-closed
-    is therefore a refusal to derive, not a comparison against nothing.
+    Every input the re-derivation needs comes from the row and from git: the
+    declared boundary is carried in the push block, so no caller supplies it
+    from memory and none can supply the wrong one. A row declaring an empty
+    boundary is refused rather than derived against, because an empty boundary
+    puts every touched path outside it and reproduces the whole changed set,
+    which passes any row over-claiming that set.
     """
     if not ID_RE.match(row):
         raise RowError("row does not start with a gate id")
@@ -191,8 +206,9 @@ def check(row: str, repo: Path, boundary: list[str]) -> None:
     m = HEAD_RE.match(head_field)
     if not m:
         raise RowError(f"field {head_field!r} is not <branch>@<head>")
+    # The object, not the ref: a merge that deletes the branch must not make a
+    # landed row permanently uncheckable. Retrievability belongs to the object.
     git(repo, "rev-parse", "--verify", f"{m.group('head')}^{{commit}}")
-    git(repo, "rev-parse", "--verify", f"refs/heads/{m.group('branch')}")
 
     known = ("channel=", "writer=", "record=", "push=", "note=")
     for field in rest:
@@ -214,12 +230,11 @@ def check(row: str, repo: Path, boundary: list[str]) -> None:
         if not p:
             raise RowError(f"push block {field!r} is malformed")
         base, phead = p.group("base"), p.group("head")
+        boundary = p.group("declared").split()
         if not boundary:
             raise RowError(
-                "this row carries a push block and no boundary was declared; pass the "
-                "--boundary paths the push was judged against. Deriving against an empty "
-                "boundary puts every path outside it, which passes any row that claims "
-                "the whole changed set"
+                'this row declares boundary="" — an empty boundary puts every touched '
+                "path outside it, which passes any row claiming the whole changed set"
             )
         count, outside = derive_push(repo, base, phead, boundary)
         if count != p.group("count"):
@@ -254,9 +269,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--record", choices=RECORD_VALUES, default="timely")
     parser.add_argument("--push-base", help="the intake's recorded merge-base; the head is derived")
     parser.add_argument("--boundary", action="append", default=[],
-                        help="a declared boundary path; repeatable. Required by --check "
-                             "on a row carrying a push block, and enforced there: without it "
-                             "the check refuses to derive rather than deriving against nothing")
+                        help="a declared boundary path; repeatable, required to append a push "
+                             "row, and written into the row so --check derives against the "
+                             "same paths without being told them")
     parser.add_argument("--note", default="")
     parser.add_argument("--quote", default="")
     args = parser.parse_args(argv)
@@ -266,7 +281,7 @@ def main(argv: list[str] | None = None) -> int:
             rows = [l for l in args.ledger.read_text().splitlines() if ID_RE.match(l)]
             if not rows:
                 raise RowError(f"{args.ledger} holds no gate row")
-            check(rows[-1], args.repo, args.boundary)
+            check(rows[-1], args.repo)
             print(f"ok: {rows[-1].split(' | ')[0]} checks out")
             return 0
         if not args.kind or not args.status:
@@ -277,7 +292,7 @@ def main(argv: list[str] | None = None) -> int:
         stored = [l for l in args.ledger.read_text().splitlines() if ID_RE.match(l)][-1]
         if stored != row:
             raise RowError("the row read back from disk is not the row written")
-        check(stored, args.repo, args.boundary)
+        check(stored, args.repo)
         print(stored)
         return 0
     except RowError as exc:
