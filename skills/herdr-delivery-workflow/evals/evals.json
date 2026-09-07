@@ -205,11 +205,11 @@
     {
       "id": 17,
       "prompt": "In Herdr, the Reviewer just returned PASS on this issue and I've accepted it. Clean up the agents you spun up for it before moving on to the next issue.",
-      "expected_output": "Treats teardown as part of the same closeout that accepts the issue: preserves each agent's final evidence report first, then tears down every Engineer in the partition and the Reviewer this run created for the issue by closing the panes it created to host them, since there is no agent stop command and the agent clears when its pane closes; leaves the caller's own pane and the shared checkout untouched; verifies the safe-cleanup preconditions (no process running, no unexplained tracked change, reports preserved, no pending Human gate or dependent work) and leaves any agent still working, blocked on a gate, or holding dependent work open with a stated reason; does not use pane release-agent as a shutdown; only then frees the flight slot for the next issue.",
+      "expected_output": "Treats teardown as part of the same closeout that accepts the issue: preserves each agent's final evidence report first and, for the Reviewer, its transcript too (herdr agent read <name> into the run's workspace record), because the verdict names what was found and only the transcript shows what was tried, so a verdict without its attempts is a claim; then tears down every Engineer in the partition and the Reviewer this run created for the issue by closing the panes it created to host them, since there is no agent stop command and the agent clears when its pane closes; leaves the caller's own pane and the shared checkout untouched; verifies the safe-cleanup preconditions (no process running, no unexplained tracked change, reports preserved, no pending Human gate or dependent work) and leaves any agent still working, blocked on a gate, or holding dependent work open with a stated reason; does not use pane release-agent as a shutdown; only then frees the flight slot for the next issue.",
       "files": [],
       "assertions": [
         "Tears down every Engineer in the partition and the Reviewer by closing the panes this run created, not with a nonexistent agent stop command",
-        "Preserves each agent's evidence report before closing its pane",
+        "Preserves each agent's evidence report before closing its pane, and additionally preserves the Reviewer's transcript, treating a verdict without the attempts behind it as a claim",
         "Leaves the caller's own pane and the shared checkout untouched, and does not use pane release-agent as a teardown",
         "Checks the safe-cleanup preconditions and leaves any agent still working, blocked, or holding dependent work open with a stated reason",
         "Ties teardown to closeout before the flight slot moves to the next issue",
@@ -548,6 +548,97 @@
         "On timeout or a second refusal, prints the event in the Lead's own pane tagged UNDELIVERED with the error code, carries it as owed, and sends it first on the next turn",
         "Never answers the Supervisor's dialog and never treats the refusal as a Human decision",
         "Keeps the recovery to the Lead-to-Supervisor direction; a Peer whose send is refused still stops and is read from its pane by the Lead"
+      ]
+    },
+    {
+      "id": 45,
+      "prompt": "I'm in Herdr as the Lead. I just merged, pushed and deployed the slice, wrote its ledger rows and sent the Supervisor the handoff for it. The record already names the next slice, its base head, and its intake, and I'm working under the Human's standing grant to fix forward without asking each time. That's me done for now — I'll end the turn and wait.",
+      "expected_output": "Refuses the framing: ending a turn is not declining to start. The no-polling discipline forbids blocking, sleeping and standing watches; it does not license idling beside work that is already fully specified. Because the record names the next slice with its base head and its intake and a standing grant covers it, the same turn opens that slice — or, if something it needs is genuinely missing, the turn ends with one printed line naming exactly that, in the Awaiting shape, rather than ending silently. States why the distinction is load-bearing: an idle Lead beside specified work is a stall only the Human can notice, which is the inverse of polling debt and is invisible in Herdr's pane labels because the seat looks healthy. Does not invent a Peer report to await, does not wait on the Supervisor's acknowledgement of the handoff, and does not treat the handoff it just sent as a gate.",
+      "files": [],
+      "assertions": [
+        "Opens the next slice in the same turn rather than ending idle, because the record names it with its base head and intake and a standing grant covers it",
+        "If it does not open the slice, ends the turn with one printed line naming what that specific work awaits, instead of ending silently",
+        "Distinguishes not-polling from not-starting, and does not cite the no-poll or end-the-turn rule as a reason to stay idle",
+        "Does not wait or block on the Supervisor acknowledging the handoff it already sent, and does not treat that handoff as a gate",
+        "Names the failure mode: an idle seat beside specified work is a stall the Human alone can see, since the pane label looks healthy"
+      ]
+    },
+    {
+      "id": 46,
+      "prompt": "I'm in Herdr as the Lead. Twenty minutes ago I counted this project's gate ledger at 130 rows and told the Supervisor that number. Since then I appended the merge and push rows for this slice myself. The Supervisor is asking for the closeout summary now, and it needs the ledger size. Write it.",
+      "expected_output": "Does not reuse 130 and does not reach the new figure by adding two to it in prose. Re-runs the count against the file — grep -c '^G[0-9]' over the ledger path — after its own last write to that file, and reports what that command returned, naming the command and what was counted. States the rule it is applying: a seat's own write invalidates its own last count, so a measurement taken before an edit is memory once the edit lands, however recently it was measured, and arithmetic on a remembered number is that same memory with a step added. Treats any figure another seat supplied the same way — that seat's derivation, not this seat's, until this seat has run the command itself. Does not report the appended rows as recorded until each write landed and was read back.",
+      "files": [],
+      "assertions": [
+        "Re-derives the ledger count with a command run after this seat's own last write to that file, rather than reusing the earlier figure",
+        "Does not compute the new count by adding its own writes to the remembered number",
+        "Names the command and what was counted in the message it sends",
+        "States that a seat's own write invalidates its own last count, so a pre-edit measurement is memory once the edit lands",
+        "Treats a count received from another seat as that seat's derivation until this seat has run the command"
+      ]
+    },
+    {
+      "id": 47,
+      "prompt": "I'm in Herdr as the Lead, writing the review charter. I want the Reviewer to confirm that the doctrine passage and the script that implements it agree. My draft check reads: 'Retrieve references/human-gates-and-closeout.md at 9f21c04 with git show and confirm it matches scripts/gate_row.py at that commit.' Is that check sound?",
+      "expected_output": "Finds the check unsound as written, and names the reason precisely: it inspects two objects and names a retrieval for only one, so it has cited one. The passage is retrieved at 9f21c04; the script is asserted to be 'at that commit' with no retrieval of its own, which makes the second half decoration rather than a citation. Retrievability belongs to the object at that commit, not to the commit: naming a SHA once does not make every path under it retrieved. Repairs the check by giving the script its own git show <sha>:<path> retrieval, so both sides are objects the Reviewer actually fetched at check time and the disagreement, if any, is between two retrieved texts. Applies the same rule to the rest of the charter: every line reference, branch name and ledger row id in a message is retrieved when the message is written, with the command named, or it is decoration — and a line number in particular is re-derived rather than carried, since lines move.",
+      "files": [],
+      "assertions": [
+        "Rejects the check because it inspects two objects and names a retrieval for only one, which cites one",
+        "States that retrievability belongs to the object at that commit rather than to the commit, so one named SHA does not make every path under it retrieved",
+        "Repairs the check by giving the second object its own git show <sha>:<path> retrieval at check time",
+        "Extends the rule to line references, branch names and ledger row ids, treating an unretrieved one as decoration",
+        "Re-derives a cited line number rather than carrying it forward, because lines move"
+      ]
+    },
+    {
+      "id": 48,
+      "prompt": "I'm in Herdr as the Lead. You asked me about the push and I answered in this pane an hour ago: push it. My runtime then refused git push origin main twice. You logged that and moved on to the next slice. I'm looking at the ledger now and that push gate is still sitting there open — close it out, I already decided.",
+      "expected_output": "Leaves the gate open and explains why that is the correct state rather than an oversight. A Human decision is not self-executing: the decision stands and is not withdrawn by the refusal, but the gate resolves when the act lands, recorded by the seat that performed it, not when the Human spoke. Since origin was never moved, nothing landed, so there is nothing to record as resolved and closing the row would enter a push that did not happen. Keeps the two refusals attributed as runtime denials — a constraint on this seat, never the Human's ruling and never a withdrawal of the grant — with the refused command and its effect on the run named. Offers the routes that actually close it: retry the push in the narrowest allowed shape, relaunch the seat so a new allow-list applies, have the Human run it, or add a permission rule; and only after git ls-remote confirms origin moved does the resolving row go in, citing the range that landed.",
+      "files": [],
+      "assertions": [
+        "Keeps the gate open, because a Human decision is not self-executing and the gate resolves when the act lands, not when the Human spoke",
+        "Refuses to write a resolving row for a push that never moved origin",
+        "Holds that the decision still stands and was not withdrawn by the runtime refusal, so the grant is intact and the act is merely unexercised",
+        "Attributes both refusals as runtime denials constraining this seat rather than as the Human's ruling",
+        "Verifies the external state itself before any resolving row, and cites the range that actually landed"
+      ]
+    },
+    {
+      "id": 49,
+      "prompt": "I'm in Herdr as the Lead. I merged the branch fast-forward, deleted it, and appended the push row. I then ran the ledger script's --check and it came back ok, so the ledger is verified. Writing that in the handoff now.",
+      "expected_output": "Corrects the claim rather than the wording: --check re-derives the ledger's last row, so 'the ledger passes --check' is a statement about that one row and never about the ledger, and the handoff must say which row was checked. Separately, catches the deleted branch: a row whose <branch>@<head> names a branch the merge deleted can no longer be re-derived from the checkout, so the fact that the branch is gone is recorded beside the row that cites it and the head is cited by SHA in prose from then on. Keeps the ledger script as the row's only specification and does not restate or hand-edit the row's fields to work around either point. Does not report the handoff as recorded before the write has landed and been read back.",
+      "files": [],
+      "assertions": [
+        "States that --check re-derives only the ledger's last row, so a passing --check is never a statement about the whole ledger",
+        "Names in the handoff which row was actually checked rather than claiming the ledger is verified",
+        "Records beside the citing row that the merge deleted the branch its <branch>@<head> names, so the row is no longer re-derivable from the checkout",
+        "Cites that head by SHA in prose from then on instead of by the deleted branch name",
+        "Does not hand-edit a row or restate its fields to work around either point, leaving the script as the row's only specification"
+      ]
+    },
+    {
+      "id": 50,
+      "prompt": "I'm in Herdr as the Lead. The no-mistakes pipeline run on our head returned three findings: two are mechanical lint-level ones the pipeline owns, and one would widen a public API. The Supervisor has framed me a set of options for the Human, and the first one is 'the Human responds to the two mechanical findings in the pipeline interface'. Route all of this.",
+      "expected_output": "Splits the findings by class and keeps each act in its own seat. The two mechanical findings are handled inside the run, and the command that responds to them — accept, fix or dismiss, through the pipeline's own interface — is the Lead's act, not a Human gate; it moves to the Human only if the Human reserves it in their own words, never through a Supervisor-framed option or the Lead's own caution. So the Supervisor's first option is rejected as unsafe on exactly that ground: it puts a Lead act in the Human's seat and makes the Human the bottleneck of the Lead's own run. The public-API finding is the real gate: it touches material scope, so it gets the gate record with its ledger line, the same run pauses until the Human decides, and it then resumes through the pipeline's own command rather than as a new delivery. Notes that accepting a finding into the head creates a new head, which needs fresh evidence and a fresh independent verdict like any other.",
+      "files": [],
+      "assertions": [
+        "Responds to the two mechanical findings itself through the pipeline's interface, as the Lead's own act rather than a Human gate",
+        "Rejects the Supervisor-framed option that has the Human perform that response, naming it as an option that moves a Lead act into the Human's seat",
+        "States that only the Human's own words can reserve such an act, not a Supervisor's framing or the Lead's caution",
+        "Routes the public-API finding as a Human gate with its gate record and ledger line, pausing and resuming the same run through its own command",
+        "Requires fresh evidence and a fresh independent verdict on the new head any accepted finding creates"
+      ]
+    },
+    {
+      "id": 51,
+      "prompt": "I'm in Herdr as the Lead. The head under review is a procedure document, and my Engineer's report lists the four defects it fixed. I've drafted the Reviewer's charter with four checks, one per reported defect, each confirming the fix landed. Send it?",
+      "expected_output": "Does not send it as drafted: every check descends from the report, so the Reviewer would be confirming the report's coverage rather than reviewing the artefact. Adds at least one check derived from the artefact's own text — for a procedure, enumerate its producers and consumers from the text and run one against the other; for a selector, enumerate every phrase it matches and test each — so a defect the report never named can still surface. Keeps the four report-derived checks as disconfirming attempts rather than confirmations: each material claim gets a concrete failure scenario, an input, state or sequence that would make it false, and what was tried is reported even when nothing fails, since agreement reached without a disconfirming attempt is compliance and not review. Because the head is a design document, makes one disconfirming check for every non-negotiable contract line, and re-runs every clause that selects rows whenever an amendment adds a state or widens a selection set.",
+      "files": [],
+      "assertions": [
+        "Adds at least one check derived from the artefact's own text rather than from the report's findings list",
+        "Names the failure mode: a Reviewer whose every check descends from the report is confirming the report's coverage, not reviewing the artefact",
+        "Gives the text-derived check a concrete shape, such as enumerating a procedure's producers and consumers and running one against the other",
+        "Keeps each report-derived check as a disconfirming attempt with a concrete failure scenario, reported even when nothing fails",
+        "Treats the design-document rules as also in force: one disconfirming check per non-negotiable contract line, and re-running row-selecting clauses when an amendment widens a state or selection set"
       ]
     }
   ]
