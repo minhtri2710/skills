@@ -52,6 +52,10 @@ class GateRowTest(unittest.TestCase):
             "--note", "merged the reviewed head", "--quote", "merge it", *extra,
         ])
 
+    def git(self, *args: str) -> str:
+        return subprocess.run(["git", "-C", str(self.repo), *args],
+                              capture_output=True, text=True, check=True).stdout.strip()
+
     def rev(self, ref: str) -> str:
         return subprocess.run(["git", "-C", str(self.repo), "rev-parse", ref],
                               capture_output=True, text=True, check=True).stdout.strip()
@@ -82,7 +86,7 @@ class GateRowTest(unittest.TestCase):
                f'status=resolved:standing-waiver | record=timely | '
                f'push={base}..{head} count=7 boundary-check="" | note=n | quote="q"')
         with self.assertRaises(gate_row.RowError) as ctx:
-            gate_row.check(row, self.repo)
+            gate_row.check(row, self.repo, ["f1.txt", "f2.txt"])
         self.assertIn("carries 2 commits", str(ctx.exception))
 
     def test_a_pipe_in_note_is_refused(self):
@@ -107,7 +111,7 @@ class GateRowTest(unittest.TestCase):
                f'status=resolved:standing-waiver | authority=G64 | project=beo-skills | '
                f'record=timely | note=n | quote="q"')
         with self.assertRaises(gate_row.RowError) as ctx:
-            gate_row.check(row, self.repo)
+            gate_row.check(row, self.repo, [])
         self.assertIn("not in the row schema", str(ctx.exception))
 
     def add_remote(self, ref: str) -> None:
@@ -138,6 +142,98 @@ class GateRowTest(unittest.TestCase):
         self.assertEqual(self.append("--kind", "push", "--push-base", self.rev("HEAD~2"),
                                      "--boundary", "f1.txt"), 0)
         self.assertIn('boundary-check="f2.txt"', self.last_row())
+
+    def test_a_path_added_and_deleted_inside_the_range_is_still_named(self):
+        """S1 F002's own reproduction. The two end trees agree; the union does not.
+
+        This is the one input where a net `diff --name-only <base>..<head>` and the
+        doctrine's `rev-list | diff-tree` union disagree, and it disagrees in the
+        direction that lets an out-of-boundary write through clean.
+        """
+        base = self.rev("HEAD")
+        (self.repo / "src").mkdir()
+        (self.repo / "src" / "out-of-boundary.py").write_text("x\n")
+        self.git("add", "-A")
+        self.git("commit", "-qm", "add outside the boundary")
+        self.git("rm", "-q", "src/out-of-boundary.py")
+        self.git("commit", "-qm", "delete it again")
+
+        net = self.git("diff", "--name-only", f"{base}..HEAD")
+        self.assertEqual(net, "", "the net tree diff must be empty, or this case proves nothing")
+
+        self.add_remote("HEAD")
+        self.assertEqual(self.append("--kind", "push", "--push-base", base,
+                                     "--boundary", "docs"), 0)
+        row = self.last_row()
+        self.assertIn("count=2", row)
+        self.assertIn('boundary-check="src/out-of-boundary.py"', row)
+
+    def test_a_boundary_flag_holding_several_joined_paths_is_refused(self):
+        """The shape three ledgers actually wrote: one --boundary holding a joined list.
+
+        `--boundary` is `action="append"`, one flag per path, so a joined value is a
+        single string no path can equal or sit under. Every changed path then reads
+        as outside the boundary and the row is indistinguishable from one that
+        declared no boundary at all — which is why it fails closed here instead.
+        """
+        self.add_remote("HEAD")
+        self.assertEqual(self.append("--kind", "push", "--push-base", self.rev("HEAD~2"),
+                                     "--boundary", "f1.txt f2.txt"), 1)
+
+    def test_a_changed_path_holding_a_space_is_refused(self):
+        """boundary-check joins paths with spaces, so such a path cannot be read back."""
+        base = self.rev("HEAD")
+        (self.repo / "two words.txt").write_text("x\n")
+        self.git("add", "-A")
+        self.git("commit", "-qm", "a path with a space")
+        self.add_remote("HEAD")
+        self.assertEqual(self.append("--kind", "push", "--push-base", base,
+                                     "--boundary", "docs"), 1)
+
+    def valid_push_row(self) -> tuple[str, list[str]]:
+        """One push row the script built itself, with the boundary it was built against."""
+        boundary = ["f1.txt", "f2.txt"]
+        self.add_remote("HEAD")
+        self.assertEqual(self.append(
+            "--kind", "push", "--push-base", self.rev("HEAD~2"),
+            "--channel", "supervisor-relay:typed", "--writer", "lead-beo-skills",
+            *[a for b in boundary for a in ("--boundary", b)]), 0)
+        return self.last_row(), boundary
+
+    def test_the_control_row_still_checks_out(self):
+        """The matrix below only means something if the unmodified row passes."""
+        row, boundary = self.valid_push_row()
+        gate_row.check(row, self.repo, boundary)
+
+    def test_every_tamper_the_receive_record_found_passing_is_now_refused(self):
+        """S1 F001's six-of-six matrix: one field hand-edited at a time, re-checked."""
+        row, boundary = self.valid_push_row()
+        tampers = {
+            "boundary-check": ('boundary-check=""', 'boundary-check="src/fabricated.py"'),
+            "record": ("record=timely", "record=bogus"),
+            "quote": ('quote="merge it"', 'quote=""'),
+            "branch": ("main@", "nonexistent-branch@"),
+            "channel": ("channel=supervisor-relay:typed", "channel=bogus:bogus"),
+            "writer": ("writer=lead-beo-skills", "writer=NOT_A_SEAT"),
+        }
+        for name, (before, after) in tampers.items():
+            with self.subTest(name):
+                tampered = row.replace(before, after)
+                self.assertNotEqual(tampered, row, "the tamper did not change the row")
+                with self.assertRaises(gate_row.RowError):
+                    gate_row.check(tampered, self.repo, boundary)
+
+    def test_check_cannot_verify_a_push_row_without_the_declared_boundary(self):
+        """Fail-closed falls out of the shared derivation, with no guard clause.
+
+        No boundary means every touched path is outside it, so the re-derived
+        `boundary-check` cannot equal the `""` the row claims.
+        """
+        _, boundary = self.valid_push_row()
+        argv = ["--ledger", str(self.ledger), "--repo", str(self.repo), "--check"]
+        self.assertEqual(self.run_main(argv), 1)
+        self.assertEqual(
+            self.run_main(argv + [a for b in boundary for a in ("--boundary", b)]), 0)
 
 
 if __name__ == "__main__":

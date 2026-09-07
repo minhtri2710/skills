@@ -36,6 +36,7 @@ PUSH_RE = re.compile(
     r'count=(?P<count>\d+) boundary-check="(?P<boundary>[^"]*)"$'
 )
 ID_RE = re.compile(r"^G(\d+) ")
+RECORD_VALUES = ("timely", "reconstruction")
 
 
 class RowError(Exception):
@@ -61,16 +62,41 @@ def next_id(ledger: Path) -> int:
     return max(ids) + 1 if ids else 1
 
 
-def derive_push(repo: Path, base: str, head: str, boundary: list[str]) -> str:
+def derive_push(repo: Path, base: str, head: str, boundary: list[str]) -> tuple[str, list[str]]:
+    """The push block's two derived values, for whichever path asks: build or check.
+
+    `outside` is the union of paths touched by every commit in the range, merge
+    commits included, minus the declared boundary — not the diff of the two end
+    trees, which misses a path added by one commit in the range and deleted by
+    another. `human-gates-and-closeout.md` specifies the union; one derivation
+    serves both callers so neither can drift from it alone.
+    """
+    for b in boundary:
+        if not b or b.split() != [b]:
+            raise RowError(
+                f"boundary path {b!r} is empty or holds whitespace — --boundary is one flag "
+                "per path, and a path with a space cannot be read back out of boundary-check"
+            )
     git(repo, "merge-base", "--is-ancestor", base, head)  # raises when base is not an ancestor
     count = git(repo, "rev-list", "--count", f"{base}..{head}")
     if count == "0":
         raise RowError(f"push range {base}..{head} carries no commit")
-    changed = [p for p in git(repo, "diff", "--name-only", f"{base}..{head}").splitlines() if p]
-    outside = [p for p in changed
-               if not any(p == b or p.startswith(b.rstrip("/") + "/") for b in boundary)]
-    if any('"' in p or "|" in p for p in outside):
+    changed: set[str] = set()
+    for commit in git(repo, "rev-list", f"{base}..{head}").splitlines():
+        changed.update(
+            path for path in git(
+                repo, "diff-tree", "--root", "-m", "--no-commit-id", "--name-only", "-r", commit,
+            ).splitlines() if path
+        )
+    outside = sorted(path for path in changed
+                     if not any(path == b or path.startswith(b.rstrip("/") + "/")
+                                for b in boundary))
+    if any('"' in path or "|" in path or path.split() != [path] for path in outside):
         raise RowError("a path outside the boundary contains a delimiter character")
+    return count, outside
+
+
+def push_field(base: str, head: str, count: str, outside: list[str]) -> str:
     return f'push={base}..{head} count={count} boundary-check="{" ".join(outside)}"'
 
 
@@ -123,14 +149,24 @@ def build(args: argparse.Namespace, repo: Path, ledger: Path) -> str:
                 f"origin/{branch} is {remote[0] if remote else 'absent'}, not {pushed} — "
                 "the push this row claims has not landed"
             )
-        fields.append(derive_push(repo, args.push_base, pushed, args.boundary))
+        count, outside = derive_push(repo, args.push_base, pushed, args.boundary)
+        fields.append(push_field(args.push_base, pushed, count, outside))
     fields.append(f"note={note}")
     fields.append(f'quote="{quote}"')
     return " | ".join(fields)
 
 
-def check(row: str, repo: Path) -> None:
-    """Re-derive every derived field in an existing row and compare."""
+def check(row: str, repo: Path, boundary: list[str]) -> None:
+    """Re-derive every derived field in an existing row and compare.
+
+    `boundary` is the declared path boundary the push block was derived
+    against. It is not carried in the row — the ledgers are append-only and
+    rows written before this check existed would become unparseable — so the
+    caller supplies it. Omitting it is not a way past the check: with no
+    boundary every touched path falls outside it, so the re-derived
+    `boundary-check` cannot match a row claiming none, and the check fails
+    through the ordinary comparison rather than through a guard.
+    """
     if not ID_RE.match(row):
         raise RowError("row does not start with a gate id")
     quote = None
@@ -154,6 +190,7 @@ def check(row: str, repo: Path) -> None:
     if not m:
         raise RowError(f"field {head_field!r} is not <branch>@<head>")
     git(repo, "rev-parse", "--verify", f"{m.group('head')}^{{commit}}")
+    git(repo, "rev-parse", "--verify", f"refs/heads/{m.group('branch')}")
 
     known = ("channel=", "writer=", "record=", "push=", "note=")
     for field in rest:
@@ -161,6 +198,13 @@ def check(row: str, repo: Path) -> None:
             raise RowError(f"field {field.split('=')[0]!r} is not in the row schema")
     if not any(f.startswith("record=") for f in rest):
         raise RowError("record= is missing")
+    for name, pattern in (("channel", CHANNEL_RE), ("writer", WRITER_RE)):
+        for field in rest:
+            if field.startswith(f"{name}=") and not pattern.match(field.split("=", 1)[1]):
+                raise RowError(f"field {field!r} is not a valid {name}=")
+    for field in rest:
+        if field.startswith("record=") and field.split("=", 1)[1] not in RECORD_VALUES:
+            raise RowError(f"field {field!r} is not one of {RECORD_VALUES}")
     for field in rest:
         if not field.startswith("push="):
             continue
@@ -168,17 +212,22 @@ def check(row: str, repo: Path) -> None:
         if not p:
             raise RowError(f"push block {field!r} is malformed")
         base, phead = p.group("base"), p.group("head")
-        actual = git(repo, "rev-list", "--count", f"{base}..{phead}")
-        if actual != p.group("count"):
+        count, outside = derive_push(repo, base, phead, boundary)
+        if count != p.group("count"):
             raise RowError(
-                f"count={p.group('count')} but {base}..{phead} carries {actual} commits"
+                f"count={p.group('count')} but {base}..{phead} carries {count} commits"
+            )
+        if " ".join(outside) != p.group("boundary"):
+            raise RowError(
+                f'boundary-check="{p.group("boundary")}" but the union over {base}..{phead} '
+                f'outside the declared boundary is "{" ".join(outside)}"'
             )
     note = next((f[len("note="):] for f in rest if f.startswith("note=")), None)
     if note is None or not note.strip():
         raise RowError("note= is missing or empty")
     if len(note) > NOTE_MAX:
         raise RowError(f"note= is {len(note)} chars, over the {NOTE_MAX} cap")
-    if quote is None and status.split("=", 1)[1] != "open":
+    if not quote and status.split("=", 1)[1] != "open":
         raise RowError("quote= is required unless status=open")
 
 
@@ -193,10 +242,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--status")
     parser.add_argument("--channel")
     parser.add_argument("--writer")
-    parser.add_argument("--record", choices=("timely", "reconstruction"), default="timely")
+    parser.add_argument("--record", choices=RECORD_VALUES, default="timely")
     parser.add_argument("--push-base", help="the intake's recorded merge-base; the head is derived")
     parser.add_argument("--boundary", action="append", default=[],
-                        help="a declared boundary path; repeatable")
+                        help="a declared boundary path; repeatable. Required by --check "
+                             "on a row carrying a push block, which re-derives it")
     parser.add_argument("--note", default="")
     parser.add_argument("--quote", default="")
     args = parser.parse_args(argv)
@@ -206,7 +256,7 @@ def main(argv: list[str] | None = None) -> int:
             rows = [l for l in args.ledger.read_text().splitlines() if ID_RE.match(l)]
             if not rows:
                 raise RowError(f"{args.ledger} holds no gate row")
-            check(rows[-1], args.repo)
+            check(rows[-1], args.repo, args.boundary)
             print(f"ok: {rows[-1].split(' | ')[0]} checks out")
             return 0
         if not args.kind or not args.status:
@@ -217,7 +267,7 @@ def main(argv: list[str] | None = None) -> int:
         stored = [l for l in args.ledger.read_text().splitlines() if ID_RE.match(l)][-1]
         if stored != row:
             raise RowError("the row read back from disk is not the row written")
-        check(stored, args.repo)
+        check(stored, args.repo, args.boundary)
         print(stored)
         return 0
     except RowError as exc:
