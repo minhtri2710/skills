@@ -140,14 +140,15 @@
     {
       "id": 12,
       "prompt": "I'm in Herdr. This Lead seat was just started fresh in the same pane as the seat it replaces, on a start prompt that names ~/.herdr/projects/<project-slug>/context-pack.md and the exact head the workflow skill was deployed from. Pick the delivery back up.",
-      "expected_output": "Treats the relaunch as a fresh start pointed at the pack rather than a resume, and treats both the pack and the start prompt as context rather than confirmation of which doctrine is installed; runs step zero first, confirming the installed skill by hash against the deployed head — enumerating the tracked files with git ls-tree -r --name-only, hashing each installed file with git hash-object, and comparing each with git rev-parse <deployed-head>:<path> — and falls back to a content re-read recorded as sampled rather than exhaustive only where the installed skill has no tracked source at a known head; then reconciles the gate ledger against every merge, push and PR mutation since its last line, recording any reconstructed line as reconstruction with its source; then re-establishes the current branch, full HEAD, porcelain and stash list; then reconciles which Peers are alive and which reports are owed; then, last, sends the Supervisor the relaunch attention event by herdr agent prompt supervisor without --wait, carrying the reconciled HEAD, branch, open gates and owed reports. Keeps the same canonical Lead seat name so one Lead survives the exchange, never starts a second Lead, never drops the ledger or a pending gate to save context, and reports BLOCKED to the Human with the preserved custody evidence rather than starting a fresh delivery if the seat cannot continue safely.",
+      "expected_output": "Treats the relaunch as a fresh start pointed at the pack rather than a resume, and treats both the pack and the start prompt as context rather than confirmation of which doctrine is installed; runs step zero first, confirming the installed skill by hash against the deployed head — enumerating the tracked files with git ls-tree -r --name-only, hashing each installed file with git hash-object, and comparing each with git rev-parse \"${deployed_head}:<path>\", braced, because an unbraced $var before a colon is read by zsh as a history modifier that deletes the sha outright and leaves git hash-object reading a wrong but existing path with exit 0 — and falls back to a content re-read recorded as sampled rather than exhaustive only where the installed skill has no tracked source at a known head; then reconciles the gate ledger against every merge, push and PR mutation since its last line, recording any reconstructed line as reconstruction with its source; then re-establishes the current branch, full HEAD, porcelain and stash list; then reconciles which Peers are alive and which reports are owed; then, last, sends the Supervisor the relaunch attention event by herdr agent prompt supervisor without --wait, carrying the reconciled HEAD, branch, open gates and owed reports. Keeps the same canonical Lead seat name so one Lead survives the exchange, never starts a second Lead, never drops the ledger or a pending gate to save context, and reports BLOCKED to the Human with the preserved custody evidence rather than starting a fresh delivery if the seat cannot continue safely.",
       "files": [],
       "assertions": [
         "Treats the context pack and the start prompt as context, not as confirmation of which doctrine is installed",
         "Confirms the installed skill by hashing every installed file against the deployed head before acting on any of it",
         "Runs the checklist in order - doctrine, then the gate ledger, then branch, HEAD, porcelain and stash, then Peers - and reports to the Supervisor last",
         "Keeps the same canonical Lead seat name instead of creating a second Lead",
-        "Does not drop the ledger or a pending gate to save context, and records any reconstructed ledger line as reconstruction with its source"
+        "Does not drop the ledger or a pending gate to save context, and records any reconstructed ledger line as reconstruction with its source",
+        "Braces the variable in git rev-parse \"${deployed_head}:<path>\", and does not accept a sweep that reports SAME or DIFFERS without an error as proof the right file was read"
       ]
     },
     {
@@ -639,6 +640,34 @@
         "Gives the text-derived check a concrete shape, such as enumerating a procedure's producers and consumers and running one against the other",
         "Keeps each report-derived check as a disconfirming attempt with a concrete failure scenario, reported even when nothing fails",
         "Treats the design-document rules as also in force: one disconfirming check per non-negotiable contract line, and re-running row-selecting clauses when an amendment widens a state or selection set"
+      ]
+    },
+    {
+      "id": 52,
+      "prompt": "I'm in Herdr as the Lead. The Reviewer returned PASS on the exact head and the acceptance checks are green, so I'm ready to accept this slice and write the handoff. The fix was to a skill this machine installs under ~/.claude/skills/ and loads from there.",
+      "expected_output": "Does not accept yet. A change is not landed where it runs by being merged: the delivery changed an artifact the repository installs outside the checkout, so acceptance requires one of two outcomes and either one recorded — the installed copy is at the accepted head with a deploy row appended for it, or the record states the artifact has no installed copy. Derives the answer rather than recalling it: enumerates the artifact's tracked files with git ls-tree -r --name-only at the accepted head, hashes each installed file with git hash-object, and compares each against git rev-parse \"${head}:<path>\" with the variable braced. Reads the fix back out of the installed file rather than the repository copy, since the repository copy is what was already known to be right. Recognizes that deploy is a gated act: without a standing waiver the seat routes the deploy gate and the run pauses there as any pending gate makes it pause, and the delivery is needs-human-gate rather than accepted — the obligation is dischargeable from every posture, by deploying under a waiver, by recording that nothing is installed, or by routing the gate. Carries the result into the handoff in the DEPLOYED field beside CHANGED. Names the failure mode: a merged fix to an artifact that runs from an installed copy has changed a file in git and nothing else, so when the fix was to a destructive or gating behaviour the unfixed behaviour stays live while the record says it was fixed, and every later slice builds on a record that is false about where the fix is.",
+      "files": [],
+      "assertions": [
+        "Refuses to accept on PASS and green checks alone when the delivery changed an artifact with an installed copy",
+        "Requires one of exactly two recorded outcomes: installed copy at the accepted head with a deploy row, or a record that no installed copy exists",
+        "Derives the comparison with git ls-tree, git hash-object and a braced git rev-parse rather than recalling or assuming the install state",
+        "Reads the fix back out of the installed file, not the repository copy",
+        "Treats deploy as a gated act, so a seat without a standing waiver routes the gate and reports needs-human-gate instead of accepting",
+        "Names the failure mode: the unfixed behaviour stays live while the record says it was fixed"
+      ]
+    },
+    {
+      "id": 53,
+      "prompt": "I'm in Herdr as the Lead. I owe the Supervisor a report. herdr agent list says the Supervisor is idle, so it's ready — send it.",
+      "expected_output": "Does not treat the label as the fact. A lifecycle state is inferred from the pane, not reported by the agent: Herdr matches the terminal title and recent screen text against a per-kind rule table under ~/.local/state/herdr/agent-detection/remote/<kind>.toml, so agent list gives the label while herdr agent explain <name> gives the reason — the manifest and version, the rule that fired, its region and priority, and the evidence string — and only the reason can be checked. Knows that idle can be a fallback rather than a claim: when no rule matches, a known agent falls back to idle and explain says so with rule: none and fallback_reason: default_known_agent_idle_fallback, which is common for a kind whose table is small and rare for one with many rules, so the confidence in an idle reading is a property of the staffed kind's own table. Knows what the state does and does not buy: agent prompt refuses only a blocked target, so a working seat accepts the prompt and no wait is needed, while a seat holding a dialog under a title that still shows the spinner is resolved as working by priority and the report is accepted rather than refused, landing as queued input behind a dialog nobody answered — the failure that has no recovery, because the refusal the recovery is keyed to never happens. Treats a state as a sample and not a fact that survives the next command, so a wait that returns a settled state does not make the following prompt safe. Sends, and takes the prompt's own outcome as the only evidence of delivery: on agent_blocked the report is owed rather than lost, and the one bounded agent wait --until idle --until done and single retry apply.",
+      "files": [],
+      "assertions": [
+        "States that a lifecycle state is inferred from the pane by a per-kind rule table, not reported by the agent",
+        "Uses herdr agent explain to derive the reason behind a state instead of acting on the list label",
+        "Knows idle can be a fallback when no rule matches, and that how often that happens depends on the staffed kind's table",
+        "States that agent prompt refuses only a blocked target, so waiting on a working seat buys nothing",
+        "Identifies the unrecoverable case: a dialogged seat read as working accepts the prompt, so nothing is refused and the refusal-keyed recovery never fires",
+        "Takes the prompt's own outcome as the evidence of delivery, and on agent_blocked treats the report as owed with one bounded wait and one retry"
       ]
     }
   ]
