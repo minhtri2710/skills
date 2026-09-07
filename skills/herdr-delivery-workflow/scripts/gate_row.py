@@ -10,7 +10,7 @@ Row shape, one line, ` | ` between fields:
     G<id> | <ISO time> | kind=<kind> | <branch>@<head> | status=<status>
       [| channel=<channel>] [| writer=<seat>] | record=<timely|reconstruction>
       [| push=<base>..<head> count=<n> boundary="<declared paths>"
-         boundary-check="<paths outside the boundary>"]
+         boundary-check="<paths outside the boundary>"]   <- required iff kind=push
       | note=<one line> | quote="<verbatim>"
 
 `quote=` is terminal and holds verbatim text — the Human's words on a gate row,
@@ -153,7 +153,13 @@ def build(args: argparse.Namespace, repo: Path, ledger: Path) -> str:
     if args.writer:
         fields.append(f"writer={args.writer}")
     fields.append(f"record={args.record}")
-    if args.push_base:
+    if args.kind == "push":
+        if not args.push_base:
+            raise RowError(
+                "a push row needs --push-base: the range, count and boundary-check are "
+                "derived from it, and a push row carrying none of them asserts that a "
+                "push happened while holding no evidence that it did"
+            )
         pushed = git(repo, "rev-parse", "HEAD")
         remote = git(repo, "ls-remote", "origin", f"refs/heads/{branch}").split()
         if not remote or remote[0] != pushed:
@@ -169,6 +175,12 @@ def build(args: argparse.Namespace, repo: Path, ledger: Path) -> str:
             )
         count, outside = derive_push(repo, args.push_base, pushed, args.boundary)
         fields.append(push_field(args.push_base, pushed, count, args.boundary, outside))
+    elif args.push_base:
+        raise RowError(
+            f"--push-base is only meaningful on a push row, and this row is kind={args.kind} "
+            "— an argument accepted and silently dropped is how a row loses the evidence "
+            "it claims to carry"
+        )
     fields.append(f"note={note}")
     fields.append(f'quote="{quote}"')
     return " | ".join(fields)
@@ -223,6 +235,12 @@ def check(row: str, repo: Path) -> None:
     for field in rest:
         if field.startswith("record=") and field.split("=", 1)[1] not in RECORD_VALUES:
             raise RowError(f"field {field!r} is not one of {RECORD_VALUES}")
+    if kind.split("=", 1)[1] == "push" and not any(f.startswith("push=") for f in rest):
+        raise RowError(
+            "this row is kind=push and carries no push block — the range, count and "
+            "boundary-check are the whole of what a push row is checked against, so a "
+            "row without them is checked against nothing and passes vacuously"
+        )
     for field in rest:
         if not field.startswith("push="):
             continue

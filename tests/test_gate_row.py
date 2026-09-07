@@ -313,6 +313,80 @@ class GateRowTest(unittest.TestCase):
             gate_row.check(row.replace(f"main@{self.rev('HEAD')}", f"main@{'0' * 40}"),
                            self.repo)
 
+    def test_a_kind_push_row_carries_all_four_push_fields_or_no_row_exists(self):
+        """The acceptance criterion stated on row CONTENT, not on --check's verdict.
+
+        `--check` is the instrument that could not see this defect: on the parent
+        it printed a byte-identical `ok` for a verified push row and for a
+        vacuous one, so a criterion phrased as "--check passes" is satisfied by
+        exactly the row the slice exists to prevent. Phrased on content, it is
+        not: either the row holds the range, the count, the declared boundary and
+        the boundary-check, or the append was refused and no row exists at all.
+        """
+        self.add_remote("HEAD")
+        before = self.ledger.read_text()
+
+        # Arm A: kind=push with no --push-base. No row may exist.
+        self.assertEqual(self.append("--kind", "push", "--boundary", "f1.txt"), 1)
+        self.assertEqual(self.ledger.read_text(), before)
+
+        # Arm B: the same row supplied properly. Every field present, by content.
+        self.assertEqual(self.append(
+            "--kind", "push", "--push-base", self.rev("HEAD~2"),
+            "--boundary", "f1.txt", "--boundary", "f2.txt"), 0)
+        row = self.last_row()
+        self.assertIn("kind=push", row)
+        for field in ("push=", "count=", 'boundary="', 'boundary-check="'):
+            self.assertIn(field, row, f"a kind=push row must carry {field}")
+        self.assertRegex(row, r"push=[0-9a-f]{7,40}\.\.[0-9a-f]{7,40} count=\d+ "
+                              r'boundary="[^"]+" boundary-check="[^"]*"')
+
+    def test_a_push_row_without_push_base_never_reaches_the_ledger(self):
+        """The live defect B7 hit: kind and block were controlled independently.
+
+        The parent gated the whole block on `--push-base`, so this exact
+        invocation appended `kind=push` with no range, no count, no boundary and
+        no boundary-check, skipped the `ls-remote` proof that the push landed,
+        and silently dropped the `--boundary` that was passed. The row asserted a
+        push and carried nothing that could contradict it.
+        """
+        self.add_remote("HEAD")
+        before = self.ledger.read_text()
+        self.assertEqual(self.append("--kind", "push", "--boundary", "f1.txt"), 1)
+        self.assertIn("a push row needs --push-base", self.err.getvalue())
+        self.assertEqual(self.ledger.read_text(), before, "the refused row landed anyway")
+
+    def test_a_kind_push_row_with_no_push_block_is_refused_by_check(self):
+        """The other half: the checker confirmed such a row instead of failing it.
+
+        `check` validated a push block only where one was present, so a
+        `kind=push` row without one was checked against nothing and returned
+        `ok`. Both halves are needed — repairing `build` alone still passes every
+        row already written that way.
+        """
+        row, _ = self.valid_push_row()
+        blockless = re.sub(r" \| push=[^|]+", " ", row)
+        self.assertNotIn("push=", blockless)
+        self.assertIn("kind=push", blockless)
+        self.ledger.write_text(blockless + "\n")
+        self.assertEqual(self.run_main(
+            ["--ledger", str(self.ledger), "--repo", str(self.repo), "--check"]), 1)
+        self.assertIn("carries no push block", self.err.getvalue())
+
+    def test_push_base_on_a_non_push_row_is_refused_rather_than_dropped(self):
+        """An argument accepted and silently ignored is the same defect mirrored.
+
+        The parent emitted a push block on any row given `--push-base`, whatever
+        its kind. Tying the block to the kind closes that direction too, and says
+        so instead of quietly doing nothing.
+        """
+        self.add_remote("HEAD")
+        before = self.ledger.read_text()
+        self.assertEqual(self.append("--push-base", self.rev("HEAD~2"),
+                                     "--boundary", "f1.txt"), 1)
+        self.assertIn("only meaningful on a push row", self.err.getvalue())
+        self.assertEqual(self.ledger.read_text(), before, "the refused row landed anyway")
+
     def test_a_row_over_claiming_the_whole_changed_set_is_refused(self):
         """The shape six rows across two ledgers already carry.
 
