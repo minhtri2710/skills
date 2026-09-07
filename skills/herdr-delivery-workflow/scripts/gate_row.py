@@ -10,7 +10,7 @@ Row shape, one line, ` | ` between fields:
     G<id> | <ISO time> | kind=<kind> | <branch>@<head> | status=<status>
       [| channel=<channel>] [| writer=<seat>] | record=<timely|reconstruction>
       [| push=<base>..<head> count=<n> boundary="<declared paths>"
-         boundary-check="<paths outside the boundary>"]   <- required iff kind=push
+         boundary-check="<paths outside the boundary>"]   <- required on a push row
       | note=<one line> | quote="<verbatim>"
 
 `quote=` is terminal and holds verbatim text — the Human's words on a gate row,
@@ -175,9 +175,10 @@ def build(args: argparse.Namespace, repo: Path, ledger: Path) -> str:
             )
         count, outside = derive_push(repo, args.push_base, pushed, args.boundary)
         fields.append(push_field(args.push_base, pushed, count, args.boundary, outside))
-    elif args.push_base:
+    elif args.push_base or args.boundary:
+        flag = "--push-base" if args.push_base else "--boundary"
         raise RowError(
-            f"--push-base is only meaningful on a push row, and this row is kind={args.kind} "
+            f"{flag} is only meaningful on a push row, and this row is kind={args.kind} "
             "— an argument accepted and silently dropped is how a row loses the evidence "
             "it claims to carry"
         )

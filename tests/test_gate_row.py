@@ -387,6 +387,20 @@ class GateRowTest(unittest.TestCase):
         self.assertIn("only meaningful on a push row", self.err.getvalue())
         self.assertEqual(self.ledger.read_text(), before, "the refused row landed anyway")
 
+    def test_boundary_on_a_non_push_row_is_refused_rather_than_dropped(self):
+        """The other half of the mirror, and the defect this slice itself left.
+
+        The first pass refused `--push-base` on a non-push row and left
+        `--boundary` accepted and silently discarded — the same class the slice
+        exists to close, reintroduced one line away from the fix. Both arguments
+        only mean anything inside a push block, so both are refused when there is
+        no block to put them in.
+        """
+        before = self.ledger.read_text()
+        self.assertEqual(self.append("--boundary", "f1.txt"), 1)
+        self.assertIn("--boundary is only meaningful on a push row", self.err.getvalue())
+        self.assertEqual(self.ledger.read_text(), before, "the refused row landed anyway")
+
     def test_a_row_over_claiming_the_whole_changed_set_is_refused(self):
         """The shape six rows across two ledgers already carry.
 
