@@ -85,24 +85,38 @@ A slice may cross modules, and one module may contain several slices.
    does not satisfy this gate: it means step 3 traced nothing, and the audit
    returns there rather than terminating.
 7. **Classify and decide.** Once the coverage gate passes, classify every
-   candidate step 4 promoted as architecture defect, owner defect, implementation
-   drift, justified divergence, quarantined scaffold, or insufficient evidence —
-   one of those six, and no other label. Then rank the findings by the cost of
-   leaving each in place, rank the decisions they force, most costly to reverse
-   first, and for each slice write the
-   fitness scenario its scaling or adversarial variable makes realistic: what that
-   variable does next, and which classified findings decide whether the current
-   architecture holds under it. Do not report generic improvements.
+   candidate step 4 promoted as exactly one of these six literals, and no other
+   label: `ARCHITECTURE_DEFECT`, `OWNER_DEFECT`, `IMPLEMENTATION_DRIFT`,
+   `JUSTIFIED_DIVERGENCE`, `QUARANTINED_SCAFFOLD`, `INSUFFICIENT_EVIDENCE`. Then
+   rank the findings by the cost of leaving each in place, rank the decisions they
+   force, most costly to reverse first, and for each slice write the fitness
+   scenario its scaling or adversarial variable makes realistic: what that variable
+   does next, and which classified findings decide whether the current architecture
+   holds under it. Do not report generic improvements.
 
 ## Verdict And Output
 
-Lead with one verdict:
+Lead with one verdict, composed from the step 7 classifications by the first
+condition below that holds, read top to bottom. The step 6 coverage gate is the
+precondition: if it never passed, the verdict is `INSUFFICIENT_EVIDENCE` and no
+other, whatever was classified.
 
-- `KEEP_FOUNDATION`
-- `REPAIR_FIRST`
-- `REDIRECT_RECOMMENDED`
-- `STOP_AND_REDIRECT`
-- `INSUFFICIENT_EVIDENCE`
+- `STOP_AND_REDIRECT` — at least one `ARCHITECTURE_DEFECT` whose step 5
+  counterfactual removes or relocates the authoritative owner or state of a slice.
+- `REDIRECT_RECOMMENDED` — at least one `ARCHITECTURE_DEFECT`, and every such
+  counterfactual leaves each slice's authoritative owner and state in place.
+- `REPAIR_FIRST` — no `ARCHITECTURE_DEFECT`, and at least one `OWNER_DEFECT` or
+  `IMPLEMENTATION_DRIFT`.
+- `INSUFFICIENT_EVIDENCE` — none of the above, and at least one candidate
+  classified `INSUFFICIENT_EVIDENCE`. An unsettled candidate outranks a sound
+  foundation: the audit never reports one while holding the other.
+- `KEEP_FOUNDATION` — none of the above, so step 4 promoted no candidate, or every
+  promoted candidate is `JUSTIFIED_DIVERGENCE` or `QUARANTINED_SCAFFOLD`.
+
+`INSUFFICIENT_EVIDENCE` is the one literal in both vocabularies, and the two roles
+are distinguished by position, not by name: as a step 7 classification it says one
+candidate could not be settled, as a verdict it says the audit as a whole could not
+be. The fourth condition above is the whole relationship between them.
 
 Then provide only the material sections needed to support it:
 
@@ -112,8 +126,8 @@ Then provide only the material sections needed to support it:
    amplification route;
 4. counterfactual architecture and machinery removed or relocated;
 5. counterargument and falsifier for each finding step 5 deep-checked;
-6. the candidates step 7 classified justified divergence or quarantined
-   scaffold, with the reason each is not a defect;
+6. the candidates step 7 classified `JUSTIFIED_DIVERGENCE` or
+   `QUARANTINED_SCAFFOLD`, with the reason each is not a defect;
 7. the prioritized decisions and the per-slice fitness scenarios from step 7.
 
 Make the best evidence-supported judgment available. Expose assumptions, but do

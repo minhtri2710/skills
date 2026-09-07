@@ -145,7 +145,9 @@ evidence that the category is correct.
 
 ## Exoneration
 
-Return `BORING_STANDARD` or `JUSTIFIED_DEVIATION` when the production mechanism has
-the required information and owner, the counterexample is handled, and any deviation
-serves a named constraint at proportionate cost. Custom does not mean wrong, and
-visible complexity is not overengineering when the domain itself requires it.
+A production mechanism that has the required information and owner, whose
+counterexample is handled, and whose every deviation serves a named constraint at
+proportionate cost is exonerated. Step 4 does not promote it to a candidate at all;
+a deviation that reaches step 7 on other grounds and meets these conditions is
+classified `JUSTIFIED_DIVERGENCE`. Custom does not mean wrong, and visible
+complexity is not overengineering when the domain itself requires it.
