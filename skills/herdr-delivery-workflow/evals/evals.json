@@ -680,6 +680,18 @@
         "Records dialog= beside posture= and keeps the dialog-deny distinct from the permission posture, changing no posture= value",
         "Keeps the user-question tool only on the Supervisor seat"
       ]
+    },
+    {
+      "id": 55,
+      "prompt": "I'm in Herdr as the Lead at closeout. Loose per-run files — an intake-*.md, a handoff-*.md, and a Reviewer transcript — are sitting at the project root beside the coordination files. What should I do?",
+      "expected_output": "Consolidates the loose per-run files under `~/.herdr/projects/<slug>/runs/<issue-id>/`, leaving no root files beyond the enumerated coordination set and conditional `gates.legacy.md`; `runs/` is the sole additional root entry. Removes any file only after proving by content that it is redundant to a retained record, using identical `git hash-object` results or equal `git cat-file` output rather than a name or label, and never touches `config.md` or the live coordination files.",
+      "files": [],
+      "assertions": [
+        "Moves the materialized intake record, handoff copy, and Reviewer transcript into the run's workspace record under runs/<issue-id>/",
+        "Leaves no root files beyond the coordination set and conditional gates.legacy.md; runs/ is the sole additional root entry",
+        "Proves redundancy by content with git hash-object or git cat-file before removing a file",
+        "Leaves config.md and the live coordination files untouched"
+      ]
     }
   ]
 }
