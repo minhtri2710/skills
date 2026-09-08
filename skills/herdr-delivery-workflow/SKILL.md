@@ -30,6 +30,8 @@ Choose the smallest route:
 
 When a delivery route staffs any Peer — Engineer, Reviewer, or Architect — read `references/peer-policy.md` before sending its charter. When a Human gate appears or resources are ready for cleanup, read `references/human-gates-and-closeout.md`. When architecture, ownership, lifecycle, scalability, latency, compatibility, or proof quality is materially uncertain, read `references/structural-misfit-policy.md` and use its lenses selectively.
 
+Before treating a situation as ungoverned by this doctrine, confirm that no existing rule governs it, and perform the method a governing rule requires: naming or citing a method, caveat, or check is not executing it.
+
 Do not add delivery ceremony to a genuinely lightweight task. Escalate when ambiguity changes material scope, safety, external effects, credentials, permissions, security, or an irreversible decision.
 
 ## 2. Roles
