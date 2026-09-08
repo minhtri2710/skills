@@ -56,6 +56,8 @@ Recommendation: <bounded next step, or none>
 Escalation needed?: <no | Human — with the decision required>
 ```
 
+Every factual claim the Supervisor makes about the Lead's record - including a count, head, ledger row, attempt number, or which attempt passed - is retrieved and quoted from that record at write time, with the ledger row, head, transcript line, or retrieval command named, whether the claim appears in an observation or in option text framed for a Human question. A paraphrase or memory presented as the record's content is a false record, and is especially harmful in option text because the Human decides from it.
+
 Do not send routine acknowledgements, progress summaries, or restatements of the Lead's own record. One message per observation; silence when there is nothing to observe.
 
 ## Notebook
