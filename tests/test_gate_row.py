@@ -102,6 +102,89 @@ class GateRowTest(unittest.TestCase):
             ["--ledger", str(self.ledger), "--repo", str(self.repo), "--check"]), 0)
         self.assertEqual(self.last_row(), written)
 
+    def test_quote_file_becomes_quote_and_round_trips(self):
+        quote_file = self.tmp / "refused-command.txt"
+        quote = "runtime denied command | --flag"
+        quote_file.write_text(quote, encoding="utf-8")
+        argv = [
+            "--ledger", str(self.ledger), "--repo", str(self.repo),
+            "--kind", "merge", "--status", "resolved:standing-waiver",
+            "--words", "human", "--note", "merged the reviewed head",
+            "--quote-file", str(quote_file),
+        ]
+        self.assertEqual(self.run_main(argv), 0)
+        self.assertTrue(self.last_row().endswith(f'quote="{quote}"'))
+        self.assertEqual(self.run_main([
+            "--ledger", str(self.ledger), "--repo", str(self.repo), "--check",
+        ]), 0)
+
+    def test_quote_file_strips_one_trailing_newline(self):
+        quote_file = self.tmp / "refused-command.txt"
+        quote_file.write_text("runtime denied command\n", encoding="utf-8")
+        self.assertEqual(self.run_main([
+            "--ledger", str(self.ledger), "--repo", str(self.repo),
+            "--kind", "merge", "--status", "resolved:standing-waiver",
+            "--words", "human", "--note", "merged the reviewed head",
+            "--quote-file", str(quote_file),
+        ]), 0)
+        self.assertTrue(self.last_row().endswith('quote="runtime denied command"'))
+
+    def test_quote_file_refuses_an_interior_newline(self):
+        quote_file = self.tmp / "refused-command.txt"
+        quote_file.write_text("first\nsecond\n", encoding="utf-8")
+        before = self.ledger.read_text()
+        self.assertEqual(self.run_main([
+            "--ledger", str(self.ledger), "--repo", str(self.repo),
+            "--kind", "merge", "--status", "resolved:standing-waiver",
+            "--words", "human", "--note", "merged the reviewed head",
+            "--quote-file", str(quote_file),
+        ]), 1)
+        self.assertIn("quote= is one line", self.err.getvalue())
+        self.assertEqual(self.ledger.read_text(), before)
+
+    def test_quote_and_quote_file_are_mutually_exclusive(self):
+        quote_file = self.tmp / "refused-command.txt"
+        quote_file.write_text("file quote", encoding="utf-8")
+        self.assertEqual(self.run_main([
+            "--ledger", str(self.ledger), "--repo", str(self.repo),
+            "--kind", "merge", "--status", "resolved:standing-waiver",
+            "--words", "human", "--note", "merged the reviewed head",
+            "--quote", "argument quote", "--quote-file", str(quote_file),
+        ]), 1)
+        self.assertIn("--quote", self.err.getvalue())
+        self.assertIn("--quote-file", self.err.getvalue())
+
+    def test_empty_quote_file_requires_words_none(self):
+        quote_file = self.tmp / "empty.txt"
+        quote_file.write_text("", encoding="utf-8")
+        self.assertEqual(self.run_main([
+            "--ledger", str(self.ledger), "--repo", str(self.repo),
+            "--kind", "merge", "--status", "resolved:standing-waiver",
+            "--words", "human", "--note", "merged the reviewed head",
+            "--quote-file", str(quote_file),
+        ]), 1)
+        self.assertIn("words=none", self.err.getvalue())
+
+    def test_empty_quote_file_with_none_and_open_lands(self):
+        quote_file = self.tmp / "empty.txt"
+        quote_file.write_text("", encoding="utf-8")
+        self.assertEqual(self.run_main([
+            "--ledger", str(self.ledger), "--repo", str(self.repo),
+            "--kind", "merge", "--status", "open", "--words", "none",
+            "--note", "awaiting review", "--quote-file", str(quote_file),
+        ]), 0)
+        self.assertIn("status=open", self.last_row())
+        self.assertTrue(self.last_row().endswith('quote=""'))
+
+    def test_open_gates_refuses_quote_file_as_an_append_argument(self):
+        missing = self.tmp / "not-read.txt"
+        self.assertEqual(self.run_main([
+            "--ledger", str(self.ledger), "--repo", str(self.repo),
+            "--open-gates", "--quote-file", str(missing),
+        ]), 1)
+        self.assertIn("--open-gates cannot be combined with append arguments", self.err.getvalue())
+        self.assertNotIn("could not be read", self.err.getvalue())
+
     def test_ids_are_consecutive_and_read_from_the_file(self):
         self.assertEqual(self.append(), 0)
         self.assertEqual(self.append(), 0)

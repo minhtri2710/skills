@@ -220,7 +220,20 @@ def build(args: argparse.Namespace, repo: Path, ledger: Path,
         )
     if "|" in note or '"' in note or "\n" in note:
         raise RowError('note= refuses | and " — they are the row\'s delimiters')
-    quote = args.quote or ""
+    if args.quote and args.quote_file:
+        raise RowError("--quote and --quote-file are mutually exclusive")
+    if args.quote_file:
+        try:
+            with Path(args.quote_file).open("r", encoding="utf-8", newline="") as handle:
+                quote = handle.read()
+        except (OSError, UnicodeError) as exc:
+            raise RowError(f"--quote-file {args.quote_file!r} could not be read: {exc}") from None
+        if quote.endswith("\r\n"):
+            quote = quote[:-2]
+        elif quote.endswith("\n"):
+            quote = quote[:-1]
+    else:
+        quote = args.quote
     if "\n" in quote:
         raise RowError("quote= is one line")
     if (args.words == "none") != (quote == ""):
@@ -448,6 +461,8 @@ def main(argv: list[str] | None = None) -> int:
                         help="who authored quote=; required when appending")
     parser.add_argument("--note", default="")
     parser.add_argument("--quote", default="")
+    parser.add_argument("--quote-file", default="",
+                        help="read the verbatim quote from a UTF-8 file")
     args = parser.parse_args(argv)
 
     try:
@@ -457,6 +472,7 @@ def main(argv: list[str] | None = None) -> int:
             ignored = (
                 args.kind, args.status, args.channel, args.writer, args.record, args.push_base,
                 args.boundary, args.resolves, args.words, args.note, args.quote,
+                args.quote_file,
             )
             if any(ignored):
                 raise RowError("--open-gates cannot be combined with append arguments")
