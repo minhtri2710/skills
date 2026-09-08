@@ -44,6 +44,14 @@ A Peer that stops at an approval dialog for `git diff` or the test command is th
 
 Where the kind offers a native disable flag for skill loading, pass it at staffing alongside the posture arguments — for the `pi` kind, `--no-skills`. No posture pre-authorizes push, PR mutation, merge, deploy, credentials, or another external write, and no posture changes what the charter permits: the posture decides whether the runtime enforces the boundary or only the charter does. Record it per Peer as `posture=<allowlisted | bypassed | none | human-started | prompting>` in the staffing record.
 
+Every delivery seat except the Supervisor also carries a dialog posture, recorded as `dialog=` beside `posture=` and set the same way: from the kind's own `--help` and tool list at staffing, never from memory, and never from a per-kind table baked into this doctrine, which goes stale. A coding-agent kind may expose a tool that opens a blocking user-question dialog, and such a dialog blocks the seat from the Supervisor's prompt channel and leaves the pane readable only to its viewport, so no delivery seat but the Supervisor may keep it. Set the value the kind allows:
+
+- `dialog=denied` — the kind offers a native deny for the tool: pass it at staffing. This is the required value wherever a deny exists. Learn the exact flag from the kind's `--help`; two shapes seen are a tool-deny list (`claude`, `-- --disallowedTools AskUserQuestion`; `pi`, `-- --exclude-tools ask_user_question`) and a per-invocation toolset allowlist passed without the question toolset (a kind whose only lever is the allowlist).
+- `dialog=absent` — the kind's `--help` and tool list show no user-question tool. Nothing to pass; record it as checked.
+- `dialog=residual` — the kind has the tool and offers no deny (`agy` today, whose `ask_user` is built in). Announce it to the Human once at staffing as a pre-arm miss, record `dialog=residual` beside the seat, and put the no-dialog prohibition in the seat's charter in words (a Peer routes a fork to the Lead, never to the Human — "Escalation" below). A `residual` seat is the only one that can still open a dialog, and the record says so before it happens.
+
+A dialog-deny is not a permission posture: it arms no command and changes no `posture=` value; record the two dimensions separately. The Supervisor is the one seat started with its user-question tool intact, because its dialog is the Human's own channel (`supervisor-policy.md`, "Seat").
+
 ## Escalation
 
 Raise one bounded protocol message to the Lead instead of deciding outside the boundary. Do not manufacture dissent, speculative blockers, or routine progress reports.

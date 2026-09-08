@@ -443,12 +443,12 @@
     {
       "id": 36,
       "prompt": "I'm in Herdr as the Lead. A genuine product fork needs the Human to choose between two approaches. Ask without making the seat unavailable to the Supervisor.",
-      "expected_output": "Prints the options as text in the Lead pane, emits herdr notification show --sound request, and ends the turn. It never opens a blocking interactive dialog: a dialog leaves the Lead blocked, prevents the Supervisor from prompting it, and makes the pane readable only up to its viewport with herdr agent read --source visible.",
+      "expected_output": "Knows the Lead seat is started with its kind's user-question tool denied wherever the kind offers a deny (the dialog= posture; on the claude kind, herdr agent start ... -- --disallowedTools AskUserQuestion), so on such a kind its runtime cannot open a blocking interactive dialog at all; only the Supervisor seat keeps that tool. For the fork it prints the options as text in the Lead pane, emits herdr notification show --sound request, sends the Supervisor the attention event as with any Human gate, and ends the turn. Explains that a dialog would leave the Lead blocked, prevent the Supervisor from prompting it, and make the pane readable only up to its viewport with herdr agent read --source visible, which is why the tool is denied at seat start rather than only forbidden by rule.",
       "files": [],
       "assertions": [
-        "Prints product-fork options as text in the Lead pane",
-        "Emits herdr notification show --sound request and ends the turn",
-        "Never opens a blocking interactive dialog for the product fork",
+        "Names the seat-start dialog= deny (e.g. claude --disallowedTools AskUserQuestion) as the mechanism, not only a rule against opening a dialog",
+        "Prints product-fork options as text in the Lead pane and emits herdr notification show --sound request",
+        "Sends the Supervisor the attention event for the fork and ends the turn",
         "Explains the blocked-state impact on Supervisor prompting and the viewport-limited --source visible read path"
       ]
     },
@@ -667,6 +667,18 @@
         "States that agent prompt refuses only a blocked target, so waiting on a working seat buys nothing",
         "Identifies the unrecoverable case: a dialogged seat read as working accepts the prompt, so nothing is refused and the refusal-keyed recovery never fires",
         "States that the mailbox append is the delivery, and on agent_blocked the refused wake needs no wait and no retry because the event is already delivered"
+      ]
+    },
+    {
+      "id": 54,
+      "prompt": "I'm in Herdr as the Lead staffing two Peers on this project: an Engineer on the pi kind and a Reviewer on the agy kind. Set each seat's dialog posture at staffing so neither can quietly open a blocking user-question dialog, and record it.",
+      "expected_output": "Derives each seat's dialog= from the kind's own --help and tool list at staffing, not from memory. For pi it records dialog=denied and passes the native deny it finds (pi exposes ask_user_question and a deny for it, herdr agent start ... -- --exclude-tools ask_user_question) alongside --no-skills and the permission posture. For agy it records dialog=residual, because agy exposes a built-in user-question tool (ask_user) and offers no native deny, so it announces the residual to the Human once at staffing as a pre-arm miss and puts the no-dialog prohibition in the agy charter in words, noting a Peer routes a fork to the Lead and never asks the Human. Records dialog= beside posture= for each and keeps the two dimensions distinct: a dialog-deny arms no command and changes no posture= value. Keeps user-question tools only on the Supervisor seat.",
+      "files": [],
+      "assertions": [
+        "Sets dialog=denied for pi by passing its native user-question deny (--exclude-tools ask_user_question), learned from the kind's own help and tool list",
+        "Sets dialog=residual for agy because the tool is present with no native deny, announces it to the Human once at staffing, and puts the prohibition in the agy charter",
+        "Records dialog= beside posture= and keeps the dialog-deny distinct from the permission posture, changing no posture= value",
+        "Keeps the user-question tool only on the Supervisor seat"
       ]
     }
   ]
