@@ -121,6 +121,8 @@ Close only panes, tabs, workspaces, and agents created by this run. The checkout
 - required reports and artifacts are preserved;
 - no pending Human gate or dependent work remains.
 
+Before deleting any artifact created by the run at closeout, prove its redundancy by content at a retained location; never infer redundancy from its name, a status label, or an assumption. For a run-created branch already landed on the target line, verify that every commit it carries is contained in the pushed target and that the branch is reachable from that target: `git rev-list <branch> --not <target-line>` must be empty, and the branch must be an ancestor of `origin/<target-line>`. For a file created by the run and claimed redundant to a retained file, verify that both files have identical content by comparing `git hash-object` results or by using `git cat-file` to show equal content. This verification applies only to artifacts created by the run and does not alter the rule that the caller's checkout is never removed or moved.
+
 Leave user-owned or pre-existing resources untouched. If a created resource remains open, state the concrete reason.
 
 ## Per-issue agent teardown
