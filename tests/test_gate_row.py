@@ -34,7 +34,7 @@ def make_repo(tmp: Path) -> Path:
 
 class GateRowTest(unittest.TestCase):
     def setUp(self):
-        self._tmp = tempfile.TemporaryDirectory()
+        self._tmp = tempfile.TemporaryDirectory(dir="/private/tmp")
         self.tmp = Path(self._tmp.name)
         self.repo = make_repo(self.tmp)
         self.ledger = self.tmp / "gates.md"
@@ -48,14 +48,15 @@ class GateRowTest(unittest.TestCase):
         is still a passing exit code, so the message is part of the assertion.
         """
         self.err = io.StringIO()
-        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(self.err):
+        self.out = io.StringIO()
+        with contextlib.redirect_stdout(self.out), contextlib.redirect_stderr(self.err):
             return gate_row.main(argv)
 
     def append(self, *extra: str) -> int:
         return self.run_main([
             "--ledger", str(self.ledger), "--repo", str(self.repo),
             "--kind", "merge", "--status", "resolved:standing-waiver",
-            "--note", "merged the reviewed head", "--quote", "merge it", *extra,
+            "--words", "human", "--note", "merged the reviewed head", "--quote", "merge it", *extra,
         ])
 
     def git(self, *args: str) -> str:
@@ -69,6 +70,29 @@ class GateRowTest(unittest.TestCase):
     def last_row(self) -> str:
         return [l for l in self.ledger.read_text().splitlines()
                 if gate_row.ID_RE.match(l)][-1]
+
+    def fixture_row(self, gid: str, status: str, words: str = "human",
+                    quote: str = "fixture", resolves: str | None = None,
+                    note: str = "fixture") -> str:
+        target = f" | resolves={resolves}" if resolves else ""
+        return (f"{gid} | 2026-09-06T00:00:00Z | kind=merge | "
+                f"main@{self.rev('HEAD')} | status={status} | record=timely"
+                f"{target} | words={words} | note={note} | quote=\"{quote}\"")
+
+    def open_gates(self) -> list[str]:
+        self.assertEqual(self.run_main([
+            "--ledger", str(self.ledger), "--repo", str(self.repo), "--open-gates",
+        ]), 0)
+        return self.out.getvalue().splitlines()
+
+    def test_words_is_required_for_append(self):
+        self.assertEqual(self.run_main([
+            "--ledger", str(self.ledger), "--repo", str(self.repo),
+            "--kind", "merge", "--status", "resolved:standing-waiver",
+            "--note", "merged the reviewed head", "--quote", "merge it",
+        ]), 1)
+        self.assertIn("--words is required", self.err.getvalue())
+        self.assertEqual(self.ledger.read_text(), "# Gate ledger — test\n\n")
 
     def test_round_trip(self):
         """A row the script writes is a row --check accepts, unchanged."""
@@ -85,13 +109,53 @@ class GateRowTest(unittest.TestCase):
                if gate_row.ID_RE.match(l)]
         self.assertEqual(ids, ["G1", "G2"])
 
+    def test_resolves_refuses_never_open_and_already_closed_ids_and_accepts_open_id(self):
+        self.assertEqual(self.append("--resolves", "G404"), 1)
+        self.assertIn("G404", self.err.getvalue())
+        self.assertIn("never-open", self.err.getvalue())
+
+        self.assertEqual(self.append("--status", "open", "--words", "none", "--quote", ""), 0)
+        self.assertEqual(self.append("--resolves", "G1"), 0)
+        self.assertIn("resolves=G1", self.last_row())
+        self.assertEqual(self.append("--resolves", "G1"), 1)
+        self.assertIn("G1", self.err.getvalue())
+        self.assertIn("already-closed", self.err.getvalue())
+
+    def test_open_gate_mode_uses_last_rows_and_structured_resolves_only(self):
+        rows = [
+            self.fixture_row("G26", "open", "none", ""),
+            self.fixture_row("G26", "open", "none", ""),
+            self.fixture_row("G26", "resolved:done"),
+            self.fixture_row("G27", "open", "none", "", note="prose says resolves=G27"),
+            self.fixture_row("G28", "open", "none", ""),
+            self.fixture_row("G29", "resolved:done", resolves="G28"),
+            self.fixture_row("G30", "open", "none", ""),
+        ]
+        self.ledger.write_text("# fixture\n" + "\n".join(rows) + "\n")
+        self.assertEqual(self.open_gates(), ["G27", "G30"])
+
+    def test_words_values_require_the_matching_quote_presence(self):
+        self.assertEqual(self.append("--status", "open", "--words", "none", "--quote", ""), 0)
+        for words in ("seat", "human", "selected"):
+            self.assertEqual(self.append("--words", words, "--quote", words), 0)
+        self.assertEqual(self.append("--words", "none", "--quote", "not empty"), 1)
+        self.assertIn("words=none", self.err.getvalue())
+        self.assertEqual(self.append("--words", "seat", "--quote", ""), 1)
+        self.assertIn("words=none", self.err.getvalue())
+
+    def test_slug_ids_are_resolved_by_first_field(self):
+        self.ledger.write_text(self.fixture_row("decision-abc", "open", "none", "") + "\n")
+        self.assertEqual(self.append("--resolves", "decision-abc"), 0)
+        self.assertIn("resolves=decision-abc", self.last_row())
+        self.assertEqual(self.open_gates(), [])
+
     def test_a_count_that_does_not_match_the_range_is_rejected(self):
         """The recount rule as code: parts that do not sum fail --check."""
         base, head = self.rev("HEAD~2"), self.rev("HEAD")
         row = (f'G9 | 2026-09-06T00:00:00Z | kind=push | main@{head} | '
                f'status=resolved:standing-waiver | record=timely | '
                f'push={base}..{head} count=7 boundary="f1.txt f2.txt" '
-               f'boundary-check="" | note=n | quote="q"')
+               f'boundary-check="" | words=human | note=n | quote="q"')
         with self.assertRaises(gate_row.RowError) as ctx:
             gate_row.check(row, self.repo)
         self.assertIn("carries 2 commits", str(ctx.exception))
@@ -108,6 +172,13 @@ class GateRowTest(unittest.TestCase):
         self.assertEqual(self.run_main(
             ["--ledger", str(self.ledger), "--repo", str(self.repo), "--check"]), 0)
 
+    def test_quote_marker_text_is_kept_verbatim(self):
+        human = 'literal | quote=" text'
+        self.assertEqual(self.append("--quote", human), 0)
+        self.assertTrue(self.last_row().endswith(f'quote="{human}"'))
+        self.assertEqual(self.run_main(
+            ["--ledger", str(self.ledger), "--repo", str(self.repo), "--check"]), 0)
+
     def test_narrative_over_the_cap_is_refused(self):
         self.assertEqual(self.append("--note", "x" * (gate_row.NOTE_MAX + 1)), 1)
 
@@ -116,7 +187,7 @@ class GateRowTest(unittest.TestCase):
         head = self.rev("HEAD")
         row = (f'G9 | 2026-09-06T00:00:00Z | kind=push | main@{head} | '
                f'status=resolved:standing-waiver | authority=G64 | project=beo-skills | '
-               f'record=timely | note=n | quote="q"')
+               f'record=timely | words=human | note=n | quote="q"')
         with self.assertRaises(gate_row.RowError) as ctx:
             gate_row.check(row, self.repo)
         self.assertIn("not in the row schema", str(ctx.exception))
