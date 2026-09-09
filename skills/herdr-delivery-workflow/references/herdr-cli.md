@@ -89,7 +89,7 @@ Rename works on an unnamed agent, including the caller's own. A name follows the
 
 ## Report to the Lead by prompt
 
-A Peer sends its report, verdict, or protocol message to the Lead's seat name, without `--wait`, after printing it in its own pane, using the heredoc form in `templates/report-by-prompt.txt`. The single-quoted delimiter `<<'REPORT'` and, equivalently, `"$(cat <file>)"` keep backticks and `$` literal; a plain double-quoted argument or an unquoted heredoc delimiter leaves them live for the shell before the send. Any prompt carrying code, backticks, or `$` — a Peer's report or a Lead's charter or relay — is composed by writing the text to a file by a means that does not invoke the shell, then sending it as `"$(cat <file>)"`. A rejected send (`agent_blocked` because the Lead sits at a dialog, or any error) is not retried: the Peer stops and the Lead reads the pane at its next wake. The Lead's own refused report to the Supervisor is the single exception, because nothing reads the Lead's pane the way the Lead reads a Peer's. This is the only `herdr` command a Peer runs.
+The Peer report-send block belongs to `charters.md` ("Report by prompt"), including its durable file and failed-send handling. More generally, any prompt carrying code, backticks, or `$` is composed by writing the text to a file by a means that does not invoke the shell, then sending it as `"$(cat <file>)"`. The Lead's own refused report to the Supervisor remains a separate exception, because nothing reads the Lead's pane the way the Lead reads a Peer's.
 
 ## Notify the Human
 

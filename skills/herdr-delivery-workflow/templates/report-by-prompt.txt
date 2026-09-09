@@ -1,5 +1,0 @@
-herdr agent prompt lead-<project-slug> "$(cat <<'REPORT'
-# Report — <scope name>
-...
-REPORT
-)"
