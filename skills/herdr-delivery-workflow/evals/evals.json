@@ -768,6 +768,17 @@
         "Falls back to raw herdr agent list only when the script omits a needed field",
         "Does not poll agent list, wait, or sleep to reconcile"
       ]
+    },
+    {
+      "id": 62,
+      "prompt": "I'm a Supervisor waking after a long gap with many new mailbox entries. How should I reconcile them cheaply without missing an urgent event or Lead answer?",
+      "expected_output": "Reads scripts/mailbox.py --file <path> --headers --since <last-read ISO> first to obtain the header index, then pulls full bodies only for headers marked ATTENTION or for headers that answer an open Supervisor question, using a targeted read, bounded --last, or --since without --headers only when needed. Does not read the whole mailbox file and does not dump every post-marker body with an unbounded --since read.",
+      "files": [],
+      "assertions": [
+        "Reads scripts/mailbox.py --headers --since <last-read ISO> first",
+        "Pulls full bodies only for ATTENTION or open-question answer headers",
+        "Does not read the whole mailbox file or dump every post-marker body with an unbounded --since read"
+      ]
     }
   ]
 }

@@ -1,3 +1,3 @@
-<ISO timestamp>  HEAD <current exact SHA>
-ATTENTION <project-slug> <event>: <one line>   (an answer to a Supervisor question carries no ATTENTION prefix)
-<the same text the Lead's pane shows — the event fields plus at most a short body; capped at roughly ten lines, with any narrative going to the run's workspace record rather than the mailbox>
+## <lead> -> supervisor | <ISO timestamp> | ATTENTION <project-slug> <event>: <one line> | HEAD <current exact SHA>
+(an answer to a Supervisor question omits the ATTENTION segment)
+<the same event or answer detail the Lead's pane shows; capped at roughly ten lines, with any narrative going to the run's workspace record rather than the mailbox>

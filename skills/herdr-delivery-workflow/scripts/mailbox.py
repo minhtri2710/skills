@@ -49,10 +49,9 @@ def select_entries(
     last: int | None = None,
     headers: bool = False,
 ) -> list[str]:
-    """Select whole mailbox entries, or just their headers."""
-    selectors = sum(value is not None for value in (since, last)) + headers
-    if selectors != 1:
-        raise ValueError("exactly one of since, last, or headers is required")
+    """Select mailbox entries, optionally returning only their headers."""
+    if since is not None and last is not None:
+        raise ValueError("since and last are mutually exclusive")
     entries = _entries(text)
     if since is not None:
         if ISO_RE.fullmatch(since) is None:
@@ -71,13 +70,15 @@ def select_entries(
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="select Supervisor mailbox entries")
     parser.add_argument("--file", required=True, metavar="PATH", help="mailbox file")
-    selectors = parser.add_mutually_exclusive_group(required=True)
+    selectors = parser.add_mutually_exclusive_group()
     selectors.add_argument("--since", metavar="ISO")
     selectors.add_argument("--last", metavar="N", type=int)
-    selectors.add_argument("--headers", action="store_true")
+    parser.add_argument("--headers", action="store_true")
     args = parser.parse_args(argv)
 
     try:
+        if args.since is None and args.last is None and not args.headers:
+            raise ValueError("at least one of --headers, --since, or --last is required")
         text = Path(args.file).read_text(encoding="utf-8")
         output = select_entries(text, since=args.since, last=args.last, headers=args.headers)
     except (OSError, ValueError) as exc:
