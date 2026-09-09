@@ -95,24 +95,7 @@ already read for a repository-defined intake, workspace-protocol, or verificatio
 where one exists, write the record in that format and carry these fields into it. The block
 below is the fallback for a repository that defines none, not the first choice.
 
-Before mutation, state this compact result in the Lead's current run context:
-
-```text
-Lane: tiny | normal | high-risk
-Reason: <material reason for the lane>
-Lead: lead-<project-slug>
-Supervisor: supervisor | none | unreachable
-Owners: <Lead, Engineer/Reviewer owners, governing contracts>
-Guidance: <the repository guidance that governs this work, or none found>
-Plan: <active plan reference or none>
-Validation: <claim-shaped checks and expected outcomes>
-Mode: partitioned | solo-Lead
-Mode reason: <which branch of the solo-Lead test was taken, and the evidence for it>
-Partition: <partitioned scope name: owned paths, one line per scope; or solo-Lead owned scope>
-Config: <applied project-config keys or none>
-```
-
-Include target repository/product line, exclusions, base/merge-base, dependencies, Human gates, and Herdr resources created by the run alongside this result. Name the Lead seat before writing it (`lead-policy.md`, "Seats") and look up the Supervisor seat once. Pass the lane, plan reference, governing contracts, validation claims, the Lead seat name, and the scope's owned paths and peer scopes into every relevant charter.
+Before mutation, state this compact result in the Lead's current run context, in the shape of `templates/intake-record.txt`. Include target repository/product line, exclusions, base/merge-base, dependencies, Human gates, and Herdr resources created by the run alongside this result. Name the Lead seat before writing it (`lead-policy.md`, "Seats") and look up the Supervisor seat once. Pass the lane, plan reference, governing contracts, validation claims, the Lead seat name, and the scope's owned paths and peer scopes into every relevant charter.
 
 ## Reopen rule
 

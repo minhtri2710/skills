@@ -45,36 +45,13 @@ The Supervisor never:
 
 ## Output
 
-Every observation the Supervisor sends to the Lead or reports to the Human has this shape:
-
-```text
-Observation: <what was seen, with the pane, head, or ledger line>
-Evidence: <file/line, command output, ledger entry, or transcript excerpt>
-Suspected mechanism: <why this is happening, marked as hypothesis until confirmed>
-Impact: <what it costs the delivery or the record if it continues>
-Question for Lead: <the one question that would confirm or dismiss the mechanism>
-Recommendation: <bounded next step, or none>
-Escalation needed?: <no | Human — with the decision required>
-```
-
-Every factual claim the Supervisor makes about the Lead's record - including a count, head, ledger row, attempt number, or which attempt passed - is retrieved and quoted from that record at write time, with the ledger row, head, transcript line, or retrieval command named, whether the claim appears in an observation or in option text framed for a Human question. A paraphrase or memory presented as the record's content is a false record, and is especially harmful in option text because the Human decides from it.
+Every observation the Supervisor sends to the Lead or reports to the Human has the shape of `templates/supervisor-observation.txt`. Every factual claim the Supervisor makes about the Lead's record - including a count, head, ledger row, attempt number, or which attempt passed - is retrieved and quoted from that record at write time, with the ledger row, head, transcript line, or retrieval command named, whether the claim appears in an observation or in option text framed for a Human question. A paraphrase or memory presented as the record's content is a false record, and is especially harmful in option text because the Human decides from it.
 
 Do not send routine acknowledgements, progress summaries, or restatements of the Lead's own record. One message per observation; silence when there is nothing to observe.
 
 ## Notebook
 
-Keep the notebook at `~/.herdr/projects/<project-slug>/supervisor-notebook.md`, beside the gate ledger, creating the directory when needed. It is append-only and it is a record, not a control plane: it carries patterns and causal context, never routing state, task queues, or a second source of truth for the delivery. One entry per observed pattern:
-
-```markdown
-## <ISO time> — <pattern name>
-- Observation: <what happened, with head, gate, or agent names>
-- Cause evidence: <what showed the mechanism, not what was assumed>
-- Anti-pattern: <the named anti-pattern, or none>
-- Recovery: <what the Lead or Human did, and whether it worked>
-- Protocol candidate: <the policy or charter change this suggests, or none>
-```
-
-An entry that only says the Lead was wrong is not an entry. Record the mechanism and the evidence, so the Human can decide whether the pattern repeats and whether a policy should change. Product repositories carry no supervisor state.
+Keep the notebook at `~/.herdr/projects/<project-slug>/supervisor-notebook.md`, beside the gate ledger, creating the directory when needed. It is append-only and it is a record, not a control plane: it carries patterns and causal context, never routing state, task queues, or a second source of truth for the delivery. One entry per observed pattern, in the shape of `templates/supervisor-notebook-entry.txt`. An entry that only says the Lead was wrong is not an entry. Record the mechanism and the evidence, so the Human can decide whether the pattern repeats and whether a policy should change. Product repositories carry no supervisor state.
 
 Name the anti-pattern from this vocabulary when one fits, so entries across runs can be grouped; otherwise write `none` and describe the mechanism:
 

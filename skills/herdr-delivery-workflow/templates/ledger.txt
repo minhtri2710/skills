@@ -1,0 +1,14 @@
+LEDGER
+Base: <full SHA>
+Merge-base: <full SHA>
+Partition: <scope name: owned paths, one line per scope; or the solo-Lead scope>
+Scope commits: <scope name: full SHA, one line per scope; solo-Lead: the one scope commit>
+Acceptance commands: <every command, verbatim>
+
+HEAD <full SHA> | <candidate | repair-<n> | reviewed | integrated>
+  Tree: <porcelain and stash list at this head>
+  Kind: <agent kind behind each scope at this head>
+  Baseline results: <command: real exit code, one line per command>
+  Integrated results: <command: real exit code, one line per command; or n/a>
+  Verdict: <PASS | FAIL | BLOCKED> by <reviewer seat, kind> on this exact SHA
+  Failures: <causal classification of every failure at this head, or none>

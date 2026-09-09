@@ -1,0 +1,1 @@
+scripts/gate_row.py --ledger ~/.herdr/projects/<project-slug>/gates.md --kind merge --status resolved:standing-waiver --channel supervisor-relay:typed --words human --note "merged the reviewed head" --quote "<the Human's literal words>"

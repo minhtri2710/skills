@@ -73,15 +73,4 @@ Do not staff an Architect for routine bounded work, do not stack Architects to b
 
 ## Assessment result
 
-When a lens is triggered, report only what the evidence supports:
-
-```text
-Assessment: STANDARD_FIT | JUSTIFIED_DEVIATION | STRUCTURAL_CONCERN
-Evidence: <file/path, runtime observation, trace, or reproducible check>
-Claim affected: <the outcome or contract at risk>
-Tax: <latency, ownership, proof, cognitive, or other concrete cost>
-Owner-clean alternative: <the smallest durable route, or none identified>
-Disconfirming check: <what would falsify the concern>
-```
-
-Use `STANDARD_FIT` when the production mechanism has the required information and owner. Use `JUSTIFIED_DEVIATION` when a named constraint makes the deviation worthwhile at proportionate cost and the counterexample is handled. Use `STRUCTURAL_CONCERN` only when evidence shows a missing mechanism, wrong owner, avoidable tax, or proof boundary failure.
+When a lens is triggered, report only what the evidence supports, in the shape of `templates/architect-assessment.txt`. Use `STANDARD_FIT` when the production mechanism has the required information and owner. Use `JUSTIFIED_DEVIATION` when a named constraint makes the deviation worthwhile at proportionate cost and the counterexample is handled. Use `STRUCTURAL_CONCERN` only when evidence shows a missing mechanism, wrong owner, avoidable tax, or proof boundary failure.

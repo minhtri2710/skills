@@ -54,15 +54,7 @@ A dialog-deny is not a permission posture: it arms no command and changes no `po
 
 ## Escalation
 
-Raise one bounded protocol message to the Lead instead of deciding outside the boundary. Do not manufacture dissent, speculative blockers, or routine progress reports.
-
-```text
-DEPENDENCY_REQUEST | BLOCKED | COUNCIL_REQUEST
-Reason: <what the evidence shows>
-Evidence: <file/line, command output, or runtime observation>
-Boundary: <what would be crossed without a decision>
-Decision needed: <Lead or Human decision>
-```
+Raise one bounded protocol message to the Lead instead of deciding outside the boundary. Do not manufacture dissent, speculative blockers, or routine progress reports. The message shape is `templates/peer-escalation.txt`.
 
 - `REOPEN_REQUEST` — a foundation, dependency, lifecycle, API, ownership, or verification premise of the charter fails, or evidence increases blast radius, irreversibility, uncertainty, ownership impact, or proof weakness beyond the recorded lane. It carries the old and the proposed lane, so it has its own shape: the Lead copies it verbatim from `lead-policy.md`, "Escalation routing", into the charter.
 - `DEPENDENCY_REQUEST` — the outcome needs a dependency change, a shared contract change, a path outside the owned paths, another scope's files, or a cross-scope decision. Name the path and why; the Lead rules on ownership, and a path a peer scope owns changes hands only after that scope is idle and committed.
@@ -114,35 +106,7 @@ When a local wrapper, fallback, retry loop, cache, adapter, or compatibility pat
 
 ### Evidence report
 
-Finish with one report in this shape:
-
-```markdown
-# Report — <scope name>
-
-## Plan item
-<the bounded outcome completed>
-
-## Result
-<what changed and what did not change>
-
-## Evidence
-- Owned paths: <the paths this scope was allowed to change>
-- Edited files: <every path you created, modified, or deleted, from your own record of your actions — not from git>
-- Changed files: <verbatim git --no-optional-locks status --porcelain --untracked-files=all -- <owned paths> output; porcelain, not diff, because a new file you have not staged is invisible to git diff>
-- Outside owned paths: none | <path and why, if anything>
-- Checks (advisory, run on the shared tree):
-  | command | exit code |
-  |---------|-----------|
-  | <command> | 0 |
-
-## Risks
-<residual gaps, skipped checks with reasons, and unresolved findings>
-
-## Next action
-<the Lead's next concrete action>
-```
-
-Every check appears with its real exit code and the note that it ran on the shared tree. A skipped check includes its reason. `Outside owned paths` is `none` unless something went wrong, in which case naming it is the point. `Edited files` comes from your own actions, not from git: the Lead compares it with the porcelain for your paths, and a file there you did not claim is how a peer's stray write gets caught. A report missing either list is invalid and comes back for the missing evidence; the Lead does not fill it in from git. Recompute the report after every edit.
+Finish with one report in the shape of `templates/engineer-report.txt`. Every check appears with its real exit code and the note that it ran on the shared tree. A skipped check includes its reason. `Outside owned paths` is `none` unless something went wrong, in which case naming it is the point. `Edited files` comes from your own actions, not from git: the Lead compares it with the porcelain for your paths, and a file there you did not claim is how a peer's stray write gets caught. A report missing either list is invalid and comes back for the missing evidence; the Lead does not fill it in from git. Recompute the report after every edit.
 
 ## Disposition: Reviewer
 
@@ -163,19 +127,7 @@ Review runs in the delivery's single checkout, from its own pane, after the impl
 
 Run the review on a kind that differs from every Engineer's kind when another kind is installed; in solo-Lead mode, run it on a kind and model that both differ from the Lead. Record every agent's kind and model beside its name, pane, workspace, and owned paths or exact head. A review-only route never reads the Lead policy, so the roster has to be built here.
 
-Choose the Reviewer kind and its fallback kind before staffing, and pin both to the same exact head. Take the preferred Reviewer kind and fallback from the Human-owned project config (`project-config.md`, at `~/.herdr/projects/<project-slug>/config.md`) when one is recorded; an explicit Human instruction in the current request overrides it. Write the staffing record before the review starts. Each `posture=` value is a measurement taken while staffing that seat, not a reusable property of its kind or of the Lead's runtime. Never populate it from an earlier staffing record: an earlier refusal is not incapacity now, and an earlier success is not capability now. When the intended route is unchanged, the required current `herdr agent start` is the measurement; no separate probe is required. When an earlier result would instead cause the Lead to choose `human-started`, `prompting`, or FALLBACK without attempting the configured posture, the Lead must first attempt that posture for the current seat at staffing. It then writes the posture argument attempted and the current pass or refusal beside that seat's resulting `posture=...` line before taking the route that result selects. In `partitioned` mode, the Reviewer kind differs from every Engineer kind when available; in `solo-Lead` mode, record the Lead's kind and model and require the Reviewer kind and model both to differ from them. The FALLBACK trigger list and the INDEPENDENCE rule are fixed text — copy them verbatim into the record whatever the scenario, because they state when a substitution fires and what a same-kind review would mean, not what happened this run:
-
-```text
-MODE: <partitioned | solo-Lead>
-LEAD: kind=<kind> model=<model>
-ENGINEER: <name> kind=<kind> model=<model> posture=<allowlisted | bypassed | none | human-started | prompting> pane=<id> owned=<paths or none>   (one line per Engineer; none in solo-Lead)
-HEAD: <exact SHA committed by the Lead>
-REVIEWER: <name> kind=<kind> model=<model> posture=<allowlisted | bypassed | none | human-started | prompting> pane=<id> head=<same exact SHA>
-FALLBACK: kind=<kind> model=<model>, pinned to the same exact head; triggers: preferred kind uninstalled or unavailable; Reviewer errors or reaches no verdict; only remaining kind is an Engineer kind; Reviewer breaks read-only — a no-mutation violation; Reviewer launches a subagent or background work or times out — a boundary failure; the Lead's own runtime cannot pass the preferred kind's posture and the Human declines to start the seat — the `human-started` gate resolved against staffing it
-INDEPENDENCE: <different-kind | same-kind-distinct-model | same-kind-same-model | different-kind-and-model> — a different kind is normal independence; a same-kind review with a distinct model pinned through `reviewer-fallback-args` is independence-by-model with disclosed kind-collision residual risk; a same-kind review with the same or an unpinned model is an unusable conflict; in solo-Lead mode, both kind and model must differ from the Lead
-```
-
-Deciding the fallback in advance is what keeps a substitution visible: a Reviewer that dies mid-review otherwise gets replaced by whatever is convenient, which is usually an Engineer kind, and the swap never reaches the record. When the review does end up on the same kind, the INDEPENDENCE line and the verdict distinguish independence-by-model with disclosed kind-collision residual risk from an unusable same-kind same-model conflict. A Reviewer posture of `bypassed` or `none` is residual risk on the same line: the no-mutation contract is then enforced only by charter and by the tree comparison before and after the verdict.
+Choose the Reviewer kind and its fallback kind before staffing, and pin both to the same exact head. Take the preferred Reviewer kind and fallback from the Human-owned project config (`project-config.md`, at `~/.herdr/projects/<project-slug>/config.md`) when one is recorded; an explicit Human instruction in the current request overrides it. Write the staffing record before the review starts. Each `posture=` value is a measurement taken while staffing that seat, not a reusable property of its kind or of the Lead's runtime. Never populate it from an earlier staffing record: an earlier refusal is not incapacity now, and an earlier success is not capability now. When the intended route is unchanged, the required current `herdr agent start` is the measurement; no separate probe is required. When an earlier result would instead cause the Lead to choose `human-started`, `prompting`, or FALLBACK without attempting the configured posture, the Lead must first attempt that posture for the current seat at staffing. It then writes the posture argument attempted and the current pass or refusal beside that seat's resulting `posture=...` line before taking the route that result selects. In `partitioned` mode, the Reviewer kind differs from every Engineer kind when available; in `solo-Lead` mode, record the Lead's kind and model and require the Reviewer kind and model both to differ from them. The staffing record shape is `templates/reviewer-staffing-record.txt`. Its FALLBACK trigger list and INDEPENDENCE rule are fixed text — copy them verbatim into the record whatever the scenario, because they state when a substitution fires and what a same-kind review would mean, not what happened this run. Deciding the fallback in advance is what keeps a substitution visible: a Reviewer that dies mid-review otherwise gets replaced by whatever is convenient, which is usually an Engineer kind, and the swap never reaches the record. When the review does end up on the same kind, the INDEPENDENCE line and the verdict distinguish independence-by-model with disclosed kind-collision residual risk from an unusable same-kind same-model conflict. A Reviewer posture of `bypassed` or `none` is residual risk on the same line: the no-mutation contract is then enforced only by charter and by the tree comparison before and after the verdict.
 
 Name the Reviewer after the head it reviews with an abbreviated SHA that fits the agent name rule in `herdr-cli.md` — `review-<first 12 hex of the SHA>`, since a full SHA exceeds the 32-character limit and may start with a digit — and rename it with `herdr agent rename` whenever that head changes, so the agent listing alone proves which head a verdict covers; the full SHA lives in the `HEAD` and `REVIEWER` lines of the staffing record. A name pointing at a head the Reviewer no longer sits on is worse than no name, because it invites belief.
 

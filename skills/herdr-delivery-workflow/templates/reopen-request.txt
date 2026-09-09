@@ -1,0 +1,7 @@
+REOPEN_REQUEST
+Reason: <what changed>
+Evidence: <file/line, command output, or runtime observation>
+Old lane: <lane>
+Proposed lane: <lane>
+Boundary: <what the new scope or risk crosses>
+Decision needed: <Lead or Human decision>

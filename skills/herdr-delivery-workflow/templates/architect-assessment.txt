@@ -1,0 +1,6 @@
+Assessment: STANDARD_FIT | JUSTIFIED_DEVIATION | STRUCTURAL_CONCERN
+Evidence: <file/path, runtime observation, trace, or reproducible check>
+Claim affected: <the outcome or contract at risk>
+Tax: <latency, ownership, proof, cognitive, or other concrete cost>
+Owner-clean alternative: <the smallest durable route, or none identified>
+Disconfirming check: <what would falsify the concern>

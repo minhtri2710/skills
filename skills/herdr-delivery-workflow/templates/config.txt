@@ -1,0 +1,14 @@
+# Delivery config — <project-slug>
+
+- engineer-kind: <preferred agent kind for Engineer Peers>
+- reviewer-kind: <preferred agent kind for the Reviewer Peer>
+- reviewer-fallback: <pre-chosen fallback Reviewer kind>
+- engineer-args: <native arguments passed after `--` on `herdr agent start` for the Engineer kind: model selection and the pre-authorization of the read-only and verify commands the charter names, plus `herdr agent prompt <lead-name>`>
+- reviewer-args: <the same for the Reviewer kind; read-only inspection and verify commands, plus the report prompt>
+- reviewer-fallback-args: <the same for the fallback Reviewer kind>
+- checks: <claim-shaped commands, `;`-separated>
+- lane-defaults: <path or change class = tiny|normal|high-risk, comma-separated>
+- target-line: <default integration product line>
+- always-gate: <decisions always routed to the Human, comma-separated>
+- repair-cap: <max repair cycles before escalation>
+- worker-cap: <max Engineers in one partition; default 3>

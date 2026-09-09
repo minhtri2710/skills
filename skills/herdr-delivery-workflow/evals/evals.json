@@ -709,12 +709,12 @@
     ,{
       "id": 57,
       "prompt": "I'm in Herdr as the Lead. The installed workflow skill changed from <installed-head> to <new-head>. The diff touches only evals/. Do I relaunch immediately, at the next boundary, or not at all? What if it instead touches references/, and what if ~/.claude/settings.json allow rules or a kind's start args changed?",
-      "expected_output": "Classifies the redeploy from `git diff --stat <installed-head>..<new-head> -- skills/herdr-delivery-workflow`: a change confined to evals/ or documentation a seat never loads into context requires no relaunch; a change to SKILL.md, references/, scripts/, or hooks/ is loaded at the seat's next slice or delivery boundary, not immediately, so per-commit relaunch is not required; a settings.json allow-rule change or kind start-args change requires that seat to relaunch before its next Peer start. When a relaunch happens, it still runs the unchanged full installed-file hash checklist and verifies every tracked file.",
+      "expected_output": "Classifies the redeploy from `git diff --stat <installed-head>..<new-head> -- skills/herdr-delivery-workflow`: a change confined to evals/ or documentation a seat never loads into context requires no relaunch; a change to SKILL.md, references/, templates/, scripts/, or hooks/ is loaded at the seat's next slice or delivery boundary, not immediately, so per-commit relaunch is not required; a settings.json allow-rule change or kind start-args change requires that seat to relaunch before its next Peer start. When a relaunch happens, it still runs the unchanged full installed-file hash checklist and verifies every tracked file.",
       "files": [],
       "assertions": [
         "Uses git diff --stat <installed-head>..<new-head> -- skills/herdr-delivery-workflow to classify the redeploy",
         "Does not require an immediate or per-commit relaunch for an evals/ or unloaded-docs-only change",
-        "Schedules SKILL.md, references/, scripts/, and hooks/ changes for the next slice or delivery boundary",
+        "Schedules SKILL.md, references/, templates/, scripts/, and hooks/ changes for the next slice or delivery boundary",
         "Requires a settings.json allow-rule or kind start-args change to relaunch before the next Peer start",
         "Keeps the full installed-file hash checklist unchanged and exhaustive whenever the seat relaunches"
       ]

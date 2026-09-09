@@ -1,0 +1,5 @@
+DEPENDENCY_REQUEST | BLOCKED | COUNCIL_REQUEST
+Reason: <what the evidence shows>
+Evidence: <file/line, command output, or runtime observation>
+Boundary: <what would be crossed without a decision>
+Decision needed: <Lead or Human decision>

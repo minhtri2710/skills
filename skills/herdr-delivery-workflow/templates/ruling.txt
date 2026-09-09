@@ -1,0 +1,3 @@
+RULING: <decision and its bounded scope | pending Human gate <GATE-ID>>
+ROUTE: <lead-ruled | human-gate>
+BINDING: any head produced after this ruling is a new head — it needs fresh evidence and a fresh independent review bound to that exact SHA; no earlier verdict covers work that did not exist when the verdict was given

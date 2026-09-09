@@ -1,0 +1,6 @@
+## <ISO time> — <pattern name>
+- Observation: <what happened, with head, gate, or agent names>
+- Cause evidence: <what showed the mechanism, not what was assumed>
+- Anti-pattern: <the named anti-pattern, or none>
+- Recovery: <what the Lead or Human did, and whether it worked>
+- Protocol candidate: <the policy or charter change this suggests, or none>

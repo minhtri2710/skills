@@ -1,0 +1,12 @@
+STATUS: accepted | blocked | needs-human-gate | needs-rework
+OUTCOME: <one sentence>
+HEAD: <exact reviewed SHA or none>
+INTEGRATED: <exact integrated SHA or none>
+REVIEW: <PASS/FAIL/BLOCKED, exact head, Reviewer agent kind>
+CHECKS: <command=exit code list on the reviewed head>
+INTEGRATED CHECKS: <command=exit code list on the integrated head, or none>
+CHANGED: <verbatim or concise changed-file list, grouped by scope when the partition had more than one>
+DEPLOYED: <artifact=installed path, files compared, differences, deploy row id; or "none installed"; or "gate <id> pending">
+CHECKOUT: <branch>@<exact head> — the caller's checkout stays on the branch and head the record names; closeout never checks out, resets, rebases, or cleans it
+RISKS: <residual risks and skipped checks>
+NEXT: <one concrete next action>

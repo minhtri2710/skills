@@ -131,17 +131,7 @@ Rename works on an unnamed agent, including the caller's own. A name follows the
 
 ## Report to the Lead by prompt
 
-A Peer sends its report, verdict, or protocol message to the Lead's seat name, without `--wait`, after printing it in its own pane:
-
-```bash
-herdr agent prompt lead-<project-slug> "$(cat <<'REPORT'
-# Report — <scope name>
-...
-REPORT
-)"
-```
-
-The single-quoted delimiter in `<<'REPORT'` and, equivalently, reading text from a file with `"$(cat <file>)"` keep backticks and `$` literal; a plain double-quoted argument or an unquoted heredoc delimiter leaves them live for the shell to execute or expand before the send. Any prompt carrying code, backticks, or `$` - whether a Peer's report or a Lead's charter or relay - is composed by writing the text to a file by a means that does not invoke the shell, then sending it as `"$(cat <file>)"`. A rejected send — `agent_blocked` because the Lead sits at a dialog, or any error — is not retried: the Peer stops, and the Lead reads the pane at its next wake. The Lead's own refused report to the Supervisor is the single exception in this workflow, because nothing reads the Lead's pane the way the Lead reads a Peer's. This is the only `herdr` command a Peer runs.
+A Peer sends its report, verdict, or protocol message to the Lead's seat name, without `--wait`, after printing it in its own pane, using the heredoc form in `templates/report-by-prompt.txt`. The single-quoted delimiter in `<<'REPORT'` and, equivalently, reading text from a file with `"$(cat <file>)"` keep backticks and `$` literal; a plain double-quoted argument or an unquoted heredoc delimiter leaves them live for the shell to execute or expand before the send. Any prompt carrying code, backticks, or `$` - whether a Peer's report or a Lead's charter or relay - is composed by writing the text to a file by a means that does not invoke the shell, then sending it as `"$(cat <file>)"`. A rejected send — `agent_blocked` because the Lead sits at a dialog, or any error — is not retried: the Peer stops, and the Lead reads the pane at its next wake. The Lead's own refused report to the Supervisor is the single exception in this workflow, because nothing reads the Lead's pane the way the Lead reads a Peer's. This is the only `herdr` command a Peer runs.
 
 ## Notify the Human
 

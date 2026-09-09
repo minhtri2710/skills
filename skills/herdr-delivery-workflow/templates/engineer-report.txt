@@ -1,0 +1,23 @@
+# Report — <scope name>
+
+## Plan item
+<the bounded outcome completed>
+
+## Result
+<what changed and what did not change>
+
+## Evidence
+- Owned paths: <the paths this scope was allowed to change>
+- Edited files: <every path you created, modified, or deleted, from your own record of your actions — not from git>
+- Changed files: <verbatim git --no-optional-locks status --porcelain --untracked-files=all -- <owned paths> output; porcelain, not diff, because a new file you have not staged is invisible to git diff>
+- Outside owned paths: none | <path and why, if anything>
+- Checks (advisory, run on the shared tree):
+  | command | exit code |
+  |---------|-----------|
+  | <command> | 0 |
+
+## Risks
+<residual gaps, skipped checks with reasons, and unresolved findings>
+
+## Next action
+<the Lead's next concrete action>

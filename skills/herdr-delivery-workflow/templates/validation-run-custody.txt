@@ -1,0 +1,6 @@
+RUN: <validation run ID>
+PR: <reference> state=<merged | closed> merge-commit=<SHA> merged-at=<ISO time>
+HEADS: feature=<exact SHA> pushed=<exact SHA> reviewed=<exact SHA> — feature head recorded distinct from the merge commit
+RECONCILE: merged headRefOid=<SHA> vs reviewed head=<SHA>; merge-commit parents=<SHAs>
+CUSTODY: the validation run is a Lead-owned singleton — never a second run for the same head, never interrupting its validation agent, never applying the same finding through an outside edit
+ESCALATION: when the merged head and the reviewed head differ, or the reviewed head is not among the merge commit's parents, route REOPEN_REQUEST and say plainly that work was merged this run never reviewed; a matching head reference alone is not proof the merge carried the reviewed work — a squash or force-push can leave the reference matching while the merged content is something no Reviewer saw

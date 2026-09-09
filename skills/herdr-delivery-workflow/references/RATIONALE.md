@@ -1,0 +1,16 @@
+# Rationale
+
+Why the delivery doctrine is shaped the way it is. No seat loads this file on a delivery route; the loaded files under `references/` and `SKILL.md` carry the rules. This file carries the reasoning and the incidents behind them, for a Human or a seat deciding whether a rule should change. Each section names the loaded file whose rules it explains.
+
+## human-gates-and-closeout.md
+
+- **Waiver widening still reaches review.** A standing waiver over the external-write class settles only where a forced widening routes, never the acceptance boundary, because no waiver reaches review; the widened head is new work and carries fresh evidence and a fresh independent verdict.
+- **PR-deleted branches leave no ref.** A push row's landing evidence is a live origin ref equal to the pushed head. On a project that merges via PR and deletes the branch, the landing is recorded by the merge row rather than a push row, because the deleted branch leaves no ref to verify.
+- **Attribution laundering.** Presenting a runtime constraint — a denied tool call, a classifier refusal, a standing dialog, a config key, a prior request, an inference — as the Human's ruling launders authority: the record then shows a decision nobody made, and every seat downstream builds on it. The converse: a Human decision is not self-executing, so the gate resolves when the act lands, recorded by the seat that performed it, not when the Human spoke. An agent under an automatic permission mode cannot tell a classifier denial from a Human ruling by how it feels; it can only tell by asking where the message came from.
+- **Deploy custody.** A merged fix to an artifact that runs from an installed copy has changed a file in git and nothing else; when the fix was to a destructive or gating behavior, the unfixed behavior stays live while the record says it was fixed, and every later slice builds on a record that is false about where the fix is. That is why acceptance requires either the installed copy at the accepted head with a deploy row, or a record that nothing is installed.
+- **Final-porcelain-as-custody.** A measurement taken at the reviewed head or before a later closeout step is memory, not custody, once a later write lands, so the final porcelain re-derivation is the last act before handoff.
+
+## lead-policy.md
+
+- **Doctrine-hash comparison needs no change-list.** Comparing every installed file against the deployed head by `git ls-tree` + `git hash-object` + `git rev-parse "${head}:<path>"` needs no list of what the redeploy changed, and a fresh seat's only sources for such a list are the pack and the start prompt, neither of which is a confirmation — which is why the comparison, not the pack, is what confirms the doctrine.
+- **The zsh history-modifier trap.** Brace the head variable in `git rev-parse "${head}:<path>"`. Under zsh a bare `$var` before a `:` is read as a history modifier, so `"$v:hooks/x"` becomes `.ooks/x` and `"$v:evals/x"` becomes `vals/x` with the sha deleted outright; `git hash-object` then reads whatever wrong file that names and returns a valid hash with exit 0, and the sweep reports a match or a difference about a file nobody named while nothing anywhere errors.
