@@ -24,6 +24,8 @@ LOADED = [
     "references/herdr-cli.md",
     "references/project-config.md",
     "references/structural-misfit-policy.md",
+    "references/charters.md",
+    "references/closeout.md",
     "references/supervisor.md",
 ]
 
