@@ -65,7 +65,7 @@ herdr pane read <pane-id> --source recent-unwrapped --lines 120
 herdr agent start <name> --kind <kind> --pane <pane-id> -- <agent-args...>
 ```
 
-Use the kind the user requested (`herdr agent` lists installed kinds). Native agent arguments go only after `--`; the permission arguments among them set the Peer's posture (`lead.md`, "Writing charters") — learn a kind's flags from its own `--help` at staffing, since they differ by kind and release. A successful `agent start` returns only after Herdr detects the expected agent and considers it ready; startup defaults to a 30-second timeout. If the agent is blocked during startup the command returns `agent_not_ready` immediately but keeps the name usable for `agent read` and `agent send-keys`; wait for it to settle before prompting.
+Use the kind the user requested (`herdr agent` lists installed kinds). Native agent arguments go only after `--`; the permission arguments among them set the Peer's posture (`charters.md`, "Writing charters") — learn a kind's flags from its own `--help` at staffing, since they differ by kind and release. A successful `agent start` returns only after Herdr detects the expected agent and considers it ready; startup defaults to a 30-second timeout. If the agent is blocked during startup the command returns `agent_not_ready` immediately but keeps the name usable for `agent read` and `agent send-keys`; wait for it to settle before prompting.
 
 ```bash
 herdr agent prompt <name> "<bounded task>"
@@ -98,7 +98,7 @@ herdr notification show "<title>" --body "<one line>" --sound request
 herdr notification show "<title>" --body "<one line>" --sound done
 ```
 
-A notification reaches the Human, not an agent. Popups depend on the Human's `[ui.toast] delivery` key in `~/.config/herdr/config.toml`; its default is `off`, so the notification is silent until the Human sets `herdr`, `terminal`, or `system`. That is the Human's config — never edit it. `lead.md`, "Gates and closeout", owns the only sites: `--sound request` when a Human gate opens, a product fork needs the Human, or a Peer stands at a routine approval only the Human can clear; `--sound done` once per merge under a standing waiver and once at final handoff. Do not notify for routine progress, Peer completions, or verdicts.
+A notification reaches the Human, not an agent. Popups depend on the Human's `[ui.toast] delivery` key in `~/.config/herdr/config.toml`; its default is `off`, so the notification is silent until the Human sets `herdr`, `terminal`, or `system`. That is the Human's config — never edit it. `lead.md`, "Gates and ledger", owns the only sites: `--sound request` when a Human gate opens, a product fork needs the Human, or a Peer stands at a routine approval only the Human can clear; `--sound done` once per merge under a standing waiver and once at final handoff (`closeout.md`, "Final handoff"). Do not notify for routine progress, Peer completions, or verdicts.
 
 ## Read sources
 
