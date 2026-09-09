@@ -692,6 +692,19 @@
         "Proves redundancy by content with git hash-object or git cat-file before removing a file",
         "Leaves config.md and the live coordination files untouched"
       ]
+    },
+    {
+      "id": 56,
+      "prompt": "I'm in Herdr as the Lead at closeout. One loose root file is a closed-gate working note that is attributable to no single delivery issue and is not byte-redundant to any retained record. What should I do?",
+      "expected_output": "Moves the file into the reserved `~/.herdr/projects/<slug>/runs/coordination/` bucket, off the root and reversible. It is not deleted because the byte-redundancy proof fails, and it cannot go under `runs/<issue-id>/` because no single issue names it. Leaves no loose artifact at the root and never touches `config.md` or the live coordination files — the ledger, notebook, mailbox, and context pack.",
+      "files": [],
+      "assertions": [
+        "Moves the loose coordination artifact into the reserved runs/coordination/ bucket under the project root's runs/ directory",
+        "Does not delete the file because the required byte-redundancy proof fails",
+        "Does not place the file under runs/<issue-id>/ because it is attributable to no single delivery issue",
+        "Leaves no such artifact loose at the project root and keeps the move reversible",
+        "Leaves config.md and the live coordination files untouched"
+      ]
     }
   ]
 }
