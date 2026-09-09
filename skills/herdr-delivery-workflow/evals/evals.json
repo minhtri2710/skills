@@ -672,10 +672,10 @@
     {
       "id": 54,
       "prompt": "I'm in Herdr as the Lead staffing two Peers on this project: an Engineer on the pi kind and a Reviewer on the agy kind. Set each seat's dialog posture at staffing so neither can quietly open a blocking user-question dialog, and record it.",
-      "expected_output": "Derives each seat's dialog= from the kind's own --help and tool list at staffing, not from memory. For pi it records dialog=denied and passes the native deny it finds (pi exposes ask_user_question and a deny for it, herdr agent start ... -- --exclude-tools ask_user_question) alongside --no-skills and the permission posture. For agy it records dialog=residual, because agy exposes a built-in user-question tool (ask_user) and offers no native deny, so it announces the residual to the Human once at staffing as a pre-arm miss and puts the no-dialog prohibition in the agy charter in words, noting a Peer routes a fork to the Lead and never asks the Human. Records dialog= beside posture= for each and keeps the two dimensions distinct: a dialog-deny arms no command and changes no posture= value. Keeps user-question tools only on the Supervisor seat.",
+      "expected_output": "Derives each seat's dialog= from the kind's own --help and tool list at staffing, not from memory. For pi it records dialog=denied and passes the native deny it finds (pi exposes ask_question and a deny for it, herdr agent start ... -- --exclude-tools ask_question) alongside --no-skills and the permission posture. For agy it records dialog=residual, because agy exposes a built-in user-question tool (ask_user) and offers no native deny, so it announces the residual to the Human once at staffing as a pre-arm miss and puts the no-dialog prohibition in the agy charter in words, noting a Peer routes a fork to the Lead and never asks the Human. Records dialog= beside posture= for each and keeps the two dimensions distinct: a dialog-deny arms no command and changes no posture= value. Keeps user-question tools only on the Supervisor seat.",
       "files": [],
       "assertions": [
-        "Sets dialog=denied for pi by passing its native user-question deny (--exclude-tools ask_user_question), learned from the kind's own help and tool list",
+        "Sets dialog=denied for pi by passing its native user-question deny (--exclude-tools ask_question), learned from the kind's own help and tool list",
         "Sets dialog=residual for agy because the tool is present with no native deny, announces it to the Human once at staffing, and puts the prohibition in the agy charter",
         "Records dialog= beside posture= and keeps the dialog-deny distinct from the permission posture, changing no posture= value",
         "Keeps the user-question tool only on the Supervisor seat"
@@ -684,26 +684,26 @@
     {
       "id": 55,
       "prompt": "I'm in Herdr as the Lead at closeout. Loose per-run files — an intake-*.md, a handoff-*.md, and a Reviewer transcript — are sitting at the project root beside the coordination files. What should I do?",
-      "expected_output": "Consolidates the loose per-run files under `~/.herdr/projects/<slug>/runs/<issue-id>/`, leaving no root files beyond the enumerated coordination set and conditional `gates.legacy.md`; `runs/` is the sole additional root entry. Removes any file only after proving by content that it is redundant to a retained record, using identical `git hash-object` results or equal `git cat-file` output rather than a name or label, and never touches `config.md` or the live coordination files.",
+      "expected_output": "Consolidates the loose per-run files under `~/.herdr/projects/<slug>/runs/<issue-id>/`, leaving no root files beyond the enumerated coordination set and conditional `gates.legacy.md`; `runs/` is the sole additional root entry. Removes any file only after proving by content that it is redundant to a retained record, using identical `git hash-object` results or equal `git cat-file` output rather than a name or label, and never moves or deletes `config.md` or the live coordination files.",
       "files": [],
       "assertions": [
         "Moves the materialized intake record, handoff copy, and Reviewer transcript into the run's workspace record under runs/<issue-id>/",
         "Leaves no root files beyond the coordination set and conditional gates.legacy.md; runs/ is the sole additional root entry",
         "Proves redundancy by content with git hash-object or git cat-file before removing a file",
-        "Leaves config.md and the live coordination files untouched"
+        "Never moves or deletes config.md or the live coordination files; a same-closeout rewrite of the context pack's references to moved files is not a breach"
       ]
     },
     {
       "id": 56,
       "prompt": "I'm in Herdr as the Lead at closeout. One loose root file is a closed-gate working note that is attributable to no single delivery issue and is not byte-redundant to any retained record. What should I do?",
-      "expected_output": "Moves the file into the reserved `~/.herdr/projects/<slug>/runs/coordination/` bucket, off the root and reversible. It is not deleted because the byte-redundancy proof fails, and it cannot go under `runs/<issue-id>/` because no single issue names it. Leaves no loose artifact at the root and never touches `config.md` or the live coordination files — the ledger, notebook, mailbox, and context pack.",
+      "expected_output": "Moves the file into the reserved `~/.herdr/projects/<slug>/runs/coordination/` bucket, off the root and reversible. It is not deleted because the byte-redundancy proof fails, and it cannot go under `runs/<issue-id>/` because no single issue names it. Leaves no loose artifact at the root and never moves or deletes `config.md` or the live coordination files — the ledger, notebook, mailbox, and context pack; a same-closeout rewrite of the context pack's references to moved files is not a breach.",
       "files": [],
       "assertions": [
         "Moves the loose coordination artifact into the reserved runs/coordination/ bucket under the project root's runs/ directory",
         "Does not delete the file because the required byte-redundancy proof fails",
         "Does not place the file under runs/<issue-id>/ because it is attributable to no single delivery issue",
         "Leaves no such artifact loose at the project root and keeps the move reversible",
-        "Leaves config.md and the live coordination files untouched"
+        "Never moves or deletes config.md or the live coordination files; a same-closeout rewrite of the context pack's references to moved files is not a breach"
       ]
     }
   ]
