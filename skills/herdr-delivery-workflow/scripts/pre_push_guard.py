@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Refuse a push until a review row names the current HEAD."""
+"""Refuse a push until each pushed SHA has a passing review row."""
 from __future__ import annotations
 
 import argparse
@@ -42,27 +42,46 @@ def row_evidence(row: str) -> tuple[str, str, str]:
     return kind.split("=", 1)[1], head.split("@", 1)[1], status.split("=", 1)[1]
 
 
-def check(ledger: Path, repo: Path) -> None:
-    head = git(repo, "rev-parse", "HEAD")
+def push_shas() -> list[str] | None:
+    """Return pushed local SHAs, or None when invoked manually."""
+    if sys.stdin.isatty():
+        return None
+    text = sys.stdin.read()
+    if not text.strip():
+        return None
+
+    shas = []
+    for line in text.splitlines():
+        if not line.strip():
+            continue
+        fields = line.split()
+        if len(fields) != 4:
+            raise GuardError(f"malformed pre-push ref line: {line}")
+        local_sha = fields[1]
+        if local_sha != "0" * 40:
+            shas.append(local_sha)
+    return shas
+
+
+def check(ledger: Path, repo: Path, targets: list[str] | None = None) -> list[str]:
+    if targets is None:
+        targets = [git(repo, "rev-parse", "HEAD")]
     try:
         rows = gate_row.ledger_rows(ledger.read_text(encoding="utf-8"))
     except OSError as exc:
         raise GuardError(f"cannot read ledger {ledger}: {exc}") from None
 
-    review = False
+    reviewed = set()
     for row in rows:
         kind, row_head, status = row_evidence(row)
-        if row_head != head:
-            continue
-        if kind == "review" and (
-            status.startswith("recorded:review") or status.startswith("resolved")
-        ):
-            review = True
-    missing = []
-    if not review:
-        missing.append("review PASS row")
+        if kind == "review" and status == "recorded:review-pass":
+            reviewed.add(row_head)
+    missing = [sha for sha in targets if sha not in reviewed]
     if missing:
-        raise GuardError(f"refusing push for HEAD {head}: missing {', '.join(missing)}")
+        raise GuardError(
+            f"refusing push for {', '.join(missing)}: missing review PASS row"
+        )
+    return targets
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -71,11 +90,15 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--repo", type=Path, default=Path.cwd())
     args = parser.parse_args(argv)
     try:
-        check(args.ledger, args.repo)
+        targets = push_shas()
+        checked = check(args.ledger, args.repo, targets)
     except GuardError as exc:
         print(f"pre_push_guard: {exc}", file=sys.stderr)
         return 1
-    print(f"pre_push_guard: HEAD {git(args.repo, 'rev-parse', 'HEAD')} has a passing review row")
+    if targets is None:
+        print(f"pre_push_guard: HEAD {checked[0]} has a passing review row")
+    else:
+        print(f"pre_push_guard: {len(checked)} pushed SHA(s) have passing review rows")
     return 0
 
 
