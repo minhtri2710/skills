@@ -10,10 +10,10 @@ The Supervisor is not a second Lead and not a Peer. It holds no partition, commi
 
 ## What the Supervisor sees
 
-- the append-only mailbox at `~/.herdr/projects/<project-slug>/supervisor-mailbox.md`, the durable read source for attention events and the Lead's answers; each entry is one Lead-to-Supervisor event with an ISO timestamp, the current HEAD, and the same text the Lead's pane shows;
+- the append-only mailbox at `~/.herdr/projects/<project-slug>/supervisor-mailbox.md`, the durable read source for attention events and the Lead's answers; each entry is one Lead-to-Supervisor event with an ISO timestamp, the current HEAD, and the same text the Lead's pane shows. Read it with `scripts/mailbox.py --file <path> --since <last-read ISO>` (or `--last N`) rather than loading the complete record;
 - attention events the Lead appends: a Human gate opened, a product fork needing the Human, a `REOPEN_REQUEST`, a `BLOCKED` routed upward, the repair cap reached, a Lead seat compacted or relaunched, a final handoff;
 - the Lead's answer to a question from this seat, also appended to the mailbox without an `ATTENTION` prefix;
-- the Lead's and Peers' panes, read only, with `herdr agent read <name>` and `herdr agent get <name>` — the prompt is only a wake, the mailbox entry is the payload; read entries appended since the last read at every wake, including when the turn resumes after the Human answers a dialog;
+- the Lead's and Peers' panes, read only, with `herdr agent read <name>` and `herdr agent get <name>` — the prompt is only a wake, the mailbox entry is the payload; at every wake, read newly appended entries through `scripts/mailbox.py --file <path> --since <last-read ISO>` (or use `--last N` for a bounded tail), including when the turn resumes after the Human answers a dialog, then record `last-read: <ISO>` in the notebook as the durable marker. On relaunch or compaction, resume from that recorded mark rather than rereading the whole mailbox; the mailbox remains the durable payload source, while this helper only narrows the read volume;
 - read-only git history and working-tree condition of the observed checkout (`log`, `show`, `diff`, `--no-optional-locks status`), never a writing command;
 - the gate ledger at `~/.herdr/projects/<project-slug>/gates.md` and the project config beside it;
 - repeated tool failures, loss of momentum, recurring anti-patterns, and decisions that vanished across a compaction or handoff.
@@ -49,7 +49,7 @@ Every observation the Supervisor sends to the Lead or reports to the Human has t
 
 ## Notebook
 
-Keep the notebook at `~/.herdr/projects/<project-slug>/supervisor-notebook.md`, beside the gate ledger, creating the directory when needed. It is append-only and a record, not a control plane: it carries patterns and causal context, never routing state, task queues, or a second source of truth. One entry per observed pattern, in the shape of `templates/supervisor-notebook-entry.txt`. An entry that only says the Lead was wrong is not an entry: record the mechanism and the evidence, so the Human can decide whether the pattern repeats and whether a policy should change. Product repositories carry no supervisor state.
+Keep the notebook at `~/.herdr/projects/<project-slug>/supervisor-notebook.md`, beside the gate ledger, creating the directory when needed. It is append-only and a record, not a control plane: it carries patterns and causal context, never routing state, task queues, or a second source of truth. Record the mailbox `last-read: <ISO>` marker at each wake; when the live notebook exceeds about 300 lines or the day ends, move older entries to `runs/coordination/notebook-<YYYY-MM-DD>.md`, an archive that is append-only as well, while the live file retains the current day's entries. One entry per observed pattern, in the shape of `templates/supervisor-notebook-entry.txt`. An entry that only says the Lead was wrong is not an entry: record the mechanism and the evidence, so the Human can decide whether the pattern repeats and whether a policy should change. Product repositories carry no supervisor state.
 
 Name the anti-pattern from this vocabulary when one fits, so entries group across runs; otherwise write `none` and describe the mechanism:
 
