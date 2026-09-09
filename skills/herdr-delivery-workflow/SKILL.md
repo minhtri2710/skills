@@ -28,6 +28,8 @@ Choose the smallest route, then read only the file it names:
 | **Delivery** | a source change needs bounded ownership, implementation-to-review handoff, or explicit bounded monitoring/closeout | `references/lead.md` (the Lead's core doctrine), `references/charters.md` at staffing, `references/closeout.md` at closeout, `references/project-config.md`, and `references/structural-misfit-policy.md` only when structure is materially in doubt. |
 | **Supervise** | the Human asks this agent to watch a delivery or project rather than run it | `references/supervisor.md`. Take the `supervisor` seat, observe, advise the Lead only; never edit, commit, or accept, and staff nothing except a start the Human instructs for that occasion. |
 
+On a relaunch or compaction, consult `references/relaunch.md` with `references/herdr-cli.md` and complete its checklist before any other action, without exception. Defer `references/lead.md` until recovery identifies an active delivery or a first intake appears, keeping standby recovery outside the full Delivery doctrine.
+
 `references/herdr-cli.md`, `references/project-config.md`, and `references/structural-misfit-policy.md` are shared: cited by the entry files, never copied into them. `references/RATIONALE.md` carries the reasoning behind the rules and is loaded by no route. `templates/` holds the verbatim record shapes a stage fills in, cited by pointer. The Lead's stage files are `references/charters.md` and `references/closeout.md`, loaded by pointer at staffing and closeout. The Lead's coordination files and their placement are owned by `references/lead.md`, "Coordination files".
 
 ## Roles

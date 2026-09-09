@@ -21,6 +21,7 @@ SKILL = Path(__file__).resolve().parents[1] / "skills" / "herdr-delivery-workflo
 LOADED = [
     "SKILL.md",
     "references/lead.md",
+    "references/relaunch.md",
     "references/herdr-cli.md",
     "references/project-config.md",
     "references/structural-misfit-policy.md",
