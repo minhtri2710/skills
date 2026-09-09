@@ -163,7 +163,7 @@ def derive_push(repo: Path, base: str, head: str, boundary: list[str]) -> tuple[
     `outside` is the union of paths touched by every commit in the range, merge
     commits included, minus the declared boundary — not the diff of the two end
     trees, which misses a path added by one commit in the range and deleted by
-    another. `human-gates-and-closeout.md` specifies the union; one derivation
+    another. `lead.md` ("Gates and closeout") specifies the union; one derivation
     serves both callers so neither can drift from it alone.
     """
     for b in boundary:
