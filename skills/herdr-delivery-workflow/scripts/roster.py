@@ -34,8 +34,8 @@ def format_roster(payload: dict[str, Any], workspace: str | None = None) -> list
     return lines
 
 
-def _agent_list_json() -> str:
-    if not sys.stdin.isatty():
+def _agent_list_json(use_stdin: bool) -> str:
+    if use_stdin:
         return sys.stdin.read()
     try:
         proc = subprocess.run(
@@ -55,10 +55,15 @@ def _agent_list_json() -> str:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="compact herdr agent roster")
     parser.add_argument("--workspace", metavar="ID", help="only show this workspace")
+    parser.add_argument(
+        "--stdin",
+        action="store_true",
+        help="read agent-list JSON from stdin instead of running `herdr agent list`",
+    )
     args = parser.parse_args(argv)
 
     try:
-        payload = json.loads(_agent_list_json())
+        payload = json.loads(_agent_list_json(args.stdin))
         lines = format_roster(payload, args.workspace)
     except (json.JSONDecodeError, ValueError, RuntimeError) as exc:
         print(f"roster: {exc}", file=sys.stderr)

@@ -22,7 +22,7 @@ Public IDs are opaque stable handles: workspace `w1`, tab `w1:t1`, pane `w1:p1`.
 printf '%s\n' "$HERDR_WORKSPACE_ID" "$HERDR_TAB_ID" "$HERDR_PANE_ID"
 ```
 
-Pass `--current` or an explicit pane ID whenever a pane command targets the calling pane. An omitted positional target — including for `herdr pane split`, which defaults to the globally focused pane — may hit a pane in another workspace or client session; the explicit current-pane target is mandatory, because focus is not a safe workspace or client boundary. Read live state with `herdr pane current --current`, `herdr pane list --workspace "$HERDR_WORKSPACE_ID"`, `herdr agent list`. For roster/Discovery reads, pass that authoritative output through `scripts/roster.py`, which emits `pane name kind state` per agent and supports `--workspace <id>`; use raw `herdr agent list` only when a dropped field is needed.
+Pass `--current` or an explicit pane ID whenever a pane command targets the calling pane. An omitted positional target — including for `herdr pane split`, which defaults to the globally focused pane — may hit a pane in another workspace or client session; the explicit current-pane target is mandatory, because focus is not a safe workspace or client boundary. Read live state with `herdr pane current --current`, `herdr pane list --workspace "$HERDR_WORKSPACE_ID"`, `herdr agent list`. For roster/Discovery reads, run `scripts/roster.py`, which calls `herdr agent list` itself and emits `pane name kind state` per agent (`--workspace <id>` to scope; `--stdin` only to feed already-captured JSON, as its tests do); use raw `herdr agent list` only when a dropped field is needed.
 
 ## Panes and agents
 
