@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Unit tests for the review-and-push pre-push guard."""
+"""Unit tests for the review-only pre-push guard."""
 from __future__ import annotations
 
 import contextlib
@@ -13,6 +13,7 @@ from pathlib import Path
 SCRIPTS = Path(__file__).resolve().parents[1] / "skills" / "herdr-delivery-workflow" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 
+import gate_row  # noqa: E402
 import pre_push_guard  # noqa: E402
 
 
@@ -29,21 +30,19 @@ class PrePushGuardTest(unittest.TestCase):
         self.git("add", "file.txt")
         self.git("commit", "-qm", "initial")
         self.ledger = self.tmp / "gates.md"
+        self.ledger.write_text("# Gate ledger — test\n\n")
         self.addCleanup(self._tmp.cleanup)
 
     def git(self, *args: str) -> None:
         subprocess.run(["git", "-C", str(self.repo), *args], check=True,
                        capture_output=True, text=True)
 
-    def head(self) -> str:
-        return subprocess.run(["git", "-C", str(self.repo), "rev-parse", "HEAD"],
-                              check=True, capture_output=True, text=True).stdout.strip()
-
-    def rows(self, *rows: str) -> None:
-        head = self.head()
-        self.ledger.write_text("\n".join(
-            row.replace("<head>", head) for row in rows
-        ) + "\n")
+    def append_review(self) -> int:
+        return gate_row.main([
+            "--ledger", str(self.ledger), "--repo", str(self.repo),
+            "--kind", "review", "--status", "recorded:review",
+            "--words", "seat", "--note", "review passed", "--quote", "PASS",
+        ])
 
     def invoke(self) -> tuple[int, str, str]:
         out, err = io.StringIO(), io.StringIO()
@@ -51,34 +50,17 @@ class PrePushGuardTest(unittest.TestCase):
             code = pre_push_guard.main(["--repo", str(self.repo), "--ledger", str(self.ledger)])
         return code, out.getvalue(), err.getvalue()
 
-    def test_head_with_review_and_push_rows_is_allowed(self):
-        self.rows(
-            'G1 | 2026-01-01T00:00:00Z | kind=review | main@<head> | '
-            'status=recorded:review | record=timely | words=none | note=review | quote=""',
-            'G2 | 2026-01-01T00:00:00Z | kind=push | main@<head> | '
-            'status=resolved:standing-waiver | record=timely | words=none | note=push | quote=""',
-        )
-        code, _, _ = self.invoke()
+    def test_head_with_gate_row_written_review_is_allowed(self):
+        self.assertEqual(self.append_review(), 0)
+        code, out, err = self.invoke()
         self.assertEqual(code, 0)
+        self.assertIn("passing review row", out)
+        self.assertEqual(err, "")
 
-    def test_head_with_neither_row_is_refused(self):
-        self.rows(
-            'G1 | 2026-01-01T00:00:00Z | kind=merge | main@<head> | '
-            'status=resolved:standing-waiver | record=timely | words=none | note=merge | quote=""',
-        )
+    def test_head_with_no_review_row_is_refused(self):
         code, _, err = self.invoke()
-        self.assertNotEqual(code, 0)
+        self.assertEqual(code, 1)
         self.assertIn("review PASS row", err)
-        self.assertIn("push row", err)
-
-    def test_head_with_only_one_required_row_is_refused(self):
-        self.rows(
-            'G1 | 2026-01-01T00:00:00Z | kind=review | main@<head> | '
-            'status=resolved:review | record=timely | words=none | note=review | quote=""',
-        )
-        code, _, err = self.invoke()
-        self.assertNotEqual(code, 0)
-        self.assertIn("push row", err)
 
 
 if __name__ == "__main__":

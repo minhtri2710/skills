@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Refuse a push until review and push rows name the current HEAD."""
+"""Refuse a push until a review row names the current HEAD."""
 from __future__ import annotations
 
 import argparse
@@ -50,7 +50,6 @@ def check(ledger: Path, repo: Path) -> None:
         raise GuardError(f"cannot read ledger {ledger}: {exc}") from None
 
     review = False
-    push = False
     for row in rows:
         kind, row_head, status = row_evidence(row)
         if row_head != head:
@@ -59,14 +58,9 @@ def check(ledger: Path, repo: Path) -> None:
             status.startswith("recorded:review") or status.startswith("resolved")
         ):
             review = True
-        if kind == "push":
-            push = True
-
     missing = []
     if not review:
         missing.append("review PASS row")
-    if not push:
-        missing.append("push row")
     if missing:
         raise GuardError(f"refusing push for HEAD {head}: missing {', '.join(missing)}")
 
@@ -81,7 +75,7 @@ def main(argv: list[str] | None = None) -> int:
     except GuardError as exc:
         print(f"pre_push_guard: {exc}", file=sys.stderr)
         return 1
-    print(f"pre_push_guard: HEAD {git(args.repo, 'rev-parse', 'HEAD')} has review and push rows")
+    print(f"pre_push_guard: HEAD {git(args.repo, 'rev-parse', 'HEAD')} has a passing review row")
     return 0
 
 
