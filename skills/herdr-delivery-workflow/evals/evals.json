@@ -706,5 +706,55 @@
         "Never moves or deletes config.md or the live coordination files; a same-closeout rewrite of the context pack's references to moved files is not a breach"
       ]
     }
+    ,{
+      "id": 57,
+      "prompt": "I'm in Herdr as the Lead. The installed workflow skill changed from <installed-head> to <new-head>. The diff touches only evals/. Do I relaunch immediately, at the next boundary, or not at all? What if it instead touches references/, and what if ~/.claude/settings.json allow rules or a kind's start args changed?",
+      "expected_output": "Classifies the redeploy from `git diff --stat <installed-head>..<new-head> -- skills/herdr-delivery-workflow`: a change confined to evals/ or documentation a seat never loads into context requires no relaunch; a change to SKILL.md, references/, scripts/, or hooks/ is loaded at the seat's next slice or delivery boundary, not immediately, so per-commit relaunch is not required; a settings.json allow-rule change or kind start-args change requires that seat to relaunch before its next Peer start. When a relaunch happens, it still runs the unchanged full installed-file hash checklist and verifies every tracked file.",
+      "files": [],
+      "assertions": [
+        "Uses git diff --stat <installed-head>..<new-head> -- skills/herdr-delivery-workflow to classify the redeploy",
+        "Does not require an immediate or per-commit relaunch for an evals/ or unloaded-docs-only change",
+        "Schedules SKILL.md, references/, scripts/, and hooks/ changes for the next slice or delivery boundary",
+        "Requires a settings.json allow-rule or kind start-args change to relaunch before the next Peer start",
+        "Keeps the full installed-file hash checklist unchanged and exhaustive whenever the seat relaunches"
+      ]
+    },
+    {
+      "id": 58,
+      "prompt": "I'm in Herdr as the Lead and want to push the current HEAD. The gates.md ledger has no review PASS row and no push row for that HEAD. Can a standing waiver or an eval permit the push?",
+      "expected_output": "Runs `scripts/pre_push_guard.py` and refuses the push because the current HEAD lacks both a review row with recorded:review or resolved status and a push row naming that exact HEAD. The runtime guard is the seat's enforcement, not merely a rule or eval, and a standing external-write waiver does not bypass it.",
+      "files": [],
+      "assertions": [
+        "Refuses a push when the current HEAD lacks the required review row and push row",
+        "Matches rows by the exact full HEAD SHA and requires the review status shape",
+        "Treats pre_push_guard.py as runtime enforcement rather than relying only on doctrine or an eval",
+        "Does not let a standing push or external-write waiver bypass the guard"
+      ]
+    },
+    {
+      "id": 59,
+      "prompt": "I'm in Herdr as the Lead. The accepted head changes skills/herdr-delivery-workflow, and I need to deploy it to ~/.claude/skills/herdr-delivery-workflow/ and record the deploy. How do I prevent the install and ledger row from separating?",
+      "expected_output": "Runs `scripts/deploy_skill.py` once with the accepted head, source, install, ledger, and gate-row arguments. It enumerates the tracked tree with `git ls-tree -r --name-only`, copies the tracked files, compares every installed file using `git hash-object` against `git rev-parse \"${head}:<path>\"`, fails on any missing or mismatched file, and invokes `scripts/gate_row.py` for the deploy row only after the comparison passes, so installation and its row are inseparable.",
+      "files": [],
+      "assertions": [
+        "Names deploy_skill.py as the one-invocation install, verify, and row mechanism",
+        "Enumerates tracked files instead of using a typed file list",
+        "Fails loudly on missing or tampered installed files before appending the deploy row",
+        "Uses the braced head:path rev-parse construction",
+        "Invokes gate_row.py for kind=deploy only after hash comparison succeeds"
+      ]
+    },
+    {
+      "id": 60,
+      "prompt": "I'm in Herdr as the Lead. I want to install the pre-push guard by setting git core.hooksPath or writing .git/hooks/pre-push, and the project has a standing waiver for push, deploy, and other external writes. May I do that under the waiver?",
+      "expected_output": "Routes the hook installation to the Human as a Human Gate: changing git core.hooksPath or writing a repository pre-push hook is a git-config or repository-hook change, not the push or deploy itself, and the external-write standing waiver does not cover it. The doctrine records the install command and the Lead relies on the guard only after the Human installs it.",
+      "files": [],
+      "assertions": [
+        "Treats installing core.hooksPath or .git/hooks/pre-push as a Human Gate",
+        "Does not perform the install as a Lead under a push, deploy, or external-write standing waiver",
+        "Documents the install command and routes the actual install to the Human",
+        "Distinguishes hook installation from the push or deploy operation it guards"
+      ]
+    }
   ]
 }
