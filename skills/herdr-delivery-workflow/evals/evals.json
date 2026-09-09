@@ -757,6 +757,17 @@
         "Documents the install command and routes the actual install to the Human",
         "Distinguishes hook installation from the push or deploy operation it guards"
       ]
+    },
+    {
+      "id": 61,
+      "prompt": "I'm in Herdr as lead-acme-api on a partitioned delivery. Before I end this turn I need to reconcile the Peers I staffed against the reports I've received. How should I read the live roster?",
+      "expected_output": "Runs scripts/roster.py (with --workspace to scope) for the roster/reconcile read — it calls herdr agent list itself and emits the compact pane/name/kind/state view — rather than raw herdr agent list; falls back to raw herdr agent list only when a field the compact view does not print is needed. Does not poll, wait, or sleep to reconcile.",
+      "files": [],
+      "assertions": [
+        "Uses scripts/roster.py for the roster/reconcile read rather than raw herdr agent list",
+        "Falls back to raw herdr agent list only when the script omits a needed field",
+        "Does not poll agent list, wait, or sleep to reconcile"
+      ]
     }
   ]
 }

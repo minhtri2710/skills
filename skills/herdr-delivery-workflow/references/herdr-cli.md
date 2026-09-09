@@ -85,7 +85,7 @@ herdr agent rename "$HERDR_PANE_ID" lead-<project-slug>
 herdr agent rename <target> --clear
 ```
 
-Rename works on an unnamed agent, including the caller's own. A name follows the pane occupant and clears when that agent exits, so a seat others must prompt — the Lead, the Supervisor, a Reviewer named after its head — is named before anyone needs it. A terminal restart is a fourth way a name is lost even when the session survives; re-name the surviving session and confirm with `herdr agent list`.
+Rename works on an unnamed agent, including the caller's own. A name follows the pane occupant and clears when that agent exits, so a seat others must prompt — the Lead, the Supervisor, a Reviewer named after its head — is named before anyone needs it. A terminal restart is a fourth way a name is lost even when the session survives; re-name the surviving session and confirm with `scripts/roster.py`.
 
 ## Report to the Lead by prompt
 
