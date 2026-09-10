@@ -96,6 +96,16 @@ def artifact_dir(root: Path, issue_id: str) -> Path:
     return root / ".beads" / "artifacts" / issue_id
 
 
+CONTROL_PLANE_PREFIXES = (".beads",)
+
+
+def is_control_plane_path(path: str) -> bool:
+    """Control-plane paths are excluded from containment per safety.md."""
+    normalized = normalize_posix_path(path)
+    first_segment = normalized.split("/", 1)[0] if normalized else ""
+    return first_segment in CONTROL_PLANE_PREFIXES
+
+
 def is_protected_path(path: str, profiles: dict[str, Any]) -> bool:
     normalized = normalize_posix_path(path)
     patterns = profiles.get("protected_path_defaults", [])

@@ -21,6 +21,7 @@ from beo_paths import (
     path_token_covers,
     path_tokens_overlap,
     reject_unsafe_path,
+    is_control_plane_path,
 )
 from beo_reservation import validate_reservation_record
 from beo_state import execution_entry_is_current, read_events, read_state, validate_event_schema
@@ -119,7 +120,8 @@ def changed_files(root: Path) -> list[str]:
             index += 1
         files.append(normalize_posix_path(path))
         index += 1
-    return files
+    # Control-plane (.beads/) is runtime, never product source; exclude it from containment per safety.md.
+    return [path for path in files if not is_control_plane_path(path)]
 
 
 def validate_runtime_events(events: Any, issue_id: str) -> list[str]:

@@ -14,12 +14,13 @@ If a path matches both allow and forbid, forbid wins.
 
 ## Containment failure triage
 
+`beo_check` defensively excludes `.beads/` control-plane paths from containment by default, so control-plane churn during a run never registers as a scope violation.
+
 | Symptom | Cause | Resolution |
 | --- | --- | --- |
 | `path matches protected pattern: <path>` | A ticket scope path overlaps a protected path from `registry/profiles.json` | Remove the protected path from product scope; use only explicit approved product files |
 | `changed path outside approved scope: <path>` | A dirty path is not covered by `scope.files.allow` or `scope.generated_outputs` | Add the exact intended file path to the ticket scope, or clean/revert unrelated dirtiness before rerunning containment |
 | Broad wildcard paths overlap protected patterns | A trailing `**` can overlap protected defaults such as `.git/**`, `.beads/**`, or `**/.env` | Prefer exact file paths over broad directory globs |
-| Dirty Beads control-plane files appear during containment | `.beads/issues.jsonl`, `state.json`, or related control-plane artifacts changed outside the approved product scope | Commit or otherwise reach a clean control-plane prestate before running containment checks |
 | `broad glob requires matching Human Gate authorization: <path>` | Broad scope requires explicit authorization in standard or strict operation | Replace the glob with exact paths, or use a resolved `human_gates` entry of type `broad_scope_authorization`; mode requirements are canonical in `registry/profiles.json` |
 
 ## Phase and approval staleness triage
