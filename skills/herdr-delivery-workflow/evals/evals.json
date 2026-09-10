@@ -782,13 +782,13 @@
     },
     {
       "id": 63,
-      "prompt": "A seat needs to recall a past decision or why from the project records, such as why a past Engineer seat stopped working. What retrieval path should it use?",
-      "expected_output": "Uses hybrid `qmd query \"<question>\" -c herdr-records -n 3` to find the relevant record, then reads only the cited result span with `qmd get qmd://herdr-records/<path>:<line>:<count>`. Does not rely on BM25-only `qmd search` or raw grep/cat of a notebook for recall.",
+      "prompt": "A seat needs to recall an older decision, explanation, event, or artifact location from project records. What retrieval path should it use?",
+      "expected_output": "Runs `scripts/recall.py` with two or more query variants: the natural-language question plus at least one technical-vocabulary variant such as an id, slug, SHA, or filename. Then reads only the cited span with `scripts/recall.py --get <path>:<from>:<count>`. Does not use qmd, an external CLI, or a raw grep/cat of a notebook for recall.",
       "files": [],
       "assertions": [
-        "Uses qmd query with -c herdr-records for hybrid retrieval",
-        "Then uses qmd get on the cited record span with a line range rather than catting a whole file",
-        "Does not rely on BM25-only qmd search or raw grep/cat of a notebook for recall"
+        "Runs scripts/recall.py with two or more query variants, including one in technical vocabulary",
+        "Reads only the cited span with scripts/recall.py --get <path>:<from>:<count> rather than catting a whole file",
+        "Does not use qmd, an external CLI, or raw grep/cat of a notebook for recall"
       ]
     }
   ]
