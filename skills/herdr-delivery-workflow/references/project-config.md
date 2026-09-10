@@ -10,6 +10,10 @@ A project may keep standing delivery preferences in a Human-owned config file:
 
 The config is the Lead's layer: the Lead reads it at the start of a delivery or review-only route, before staffing any agent; the Supervisor may read it to audit; a Peer never reads it and receives the applied values through its charter; the lightweight route does not read it. When present, apply it. When absent, do not silently fall back to defaults: stop and ask the Human whether to create one, offering the two outcomes — create it now (record the settings they give, or seed the template below with the values this run would use and confirm them, then apply it) or proceed this run on workflow defaults — and act only on their answer. Record `Config: none` (in the intake record, or beside the review boundary on a review-only route) only after the Human declines a config. Never create the file or assume defaults without that answer.
 
+## Recall prerequisite
+
+The recall path in `herdr-cli.md`, “Recall past records”, assumes a machine-owned prerequisite: `qmd` is installed, the `herdr-records` collection indexes `~/.herdr/projects` with pattern `**/*.md`, and its embedding and rerank models are cached. The one-time setup — `qmd collection add`, `qmd pull`, and `qmd embed` — is Human-owned. If it is absent, that recall path does not apply; the seat uses the existing wake-time reads and targeted grep instead. This prerequisite is read-only during a run, consistent with the Human-owned config boundary.
+
 ## Format
 
 One `key: value` line per setting, in the shape of `templates/config.txt`; every key is optional. Report an unknown key to the Human instead of guessing its meaning; do not act on it.

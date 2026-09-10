@@ -100,6 +100,16 @@ herdr notification show "<title>" --body "<one line>" --sound done
 
 A notification reaches the Human, not an agent. Popups depend on the Human's `[ui.toast] delivery` key in `~/.config/herdr/config.toml`; its default is `off`, so the notification is silent until the Human sets `herdr`, `terminal`, or `system`. That is the Human's config — never edit it. `lead.md`, "Gates and ledger", owns the only sites: `--sound request` when a Human gate opens, a product fork needs the Human, or a Peer stands at a routine approval only the Human can clear; `--sound done` once per merge under a standing waiver and once at final handoff (`closeout.md`, "Final handoff"). Do not notify for routine progress, Peer completions, or verdicts.
 
+## Recall past records
+
+For a past decision, reason, event, or prior artifact location, when the record predates the wake-time `last-read` mark, ask the indexed records with `qmd query "<question>" -c herdr-records -n 3`. This is hybrid retrieval: query expansion finds paraphrases and reranking orders the useful hits, so use `qmd query`, not `qmd search` (BM25 misses paraphrased and non-English questions). Read evidence narrowly with `qmd get qmd://herdr-records/<path>:<line>:<count>` for the cited result span; never cat an entire notebook, mailbox, or run directory to recall it.
+
+The R1 wake read, `scripts/mailbox.py --headers --since <last-read>`, is unchanged and remains the source for new mailbox entries that are not embedded yet. qmd covers records older than `last-read`.
+
+Keep freshly written records searchable by running `qmd update` and then `qmd embed`; both are incremental. Before a query, inspect `qmd status`; if it reports pending documents or orphaned chunks, run `qmd update && qmd embed` first, and run `qmd cleanup` when orphans are reported. Do not add a cron, daemon, MCP server, or background watch: this workflow uses the CLI when recall is needed.
+
+This path assumes the machine prerequisite described in `project-config.md`, "Recall prerequisite". If that prerequisite is absent, do not apply the qmd rule; use the wake-time reads and targeted grep instead.
+
 ## Read sources
 
 - `visible` — the rendered viewport;
