@@ -179,14 +179,14 @@
     },
     {
       "id": 15,
-      "prompt": "I'm in Herdr. Before staffing this delivery, dig up whatever we already wrote about this subsystem in my local notes and check which MCP servers expose the API we're integrating. Assume mcporter turns out not to be installed on this machine.",
-      "expected_output": "Uses local tools conditionally and names them in the charter: qmd for the indexed local Markdown knowledge base and mcporter for discovering or calling MCP servers and tools; records degraded mode and a bounded alternative for the unavailable mcporter rather than claiming it was used; keeps the search proportionate to the outcome; states that the findings feed the intake record and governing contracts before any agent is staffed.",
+      "prompt": "I'm in Herdr. Before staffing a delivery, I need to understand what earlier runs already decided or discovered about the area this delivery touches and how that should shape setup.",
+      "expected_output": "Recalls prior decisions and discoveries from the project records with `scripts/recall.py` using two or more query variants, including one in technical vocabulary; keeps the search proportionate to the outcome; and feeds the findings into the intake record and governing contracts before any agent is staffed. Does not depend on any external or machine-specific tool.",
       "files": [],
       "assertions": [
-        "Names qmd for the indexed local Markdown knowledge base and mcporter for MCP server or tool discovery",
-        "Records degraded mode and a bounded alternative for the unavailable mcporter, without claiming it was used",
-        "Keeps the search proportionate to the outcome",
-        "States that the findings feed the intake record and governing contracts before any agent is staffed"
+        "Uses `scripts/recall.py` with two or more query variants to recall prior work from the project records.",
+        "Keeps the search proportionate to the outcome.",
+        "Feeds the findings into the intake record and governing contracts before any agent is staffed.",
+        "Does not name or depend on any external or machine-specific tool."
       ]
     },
     {
@@ -783,12 +783,12 @@
     {
       "id": 63,
       "prompt": "A seat needs to recall an older decision, explanation, event, or artifact location from project records. What retrieval path should it use?",
-      "expected_output": "Runs `scripts/recall.py` with two or more query variants: the natural-language question plus at least one technical-vocabulary variant such as an id, slug, SHA, or filename. Then reads only the cited span with `scripts/recall.py --get <path>:<from>:<count>`. Does not use qmd, an external CLI, or a raw grep/cat of a notebook for recall.",
+      "expected_output": "Runs `scripts/recall.py` with two or more query variants: the natural-language question plus at least one technical-vocabulary variant such as an id, slug, SHA, or filename. Then reads only the cited span with `scripts/recall.py --get <path>:<from>:<count>`. Does not depend on any external or machine-specific tool, or on a raw grep/cat of a notebook, for recall.",
       "files": [],
       "assertions": [
         "Runs scripts/recall.py with two or more query variants, including one in technical vocabulary",
         "Reads only the cited span with scripts/recall.py --get <path>:<from>:<count> rather than catting a whole file",
-        "Does not use qmd, an external CLI, or raw grep/cat of a notebook for recall"
+        "Does not depend on any external or machine-specific tool, or raw grep/cat of a notebook, for recall"
       ]
     }
   ]
