@@ -12,7 +12,6 @@ This file guidance focuses on setup checks. Authority invariants are canonical i
 | `br` | Required | Issue lifecycle, claims, comments, closure | Block BEO delivery readiness. |
 | PyYAML | Required | Parse BEO YAML/JSON artifacts | Block helper execution. |
 | `bv` | Optional | Read-only graph orientation | Use `br ready --json` and `br show --json`. |
-| `qmd` | Optional | Advisory semantic recall | Disable semantic search. |
 | Obsidian | Optional | Reusable learning note vault | Fall back to `.beads/learnings/`. |
 | `beo_verify.py` | Optional | Queryable verification runner | Skip verification_run events; `beo-execute` still records its own verify_results. |
 | `beo_score_trace.py` / `beo_score_context.py` | Optional | Advisory scoring helpers | Skip score events; no functional impact. |
@@ -30,9 +29,7 @@ BEO delivery can run when:
 BEO delivery does not require:
 
 - `bv`,
-- qmd,
 - Obsidian CLI,
-- semantic memory,
 - repo `AGENTS.md`.
 
 ## AGENTS.md bootstrap

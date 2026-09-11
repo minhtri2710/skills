@@ -16,7 +16,7 @@ This file owns BEO artifact placement rules. Other files should cite this file i
 | `state.json` | approval, execution, review state | request/scope definition, br lifecycle, memory notes |
 | `runtime-events.jsonl` | append-only non-normal events | normal successful transitions |
 | `harness-proposal.json` | delivery-to-author harness change proposal | approval state, execution state, review verdict, delivery scope |
-| qmd/Obsidian notes | advisory reusable lessons | approval, execution permission, verdict, closure, Human Gate authorization |
+| Obsidian notes | advisory reusable lessons | approval, execution permission, verdict, closure, Human Gate authorization |
 | `AGENTS.md` managed block | compact repo-level reminder | detailed BEO doctrine |
 
 ## Do not put

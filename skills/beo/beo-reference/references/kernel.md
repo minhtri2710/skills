@@ -13,7 +13,7 @@ beo-plan -> beo-validate -> beo-execute -> beo-review
 - **`TICKET.json`**: Declarative contract owning request, done criteria, approved scope, verification commands, and risk/mode contracts. Must not include claim/lifecycle fields.
 - **`state.json`**: Owns approval, execution, and review state. Must not mirror lifecycle or closure state except as evidence refs or review verdict.
 - **`runtime-events.jsonl`**: Optional append-only log of non-normal events. Must not record normal transition events.
-- **qmd/Obsidian**: Optional advisory memory. Cannot grant approval, execution permission, verdicts, closure, or Human Gate resolution.
+- **Obsidian**: Optional advisory memory. Cannot grant approval, execution permission, verdicts, closure, or Human Gate resolution.
 
 ---
 

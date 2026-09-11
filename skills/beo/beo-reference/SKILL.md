@@ -36,7 +36,7 @@ Canonical lookup router: `references/doctrine-map.md`. Helper index: `references
 ## Never
 
 - See `beo-reference -> registry/phase-contracts.json` `must_not[]`; audit C8 enforces drift.
-- Do not mutate product files, BEO artifacts, registries, memory, qmd indexes, or Beads state.
+- Do not mutate product files, BEO artifacts, registries, memory, or Beads state.
 - Do not claim issues.
 - Do not grant `PASS_EXECUTE`.
 - Do not issue review verdicts.

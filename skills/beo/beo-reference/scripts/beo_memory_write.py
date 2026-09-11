@@ -208,14 +208,13 @@ def _parse_frontmatter_block(block: str) -> dict[str, object]:
 
 
 def resolve_obsidian_env() -> dict[str, str | Path | None]:
-    """Resolve Obsidian and QMD environment variables with safe defaults."""
+    """Resolve Obsidian environment variables with safe defaults."""
     vault_name = os.environ.get("BEO_OBSIDIAN_VAULT_NAME") or os.environ.get("BEO_OBSIDIAN_VAULT_ID") or None
     vault_path_str = os.environ.get("BEO_OBSIDIAN_VAULT")
     vault_path = Path(vault_path_str).expanduser().resolve() if vault_path_str else None
     return {
         "vault_name": vault_name,
         "vault_path": vault_path,
-        "qmd_collection": os.environ.get("BEO_QMD_COLLECTION") or vault_name or "beo-learnings",
         "learning_dir": vault_path / "beo-learnings" if vault_path else None,
     }
 

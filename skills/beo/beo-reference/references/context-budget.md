@@ -64,7 +64,7 @@ The five delivery phases are intake, planning, implementation, validation, and t
 - Full `beo-reference/scripts/` source (use `--help` or summary instead).
 - All 9 skill cards at once (load only the active owner + adjacent phases).
 - Full `runtime-events.jsonl` if it exceeds 1K lines (sample last 50 events).
-- Obsidian vault content (use `qmd` semantic search for targeted recall).
+- Obsidian vault content (load only targeted notes as needed).
 
 ## Drift detection
 
