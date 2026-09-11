@@ -1,0 +1,3 @@
+- Write the finished report/verdict to `<run-dir>/report-<peer-name>.md` with the editor/write tool (never via the shell), then print it as the pane's final output.
+- At send time, compose a prompt containing the verdict/outcome line, a bounded summary of no more than roughly 200 words, and `full report at <run-dir>/report-<peer-name>.md`; send only that composed prompt with `herdr agent prompt <lead-name> ...` (no `--wait`). Do not send the report file contents.
+- If that command exits non-zero: `herdr notification show "<peer-name>: report send failed" --body "<run-dir>/report-<peer-name>.md" --sound request`, then stop. Do not retry the send in either case.

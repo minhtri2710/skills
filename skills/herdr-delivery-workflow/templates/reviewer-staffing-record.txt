@@ -1,7 +1,7 @@
 MODE: <partitioned | solo-Lead>
 LEAD: kind=<kind> model=<model>
-ENGINEER: <name> kind=<kind> model=<model> posture=<allowlisted | bypassed | none | human-started | prompting> pane=<id> owned=<paths or none> extensions=<none | name(s)>   (one line per Engineer; none in solo-Lead)
+ENGINEER: <name> kind=<kind> model=<model> posture=<allowlisted | bypassed | none | human-started | prompting> dialog=<denied | absent | residual> skills=<none | name(s)> pane=<id> owned=<paths or none> extensions=<none | name(s)>   (one line per Engineer; none in solo-Lead)
 HEAD: <exact SHA committed by the Lead>
-REVIEWER: <name> kind=<kind> model=<model> posture=<allowlisted | bypassed | none | human-started | prompting> extensions=<none | name(s)> pane=<id> head=<same exact SHA>
+REVIEWER: <name> kind=<kind> model=<model> posture=<allowlisted | bypassed | none | human-started | prompting> dialog=<denied | absent | residual> skills=<none | name(s)> extensions=<none | name(s)> pane=<id> head=<same exact SHA>
 FALLBACK: kind=<kind> model=<model>, pinned to the same exact head; triggers: preferred kind uninstalled or unavailable; Reviewer errors or reaches no verdict; only remaining kind is an Engineer kind; Reviewer breaks read-only — a no-mutation violation; Reviewer launches a subagent or background work or times out — a boundary failure; the Lead's own runtime cannot pass the preferred kind's posture and the Human declines to start the seat — the `human-started` gate resolved against staffing it
 INDEPENDENCE: <different-kind | same-kind-distinct-model | same-kind-same-model | different-kind-and-model> — a different kind is normal independence; a same-kind review with a distinct model pinned through `reviewer-fallback-args` is independence-by-model with disclosed kind-collision residual risk; a same-kind review with the same or an unpinned model is an unusable conflict; in solo-Lead mode, both kind and model must differ from the Lead
