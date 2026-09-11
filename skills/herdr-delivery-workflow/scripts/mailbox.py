@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import re
+import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -67,6 +68,20 @@ def select_entries(
     return ["\n".join((entry.header, entry.body)) for entry in entries]
 
 
+def run_wake(seat: str, wake_text: str) -> subprocess.CompletedProcess[str]:
+    """Issue one best-effort Herdr wake for a delivered mailbox entry."""
+    return subprocess.run(
+        ["herdr", "agent", "prompt", seat, wake_text],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+
+def _default_wake_text(seat: str, mailbox_path: str, header: str) -> str:
+    return f"Seat {seat}: read project mailbox {mailbox_path} for the latest entry ({header})."
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="select Supervisor mailbox entries")
     parser.add_argument("--file", required=True, metavar="PATH", help="mailbox file")
@@ -74,12 +89,40 @@ def main(argv: list[str] | None = None) -> int:
     selectors.add_argument("--since", metavar="ISO")
     selectors.add_argument("--last", metavar="N", type=int)
     parser.add_argument("--headers", action="store_true")
+    parser.add_argument("--wake", metavar="SEAT", help="read the last header and wake a seat")
+    parser.add_argument("--wake-text", metavar="TEXT", help="override the default wake pointer")
     args = parser.parse_args(argv)
 
+    if args.wake_text is not None and args.wake is None:
+        print("mailbox: --wake-text requires --wake", file=sys.stderr)
+        return 1
+
     try:
+        text = Path(args.file).read_text(encoding="utf-8")
+        if args.wake is not None:
+            if args.since is not None or args.last is not None or args.headers:
+                raise ValueError("--wake cannot be combined with mailbox selectors")
+            output = select_entries(text, last=1, headers=True)
+            if not output:
+                print("mailbox: UNSENT: no parseable last header; wake not attempted", file=sys.stderr)
+                return 1
+            header = output[0]
+            wake_text = args.wake_text or _default_wake_text(args.wake, args.file, header)
+            try:
+                result = run_wake(args.wake, wake_text)
+            except OSError as exc:
+                print(f"mailbox: ran herdr agent prompt {args.wake}", file=sys.stderr)
+                print(f"mailbox: wake failed: {exc}", file=sys.stderr)
+                return 1
+            print(f"mailbox: ran herdr agent prompt {args.wake}", file=sys.stderr)
+            if result.stdout:
+                sys.stdout.write(result.stdout)
+            if result.stderr:
+                sys.stderr.write(result.stderr)
+            return result.returncode
+
         if args.since is None and args.last is None and not args.headers:
             raise ValueError("at least one of --headers, --since, or --last is required")
-        text = Path(args.file).read_text(encoding="utf-8")
         output = select_entries(text, since=args.since, last=args.last, headers=args.headers)
     except (OSError, ValueError) as exc:
         print(f"mailbox: {exc}", file=sys.stderr)

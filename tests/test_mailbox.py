@@ -5,6 +5,7 @@ from __future__ import annotations
 import contextlib
 import io
 import sys
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -108,6 +109,77 @@ class MailboxTest(unittest.TestCase):
         self.assertEqual(result, 1)
         self.assertEqual(stdout.getvalue(), "")
         self.assertIn("mailbox: at least one of", stderr.getvalue())
+
+    def test_wake_runs_once_for_last_header(self):
+        calls = []
+
+        def fake_wake(seat, wake_text):
+            calls.append((seat, wake_text))
+            return subprocess.CompletedProcess(
+                ["herdr", "agent", "prompt", seat, wake_text],
+                0,
+                stdout="wake output\n",
+                stderr="wake diagnostic\n",
+            )
+
+        original = mailbox.run_wake
+        mailbox.run_wake = fake_wake
+        self.addCleanup(setattr, mailbox, "run_wake", original)
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            result = mailbox.main(["--file", str(self.path), "--wake", "supervisor"])
+
+        self.assertEqual(result, 0)
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0][0], "supervisor")
+        self.assertIn(str(self.path), calls[0][1])
+        self.assertIn("third", calls[0][1])
+        self.assertEqual(stdout.getvalue(), "wake output\n")
+        self.assertIn("ran herdr agent prompt supervisor", stderr.getvalue())
+        self.assertIn("wake diagnostic\n", stderr.getvalue())
+
+    def test_wake_without_header_is_unsent_and_does_not_wake(self):
+        self.path.write_text("not a mailbox entry\n", encoding="utf-8")
+        calls = []
+        original = mailbox.run_wake
+        mailbox.run_wake = lambda seat, wake_text: calls.append((seat, wake_text))
+        self.addCleanup(setattr, mailbox, "run_wake", original)
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            result = mailbox.main(["--file", str(self.path), "--wake", "supervisor"])
+
+        self.assertNotEqual(result, 0)
+        self.assertEqual(calls, [])
+        self.assertEqual(stdout.getvalue(), "")
+        self.assertIn("UNSENT", stderr.getvalue())
+        self.assertIn("wake not attempted", stderr.getvalue())
+
+    def test_wake_failure_is_not_retried(self):
+        calls = []
+
+        def fake_wake(seat, wake_text):
+            calls.append((seat, wake_text))
+            return subprocess.CompletedProcess(
+                ["herdr", "agent", "prompt", seat, wake_text],
+                1,
+                stdout="",
+                stderr="agent_blocked\n",
+            )
+
+        original = mailbox.run_wake
+        mailbox.run_wake = fake_wake
+        self.addCleanup(setattr, mailbox, "run_wake", original)
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            result = mailbox.main(["--file", str(self.path), "--wake", "supervisor"])
+
+        self.assertEqual(result, 1)
+        self.assertEqual(len(calls), 1)
+        self.assertIn("ran herdr agent prompt supervisor", stderr.getvalue())
+        self.assertIn("agent_blocked\n", stderr.getvalue())
 
 
 if __name__ == "__main__":
