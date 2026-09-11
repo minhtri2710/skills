@@ -36,7 +36,7 @@
     "beo-learn": {
       "entry_conditions": ["explicit_learning_candidate", "explicit_user_request"],
       "authority": "advisory_memory_only",
-      "outcomes": ["learning_recorded", "learning_skipped", "qmd_refresh_recommended", "user_review_needed"]
+      "outcomes": ["learning_recorded", "learning_skipped", "user_review_needed"]
     }
   },
   "maintenance_skills": {

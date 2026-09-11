@@ -3,7 +3,7 @@
 > [!NOTE]
 > This reference is subordinate to `references/kernel.md`. `references/kernel.md` is the canonical owner of BEO rules and invariants.
 
-Memory authority boundary is canonical in `references/kernel.md` (Memory & Learning Boundary section): qmd and Obsidian are advisory only and never grant approval, execution permission, verdicts, closure, or Human Gate resolution.
+Memory authority boundary is canonical in `references/kernel.md` (Memory & Learning Boundary section): Obsidian is advisory only and never grants approval, execution permission, verdicts, closure, or Human Gate resolution.
 
 ## Learning location
 
@@ -25,7 +25,7 @@ If a lesson becomes repeated workflow behavior, promote it into one of:
 
 `beo-learn` runs only when an explicit `learning_candidate` exists or the user asks to save a BEO lesson. Write the smallest safe markdown note through `beo_memory_write.py`.
 
-Notes must store structural handles only, never secrets, raw credentials, or customer-sensitive data. `beo-learn` writes the note only. It may emit `qmd_refresh_recommended`; qmd refresh/indexing belongs only to explicit `beo-setup` or authorized BEO maintenance. `beo_memory_write.py` writes to the configured Obsidian `<vault>/beo-learnings/` directory when `BEO_OBSIDIAN_VAULT` resolves to a writable vault path; otherwise it falls back to `.beads/learnings/`.
+Notes must store structural handles only, never secrets, raw credentials, or customer-sensitive data. `beo-learn` writes the note only. `beo_memory_write.py` writes to the configured Obsidian `<vault>/beo-learnings/` directory when `BEO_OBSIDIAN_VAULT` resolves to a writable vault path; otherwise it falls back to `.beads/learnings/`.
 
 ## Note shape
 

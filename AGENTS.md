@@ -19,7 +19,6 @@ A collection of canonical beo skills and shared references for structured, contr
 | --- | --- | --- |
 | `br` | 0.1.28+ | beads_rust CLI |
 | `bv` | 0.15.2+ | Beads Viewer |
-| `qmd` | latest | Vector search for learning recall |
 | `obsidian` | latest | Learning note persistence |
 | `beo_verify.py` | v1 | Runs TICKET.json scope verify commands and appends `verification_run` runtime events |
 | `beo_score_trace.py` | v1 | Advisory trace-quality scoring (minimal/standard/detailed tier) |
@@ -53,7 +52,7 @@ BEO is active in this repo.
 - Extended flows live outside the normal path: fast-track (quick-mode flag, §12), strict-mode worktree isolation (§7), and harness proposals (§10) for evolving the control plane. See `beo-reference -> references/kernel.md`.
 - Supporting skills: `beo-debug` (when blocked), `beo-learn` (capture notes), `beo-reference` (read-only lookup), `beo-author` (maintain BEO itself). Load via `skills/beo/<name>/SKILL.md`.
 - Use one claimed Beads issue and one BEO owner at a time.
-- `br` owns lifecycle; `bv`, qmd, and Obsidian never grant authority.
+- `br` owns lifecycle; `bv` and Obsidian never grant authority.
 - Use the `br`/`bv` CLI for all `.beads/` reads and mutations (`br ready --json`, `br show <id> --json`, `br close`); never parse `issues.jsonl`/`beads.db` directly (kernel §2.11; detail in `beo-reference -> references/lifecycle.md`). Orient with `br robot-docs guide`; per-project command help via `br agents --add`.
 - Do not execute without validation-owned `PASS_EXECUTE`; review owns accepted closure.
 - `strict`-mode `verdict_accept` requires a recorded second-reviewer cross-check (`state.json.review.cross_check`); see kernel §15.

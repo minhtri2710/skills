@@ -51,19 +51,12 @@ class HelperSemanticsTest(unittest.TestCase):
                 return 0, "br 0.1.28", ""
             if args[:2] == ["bv", "--version"]:
                 return 0, "bv 0.15.2", ""
-            if args[:2] == ["qmd", "--version"]:
-                return 0, "qmd 0.1.0", ""
             if args[:2] == ["obsidian", "help"]:
                 return 0, "obsidian help", ""
-            if args[:2] == ["qmd", "collection"]:
-                return 0, '[{"name":"beo-learnings"}]', ""
-            if args[:2] == ["qmd", "status"]:
-                return 0, "Pending: 0 need embedding", ""
             return 0, "", ""
 
         with mock.patch("builtins.__import__", side_effect=import_without_yaml), \
              mock.patch.object(beo_setup.beo_io, "run_cmd", side_effect=fake_run_cmd), \
-             mock.patch.dict(os.environ, {"BEO_QMD_COLLECTION": "beo-learnings"}, clear=True), \
              mock.patch.object(sys, "argv", ["beo_setup.py"]), \
              contextlib.redirect_stdout(io.StringIO()) as stdout:
             rc = beo_setup.main()
@@ -1053,39 +1046,6 @@ class HelperSemanticsTest(unittest.TestCase):
         import check_skill_bundle
         with contextlib.redirect_stdout(io.StringIO()):
             self.assertEqual(check_skill_bundle.run_checks(), 0)
-
-    def test_setup_qmd_uses_direct_commands(self):
-        import beo_setup
-        calls = []
-
-        def fake_run_cmd(args, strip=True, cwd=None):
-            calls.append(args)
-            if args[:2] == ["br", "--version"]:
-                return 0, "br", ""
-            if args[:2] == ["bv", "--version"]:
-                return 0, "bv", ""
-            if args[:2] == ["qmd", "--version"]:
-                return 0, "qmd", ""
-            if args[:2] == ["obsidian", "help"]:
-                return 0, "obsidian", ""
-            if args == ["qmd", "collection", "list"]:
-                return 0, '[{"name":"beo-learnings"}]', ""
-            if args == ["qmd", "status"]:
-                return 0, "Pending: 0 need embedding", ""
-            return 0, "{}", ""
-
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            with mock.patch.object(beo_setup.beo_io, "run_cmd", side_effect=fake_run_cmd), \
-                 mock.patch.dict(os.environ, {"BEO_QMD_COLLECTION": "beo-learnings"}, clear=True), \
-                 mock.patch.object(sys, "argv", ["beo_setup.py", "--root", str(root), "--configure-memory"]), \
-                 contextlib.redirect_stdout(io.StringIO()) as stdout:
-                rc = beo_setup.main()
-            report = json.loads(stdout.getvalue())
-        self.assertEqual(rc, 0)
-        self.assertIn(["qmd", "collection", "list"], calls)
-        self.assertTrue(report["qmd_collection"]["exists"])
-        self.assertEqual(report["local_learning"]["path"], str((root / ".beads" / "learnings").resolve()))
 
     def test_memory_write_helpers(self):
         import beo_memory_write

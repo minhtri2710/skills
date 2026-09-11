@@ -102,8 +102,8 @@
       "artifact_write_authorities": [
         "advisory_learning_note"
       ],
-      "may_emit_support_outcomes": ["learning_recorded", "learning_skipped", "qmd_refresh_recommended", "user_review_needed"],
-      "must_not": ["mutate_delivery_state", "grant_PASS_EXECUTE", "alter_review_verdict", "close", "store_secrets", "refresh_or_reindex_qmd"]
+      "may_emit_support_outcomes": ["learning_recorded", "learning_skipped", "user_review_needed"],
+      "must_not": ["mutate_delivery_state", "grant_PASS_EXECUTE", "alter_review_verdict", "close", "store_secrets"]
     },
     "beo-author": {
       "class": "maintenance",
@@ -133,7 +133,7 @@
         "setup_blocked",
         "user_confirmation_needed"
       ],
-      "must_not": ["grant_PASS_EXECUTE", "review", "mutate_product_files", "close", "make_qmd_or_obsidian_authoritative"]
+      "must_not": ["grant_PASS_EXECUTE", "review", "mutate_product_files", "close", "make_obsidian_authoritative"]
     },
     "beo-reference": {
       "class": "read_only_lookup",
@@ -145,7 +145,6 @@
         "mutate_BEO_artifacts",
         "mutate_registries",
         "mutate_memory",
-        "mutate_qmd_indexes",
         "mutate_Beads_state",
         "claim_issues",
         "grant_PASS_EXECUTE",

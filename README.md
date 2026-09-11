@@ -27,14 +27,14 @@ Authority:
 - `TICKET.json` owns request, done criteria, approved scope, verification commands, and risk/strict contracts.
 - `state.json` owns approval, execution, and review state.
 - `runtime-events.jsonl` is optional and records only non-normal events.
-- `qmd` and Obsidian are advisory memory only.
+- Obsidian is advisory memory only.
 
 Requirements:
 
 - `br` is required.
 - Python 3 standard library only; no third-party packages.
 - Git worktree isolation is optional and used only by strict mode.
-- `bv`, qmd, and Obsidian are optional degraded tools.
+- `bv` and Obsidian are optional degraded tools.
 
 No legacy compatibility: BEO accepts only current `version: 1` artifacts.
 
