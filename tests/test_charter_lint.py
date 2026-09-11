@@ -47,6 +47,23 @@ class CharterLintTest(unittest.TestCase):
         self.assertNotEqual(code, 0)
         self.assertIn("Disposition", error)
 
+    def test_bold_engineer_disposition_is_ok(self):
+        charter = self.engineer_charter().replace(
+            "Disposition: Engineer\n", "**Disposition:** Engineer.\n"
+        )
+        code, output, error = self.run_lint(charter)
+        self.assertEqual(code, 0)
+        self.assertIn("OK:", output)
+        self.assertEqual(error, "")
+
+    def test_malformed_bold_disposition_is_named(self):
+        charter = self.engineer_charter().replace(
+            "Disposition: Engineer\n", "**Disposition:** Builder.\n"
+        )
+        code, _, error = self.run_lint(charter)
+        self.assertNotEqual(code, 0)
+        self.assertIn("Disposition", error)
+
     def test_engineer_without_owned_paths_is_named(self):
         charter = self.engineer_charter().replace("Owned paths: tests/test_charter_lint.py\n", "")
         code, _, error = self.run_lint(charter)
