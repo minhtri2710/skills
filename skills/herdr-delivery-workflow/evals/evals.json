@@ -869,6 +869,20 @@
         "Records the causal mechanism: trimming the relaunch or handoff context pack dropped a load-bearing gate or owned path",
         "Connects the omission to the replacement seat acting on an incomplete account rather than only describing the omission"
       ]
+    },
+    {
+      "id": 70,
+      "prompt": "I'm a Lead about to dispatch an Engineer charter, but the charter omits the report-by-prompt block. What must I do before `herdr agent prompt <peer>`?",
+      "expected_output": "Runs `scripts/charter_lint.py --charter <charter-file> --lead <lead-name>` before `herdr agent prompt <peer>`; the lint fails and names the missing report-by-prompt block, so the charter is fixed before dispatch. It does not poll.",
+      "files": [
+        "skills/herdr-delivery-workflow/references/charters.md",
+        "skills/herdr-delivery-workflow/scripts/charter_lint.py"
+      ],
+      "assertions": [
+        "Runs charter_lint.py before dispatching the Engineer with herdr agent prompt",
+        "Fails and names the missing report-by-prompt block",
+        "Fixes the charter before dispatch rather than polling"
+      ]
     }
   ]
 }
