@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 
 DISPOSITION_RE = re.compile(
-    r"^\s*[*#`_-]*\s*Disposition:\s*(Engineer|Reviewer|Architect)\b",
+    r"^\s*[*#`_-]*\s*Disposition:\s*[*_`]*\s*(Engineer|Reviewer|Architect)\b",
     re.IGNORECASE | re.MULTILINE,
 )
 HEAD_RE = re.compile(r"(?<![0-9a-f])[0-9a-f]{40}(?![0-9a-f])", re.IGNORECASE)
