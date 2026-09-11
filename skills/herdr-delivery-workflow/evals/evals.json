@@ -827,6 +827,22 @@
         "Reports the tool's own text and routes it like any Human gate",
         "Does not re-enable the denied dialog or silently substitute a manual path"
       ]
+    },
+    {
+      "id": 67,
+      "prompt": "I'm a Lead at intake. The project config sets reviewer-fallback equal to engineer-kind. Run the mechanical config check and record/report any reviewer-fallback conflict before staffing.",
+      "expected_output": "Runs `scripts/config_lint.py --config <project config>` at intake and records/reports any CONFLICT it emits; a missing or same-model reviewer-fallback-args pin is non-zero and conflicting, while a distinct reviewer-fallback model passes, and an engineer-fallback same-model collision is only a WARNING with exit 0.",
+      "files": [
+        "skills/herdr-delivery-workflow/scripts/config_lint.py",
+        "skills/herdr-delivery-workflow/references/lead.md",
+        "skills/herdr-delivery-workflow/references/project-config.md"
+      ],
+      "assertions": [
+        "Runs scripts/config_lint.py with --config at intake",
+        "Records or reports a CONFLICT from the lint rather than relying only on judgment",
+        "Treats a distinct reviewer-fallback model as clean and a missing or same engineer model as a hard conflict",
+        "Treats the engineer-fallback same-model collision as a WARNING that does not make the lint exit non-zero"
+      ]
     }
   ]
 }

@@ -8,6 +8,7 @@
 - reviewer-args: <the same for the Reviewer kind; read-only inspection and verify commands, plus the report prompt>
 - engineer-fallback-args: <native arguments for the fallback Engineer kind: model selection and the same pre-authorizations as engineer-args>
 - reviewer-fallback-args: <the same for the fallback Reviewer kind>
+# Skill- and extension-isolation flags (`--no-skills`, `--no-extensions` for `pi`) are passed by DOCTRINE at the launch line per `charters.md`, not carried as config `*-args` values.
 - checks: <claim-shaped commands, `;`-separated>
 - lane-defaults: <path or change class = tiny|normal|high-risk, comma-separated>
 - target-line: <default integration product line>
