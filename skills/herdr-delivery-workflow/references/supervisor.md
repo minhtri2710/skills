@@ -62,3 +62,5 @@ Name the anti-pattern from this vocabulary when one fits, so entries group acros
 - **stall by pre-arm miss** — a Peer sits at a routine approval the posture should have covered, and nobody notices until the Human looks;
 - **Lead as writer** — in any partitioned run with one or more Engineers, the Lead edits source after a finding instead of routing it to the owning Engineer;
 - **supervisor overreach** — the Supervisor instructs a Peer, answers a gate, or turns a hypothesis into an order.
+- **ceremony capture** — adding agents, artifacts, roles, or delivery ceremony to genuinely lightweight work instead of taking the direct path;
+- **over-compression** — trimming a relaunch or handoff context pack until a load-bearing constraint, gate, owned path, or active condition is lost.

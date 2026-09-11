@@ -843,6 +843,32 @@
         "Treats a distinct reviewer-fallback model as clean and a missing or same engineer model as a hard conflict",
         "Treats the engineer-fallback same-model collision as a WARNING that does not make the lint exit non-zero"
       ]
+    },
+    {
+      "id": 68,
+      "prompt": "I'm a Supervisor observing a delivery for a genuinely lightweight request. The Lead adds an Engineer, a Reviewer, extra artifacts, and a full delivery ceremony even though a direct path would solve it. What named anti-pattern should I record, and what mechanism belongs in the notebook entry?",
+      "expected_output": "Names ceremony capture from the Supervisor's vocabulary and records that delivery machinery was added to genuinely lightweight work — agents, artifacts, roles, or ceremony that a direct path did not require — as the causal mechanism in the notebook entry.",
+      "files": [
+        "skills/herdr-delivery-workflow/references/supervisor.md"
+      ],
+      "assertions": [
+        "Names ceremony capture from the Supervisor's anti-pattern vocabulary",
+        "Records the causal mechanism: unnecessary agents, artifacts, roles, or delivery ceremony were added where a direct path would do",
+        "Writes the mechanism rather than only saying the Lead was wrong"
+      ]
+    },
+    {
+      "id": 69,
+      "prompt": "I'm a Supervisor reading a Lead's relaunch handoff. The context pack was trimmed and omitted the active gate and an owned path, so the replacement seat acts on an incomplete account. What named anti-pattern should I record, and what mechanism belongs in the notebook entry?",
+      "expected_output": "Names over-compression from the Supervisor's vocabulary and records that trimming the relaunch or handoff context pack dropped load-bearing state — the active gate and owned path — causing the replacement seat to act on an incomplete account.",
+      "files": [
+        "skills/herdr-delivery-workflow/references/supervisor.md"
+      ],
+      "assertions": [
+        "Names over-compression from the Supervisor's anti-pattern vocabulary",
+        "Records the causal mechanism: trimming the relaunch or handoff context pack dropped a load-bearing gate or owned path",
+        "Connects the omission to the replacement seat acting on an incomplete account rather than only describing the omission"
+      ]
     }
   ]
 }
