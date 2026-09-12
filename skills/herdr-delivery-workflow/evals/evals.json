@@ -883,6 +883,34 @@
         "Fails and names the missing report-by-prompt block",
         "Fixes the charter before dispatch rather than polling"
       ]
+    },
+    {
+      "id": 71,
+      "prompt": "I'm a Lead about to dispatch an Engineer charter with no staffing record. What must happen before dispatch?",
+      "expected_output": "Runs `charter_lint.py` and it exits 1 demanding `--staffing` for the Engineer disposition; the Lead writes the staffing record before dispatch and does not poll.",
+      "files": [
+        "skills/herdr-delivery-workflow/references/charters.md",
+        "skills/herdr-delivery-workflow/scripts/charter_lint.py"
+      ],
+      "assertions": [
+        "Runs charter_lint.py before dispatching the Engineer",
+        "The lint exits 1 and names that a staffing record is required for an Engineer disposition",
+        "Writes the staffing record before dispatching",
+        "Does not poll"
+      ]
+    },
+    {
+      "id": 72,
+      "prompt": "A gate row's timestamp precedes its predecessor. What must happen before the row is trusted?",
+      "expected_output": "Runs `gate_row.py --check`, which exits non-zero and names the timestamp regression before the row is trusted.",
+      "files": [
+        "skills/herdr-delivery-workflow/scripts/gate_row.py"
+      ],
+      "assertions": [
+        "Runs gate_row.py --check on the ledger",
+        "Exits non-zero for a row timestamp earlier than its immediate predecessor",
+        "Names the timestamp regression before trusting the row"
+      ]
     }
   ]
 }

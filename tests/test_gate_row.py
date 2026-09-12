@@ -9,6 +9,9 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from datetime import datetime, timezone
+from types import SimpleNamespace
+from unittest import mock
 from pathlib import Path
 
 SCRIPTS = Path(__file__).resolve().parents[1] / "skills" / "herdr-delivery-workflow" / "scripts"
@@ -101,6 +104,31 @@ class GateRowTest(unittest.TestCase):
         self.assertEqual(self.run_main(
             ["--ledger", str(self.ledger), "--repo", str(self.repo), "--check"]), 0)
         self.assertEqual(self.last_row(), written)
+
+    def test_monotonic_ledger_passes_check(self):
+        self.assertEqual(self.append(), 0)
+        self.assertEqual(self.append(), 0)
+        self.assertEqual(self.run_main(
+            ["--ledger", str(self.ledger), "--repo", str(self.repo), "--check"]), 0)
+
+    def test_backdated_last_row_fails_check_with_timestamp_regression(self):
+        self.assertEqual(self.append(), 0)
+        existing_rows = gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))
+        args = SimpleNamespace(
+            kind="merge", status="resolved:test", channel="", writer="", record="timely",
+            push_base="", boundary=[], resolves=[], words="human", note="backdated",
+            quote="backdated", quote_file="",
+        )
+        with mock.patch.object(gate_row, "datetime") as clock:
+            clock.now.return_value = datetime(2000, 1, 1, tzinfo=timezone.utc)
+            backdated = gate_row.build(args, self.repo, self.ledger, existing_rows)
+        self.ledger.write_text(
+            self.ledger.read_text(encoding="utf-8") + backdated + "\n", encoding="utf-8"
+        )
+        self.assertEqual(self.run_main(
+            ["--ledger", str(self.ledger), "--repo", str(self.repo), "--check"]), 1)
+        self.assertIn("timestamp regression", self.err.getvalue())
+        self.assertIn("2000-01-01T00:00:00Z", self.err.getvalue())
 
     def test_quote_file_becomes_quote_and_round_trips(self):
         quote_file = self.tmp / "refused-command.txt"

@@ -6,6 +6,7 @@ import argparse
 import re
 import subprocess
 import sys
+from datetime import datetime, timezone
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -82,6 +83,20 @@ def _default_wake_text(seat: str, mailbox_path: str, header: str) -> str:
     return f"Seat {seat}: read project mailbox {mailbox_path} for the latest entry ({header})."
 
 
+def _stamp_sent(path: Path, header: str) -> None:
+    lines = path.read_text(encoding="utf-8").splitlines(keepends=True)
+    for index in range(len(lines) - 1, -1, -1):
+        if lines[index].rstrip("\r\n") == header:
+            if "sent=" in lines[index]:
+                return
+            stamped = f"{header} sent={datetime.now(timezone.utc).isoformat(timespec='seconds').replace('+00:00', 'Z')}"
+            ending = lines[index][len(lines[index].rstrip("\r\n")):]
+            lines[index] = stamped + ending
+            path.write_text("".join(lines), encoding="utf-8")
+            return
+    raise ValueError("last header disappeared before wake stamp")
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="select Supervisor mailbox entries")
     parser.add_argument("--file", required=True, metavar="PATH", help="mailbox file")
@@ -119,6 +134,8 @@ def main(argv: list[str] | None = None) -> int:
                 sys.stdout.write(result.stdout)
             if result.stderr:
                 sys.stderr.write(result.stderr)
+            if result.returncode == 0:
+                _stamp_sent(Path(args.file), header)
             return result.returncode
 
         if args.since is None and args.last is None and not args.headers:

@@ -51,7 +51,7 @@ class CharterLintTest(unittest.TestCase):
         charter = self.engineer_charter().replace(
             "Disposition: Engineer\n", "**Disposition:** Engineer.\n"
         )
-        code, output, error = self.run_lint(charter)
+        code, output, error = self.run_lint(charter, self.staffing_record())
         self.assertEqual(code, 0)
         self.assertIn("OK:", output)
         self.assertEqual(error, "")
@@ -89,6 +89,43 @@ class CharterLintTest(unittest.TestCase):
         self.assertNotEqual(code, 0)
         self.assertIn("report-*.md", error)
 
+    def test_engineer_without_staffing_record_is_named(self):
+        code, _, error = self.run_lint(self.engineer_charter())
+        self.assertEqual(code, 1)
+        self.assertIn("staffing record is required", error)
+        self.assertIn("Engineer/Reviewer", error)
+
+    def test_reviewer_with_filled_staffing_record_is_ok(self):
+        code, output, error = self.run_lint(self.reviewer_charter(), self.staffing_record())
+        self.assertEqual(code, 0)
+        self.assertIn("OK:", output)
+        self.assertEqual(error, "")
+
+    def test_reviewer_placeholder_is_named(self):
+        staffing = self.staffing_record().replace(
+            "REVIEWER: rev kind=agy model=m", "REVIEWER: <name> kind=<kind> model=m"
+        )
+        code, _, error = self.run_lint(self.reviewer_charter(), staffing)
+        self.assertEqual(code, 1)
+        self.assertIn("REVIEWER", error)
+        self.assertIn("placeholder", error)
+
+    def test_engineer_ignores_placeholder_in_other_seat(self):
+        staffing = self.staffing_record().replace(
+            "REVIEWER: rev kind=agy model=m", "REVIEWER: <name> kind=<kind> model=m"
+        )
+        code, output, error = self.run_lint(self.engineer_charter(), staffing)
+        self.assertEqual(code, 0)
+        self.assertIn("OK:", output)
+        self.assertEqual(error, "")
+
+    def test_architect_staffing_remains_optional(self):
+        charter = self.engineer_charter().replace("Disposition: Engineer", "Disposition: Architect")
+        code, output, error = self.run_lint(charter)
+        self.assertEqual(code, 0)
+        self.assertIn("OK:", output)
+        self.assertEqual(error, "")
+
     def test_staffing_missing_each_required_key_is_named(self):
         complete = self.staffing_record()
         for key in ("posture=", "dialog=", "skills=", "extensions="):
@@ -108,6 +145,14 @@ class CharterLintTest(unittest.TestCase):
         return (
             "Disposition: Engineer\n"
             "Owned paths: tests/test_charter_lint.py\n"
+            "Write report-eng-lint.md and send with herdr agent prompt lead-beo-skills ...\n"
+        )
+
+    @staticmethod
+    def reviewer_charter() -> str:
+        return (
+            "Disposition: Reviewer\n"
+            "Reviewed head: 0123456789abcdef0123456789abcdef01234567\n"
             "Write report-eng-lint.md and send with herdr agent prompt lead-beo-skills ...\n"
         )
 

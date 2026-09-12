@@ -317,6 +317,13 @@ def check(row: str, repo: Path, prior_rows: list[str] | None = None) -> None:
             raise RowError(f"field {value!r} is not a valid {name}=")
     if not re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z", when):
         raise RowError(f"time {when!r} is not an ISO UTC timestamp")
+    if prior_rows:
+        predecessor_fields, _ = split_row(prior_rows[-1])
+        predecessor_when = predecessor_fields[1]
+        if when < predecessor_when:
+            raise RowError(
+                f"timestamp regression: predecessor {predecessor_when} -> this row {when}"
+            )
     m = HEAD_RE.fullmatch(head_field)
     if not m:
         raise RowError(f"field {head_field!r} is not <branch>@<head>")

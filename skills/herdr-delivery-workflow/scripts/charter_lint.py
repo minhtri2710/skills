@@ -14,6 +14,7 @@ DISPOSITION_RE = re.compile(
 HEAD_RE = re.compile(r"(?<![0-9a-f])[0-9a-f]{40}(?![0-9a-f])", re.IGNORECASE)
 REPORT_PATH_RE = re.compile(r"report-[^\s/]+\.md")
 SEAT_RE = re.compile(r"^\s*(ENGINEER|REVIEWER):.*$", re.IGNORECASE | re.MULTILINE)
+PLACEHOLDER_RE = re.compile(r"<[^>\r\n]+>")
 
 
 def _read(path: Path, label: str) -> str:
@@ -44,7 +45,7 @@ def _charter_problems(text: str, lead: str) -> list[str]:
     return problems
 
 
-def _staffing_problems(text: str) -> list[str]:
+def _staffing_problems(text: str, disposition: str | None) -> list[str]:
     seats = SEAT_RE.findall(text)
     if not seats:
         return ["staffing record has no ENGINEER or REVIEWER seat lines"]
@@ -58,6 +59,8 @@ def _staffing_problems(text: str) -> list[str]:
         for key in ("posture=", "dialog=", "skills=", "extensions="):
             if key not in line:
                 problems.append(f"{seat} seat missing {key}")
+        if disposition == seat.lower() and PLACEHOLDER_RE.search(line):
+            problems.append(f"{seat} seat still contains a placeholder token")
     return problems
 
 
@@ -69,9 +72,18 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     try:
-        problems = _charter_problems(_read(args.charter, "charter"), args.lead)
+        charter = _read(args.charter, "charter")
+        problems = _charter_problems(charter, args.lead)
+        disposition_match = DISPOSITION_RE.search(charter)
+        disposition = disposition_match.group(1).lower() if disposition_match else None
+        if disposition in ("engineer", "reviewer") and args.staffing is None:
+            problems.append(
+                "staffing record is required for an Engineer/Reviewer disposition"
+            )
         if args.staffing is not None:
-            problems.extend(_staffing_problems(_read(args.staffing, "staffing record")))
+            problems.extend(
+                _staffing_problems(_read(args.staffing, "staffing record"), disposition)
+            )
     except ValueError as exc:
         print(f"charter_lint: {exc}", file=sys.stderr)
         return 1

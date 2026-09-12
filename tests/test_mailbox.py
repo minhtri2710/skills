@@ -138,6 +138,56 @@ class MailboxTest(unittest.TestCase):
         self.assertEqual(stdout.getvalue(), "wake output\n")
         self.assertIn("ran herdr agent prompt supervisor", stderr.getvalue())
         self.assertIn("wake diagnostic\n", stderr.getvalue())
+        stamped = next(
+            line for line in reversed(self.path.read_text(encoding="utf-8").splitlines())
+            if mailbox.HEADER_RE.match(line)
+        )
+        self.assertRegex(stamped, r" sent=\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
+        self.assertEqual(len(mailbox._entries(self.path.read_text(encoding="utf-8"))), 3)
+
+    def test_successful_wake_is_idempotent(self):
+        calls = []
+
+        def fake_wake(seat, wake_text):
+            calls.append((seat, wake_text))
+            return subprocess.CompletedProcess([], 0, stdout="", stderr="")
+
+        original = mailbox.run_wake
+        mailbox.run_wake = fake_wake
+        self.addCleanup(setattr, mailbox, "run_wake", original)
+        argv = ["--file", str(self.path), "--wake", "supervisor"]
+        self.assertEqual(mailbox.main(argv), 0)
+        first = self.path.read_text(encoding="utf-8")
+        self.assertEqual(mailbox.main(argv), 0)
+        second = self.path.read_text(encoding="utf-8")
+        self.assertEqual(first, second)
+        self.assertEqual(second.count(" sent="), 1)
+        self.assertEqual(len(calls), 2)
+        self.assertIn("sent=", calls[1][1])
+
+    def test_failed_wake_does_not_stamp_header(self):
+        def fake_wake(seat, wake_text):
+            return subprocess.CompletedProcess([], 1, stdout="", stderr="blocked")
+
+        original = mailbox.run_wake
+        mailbox.run_wake = fake_wake
+        self.addCleanup(setattr, mailbox, "run_wake", original)
+        self.assertEqual(
+            mailbox.main(["--file", str(self.path), "--wake", "supervisor"]), 1
+        )
+        self.assertNotIn(" sent=", self.path.read_text(encoding="utf-8"))
+
+    def test_wake_oserror_does_not_stamp_header(self):
+        def fake_wake(seat, wake_text):
+            raise OSError("no herdr")
+
+        original = mailbox.run_wake
+        mailbox.run_wake = fake_wake
+        self.addCleanup(setattr, mailbox, "run_wake", original)
+        self.assertEqual(
+            mailbox.main(["--file", str(self.path), "--wake", "supervisor"]), 1
+        )
+        self.assertNotIn(" sent=", self.path.read_text(encoding="utf-8"))
 
     def test_wake_without_header_is_unsent_and_does_not_wake(self):
         self.path.write_text("not a mailbox entry\n", encoding="utf-8")
