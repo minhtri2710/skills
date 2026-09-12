@@ -1034,17 +1034,17 @@
     {
       "id": 81,
       "prompt": "How does the gate ledger enforce the default repair cap, and what happens after a Human decision?",
-      "expected_output": "gate_row.py --check counts the current kind=repair row with immediately preceding consecutive kind=repair rows, stopping at the first words=human row. The first two repair rows pass; the third fails with the repair-cap instruction to route the Human gate. A words=human row resets the count.",
+      "expected_output": "The gate ledger records over-cap repair rounds as kind=repair-grant and the cap event as kind=repair-cap-gate. gate_row.py --check fails the third kind=repair-grant since the last progress boundary (recorded:review-pass, kind=push, resolved kind=merge, or kind=repair-cap-gate), directing a kind=repair-cap-gate and a Human route.",
       "files": [
         "skills/herdr-delivery-workflow/scripts/gate_row.py",
         "skills/herdr-delivery-workflow/references/lead.md",
         "tests/test_gate_row.py"
       ],
       "assertions": [
-        "Counts consecutive kind=repair rows including the row being checked",
-        "Uses words=human as the reset signal",
-        "Allows one and two consecutive repair rows",
-        "Fails the third consecutive repair row with a repair-cap Human-gate instruction",
+        "Counts kind=repair-grant rows including the row being checked since the last progress boundary",
+        "Uses recorded:review-pass, kind=push, resolved kind=merge, and kind=repair-cap-gate as progress boundaries",
+        "Allows one and two kind=repair-grant rows since a progress boundary",
+        "Fails the third kind=repair-grant with a repair-cap Human-gate instruction",
         "Cites the lead prose mechanism and CLI-path tests"
       ]
     }

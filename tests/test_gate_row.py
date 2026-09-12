@@ -62,11 +62,25 @@ class GateRowTest(unittest.TestCase):
             "--words", "human", "--note", "merged the reviewed head", "--quote", "merge it", *extra,
         ])
 
-    def append_repair(self, words: str = "seat", quote: str = "repair cycle") -> int:
+    def append_repair_grant(self, quote: str = "repair grant") -> int:
         return self.run_main([
             "--ledger", str(self.ledger), "--repo", str(self.repo),
-            "--kind", "repair", "--status", "recorded:repair",
-            "--words", words, "--note", "repair cycle", "--quote", quote,
+            "--kind", "repair-grant", "--status", "recorded:granted",
+            "--words", "selected", "--note", "repair grant", "--quote", quote,
+        ])
+
+    def append_review_pass(self) -> int:
+        return self.run_main([
+            "--ledger", str(self.ledger), "--repo", str(self.repo),
+            "--kind", "review", "--status", "recorded:review-pass",
+            "--words", "seat", "--note", "review passed", "--quote", "PASS",
+        ])
+
+    def append_review_fail(self) -> int:
+        return self.run_main([
+            "--ledger", str(self.ledger), "--repo", str(self.repo),
+            "--kind", "review", "--status", "recorded:review-fail",
+            "--words", "seat", "--note", "review failed", "--quote", "FAIL",
         ])
 
     def git(self, *args: str) -> str:
@@ -137,37 +151,53 @@ class GateRowTest(unittest.TestCase):
         self.assertIn("timestamp regression", self.err.getvalue())
         self.assertIn("2000-01-01T00:00:00Z", self.err.getvalue())
 
-    def test_repair_cap_allows_one_repair_row_and_check_passes(self):
-        self.assertEqual(self.append_repair(), 0)
+    def test_repair_cap_allows_one_repair_grant_and_check_passes(self):
+        self.assertEqual(self.append_repair_grant(), 0)
         self.assertEqual(self.run_main([
             "--ledger", str(self.ledger), "--repo", str(self.repo), "--check",
         ]), 0)
 
-    def test_repair_cap_allows_two_consecutive_repair_rows_and_check_passes(self):
-        self.assertEqual(self.append_repair(), 0)
-        self.assertEqual(self.append_repair(), 0)
+    def test_repair_cap_allows_two_repair_grants_since_boundary(self):
+        self.assertEqual(self.append_repair_grant(), 0)
+        self.assertEqual(self.append_repair_grant(), 0)
         self.assertEqual(self.run_main([
             "--ledger", str(self.ledger), "--repo", str(self.repo), "--check",
         ]), 0)
 
-    def test_repair_cap_rejects_third_consecutive_repair_row(self):
-        self.assertEqual(self.append_repair(), 0)
-        self.assertEqual(self.append_repair(), 0)
-        self.assertEqual(self.append_repair(), 1)
+    def test_repair_cap_rejects_third_repair_grant_since_boundary(self):
+        self.assertEqual(self.append_repair_grant(), 0)
+        self.assertEqual(self.append_repair_grant(), 0)
+        self.assertEqual(self.append_repair_grant(), 1)
         self.assertIn("repair cap", self.err.getvalue())
-        self.assertIn("kind=repair", self.last_row())
+        self.assertIn("kind=repair-grant", self.last_row())
         self.assertEqual(self.run_main([
             "--ledger", str(self.ledger), "--repo", str(self.repo), "--check",
         ]), 1)
         self.assertIn("repair cap", self.err.getvalue())
 
-    def test_human_row_resets_repair_cap(self):
-        self.assertEqual(self.append_repair(), 0)
-        self.assertEqual(self.append(), 0)
-        self.assertEqual(self.append_repair(), 0)
+    def test_progress_boundary_resets_repair_grant_cap(self):
+        self.assertEqual(self.append_repair_grant(), 0)
+        self.assertEqual(self.append_review_pass(), 0)
+        self.assertEqual(self.append_repair_grant(), 0)
+        self.assertEqual(self.append_repair_grant(), 0)
         self.assertEqual(self.run_main([
             "--ledger", str(self.ledger), "--repo", str(self.repo), "--check",
         ]), 0)
+
+    def test_non_boundary_row_does_not_reset_repair_grant_cap(self):
+        self.assertEqual(self.append_repair_grant(), 0)
+        self.assertEqual(self.append_review_fail(), 0)
+        self.assertEqual(self.append_repair_grant(), 0)
+        self.assertEqual(self.append_repair_grant(), 1)
+        self.assertIn("repair cap", self.err.getvalue())
+
+    def test_apex_shape_rejects_third_consecutive_repair_grant(self):
+        """Two real-shape grants followed by a third must hit the cap."""
+        self.assertEqual(self.append_repair_grant("round 3"), 0)
+        self.assertEqual(self.append_repair_grant("round 4"), 0)
+        self.assertEqual(self.append_repair_grant("third grant"), 1)
+        self.assertIn("repair cap", self.err.getvalue())
+        self.assertIn("kind=repair-grant", self.last_row())
 
     def test_quote_file_becomes_quote_and_round_trips(self):
         quote_file = self.tmp / "refused-command.txt"

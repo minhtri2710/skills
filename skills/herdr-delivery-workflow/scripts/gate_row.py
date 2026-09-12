@@ -376,16 +376,33 @@ def check(row: str, repo: Path, prior_rows: list[str] | None = None) -> None:
         raise RowError(f"field {rest[index]!r} is not one of {WORDS_VALUES}")
     index += 1
 
-    if kind == "kind=repair":
+    if kind == "kind=repair-grant":
         repair_count = 1
         for previous_row in reversed(prior_rows or []):
             previous_fields, _ = split_row(previous_row)
-            if "words=human" in previous_fields or "kind=repair" not in previous_fields:
+            previous_kind = next(
+                (field for field in previous_fields if field.startswith("kind=")), ""
+            )
+            previous_status = next(
+                (field for field in previous_fields if field.startswith("status=")), ""
+            )
+            if (
+                previous_status == "status=recorded:review-pass"
+                or previous_kind == "kind=push"
+                or (
+                    previous_kind == "kind=merge"
+                    and previous_status.startswith("status=resolved:")
+                )
+                or previous_kind == "kind=repair-cap-gate"
+            ):
                 break
-            repair_count += 1
+            if previous_kind == "kind=repair-grant":
+                repair_count += 1
         if repair_count >= 3:
             raise RowError(
-                "repair cap reached (two cycles): route the Human gate instead of another repair cycle"
+                "repair cap reached (two grants since the last progress boundary): "
+                "record kind=repair-cap-gate and route the Human instead of a third "
+                "kind=repair-grant"
             )
 
     if index >= len(rest) or not rest[index].startswith("note="):
