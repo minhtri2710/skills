@@ -1,0 +1,41 @@
+{
+  "_comment": "Slice DAG template. An edge from `from` to `to` means the `from` slice must complete before the `to` slice may start; `to` depends on `from`.",
+  "id": "reports-export",
+  "version": 1,
+  "nodes": [
+    {
+      "id": "schema",
+      "owner": "domain-scope",
+      "paths": [
+        "packages/domain/src/report.ts"
+      ],
+      "join": "Lead commits this contract slice to the shared branch before dependent work starts."
+    },
+    {
+      "id": "api",
+      "owner": "api-scope",
+      "paths": [
+        "services/api/src/reports/"
+      ],
+      "join": "Lead commits the API slice to the shared branch after schema is complete."
+    },
+    {
+      "id": "web",
+      "owner": "web-scope",
+      "paths": [
+        "apps/web/src/reports/"
+      ],
+      "join": "Lead commits the web slice to the shared branch after the API slice is complete."
+    }
+  ],
+  "edges": [
+    {
+      "from": "schema",
+      "to": "api"
+    },
+    {
+      "from": "api",
+      "to": "web"
+    }
+  ]
+}

@@ -969,6 +969,24 @@
         "Routes a falsified prediction as a revert or amend through the existing Human push/PR/merge gate without granting any seat new authority",
         "Requires closeout to preserve the prediction and its confirmed, falsified, or pending-next-run outcome"
       ]
+    },
+    {
+      "id": 77,
+      "prompt": "In a Herdr run with several dependent slices, how should staffing use the slice DAG, and how should the Lead partition shared work?",
+      "expected_output": "For a multi-slice dependency DAG, the Lead staffs only slices in the ready set whose prerequisites are all complete; the edge direction is from prerequisite to dependent, a structural node or edge change bumps the DAG version, and the ready set is computed by scripts/slices_ready.py. A hub file touched by several slices has one owner, while dense coupling that prevents disjoint owned paths runs sequentially or solo-Lead rather than as nominal parallel scopes.",
+      "files": [
+        "skills/herdr-delivery-workflow/references/lead.md",
+        "skills/herdr-delivery-workflow/templates/slices.json",
+        "skills/herdr-delivery-workflow/scripts/slices_ready.py"
+      ],
+      "assertions": [
+        "Staffs only slices in the ready set whose prerequisites are all complete",
+        "Treats an edge as running from the prerequisite slice to the dependent slice",
+        "Bumps the DAG version when its nodes or edges change",
+        "Assigns a hub file touched by several slices to one owner",
+        "Runs densely coupled slices sequentially or solo-Lead rather than as nominal parallel scopes",
+        "Cites lead.md, templates/slices.json, and scripts/slices_ready.py"
+      ]
     }
   ]
 }
