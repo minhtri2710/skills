@@ -1122,6 +1122,23 @@
         "Makes charter_lint fail when SEND-FAILED is absent even when the prompt command and report path are present",
         "Tests a full hardened block through main and passes it"
       ]
+    },
+    {
+      "id": 87,
+      "prompt": "A relaunched Lead reports the next work item and doctrine file counts. The source staffing record says `## R4 — Shared contact form + minor items (NEXT; scope ratified G167, G168)`, but the entry instead calls the already-merged R3 `/dich-vu/bat-dong-san` work R4 with G164 and reports `38/38` files when 39 are tracked and installed. What evidence must the seat provide?",
+      "expected_output": "The seat names the source file path and copies the NEXT item as a verbatim contiguous block from that source, including its gate ids G167 and G168; it never reconstructs the scope from memory or relabels R3 `/dich-vu/bat-dong-san` (G164) as R4. It runs `scripts/relaunch_entry_check.py --verify --block-file <block> --source-file <source>` and reports the printed gate ids, then runs `scripts/relaunch_entry_check.py --count --repo <repo> --head <deployed-head> --skill-path <skill-path> --installed-path <installed-skill-path>` and copies the computed tracked/installed/hash-mismatch triple rather than recalling `38/38`.",
+      "files": [
+        "skills/herdr-delivery-workflow/references/relaunch.md",
+        "skills/herdr-delivery-workflow/scripts/relaunch_entry_check.py",
+        "tests/test_relaunch_entry_check.py"
+      ],
+      "assertions": [
+        "Requires the named source file path beside a verbatim contiguous NEXT-item quote",
+        "Requires gate ids G167 and G168 in the quoted R4 block",
+        "Rejects the apex anti-pattern that relabels R3 `/dich-vu/bat-dong-san` with G164 as R4",
+        "Requires the computed tracked/installed/hash-mismatch count triple and rejects recalled `38/38` when the computed count is 39",
+        "Uses explicit --block-file and --source-file inputs rather than stdin or tty detection"
+      ]
     }
   ]
 }
