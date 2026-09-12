@@ -42,6 +42,8 @@ def _charter_problems(text: str, lead: str) -> list[str]:
         problems.append(f"missing report-by-prompt block: herdr agent prompt {lead}")
     if REPORT_PATH_RE.search(text) is None:
         problems.append("missing report-by-prompt block: report-*.md path")
+    if "SEND-FAILED" not in text:
+        problems.append("missing report-by-prompt block: SEND-FAILED fallback")
     return problems
 
 

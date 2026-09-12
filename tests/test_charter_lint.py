@@ -89,6 +89,18 @@ class CharterLintTest(unittest.TestCase):
         self.assertNotEqual(code, 0)
         self.assertIn("report-*.md", error)
 
+    def test_report_block_without_send_failed_is_named(self):
+        charter = self.engineer_charter().replace("SEND-FAILED", "send failed")
+        code, _, error = self.run_lint(charter)
+        self.assertNotEqual(code, 0)
+        self.assertIn("SEND-FAILED", error)
+
+    def test_full_hardened_report_block_is_ok(self):
+        code, output, error = self.run_lint(self.engineer_charter(), self.staffing_record())
+        self.assertEqual(code, 0)
+        self.assertIn("OK:", output)
+        self.assertEqual(error, "")
+
     def test_engineer_without_staffing_record_is_named(self):
         code, _, error = self.run_lint(self.engineer_charter())
         self.assertEqual(code, 1)
@@ -145,7 +157,9 @@ class CharterLintTest(unittest.TestCase):
         return (
             "Disposition: Engineer\n"
             "Owned paths: tests/test_charter_lint.py\n"
-            "Write report-eng-lint.md and send with herdr agent prompt lead-beo-skills ...\n"
+            "Write the finished report/verdict to report-eng-lint.md with the editor/write tool (never via the shell), then print it as the pane's final output.\n"
+            "At send time, compose a prompt with the verdict/outcome line, a bounded summary (~200 words max), and full report at report-eng-lint.md; send ONLY that composed prompt with the EXACT command herdr agent prompt lead-beo-skills \"<composed prompt>\" and NO other flags. Do not send the report file contents. THIS SEND IS MANDATORY.\n"
+            "If the command exits non-zero: retry it ONCE with exactly the same form; if it still fails, append a line SEND-FAILED to the end of the report file and run herdr notification show \"eng-lint: report send failed\" --body \"report-eng-lint.md\" --sound request, then stop.\n"
         )
 
     @staticmethod
@@ -153,7 +167,9 @@ class CharterLintTest(unittest.TestCase):
         return (
             "Disposition: Reviewer\n"
             "Reviewed head: 0123456789abcdef0123456789abcdef01234567\n"
-            "Write report-eng-lint.md and send with herdr agent prompt lead-beo-skills ...\n"
+            "Write the finished report/verdict to report-eng-lint.md with the editor/write tool (never via the shell), then print it as the pane's final output.\n"
+            "At send time, compose a prompt with the verdict/outcome line, a bounded summary (~200 words max), and full report at report-eng-lint.md; send ONLY that composed prompt with the EXACT command herdr agent prompt lead-beo-skills \"<composed prompt>\" and NO other flags. Do not send the report file contents. THIS SEND IS MANDATORY.\n"
+            "If the command exits non-zero: retry it ONCE with exactly the same form; if it still fails, append a line SEND-FAILED to the end of the report file and run herdr notification show \"eng-lint: report send failed\" --body \"report-eng-lint.md\" --sound request, then stop.\n"
         )
 
     @staticmethod

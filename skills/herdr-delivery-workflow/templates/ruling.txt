@@ -1,3 +1,5 @@
 RULING: <decision and its bounded scope | pending Human gate <GATE-ID>>
 ROUTE: <lead-ruled | human-gate>
 BINDING: any head produced after this ruling is a new head — it needs fresh evidence and a fresh independent review bound to that exact SHA; no earlier verdict covers work that did not exist when the verdict was given
+RATIFICATION: a post-merge hotfix ratified after the fact is a one-off ratification, NOT a precedent — it does not lower the gate or waive review for later work; each later head still needs its own fresh evidence and review
+DELEGATION: a Human delegation ruling records START (who granted it and when), SCOPE (in-run only and the exact acts covered, such as push/PR/merge), and END (the Human's next message or a named event); this records the shape of a Human decision and does not grant or exercise authority

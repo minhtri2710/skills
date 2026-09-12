@@ -1047,6 +1047,81 @@
         "Fails the third kind=repair-grant with a repair-cap Human-gate instruction",
         "Cites the lead prose mechanism and CLI-path tests"
       ]
+    },
+    {
+      "id": 82,
+      "prompt": "What does a ruling record when a post-merge hotfix is ratified after the fact?",
+      "expected_output": "It records the hotfix as a one-off ratification, not a precedent: it does not lower the gate or waive review for later work, and each later head needs fresh evidence and review.",
+      "files": [
+        "skills/herdr-delivery-workflow/templates/ruling.txt"
+      ],
+      "assertions": [
+        "Records a post-merge hotfix ratified after the fact as a one-off ratification",
+        "States that the ratification is not a precedent",
+        "Keeps the gate and review requirements for later heads with fresh evidence and review"
+      ]
+    },
+    {
+      "id": 83,
+      "prompt": "What shape must a Human delegation ruling record when standing approval authority is handed to a Lead or Supervisor?",
+      "expected_output": "It records START with who granted the authority and when, SCOPE as in-run only with the exact covered acts such as push/PR/merge, and END as the Human's next message or a named event; it records the shape of the Human decision without granting or exercising authority.",
+      "files": [
+        "skills/herdr-delivery-workflow/templates/ruling.txt"
+      ],
+      "assertions": [
+        "Requires the delegator and grant time in START",
+        "Requires in-run scope and exact covered acts in SCOPE",
+        "Requires a Human next message or named event in END",
+        "Does not grant or exercise authority merely by recording the shape"
+      ]
+    },
+    {
+      "id": 84,
+      "prompt": "When a Supervisor observes a Lead staffing a Peer, what staffing-wake checks does it perform?",
+      "expected_output": "It checks the charter's report-by-prompt block and report path, reads the Peer's pane status for skill/extension markers and exact model against the staffing record, verifies posture/dialog/skills/extensions for that seat, and confirms the Peer stays inside owned paths and out of unowned design or reference trees; it observes only and does not staff, edit, or accept.",
+      "files": [
+        "skills/herdr-delivery-workflow/references/supervisor.md"
+      ],
+      "assertions": [
+        "Greps for herdr agent prompt <lead> and the report path",
+        "Matches pane skill and extension markers and exact model to the staffing record",
+        "Checks posture, dialog, skills, and extensions for the seat",
+        "Checks that the Peer writes only within owned paths and not unowned design or reference trees",
+        "Keeps the checklist observational rather than staffing, editing, or accepting"
+      ]
+    },
+    {
+      "id": 85,
+      "prompt": "What real-artifact evidence is required when a slice changes a doctrine-enforcing lint or validator?",
+      "expected_output": "Before review, the Reviewer confirms the lint ran against real live apex and munsu charters or records, not only run fixtures, and acceptance custody preserves that lint output as evidence.",
+      "files": [
+        "skills/herdr-delivery-workflow/references/charters.md",
+        "skills/herdr-delivery-workflow/references/closeout.md"
+      ],
+      "assertions": [
+        "Requires the Reviewer to confirm a real-artifact run against apex and munsu before review",
+        "Distinguishes real live charters or records from the run's own fixtures",
+        "Requires acceptance custody to preserve the real-artifact lint output",
+        "Keeps the Reviewer confirmation and acceptance-evidence duties as different halves"
+      ]
+    },
+    {
+      "id": 86,
+      "prompt": "What does the single report-by-prompt block require, and how does charter_lint enforce the hardened fallback?",
+      "expected_output": "The Peer writes the report with the editor/write tool, prints it as final pane output, then sends only a bounded composed prompt containing the verdict/outcome, roughly 200-word summary, and report path with the exact no-flag command `herdr agent prompt <lead-name> \"<composed prompt>\"`; the send is mandatory, retries once on non-zero, and on a second failure appends SEND-FAILED and runs the notification command without further retry. charter_lint requires the prompt command, report path, and SEND-FAILED marker, and tests cover both rejection of a missing marker and acceptance of the full block.",
+      "files": [
+        "skills/herdr-delivery-workflow/templates/report-by-prompt.txt",
+        "skills/herdr-delivery-workflow/scripts/charter_lint.py",
+        "tests/test_charter_lint.py"
+      ],
+      "assertions": [
+        "Requires editor/write-tool report creation and final pane printing",
+        "Requires the exact herdr agent prompt command with no flags and no report-file contents",
+        "Requires a mandatory bounded prompt, one retry, and SEND-FAILED notification fallback with no further retry",
+        "Keeps the hardened block as the single live copy",
+        "Makes charter_lint fail when SEND-FAILED is absent even when the prompt command and report path are present",
+        "Tests a full hardened block through main and passes it"
+      ]
     }
   ]
 }

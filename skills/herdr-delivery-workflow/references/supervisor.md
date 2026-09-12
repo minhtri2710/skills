@@ -18,6 +18,15 @@ The Supervisor is not a second Lead and not a Peer. It holds no partition, commi
 - the gate ledger at `~/.herdr/projects/<project-slug>/gates.md` and the project config beside it;
 - repeated tool failures, loss of momentum, recurring anti-patterns, and decisions that vanished across a compaction or handoff; for historical patterns, decisions, and causes spanning earlier runs, the Supervisor follows `herdr-cli.md`, “Recall past records”, instead of opening a complete notebook or run directory.
 
+When observing a Lead staffing a Peer, use this staffing-wake checklist:
+
+- grep the charter for the report-by-prompt block containing `herdr agent prompt <lead>` and the report path;
+- read the Peer's pane status line to confirm the skill and extension markers and the exact model match the staffing record;
+- check that seat's staffing record line for `posture=`/`dialog=`/`skills=`/`extensions=`;
+- confirm the Peer is not writing outside its owned paths or into a design or reference tree it does not own.
+
+The Supervisor still never staffs, edits, or accepts; this is an observation checklist only.
+
 A finish, error, or permission notification is an attention event, not acceptance and not a verdict. Look when the mailbox has been read at a wake, when the Human asks, or when a Human-set deadline has meaning; do not read panes or history on a schedule to feel in control. When the Human asks for a standing watch, answer that the seat is woken by mailbox-backed Lead attention events, by the Lead's answers, and by the Human, and that Herdr's pane labels and toasts are the watch; never run a wait on the Lead, a polling loop, a sleep loop, or a background watch.
 
 ## Authority
