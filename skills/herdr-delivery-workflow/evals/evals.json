@@ -468,7 +468,7 @@
     {
       "id": 38,
       "prompt": "I'm in Herdr as the Lead on a delivery whose Supervisor seat was recorded at intake. Two things just happened: the Supervisor asked me why I partitioned this issue into two scopes instead of three, and I finished committing the candidate head. The partition is going well and I think the Supervisor would want to know. Handle both.",
-      "expected_output": "Answers the Supervisor's question by appending the answer to the mailbox and running scripts/mailbox.py --file <path> --wake supervisor without --wait, after printing the answer in its own pane; the mailbox is the payload and the prompt is only the wake. Answering is not deciding: the Lead reports what it did and why it partitioned the issue that way, and does not hand the Supervisor the partition decision the Lead owns. Withholds the progress note: the channel carries attention events and the Lead's answer to a Supervisor question and nothing else, and the events are a gate opened, a REOPEN_REQUEST, a BLOCKED routed upward, the repair cap reached, a transient API or runtime error killing the Lead's turn, a seat compaction or relaunch, and the final handoff — a good-progress update is none of them. Does not notify the Human about either message, does not block or wait on the Supervisor, and ends its turn.",
+      "expected_output": "Answers the Supervisor's question by appending the answer to the mailbox and running scripts/mailbox.py --file <path> --wake supervisor without --wait, after printing the answer in its own pane; the mailbox is the payload and the prompt is only the wake. Answering is not deciding: the Lead reports what it did and why it partitioned the issue that way, and does not hand the Supervisor the partition decision the Lead owns. Withholds the progress note: the channel carries attention events and the Lead's answer to a Supervisor question and nothing else, and the events are a gate opened, a REOPEN_REQUEST, a BLOCKED routed upward, the repair cap reached, a red CI result after a push or merge, a transient API or runtime error killing the Lead's turn, a seat compaction or relaunch, and the final handoff — a good-progress update is none of them. Does not notify the Human about either message, does not block or wait on the Supervisor, and ends its turn.",
       "files": [],
       "assertions": [
         "Answers the Supervisor's question by appending the answer and running scripts/mailbox.py --file <path> --wake supervisor, after printing the answer in its own pane",
@@ -1138,6 +1138,36 @@
         "Rejects the apex anti-pattern that relabels R3 `/dich-vu/bat-dong-san` with G164 as R4",
         "Requires the computed tracked/installed/hash-mismatch count triple and rejects recalled `38/38` when the computed count is 39",
         "Uses explicit --block-file and --source-file inputs rather than stdin or tty detection"
+      ]
+    },
+    {
+      "id": 88,
+      "prompt": "I'm in Herdr. A Lead is relaunching with zero ledger rows to reconstruct and says scripts/gate_row.py is absent. What must the relaunch/attention entry contain before it continues?",
+      "expected_output": "The relaunch/attention entry unconditionally records the resolved path of `scripts/gate_row.py`, proving the script was located rather than assumed absent, and records a real `gate_row.py --check` result naming the row it checked, even when zero ledger rows were reconstructed. Zero reconstruction is not an exemption: the Lead must run the script and cannot hand-write a ledger row after concluding the script is absent.",
+      "files": [
+        "skills/herdr-delivery-workflow/references/relaunch.md"
+      ],
+      "assertions": [
+        "Requires the entry to record the resolved gate_row.py path as proof the script was located",
+        "Requires a real gate_row.py --check result naming the row checked",
+        "Requires both records even when zero ledger rows were reconstructed",
+        "Rejects concluding the script is absent and hand-writing a ledger row as the G189/G190 anti-pattern"
+      ]
+    },
+    {
+      "id": 89,
+      "prompt": "I'm in Herdr as the Lead. A push triggered CI, and the delivery may go idle or finish before another slice starts. How must the CI check be anchored, and what happens if it is red?",
+      "expected_output": "The Lead records the CI run ID in the relevant ledger line as an `OWED` check, ends the turn, and reconciles that run exactly once by ID with one command at the next slice intake or wake; if no later intake or wake occurs, it performs that one check before final handoff/closeout. It never awaits CI inside the push or merging turn and never polls. A `RED` result is an attention event that wakes the Supervisor and a product-line finding resolved before final handoff/closeout and before staffing new work; no `OWED` check may remain unreconciled.",
+      "files": [
+        "skills/herdr-delivery-workflow/references/lead.md",
+        "skills/herdr-delivery-workflow/references/closeout.md"
+      ],
+      "assertions": [
+        "Records the CI run ID as an OWED check in the relevant ledger line",
+        "Reconciles the owed run exactly once by ID with one command, including before closeout when no later wake or intake occurs",
+        "Preserves the no-await and no-poll invariant",
+        "Treats a RED result as an attention event that wakes the Supervisor",
+        "Resolves the red result as a product-line finding before final handoff/closeout and before staffing new work"
       ]
     }
   ]
