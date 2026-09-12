@@ -62,6 +62,13 @@ class GateRowTest(unittest.TestCase):
             "--words", "human", "--note", "merged the reviewed head", "--quote", "merge it", *extra,
         ])
 
+    def append_repair(self, words: str = "seat", quote: str = "repair cycle") -> int:
+        return self.run_main([
+            "--ledger", str(self.ledger), "--repo", str(self.repo),
+            "--kind", "repair", "--status", "recorded:repair",
+            "--words", words, "--note", "repair cycle", "--quote", quote,
+        ])
+
     def git(self, *args: str) -> str:
         return subprocess.run(["git", "-C", str(self.repo), *args],
                               capture_output=True, text=True, check=True).stdout.strip()
@@ -129,6 +136,38 @@ class GateRowTest(unittest.TestCase):
             ["--ledger", str(self.ledger), "--repo", str(self.repo), "--check"]), 1)
         self.assertIn("timestamp regression", self.err.getvalue())
         self.assertIn("2000-01-01T00:00:00Z", self.err.getvalue())
+
+    def test_repair_cap_allows_one_repair_row_and_check_passes(self):
+        self.assertEqual(self.append_repair(), 0)
+        self.assertEqual(self.run_main([
+            "--ledger", str(self.ledger), "--repo", str(self.repo), "--check",
+        ]), 0)
+
+    def test_repair_cap_allows_two_consecutive_repair_rows_and_check_passes(self):
+        self.assertEqual(self.append_repair(), 0)
+        self.assertEqual(self.append_repair(), 0)
+        self.assertEqual(self.run_main([
+            "--ledger", str(self.ledger), "--repo", str(self.repo), "--check",
+        ]), 0)
+
+    def test_repair_cap_rejects_third_consecutive_repair_row(self):
+        self.assertEqual(self.append_repair(), 0)
+        self.assertEqual(self.append_repair(), 0)
+        self.assertEqual(self.append_repair(), 1)
+        self.assertIn("repair cap", self.err.getvalue())
+        self.assertIn("kind=repair", self.last_row())
+        self.assertEqual(self.run_main([
+            "--ledger", str(self.ledger), "--repo", str(self.repo), "--check",
+        ]), 1)
+        self.assertIn("repair cap", self.err.getvalue())
+
+    def test_human_row_resets_repair_cap(self):
+        self.assertEqual(self.append_repair(), 0)
+        self.assertEqual(self.append(), 0)
+        self.assertEqual(self.append_repair(), 0)
+        self.assertEqual(self.run_main([
+            "--ledger", str(self.ledger), "--repo", str(self.repo), "--check",
+        ]), 0)
 
     def test_quote_file_becomes_quote_and_round_trips(self):
         quote_file = self.tmp / "refused-command.txt"

@@ -376,6 +376,18 @@ def check(row: str, repo: Path, prior_rows: list[str] | None = None) -> None:
         raise RowError(f"field {rest[index]!r} is not one of {WORDS_VALUES}")
     index += 1
 
+    if kind == "kind=repair":
+        repair_count = 1
+        for previous_row in reversed(prior_rows or []):
+            previous_fields, _ = split_row(previous_row)
+            if "words=human" in previous_fields or "kind=repair" not in previous_fields:
+                break
+            repair_count += 1
+        if repair_count >= 3:
+            raise RowError(
+                "repair cap reached (two cycles): route the Human gate instead of another repair cycle"
+            )
+
     if index >= len(rest) or not rest[index].startswith("note="):
         raise RowError("note= is missing or out of order")
     note = rest[index][len("note="):]

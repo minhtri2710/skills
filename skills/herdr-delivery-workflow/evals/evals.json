@@ -987,6 +987,66 @@
         "Runs densely coupled slices sequentially or solo-Lead rather than as nominal parallel scopes",
         "Cites lead.md, templates/slices.json, and scripts/slices_ready.py"
       ]
+    },
+    {
+      "id": 78,
+      "prompt": "A self-improvement proposal would weaken one of the workflow's non-negotiable safety anchors. What does intake do, and which anchors are frozen?",
+      "expected_output": "The Lead refuses the proposal at intake. The frozen anchors are independent review on the exact head by a distinct-kind Reviewer (distinct kind and model for solo-Lead), one ledger row per external write, rendered-artifact parity for visual or matches-design acceptance, and the Human push/PR/merge/deploy gate.",
+      "files": [
+        "skills/herdr-delivery-workflow/references/lead.md"
+      ],
+      "assertions": [
+        "Refuses a self-improvement proposal that touches a frozen anchor at intake",
+        "Names independent exact-head review with the required distinct-kind Reviewer condition",
+        "Names one ledger row per external write",
+        "Names rendered-artifact parity for visual or matches-design acceptance",
+        "Names the Human push/PR/merge/deploy gate"
+      ]
+    },
+    {
+      "id": 79,
+      "prompt": "A Reviewer is given a visual 'matches design X' acceptance. What evidence must the acceptance name, what happens when no rendered reference exists, and what does intake do when the named reference cannot be rendered?",
+      "expected_output": "The acceptance names its render recipe and screenshot or rendered-reference pair. The Reviewer returns FAIL when no rendered reference exists to compare against, while the Lead records intake as BLOCKED when the named reference cannot be rendered.",
+      "files": [
+        "skills/herdr-delivery-workflow/references/charters.md",
+        "skills/herdr-delivery-workflow/references/lead.md"
+      ],
+      "assertions": [
+        "Requires the visual-parity acceptance to name a render recipe",
+        "Requires a screenshot or rendered-reference pair",
+        "Requires Reviewer FAIL when no rendered reference exists for a visual-parity claim",
+        "Requires Lead BLOCKED intake when the named reference cannot be rendered"
+      ]
+    },
+    {
+      "id": 80,
+      "prompt": "The Reviewer returned BLOCKED because the required evidence was not exact. Can the Lead relabel it PASS without changing the implementation state?",
+      "expected_output": "No. BLOCKED routes to a gate and cannot become PASS without a change of state: a new head with fresh evidence.",
+      "files": [
+        "skills/herdr-delivery-workflow/references/charters.md"
+      ],
+      "assertions": [
+        "Routes every BLOCKED verdict to a gate",
+        "Rejects relabeling BLOCKED as PASS without a state change",
+        "Requires a new head with fresh evidence before PASS"
+      ]
+    },
+    {
+      "id": 81,
+      "prompt": "How does the gate ledger enforce the default repair cap, and what happens after a Human decision?",
+      "expected_output": "gate_row.py --check counts the current kind=repair row with immediately preceding consecutive kind=repair rows, stopping at the first words=human row. The first two repair rows pass; the third fails with the repair-cap instruction to route the Human gate. A words=human row resets the count.",
+      "files": [
+        "skills/herdr-delivery-workflow/scripts/gate_row.py",
+        "skills/herdr-delivery-workflow/references/lead.md",
+        "tests/test_gate_row.py"
+      ],
+      "assertions": [
+        "Counts consecutive kind=repair rows including the row being checked",
+        "Uses words=human as the reset signal",
+        "Allows one and two consecutive repair rows",
+        "Fails the third consecutive repair row with a repair-cap Human-gate instruction",
+        "Cites the lead prose mechanism and CLI-path tests"
+      ]
     }
   ]
 }
