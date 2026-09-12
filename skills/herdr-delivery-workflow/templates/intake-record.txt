@@ -6,6 +6,7 @@ Owners: <Lead, Engineer/Reviewer owners, governing contracts>
 Guidance: <the repository guidance that governs this work, or none found>
 Plan: <active plan reference or none>
 Validation: <claim-shaped checks and expected outcomes>
+Prediction: <falsifiable forward claim naming an eval id or named anti-pattern; none if this run changes no doctrine>
 Mode: partitioned | solo-Lead
 Mode reason: <which branch of the solo-Lead test was taken, and the evidence for it>
 Partition: <partitioned scope name: owned paths, one line per scope; or solo-Lead owned scope>

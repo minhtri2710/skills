@@ -1,5 +1,7 @@
 STATUS: accepted | blocked | needs-human-gate | needs-rework
 OUTCOME: <one sentence>
+PREDICTION: <falsifiable forward claim naming an eval id or named anti-pattern; none if this run changes no doctrine>
+PREDICTION OUTCOME: <confirmed | falsified | pending-next-run>
 HEAD: <exact reviewed SHA or none>
 INTEGRATED: <exact integrated SHA or none>
 REVIEW: <PASS/FAIL/BLOCKED, exact head, Reviewer agent kind>

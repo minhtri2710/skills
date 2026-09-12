@@ -952,6 +952,23 @@
         "Groups or annotates candidates by status",
         "Keeps the script read-only and never deletes or edits records"
       ]
+    },
+    {
+      "id": 76,
+      "prompt": "A run changed doctrine. How does P7 make the prediction loop part of intake and closeout?",
+      "expected_output": "The run records a falsifiable prediction naming an observable eval id or named anti-pattern in the intake/handoff record; the next relevant intake reuses the existing prior-lesson recall to check the most recent prior doctrine prediction and records whether it held, was falsified, or is still pending. A falsified prediction is recorded and routed as a revert/amend through the existing Human push/PR/merge gate, granting no seat new authority, and closeout preserves the prediction with its confirmed, falsified, or pending-next-run outcome when determinable.",
+      "files": [
+        "skills/herdr-delivery-workflow/references/lead.md",
+        "skills/herdr-delivery-workflow/references/closeout.md",
+        "skills/herdr-delivery-workflow/templates/intake-record.txt"
+      ],
+      "assertions": [
+        "Requires a doctrine-changing run to record a falsifiable prediction naming an eval id or named anti-pattern",
+        "Requires the next relevant intake to reuse the existing prior-lesson recall and check the most recent prior doctrine prediction",
+        "Records whether the prior prediction held, was falsified, or is still pending",
+        "Routes a falsified prediction as a revert or amend through the existing Human push/PR/merge gate without granting any seat new authority",
+        "Requires closeout to preserve the prediction and its confirmed, falsified, or pending-next-run outcome"
+      ]
     }
   ]
 }
