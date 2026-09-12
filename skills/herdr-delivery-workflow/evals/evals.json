@@ -911,6 +911,47 @@
         "Exits non-zero for a row timestamp earlier than its immediate predecessor",
         "Names the timestamp regression before trusting the row"
       ]
+    },
+    {
+      "id": 73,
+      "prompt": "A run passed independent review and merged and produced a genuine lesson. What does closeout do, and how is a failed run recorded?",
+      "expected_output": "Closeout writes one active lesson record per genuine lesson into `runs/coordination/lessons/` in the lesson-record template shape; a failed run is recorded with `status=failure-mode`, never as an active lesson.",
+      "files": [
+        "skills/herdr-delivery-workflow/references/closeout.md",
+        "skills/herdr-delivery-workflow/templates/lesson-record.txt"
+      ],
+      "assertions": [
+        "Requires closeout to write an active lesson record in runs/coordination/lessons/ after a PASSed review and landing",
+        "Uses the lesson-record template shape",
+        "Records a failed run as status=failure-mode rather than active"
+      ]
+    },
+    {
+      "id": 74,
+      "prompt": "At intake, how does the Lead recall prior project lessons before classifying the run?",
+      "expected_output": "The Lead recalls prior project lessons with `recall.py --stamp` alongside reading repository `AGENTS.md`, recording the retrieval in `last_used` before classification.",
+      "files": [
+        "skills/herdr-delivery-workflow/references/lead.md",
+        "skills/herdr-delivery-workflow/scripts/recall.py"
+      ],
+      "assertions": [
+        "Requires intake recall of prior project lessons with recall.py --stamp",
+        "Connects recall to reading repository AGENTS.md before classification",
+        "Identifies last_used stamping as the retrieval record"
+      ]
+    },
+    {
+      "id": 75,
+      "prompt": "How are stale lesson records surfaced for curation?",
+      "expected_output": "`lesson_flags.py` reports stale lesson records as retire candidates grouped by status for Human review, and never deletes or edits records.",
+      "files": [
+        "skills/herdr-delivery-workflow/scripts/lesson_flags.py"
+      ],
+      "assertions": [
+        "Uses lesson_flags.py to report stale records as candidates",
+        "Groups or annotates candidates by status",
+        "Keeps the script read-only and never deletes or edits records"
+      ]
     }
   ]
 }

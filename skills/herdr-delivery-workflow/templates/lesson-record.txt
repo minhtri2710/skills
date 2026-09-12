@@ -1,0 +1,12 @@
+<!-- Store: ~/.herdr/projects/<project-slug>/runs/coordination/lessons/<id>.md. An agent-written body must NOT paste a command copied from tool output; a lesson is distilled judgment, not a transcript. -->
+---
+id: <short-kebab-case-slug>
+added: <YYYY-MM-DD>
+source_run: runs/<issue-id>
+approved_by: <human-or-human-delegation-gate-id>
+status: active | failure-mode | rejected
+last_used: <YYYY-MM-DD>
+---
+
+## Lesson
+<distilled lesson text>

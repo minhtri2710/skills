@@ -2,6 +2,7 @@
 """Recall indexed Herdr project records or read a cited line span."""
 
 import argparse
+import datetime
 import glob
 import os
 import re
@@ -80,6 +81,99 @@ def query_records(db, variants, count):
     return sorted(scores.items(), key=lambda item: (-item[1], item[0][0], item[0][1])), snippets
 
 
+LESSON_FIELDS = {
+    "id",
+    "added",
+    "source_run",
+    "approved_by",
+    "status",
+    "last_used",
+}
+LESSON_STATUSES = {"active", "failure-mode", "rejected"}
+
+
+def lesson_record_lines(text):
+    lines = text.splitlines(keepends=True)
+    if not lines:
+        return None
+    start = 0
+    if lines[0].rstrip("\r\n") != "---":
+        if not re.fullmatch(r"<!--[\s\S]*-->\r?\n?", lines[0]):
+            return None
+        start = 1
+    if start >= len(lines) or lines[start].rstrip("\r\n") != "---":
+        return None
+    end = next(
+        (index for index, line in enumerate(lines[start + 1 :], start=start + 1) if line.rstrip("\r\n") == "---"),
+        None,
+    )
+    if end is None:
+        return None
+
+    fields = {}
+    for index, line in enumerate(lines[start + 1 : end], start=start + 1):
+        match = re.fullmatch(r"([A-Za-z_][A-Za-z0-9_-]*):[ \t]*(.*?)(?:\r?\n)?", line)
+        if match is None or match.group(1) in fields:
+            return None
+        fields[match.group(1)] = (index, match.group(2))
+    if set(fields) != LESSON_FIELDS or fields["status"][1] not in LESSON_STATUSES:
+        return None
+    if any(not value for _index, value in fields.values()):
+        return None
+    try:
+        datetime.date.fromisoformat(fields["added"][1])
+        datetime.date.fromisoformat(fields["last_used"][1])
+    except ValueError:
+        return None
+    return lines, end, fields
+
+
+def stamp_lesson(path, today):
+    try:
+        with open(path, encoding="utf-8") as handle:
+            text = handle.read()
+        parsed = lesson_record_lines(text)
+        if parsed is None:
+            return
+        lines, _end, fields = parsed
+        line_index = fields["last_used"][0]
+        newline = "\r\n" if lines[line_index].endswith("\r\n") else "\n"
+        replacement = f"last_used: {today}{newline}"
+        if lines[line_index] == replacement:
+            return
+        lines[line_index] = replacement
+        with open(path, "w", encoding="utf-8", newline="") as handle:
+            handle.write("".join(lines))
+    except (OSError, UnicodeError):
+        return
+
+
+def lesson_result_path(relative):
+    parts = os.path.normpath(relative).split(os.sep)
+    if "lessons" not in parts or parts[-1] in {"", ".", ".."}:
+        return None
+    root = os.path.realpath(os.path.abspath(PROJECTS_ROOT))
+    path = os.path.realpath(os.path.join(root, relative))
+    try:
+        inside_root = os.path.commonpath((root, path)) == root
+    except ValueError:
+        inside_root = False
+    if not inside_root:
+        return None
+    return path
+
+
+def stamp_results(results):
+    today = datetime.datetime.now(datetime.timezone.utc).date().isoformat()
+    stamped = set()
+    for (relative, _line), _score in results:
+        path = lesson_result_path(relative)
+        if path is None or path in stamped:
+            continue
+        stamped.add(path)
+        stamp_lesson(path, today)
+
+
 def span_target(parser, spec):
     try:
         path, start, count = spec.rsplit(":", 2)
@@ -105,6 +199,7 @@ def main(argv=None):
     parser.add_argument("--project", metavar="SLUG")
     parser.add_argument("-n", type=int, default=3, metavar="N")
     parser.add_argument("--get", metavar="PATH:FROM:COUNT")
+    parser.add_argument("--stamp", action="store_true")
     parser.add_argument("variants", nargs="*", metavar="VARIANT")
     args = parser.parse_args(argv)
     if args.n < 1:
@@ -124,6 +219,8 @@ def main(argv=None):
 
     db = build_index(root)
     results, snippets = query_records(db, args.variants, args.n)
+    if args.stamp:
+        stamp_results(results[: args.n])
     for (path, line), _score in results[: args.n]:
         print(f"{path}:{line}  {snippets[(path, line)]}")
     db.close()
