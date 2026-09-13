@@ -1496,6 +1496,177 @@
         "Requires genuinely disjoint scopes",
         "Raises worker-cap with a recorded reason rather than merging disjoint scopes"
       ]
+    },
+    {
+      "id": 112,
+      "prompt": "A gate ledger row uses `channel=supervisor-relay:dialog` with `words=human`, while another dialog row uses `words=selected` and a typed row uses `words=human`. What must gate_row.py accept or reject on append and --check?",
+      "expected_output": "gate_row.py rejects the dialog-encoded row with words=human both before append and when checking an existing row; a dialog row must use words=selected. A dialog row with words=selected and a typed row with words=human are accepted, subject to the rest of the row schema.",
+      "files": [
+        "skills/herdr-delivery-workflow/scripts/gate_row.py",
+        "tests/test_gate_row.py"
+      ],
+      "assertions": [
+        "Rejects channel=...:dialog with words=human on append and --check",
+        "Requires a :dialog row to use words=selected",
+        "Accepts a :dialog row with words=selected",
+        "Accepts a :typed row with words=human"
+      ]
+    },
+    {
+      "id": 113,
+      "prompt": "An open push-gate, merge-gate, or deploy-gate row says `blocked:seat-permission` in note=. What quote and words encoding must it carry, and what does gate_row.py --check do with any other shape?",
+      "expected_output": "Every open push-gate, merge-gate, or deploy-gate row whose note contains blocked:seat-permission must use words=none and an empty quote. gate_row.py rejects any other words/quote combination on append and --check, rather than recording the classifier denial as authored Human text.",
+      "files": [
+        "skills/herdr-delivery-workflow/scripts/gate_row.py",
+        "tests/test_gate_row.py"
+      ],
+      "assertions": [
+        "Requires words=none and an empty quote for an open push-gate, merge-gate, or deploy-gate row containing blocked:seat-permission",
+        "Rejects the wrong words or non-empty quote on append",
+        "Rejects the wrong words or non-empty quote on --check",
+        "Keeps the classifier denial out of Human-authored quote encoding"
+      ]
+    },
+    {
+      "id": 114,
+      "prompt": "A Human-authorized external write is blocked by a seat-permission classifier, and a different seat later performs the write. How must the event be classified and recorded?",
+      "expected_output": "The classifier refusal is a SEAT CONSTRAINT, never a Human decision and never a reason to ask the Human to re-decide an already authorized write. The run records an open push-gate, merge-gate, or deploy-gate row with the blocked:seat-permission system encoding, then records the landed push, merge, or deploy row with --resolves naming that open gate; when another seat executes it, that landed row's note names the executing seat.",
+      "files": [
+        "skills/herdr-delivery-workflow/references/lead.md",
+        "skills/herdr-delivery-workflow/references/supervisor.md",
+        "skills/herdr-delivery-workflow/scripts/gate_row.py",
+        "tests/test_gate_row.py"
+      ],
+      "assertions": [
+        "Classifies a seat-permission classifier refusal as a SEAT CONSTRAINT rather than a Human decision",
+        "Records the constraint as an open <op>-gate row with the system words/quote encoding",
+        "Resolves the open gate from the landed <op> row using --resolves",
+        "Names the executing seat in the landed row's note when another seat performs the write",
+        "Does not route an already authorized write back as a new Human decision"
+      ]
+    },
+    {
+      "id": 115,
+      "prompt": "An open push, merge, or deploy gate is being checked with `gate_row.py --check --mailbox <path>`. What mailbox evidence is mandatory, and what identifiers may match it?",
+      "expected_output": "With --mailbox, gate_row.py requires an exact-shape supervisor ATTENTION header for every open push, merge, deploy, push-gate, merge-gate, or deploy-gate row. The ATTENTION text must contain the gate id or the exact full head SHA as a complete token; no matching entry, a malformed header, or a substring match fails the check.",
+      "files": [
+        "skills/herdr-delivery-workflow/scripts/gate_row.py",
+        "tests/test_gate_row.py"
+      ],
+      "assertions": [
+        "Makes --check --mailbox fail for an open push/merge/deploy(-gate) row without a matching ATTENTION entry",
+        "Requires the exact supervisor ATTENTION header shape",
+        "Accepts a complete gate-id token match",
+        "Accepts a complete exact full-head-SHA token match",
+        "Rejects a malformed header or substring-only identifier match"
+      ]
+    },
+    {
+      "id": 116,
+      "prompt": "A Peer appears idle in one herdr state sample, and someone wants to fire a stall/watchdog alert immediately. What evidence does `roster.py --stalled` require?",
+      "expected_output": "A single idle or done sample never establishes a stall. roster.py --stalled reports STALLED only when the current state is settled after a prior non-settled sample, the report is absent, and the progress file's mtime has not advanced and is older than the stale threshold across the supplied interval. A present report, fresh or advanced progress mtime, missing progress file, or no transition suppresses the alert.",
+      "files": [
+        "skills/herdr-delivery-workflow/scripts/roster.py",
+        "tests/test_roster.py"
+      ],
+      "assertions": [
+        "Never fires STALLED from a single herdr state sample",
+        "Requires a transition from a non-settled state to idle or done",
+        "Requires an absent report and unchanged stale progress-file mtime across the interval",
+        "Does not report a stall when a report is present or progress is fresh/advanced",
+        "Fails closed by not reporting a stall when the progress file is missing or unreadable"
+      ]
+    },
+    {
+      "id": 117,
+      "prompt": "A seat's `agent_status` and `state_change_seq` look idle, but its token counter, owned-file mtime, or progress-file mtime shows recent activity on a shared owned path. May the Lead restaff that seat?",
+      "expected_output": "No. agent_status and state_change_seq are not sole liveness proof. The Lead treats the token counter, owned-file mtime, and progress-file mtime as the reliable activity signals and does not restaff a possibly live seat on a shared owned path without hard confirmation that the original seat is dead, avoiding a double writer.",
+      "files": [
+        "skills/herdr-delivery-workflow/references/lead.md",
+        "skills/herdr-delivery-workflow/references/supervisor.md"
+      ],
+      "assertions": [
+        "Rejects agent_status or state_change_seq as sole proof that a seat is dead",
+        "Uses the token counter, owned-file mtime, and progress-file mtime as liveness evidence",
+        "Refuses to restaff a possibly live seat on a shared owned path",
+        "Requires hard confirmation of death before restaffing to avoid double writers"
+      ]
+    },
+    {
+      "id": 118,
+      "prompt": "The Lead wakes after staffing a Peer and wants a recurring poll or schedule to run the stall check. What is allowed, and what watchdog exception remains available?",
+      "expected_output": "The Lead runs the stall check once per wake it already has; it does not create a poll or schedule. The no-poll rule applies to LLM seats, while a non-LLM process watchdog is permitted when it only pings the Lead and does not make workflow decisions or act as a second coordinator.",
+      "files": [
+        "skills/herdr-delivery-workflow/references/lead.md",
+        "skills/herdr-delivery-workflow/references/herdr-cli.md"
+      ],
+      "assertions": [
+        "Runs the stall check once per existing wake rather than on a recurring poll or schedule",
+        "Scopes the no-poll rule to LLM seats",
+        "Permits a non-LLM process watchdog that only pings the Lead",
+        "Does not let a process watchdog become a second coordinator or make workflow decisions"
+      ]
+    },
+    {
+      "id": 119,
+      "prompt": "A Peer edits an owned file during a long task. What must it do with `runs/<run>/progress-<seat>.md`, and what do the file's mtime and contents mean?",
+      "expected_output": "After every edit, the Peer rewrites its progress-<seat>.md file. The rewrite is both a heartbeat and a checkpoint: the file mtime is the liveness signal, and its content records enough current state for the seat to resume without re-deriving the checkpoint.",
+      "files": [
+        "skills/herdr-delivery-workflow/references/lead.md",
+        "skills/herdr-delivery-workflow/references/charters.md"
+      ],
+      "assertions": [
+        "Rewrites runs/<run>/progress-<seat>.md after every edit",
+        "Uses the progress-file mtime as the liveness signal",
+        "Uses the progress-file content as the resume checkpoint",
+        "Treats the progress rewrite as both heartbeat and checkpoint rather than optional narration"
+      ]
+    },
+    {
+      "id": 120,
+      "prompt": "After a staffing wake, what does the Supervisor read from the Peer pane before deciding whether the staffing/report path is healthy?",
+      "expected_output": "The Supervisor reads the Peer pane once and checks for an error line as well as the skill/report-block markers. It records or relays the observation to the Lead without accepting the work, editing the Peer, or repeatedly polling the pane.",
+      "files": [
+        "skills/herdr-delivery-workflow/references/supervisor.md"
+      ],
+      "assertions": [
+        "Reads the Peer pane once after the staffing wake",
+        "Looks for an error line",
+        "Checks the skill and report-block markers in the same read",
+        "Keeps the check observational and does not accept, edit, or repeatedly poll the Peer"
+      ]
+    },
+    {
+      "id": 121,
+      "prompt": "A Supervisor-notebook entry is being appended. What timestamp format must its header use, and which command supplies it?",
+      "expected_output": "The Supervisor-notebook header uses full-seconds UTC ISO form `YYYY-MM-DDTHH:MM:SSZ`, supplied by `date -u +%FT%TZ`. It follows the same seconds-precision rule as mailbox headers, not minute precision.",
+      "files": [
+        "skills/herdr-delivery-workflow/references/supervisor.md",
+        "skills/herdr-delivery-workflow/scripts/mailbox.py",
+        "skills/herdr-delivery-workflow/templates/mailbox-entry.txt"
+      ],
+      "assertions": [
+        "Requires a Supervisor-notebook header in YYYY-MM-DDTHH:MM:SSZ full-seconds UTC form",
+        "Uses date -u +%FT%TZ as the timestamp source",
+        "Keeps the notebook timestamp rule identical to mailbox headers",
+        "Rejects minute-precision notebook timestamps"
+      ]
+    },
+    {
+      "id": 122,
+      "prompt": "On `/exit`, the outgoing seat sees the prompt `You have N unsent feedback drafts`. Who decides how it is resolved, and who may execute the `send-keys esc|enter` action?",
+      "expected_output": "The prompt is a Human decision. The Human answers first, and the resulting esc or enter is executed with send-keys by the Human-controlled operator/seat after that answer; the outgoing seat must not answer its own unsent-feedback prompt or execute the key action itself.",
+      "files": [
+        "skills/herdr-delivery-workflow/references/lead.md",
+        "skills/herdr-delivery-workflow/references/supervisor.md",
+        "skills/herdr-delivery-workflow/references/herdr-cli.md"
+      ],
+      "assertions": [
+        "Routes the unsent-feedback-drafts prompt as a Human decision",
+        "Waits for the Human answer before executing send-keys esc or enter",
+        "Keeps the key action with the Human-controlled operator/seat rather than the outgoing seat",
+        "Rejects the outgoing seat answering or dismissing its own prompt"
+      ]
     }
   ]
 }
