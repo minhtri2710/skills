@@ -1667,6 +1667,57 @@
         "Keeps the key action with the Human-controlled operator/seat rather than the outgoing seat",
         "Rejects the outgoing seat answering or dismissing its own prompt"
       ]
+    },
+    {
+      "id": 123,
+      "prompt": "A Lead or code-searching Peer needs to find definitions and callers in the DELIVERY REPOSITORY. Both CLIs are on PATH, and the search must work in an unindexed checkout or when one CLI is unavailable. What should the seat do, and how is this different from recalling workflow history?",
+      "expected_output": "For DELIVERY REPOSITORY code search, the seat calls the CLIs directly from Bash and prefers `semble search \"<nl-or-code query>\" [path] [-k N] [--content code|docs|config|all] [--max-snippet-lines N]` or `zg query --rg [rg-options] <pattern> [path...]` where it saves tokens; both work with no index. If a CLI is unavailable, it falls back to `grep`/`rg`/`read`. Optional semantic `zg query` index use never becomes a requirement. This is separate from `recall.py`, which recalls the workflow's coordination records rather than repository code.",
+      "files": [],
+      "assertions": [
+        "Calls semble search or zg query --rg directly from Bash for DELIVERY REPOSITORY code search",
+        "Prefers the CLIs where they save tokens and keeps the search usable without an index",
+        "Falls back to grep, rg, or read when a CLI is unavailable",
+        "Does not make repository code search hard-depend on an index",
+        "Distinguishes repository code search from recall.py coordination-record recall"
+      ]
+    },
+    {
+      "id": 124,
+      "prompt": "A Lead wants semantic `zg query \"<nl question>\"` results in the DELIVERY REPOSITORY. What is the status of the local index, and who may build it?",
+      "expected_output": "The local semantic index is optional, never required, and is built in the Lead's own checkout by the Lead as a local, non-external-write operation with `zg index`; it writes `.zvec-grep/` there. A Peer never builds the index. Without it, the seat uses `semble search`, `zg query --rg`, or `grep`.",
+      "files": [],
+      "assertions": [
+        "Treats the semantic zg index as optional rather than required",
+        "Allows only the Lead to run zg index in its own checkout as a local non-external-write operation",
+        "Rejects a Peer running zg index",
+        "States that zg index writes .zvec-grep/ in the Lead checkout",
+        "Preserves semble search, zg query --rg, or grep without an index"
+      ]
+    },
+    {
+      "id": 125,
+      "prompt": "A Peer was started with skills disabled (`--no-skills`) and must search code in an unindexed DELIVERY REPOSITORY. Show the allowed search behavior and how recursive readers are pre-armed.",
+      "expected_output": "The Peer invokes `semble search \"<nl-or-code query>\" [path] [-k N] [--content code|docs|config|all] [--max-snippet-lines N]` or `zg query --rg [rg-options] <pattern> [path...]` directly from Bash; it never loads a search skill. Both commands work without an index, and unavailable CLIs degrade to `grep`/`rg`/`read`. When a runtime has a Read() deny rule, the direct CLI readers are pre-armed with a statically determinable scope using the same flags-before-absolute-final-path discipline as `grep -r`, `rg`, and `find`.",
+      "files": [],
+      "assertions": [
+        "Names direct semble search and zg query --rg CLI invocations for a --no-skills Peer",
+        "Does not tell the Peer to load a search skill",
+        "Uses the zero-setup CLIs in an unindexed workspace",
+        "Falls back to grep, rg, or read when a CLI is unavailable",
+        "Pre-arms the direct CLI readers with a statically determinable scope under the same recursive-reader rule"
+      ]
+    },
+    {
+      "id": 126,
+      "prompt": "At intake the Lead needs both prior workflow decisions and source-code references. Which mechanism handles each, and may `semble` or `zg` replace `recall.py`?",
+      "expected_output": "The Lead uses `recall.py` for the workflow's coordination records — notebook, mailbox, ledger, and runs — and calls `semble search` or `zg query --rg` directly only for DELIVERY REPOSITORY code search. The CLIs do not replace or conflate with `recall.py`; code search uses `grep`/`rg`/`read` when needed and optional semantic indexing never changes that fallback.",
+      "files": [],
+      "assertions": [
+        "Uses recall.py for workflow coordination records such as notebook, mailbox, ledger, or runs",
+        "Calls semble or zg query --rg directly for DELIVERY REPOSITORY code search",
+        "Explicitly rejects replacing or conflating recall.py with the code-search CLIs",
+        "Preserves the grep, rg, or read fallback for code search"
+      ]
     }
   ]
 }
