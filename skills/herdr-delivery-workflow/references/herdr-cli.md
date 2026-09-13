@@ -57,6 +57,8 @@ herdr pane wait-output <pane-id> --match "test result" --timeout 120000
 herdr pane read <pane-id> --source recent-unwrapped --lines 120
 ```
 
+Every `--timeout` value is sized to the command's real worst case; always pass `--timeout`. The `120000` above and the `30000` below are illustrative examples only, never defaults to borrow.
+
 `pane run` atomically sends the command text and Enter. `pane wait-output` searches the selected snapshot immediately, so existing output can match; use `--match <text>` for a literal substring or `--regex <pattern>` for a Rust regex, and always pass `--timeout` (omitting it waits indefinitely). When the pane has a `working` or `blocked` agent, `pane read` returns only the viewport without error, so a large `--lines` is not proof of a complete read.
 
 ## Start and drive an agent
@@ -76,7 +78,7 @@ herdr agent wait <name> --timeout 30000
 
 Reports arrive as prompts: a Peer's report wakes the Lead mid-turn or opens a new Lead turn, so the Lead ends its turn after dispatching and after each wake, and before ending any turn runs `scripts/roster.py` once to reconcile live Peers with reports received (`lead.md`, "Lifecycle and reports"). Use `scripts/roster.py` for this roster/Discovery pass (`--workspace <id>` when scoped), consulting raw `herdr agent list` only if its compact view omitted a required field. Do not poll `herdr agent list`, sleep in a loop, re-issue status commands, or block on a Peer with any wait.
 
-Inspect through the resolved agent (this scrollback read is for an `idle` or `done` Peer): `herdr agent get <name>`, `herdr agent read <name> --source recent-unwrapped --lines 120`. After a `blocked` state, read `agent get` and `agent read --source visible` before deciding anything; for an `idle`/`done` Peer without a report, use `--source recent-unwrapped`. A blocked dialog is answered only by the Human: classify it as a routine command approval or a gate (`lead.md`, "Approval dialogs") and never answer by inference. `herdr agent send-keys <name> esc` writes logical keys to resume an interactive UI after that decision, not to drive the agent's work.
+Inspect through the resolved agent (this scrollback read is for an `idle` or `done` Peer): `herdr agent get <name>`, `herdr agent read <name> --source recent-unwrapped --lines 120`. After a `blocked` state, read `agent get` and `agent read --source visible` before deciding anything; for an `idle`/`done` Peer without a report, use `--source recent-unwrapped`. A blocked dialog is answered only by the Human: classify it as a routine command approval or a gate (`lead.md`, "Lifecycle and reports") and never answer by inference. `herdr agent send-keys <name> esc` writes logical keys to resume an interactive UI after that decision, not to drive the agent's work.
 
 ## Name a seat
 
