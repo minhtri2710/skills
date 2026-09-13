@@ -3,8 +3,12 @@
 from __future__ import annotations
 
 import io
+import json
+import os
 import subprocess
 import sys
+import tempfile
+import time
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -55,8 +59,11 @@ class RosterTest(unittest.TestCase):
         )
         with mock.patch.object(roster.subprocess, "run", return_value=completed) as run, \
                 mock.patch.object(roster.sys, "stdin", io.StringIO("")):
-            rc = roster.main(["--workspace", "w1"])
+            output = io.StringIO()
+            with mock.patch("sys.stdout", output):
+                rc = roster.main(["--workspace", "w1"])
         self.assertEqual(rc, 0)
+        self.assertEqual(output.getvalue(), "w1:p1 lead claude working\n")
         run.assert_called_once()
 
     def test_stdin_flag_reads_stdin_and_skips_subprocess(self):
@@ -65,6 +72,86 @@ class RosterTest(unittest.TestCase):
             rc = roster.main(["--stdin", "--workspace", "w1"])
         self.assertEqual(rc, 0)
         run.assert_not_called()
+
+    def test_stalled_requires_report_absent_and_stale_progress_across_interval(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            report = root / "report.md"
+            progress = root / "progress.md"
+            progress.write_text("old")
+            stale_mtime = time.time() - 120
+            os.utime(progress, (stale_mtime, stale_mtime))
+            previous = root / "previous.json"
+            previous.write_text(
+                json.dumps({"peers": {"peer-1": {
+                    "state": "working", "progress_mtime": stale_mtime,
+                }}})
+            )
+            payload = {"result": {"agents": [{
+                "pane_id": "w1:p1", "name": "peer-1", "agent": "claude",
+                "agent_status": "idle", "workspace_id": "w1",
+            }]}}
+            with mock.patch.object(roster.sys, "stdin", io.StringIO(json.dumps(payload))):
+                output = io.StringIO()
+                with mock.patch("sys.stdout", output):
+                    rc = roster.main([
+                        "--stdin", "--stalled", "--workspace", "w1",
+                        "--peer", f"peer-1:{report}:{progress}",
+                        "--previous-sample", str(previous), "--stale-after", "60",
+                    ])
+            self.assertEqual(rc, 0)
+            self.assertEqual(output.getvalue(), "w1:p1 peer-1 claude STALLED\n")
+
+    def test_stalled_single_idle_sample_with_report_is_not_stalled(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            report = root / "report.md"
+            report.write_text("done")
+            progress = root / "progress.md"
+            progress.write_text("old")
+            stale_mtime = time.time() - 120
+            os.utime(progress, (stale_mtime, stale_mtime))
+            previous = root / "previous.json"
+            previous.write_text(json.dumps({"peers": {
+                "peer-1": {"state": "working", "progress_mtime": stale_mtime},
+            }}))
+            payload = {"result": {"agents": [{
+                "pane_id": "w1:p1", "name": "peer-1", "agent": "claude",
+                "agent_status": "idle", "workspace_id": "w1",
+            }]}}
+            with mock.patch.object(roster.sys, "stdin", io.StringIO(json.dumps(payload))):
+                output = io.StringIO()
+                with mock.patch("sys.stdout", output):
+                    rc = roster.main([
+                        "--stdin", "--stalled", "--peer", f"peer-1:{report}:{progress}",
+                        "--previous-sample", str(previous), "--stale-after", "60",
+                    ])
+            self.assertEqual(rc, 0)
+            self.assertEqual(output.getvalue(), "")
+
+    def test_stalled_single_idle_sample_with_fresh_progress_is_not_stalled(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            report = root / "report.md"
+            progress = root / "progress.md"
+            progress.write_text("fresh")
+            previous = root / "previous.json"
+            previous.write_text(json.dumps({"peers": {
+                "peer-1": {"state": "idle", "progress_mtime": progress.stat().st_mtime - 1},
+            }}))
+            payload = {"result": {"agents": [{
+                "pane_id": "w1:p1", "name": "peer-1", "agent": "claude",
+                "agent_status": "idle", "workspace_id": "w1",
+            }]}}
+            with mock.patch.object(roster.sys, "stdin", io.StringIO(json.dumps(payload))):
+                output = io.StringIO()
+                with mock.patch("sys.stdout", output):
+                    rc = roster.main([
+                        "--stdin", "--stalled", "--peer", f"peer-1:{report}:{progress}",
+                        "--previous-sample", str(previous), "--stale-after", "60",
+                    ])
+            self.assertEqual(rc, 0)
+            self.assertEqual(output.getvalue(), "")
 
 
 if __name__ == "__main__":
