@@ -28,6 +28,8 @@ A collection of canonical beo skills and shared references for structured, contr
 
 ## Canonical Reads
 
+Read the owning rule for every contract the phase touches. These pointers are a required-read floor, not a ceiling gated on perceived need.
+
 | Need | Read |
 | --- | --- |
 | skill contract | `beo-<skill>` |
@@ -67,7 +69,7 @@ A beo skill's `SKILL.md` must be loaded before any mutation owned by that skill.
 
 1. Load the active owner `SKILL.md` before any mutation.
 2. Read `.beads/artifacts/<issue-id>/TICKET.json` and `state.json` when acting on a delivery bead.
-3. Read `beo-reference` docs only when the active skill or ambiguity requires the owning rule.
+3. Read the owning rule for every contract the phase touches; use the Canonical Reads pointers as a required-read floor, not a ceiling gated on perceived need.
 
 ## Manual Doctrine Review
 
