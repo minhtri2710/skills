@@ -52,10 +52,67 @@ WORDS_VALUES = ("seat", "human", "selected", "none")
 LOCAL_OPS_STATUS = "recorded:local-ops"
 STANDING_DELEGATION_STATUS = "recorded:standing-delegation"
 FINDING_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]*$")
+MAILBOX_ATTENTION_RE = re.compile(
+    r"^## .+ -> supervisor \| \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z "
+    r"\| ATTENTION (?P<text>.+?) \| HEAD (?P<head>[0-9a-f]{7,40})\s*$"
+)
+HUMAN_GATE_KINDS = frozenset({
+    "push", "merge", "deploy", "push-gate", "merge-gate", "deploy-gate",
+})
+SEAT_PERMISSION_GATE_KINDS = frozenset({"push-gate", "merge-gate", "deploy-gate"})
 
 
 class RowError(Exception):
     """A row is malformed, or a derived field disagrees with git."""
+
+
+def validate_row_encodings(
+    *, kind: str, status: str, channel: str, words: str, quote: str, note: str,
+) -> None:
+    """Enforce the author encoding carried by channel and denial rows."""
+    if channel.endswith(":dialog") and words != "selected":
+        raise RowError(
+            f"channel={channel} requires words=selected, not words={words}"
+        )
+    if (
+        kind in SEAT_PERMISSION_GATE_KINDS
+        and status == "open"
+        and "blocked:seat-permission" in note
+        and (words != "none" or quote != "")
+    ):
+        quote_shape = "empty" if quote == "" else "non-empty"
+        raise RowError(
+            f"kind={kind} status=open note contains blocked:seat-permission; "
+            f"requires words=none and quote=empty, got words={words} and quote={quote_shape}"
+        )
+
+
+def mailbox_token(text: str, token: str) -> bool:
+    """Match a gate id or SHA as a complete mailbox token, not a substring."""
+    return re.search(
+        rf"(?<![A-Za-z0-9_-]){re.escape(token)}(?![A-Za-z0-9_-])", text
+    ) is not None
+
+
+def require_mailbox_attention(gid: str, head: str, mailbox: Path) -> None:
+    """Require one exact-shape ATTENTION header naming this gate id or SHA."""
+    try:
+        text = mailbox.read_text(encoding="utf-8")
+    except (OSError, UnicodeError) as exc:
+        raise RowError(f"mailbox {mailbox} could not be read: {exc}") from None
+    for line in text.splitlines():
+        match = MAILBOX_ATTENTION_RE.fullmatch(line)
+        if not match:
+            continue
+        if (
+            mailbox_token(match.group("text"), gid)
+            or mailbox_token(match.group("text"), head)
+        ):
+            return
+    raise RowError(
+        f"open gate {gid} has no matching ATTENTION entry in mailbox {mailbox}; "
+        f"a header must name gate id {gid} or exact head SHA {head}"
+    )
 
 
 def git(repo: Path, *args: str) -> str:
@@ -370,6 +427,10 @@ def build(args: argparse.Namespace, repo: Path, ledger: Path,
         raise RowError("words=none iff quote= is empty")
     if not quote and args.status != "open":
         raise RowError("quote= is required unless status=open")
+    validate_row_encodings(
+        kind=args.kind, status=args.status, channel=args.channel or "",
+        words=args.words, quote=quote, note=note,
+    )
     record = args.record or "timely"
     if record == "reconstruction" and not note:
         raise RowError("a reconstruction row names its source in note=")
@@ -505,9 +566,10 @@ def check(row: str, repo: Path, prior_rows: list[str] | None = None) -> None:
             raise RowError(f"field {field.split('=')[0]!r} is not in the row schema")
 
     index = 0
+    channel = ""
     if index < len(rest) and rest[index].startswith("channel="):
-        value = rest[index].split("=", 1)[1]
-        if not CHANNEL_RE.fullmatch(value):
+        channel = rest[index].split("=", 1)[1]
+        if not CHANNEL_RE.fullmatch(channel):
             raise RowError(f"field {rest[index]!r} is not a valid channel=")
         index += 1
     if index < len(rest) and rest[index].startswith("writer="):
@@ -587,6 +649,10 @@ def check(row: str, repo: Path, prior_rows: list[str] | None = None) -> None:
     status_value = status.split("=", 1)[1]
     if not quote and status_value != "open":
         raise RowError("quote= is required unless status=open")
+    validate_row_encodings(
+        kind=row_kind, status=status_value, channel=channel,
+        words=words, quote=quote, note=note,
+    )
 
     if push is not None:
         p = PUSH_RE.fullmatch(push)
@@ -620,6 +686,18 @@ def check(row: str, repo: Path, prior_rows: list[str] | None = None) -> None:
         require_open_targets(prior_rows or [], resolves)
 
 
+def check_mailbox_for_open_gate(row: str, mailbox: Path | None) -> None:
+    """Apply opt-in S2 mailbox enforcement to an open human-gate row."""
+    if mailbox is None:
+        return
+    kind, head, status = row_evidence(row)
+    if kind not in HUMAN_GATE_KINDS or status != "open":
+        return
+    fields, _ = split_row(row)
+    gid = fields[0]
+    require_mailbox_attention(gid, head, mailbox)
+
+
 @contextmanager
 def locked_ledger(ledger: Path, exclusive: bool):
     if not exclusive and not ledger.exists():
@@ -648,6 +726,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--repo", type=Path, default=Path.cwd())
     parser.add_argument("--check", action="store_true",
                         help="check the ledger's last row instead of appending one")
+    parser.add_argument("--mailbox", type=Path,
+                        help="with --check, require a matching open-gate ATTENTION header")
     parser.add_argument("--open-gates", action="store_true",
                         help="print the structured open-gate id set, one id per line")
     parser.add_argument("--kind")
@@ -685,7 +765,7 @@ def main(argv: list[str] | None = None) -> int:
                 args.kind, args.status, args.channel, args.writer, args.op, args.after,
                 args.who, args.scope, args.conditions, args.expiry, args.finding,
                 args.record, args.push_base, args.boundary, args.resolves, args.words,
-                args.note, args.quote, args.quote_file,
+                args.note, args.quote, args.quote_file, args.mailbox,
             )
             if any(ignored):
                 raise RowError("--open-gates cannot be combined with append arguments")
@@ -700,9 +780,12 @@ def main(argv: list[str] | None = None) -> int:
                 if not rows:
                     raise RowError(f"{args.ledger} holds no gate row")
                 check(rows[-1], args.repo, rows[:-1])
+                check_mailbox_for_open_gate(rows[-1], args.mailbox)
                 print(f"ok: {rows[-1].split(' | ')[0]} checks out")
             return 0
 
+        if args.mailbox is not None:
+            raise RowError("--mailbox requires --check")
         if not args.kind or not args.status:
             raise RowError("--kind and --status are required to append a row")
         if args.words is None:

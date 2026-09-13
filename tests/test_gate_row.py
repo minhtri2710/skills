@@ -146,6 +146,129 @@ class GateRowTest(unittest.TestCase):
             ["--ledger", str(self.ledger), "--repo", str(self.repo), "--check"]), 0)
         self.assertEqual(self.last_row(), written)
 
+    def test_dialog_channel_requires_selected_words_on_append_and_check(self):
+        before = self.ledger.read_text()
+        self.assertEqual(self.append(
+            "--status", "open", "--channel", "supervisor-relay:dialog",
+            "--words", "human", "--quote", "human",
+        ), 1)
+        self.assertIn("channel=supervisor-relay:dialog", self.err.getvalue())
+        self.assertIn("words=selected", self.err.getvalue())
+        self.assertEqual(self.ledger.read_text(), before)
+
+        self.assertEqual(self.append(
+            "--status", "open", "--channel", "supervisor-relay:dialog",
+            "--words", "selected", "--quote", "selected",
+        ), 0)
+        row = self.last_row().replace(
+            "words=selected", "words=human"
+        ).replace('quote="selected"', 'quote="human"')
+        self.ledger.write_text(row + "\n", encoding="utf-8")
+        self.assertEqual(self.run_main([
+            "--ledger", str(self.ledger), "--repo", str(self.repo), "--check",
+        ]), 1)
+        self.assertIn("channel=supervisor-relay:dialog", self.err.getvalue())
+        self.assertIn("words=selected", self.err.getvalue())
+
+    def test_typed_human_and_dialog_selected_rows_are_accepted(self):
+        self.assertEqual(self.append(
+            "--status", "open", "--channel", "supervisor-relay:dialog",
+            "--words", "selected", "--quote", "selected",
+        ), 0)
+        self.assertEqual(self.append(
+            "--status", "open", "--channel", "supervisor-relay:typed",
+            "--words", "human", "--quote", "human",
+        ), 0)
+        self.assertEqual(self.run_main([
+            "--ledger", str(self.ledger), "--repo", str(self.repo), "--check",
+        ]), 0)
+
+    def test_seat_permission_denial_requires_system_words_shape_on_append_and_check(self):
+        before = self.ledger.read_text()
+        self.assertEqual(self.append(
+            "--kind", "merge-gate", "--status", "open",
+            "--words", "human", "--quote", "human",
+            "--note", "blocked:seat-permission",
+        ), 1)
+        self.assertIn("blocked:seat-permission", self.err.getvalue())
+        self.assertIn("words=none", self.err.getvalue())
+        self.assertEqual(self.ledger.read_text(), before)
+
+        self.assertEqual(self.append(
+            "--kind", "merge-gate", "--status", "open",
+            "--words", "none", "--quote", "",
+            "--note", "blocked:seat-permission",
+        ), 0)
+        self.assertEqual(self.run_main([
+            "--ledger", str(self.ledger), "--repo", str(self.repo), "--check",
+        ]), 0)
+
+        valid = self.fixture_row(
+            "G1", "open", words="none", quote="", note="blocked:seat-permission",
+            kind="merge-gate",
+        )
+        self.ledger.write_text(valid + "\n", encoding="utf-8")
+        self.assertEqual(self.run_main([
+            "--ledger", str(self.ledger), "--repo", str(self.repo), "--check",
+        ]), 0)
+
+        invalid = self.fixture_row(
+            "G1", "open", words="seat", quote="classifier denial",
+            note="blocked:seat-permission", kind="merge-gate",
+        )
+        self.ledger.write_text(invalid + "\n", encoding="utf-8")
+        self.assertEqual(self.run_main([
+            "--ledger", str(self.ledger), "--repo", str(self.repo), "--check",
+        ]), 1)
+        self.assertIn("blocked:seat-permission", self.err.getvalue())
+        self.assertIn("words=none", self.err.getvalue())
+
+    def test_open_human_gate_requires_opt_in_mailbox_attention(self):
+        row = self.fixture_row("G1", "open", words="none", quote="", kind="merge")
+        self.ledger.write_text(row + "\n", encoding="utf-8")
+        mailbox = self.tmp / "supervisor-mailbox.md"
+
+        self.assertEqual(self.run_main([
+            "--ledger", str(self.ledger), "--repo", str(self.repo), "--check",
+        ]), 0)
+        self.assertEqual(self.run_main([
+            "--ledger", str(self.ledger), "--repo", str(self.repo), "--check",
+            "--mailbox", str(mailbox),
+        ]), 1)
+        self.assertIn("could not be read", self.err.getvalue())
+
+        head = self.rev("HEAD")
+        mailbox.write_text(
+            "## lead-beo-skills -> supervisor | 2026-09-13T00:00:00Z | "
+            f"ATTENTION project human gate G1 | HEAD {head}\n",
+            encoding="utf-8",
+        )
+        self.assertEqual(self.run_main([
+            "--ledger", str(self.ledger), "--repo", str(self.repo), "--check",
+            "--mailbox", str(mailbox),
+        ]), 0)
+
+        mailbox.write_text(
+            "## lead-beo-skills -> supervisor | 2026-09-13T00:00:00Z | "
+            f"ATTENTION project human gate {head} | HEAD {head}\n",
+            encoding="utf-8",
+        )
+        self.assertEqual(self.run_main([
+            "--ledger", str(self.ledger), "--repo", str(self.repo), "--check",
+            "--mailbox", str(mailbox),
+        ]), 0)
+
+        mailbox.write_text(
+            "## lead-beo-skills -> supervisor | 2026-09-13T00:00:00Z | "
+            f"ATTENTION project human gate G10 | HEAD {head}\n",
+            encoding="utf-8",
+        )
+        self.assertEqual(self.run_main([
+            "--ledger", str(self.ledger), "--repo", str(self.repo), "--check",
+            "--mailbox", str(mailbox),
+        ]), 1)
+        self.assertIn("G1", self.err.getvalue())
+
     def test_monotonic_ledger_passes_check(self):
         self.assertEqual(self.append(), 0)
         self.assertEqual(self.append(), 0)
