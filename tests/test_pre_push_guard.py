@@ -59,6 +59,26 @@ class PrePushGuardTest(unittest.TestCase):
         self.assertIn("passing review row", out)
         self.assertEqual(err, "")
 
+    def test_empty_non_tty_stdin_uses_head_fallback_without_isatty(self):
+        self.assertEqual(self.append_review(), 0)
+
+        class EmptyNonTTY:
+            def read(self):
+                return ""
+
+            def isatty(self):
+                raise AssertionError("the guard must use empty stdin, not isatty")
+
+        out, err = io.StringIO(), io.StringIO()
+        with patch.object(pre_push_guard.sys, "stdin", EmptyNonTTY()):
+            with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+                code = pre_push_guard.main([
+                    "--repo", str(self.repo), "--ledger", str(self.ledger),
+                ])
+        self.assertEqual(code, 0)
+        self.assertIn("passing review row", out.getvalue())
+        self.assertEqual(err.getvalue(), "")
+
     def test_head_with_failed_review_is_refused(self):
         self.assertEqual(self.append_review("recorded:review-fail", "FAIL: 2 findings"), 0)
         code, _, err = self.invoke()

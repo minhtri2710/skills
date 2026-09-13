@@ -26,26 +26,8 @@ def git(repo: Path, *args: str) -> str:
     return proc.stdout.strip()
 
 
-def row_evidence(row: str) -> tuple[str, str, str]:
-    fields, _ = gate_row.split_row(row)
-    if len(fields) < 5:
-        raise GuardError(f"malformed ledger row: {row}")
-    kind = fields[2]
-    head = fields[3]
-    status = fields[4]
-    if not kind.startswith("kind="):
-        raise GuardError(f"ledger row has no kind=: {row}")
-    if not gate_row.HEAD_RE.fullmatch(head):
-        raise GuardError(f"ledger row has no valid branch@sha: {row}")
-    if not status.startswith("status="):
-        raise GuardError(f"ledger row has no status=: {row}")
-    return kind.split("=", 1)[1], head.split("@", 1)[1], status.split("=", 1)[1]
-
-
 def push_shas() -> list[str] | None:
-    """Return pushed local SHAs, or None when invoked manually."""
-    if sys.stdin.isatty():
-        return None
+    """Return pushed local SHAs, or None when stdin is empty."""
     text = sys.stdin.read()
     if not text.strip():
         return None
@@ -71,16 +53,10 @@ def check(ledger: Path, repo: Path, targets: list[str] | None = None) -> list[st
     except OSError as exc:
         raise GuardError(f"cannot read ledger {ledger}: {exc}") from None
 
-    reviewed = set()
-    for row in rows:
-        kind, row_head, status = row_evidence(row)
-        if kind == "review" and status == "recorded:review-pass":
-            reviewed.add(row_head)
-    missing = [sha for sha in targets if sha not in reviewed]
-    if missing:
-        raise GuardError(
-            f"refusing push for {', '.join(missing)}: missing review PASS row"
-        )
+    try:
+        gate_row.require_review_pass(rows, targets)
+    except gate_row.RowError as exc:
+        raise GuardError(str(exc)) from None
     return targets
 
 

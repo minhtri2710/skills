@@ -11,7 +11,10 @@ Row shape, one line, ` | ` between fields:
       [| channel=<channel>] [| writer=<seat>] | record=<timely|reconstruction>
       [| push=<base>..<head> count=<n> boundary="<declared paths>"
          boundary-check="<paths outside the boundary>"]
-      [| resolves=<id>[,<id>...]] | words=<seat|human|selected|none>
+      [| resolves=<id>[,<id>...]]
+      [| op=<command> | after=<branch>@<head>]
+      [| who=<delegate> | scope=<scope> | conditions=<conditions> | expiry=<expiry>]
+      [| finding=<identity>] | words=<seat|human|selected|none>
       | note=<one line> | quote="<verbatim>"
 
 `quote=` is terminal and holds verbatim text — the Human's words on a gate row,
@@ -46,6 +49,9 @@ LOCAL_ID_RE = re.compile(r"^G(\d+)$")
 RESOLVE_ID_RE = re.compile(r'^[^,\s|"]+$')
 RECORD_VALUES = ("timely", "reconstruction")
 WORDS_VALUES = ("seat", "human", "selected", "none")
+LOCAL_OPS_STATUS = "recorded:local-ops"
+STANDING_DELEGATION_STATUS = "recorded:standing-delegation"
+FINDING_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]*$")
 
 
 class RowError(Exception):
@@ -104,6 +110,130 @@ def resolve_ids(values: list[str]) -> list[str]:
     if len(ids) != len(set(ids)):
         raise RowError("--resolves names an id more than once")
     return ids
+
+
+def row_evidence(row: str) -> tuple[str, str, str]:
+    """Read the kind, SHA, and status used by review and push gates."""
+    fields, _ = split_row(row)
+    if len(fields) < 5:
+        raise RowError(f"malformed ledger row: {row}")
+    kind = fields[2]
+    head = fields[3]
+    status = fields[4]
+    if not kind.startswith("kind="):
+        raise RowError(f"ledger row has no kind=: {row}")
+    if not HEAD_RE.fullmatch(head):
+        raise RowError(f"ledger row has no valid branch@sha: {row}")
+    if not status.startswith("status="):
+        raise RowError(f"ledger row has no status=: {row}")
+    return kind.split("=", 1)[1], head.split("@", 1)[1], status.split("=", 1)[1]
+
+
+def require_review_pass(rows: list[str], targets: list[str]) -> None:
+    """Require an exact review PASS row for every target SHA."""
+    reviewed = {
+        row_head
+        for row in rows
+        for kind, row_head, status in (row_evidence(row),)
+        if kind == "review" and status == "recorded:review-pass"
+    }
+    missing = [sha for sha in targets if sha not in reviewed]
+    if missing:
+        raise RowError(f"refusing push for {', '.join(missing)}: missing review PASS row")
+
+
+def field_text(name: str, value: str | None) -> str:
+    value = (value or "").strip()
+    if not value:
+        raise RowError(f"{name}= is required")
+    if "|" in value or '"' in value or "\n" in value:
+        raise RowError(f"{name}= refuses |, \" and newlines — it is a structured row field")
+    return value
+
+
+def finding_value(value: str) -> str:
+    value = field_text("finding", value)
+    if not FINDING_RE.fullmatch(value):
+        raise RowError(
+            f"finding={value!r} is not an identity token; use letters, digits, '.', '_', ':' or '-'")
+    return value
+
+
+def required_fields(rest: list[str], index: int, names: tuple[str, ...], kind: str) -> tuple[dict[str, str], int]:
+    values: dict[str, str] = {}
+    for name in names:
+        if index >= len(rest) or not rest[index].startswith(f"{name}="):
+            raise RowError(f"kind={kind} requires {name}= field")
+        field = rest[index]
+        values[name] = field_text(name, field.split("=", 1)[1])
+        index += 1
+    return values, index
+
+
+def reject_special_fields(args: argparse.Namespace, kind: str) -> None:
+    allowed = {
+        "local-ops": {"--op", "--after"},
+        "standing-delegation": {"--who", "--scope", "--conditions", "--expiry"},
+        "repair-grant": {"--finding"},
+    }.get(kind, set())
+    supplied = (
+        ("--op", getattr(args, "op", "")), ("--after", getattr(args, "after", "")),
+        ("--who", getattr(args, "who", "")), ("--scope", getattr(args, "scope", "")),
+        ("--conditions", getattr(args, "conditions", "")),
+        ("--expiry", getattr(args, "expiry", "")),
+        ("--finding", getattr(args, "finding", "")),
+    )
+    for flag, value in supplied:
+        if value and flag not in allowed:
+            raise RowError(f"{flag} is only meaningful on its corresponding special row, not kind={kind}")
+
+
+def validate_after(value: str, repo: Path) -> None:
+    match = HEAD_RE.fullmatch(value)
+    if not match:
+        raise RowError(f"after={value!r} is not <branch>@<head>")
+    git(repo, "rev-parse", "--verify", f"{match.group('head')}^{{commit}}")
+
+
+def repair_findings_since_boundary(rows: list[str]) -> set[str]:
+    """Return repair findings after the latest progress boundary, rejecting repeats."""
+    findings: set[str] = set()
+    for previous_row in reversed(rows):
+        previous_kind, _, previous_status = row_evidence(previous_row)
+        if (
+            previous_status == "recorded:review-pass"
+            or previous_kind == "push"
+            or (
+                previous_kind == "merge"
+                and previous_status.startswith("resolved:")
+            )
+            or previous_kind == "repair-cap-gate"
+        ):
+            break
+        if previous_kind == "repair-grant":
+            previous_fields, _ = split_row(previous_row)
+            matching = [field for field in previous_fields if field.startswith("finding=")]
+            if len(matching) != 1:
+                raise RowError("kind=repair-grant requires exactly one finding= field")
+            finding = finding_value(matching[0].split("=", 1)[1])
+            if finding in findings:
+                raise RowError(
+                    f"repair cap reached (finding={finding} repeated since the last "
+                    "progress boundary): record kind=repair-cap-gate and route the Human "
+                    "instead of another kind=repair-grant"
+                )
+            findings.add(finding)
+    return findings
+
+
+def require_repair_progress(rows: list[str], finding: str) -> None:
+    previous_findings = repair_findings_since_boundary(rows)
+    if finding in previous_findings:
+        raise RowError(
+            f"repair cap reached (finding={finding} repeated since the last progress "
+            "boundary): record kind=repair-cap-gate and route the Human instead of "
+            "another kind=repair-grant"
+        )
 
 
 def structured_row(row: str) -> tuple[str, str, list[str]]:
@@ -244,12 +374,44 @@ def build(args: argparse.Namespace, repo: Path, ledger: Path,
     if record == "reconstruction" and not note:
         raise RowError("a reconstruction row names its source in note=")
 
+    kind = args.kind
+    reject_special_fields(args, kind)
+    special_fields: list[str] = []
+    if kind == "local-ops":
+        if args.status != LOCAL_OPS_STATUS:
+            raise RowError(f"kind=local-ops requires status={LOCAL_OPS_STATUS}")
+        if not getattr(args, "op", ""):
+            raise RowError("kind=local-ops requires op= field")
+        if not getattr(args, "after", ""):
+            raise RowError("kind=local-ops requires after= field")
+        op = field_text("op", args.op)
+        after = field_text("after", args.after)
+        validate_after(after, repo)
+        special_fields.extend((f"op={op}", f"after={after}"))
+    elif kind == "standing-delegation":
+        if args.status != STANDING_DELEGATION_STATUS:
+            raise RowError(f"kind=standing-delegation requires status={STANDING_DELEGATION_STATUS}")
+        if args.words != "human":
+            raise RowError("kind=standing-delegation requires words=human for the Human's quote")
+        for name in ("who", "scope", "conditions", "expiry"):
+            if not getattr(args, name, ""):
+                raise RowError(f"kind=standing-delegation requires {name}= field")
+            value = field_text(name, getattr(args, name))
+            special_fields.append(f"{name}={value}")
+    elif kind == "repair-grant":
+        if not getattr(args, "finding", ""):
+            raise RowError("kind=repair-grant requires finding= field")
+        finding = finding_value(args.finding)
+        special_fields.append(f"finding={finding}")
+
     rows = existing_rows if existing_rows is not None else (
         ledger_rows(ledger.read_text()) if ledger.exists() else []
     )
     targets = resolve_ids(args.resolves)
     if targets:
         require_open_targets(rows, targets)
+    if kind == "repair-grant":
+        require_repair_progress(rows, finding)
 
     branch = git(repo, "rev-parse", "--abbrev-ref", "HEAD")
     head = git(repo, "rev-parse", "HEAD")
@@ -287,6 +449,7 @@ def build(args: argparse.Namespace, repo: Path, ledger: Path,
             )
         count, outside = derive_push(repo, args.push_base, pushed, args.boundary)
         fields.append(push_field(args.push_base, pushed, count, args.boundary, outside))
+        require_review_pass(rows, [pushed])
     elif args.push_base or args.boundary:
         flag = "--push-base" if args.push_base else "--boundary"
         raise RowError(
@@ -296,6 +459,8 @@ def build(args: argparse.Namespace, repo: Path, ledger: Path,
         )
     if targets:
         fields.append(f"resolves={','.join(targets)}")
+    if special_fields:
+        fields.extend(special_fields)
     fields.append(f"words={args.words}")
     fields.append(f"note={note}")
     fields.append(f'quote="{quote}"')
@@ -331,7 +496,10 @@ def check(row: str, repo: Path, prior_rows: list[str] | None = None) -> None:
     # landed row permanently uncheckable. Retrievability belongs to the object.
     git(repo, "rev-parse", "--verify", f"{m.group('head')}^{{commit}}")
 
-    known = ("channel=", "writer=", "record=", "push=", "resolves=", "words=", "note=")
+    known = (
+        "channel=", "writer=", "record=", "push=", "resolves=", "op=", "after=",
+        "who=", "scope=", "conditions=", "expiry=", "finding=", "words=", "note=",
+    )
     for field in rest:
         if not field.startswith(known):
             raise RowError(f"field {field.split('=')[0]!r} is not in the row schema")
@@ -357,7 +525,8 @@ def check(row: str, repo: Path, prior_rows: list[str] | None = None) -> None:
     if index < len(rest) and rest[index].startswith("push="):
         push = rest[index]
         index += 1
-    if kind.split("=", 1)[1] == "push" and push is None:
+    row_kind = kind.split("=", 1)[1]
+    if row_kind == "push" and push is None:
         raise RowError(
             "this row is kind=push and carries no push block — the range, count and "
             "boundary-check are the whole of what a push row is checked against, so a "
@@ -369,6 +538,26 @@ def check(row: str, repo: Path, prior_rows: list[str] | None = None) -> None:
         resolves = parse_resolves(rest[index].split("=", 1)[1])
         index += 1
 
+    if row_kind == "local-ops":
+        values, index = required_fields(rest, index, ("op", "after"), row_kind)
+        validate_after(values["after"], repo)
+        if status != f"status={LOCAL_OPS_STATUS}":
+            raise RowError(f"kind=local-ops requires status={LOCAL_OPS_STATUS}")
+    elif row_kind == "standing-delegation":
+        values, index = required_fields(
+            rest, index, ("who", "scope", "conditions", "expiry"), row_kind
+        )
+        del values
+        if status != f"status={STANDING_DELEGATION_STATUS}":
+            raise RowError(f"kind=standing-delegation requires status={STANDING_DELEGATION_STATUS}")
+    elif row_kind == "repair-grant":
+        if index >= len(rest) or not rest[index].startswith("finding="):
+            raise RowError("kind=repair-grant requires finding= field")
+        current_finding = finding_value(rest[index].split("=", 1)[1])
+        index += 1
+    else:
+        current_finding = None
+
     if index >= len(rest) or not rest[index].startswith("words="):
         raise RowError("words= is missing or out of order")
     words = rest[index].split("=", 1)[1]
@@ -376,34 +565,8 @@ def check(row: str, repo: Path, prior_rows: list[str] | None = None) -> None:
         raise RowError(f"field {rest[index]!r} is not one of {WORDS_VALUES}")
     index += 1
 
-    if kind == "kind=repair-grant":
-        repair_count = 1
-        for previous_row in reversed(prior_rows or []):
-            previous_fields, _ = split_row(previous_row)
-            previous_kind = next(
-                (field for field in previous_fields if field.startswith("kind=")), ""
-            )
-            previous_status = next(
-                (field for field in previous_fields if field.startswith("status=")), ""
-            )
-            if (
-                previous_status == "status=recorded:review-pass"
-                or previous_kind == "kind=push"
-                or (
-                    previous_kind == "kind=merge"
-                    and previous_status.startswith("status=resolved:")
-                )
-                or previous_kind == "kind=repair-cap-gate"
-            ):
-                break
-            if previous_kind == "kind=repair-grant":
-                repair_count += 1
-        if repair_count >= 3:
-            raise RowError(
-                "repair cap reached (two grants since the last progress boundary): "
-                "record kind=repair-cap-gate and route the Human instead of a third "
-                "kind=repair-grant"
-            )
+    if row_kind == "repair-grant":
+        require_repair_progress(prior_rows or [], current_finding)
 
     if index >= len(rest) or not rest[index].startswith("note="):
         raise RowError("note= is missing or out of order")
@@ -437,6 +600,10 @@ def check(row: str, repo: Path, prior_rows: list[str] | None = None) -> None:
                 "path outside it, which passes any row claiming the whole changed set"
             )
         count, outside = derive_push(repo, base, phead, boundary)
+        if phead != m.group("head"):
+            raise RowError(
+                f"push head {phead} does not match row head {m.group('head')}"
+            )
         if count != p.group("count"):
             raise RowError(
                 f"count={p.group('count')} but {base}..{phead} carries {count} commits"
@@ -446,6 +613,8 @@ def check(row: str, repo: Path, prior_rows: list[str] | None = None) -> None:
                 f'boundary-check="{p.group("boundary")}" but the union over {base}..{phead} '
                 f'outside the declared boundary is "{" ".join(outside)}"'
             )
+        if row_kind == "push":
+            require_review_pass(prior_rows or [], [m.group("head")])
 
     if resolves:
         require_open_targets(prior_rows or [], resolves)
@@ -485,6 +654,13 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--status")
     parser.add_argument("--channel")
     parser.add_argument("--writer")
+    parser.add_argument("--op", help="the one local operation named by a local-ops row")
+    parser.add_argument("--after", help="the merge/head a local operation followed")
+    parser.add_argument("--who", help="the delegate named by a standing-delegation row")
+    parser.add_argument("--scope", help="the delegated scope")
+    parser.add_argument("--conditions", help="the delegation conditions")
+    parser.add_argument("--expiry", help="the granting Human's expiry text")
+    parser.add_argument("--finding", help="the repair-grant finding identity")
     parser.add_argument("--record", choices=RECORD_VALUES)
     parser.add_argument("--push-base", help="the intake's recorded merge-base; the head is derived")
     parser.add_argument("--boundary", action="append", default=[],
@@ -506,9 +682,10 @@ def main(argv: list[str] | None = None) -> int:
             raise RowError("--check and --open-gates are mutually exclusive")
         if args.open_gates:
             ignored = (
-                args.kind, args.status, args.channel, args.writer, args.record, args.push_base,
-                args.boundary, args.resolves, args.words, args.note, args.quote,
-                args.quote_file,
+                args.kind, args.status, args.channel, args.writer, args.op, args.after,
+                args.who, args.scope, args.conditions, args.expiry, args.finding,
+                args.record, args.push_base, args.boundary, args.resolves, args.words,
+                args.note, args.quote, args.quote_file,
             )
             if any(ignored):
                 raise RowError("--open-gates cannot be combined with append arguments")

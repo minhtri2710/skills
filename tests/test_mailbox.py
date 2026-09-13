@@ -17,13 +17,13 @@ import mailbox  # noqa: E402
 
 
 SAMPLE = """---
-## lead-beo-skills -> supervisor | 2026-09-10T00:05Z | first
+## lead-beo-skills -> supervisor | 2026-09-10T00:05:01Z | first
 one
 ---
-## lead-beo-skills -> supervisor | 2026-09-10T00:10Z | second
+## lead-beo-skills -> supervisor | 2026-09-10T00:10:02Z | second
 two
 ---
-## lead-beo-skills -> supervisor | 2026-09-10T00:15Z | third
+## lead-beo-skills -> supervisor | 2026-09-10T00:15:03Z | third
 three
 """
 
@@ -37,9 +37,9 @@ class MailboxTest(unittest.TestCase):
 
     def test_since_excludes_boundary_and_returns_whole_entry(self):
         self.assertEqual(
-            mailbox.select_entries(self.path.read_text(encoding="utf-8"), since="2026-09-10T00:10Z"),
+            mailbox.select_entries(self.path.read_text(encoding="utf-8"), since="2026-09-10T00:10:02Z"),
             [
-                "## lead-beo-skills -> supervisor | 2026-09-10T00:15Z | third\nthree",
+                "## lead-beo-skills -> supervisor | 2026-09-10T00:15:03Z | third\nthree",
             ],
         )
 
@@ -47,8 +47,8 @@ class MailboxTest(unittest.TestCase):
         self.assertEqual(
             mailbox.select_entries(self.path.read_text(encoding="utf-8"), last=2),
             [
-                "## lead-beo-skills -> supervisor | 2026-09-10T00:10Z | second\ntwo",
-                "## lead-beo-skills -> supervisor | 2026-09-10T00:15Z | third\nthree",
+                "## lead-beo-skills -> supervisor | 2026-09-10T00:10:02Z | second\ntwo",
+                "## lead-beo-skills -> supervisor | 2026-09-10T00:15:03Z | third\nthree",
             ],
         )
 
@@ -56,9 +56,9 @@ class MailboxTest(unittest.TestCase):
         self.assertEqual(
             mailbox.select_entries(self.path.read_text(encoding="utf-8"), headers=True),
             [
-                "## lead-beo-skills -> supervisor | 2026-09-10T00:05Z | first",
-                "## lead-beo-skills -> supervisor | 2026-09-10T00:10Z | second",
-                "## lead-beo-skills -> supervisor | 2026-09-10T00:15Z | third",
+                "## lead-beo-skills -> supervisor | 2026-09-10T00:05:01Z | first",
+                "## lead-beo-skills -> supervisor | 2026-09-10T00:10:02Z | second",
+                "## lead-beo-skills -> supervisor | 2026-09-10T00:15:03Z | third",
             ],
         )
 
@@ -66,9 +66,9 @@ class MailboxTest(unittest.TestCase):
         self.assertEqual(
             mailbox.select_entries(self.path.read_text(encoding="utf-8")),
             [
-                "## lead-beo-skills -> supervisor | 2026-09-10T00:05Z | first\none",
-                "## lead-beo-skills -> supervisor | 2026-09-10T00:10Z | second\ntwo",
-                "## lead-beo-skills -> supervisor | 2026-09-10T00:15Z | third\nthree",
+                "## lead-beo-skills -> supervisor | 2026-09-10T00:05:01Z | first\none",
+                "## lead-beo-skills -> supervisor | 2026-09-10T00:10:02Z | second\ntwo",
+                "## lead-beo-skills -> supervisor | 2026-09-10T00:15:03Z | third\nthree",
             ],
         )
 
@@ -76,7 +76,7 @@ class MailboxTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "since and last are mutually exclusive"):
             mailbox.select_entries(
                 self.path.read_text(encoding="utf-8"),
-                since="2026-09-10T00:10Z",
+                since="2026-09-10T00:10:02Z",
                 last=1,
             )
 
@@ -90,16 +90,41 @@ class MailboxTest(unittest.TestCase):
                     str(self.path),
                     "--headers",
                     "--since",
-                    "2026-09-10T00:05Z",
+                    "2026-09-10T00:05:01Z",
                 ]
             )
         self.assertEqual(result, 0)
         self.assertEqual(
             stdout.getvalue(),
-            "## lead-beo-skills -> supervisor | 2026-09-10T00:10Z | second\n"
-            "## lead-beo-skills -> supervisor | 2026-09-10T00:15Z | third\n",
+            "## lead-beo-skills -> supervisor | 2026-09-10T00:10:02Z | second\n"
+            "## lead-beo-skills -> supervisor | 2026-09-10T00:15:03Z | third\n",
         )
         self.assertEqual(stderr.getvalue(), "")
+
+    def test_minute_precision_header_and_since_are_rejected(self):
+        minute_header = "## lead-beo-skills -> supervisor | 2026-09-10T00:20Z | minute"
+        self.assertIsNone(mailbox.HEADER_RE.match(minute_header))
+        with self.assertRaisesRegex(ValueError, "ISO-8601"):
+            mailbox.select_entries(minute_header, since="2026-09-10T00:20Z")
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        path = self.path
+        path.write_text(minute_header + "\nbody\n", encoding="utf-8")
+        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            result = mailbox.main(["--file", str(path), "--headers", "--since", "2026-09-10T00:20Z"])
+        self.assertEqual(result, 1)
+        self.assertIn("ISO-8601", stderr.getvalue())
+
+    def test_seconds_precision_orders_entries_at_the_same_minute(self):
+        text = (
+            "## lead-beo-skills -> supervisor | 2026-09-10T04:20:05Z | later\n"
+            "later\n---\n"
+            "## lead-beo-skills -> supervisor | 2026-09-10T04:20:04Z | earlier\n"
+            "earlier\n"
+        )
+        self.assertEqual(mailbox.select_entries(text, since="2026-09-10T04:20:04Z", headers=True), [
+            "## lead-beo-skills -> supervisor | 2026-09-10T04:20:05Z | later",
+        ])
 
     def test_main_requires_a_selector(self):
         stdout = io.StringIO()
