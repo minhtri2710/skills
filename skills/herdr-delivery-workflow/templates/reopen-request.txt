@@ -1,6 +1,9 @@
 REOPEN_REQUEST
 Reason: <what changed>
 Evidence: <file/line, command output, or runtime observation>
+Sources: <the assert's evidence sources>
+Recommended re-scope: <the re-scope the requester recommends>
+Assert question: <the assertion being tested>
 Old lane: <lane>
 Proposed lane: <lane>
 Boundary: <what the new scope or risk crosses>

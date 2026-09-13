@@ -10,6 +10,7 @@
 - reviewer-fallback-args: <the same for the fallback Reviewer kind>
 # Skill- and extension-isolation flags (`--no-skills`, `--no-extensions` for `pi`) are passed by DOCTRINE at the launch line per `charters.md`, not carried as config `*-args` values.
 - checks: <claim-shaped commands, `;`-separated>
+- local-ops: <exact named commands the Lead may run on the Human's checkout after a landed merge; ;-separated; dev/disposable data only; never an external write>
 - lane-defaults: <path or change class = tiny|normal|high-risk, comma-separated>
 - target-line: <default integration product line>
 - always-gate: <decisions always routed to the Human, comma-separated>
