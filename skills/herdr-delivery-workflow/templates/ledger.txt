@@ -7,6 +7,9 @@ Acceptance commands: <every command, verbatim>
 
 HEAD <full SHA> | <candidate | repair-<n> | reviewed | integrated>
   Tree: <porcelain and stash list at this head>
+  Human gate mailbox: OPEN push/merge/deploy and push-gate/merge-gate/deploy-gate rows require a matching mailbox ATTENTION header when checked with `scripts/gate_row.py --check --ledger <ledger> --mailbox <mailbox>`; without `--mailbox`, `--check` is unchanged.
+  Seat-permission constraint: an authorized external write blocked by a classifier/harness is an OPEN `kind=<op>-gate status=open` row with `blocked:seat-permission` in note, `words=none`, and `quote=""`; resolve it with `--resolves=<gate-id>` on the landed `kind=<op>` row, whose note names another executing seat when applicable.
+  Dialog attribution: `channel=...:dialog` requires `words=selected` and `status=recorded:<kind>`; only `channel=...:typed` may use `words=human` and `status=resolved:instruction`. `gate_row.py --check` rejects the opposite encoding. Do not rewrite apex G204/G206/G207; munsu G157/G158 is the precedent.
   Kind: <agent kind behind each scope at this head>
   Baseline results: <command: real exit code, one line per command>
   Integrated results: <command: real exit code, one line per command; or n/a>

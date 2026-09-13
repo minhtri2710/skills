@@ -5,3 +5,24 @@ scripts/gate_row.py --ledger ~/.herdr/projects/<project-slug>/gates.md --kind lo
 
 standing-delegation:
 scripts/gate_row.py --ledger ~/.herdr/projects/<project-slug>/gates.md --kind standing-delegation --status recorded:standing-delegation --record timely --who <delegate-seat> --scope "<delegated scope>" --conditions "<conditions>" --expiry "<the Human's verbatim expiry text>" --words human --note "<note>" --quote "<the Human's verbatim grant>"
+
+Human-gate mailbox check (opt-in):
+scripts/gate_row.py --ledger ~/.herdr/projects/<project-slug>/gates.md --check --mailbox ~/.herdr/projects/<project-slug>/supervisor-mailbox.md
+# For an open push, merge, deploy, push-gate, merge-gate, or deploy-gate row, the mailbox must contain
+# an exact-shape header:
+# ## <lead> -> supervisor | <full-seconds ISO> | ATTENTION <text> | HEAD <sha>
+# and <text> must name the row's gate id or exact full head SHA as a complete token.
+# The header's HEAD field alone does not match. Without --mailbox, --check is unchanged.
+
+Seat-permission constraint:
+scripts/gate_row.py --ledger ~/.herdr/projects/<project-slug>/gates.md --kind push-gate --status open --words none --note "blocked:seat-permission <classifier finding>" --quote ""
+# This is a seat constraint, not a Human decision. Resolve it only after the
+# landed kind=push row, using --resolves <gate-id>; if another seat executes
+# the Human-instructed write, name that seat in the resolving row's note.
+# A classifier/harness denial alone is never words=human or resolved:instruction.
+
+Dialog attribution:
+# channel=...:dialog uses words=selected and status=recorded:<kind>.
+# Human-typed text uses channel=...:typed with words=human and, when resolved,
+# status=resolved:instruction. gate_row.py --check rejects dialog + words=human.
+# Do not retroactively rewrite apex G204/G206/G207; munsu G157/G158 is the precedent.

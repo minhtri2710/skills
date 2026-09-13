@@ -1,4 +1,7 @@
 ## <ISO time> — <pattern name>
+# Write <ISO time> at the moment of append with: date -u +%FT%TZ
+# It must be full-seconds YYYY-MM-DDTHH:MM:SSZ, the same as mailbox headers;
+# do not guess it or use minute precision.
 - Observation: <what happened, with head, gate, or agent names>
 - Cause evidence: <what showed the mechanism, not what was assumed>
 - Anti-pattern: <the named anti-pattern, or none>
