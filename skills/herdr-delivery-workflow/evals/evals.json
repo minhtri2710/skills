@@ -1771,16 +1771,16 @@
     ,{
       "id": 130,
       "prompt": "The project's lesson store keeps growing. What does doctrine say about bounding it, and which tool surfaces what to retire?",
-      "expected_output": "Closeout periodically runs `scripts/lesson_flags.py`, which reports superseded and stale low-use lesson records as retire candidates grouped by status for Human review and never deletes or edits a record itself; the live store is bounded by retiring confirmed-obsolete records so context bloat and drift are contained. Retirement is a Human-reviewed action, not an automatic deletion.",
+      "expected_output": "The same closeout that writes a lesson record then runs `scripts/lesson_flags.py` once as a concrete step — event-triggered by that write, never on a schedule or as a recurring janitor — reporting superseded and stale low-use lesson records as retire candidates grouped by status for Human review; the tool never deletes or edits a record itself, and the live store is bounded by retiring confirmed-obsolete candidates only after the check-before-delete by-content proof, so context bloat and drift are contained. A closeout that writes no lesson record runs no survey.",
       "files": [
         "skills/herdr-delivery-workflow/references/closeout.md",
         "skills/herdr-delivery-workflow/scripts/lesson_flags.py"
       ],
       "assertions": [
-        "Bounds the live lesson store by retiring superseded or stale low-use records rather than letting it grow unbounded",
-        "Uses scripts/lesson_flags.py to surface retire candidates grouped by status",
-        "Keeps lesson_flags.py read-only — it never deletes or edits a record, and retirement is Human-reviewed",
-        "Names context bloat or drift as the reason for bounding the store"
+        "Wires the prune as a concrete closeout step, event-triggered by a closeout that wrote a lesson record, never on a schedule or as a recurring janitor",
+        "Uses scripts/lesson_flags.py to surface retire candidates grouped by status, and runs no survey on a closeout that wrote no lesson",
+        "Keeps lesson_flags.py read-only — it never deletes or edits a record, and retirement follows the check-before-delete by-content proof",
+        "Bounds the live lesson store to contain context bloat or drift rather than letting it grow unbounded"
       ]
     }
     ,{
@@ -1811,6 +1811,65 @@
         "Notes gate_row.py enforces status=recorded:handoff for a kind=handoff row on both the append and --check paths",
         "Records the handoff row id in the handoff block's HANDOFF field",
         "Treats the handoff row as a first-class termination event, not a Human gate requiring a mailbox wake"
+      ]
+    }
+    ,{
+      "id": 133,
+      "prompt": "Doctrine says closeout runs lesson_flags.py to prune the lesson store. When exactly does that run fire, and does any scheduled or recurring cleanup ever run it?",
+      "expected_output": "The prune is event-triggered: the same closeout that writes a lesson record runs `scripts/lesson_flags.py` once, because that write is what grew the store. No schedule, cron, timer, or recurring janitor ever runs it, and a closeout that writes no lesson record grows nothing and runs no survey. lesson_flags.py stays read-only, and any retirement follows the check-before-delete by-content proof.",
+      "files": [
+        "skills/herdr-delivery-workflow/references/closeout.md",
+        "skills/herdr-delivery-workflow/references/lead.md"
+      ],
+      "assertions": [
+        "Fires the prune only from a closeout that wrote a lesson record (the store-growth event), running lesson_flags.py once",
+        "Runs no scheduled, cron, timer, or recurring-janitor cleanup",
+        "States a closeout that wrote no lesson record runs no survey",
+        "Keeps lesson_flags.py read-only and retires only after the check-before-delete by-content proof"
+      ]
+    }
+    ,{
+      "id": 134,
+      "prompt": "When may a Delivery run use the light-coordination path, and what are the exact conditions?",
+      "expected_output": "A Delivery run may use the light-coordination path only when all four hold, tested against the code not a label: (1) single owner — solo-Lead or exactly one Engineer, no partition; (2) localized, low blast radius — confined to one owned scope as concrete paths (a single file or a tight set) and changing no contract surface (interface, exported type, schema, shared config, dependency manifest, lockfile, generated file, build definition); (3) objectively settled — the Human specified the exact diff, or correctness is decided by a green eval/test or mechanical check with no open design judgment; (4) no hard gate — any hard-gate class disqualifies the run and it takes full coordination. The path lives within Delivery and never replaces it.",
+      "files": [
+        "skills/herdr-delivery-workflow/references/lead.md",
+        "skills/herdr-delivery-workflow/SKILL.md"
+      ],
+      "assertions": [
+        "Requires all four conditions — single owner, localized with no contract surface, objectively settled, and no hard gate — tested against the code not a label",
+        "Names that any hard-gate class disqualifies the run from the light path and forces full coordination",
+        "Keeps the light-coordination path within the Delivery route rather than a substitute for it",
+        "Treats a change touching a contract surface such as an interface, schema, shared config, lockfile, generated file, or build definition as ineligible"
+      ]
+    }
+    ,{
+      "id": 135,
+      "prompt": "On the light-coordination path, which safety steps can be trimmed and which stay mandatory? Can the review be skipped for a tiny Human-specified diff?",
+      "expected_output": "The light-coordination path trims coordination bookkeeping only and never removes, defers, or shortens any safety gate. Independent review on the exact SHA by a distinct agent instance that re-runs the objective acceptance checks stays mandatory, and its verdict report (checkpoint b) is never skipped, even for a one-line Human-specified diff. Also unchanged: one ledger row per external write, the green-eval requirement (R1) pinning every new or changed behavior, and every Human gate — production deploy, version tags, secrets, force-push, and push/PR/merge/deploy. A run that would need to skip any of these is not eligible and takes full coordination.",
+      "files": [
+        "skills/herdr-delivery-workflow/references/lead.md"
+      ],
+      "assertions": [
+        "Keeps independent review on the exact SHA by a distinct re-running instance mandatory and never skips the checkpoint (b) verdict, even for a tiny Human-specified diff",
+        "Keeps one ledger row per external write, the green-eval requirement, and every Human gate unchanged on the light path",
+        "States the light path trims coordination bookkeeping only and never removes, defers, or shortens a safety gate",
+        "Treats a run that would need to skip any mandatory floor item as ineligible for the light path"
+      ]
+    }
+    ,{
+      "id": 136,
+      "prompt": "On the light-coordination path, what coordination overhead is actually collapsed, and when may checkpoint (a) be skipped?",
+      "expected_output": "The intake record, quiet-head evidence, and final handoff collapse into one combined record (templates/light-coordination-record.txt) that still carries every acceptance fact — lane, mode, owner, exact SHA, each acceptance command and its real exit code, the Reviewer verdict, one line per ledger row, and the handoff prediction — so fewer files are written but no evidence is lost. The per-step attention relay collapses to the mandatory floor: Reviewer staffed, any Human gate opening, and the final handoff. Checkpoint (a) design-approval may be skipped only when the diff is Human-specified because there is nothing to design; when correctness rests on trivially-verifiable without a Human-specified diff the design is the Lead's and checkpoint (a) stands. Checkpoint (b) is never skipped.",
+      "files": [
+        "skills/herdr-delivery-workflow/references/lead.md",
+        "skills/herdr-delivery-workflow/templates/light-coordination-record.txt"
+      ],
+      "assertions": [
+        "Collapses intake record, quiet-head evidence, and final handoff into one combined record that still carries every acceptance fact including lane, mode, owner, exact SHA, each acceptance command and exit code, Reviewer verdict, ledger rows, and handoff prediction",
+        "Allows skipping checkpoint (a) only when the diff is Human-specified, and keeps checkpoint (a) when correctness rests on trivially-verifiable without a Human-specified diff",
+        "Never skips checkpoint (b)",
+        "Reduces the per-step attention relay to the mandatory floor of Reviewer staffed, any Human gate opening, and final handoff"
       ]
     }
   ]

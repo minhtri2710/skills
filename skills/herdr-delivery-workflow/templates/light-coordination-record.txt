@@ -1,0 +1,20 @@
+Light-coordination: yes — the four conditions and the evidence each holds on
+Qualifies: single-owner=<solo-Lead | one Engineer>; localized=<owned paths, no contract surface>; settled=<human-specified-diff | trivially-verifiable: the check that decides it>; no-hard-gate=<confirmed>
+Lane: tiny | normal
+Mode: solo-Lead | partitioned (one Engineer)
+Owner: <Lead seat, or the single Engineer and its owned paths>
+Guidance: <governing repository contract, or none found>
+Checkpoint (a): skipped:human-specified-diff | run
+Prediction: <falsifiable forward claim naming an eval id or named anti-pattern; none if this run changes no doctrine>
+Prediction outcome: <confirmed | falsified | pending-next-run>
+HEAD: <exact reviewed SHA>
+CHECKS: <command=exit code, one per acceptance command on the reviewed head>
+REVIEW: <PASS/FAIL/BLOCKED, exact head, Reviewer name kind=<kind> model=<model>>
+INTEGRATED: <exact integrated SHA or none>
+CHANGED: <changed-file list>
+LEDGER: <one line per ledger row appended this run: id, kind, status>
+HANDOFF: <kind=handoff ledger row id naming the accepted head>
+DEPLOYED: <artifact=installed path, files compared, differences, deploy row id; or "none installed"; or "gate <id> pending">
+CHECKOUT: <branch>@<exact head> — the caller's checkout stays on the branch and head the record names; closeout never checks out, resets, rebases, or cleans it
+RISKS: <residual risks and skipped checks>
+NEXT: <one concrete next action>
