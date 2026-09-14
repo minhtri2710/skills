@@ -51,6 +51,7 @@ RECORD_VALUES = ("timely", "reconstruction")
 WORDS_VALUES = ("seat", "human", "selected", "none")
 LOCAL_OPS_STATUS = "recorded:local-ops"
 STANDING_DELEGATION_STATUS = "recorded:standing-delegation"
+HANDOFF_STATUS = "recorded:handoff"
 FINDING_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]*$")
 MAILBOX_ATTENTION_RE = re.compile(
     r"^## .+ -> supervisor \| \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z "
@@ -459,6 +460,9 @@ def build(args: argparse.Namespace, repo: Path, ledger: Path,
                 raise RowError(f"kind=standing-delegation requires {name}= field")
             value = field_text(name, getattr(args, name))
             special_fields.append(f"{name}={value}")
+    elif kind == "handoff":
+        if args.status != HANDOFF_STATUS:
+            raise RowError(f"kind=handoff requires status={HANDOFF_STATUS}")
     elif kind == "repair-grant":
         if not getattr(args, "finding", ""):
             raise RowError("kind=repair-grant requires finding= field")
@@ -612,6 +616,9 @@ def check(row: str, repo: Path, prior_rows: list[str] | None = None) -> None:
         del values
         if status != f"status={STANDING_DELEGATION_STATUS}":
             raise RowError(f"kind=standing-delegation requires status={STANDING_DELEGATION_STATUS}")
+    elif row_kind == "handoff":
+        if status != f"status={HANDOFF_STATUS}":
+            raise RowError(f"kind=handoff requires status={HANDOFF_STATUS}")
     elif row_kind == "repair-grant":
         if index >= len(rest) or not rest[index].startswith("finding="):
             raise RowError("kind=repair-grant requires finding= field")

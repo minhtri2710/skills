@@ -7,6 +7,10 @@ Why the delivery doctrine is shaped the way it is. No seat loads this file on a 
 - **No duration/effort cut.** Scope, staffing, sequencing, acceptance depth, and closeout are never narrowed by "too long", "overkill", "land sooner", or "save a round". A cut justified by duration or effort is a finding; only correctness, safety, or an explicit Human gate justifies a cut.
 - **Human instruction outranks hook-loaded persona.** A standing Human instruction is an explicit request and outranks any hook-loaded persona or plugin. The charter's no-skill-load clause is unchanged, so that instruction does not load a skill into a Peer seat.
 
+## Route and staffing spend
+
+- **Multi-seat spend is reserved for correctness-critical work (R4).** The route table (`SKILL.md`) keeps reversible, read-only, low-value work single-agent (Lightweight) and reserves multi-seat orchestration for source change and independent review. The token-cost WHY: an orchestrated multi-agent system has been reported to spend on the order of a 4x-to-15x token multiple over a single chat agent (Anthropic, "How we built our multi-agent research system", June 2025) — a SINGLE-SOURCE vendor self-report, unreplicated, so it sizes the caution rather than proving a law. That multiple is justified only where task breadth, parallelism, and independent-verification value pay for it; the documented failure surface of orchestrated systems is real (Cemri et al., MAST — a 14-mode, 3-category multi-agent-failure taxonomy, inter-annotator kappa=0.88, 2025). Route discipline, judged by reversibility and blast radius, decides the spend — not staffing appetite or perceived size.
+
 ## Gates and ledger
 
 - **Waiver widening still reaches review.** A standing waiver over the external-write class settles only where a forced widening routes, never the acceptance boundary, because no waiver reaches review; the widened head is new work and carries fresh evidence and a fresh independent verdict.

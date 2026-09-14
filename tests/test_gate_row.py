@@ -103,6 +103,14 @@ class GateRowTest(unittest.TestCase):
             "--quote", "I grant this delegation | verbatim", *extra,
         ])
 
+    def append_handoff(self, *extra: str) -> int:
+        return self.run_main([
+            "--ledger", str(self.ledger), "--repo", str(self.repo),
+            "--kind", "handoff", "--status", "recorded:handoff",
+            "--words", "seat", "--note", "delivery accepted at reviewed head",
+            "--quote", "accepted", *extra,
+        ])
+
     def git(self, *args: str) -> str:
         return subprocess.run(["git", "-C", str(self.repo), *args],
                               capture_output=True, text=True, check=True).stdout.strip()
@@ -405,6 +413,31 @@ class GateRowTest(unittest.TestCase):
             "--note", "delegation recorded", "--quote", "I grant this delegation",
         ]), 1)
         self.assertIn("requires expiry= field", self.err.getvalue())
+
+    def test_handoff_append_readback_rederive_and_check(self):
+        self.assertEqual(self.append_handoff(), 0)
+        row = self.last_row()
+        self.assertIn("kind=handoff", row)
+        self.assertIn("status=recorded:handoff", row)
+        self.assertEqual(self.run_main([
+            "--ledger", str(self.ledger), "--repo", str(self.repo), "--check",
+        ]), 0)
+        self.ledger.write_text(
+            row.replace("status=recorded:handoff", "status=recorded:done") + "\n",
+            encoding="utf-8",
+        )
+        self.assertEqual(self.run_main([
+            "--ledger", str(self.ledger), "--repo", str(self.repo), "--check",
+        ]), 1)
+        self.assertIn("kind=handoff requires status=recorded:handoff", self.err.getvalue())
+
+    def test_handoff_requires_its_status(self):
+        self.assertEqual(self.run_main([
+            "--ledger", str(self.ledger), "--repo", str(self.repo),
+            "--kind", "handoff", "--status", "recorded:done",
+            "--words", "seat", "--note", "delivery accepted", "--quote", "accepted",
+        ]), 1)
+        self.assertIn("kind=handoff requires status=recorded:handoff", self.err.getvalue())
 
     def test_quote_file_becomes_quote_and_round_trips(self):
         quote_file = self.tmp / "refused-command.txt"

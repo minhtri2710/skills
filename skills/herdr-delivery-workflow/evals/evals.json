@@ -81,14 +81,14 @@
     {
       "id": 7,
       "prompt": "I'm in Herdr. The two Engineers for this change are both Claude panes; codex and gemini are also installed on this machine. The Lead has committed their scopes. Staff the review of that exact commit and tell me how independent that review actually is.",
-      "expected_output": "Staffs the Reviewer with `herdr agent start --kind` on a kind that differs from every Engineer's kind when one is installed; records each agent's kind beside its name, pane, and owned paths or exact head, with one ENGINEER line per agent; uses a fresh fallback kind on the same exact head on any trigger in the fixed FALLBACK list, copied verbatim from that text rather than restated in the answer's own words; distinguishes a same-kind review with a distinct model pinned through reviewer-fallback-args, which is independence-by-model with disclosed kind-collision residual risk, from a same-kind review with the same or an unpinned model, which is an unusable conflict; does not treat a mode or role instruction as proof of a read-only runtime.",
+      "expected_output": "Staffs the Reviewer as a distinct agent instance from every Engineer and the Lead with `herdr agent start`; records each agent's kind and model beside its name, pane, and owned paths or exact head, with one ENGINEER line per agent; treats a different model and a different kind as PREFERRED, neither a hard gate, so a same-kind reviewer is a valid independent review and a different kind is not required; states that the Reviewer re-runs the objective acceptance checks on that exact SHA rather than judging prose; uses a fresh fallback on the same exact head on any trigger in the fixed FALLBACK list, copied verbatim from that text rather than restated in the answer's own words; explains that reusing the same model requires a distinct model pinned through reviewer-fallback-args to keep model independence, while the same agent instance is never independent; does not treat a mode or role instruction as proof of a read-only runtime.",
       "files": [],
       "assertions": [
-        "Staffs the Reviewer on a kind that differs from every Engineer's kind using herdr agent start --kind",
-        "Records each agent's kind beside its name and pane, with one ENGINEER line per Engineer and the Reviewer pinned to the exact head",
-        "Names a pre-chosen fallback kind pinned to the same exact head and reproduces the fixed FALLBACK trigger line verbatim rather than paraphrasing, counting, or summarising it, including the trigger for the Lead's own runtime being unable to pass the preferred kind's posture and the Human declining to start the seat, whose absence proves the list was copied from a stale source",
-        "Distinguishes the two same-kind outcomes the way the INDEPENDENCE line does: same kind with a distinct model pinned through reviewer-fallback-args is independence-by-model with disclosed kind-collision residual risk, while same kind with the same or an unpinned model is an unusable conflict",
-        "Does not treat a mode or role instruction as proof of a read-only runtime"
+        "Staffs the Reviewer as a distinct agent instance from every Engineer and the Lead, treating a different model and a different kind as preferred but neither as a hard gate, so a same-kind reviewer is accepted as independent",
+        "Records each agent's kind and model beside its name and pane, with one ENGINEER line per Engineer and the Reviewer pinned to the exact head",
+        "States the Reviewer re-runs the objective acceptance checks on the exact SHA and pastes their output rather than issuing a prose judgement",
+        "Names a pre-chosen fallback pinned to the same exact head and reproduces the fixed FALLBACK trigger line verbatim rather than paraphrasing, counting, or summarising it, including the trigger for the Lead's own runtime being unable to pass the preferred kind's posture and the Human declining to start the seat, whose absence proves the list was copied from a stale source",
+        "Explains that reusing the same model requires a distinct model pinned through reviewer-fallback-args to keep model independence, while the same agent instance is never a review, and does not treat a mode or role instruction as proof of a read-only runtime"
       ]
     },
     {
@@ -248,7 +248,7 @@
     {
       "id": 20,
       "prompt": "I'm in Herdr. The issue is 'add CSV export': it needs a new exporter in packages/export/, a new button and hook in apps/web/src/reports/, and an endpoint in services/api/src/reports/. The three parts don't share any files. Use several agents so it goes faster, and get it reviewed.",
-      "expected_output": "Runs the delivery route; analyzes the issue against the code before staffing and records a partition of three scopes with disjoint owned paths, confirming no scope changes a contract another scope consumes (otherwise runs that contract slice first alone); staffs one Engineer per genuinely disjoint scope in its own pane on the same checkout and branch; each charter names its owned paths, its peer scopes, the shared-tree rules (no git write commands, no repo-wide --fix or codegen, advisory checks, no edits outside owned paths); expects each Engineer's report by prompt to the Lead seat and ends its turn rather than waiting on any of them; at quiesce confirms porcelain is confined to owned paths, stages each scope by path, commits, and runs the full acceptance checks on that head; reviews that exact head on a different kind; routes findings to the owning agent. Treats worker-cap as a tree-contention and coordination safeguard rather than a staffing budget: never merges disjoint scopes merely to hit a number, and raises the cap with a recorded reason when the honest partition yields more scopes.",
+      "expected_output": "Runs the delivery route; analyzes the issue against the code before staffing and records a partition of three scopes with disjoint owned paths, confirming no scope changes a contract another scope consumes (otherwise runs that contract slice first alone); staffs one Engineer per genuinely disjoint scope in its own pane on the same checkout and branch; each charter names its owned paths, its peer scopes, the shared-tree rules (no git write commands, no repo-wide --fix or codegen, advisory checks, no edits outside owned paths); expects each Engineer's report by prompt to the Lead seat and ends its turn rather than waiting on any of them; at quiesce confirms porcelain is confined to owned paths, stages each scope by path, commits, and runs the full acceptance checks on that head; reviews that exact head on a distinct agent instance from every Engineer and the Lead (a different model and a different kind preferred, neither required), re-running the objective acceptance checks on that head; routes findings to the owning agent. Treats worker-cap as a tree-contention and coordination safeguard rather than a staffing budget: never merges disjoint scopes merely to hit a number, and raises the cap with a recorded reason when the honest partition yields more scopes.",
       "files": [],
       "assertions": [
         "Analyzes the issue against the code and records a partition with concrete disjoint owned paths per scope before staffing any agent",
@@ -256,7 +256,7 @@
         "Charters each agent with its owned paths, the peer scopes, and the shared-tree rules including no git write commands and no repo-wide formatter, --fix, codegen, or lockfile changes",
         "Treats each agent's own check results as advisory and has the Lead run the acceptance checks on the committed quiet head as the evidence",
         "Quiesces only when every agent is idle, confirms porcelain stays inside the owned paths, stages by owned paths (not git add -A), and commits as the Lead; never merges disjoint scopes to satisfy a worker number",
-        "Reviews the exact Lead-committed head on a kind different from every Engineer's kind"
+        "Reviews the exact Lead-committed head on a distinct agent instance from every Engineer and the Lead, with a different model and a different kind preferred but not required, re-running the objective acceptance checks on that head"
       ]
     },
     {
@@ -994,13 +994,13 @@
     {
       "id": 78,
       "prompt": "A self-improvement proposal would weaken one of the workflow's non-negotiable safety anchors. What does intake do, and which anchors are frozen?",
-      "expected_output": "The Lead refuses the proposal at intake. The frozen anchors are independent review on the exact head by a distinct-kind Reviewer (distinct kind and model for solo-Lead), one ledger row per external write, rendered-artifact parity for visual or matches-design acceptance, and the Human push/PR/merge/deploy gate.",
+      "expected_output": "The Lead refuses the proposal at intake. The frozen anchors are independent review on the exact head by a Reviewer that re-runs the objective acceptance checks and is a distinct agent instance from every Engineer and the Lead (solo-Lead: additionally a distinct model from the Lead), one ledger row per external write, rendered-artifact parity for visual or matches-design acceptance, and the Human push/PR/merge/deploy gate.",
       "files": [
         "skills/herdr-delivery-workflow/references/lead.md"
       ],
       "assertions": [
         "Refuses a self-improvement proposal that touches a frozen anchor at intake",
-        "Names independent exact-head review with the required distinct-kind Reviewer condition",
+        "Names independent exact-head review by a Reviewer that re-runs the objective checks and is a distinct instance from every Engineer and the Lead (solo-Lead: additionally a distinct model from the Lead)",
         "Names one ledger row per external write",
         "Names rendered-artifact parity for visual or matches-design acceptance",
         "Names the Human push/PR/merge/deploy gate"
@@ -1751,6 +1751,66 @@
         "Uses lsof for live port counts",
         "Applies the same-turn rule to observations and Human-facing option text",
         "Keeps Lead-record claims quoted from the record while measuring live-state counts live"
+      ]
+    }
+    ,{
+      "id": 129,
+      "prompt": "A run produced a lesson the Lead is confident is correct. Can the Lead update the doctrine to encode it, and what turns a candidate lesson into doctrine?",
+      "expected_output": "No — the Lead's confidence is not the signal. A protocol candidate, notebook lesson, or self-improvement proposal becomes doctrine ONLY through a delivery that passes independent review on the exact head AND is pinned by a green eval or test exercising the new behavior; writing a lesson record at closeout is not adoption, and no seat promotes its own proposal by asserting it works. The candidate stays a hypothesis until that external signal confirms it.",
+      "files": [
+        "skills/herdr-delivery-workflow/references/lead.md",
+        "skills/herdr-delivery-workflow/references/closeout.md"
+      ],
+      "assertions": [
+        "Refuses to encode a lesson into doctrine on the Lead's own judgement that it is correct",
+        "Requires a delivery that passes independent review on the exact head to adopt a candidate",
+        "Requires a green eval or test pinning the new behavior as the other half of the external signal",
+        "States that writing a lesson record at closeout is not adoption and the candidate is a hypothesis until the external signal confirms it"
+      ]
+    }
+    ,{
+      "id": 130,
+      "prompt": "The project's lesson store keeps growing. What does doctrine say about bounding it, and which tool surfaces what to retire?",
+      "expected_output": "Closeout periodically runs `scripts/lesson_flags.py`, which reports superseded and stale low-use lesson records as retire candidates grouped by status for Human review and never deletes or edits a record itself; the live store is bounded by retiring confirmed-obsolete records so context bloat and drift are contained. Retirement is a Human-reviewed action, not an automatic deletion.",
+      "files": [
+        "skills/herdr-delivery-workflow/references/closeout.md",
+        "skills/herdr-delivery-workflow/scripts/lesson_flags.py"
+      ],
+      "assertions": [
+        "Bounds the live lesson store by retiring superseded or stale low-use records rather than letting it grow unbounded",
+        "Uses scripts/lesson_flags.py to surface retire candidates grouped by status",
+        "Keeps lesson_flags.py read-only — it never deletes or edits a record, and retirement is Human-reviewed",
+        "Names context bloat or drift as the reason for bounding the store"
+      ]
+    }
+    ,{
+      "id": 131,
+      "prompt": "Both installed agent kinds are Claude. Can a Claude Reviewer independently review a Claude Engineer's committed head, and what is the essential independence bar?",
+      "expected_output": "Yes. A different kind is preferred but not a hard gate, so a same-kind Reviewer is a valid independent review. The essential bar is that the Reviewer (i) re-runs the objective acceptance checks on the exact SHA and pastes their output, and (ii) is a distinct agent instance from every Engineer and the Lead; same-instance self-review is always prohibited. A different model is preferred because it blunts self-enhancement bias, and when the same model is reused it is pinned to a distinct model through reviewer-fallback-args where the kind offers one. In solo-Lead mode a different model from the Lead is additionally required, because the Lead authored the code.",
+      "files": [
+        "skills/herdr-delivery-workflow/SKILL.md",
+        "skills/herdr-delivery-workflow/references/lead.md"
+      ],
+      "assertions": [
+        "Accepts a same-kind Reviewer as independent — a different kind is a preference, not a hard gate",
+        "Requires the Reviewer to re-run the objective acceptance checks on the exact SHA and paste the output",
+        "Requires the Reviewer to be a distinct agent instance from every Engineer and the Lead, prohibiting same-instance self-review",
+        "Prefers a different model to blunt self-enhancement bias and requires a distinct model from the Lead in solo-Lead mode"
+      ]
+    }
+    ,{
+      "id": 132,
+      "prompt": "A delivery is accepted and the Lead is writing the final handoff. What ledger event marks the termination, and how does gate_row.py constrain it?",
+      "expected_output": "The Lead appends one `kind=handoff status=recorded:handoff` row through `scripts/gate_row.py` naming the accepted head, so the termination is a first-class ledger event a later relaunch or Supervisor sweep can see rather than an untracked block. `gate_row.py` enforces that a `kind=handoff` row carries `status=recorded:handoff` on both the append path and the --check path; the handoff row id goes in the handoff block's HANDOFF field. It is not a Human gate and needs no mailbox ATTENTION wake.",
+      "files": [
+        "skills/herdr-delivery-workflow/references/closeout.md",
+        "skills/herdr-delivery-workflow/scripts/gate_row.py"
+      ],
+      "assertions": [
+        "Appends a kind=handoff status=recorded:handoff ledger row at final handoff naming the accepted head",
+        "Notes gate_row.py enforces status=recorded:handoff for a kind=handoff row on both the append and --check paths",
+        "Records the handoff row id in the handoff block's HANDOFF field",
+        "Treats the handoff row as a first-class termination event, not a Human gate requiring a mailbox wake"
       ]
     }
   ]
