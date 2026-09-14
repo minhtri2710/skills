@@ -10,7 +10,7 @@ Verify the caller is inside Herdr before any inspection or control command:
 test "${HERDR_ENV:-}" = 1
 ```
 
-If it fails, say the agent is not running inside Herdr and stop; do not inspect or control the focused Herdr session from outside it.
+If it fails, do not inspect or control the focused Herdr session from outside it: run no Herdr command and read or write no Herdr state under `~/.herdr`, directly or through this skill's scripts. Say the agent is not running inside Herdr; answer from this skill's doctrine if the request needs no Herdr access, reading whichever reference files it needs.
 
 Learn syntax from the binary, not from memory: print a command group without a subcommand to see it (`herdr --help`, `herdr agent`, `herdr pane`). Do not run bare `herdr` — it launches or attaches the TUI. Do not probe a mutating nested command by omitting arguments; `herdr workspace create` is valid with defaults and will execute. Most control commands return JSON: read identifiers and state from those responses, never from sidebar order, pane order, or the examples here.
 

@@ -47,6 +47,34 @@ class DeploySkillTest(unittest.TestCase):
                 self.repo, head, self.install, paths, "skills/herdr-delivery-workflow"
             )
 
+    def test_repo_only_dirs_excluded_and_pruned(self):
+        # Track the plugin manifest and eval suite under the skill prefix.
+        (self.source / ".claude-plugin").mkdir()
+        (self.source / ".claude-plugin" / "plugin.json").write_text('{"name": "x"}\n')
+        (self.source / "plugin-eval" / "id5").mkdir(parents=True)
+        (self.source / "plugin-eval" / "id5" / "prompt.md").write_text("case\n")
+        self.git("add", "skills")
+        self.git("commit", "-qm", "add repo-only dirs")
+
+        # Pre-existing stale install of an excluded file must be pruned.
+        self.install.mkdir()
+        (self.install / ".claude-plugin").mkdir()
+        (self.install / ".claude-plugin" / "plugin.json").write_text('{"name": "stale"}\n')
+
+        result = deploy_skill.main([
+            "--repo", str(self.repo),
+            "--source-dir", str(self.source),
+            "--install-dir", str(self.install),
+            "--ledger", str(self.tmp / "gates.md"),
+            "--status", "resolved:deploy",
+            "--words", "seat", "--note", "installed the skill", "--quote", "done",
+        ])
+
+        self.assertEqual(result, 0)
+        self.assertTrue((self.install / "SKILL.md").is_file())
+        self.assertFalse((self.install / ".claude-plugin" / "plugin.json").exists())
+        self.assertFalse((self.install / "plugin-eval").exists())
+
     def test_deploy_resolves_open_gate_in_same_invocation(self):
         gate_row_script = SCRIPTS / "gate_row.py"
         append = [

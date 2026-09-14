@@ -1,6 +1,6 @@
 ---
 name: herdr-delivery-workflow
-description: "Control Herdr, a terminal multiplexer for coding agents, and run bounded delivery inside it with the Supervisor / Lead / Peer role model: pane and agent operations, intake and ownership, one issue at a time on one shared checkout and one branch, a Lead that partitions the issue into path-owned Engineer Peers running in parallel when it decomposes, Lead-owned commits, exact-head independent review by a Reviewer Peer, Peers that report back by prompt, a Human-staffed Supervisor seat, Human-gate routing with notification, evidence handoff, and safe closeout. Use whenever the user explicitly mentions Herdr — to inspect or control panes, tabs, workspaces, commands, or another agent, to implement a change with one or more agents, to run an implementation-to-review pipeline, to monitor a bounded delivery, or to supervise one. Do not use merely because a task could benefit from a background terminal, delegation, or parallel work. Requires HERDR_ENV=1."
+description: "Control Herdr, a terminal multiplexer for coding agents, and run bounded delivery inside it with the Supervisor / Lead / Peer role model: pane and agent operations, intake and ownership, one issue at a time on one shared checkout and one branch, a Lead that partitions the issue into path-owned Engineer Peers running in parallel when it decomposes, Lead-owned commits, exact-head independent review by a Reviewer Peer, Peers that report back by prompt, a Human-staffed Supervisor seat, Human-gate routing with notification, evidence handoff, and safe closeout. Use whenever the user explicitly mentions Herdr — to inspect or control panes, tabs, workspaces, commands, or another agent, to implement a change with one or more agents, to run an implementation-to-review pipeline, to monitor a bounded delivery, or to supervise one. Do not use merely because a task could benefit from a background terminal, delegation, or parallel work. Herdr control requires HERDR_ENV=1."
 ---
 
 # Herdr Delivery Workflow
@@ -15,7 +15,7 @@ Before any Herdr inspection or control command, verify the caller is inside Herd
 test "${HERDR_ENV:-}" = 1
 ```
 
-If the check fails, state that the agent is not running inside Herdr and stop; do not inspect or control another Herdr session from outside it. Then read `references/herdr-cli.md` before the first control command in any route — it owns preflight, discovery, IDs and caller context, pane and agent mechanics, lifecycle states, seat naming, report-by-prompt, Human notification, read sources, and pane safety.
+If the check fails, do not inspect or control another Herdr session from outside it: run no Herdr command and read or write no Herdr state, including anything under `~/.herdr`, directly or through this skill's scripts. State that the agent is not running inside Herdr; a request answerable from this skill's own doctrine, needing no Herdr access, is not blocked — answer it directly, reading whichever of this skill's reference files it needs and noting the out-of-Herdr context. Read `references/herdr-cli.md` before the first control command in any route — it owns preflight, discovery, IDs and caller context, pane and agent mechanics, lifecycle states, seat naming, report-by-prompt, Human notification, read sources, and pane safety.
 
 ## Route
 

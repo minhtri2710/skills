@@ -15,6 +15,20 @@ class DeployError(Exception):
     """The tracked skill could not be installed or accepted."""
 
 
+# Repo-only directories: the plugin manifest and the `claude plugin eval` suite exist for the
+# R1 green-eval gate and are never skill runtime. A deployed `.claude-plugin/` auto-loads as a
+# plugin on the next session, so these are excluded from the install even when tracked.
+DEPLOY_EXCLUDE = (".claude-plugin", "plugin-eval")
+
+
+def runtime_paths(paths: list[str], skill_prefix: str) -> list[str]:
+    prefix = skill_prefix.rstrip("/") + "/"
+    kept = [p for p in paths if p[len(prefix):].split("/", 1)[0] not in DEPLOY_EXCLUDE]
+    if not kept:
+        raise DeployError("no runtime files remain after excluding repo-only directories")
+    return kept
+
+
 def git(repo: Path, *args: str) -> str:
     proc = subprocess.run(
         ["git", "-C", str(repo), *args],
@@ -183,7 +197,10 @@ def main(argv: list[str] | None = None) -> int:
             )
         source_dir = args.source_dir if args.source_dir.is_absolute() else repo / args.source_dir
         install_dir = args.install_dir.expanduser()
-        paths = tracked_files(repo, head, "skills/herdr-delivery-workflow")
+        paths = runtime_paths(
+            tracked_files(repo, head, "skills/herdr-delivery-workflow"),
+            "skills/herdr-delivery-workflow",
+        )
         install_files(repo, head, source_dir, install_dir, paths, "skills/herdr-delivery-workflow")
         verify_install(repo, head, install_dir, paths, "skills/herdr-delivery-workflow")
         append_deploy_row(args, repo, Path(__file__).resolve().with_name("gate_row.py"))
