@@ -123,6 +123,27 @@ class GateRowTest(unittest.TestCase):
         return [l for l in self.ledger.read_text().splitlines()
                 if gate_row.ID_RE.match(l)][-1]
 
+    def test_relative_ledger_is_refused_and_writes_nothing(self):
+        # A2 lesson: a bare relative --ledger against a reset cwd treats a
+        # nonexistent repo-local gates.md as empty and silently births a stray
+        # G1. Refuse a non-absolute ledger path before touching the filesystem.
+        import os
+        scratch = self.tmp / "cwd"
+        scratch.mkdir()
+        prev = os.getcwd()
+        os.chdir(scratch)
+        try:
+            rc = self.run_main([
+                "--ledger", "gates.md", "--repo", str(self.repo),
+                "--kind", "merge", "--status", "resolved:standing-waiver",
+                "--words", "human", "--note", "n", "--quote", "q",
+            ])
+        finally:
+            os.chdir(prev)
+        self.assertEqual(rc, 1)
+        self.assertIn("not absolute", self.err.getvalue())
+        self.assertFalse((scratch / "gates.md").exists())
+
     def fixture_row(self, gid: str, status: str, words: str = "human",
                     quote: str = "fixture", resolves: str | None = None,
                     note: str = "fixture", kind: str = "merge") -> str:

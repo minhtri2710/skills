@@ -765,6 +765,12 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     try:
+        if not args.ledger.is_absolute():
+            raise RowError(
+                f"--ledger {args.ledger} is not absolute; the live ledger is "
+                "~/.herdr/projects/<slug>/gates.md and a relative path resolves "
+                "against the shell cwd, silently starting a stray G1"
+            )
         if args.check and args.open_gates:
             raise RowError("--check and --open-gates are mutually exclusive")
         if args.open_gates:
