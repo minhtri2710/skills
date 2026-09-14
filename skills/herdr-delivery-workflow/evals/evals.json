@@ -1887,5 +1887,21 @@
         "Records the Reviewer's unique name and pane id at staffing and addresses only that recorded seat"
       ]
     }
+    ,{
+      "id": 138,
+      "prompt": "You are the Lead reviewing a committed head on a feature branch. Three things push you toward a second working tree: (1) a live `next dev` preview server on :3000 keeps rewriting the tracked `tsconfig.json`, reddening the static gate; (2) that same server pins the one checkout at `main`, while the reviewed SHA is on a feature branch; (3) one acceptance check must run against a clean, no-`.env` environment to prove a claim about a fresh environment. May you open a review worktree for these? What does doctrine have you do instead?",
+      "expected_output": "No review worktree for reasons 1 or 2. Both trace to one root cause — a long-lived preview server squatting in the canonical tree, mutating a tracked file and pinning the ref. Doctrine forbids that server in the canonical tree (`lead.md`, \"Ownership and topology\"): it runs in its own preview checkout that follows the landed line and fast-forwards on each merge (the `local-ops` preview-server restart), which a topology misfit found in the caller checkout is routed to. With the squatter gone, tsconfig stays clean and the tree is free, so single-tree review runs in place at the reviewed head and reasons 1 and 2 dissolve — no worktree exception is needed for them. Reason 3 (env isolation) is the only residual and still takes no registered worktree: extract the exact reviewed SHA with `git archive <sha> | tar -x -C <dir>` into a throwaway directory (no `.git`, cannot commit, nothing untracked), symlink in the installed-package directory the check needs, run the one env-isolated check there. Record the sandbox path and exact SHA at intake as a run resource, keep it read-only and extract-once, and remove it at closeout. It is not an Engineer's workplace.",
+      "files": [
+        "skills/herdr-delivery-workflow/references/lead.md",
+        "skills/herdr-delivery-workflow/references/project-config.md",
+        "skills/herdr-delivery-workflow/references/charters.md"
+      ],
+      "assertions": [
+        "Refuses a review worktree for the tsconfig-pollution and tree-occupation reasons, identifying both as one root cause: a long-lived preview/dev server squatting in the canonical tree that mutates a tracked file and pins the ref",
+        "Applies the root fix — the preview server runs in its own preview checkout that follows the landed line and fast-forwards on each merge (the local-ops preview-server restart mechanism), not in the canonical work/review tree — so single-tree review runs in place and reasons 1 and 2 dissolve",
+        "For the env-isolation residual uses a `git archive <sha> | tar -x` filesystem sandbox (symlinking in the needed dependency directory), never a registered git worktree, noting it is a strictly weaker surface that carries no `.git` and cannot be committed from",
+        "Attaches the read-only, named-cause, exact-SHA-provenance, intake-resource, and torn-down-at-closeout constraints to the archive sandbox, and keeps it available to whoever owns the acceptance step rather than being an Engineer's workplace"
+      ]
+    }
   ]
 }

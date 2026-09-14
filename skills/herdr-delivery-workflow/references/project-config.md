@@ -12,7 +12,7 @@ The config is the Lead's layer: the Lead reads it at the start of a delivery or 
 
 ## Format
 
-One `key: value` line per setting, in the shape of `templates/config.txt`; every key is optional. The OPT-IN `local-ops` key is a `;`-separated list of exact named commands the Lead may run on the Human's checkout AFTER a landed merge, such as dev DB migrate/seed or a dev-server restart. Its commands are limited to dev/disposable data and never an external write. `local-ops` is Human-owned like the rest of this config. Report an unknown key to the Human instead of guessing its meaning; do not act on it.
+One `key: value` line per setting, in the shape of `templates/config.txt`; every key is optional. The OPT-IN `local-ops` key is a `;`-separated list of exact named commands the Lead may run on the Human's checkout AFTER a landed merge, such as dev DB migrate/seed or a preview-server restart (the preview server runs in its own checkout following the landed line, not the canonical work tree — `lead.md`, "Ownership and topology"). Its commands are limited to dev/disposable data and never an external write. `local-ops` is Human-owned like the rest of this config. Report an unknown key to the Human instead of guessing its meaning; do not act on it.
 
 ## Precedence and guards
 
