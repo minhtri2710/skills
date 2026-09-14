@@ -8,7 +8,8 @@ import re
 import sys
 
 PROJECTS_ROOT = os.path.expanduser("~/.herdr/projects")
-STATUSES = ("active", "failure-mode", "rejected")
+STATUSES = ("active", "failure-mode", "rejected", "superseded")
+REQUIRED_FIELDS = {"id", "added", "source_run", "approved_by", "status", "last_used"}
 
 
 def project_root(parser, project):
@@ -47,9 +48,14 @@ def record_fields(path):
         if match is None or match.group(1) in fields:
             return None
         fields[match.group(1)] = match.group(2)
-    if set(fields) != {"id", "added", "source_run", "approved_by", "status", "last_used"}:
+    if REQUIRED_FIELDS - set(fields) or set(fields) - REQUIRED_FIELDS - {"superseded_by"}:
         return None
     if fields["status"] not in STATUSES:
+        return None
+    # superseded_by names what replaced a superseded lesson; it is valid only on
+    # a superseded record and required there, so a superseded lesson always cites
+    # its landing and no other status silently carries the field.
+    if ("superseded_by" in fields) != (fields["status"] == "superseded"):
         return None
     try:
         last_used = datetime.date.fromisoformat(fields["last_used"])

@@ -29,9 +29,10 @@ class LessonFlagsTest(unittest.TestCase):
         self.patch_root.stop()
         self.tempdir.cleanup()
 
-    def write_record(self, name, status, last_used):
+    def write_record(self, name, status, last_used, superseded_by=None):
         path = self.root / "demo/runs/coordination/lessons" / f"{name}.md"
         path.parent.mkdir(parents=True, exist_ok=True)
+        extra = f"superseded_by: {superseded_by}\n" if superseded_by is not None else ""
         path.write_text(
             "<!-- Store: lesson records. -->\n"
             "---\n"
@@ -41,6 +42,7 @@ class LessonFlagsTest(unittest.TestCase):
             "approved_by: human\n"
             f"status: {status}\n"
             f"last_used: {last_used}\n"
+            f"{extra}"
             "---\n\nA lesson.\n",
             encoding="utf-8",
         )
@@ -70,6 +72,31 @@ class LessonFlagsTest(unittest.TestCase):
         self.assertIn("old-failure.md", output)
         self.assertNotIn("fresh-rejected.md", output)
         self.assertEqual(before, {path: path.read_bytes() for path in store.glob("*.md")})
+
+    def test_superseded_record_with_landing_ref_is_classified(self):
+        old = (datetime.now(timezone.utc) - timedelta(days=120)).date().isoformat()
+        path = self.write_record(
+            "old-superseded", "superseded", old, superseded_by="abc1234 (push G349)"
+        )
+        self.assertIsNotNone(lesson_flags.record_fields(str(path)))
+
+        code, output = self.run_flags(["--project", "demo", "--days", "90"])
+
+        self.assertEqual(code, 0)
+        self.assertIn("[superseded]", output)
+        self.assertIn("old-superseded.md", output)
+
+    def test_superseded_without_landing_ref_is_unclassified(self):
+        old = (datetime.now(timezone.utc) - timedelta(days=120)).date().isoformat()
+        path = self.write_record("bare-superseded", "superseded", old)
+        self.assertIsNone(lesson_flags.record_fields(str(path)))
+
+    def test_superseded_by_on_non_superseded_status_is_unclassified(self):
+        old = (datetime.now(timezone.utc) - timedelta(days=120)).date().isoformat()
+        path = self.write_record(
+            "active-with-ref", "active", old, superseded_by="abc1234"
+        )
+        self.assertIsNone(lesson_flags.record_fields(str(path)))
 
     def test_missing_lessons_directory_exits_cleanly(self):
         code, output = self.run_flags(["--project", "demo"])
