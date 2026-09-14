@@ -19,6 +19,11 @@ ISO_RE = re.compile(
     r"(?::[0-9]{2}(?:\.[0-9]+)?)Z"
 )
 
+# The only mailbox that may drive a live seat is a real project mailbox under
+# this root. A scratch or test file resolving elsewhere is refused before any
+# wake so a test context can never prompt the production supervisor.
+HERDR_PROJECTS_ROOT = Path.home() / ".herdr" / "projects"
+
 
 @dataclass(frozen=True)
 class Entry:
@@ -102,6 +107,12 @@ def main(argv: list[str] | None = None) -> int:
         if args.wake is not None:
             if args.since is not None or args.last is not None or args.headers:
                 raise ValueError("--wake cannot be combined with mailbox selectors")
+            root = HERDR_PROJECTS_ROOT.resolve()
+            if root not in Path(args.file).resolve().parents:
+                raise ValueError(
+                    f"--wake refused: {args.file} is not under {root}; a scratch "
+                    "or test mailbox must never drive a live seat"
+                )
             output = select_entries(text, last=1, headers=True)
             if not output:
                 print("mailbox: UNSENT: no parseable last header; wake not attempted", file=sys.stderr)

@@ -32,8 +32,17 @@ three
 class MailboxTest(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory(dir="/private/tmp")
-        self.path = Path(self.tmp.name) / "mailbox.md"
+        # A live wake is only allowed from a real project mailbox, so the
+        # fixture lives under a fake herdr projects root and the module
+        # constant is pointed at it for the duration of the test.
+        root = Path(self.tmp.name) / ".herdr" / "projects"
+        project = root / "beo-skills"
+        project.mkdir(parents=True)
+        self.path = project / "mailbox.md"
         self.path.write_text(SAMPLE, encoding="utf-8")
+        prev_root = mailbox.HERDR_PROJECTS_ROOT
+        mailbox.HERDR_PROJECTS_ROOT = root
+        self.addCleanup(setattr, mailbox, "HERDR_PROJECTS_ROOT", prev_root)
         self.addCleanup(self.tmp.cleanup)
 
     def test_since_excludes_boundary_and_returns_whole_entry(self):
@@ -231,6 +240,26 @@ class MailboxTest(unittest.TestCase):
 
         with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
             self.assertEqual(gate_row.main(check_args), 0, stderr.getvalue())
+
+    def test_wake_refuses_a_file_outside_the_herdr_projects_root(self):
+        # A11 lesson: a scratch or test context must never drive a live seat.
+        # A mailbox that resolves outside the herdr projects root is refused
+        # before run_wake is ever called.
+        scratch = Path(self.tmp.name) / "scratch-mailbox.md"
+        scratch.write_text(SAMPLE, encoding="utf-8")
+        calls = []
+        original = mailbox.run_wake
+        mailbox.run_wake = lambda seat, wake_text: calls.append((seat, wake_text))
+        self.addCleanup(setattr, mailbox, "run_wake", original)
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            result = mailbox.main(["--file", str(scratch), "--wake", "supervisor"])
+
+        self.assertNotEqual(result, 0)
+        self.assertEqual(calls, [])
+        self.assertEqual(stdout.getvalue(), "")
+        self.assertIn("refused", stderr.getvalue())
 
     def test_wake_failure_is_not_retried(self):
         calls = []
