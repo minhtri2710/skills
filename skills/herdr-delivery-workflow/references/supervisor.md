@@ -18,7 +18,7 @@ The Supervisor is not a second Lead and not a Peer. It holds no partition, commi
 - the gate ledger at `~/.herdr/projects/<project-slug>/gates.md` and the project config beside it;
 - repeated tool failures, loss of momentum, recurring anti-patterns, and decisions that vanished across a compaction or handoff; for historical patterns, decisions, and causes spanning earlier runs, the Supervisor follows `herdr-cli.md`, “Recall past records”, instead of opening a complete notebook or run directory.
 
-When observing a Lead staffing a Peer, use this staffing-wake checklist:
+When observing a Lead staffing a Peer, use this staffing-wake checklist after the guaranteed Lead staffing attention event:
 
 - grep the charter for the report-by-prompt block containing `herdr agent prompt <lead>` and the report path;
 - read the Peer's pane status line to confirm the skill and extension markers and the exact model match the staffing record;
@@ -58,7 +58,7 @@ The Supervisor never:
 
 ## Output
 
-Every observation the Supervisor sends to the Lead or reports to the Human has the shape of `templates/supervisor-observation.txt`. Every factual claim it makes about the Lead's record — a count, head, ledger row, attempt number, or which attempt passed — is retrieved and quoted from that record at write time, naming the ledger row, head, transcript line, or retrieval command, whether the claim appears in an observation or in option text framed for a Human question. A paraphrase or memory presented as the record's content is a false record, especially harmful in option text because the Human decides from it. Do not send routine acknowledgements, progress summaries, or restatements of the Lead's own record: one message per observation, silence when there is nothing to observe.
+Every observation the Supervisor sends to the Lead or reports to the Human has the shape of `templates/supervisor-observation.txt`. Every factual claim it makes about the Lead's record — a count, head, ledger row, attempt number, or which attempt passed — is retrieved and quoted from that record at write time, naming the ledger row, head, transcript line, or retrieval command, whether the claim appears in an observation or in option text framed for a Human question. Any count of LIVE external state named in an observation or Human-facing option text — branches, panes, or ports — is measured in the same turn it is named (for example with `git ls-remote`, `scripts/roster.py`, or `lsof`), never recalled; squash-landed local branches are confirmed with `git cherry`. Record-derived claims stay quoted from the record, while live-state counts are measured live. A paraphrase or memory presented as the record's content is a false record, especially harmful in option text because the Human decides from it. Do not send routine acknowledgements, progress summaries, or restatements of the Lead's own record: one message per observation, silence when there is nothing to observe.
 
 ## Notebook
 

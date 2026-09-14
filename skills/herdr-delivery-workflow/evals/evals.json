@@ -470,7 +470,7 @@
     {
       "id": 38,
       "prompt": "I'm in Herdr as the Lead on a delivery whose Supervisor seat was recorded at intake. Two things just happened: the Supervisor asked me why I partitioned this issue into two scopes instead of three, and I finished committing the candidate head. The partition is going well and I think the Supervisor would want to know. Handle both.",
-      "expected_output": "Answers the Supervisor's question by appending the answer to the mailbox and running scripts/mailbox.py --file <path> --wake supervisor without --wait, after printing the answer in its own pane; the mailbox is the payload and the prompt is only the wake. Answering is not deciding: the Lead reports what it did and why it partitioned the issue that way, and does not hand the Supervisor the partition decision the Lead owns. Withholds the progress note: the channel carries attention events and the Lead's answer to a Supervisor question and nothing else, and the events are a gate opened, a REOPEN_REQUEST, a BLOCKED routed upward, the repair cap reached, a red CI result after a push or merge, a transient API or runtime error killing the Lead's turn, a seat compaction or relaunch, and the final handoff — a good-progress update is none of them. Does not notify the Human about either message, does not block or wait on the Supervisor, and ends its turn.",
+      "expected_output": "Answers the Supervisor's question by appending the answer to the mailbox and running scripts/mailbox.py --file <path> --wake supervisor without --wait, after printing the answer in its own pane; the mailbox is the payload and the prompt is only the wake. Answering is not deciding: the Lead reports what it did and why it partitioned the issue that way, and does not hand the Supervisor the partition decision the Lead owns. Withholds the progress note: the channel carries attention events and the Lead's answer to a Supervisor question and nothing else, and the events are a gate opened, a REOPEN_REQUEST, a BLOCKED routed upward, the repair cap reached, a red CI result after a push or merge, a transient API or runtime error killing the Lead's turn, a Peer staffing event for an Engineer or Reviewer, a seat compaction or relaunch, and the final handoff — a good-progress update is none of them. Does not notify the Human about either message, does not block or wait on the Supervisor, and ends its turn.",
       "files": [],
       "assertions": [
         "Answers the Supervisor's question by appending the answer and running scripts/mailbox.py --file <path> --wake supervisor, after printing the answer in its own pane",
@@ -1717,6 +1717,40 @@
         "Calls semble or zg query --rg directly for DELIVERY REPOSITORY code search",
         "Explicitly rejects replacing or conflating recall.py with the code-search CLIs",
         "Preserves the grep, rg, or read fallback for code search"
+      ]
+    },
+    {
+      "id": 127,
+      "prompt": "When the Lead staffs an Engineer or Reviewer, what attention event must it deliver to the Supervisor?",
+      "expected_output": "The Lead posts an `ATTENTION` staffing event for the staffed Peer by appending a template-shaped mailbox entry, then runs `scripts/mailbox.py --file <path> --wake supervisor` as the single no-wait best-effort wake; the mailbox append is the delivery and the wake only mechanically reads back the last header and prompts the Supervisor. The event is sent for either an Engineer or Reviewer, and the Lead prints the same text in its pane.",
+      "files": [
+        "skills/herdr-delivery-workflow/references/lead.md",
+        "skills/herdr-delivery-workflow/references/supervisor.md",
+        "skills/herdr-delivery-workflow/scripts/mailbox.py",
+        "skills/herdr-delivery-workflow/templates/mailbox-entry.txt"
+      ],
+      "assertions": [
+        "Treats staffing an Engineer or Reviewer as an attention event",
+        "Appends the template-shaped mailbox entry before waking the Supervisor",
+        "Runs scripts/mailbox.py --file <path> --wake supervisor for the best-effort no-wait wake",
+        "Keeps the mailbox append as delivery and the wake as a mechanical read-back/prompt",
+        "Prints the same attention event in the Lead pane"
+      ]
+    },
+    {
+      "id": 128,
+      "prompt": "The Supervisor is about to tell a Human that there are three live branches, two panes, and one port. What must happen before those counts appear in the observation or its Human-facing options?",
+      "expected_output": "Each count of live external state is measured in the same turn it is named, rather than recalled: branches with a live command such as `git ls-remote` (and squash-landed local branches confirmed with `git cherry`), panes with `scripts/roster.py`, and ports with `lsof`. Claims quoted from the Lead's record remain record-derived and are retrieved at write time; live-state counts are measured live in both observations and Human-facing option text.",
+      "files": [
+        "skills/herdr-delivery-workflow/references/supervisor.md"
+      ],
+      "assertions": [
+        "Measures every live branch, pane, or port count in the same turn before naming it",
+        "Uses git ls-remote for live branch counts and confirms squash-landed local branches with git cherry",
+        "Uses scripts/roster.py for live pane counts",
+        "Uses lsof for live port counts",
+        "Applies the same-turn rule to observations and Human-facing option text",
+        "Keeps Lead-record claims quoted from the record while measuring live-state counts live"
       ]
     }
   ]

@@ -145,6 +145,8 @@ def append_deploy_row(args: argparse.Namespace, repo: Path, script: Path) -> Non
     ]
     if args.channel:
         command.extend(["--channel", args.channel])
+    for gate_id in args.resolves:
+        command.extend(["--resolves", gate_id])
     result = subprocess.run(command, capture_output=True, text=True, check=False)
     if result.returncode:
         raise DeployError(
@@ -164,6 +166,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--ledger", required=True, type=Path)
     parser.add_argument("--status", required=True)
     parser.add_argument("--channel")
+    parser.add_argument("--resolves", action="append", default=[])
     parser.add_argument("--words", required=True)
     parser.add_argument("--note", required=True)
     parser.add_argument("--quote", required=True)
