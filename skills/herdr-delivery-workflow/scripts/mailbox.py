@@ -95,12 +95,7 @@ def main(argv: list[str] | None = None) -> int:
     selectors.add_argument("--last", metavar="N", type=int)
     parser.add_argument("--headers", action="store_true")
     parser.add_argument("--wake", metavar="SEAT", help="read the last header and wake a seat")
-    parser.add_argument("--wake-text", metavar="TEXT", help="override the default wake pointer")
     args = parser.parse_args(argv)
-
-    if args.wake_text is not None and args.wake is None:
-        print("mailbox: --wake-text requires --wake", file=sys.stderr)
-        return 1
 
     try:
         text = Path(args.file).read_text(encoding="utf-8")
@@ -118,7 +113,7 @@ def main(argv: list[str] | None = None) -> int:
                 print("mailbox: UNSENT: no parseable last header; wake not attempted", file=sys.stderr)
                 return 1
             header = output[0]
-            wake_text = args.wake_text or _default_wake_text(args.wake, args.file, header)
+            wake_text = _default_wake_text(args.wake, args.file, header)
             try:
                 result = run_wake(args.wake, wake_text)
             except OSError as exc:

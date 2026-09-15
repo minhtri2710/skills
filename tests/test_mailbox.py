@@ -261,6 +261,29 @@ class MailboxTest(unittest.TestCase):
         self.assertEqual(stdout.getvalue(), "")
         self.assertIn("refused", stderr.getvalue())
 
+    def test_wake_text_flag_is_removed(self):
+        # The undocumented --wake-text override was dead (no doctrine, no test).
+        # It is gone; argparse rejects it as unknown and wake uses only the
+        # default pointer text. Patch run_wake first so no path can fire a live
+        # wake even if the flag ever regresses.
+        calls = []
+        original = mailbox.run_wake
+        mailbox.run_wake = lambda seat, wake_text: (
+            calls.append((seat, wake_text)) or subprocess.CompletedProcess([], 0, "", "")
+        )
+        self.addCleanup(setattr, mailbox, "run_wake", original)
+
+        with self.assertRaises(SystemExit):
+            mailbox.main(["--file", str(self.path), "--wake", "supervisor", "--wake-text", "x"])
+        self.assertEqual(calls, [])
+
+        self.assertEqual(mailbox.main(["--file", str(self.path), "--wake", "supervisor"]), 0)
+        last_header = "## lead-beo-skills -> supervisor | 2026-09-10T00:15:03Z | third"
+        self.assertEqual(
+            calls[0][1],
+            mailbox._default_wake_text("supervisor", str(self.path), last_header),
+        )
+
     def test_wake_failure_is_not_retried(self):
         calls = []
 
