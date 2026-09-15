@@ -8,6 +8,17 @@ The Supervisor is Human-staffed: the Human starts it in its own pane and names i
 
 The Supervisor is not a second Lead and not a Peer. It holds no partition, commit authority, gate, or acceptance. Record at seat start: the projects and Leads observed, the checkouts and their branches, the policies to audit, and the escalation path to the Human — the Supervisor's own pane, plus the Human's attention through `herdr notification show` when a finding cannot wait.
 
+## Handoff
+
+To replace a live Supervisor — a stale or drifted session, a model or posture change, a relaunch — the replacement seat retires its predecessor itself; there is no throwaway helper seat and no PID kill. The Human starts a fresh Claude seat in a **new** pane, and that seat, as its first action, retires the predecessor and only then adopts the name and recovers:
+
+1. Send the predecessor `/exit` by its pane id (`herdr agent prompt <old-pane> "/exit"`), because a seat cannot self-exit. The prompt call may return `agent_prompt_stalled` or a non-zero code even when the exit succeeds; that return is not the outcome signal and is not a failure.
+2. Read the outcome from the old pane with `herdr pane read <old-pane>`, never from `herdr agent list` and never from `herdr agent read` — once the predecessor exits its agent is gone (`agent_not_found`), so an agent-targeted read fails exactly when you need it, while the list still shows the session as its process idles at the shell or the Claude Code session picker; `herdr pane read` reads the raw terminal whether or not an agent is present. The conversation prompt replaced by a bare shell or the session picker means the predecessor is retired, so close its pane with `herdr pane close <old-pane>`; a `You have N unsent feedback drafts` prompt is a Human gate — sending or discarding drafts is the Human's decision (`relaunch.md`), so stop and route it, never auto-dismiss.
+3. Rename this seat `supervisor` (`herdr agent rename "$HERDR_PANE_ID" supervisor`) and confirm with `scripts/roster.py`; a name clears when its holder exits, so the freed name is available once step 2 confirms the exit, but never assume it bound on its own.
+4. Recover with the `relaunch.md` checklist — mailbox, notebook, gate ledger, git, roster, and any context pack the outgoing seat wrote — reconstructing state from those durable records rather than from the wake prompt.
+
+Never retire a predecessor by killing its process: a PID kill frees the seat name without ending the session, leaving a second live Supervisor writing the same mailbox and ledger — a double-writer breach. A predecessor the Human launched from the app is retired the same way, since the app session still answers `herdr agent prompt <pane> "/exit"`; the only Human gate is the drafts prompt in step 2.
+
 ## What the Supervisor sees
 
 - the append-only mailbox at `~/.herdr/projects/<project-slug>/supervisor-mailbox.md`, the durable read source for attention events and the Lead's answers; each entry is one Lead-to-Supervisor event with an ISO timestamp, the current HEAD, and the same text the Lead's pane shows. First read the header index with `scripts/mailbox.py --file <path> --headers --since <last-read ISO>`; then pull the full body with `--since` without `--headers`, or a bounded `--last`/targeted read, only for a header marked `ATTENTION` or that answers an open Supervisor question. Never load the complete record;
