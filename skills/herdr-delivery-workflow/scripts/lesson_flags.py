@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Report stale Herdr lesson records for Human review."""
+"""Report superseded and stale Herdr lesson records for Human review."""
 
 import argparse
 import datetime
@@ -88,13 +88,17 @@ def main(argv=None):
             if parsed is None:
                 continue
             fields, last_used = parsed
-            if last_used < cutoff:
+            # A superseded lesson is replaced doctrine; surface it for retirement
+            # regardless of staleness. A freshly-used superseded record is the
+            # dangerous case — a seat still recalling doctrine that has been
+            # replaced — so it must show up even when last_used is recent.
+            if last_used < cutoff or fields["status"] == "superseded":
                 flagged.append((fields["status"], os.path.relpath(path, lessons), fields["last_used"]))
 
     if not flagged:
-        print("Nothing to flag: no stale lessons.")
+        print("Nothing to flag: no superseded or stale lessons.")
         return 0
-    print(f"Stale lesson candidates (last_used before {cutoff.isoformat()}):")
+    print(f"Retire candidates — superseded, or stale (last_used before {cutoff.isoformat()}):")
     for status in STATUSES:
         status_records = [item for item in flagged if item[0] == status]
         if not status_records:
