@@ -71,17 +71,19 @@ class GateRowTest(unittest.TestCase):
             "--quote", quote,
         ])
 
-    def append_review_pass(self) -> int:
+    def append_review_pass(self, base: str | None = None) -> int:
         return self.run_main([
             "--ledger", str(self.ledger), "--repo", str(self.repo),
             "--kind", "review", "--status", "recorded:review-pass",
+            "--review-base", base or self.rev("HEAD~2"),
             "--words", "seat", "--note", "review passed", "--quote", "PASS",
         ])
 
-    def append_review_fail(self) -> int:
+    def append_review_fail(self, base: str | None = None) -> int:
         return self.run_main([
             "--ledger", str(self.ledger), "--repo", str(self.repo),
             "--kind", "review", "--status", "recorded:review-fail",
+            "--review-base", base or self.rev("HEAD~2"),
             "--words", "seat", "--note", "review failed", "--quote", "FAIL",
         ])
 
@@ -310,7 +312,7 @@ class GateRowTest(unittest.TestCase):
         existing_rows = gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))
         args = SimpleNamespace(
             kind="merge", status="resolved:test", channel="", writer="", record="timely",
-            push_base="", boundary=[], resolves=[], words="human", note="backdated",
+            push_base="", review_base="", boundary=[], resolves=[], words="human", note="backdated",
             quote="backdated", quote_file="",
         )
         with mock.patch.object(gate_row, "datetime") as clock:
@@ -793,7 +795,7 @@ class GateRowTest(unittest.TestCase):
         base = self.rev("HEAD~2")
         self.assertEqual(self.append("--kind", "push", "--push-base", base,
                                      "--boundary", "f1.txt"), 1)
-        self.assertIn("missing review PASS row", self.err.getvalue())
+        self.assertIn("not covered by any review PASS range", self.err.getvalue())
         self.assertEqual(len(gate_row.ledger_rows(self.ledger.read_text())), 0)
 
         self.assertEqual(self.append_review_pass(), 0)
@@ -811,7 +813,7 @@ class GateRowTest(unittest.TestCase):
         self.assertEqual(self.run_main([
             "--ledger", str(self.ledger), "--repo", str(self.repo), "--check",
         ]), 1)
-        self.assertIn("missing review PASS row", self.err.getvalue())
+        self.assertIn("not covered by any review PASS range", self.err.getvalue())
 
     def test_a_push_row_with_no_declared_boundary_never_reaches_the_ledger(self):
         """The append-only file does not get a row the same command then rejects.
@@ -826,6 +828,46 @@ class GateRowTest(unittest.TestCase):
         self.assertEqual(self.append("--kind", "push",
                                      "--push-base", self.rev("HEAD~2")), 1)
         self.assertIn("a push row needs --boundary", self.err.getvalue())
+        self.assertEqual(self.ledger.read_text(), before, "the refused row landed anyway")
+
+    def test_a_review_row_needs_a_review_base(self):
+        before = self.ledger.read_text()
+        self.assertEqual(self.run_main([
+            "--ledger", str(self.ledger), "--repo", str(self.repo),
+            "--kind", "review", "--status", "recorded:review-pass",
+            "--words", "seat", "--note", "review", "--quote", "PASS",
+        ]), 1)
+        self.assertIn("a review row needs --review-base", self.err.getvalue())
+        self.assertEqual(self.ledger.read_text(), before, "the refused row landed anyway")
+
+    def test_a_review_row_round_trips_its_range(self):
+        self.assertEqual(self.append_review_pass(), 0)
+        self.assertRegex(self.last_row(), r"review=[0-9a-f]{7,40}\.\.[0-9a-f]{7,40} count=2")
+        self.assertEqual(self.run_main(
+            ["--ledger", str(self.ledger), "--repo", str(self.repo), "--check"]), 0)
+
+    def test_a_review_row_with_a_wrong_count_is_refused_by_check(self):
+        self.assertEqual(self.append_review_pass(), 0)
+        tampered = self.last_row().replace("count=2", "count=5")
+        self.ledger.write_text("# Gate ledger — test\n\n" + tampered + "\n", encoding="utf-8")
+        self.assertEqual(self.run_main(
+            ["--ledger", str(self.ledger), "--repo", str(self.repo), "--check"]), 1)
+        self.assertIn("carries 2 commits", self.err.getvalue())
+
+    def test_a_review_row_with_no_review_block_is_refused_by_check(self):
+        self.assertEqual(self.append_review_pass(), 0)
+        stripped = " | ".join(
+            p for p in self.last_row().split(" | ") if not p.startswith("review=")
+        )
+        self.ledger.write_text("# Gate ledger — test\n\n" + stripped + "\n", encoding="utf-8")
+        self.assertEqual(self.run_main(
+            ["--ledger", str(self.ledger), "--repo", str(self.repo), "--check"]), 1)
+        self.assertIn("carries no review block", self.err.getvalue())
+
+    def test_review_base_on_a_non_review_row_is_refused_rather_than_dropped(self):
+        before = self.ledger.read_text()
+        self.assertEqual(self.append("--review-base", self.rev("HEAD~2")), 1)
+        self.assertIn("--review-base is only meaningful on a review row", self.err.getvalue())
         self.assertEqual(self.ledger.read_text(), before, "the refused row landed anyway")
 
     def test_a_row_declaring_an_empty_boundary_is_refused(self):

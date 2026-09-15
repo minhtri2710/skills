@@ -45,6 +45,10 @@ PUSH_RE = re.compile(
     r'count=(?P<count>\d+) boundary="(?P<declared>[^"]*)" '
     r'boundary-check="(?P<boundary>[^"]*)"$'
 )
+REVIEW_RE = re.compile(
+    r'^review=(?P<base>[0-9a-f]{7,40})\.\.(?P<head>[0-9a-f]{7,40}) '
+    r'count=(?P<count>\d+)$'
+)
 # Row discovery is namespace-agnostic. G<n> is only the local ID generator's shape.
 ID_RE = re.compile(r"^(?P<id>\S+) \|")
 LOCAL_ID_RE = re.compile(r"^G(\d+)$")
@@ -225,17 +229,52 @@ def row_evidence(row: str) -> tuple[str, str, str]:
     return kind.split("=", 1)[1], head.split("@", 1)[1], status.split("=", 1)[1]
 
 
-def require_review_pass(rows: list[str], targets: list[str]) -> None:
-    """Require an exact review PASS row for every target SHA."""
-    reviewed = {
-        row_head
-        for row in rows
-        for kind, row_head, status in (row_evidence(row),)
-        if kind == "review" and status == "recorded:review-pass"
-    }
-    missing = [sha for sha in targets if sha not in reviewed]
+def review_range(row: str) -> tuple[str, str] | None:
+    """The (base, head) a review row records, or None when the row carries no review block."""
+    fields, _ = split_row(row)
+    for field in fields:
+        if field.startswith("review="):
+            m = REVIEW_RE.fullmatch(field)
+            if not m:
+                raise RowError(f"review block {field!r} is malformed")
+            return m.group("base"), m.group("head")
+    return None
+
+
+def review_field(base: str, head: str, count: str) -> str:
+    """The review block: the exact commit range one review PASS covers."""
+    return f"review={base}..{head} count={count}"
+
+
+def require_review_coverage(rows: list[str], repo: Path, base: str, head: str) -> None:
+    """Require every commit in the pushed range to be covered by a review PASS range.
+
+    A single review covers its whole range, so a delivery's intra-run intermediates
+    (one commit per scope, `lead.md` "Quiesce and commit") ride their reviewed head
+    without their own rows. Stacked deliveries tile the range with one row each; a
+    gap — an unreviewed delivery riding a reviewed tip's push — leaves its commits
+    uncovered and is refused. The tip is covered only if it is itself a reviewed
+    head, so a tip-unreviewed push is refused here too.
+    """
+    pushed = set(range_commits(repo, base, head))
+    covered: set[str] = set()
+    for row in rows:
+        kind, _row_head, status = row_evidence(row)
+        if kind != "review" or status != "recorded:review-pass":
+            continue
+        rng = review_range(row)
+        if rng is None:
+            continue
+        rbase, rhead = rng
+        if rhead not in pushed:
+            continue
+        covered.update(range_commits(repo, rbase, rhead))
+    missing = [sha for sha in pushed if sha not in covered]
     if missing:
-        raise RowError(f"refusing push for {', '.join(missing)}: missing review PASS row")
+        raise RowError(
+            f"refusing push of {base}..{head}: {', '.join(sorted(missing))} "
+            "is not covered by any review PASS range"
+        )
 
 
 def field_text(name: str, value: str | None) -> str:
@@ -383,6 +422,19 @@ def require_open_targets(rows: list[str], targets: list[str]) -> None:
             raise RowError(f"resolves={target} refused: already-closed")
 
 
+def range_commits(repo: Path, base: str, head: str) -> list[str]:
+    """The commits in base..head, newest first; the one range derivation both blocks share.
+
+    Raises when base is not an ancestor of head or the range is empty, so no push
+    or review block can be built or checked against a range that carries no commit.
+    """
+    git(repo, "merge-base", "--is-ancestor", base, head)
+    commits = git(repo, "rev-list", f"{base}..{head}").splitlines()
+    if not commits:
+        raise RowError(f"range {base}..{head} carries no commit")
+    return commits
+
+
 def derive_push(repo: Path, base: str, head: str, boundary: list[str]) -> tuple[str, list[str]]:
     """The push block's two derived values, for whichever path asks: build or check.
 
@@ -398,12 +450,10 @@ def derive_push(repo: Path, base: str, head: str, boundary: list[str]) -> tuple[
                 f"boundary path {b!r} is empty or holds whitespace — --boundary is one flag "
                 "per path, and a path with a space cannot be read back out of boundary-check"
             )
-    git(repo, "merge-base", "--is-ancestor", base, head)
-    count = git(repo, "rev-list", "--count", f"{base}..{head}")
-    if count == "0":
-        raise RowError(f"push range {base}..{head} carries no commit")
+    commits = range_commits(repo, base, head)
+    count = str(len(commits))
     changed: set[str] = set()
-    for commit in git(repo, "rev-list", f"{base}..{head}").splitlines():
+    for commit in commits:
         changed.update(
             path for path in git(
                 repo, "diff-tree", "--root", "-m", "--no-commit-id", "--name-only", "-r", commit,
@@ -552,7 +602,25 @@ def build(args: argparse.Namespace, repo: Path, ledger: Path,
             )
         count, outside = derive_push(repo, args.push_base, pushed, args.boundary)
         fields.append(push_field(args.push_base, pushed, count, args.boundary, outside))
-        require_review_pass(rows, [pushed])
+        require_review_coverage(rows, repo, args.push_base, pushed)
+    elif args.kind == "review":
+        if not args.review_base:
+            raise RowError(
+                "a review row needs --review-base: the range it covers is the whole of "
+                "what a stacked push is checked against, so a review row naming no range "
+                "leaves the commits it reviewed uncovered when the push walks the stack"
+            )
+        if args.push_base or args.boundary:
+            raise RowError("--push-base and --boundary are only meaningful on a push row")
+        reviewed = git(repo, "rev-parse", "HEAD")
+        commits = range_commits(repo, args.review_base, reviewed)
+        fields.append(review_field(args.review_base, reviewed, str(len(commits))))
+    elif args.review_base:
+        raise RowError(
+            f"--review-base is only meaningful on a review row, and this row is "
+            f"kind={args.kind} — an argument accepted and silently dropped is how a row "
+            "loses the evidence it claims to carry"
+        )
     elif args.push_base or args.boundary:
         flag = "--push-base" if args.push_base else "--boundary"
         raise RowError(
@@ -602,7 +670,7 @@ def check(row: str, repo: Path, prior_rows: list[str] | None = None) -> None:
     git(repo, "rev-parse", "--verify", f"{m.group('head')}^{{commit}}")
 
     known = (
-        "channel=", "writer=", "record=", "push=", "resolves=", "op=", "after=",
+        "channel=", "writer=", "record=", "push=", "review=", "resolves=", "op=", "after=",
         "who=", "scope=", "conditions=", "expiry=", "finding=", "prev_hash=", "words=", "note=",
     )
     for field in rest:
@@ -631,6 +699,10 @@ def check(row: str, repo: Path, prior_rows: list[str] | None = None) -> None:
     if index < len(rest) and rest[index].startswith("push="):
         push = rest[index]
         index += 1
+    review = None
+    if index < len(rest) and rest[index].startswith("review="):
+        review = rest[index]
+        index += 1
     row_kind = kind.split("=", 1)[1]
     if row_kind == "push" and push is None:
         raise RowError(
@@ -638,6 +710,14 @@ def check(row: str, repo: Path, prior_rows: list[str] | None = None) -> None:
             "boundary-check are the whole of what a push row is checked against, so a "
             "row without them is checked against nothing and passes vacuously"
         )
+    if row_kind == "review" and review is None:
+        raise RowError(
+            "this row is kind=review and carries no review block — the range it covers "
+            "is what a stacked push is checked against, so a review row without it "
+            "contributes no coverage and leaves its commits unverified"
+        )
+    if review is not None and row_kind != "review":
+        raise RowError(f"review= is only on a kind=review row, not kind={row_kind}")
 
     resolves: list[str] = []
     if index < len(rest) and rest[index].startswith("resolves="):
@@ -745,7 +825,22 @@ def check(row: str, repo: Path, prior_rows: list[str] | None = None) -> None:
                 f'outside the declared boundary is "{" ".join(outside)}"'
             )
         if row_kind == "push":
-            require_review_pass(prior_rows or [], [m.group("head")])
+            require_review_coverage(prior_rows or [], repo, base, m.group("head"))
+
+    if review is not None:
+        r = REVIEW_RE.fullmatch(review)
+        if not r:
+            raise RowError(f"review block {review!r} is malformed")
+        rbase, rhead = r.group("base"), r.group("head")
+        commits = range_commits(repo, rbase, rhead)
+        if rhead != m.group("head"):
+            raise RowError(
+                f"review head {rhead} does not match row head {m.group('head')}"
+            )
+        if str(len(commits)) != r.group("count"):
+            raise RowError(
+                f"count={r.group('count')} but {rbase}..{rhead} carries {len(commits)} commits"
+            )
 
     if resolves:
         require_open_targets(prior_rows or [], resolves)
@@ -807,7 +902,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--expiry", help="the granting Human's expiry text")
     parser.add_argument("--finding", help="the repair-grant finding identity")
     parser.add_argument("--record", choices=RECORD_VALUES)
-    parser.add_argument("--push-base", help="the intake's recorded merge-base; the head is derived")
+    parser.add_argument("--push-base", help="the push base — the remote tip the stack lands on "
+                        "under batching, not the intake merge-base; the head is derived")
+    parser.add_argument("--review-base", help="the base of the reviewed range on a kind=review "
+                        "row; the head is HEAD and the range is what a stacked push is checked against")
     parser.add_argument("--boundary", action="append", default=[],
                         help="a declared boundary path; repeatable, required to append a push "
                              "row, and written into the row so --check derives against the "
@@ -835,7 +933,7 @@ def main(argv: list[str] | None = None) -> int:
             ignored = (
                 args.kind, args.status, args.channel, args.writer, args.op, args.after,
                 args.who, args.scope, args.conditions, args.expiry, args.finding,
-                args.record, args.push_base, args.boundary, args.resolves, args.words,
+                args.record, args.push_base, args.review_base, args.boundary, args.resolves, args.words,
                 args.note, args.quote, args.quote_file, args.mailbox,
             )
             if any(ignored):
