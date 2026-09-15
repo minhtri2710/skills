@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import hashlib
 import io
 import re
 import subprocess
@@ -341,7 +342,12 @@ class GateRowTest(unittest.TestCase):
         self.assertEqual(self.append_repair_grant("F-2"), 0)
         self.assertEqual(self.append_repair_grant("F-1"), 1)
         self.assertIn("repair cap", self.err.getvalue())
+        rows = gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))
         duplicate = self.last_row().replace("G2", "G3").replace("finding=F-2", "finding=F-1")
+        duplicate = duplicate.replace(
+            f"prev_hash={hashlib.sha256(rows[0].encode('utf-8')).hexdigest()}",
+            f"prev_hash={hashlib.sha256(rows[1].encode('utf-8')).hexdigest()}",
+        )
         self.ledger.write_text(self.ledger.read_text(encoding="utf-8") + duplicate + "\n", encoding="utf-8")
         self.assertEqual(self.run_main([
             "--ledger", str(self.ledger), "--repo", str(self.repo), "--check",
@@ -393,7 +399,12 @@ class GateRowTest(unittest.TestCase):
         self.assertEqual(self.run_main([
             "--ledger", str(self.ledger), "--repo", str(self.repo), "--check",
         ]), 0)
-        self.ledger.write_text(row.replace(" | op=git status --short", "") + "\n", encoding="utf-8")
+        rows = gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))
+        self.ledger.write_text(
+            "# Gate ledger — test\n\n" + "\n".join([
+                rows[0], row.replace(" | op=git status --short", "")
+            ]) + "\n", encoding="utf-8"
+        )
         self.assertEqual(self.run_main([
             "--ledger", str(self.ledger), "--repo", str(self.repo), "--check",
         ]), 1)
@@ -419,7 +430,12 @@ class GateRowTest(unittest.TestCase):
         self.assertEqual(self.run_main([
             "--ledger", str(self.ledger), "--repo", str(self.repo), "--check",
         ]), 0)
-        self.ledger.write_text(row.replace(" | expiry=until the Human's next message", "") + "\n", encoding="utf-8")
+        rows = gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))
+        self.ledger.write_text(
+            "# Gate ledger — test\n\n" + "\n".join([
+                rows[0], row.replace(" | expiry=until the Human's next message", "")
+            ]) + "\n", encoding="utf-8"
+        )
         self.assertEqual(self.run_main([
             "--ledger", str(self.ledger), "--repo", str(self.repo), "--check",
         ]), 1)
@@ -777,8 +793,15 @@ class GateRowTest(unittest.TestCase):
         self.assertEqual(self.append_review_pass(), 0)
         self.assertEqual(self.append("--kind", "push", "--push-base", base,
                                      "--boundary", "f1.txt"), 0)
-        row = self.last_row()
-        self.ledger.write_text(row + "\n", encoding="utf-8")
+        rows = gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))
+        review = rows[0].replace("status=recorded:review-pass", "status=recorded:review-fail")
+        row = self.last_row().replace(
+            f"prev_hash={hashlib.sha256(rows[0].encode('utf-8')).hexdigest()}",
+            f"prev_hash={hashlib.sha256(review.encode('utf-8')).hexdigest()}",
+        )
+        self.ledger.write_text(
+            "# Gate ledger — test\n\n" + review + "\n" + row + "\n", encoding="utf-8"
+        )
         self.assertEqual(self.run_main([
             "--ledger", str(self.ledger), "--repo", str(self.repo), "--check",
         ]), 1)
@@ -804,8 +827,9 @@ class GateRowTest(unittest.TestCase):
         row, _ = self.valid_push_row()
         empty = row.replace('boundary="f1.txt f2.txt"', 'boundary=""')
         self.assertNotEqual(empty, row)
+        rows = gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))
         with self.assertRaises(gate_row.RowError) as ctx:
-            gate_row.check(empty, self.repo)
+            gate_row.check(empty, self.repo, rows[:-1])
         self.assertIn("empty boundary", str(ctx.exception))
 
     def test_a_dot_boundary_covers_the_whole_repository(self):
@@ -912,7 +936,11 @@ class GateRowTest(unittest.TestCase):
         blockless = re.sub(r" \| push=[^|]+", " ", row)
         self.assertNotIn("push=", blockless)
         self.assertIn("kind=push", blockless)
-        self.ledger.write_text(blockless + "\n")
+        rows = gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))
+        self.ledger.write_text(
+            "# Gate ledger — test\n\n" + "\n".join([rows[0], blockless]) + "\n",
+            encoding="utf-8",
+        )
         self.assertEqual(self.run_main(
             ["--ledger", str(self.ledger), "--repo", str(self.repo), "--check"]), 1)
         self.assertIn("carries no push block", self.err.getvalue())
@@ -946,6 +974,101 @@ class GateRowTest(unittest.TestCase):
         self.assertIn("--boundary is only meaningful on a push row", self.err.getvalue())
         self.assertEqual(self.ledger.read_text(), before, "the refused row landed anyway")
 
+    def test_chain_byte_definition_excludes_the_predecessor_newline(self):
+        self.assertEqual(self.append(), 0)
+        predecessor = gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))[0]
+        self.assertEqual(self.append(), 0)
+        rows = gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))
+        expected = hashlib.sha256(predecessor.encode("utf-8")).hexdigest()
+        with_newline = hashlib.sha256((predecessor + "\n").encode("utf-8")).hexdigest()
+        self.assertNotEqual(expected, with_newline)
+        self.assertRegex(rows[1], rf"(?:^| \\| )prev_hash={expected}(?: \\| |$)")
+        self.assertNotIn(f"prev_hash={with_newline}", rows[1])
+
+    def test_fresh_ledger_g1_to_g2_forms_an_intact_chain(self):
+        self.assertEqual(self.append(), 0)
+        self.assertEqual(self.append(), 0)
+        rows = gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))
+        self.assertEqual([row.split(" | ")[0] for row in rows], ["G1", "G2"])
+        self.assertNotIn("prev_hash=", rows[0])
+        self.assertIn(
+            f"prev_hash={hashlib.sha256(rows[0].encode('utf-8')).hexdigest()}",
+            rows[1],
+        )
+        self.assertEqual(self.run_main([
+            "--ledger", str(self.ledger), "--repo", str(self.repo), "--check",
+        ]), 0)
+
+    def test_legacy_prefix_then_new_chain_is_accepted_without_backfill(self):
+        self.assertEqual(self.append(), 0)
+        self.assertEqual(self.append(), 0)
+        rows = gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))
+        legacy_rows = [rows[0], rows[1].replace(
+            " | prev_hash=" + hashlib.sha256(rows[0].encode("utf-8")).hexdigest(), ""
+        )]
+        self.ledger.write_text(
+            "# Gate ledger — test\n\n" + "\n".join(legacy_rows) + "\n", encoding="utf-8"
+        )
+        self.assertEqual(self.append(), 0)
+        rows = gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))
+        self.assertNotIn("prev_hash=", rows[0])
+        self.assertNotIn("prev_hash=", rows[1])
+        self.assertIn(
+            f"prev_hash={hashlib.sha256(rows[1].encode('utf-8')).hexdigest()}",
+            rows[2],
+        )
+        self.assertEqual(self.run_main([
+            "--ledger", str(self.ledger), "--repo", str(self.repo), "--check",
+        ]), 0)
+
+    def test_intact_chain_is_verified_on_check_and_open_gate_read(self):
+        for _ in range(3):
+            self.assertEqual(self.append(), 0)
+        self.assertEqual(self.run_main([
+            "--ledger", str(self.ledger), "--repo", str(self.repo), "--check",
+        ]), 0)
+        self.assertEqual(self.run_main([
+            "--ledger", str(self.ledger), "--repo", str(self.repo), "--open-gates",
+        ]), 0)
+        self.assertEqual(self.out.getvalue(), "")
+
+    def assert_chain_tamper_rejected(self, rows: list[str]) -> None:
+        self.ledger.write_text(
+            "# Gate ledger — test\n\n" + "\n".join(rows) + "\n", encoding="utf-8"
+        )
+        self.assertEqual(self.run_main([
+            "--ledger", str(self.ledger), "--repo", str(self.repo), "--check",
+        ]), 1)
+        self.assertIn("prev_hash", self.err.getvalue())
+
+    def test_mid_chain_edit_is_rejected_by_the_cli_loader(self):
+        for _ in range(3):
+            self.assertEqual(self.append(), 0)
+        rows = gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))
+        edited = rows[1].replace("note=merged the reviewed head", "note=edited historical row")
+        self.assert_chain_tamper_rejected([rows[0], edited, rows[2]])
+
+    def test_mid_chain_deletion_is_rejected_by_the_cli_loader(self):
+        for _ in range(3):
+            self.assertEqual(self.append(), 0)
+        rows = gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))
+        self.assert_chain_tamper_rejected([rows[0], rows[2]])
+
+    def test_mid_chain_reorder_is_rejected_by_the_cli_loader(self):
+        for _ in range(3):
+            self.assertEqual(self.append(), 0)
+        rows = gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))
+        self.assert_chain_tamper_rejected([rows[0], rows[2], rows[1]])
+
+    def test_stripped_post_adoption_prev_hash_is_rejected_by_the_cli_loader(self):
+        for _ in range(3):
+            self.assertEqual(self.append(), 0)
+        rows = gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))
+        stripped = rows[2].replace(
+            " | prev_hash=" + hashlib.sha256(rows[1].encode("utf-8")).hexdigest(), ""
+        )
+        self.assert_chain_tamper_rejected([rows[0], rows[1], stripped])
+
     def test_a_row_over_claiming_the_whole_changed_set_is_refused(self):
         """The shape six rows across two ledgers already carry.
 
@@ -969,7 +1092,11 @@ class GateRowTest(unittest.TestCase):
         self.assertTrue(set(boundary) & set(changed), "the range touches the boundary")
         over = row.replace('boundary-check=""', f'boundary-check="{" ".join(changed)}"')
         self.assertNotEqual(over, row)
-        self.ledger.write_text(over + "\n")
+        rows = gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))
+        self.ledger.write_text(
+            "# Gate ledger — test\n\n" + "\n".join([rows[0], over]) + "\n",
+            encoding="utf-8",
+        )
         argv = ["--ledger", str(self.ledger), "--repo", str(self.repo), "--check"]
         self.assertEqual(self.run_main(argv), 1)
         self.assertIn("outside the declared boundary", self.err.getvalue())

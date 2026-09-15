@@ -14,7 +14,8 @@ Row shape, one line, ` | ` between fields:
       [| resolves=<id>[,<id>...]]
       [| op=<command> | after=<branch>@<head>]
       [| who=<delegate> | scope=<scope> | conditions=<conditions> | expiry=<expiry>]
-      [| finding=<identity>] | words=<seat|human|selected|none>
+      [| finding=<identity>] [| prev_hash=<64 lowercase hex>]
+      | words=<seat|human|selected|none>
       | note=<one line> | quote="<verbatim>"
 
 `quote=` is terminal and holds verbatim text — the Human's words on a gate row,
@@ -25,6 +26,7 @@ from __future__ import annotations
 
 import argparse
 import fcntl
+import hashlib
 import re
 import subprocess
 import sys
@@ -126,9 +128,45 @@ def git(repo: Path, *args: str) -> str:
     return proc.stdout.strip()
 
 
+PREV_HASH_RE = re.compile(r"^[0-9a-f]{64}$")
+
+
+def row_hash(row: str) -> str:
+    """Hash the exact row text returned by ``ledger_rows``."""
+    return hashlib.sha256(row.encode("utf-8")).hexdigest()
+
+
+def verify_chain(rows: list[str]) -> None:
+    """Verify the adopted hash chain, leaving its legacy prefix untouched."""
+    chain_started = False
+    predecessor: str | None = None
+    for index, row in enumerate(rows):
+        fields, _ = split_row(row)
+        hashes = [field for field in fields if field.startswith("prev_hash=")]
+        if len(hashes) > 1:
+            raise RowError(f"row {fields[0]!r} carries more than one prev_hash=")
+        if hashes:
+            value = hashes[0].split("=", 1)[1]
+            if not PREV_HASH_RE.fullmatch(value):
+                raise RowError(f"field {hashes[0]!r} is not a 64-character lowercase hex prev_hash=")
+            if predecessor is None:
+                raise RowError(f"row {fields[0]!r} carries prev_hash= without a predecessor")
+            expected = row_hash(predecessor)
+            if value != expected:
+                raise RowError(
+                    f"prev_hash mismatch at row {fields[0]!r}: expected {expected}, got {value}"
+                )
+            chain_started = True
+        elif chain_started:
+            raise RowError(f"row {fields[0]!r} is missing prev_hash= after the chain started")
+        predecessor = row
+
+
 def ledger_rows(text: str) -> list[str]:
-    """Return ledger rows without treating headers or prose as rows."""
-    return [line for line in text.splitlines() if ID_RE.match(line)]
+    """Return rows and fail closed when the adopted hash chain is tampered with."""
+    rows = [line for line in text.splitlines() if ID_RE.match(line)]
+    verify_chain(rows)
+    return rows
 
 
 def next_id_from_rows(rows: list[str]) -> int:
@@ -526,6 +564,8 @@ def build(args: argparse.Namespace, repo: Path, ledger: Path,
         fields.append(f"resolves={','.join(targets)}")
     if special_fields:
         fields.extend(special_fields)
+    if rows:
+        fields.append(f"prev_hash={row_hash(rows[-1])}")
     fields.append(f"words={args.words}")
     fields.append(f"note={note}")
     fields.append(f'quote="{quote}"')
@@ -563,7 +603,7 @@ def check(row: str, repo: Path, prior_rows: list[str] | None = None) -> None:
 
     known = (
         "channel=", "writer=", "record=", "push=", "resolves=", "op=", "after=",
-        "who=", "scope=", "conditions=", "expiry=", "finding=", "words=", "note=",
+        "who=", "scope=", "conditions=", "expiry=", "finding=", "prev_hash=", "words=", "note=",
     )
     for field in rest:
         if not field.startswith(known):
@@ -626,6 +666,24 @@ def check(row: str, repo: Path, prior_rows: list[str] | None = None) -> None:
         index += 1
     else:
         current_finding = None
+
+    prev_hash = None
+    if index < len(rest) and rest[index].startswith("prev_hash="):
+        prev_hash = rest[index].split("=", 1)[1]
+        if not PREV_HASH_RE.fullmatch(prev_hash):
+            raise RowError(f"field {rest[index]!r} is not a 64-character lowercase hex prev_hash=")
+        if not prior_rows:
+            raise RowError("prev_hash= is present without a predecessor")
+        if prev_hash != row_hash(prior_rows[-1]):
+            raise RowError(
+                f"prev_hash mismatch: expected {row_hash(prior_rows[-1])}, got {prev_hash}"
+            )
+        index += 1
+    elif prior_rows and any(
+        any(field.startswith("prev_hash=") for field in split_row(prior)[0])
+        for prior in prior_rows
+    ):
+        raise RowError("prev_hash= is missing after the chain started")
 
     if index >= len(rest) or not rest[index].startswith("words="):
         raise RowError("words= is missing or out of order")

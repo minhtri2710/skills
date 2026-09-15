@@ -106,6 +106,22 @@ class PrePushGuardTest(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn(pushed_sha, err)
 
+    def test_tampered_chain_is_reported_as_guard_error(self):
+        for _ in range(3):
+            self.assertEqual(self.append_review(), 0)
+        rows = gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))
+        tampered = rows[1].replace("note=review passed", "note=edited historical row")
+        self.ledger.write_text(
+            "# Gate ledger — test\n\n" + "\n".join([rows[0], tampered, rows[2]]) + "\n",
+            encoding="utf-8",
+        )
+        code, out, err = self.invoke()
+        self.assertEqual(code, 1)
+        self.assertEqual(out, "")
+        self.assertIn("pre_push_guard:", err)
+        self.assertIn("prev_hash", err)
+        self.assertNotIn("Traceback", err)
+
     def test_head_with_no_review_row_is_refused(self):
         code, _, err = self.invoke()
         self.assertEqual(code, 1)

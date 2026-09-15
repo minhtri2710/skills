@@ -52,6 +52,8 @@ def check(ledger: Path, repo: Path, targets: list[str] | None = None) -> list[st
         rows = gate_row.ledger_rows(ledger.read_text(encoding="utf-8"))
     except OSError as exc:
         raise GuardError(f"cannot read ledger {ledger}: {exc}") from None
+    except gate_row.RowError as exc:
+        raise GuardError(str(exc)) from None
 
     try:
         gate_row.require_review_pass(rows, targets)
