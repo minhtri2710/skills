@@ -106,7 +106,7 @@ A notification reaches the Human, not an agent. Popups depend on the Human's `[u
 
 To recall a past decision, reason, event, or prior artifact location older than the wake-time `last-read` mark, run `scripts/recall.py` with two or more query variants: the natural-language question and at least one technical-vocabulary variant (ids, slugs, SHAs, or filenames); optionally pass `--project <slug>` and `-n`. Then read only the cited span with `scripts/recall.py --get <path>:<from>:<count>`. Never cat a whole notebook, mailbox, or run directory for recall.
 
-The R1 wake read, `scripts/mailbox.py --headers --since <last-read>`, is unchanged for NEW mailbox entries; recall.py covers records older than `last-read`.
+The wake-time mailbox read, `scripts/mailbox.py --headers --since <last-read>`, is unchanged for NEW mailbox entries; recall.py covers records older than `last-read`.
 
 ## Read sources
 
