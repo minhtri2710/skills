@@ -15,5 +15,4 @@
 - lane-defaults: <path or change class = tiny|normal|high-risk, comma-separated>
 - target-line: <default integration product line>
 - always-gate: <decisions always routed to the Human, comma-separated>
-- repair-cap: <max repair cycles before escalation>
 - worker-cap: <max Engineers in one partition; default 3>
