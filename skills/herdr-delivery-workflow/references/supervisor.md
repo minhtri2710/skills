@@ -42,6 +42,8 @@ A finish, error, or permission notification is an attention event, not acceptanc
 
 ## Authority
 
+**Mirrored authority mode.** The Lead's default under an in-force delegation is escalate-only: the seat self-handles every gate covered by the delegation and escalates to the Human ONLY on (a) an agy anti-pattern report, (b) a Reviewer FAIL, (c) a genuinely hard or ambiguous product fork, or (d) a Scope-OUT item. The Supervisor observes and relays this model; it does not take ownership of the gate or execute the Lead's work. Push, PR mutation, merge, and deploy remain Human-owned, with execution delegable only under an in-force `words=human` standing-delegation row.
+
 The Supervisor may:
 
 - ask the Lead why it chose a strategy, partition, lane, or ruling, by prompt (`herdr agent prompt lead-<project-slug> "<question>"`, no `--wait`);

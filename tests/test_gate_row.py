@@ -451,6 +451,12 @@ class GateRowTest(unittest.TestCase):
         ]), 1)
         self.assertIn("requires expiry= field", self.err.getvalue())
 
+    def test_standing_delegation_rejects_non_human_words(self):
+        before = self.ledger.read_bytes()
+        self.assertEqual(self.append_standing_delegation("--words", "selected"), 1)
+        self.assertIn("requires words=human", self.err.getvalue())
+        self.assertEqual(self.ledger.read_bytes(), before)
+
     def test_handoff_append_readback_rederive_and_check(self):
         self.assertEqual(self.append_handoff(), 0)
         row = self.last_row()
