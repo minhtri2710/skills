@@ -6,4 +6,4 @@
 - Cause evidence: <what showed the mechanism, not what was assumed>
 - Anti-pattern: <the named anti-pattern, or none>
 - Recovery: <what the Lead or Human did, and whether it worked>
-- Protocol candidate: <the policy or charter change this suggests, or none>
+- Protocol candidate: <the change this suggests in its narrowest owning file, the existing rule checked first, and what it replaces, or none>
