@@ -1,13 +1,15 @@
-# beads runtime (auto-created by br daemon)
-
 # tool caches
-skills-lock.json
 .cass/
 .bv/
 .gitnexus
-.env
 __pycache__/
 *.pyc
+
+# local secrets
+.env
+
+# installed-skill lockfile
+skills-lock.json
 
 # br doctor per-run artifacts
 .doctor/
