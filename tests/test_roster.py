@@ -102,6 +102,69 @@ class RosterTest(unittest.TestCase):
             self.assertEqual(rc, 0)
             self.assertEqual(output.getvalue(), "w1:p1 peer-1 claude STALLED\n")
 
+    def test_never_started_requires_explicit_evidence_and_missing_progress(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            report = root / "report.md"
+            progress = root / "progress.md"
+            payload = {"result": {"agents": [{
+                "pane_id": "w1:p1", "name": "peer-1", "agent": "claude",
+                "agent_status": "idle", "workspace_id": "w1",
+                "tokens": {"sort_key": "000000000001"},
+            }]}}
+            with mock.patch.object(roster.sys, "stdin", io.StringIO(json.dumps(payload))):
+                output = io.StringIO()
+                with mock.patch("sys.stdout", output):
+                    rc = roster.main([
+                        "--stdin", "--never-started", "peer-1", "--workspace", "w1",
+                        "--peer", f"peer-1:{report}:{progress}",
+                    ])
+            self.assertEqual(rc, 0)
+            self.assertEqual(output.getvalue(), "w1:p1 peer-1 claude NEVER-STARTED\n")
+
+    def test_never_started_is_not_reported_when_progress_or_report_exists(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            report = root / "report.md"
+            progress = root / "progress.md"
+            progress.write_text("progress")
+            payload = {"result": {"agents": [{
+                "pane_id": "w1:p1", "name": "peer-1", "agent": "claude",
+                "agent_status": "done", "workspace_id": "w1",
+            }]}}
+            with mock.patch.object(roster.sys, "stdin", io.StringIO(json.dumps(payload))):
+                output = io.StringIO()
+                with mock.patch("sys.stdout", output):
+                    rc = roster.main([
+                        "--stdin", "--never-started", "peer-1",
+                        "--peer", f"peer-1:{report}:{progress}",
+                    ])
+            self.assertEqual(rc, 0)
+            self.assertEqual(output.getvalue(), "")
+
+    def test_stalled_missing_progress_remains_fail_closed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            report = root / "report.md"
+            progress = root / "progress.md"
+            previous = root / "previous.json"
+            previous.write_text(json.dumps({"peers": {
+                "peer-1": {"state": "working", "progress_mtime": 0},
+            }}))
+            payload = {"result": {"agents": [{
+                "pane_id": "w1:p1", "name": "peer-1", "agent": "claude",
+                "agent_status": "idle", "workspace_id": "w1",
+            }]}}
+            with mock.patch.object(roster.sys, "stdin", io.StringIO(json.dumps(payload))):
+                output = io.StringIO()
+                with mock.patch("sys.stdout", output):
+                    rc = roster.main([
+                        "--stdin", "--stalled", "--peer", f"peer-1:{report}:{progress}",
+                        "--previous-sample", str(previous), "--stale-after", "60",
+                    ])
+            self.assertEqual(rc, 0)
+            self.assertEqual(output.getvalue(), "")
+
     def test_stalled_single_idle_sample_with_report_is_not_stalled(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

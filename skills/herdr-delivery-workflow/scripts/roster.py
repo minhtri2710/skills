@@ -14,14 +14,19 @@ from typing import Any
 _SETTLED_STATES = frozenset({"idle", "done"})
 
 
-def format_roster(payload: dict[str, Any], workspace: str | None = None) -> list[str]:
-    """Return one compact roster line for each matching agent."""
+def _agents(payload: dict[str, Any]) -> list[Any]:
     try:
         agents = payload["result"]["agents"]
     except (KeyError, TypeError) as exc:
         raise ValueError("agent-list JSON lacks result.agents") from exc
     if not isinstance(agents, list):
         raise ValueError("agent-list JSON result.agents is not a list")
+    return agents
+
+
+def format_roster(payload: dict[str, Any], workspace: str | None = None) -> list[str]:
+    """Return one compact roster line for each matching agent."""
+    agents = _agents(payload)
 
     lines = []
     for agent in agents:
@@ -84,6 +89,60 @@ def _peer_specs(raw_peers: list[str] | None) -> dict[str, tuple[Path, Path]]:
     return specs
 
 
+def format_never_started_roster(
+    payload: dict[str, Any],
+    peer_specs: dict[str, tuple[Path, Path]],
+    never_started: set[str],
+    workspace: str | None = None,
+) -> list[str]:
+    """Return explicitly identified never-prompted peers.
+
+    The caller supplies the no-prompt evidence for each named peer. The
+    roster still requires a settled current seat, an absent report, and an
+    absent progress file. Pane text and token counters are deliberately not
+    parsed here: a token counter may corroborate the explicit evidence, but
+    cannot be the verdict.
+    """
+    lines = []
+    for agent in _agents(payload):
+        if not isinstance(agent, dict):
+            raise ValueError("agent-list JSON contains a non-object agent")
+        if workspace is not None and agent.get("workspace_id") != workspace:
+            continue
+        name = agent.get("name")
+        if not isinstance(name, str) or name not in never_started:
+            continue
+        if name not in peer_specs:
+            raise ValueError(f"never-started peer {name!r} lacks a peer specification")
+        try:
+            pane_id = agent["pane_id"]
+            kind = agent["agent"]
+            state = agent["agent_status"]
+        except KeyError as exc:
+            raise ValueError(f"agent record lacks {exc.args[0]}") from exc
+        if state not in _SETTLED_STATES:
+            continue
+        report_path, progress_path = peer_specs[name]
+        try:
+            report_path.stat()
+        except FileNotFoundError:
+            pass
+        except OSError:
+            continue
+        else:
+            continue
+        try:
+            progress_path.stat()
+        except FileNotFoundError:
+            pass
+        except OSError:
+            continue
+        else:
+            continue
+        lines.append(f"{pane_id} {name} {kind} NEVER-STARTED")
+    return lines
+
+
 def format_stalled_roster(
     payload: dict[str, Any],
     peer_specs: dict[str, tuple[Path, Path]],
@@ -103,12 +162,7 @@ def format_stalled_roster(
     if now is None:
         now = time.time()
 
-    try:
-        agents = payload["result"]["agents"]
-    except (KeyError, TypeError) as exc:
-        raise ValueError("agent-list JSON lacks result.agents") from exc
-    if not isinstance(agents, list):
-        raise ValueError("agent-list JSON result.agents is not a list")
+    agents = _agents(payload)
 
     lines = []
     for agent in agents:
@@ -184,6 +238,12 @@ def main(argv: list[str] | None = None) -> int:
         help="report peers stalled across the supplied sample interval",
     )
     parser.add_argument(
+        "--never-started",
+        action="append",
+        metavar="NAME",
+        help="report an explicitly identified never-prompted peer",
+    )
+    parser.add_argument(
         "--peer",
         action="append",
         metavar="NAME:REPORT_PATH:PROGRESS_PATH",
@@ -205,7 +265,18 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         payload = json.loads(_agent_list_json(args.stdin))
-        if args.stalled:
+        if args.stalled and args.never_started:
+            raise ValueError("--stalled and --never-started are mutually exclusive")
+        if args.never_started:
+            if not args.peer:
+                raise ValueError("--never-started requires at least one --peer")
+            lines = format_never_started_roster(
+                payload,
+                _peer_specs(args.peer),
+                set(args.never_started),
+                args.workspace,
+            )
+        elif args.stalled:
             if not args.peer:
                 raise ValueError("--stalled requires at least one --peer")
             if args.previous_sample is None:
