@@ -1,39 +1,84 @@
 #!/usr/bin/env python3
+"""Upgrade a raw prompt into a framework-backed execution prompt.
 
+The task type and effort level are judged by a TypeSafe System One model
+(a Choice and a Score asked in one request) instead of keyword matching.
+Requires ``TYPESAFE_API_KEY`` in the environment.
+"""
 from __future__ import annotations
 
 import argparse
+import json
+import os
 import re
+import sys
+import urllib.error
+import urllib.request
 from textwrap import dedent
 
+API_URL = "https://api.typesafe.ai/v1/systemone"
+MODEL = "jev-latest"
 
-TASK_KEYWORDS = {
-    "coding": ["code", "bug", "repo", "refactor", "test", "implement", "fix", "function", "api"],
-    "research": ["research", "compare", "find", "latest", "sources", "analyze market", "look up"],
-    "writing": ["write", "rewrite", "draft", "email", "memo", "blog", "copy", "tone"],
-    "review": ["review", "audit", "critique", "inspect", "evaluate", "assess"],
-    "planning": ["plan", "roadmap", "strategy", "framework", "outline"],
-    "analysis": ["analyze", "explain", "break down", "diagnose", "root cause"],
+# Option name -> rubric the model uses to separate it from the others. The keys
+# double as the task labels the template blocks below switch on, so keep them
+# in sync with build_tool_rules / build_output_contract.
+TASK_CRITERIA = {
+    "coding": "Write, change, debug, refactor, or test software; work with a repo, API, or function.",
+    "research": "Gather and compare external information or sources to answer a question.",
+    "writing": "Produce or revise prose such as an email, memo, doc, or copy, with attention to tone.",
+    "review": "Critique or audit existing work or code to find problems and judge quality.",
+    "planning": "Produce a plan, roadmap, strategy, or structured outline for future work.",
+    "analysis": "Explain, break down, or diagnose something to reach understanding or a conclusion.",
 }
 
+# Ordered low -> high; the Score answer is a float index into this list.
+INTENSITY_LEVELS = ["Light", "Standard", "Deep"]
+INTENSITY_CRITERIA = [
+    "A simple, low-stakes task where a direct answer suffices and little verification is needed.",
+    "A normal task needing some care, structure, and a basic correctness check.",
+    "A high-stakes, complex, or production-critical task demanding thorough work and careful verification.",
+]
 
-def detect_task(prompt: str) -> str:
-    lowered = prompt.lower()
-    scores = {
-        task: sum(1 for keyword in keywords if keyword in lowered)
-        for task, keywords in TASK_KEYWORDS.items()
+
+def _system_one(state: str, questions: dict) -> dict:
+    key = os.environ.get("TYPESAFE_API_KEY")
+    if not key:
+        raise SystemExit("augment_prompt: set TYPESAFE_API_KEY to classify the prompt")
+    body = json.dumps({"state": state, "model": MODEL, "questions": questions}).encode()
+    request = urllib.request.Request(
+        API_URL,
+        data=body,
+        headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+    )
+    try:
+        with urllib.request.urlopen(request) as response:
+            return json.load(response)["answers"]
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode(errors="replace")[:200]
+        raise SystemExit(f"augment_prompt: TypeSafe API error {exc.code}: {detail}")
+    except urllib.error.URLError as exc:
+        raise SystemExit(f"augment_prompt: cannot reach TypeSafe API: {exc.reason}")
+
+
+def classify(prompt: str, task: str | None) -> tuple[str, str]:
+    """Return (task type, effort level) judged by the model over the prompt."""
+    questions: dict = {
+        "intensity": {
+            "type": "score",
+            "instructions": "How much rigor and verification does completing this task actually require?",
+            "criteria": INTENSITY_CRITERIA,
+        }
     }
-    best_task, best_score = max(scores.items(), key=lambda item: item[1])
-    return best_task if best_score > 0 else "analysis"
-
-
-def infer_intensity(prompt: str, task: str) -> str:
-    lowered = prompt.lower()
-    if any(token in lowered for token in ["careful", "deep", "thorough", "high stakes", "production", "critical"]):
-        return "Deep"
-    if task in {"coding", "research", "review"}:
-        return "Standard"
-    return "Light"
+    if task is None:
+        questions["task"] = {
+            "type": "choice",
+            "instructions": "What kind of task is this prompt asking for?",
+            "criteria": TASK_CRITERIA,
+        }
+    answers = _system_one(prompt, questions)
+    detected_task = task or answers["task"]["choice"]
+    level = max(0, min(round(answers["intensity"]["score"]), len(INTENSITY_LEVELS) - 1))
+    return detected_task, INTENSITY_LEVELS[level]
 
 
 def build_tool_rules(task: str) -> str:
@@ -60,8 +105,7 @@ def build_output_contract(task: str) -> str:
 
 def upgrade_prompt(raw_prompt: str, task: str | None) -> str:
     normalized = re.sub(r"\s+", " ", raw_prompt).strip()
-    detected_task = task or detect_task(normalized)
-    intensity = infer_intensity(normalized, detected_task)
+    detected_task, intensity = classify(normalized, task)
     tool_rules = build_tool_rules(detected_task)
     output_contract = build_output_contract(detected_task)
 
@@ -97,7 +141,7 @@ def upgrade_prompt(raw_prompt: str, task: str | None) -> str:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Upgrade a raw prompt into a framework-backed execution prompt.")
     parser.add_argument("prompt", help="Raw prompt text to upgrade.")
-    parser.add_argument("--task", choices=sorted(TASK_KEYWORDS.keys()), help="Optional explicit task type.")
+    parser.add_argument("--task", choices=sorted(TASK_CRITERIA), help="Optional explicit task type.")
     return parser.parse_args()
 
 

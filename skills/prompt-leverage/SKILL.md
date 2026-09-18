@@ -43,7 +43,7 @@ When the user asks for a hook, model it as a pre-processing layer:
 4. Return the upgraded prompt for execution.
 5. Optionally keep a diff or summary of injected structure.
 
-Use `scripts/augment_prompt.py` when a deterministic first-pass rewrite is helpful.
+Use `scripts/augment_prompt.py` for a first-pass rewrite; it judges the task type and effort level with a TypeSafe System One call (needs `TYPESAFE_API_KEY`).
 
 ## Quality Bar
 
