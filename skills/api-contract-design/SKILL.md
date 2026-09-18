@@ -1,6 +1,6 @@
 ---
 name: api-contract-design
-description: Design the contract of an HTTP or RPC API before implementing it: resource shape, one error format, boundary validation, pagination, naming, and correct idempotency for state-changing calls. Use when creating or reshaping endpoints, defining the request and response types between a frontend and a backend or between services, or when retries, duplicates, or timeouts on a write need a deliberate answer. Do not use for an in-process module interface; that is a seam question.
+description: "Design the contract of an HTTP or RPC API before implementing it: resource shape, one error format, boundary validation, pagination, naming, and correct idempotency for state-changing calls. Use when creating or reshaping endpoints, defining the request and response types between a frontend and a backend or between services, or when retries, duplicates, or timeouts on a write need a deliberate answer. Do not use for an in-process module interface; that is a seam question."
 ---
 
 # API Contract Design

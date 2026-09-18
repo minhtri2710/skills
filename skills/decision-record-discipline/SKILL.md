@@ -1,6 +1,6 @@
 ---
 name: decision-record-discipline
-description: Keep a project's glossary current and record only the decisions and rejections worth remembering: terms in CONTEXT.md, decisions that pass a three-part gate as one-paragraph records, and rejected concepts as one file each so they are not re-litigated. Use when a term is resolved or contested, a decision with real alternatives is made, or a request is ruled out of scope. Do not use for implementation notes, specs, or task tracking.
+description: "Keep a project's glossary current and record only the decisions and rejections worth remembering: terms in CONTEXT.md, decisions that pass a three-part gate as one-paragraph records, and rejected concepts as one file each so they are not re-litigated. Use when a term is resolved or contested, a decision with real alternatives is made, or a request is ruled out of scope. Do not use for implementation notes, specs, or task tracking."
 ---
 
 # Decision Record Discipline
