@@ -122,12 +122,32 @@ class RosterTest(unittest.TestCase):
             self.assertEqual(rc, 0)
             self.assertEqual(output.getvalue(), "w1:p1 peer-1 claude NEVER-STARTED\n")
 
-    def test_never_started_is_not_reported_when_progress_or_report_exists(self):
+    def test_never_started_is_not_reported_when_progress_exists(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             report = root / "report.md"
             progress = root / "progress.md"
             progress.write_text("progress")
+            payload = {"result": {"agents": [{
+                "pane_id": "w1:p1", "name": "peer-1", "agent": "claude",
+                "agent_status": "done", "workspace_id": "w1",
+            }]}}
+            with mock.patch.object(roster.sys, "stdin", io.StringIO(json.dumps(payload))):
+                output = io.StringIO()
+                with mock.patch("sys.stdout", output):
+                    rc = roster.main([
+                        "--stdin", "--never-started", "peer-1",
+                        "--peer", f"peer-1:{report}:{progress}",
+                    ])
+            self.assertEqual(rc, 0)
+            self.assertEqual(output.getvalue(), "")
+
+    def test_never_started_is_not_reported_when_report_exists(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            report = root / "report.md"
+            progress = root / "progress.md"
+            report.write_text("done")
             payload = {"result": {"agents": [{
                 "pane_id": "w1:p1", "name": "peer-1", "agent": "claude",
                 "agent_status": "done", "workspace_id": "w1",
