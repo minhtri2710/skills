@@ -23,7 +23,8 @@ class DeployPruneTest(unittest.TestCase):
         self.git("init", "-q", "-b", "main")
         self.git("config", "user.email", "t@example.invalid")
         self.git("config", "user.name", "t")
-        self.source = self.repo / "skills" / "herdr-delivery-workflow"
+        self.skills = self.repo / "skills"
+        self.source = self.skills / "herdr-delivery-workflow"
         self.source.mkdir(parents=True)
         (self.source / "SKILL.md").write_text("tracked skill\n")
         (self.source / "policy.md").write_text("tracked policy\n")
@@ -46,22 +47,25 @@ class DeployPruneTest(unittest.TestCase):
             text=True,
         )
 
-    def deploy(self) -> None:
+    def deploy_to(self, install: Path) -> None:
         deploy_skill.install_files(
             self.repo,
             self.head,
-            self.source,
-            self.install,
+            self.skills,
+            install,
             self.paths,
             "skills/herdr-delivery-workflow",
         )
         deploy_skill.verify_install(
             self.repo,
             self.head,
-            self.install,
+            install,
             self.paths,
             "skills/herdr-delivery-workflow",
         )
+
+    def deploy(self) -> None:
+        self.deploy_to(self.install)
 
     def test_stale_file_is_pruned(self):
         self.install.mkdir()
@@ -78,6 +82,20 @@ class DeployPruneTest(unittest.TestCase):
             self.tracked_relative,
         )
 
+    def test_symlinked_install_root_is_supported(self):
+        real_root = self.tmp / "real-root"
+        real_root.mkdir()
+        linked_root = self.tmp / "linked-root"
+        linked_root.symlink_to(real_root, target_is_directory=True)
+        install = linked_root / "herdr-delivery-workflow"
+
+        self.deploy_to(install)
+
+        self.assertEqual(
+            {path.relative_to(install) for path in install.rglob("*") if path.is_file()},
+            self.tracked_relative,
+        )
+
     def test_symlinked_parent_is_supported(self):
         real_parent = self.tmp / "real"
         real_parent.mkdir()
@@ -88,7 +106,7 @@ class DeployPruneTest(unittest.TestCase):
         deploy_skill.install_files(
             self.repo,
             self.head,
-            self.source,
+            self.skills,
             install,
             self.paths,
             "skills/herdr-delivery-workflow",
@@ -158,7 +176,7 @@ class DeployPruneTest(unittest.TestCase):
         deploy_skill.install_files(
             self.repo,
             self.head,
-            self.source,
+            self.skills,
             self.install,
             self.paths,
             "skills/herdr-delivery-workflow",

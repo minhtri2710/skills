@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 
 SCRIPTS = Path(__file__).resolve().parents[1] / "skills" / "herdr-delivery-workflow" / "scripts"
-import sys
 sys.path.insert(0, str(SCRIPTS))
 
 import deploy_skill  # noqa: E402
@@ -24,7 +24,8 @@ class DeploySkillTest(unittest.TestCase):
         self.git("init", "-q", "-b", "main")
         self.git("config", "user.email", "t@example.invalid")
         self.git("config", "user.name", "t")
-        self.source = self.repo / "skills" / "herdr-delivery-workflow"
+        self.skills = self.repo / "skills"
+        self.source = self.skills / "herdr-delivery-workflow"
         self.source.mkdir(parents=True)
         (self.source / "SKILL.md").write_text("tracked skill\n")
         self.git("add", "skills")
@@ -35,6 +36,15 @@ class DeploySkillTest(unittest.TestCase):
     def git(self, *args: str) -> None:
         subprocess.run(["git", "-C", str(self.repo), *args], check=True,
                        capture_output=True, text=True)
+
+    def deploy_args(self, ledger: Path) -> list[str]:
+        return [
+            "--repo", str(self.repo),
+            "--install-dir", str(self.install),
+            "--ledger", str(ledger),
+            "--status", "resolved:deploy",
+            "--words", "seat", "--note", "installed the skill", "--quote", "done",
+        ]
 
     def test_tampered_installed_file_fails_hash_comparison(self):
         self.install.mkdir()
@@ -47,6 +57,56 @@ class DeploySkillTest(unittest.TestCase):
                 self.repo, head, self.install, paths, "skills/herdr-delivery-workflow"
             )
 
+    def test_symlinked_install_root_is_supported_by_cli(self):
+        real_root = self.tmp / ".agents" / "skills"
+        real_root.mkdir(parents=True)
+        linked_root = self.tmp / ".claude" / "skills"
+        linked_root.parent.mkdir()
+        linked_root.symlink_to(real_root, target_is_directory=True)
+
+        args = self.deploy_args(self.tmp / "gates.md")
+        args[args.index("--install-dir") + 1] = str(linked_root)
+        result = deploy_skill.main(args)
+
+        self.assertEqual(result, 0)
+        self.assertTrue((real_root / "herdr-delivery-workflow" / "SKILL.md").is_file())
+
+    def test_default_deploy_selects_all_tracked_skills(self):
+        second = self.skills / "second-skill"
+        second.mkdir()
+        (second / "SKILL.md").write_text("second skill\n")
+        self.git("add", "skills")
+        self.git("commit", "-qm", "add second skill")
+
+        ledger = self.tmp / "gates.md"
+        result = deploy_skill.main(self.deploy_args(ledger))
+
+        self.assertEqual(result, 0)
+        self.assertEqual(
+            deploy_skill.tracked_skills(self.repo, deploy_skill.git(self.repo, "rev-parse", "HEAD")),
+            ["herdr-delivery-workflow", "second-skill"],
+        )
+        self.assertEqual(
+            {path.name for path in self.install.iterdir()},
+            {"herdr-delivery-workflow", "second-skill"},
+        )
+        self.assertEqual(len(gate_row.ledger_rows(ledger.read_text())), 1)
+
+    def test_explicit_selection_is_validated_and_limited(self):
+        second = self.skills / "second-skill"
+        second.mkdir()
+        (second / "SKILL.md").write_text("second skill\n")
+        self.git("add", "skills")
+        self.git("commit", "-qm", "add second skill")
+
+        result = deploy_skill.main(self.deploy_args(self.tmp / "gates.md") + ["--skill", "second-skill"])
+
+        self.assertEqual(result, 0)
+        self.assertTrue((self.install / "second-skill" / "SKILL.md").is_file())
+        self.assertFalse((self.install / "herdr-delivery-workflow").exists())
+        with self.assertRaises(deploy_skill.DeployError):
+            deploy_skill.selected_skills(self.repo, deploy_skill.git(self.repo, "rev-parse", "HEAD"), ["../outside"])
+
     def test_repo_only_dirs_excluded_and_pruned(self):
         # Track the plugin manifest and eval suite under the skill prefix.
         (self.source / ".claude-plugin").mkdir()
@@ -57,23 +117,42 @@ class DeploySkillTest(unittest.TestCase):
         self.git("commit", "-qm", "add repo-only dirs")
 
         # Pre-existing stale install of an excluded file must be pruned.
-        self.install.mkdir()
-        (self.install / ".claude-plugin").mkdir()
-        (self.install / ".claude-plugin" / "plugin.json").write_text('{"name": "stale"}\n')
+        installed = self.install / "herdr-delivery-workflow"
+        installed.mkdir(parents=True)
+        (installed / ".claude-plugin").mkdir()
+        (installed / ".claude-plugin" / "plugin.json").write_text('{"name": "stale"}\n')
 
-        result = deploy_skill.main([
-            "--repo", str(self.repo),
-            "--source-dir", str(self.source),
-            "--install-dir", str(self.install),
-            "--ledger", str(self.tmp / "gates.md"),
-            "--status", "resolved:deploy",
-            "--words", "seat", "--note", "installed the skill", "--quote", "done",
-        ])
+        result = deploy_skill.main(self.deploy_args(self.tmp / "gates.md"))
 
         self.assertEqual(result, 0)
-        self.assertTrue((self.install / "SKILL.md").is_file())
-        self.assertFalse((self.install / ".claude-plugin" / "plugin.json").exists())
-        self.assertFalse((self.install / "plugin-eval").exists())
+        self.assertTrue((installed / "SKILL.md").is_file())
+        self.assertFalse((installed / ".claude-plugin" / "plugin.json").exists())
+        self.assertFalse((installed / "plugin-eval").exists())
+
+    def test_tampered_selected_tree_appends_no_deploy_row(self):
+        ledger = self.tmp / "gates.md"
+        original_install = deploy_skill.install_files
+
+        def tamper_second(repo, head, source_root, install_dir, paths, skill_prefix):
+            original_install(repo, head, source_root, install_dir, paths, skill_prefix)
+            if skill_prefix == "skills/second-skill":
+                (install_dir / "SKILL.md").write_text("tampered\n")
+
+        second = self.skills / "second-skill"
+        second.mkdir()
+        (second / "SKILL.md").write_text("second skill\n")
+        self.git("add", "skills")
+        self.git("commit", "-qm", "add second skill")
+
+        old = deploy_skill.install_files
+        deploy_skill.install_files = tamper_second
+        try:
+            result = deploy_skill.main(self.deploy_args(ledger))
+        finally:
+            deploy_skill.install_files = old
+
+        self.assertEqual(result, 1)
+        self.assertFalse(ledger.exists())
 
     def test_deploy_resolves_open_gate_in_same_invocation(self):
         gate_row_script = SCRIPTS / "gate_row.py"
@@ -95,17 +174,7 @@ class DeploySkillTest(unittest.TestCase):
         self.assertEqual(open_gate.returncode, 0, open_gate.stderr)
         self.assertIn("G1", open_gate.stdout)
 
-        result = deploy_skill.main([
-            "--repo", str(self.repo),
-            "--source-dir", str(self.source),
-            "--install-dir", str(self.install),
-            "--ledger", str(self.tmp / "gates.md"),
-            "--status", "resolved:deploy",
-            "--words", "seat",
-            "--note", "installed the skill",
-            "--quote", "deploy completed",
-            "--resolves", "G1",
-        ])
+        result = deploy_skill.main(self.deploy_args(self.tmp / "gates.md") + ["--resolves", "G1"])
 
         self.assertEqual(result, 0)
         rows = gate_row.ledger_rows((self.tmp / "gates.md").read_text(encoding="utf-8"))

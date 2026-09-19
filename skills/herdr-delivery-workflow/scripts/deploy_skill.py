@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Install the tracked workflow skill, verify it, and record its deploy row."""
+"""Install selected tracked skills, verify them, and record one deploy row."""
 from __future__ import annotations
 
 import argparse
@@ -41,6 +41,32 @@ def git(repo: Path, *args: str) -> str:
     return proc.stdout.strip()
 
 
+def tracked_skills(repo: Path, head: str) -> list[str]:
+    skills = git(repo, "ls-tree", "-d", "--name-only", f"{head}:skills").splitlines()
+    if not skills:
+        raise DeployError(f"head {head} has no tracked top-level skills")
+    if any(not skill or Path(skill).parts != (skill,) for skill in skills):
+        raise DeployError("git ls-tree returned a non-top-level skill")
+    return skills
+
+
+def selected_skills(repo: Path, head: str, requested: list[str]) -> list[str]:
+    available = tracked_skills(repo, head)
+    if not requested:
+        return available
+    if len(requested) != len(set(requested)):
+        raise DeployError("--skill names a skill more than once")
+    invalid = [
+        skill for skill in requested
+        if Path(skill).parts != (skill,) or skill not in available
+    ]
+    if invalid:
+        raise DeployError(
+            f"unknown or unsafe skill selection: {', '.join(invalid)}"
+        )
+    return [skill for skill in available if skill in requested]
+
+
 def tracked_files(repo: Path, head: str, skill_prefix: str) -> list[str]:
     prefix = skill_prefix.rstrip("/") + "/"
     paths = git(repo, "ls-tree", "-r", "--name-only", head, prefix).splitlines()
@@ -51,8 +77,19 @@ def tracked_files(repo: Path, head: str, skill_prefix: str) -> list[str]:
     return paths
 
 
-def _safe_install_dir(path: Path) -> Path:
-    return Path(os.path.abspath(os.path.expanduser(path)))
+def _safe_install_dir(path: Path, *, allow_self_symlink: bool = False) -> Path:
+    path = Path(os.path.abspath(os.path.expanduser(path)))
+    if path.is_symlink() and (not allow_self_symlink or not path.is_dir()):
+        raise DeployError(f"install tree is a symlink: {path}")
+    return path
+
+
+def _source_root(repo: Path, path: Path) -> Path:
+    expected = (repo / "skills").resolve()
+    candidate = (path if path.is_absolute() else repo / path).resolve()
+    if candidate != expected or not candidate.is_dir():
+        raise DeployError(f"source directory must be the repository skills root: {path}")
+    return candidate
 
 
 def _relative_paths(paths: list[str], prefix: str) -> set[Path]:
@@ -87,18 +124,24 @@ def _prune_install(install_dir: Path, tracked: set[Path]) -> None:
                 pass
 
 
-def install_files(repo: Path, head: str, source_dir: Path, install_dir: Path,
+def install_files(repo: Path, head: str, source_root: Path, install_dir: Path,
                   paths: list[str], skill_prefix: str) -> None:
     prefix = skill_prefix.rstrip("/") + "/"
-    source_dir = source_dir.resolve()
+    source_root = _source_root(repo, source_root)
     install_dir = _safe_install_dir(install_dir)
+    skill = Path(skill_prefix).relative_to("skills")
     sources: list[tuple[Path, Path]] = []
     for tracked in paths:
         relative = Path(tracked[len(prefix):])
-        source = source_dir / relative
-        if not source.is_file():
+        source = source_root / skill / relative
+        try:
+            resolved_source = source.resolve(strict=True)
+            resolved_source.relative_to(source_root)
+        except (FileNotFoundError, OSError, ValueError):
+            raise DeployError(f"tracked source file is missing or escapes skills root: {source}")
+        if not resolved_source.is_file():
             raise DeployError(f"tracked source file is missing: {source}")
-        sources.append((source, relative))
+        sources.append((resolved_source, relative))
 
     install_dir.mkdir(parents=True, exist_ok=True)
     _prune_install(install_dir, {relative for _, relative in sources})
@@ -173,10 +216,10 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--head", default="HEAD")
     parser.add_argument("--repo", type=Path, default=Path.cwd())
-    parser.add_argument("--source-dir", type=Path,
-                        default=Path("skills/herdr-delivery-workflow"))
     parser.add_argument("--install-dir", type=Path,
-                        default=Path.home() / ".claude/skills/herdr-delivery-workflow")
+                        default=Path.home() / ".claude/skills")
+    parser.add_argument("--skill", action="append", default=[],
+                        help="top-level skill to deploy; repeat to select multiple (default: all)")
     parser.add_argument("--ledger", required=True, type=Path)
     parser.add_argument("--status", required=True)
     parser.add_argument("--channel")
@@ -195,14 +238,18 @@ def main(argv: list[str] | None = None) -> int:
                 f"--head {head} is not the current repository HEAD {current_head}; "
                 "gate_row.py records the current HEAD"
             )
-        source_dir = args.source_dir if args.source_dir.is_absolute() else repo / args.source_dir
-        install_dir = args.install_dir.expanduser()
-        paths = runtime_paths(
-            tracked_files(repo, head, "skills/herdr-delivery-workflow"),
-            "skills/herdr-delivery-workflow",
-        )
-        install_files(repo, head, source_dir, install_dir, paths, "skills/herdr-delivery-workflow")
-        verify_install(repo, head, install_dir, paths, "skills/herdr-delivery-workflow")
+        source_root = _source_root(repo, repo / "skills")
+        install_root = _safe_install_dir(args.install_dir, allow_self_symlink=True)
+        selected = selected_skills(repo, head, args.skill)
+        deployments = []
+        for skill in selected:
+            skill_prefix = f"skills/{skill}"
+            paths = runtime_paths(tracked_files(repo, head, skill_prefix), skill_prefix)
+            install_dir = install_root / skill
+            deployments.append((install_dir, paths, skill_prefix))
+            install_files(repo, head, source_root, install_dir, paths, skill_prefix)
+        for install_dir, paths, skill_prefix in deployments:
+            verify_install(repo, head, install_dir, paths, skill_prefix)
         append_deploy_row(args, repo, Path(__file__).resolve().with_name("gate_row.py"))
     except (DeployError, OSError) as exc:
         print(f"deploy_skill: {exc}", file=sys.stderr)
