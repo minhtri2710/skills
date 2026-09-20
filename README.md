@@ -51,6 +51,7 @@ skills/<name>/
 | `prompt-leverage` | Strengthen a raw prompt into an execution-ready instruction set. |
 | `quality-floor` | Write a project's quality bar as CONSTRAINTS.md and guard diffs against moves that lower it. |
 | `repo-refresh` | Remove stale docs, plans, tests, proof machinery, and debris from an explicitly named repository. |
+| `security-setup` | Design a local-first security baseline with offline checks, machine-readable reports, explicit bypasses, and separately gated optional CI. |
 | `source-grounded-implementation` | Ground framework- or library-specific code in the docs for the installed version, with citations. |
 | `spec-conformance-review` | Review a diff against the spec it claims to implement, quoting the spec line per finding. |
 | `telemetry-questions-first` | Instrument a path from the on-call questions and prove the telemetry by diagnosing an induced failure. |
