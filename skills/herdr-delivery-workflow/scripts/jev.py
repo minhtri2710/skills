@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Optional TypeSafe/Jev advisory triage for one external finding.
+"""Optional TypeSafe/Jev advisory triage for findings and mailbox headers.
 
 The helper is advisory only. An unavailable Jev result remains fail-open so a
-caller can retain and act on the original finding without waiting on Jev.
+caller can retain the original source data without waiting on Jev.
 """
 from __future__ import annotations
 
@@ -10,6 +10,7 @@ import copy
 import json
 import math
 import os
+import re
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
@@ -31,7 +32,7 @@ REQUIRED_FINDING_FIELDS = (
     "escalation",
 )
 
-# The API receives one Noul and one Score. The criteria keep the model
+# The finding API receives one Noul and one Score. The criteria keep the model
 # advisory: expected status, in-flight work, and benign Human-gate information
 # are noise; a genuine workflow or structural misfit is actionable.
 QUESTIONS = {
@@ -69,10 +70,40 @@ QUESTIONS = {
 }
 SCORE_MAX = len(QUESTIONS["score"]["criteria"]) - 1
 NOUL_ACTIONABLE_THRESHOLD = 0.5
+URGENCY_SCORE_MAX = 2
+URGENCY_LEVELS = ("FYI", "supervisor-action", "human-gate")
+HEADER_RE = re.compile(
+    r"^## (?P<sender>[^|\r\n]+?) -> (?P<recipient>[^|\r\n]+?) \| "
+    r"(?P<timestamp>[^|\r\n]+?) \| (?P<event>.*?)(?: \| HEAD (?P<head>[0-9a-f]{7,40}))?$"
+)
+TIMESTAMP_RE = re.compile(
+    r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}"
+    r"(?::[0-9]{2}(?:\.[0-9]+)?)Z"
+)
+
+HEADER_QUESTIONS = {
+    "score": {
+        "type": "score",
+        "instructions": (
+            "Using only the objective mailbox header facts, rate how urgently "
+            "the entry should be read. Do not infer or reproduce an existing "
+            "urgency, anti-pattern, impact, or verdict label."
+        ),
+        "criteria": [
+            "Routine status or informational entry that needs no action.",
+            "Requires the Supervisor's operational attention but not a Human gate.",
+            "Concerns a Human-owned approval, external write, security or "
+            "credential matter, destructive or irreversible action, or material "
+            "scope or architecture decision.",
+        ],
+    }
+}
 
 Finding: TypeAlias = Mapping[str, object]
+HeaderState: TypeAlias = Mapping[str, object]
 NoulValue = Literal["actionable", "noise"]
 Severity = Literal["low", "medium", "high"]
+Urgency = Literal["FYI", "supervisor-action", "human-gate"]
 
 
 @dataclass(frozen=True)
@@ -94,6 +125,32 @@ class ScoreJudgment:
     value: float
     severity: Severity
     noise: bool
+
+
+@dataclass(frozen=True)
+class UrgencyScore:
+    """Typed normalized urgency score returned for one mailbox header."""
+
+    value: float
+    raw_value: float
+    urgency: Urgency
+
+
+@dataclass(frozen=True)
+class HeaderAdvisoryResult:
+    """A valid Jev urgency advisory, retaining header state and raw answers."""
+
+    status: Literal["available"]
+    header: str
+    source_state: HeaderState
+    score: UrgencyScore
+    rationale: tuple[str, ...]
+    evidence: tuple[str, ...]
+    raw_answers: Mapping[str, object]
+
+    @property
+    def available(self) -> bool:
+        return True
 
 
 @dataclass(frozen=True)
@@ -130,6 +187,7 @@ class UnavailableResult:
 
 
 JevResult: TypeAlias = AdvisoryResult | UnavailableResult
+HeaderJevResult: TypeAlias = HeaderAdvisoryResult | UnavailableResult
 
 
 def _retained_finding(finding: object) -> Finding:
@@ -141,9 +199,19 @@ def _retained_finding(finding: object) -> Finding:
         return dict(finding)
 
 
-def _unavailable(finding: object, reason: str) -> UnavailableResult:
+def _unavailable(
+    finding: object,
+    reason: str,
+    *,
+    fallback_actionable: bool = True,
+) -> UnavailableResult:
     retained = _retained_finding(finding)
-    return UnavailableResult(status="unavailable", finding=retained, reason=reason)
+    return UnavailableResult(
+        status="unavailable",
+        finding=retained,
+        reason=reason,
+        fallback_actionable=fallback_actionable,
+    )
 
 
 def _bounded_texts(value: object) -> tuple[str, ...] | None:
@@ -175,6 +243,102 @@ def _score_severity(value: float) -> Severity:
     if value < 2 / 3:
         return "medium"
     return "high"
+
+
+def _header_state(header: object) -> HeaderState:
+    state: dict[str, object] = {"header": header if isinstance(header, str) else ""}
+    if not isinstance(header, str):
+        return state
+    match = HEADER_RE.fullmatch(header)
+    if match is None:
+        return state
+    sender = match.group("sender").strip()
+    recipient = match.group("recipient").strip()
+    timestamp = match.group("timestamp").strip()
+    event = match.group("event").strip()
+    if sender:
+        state["sender"] = sender
+    if recipient:
+        state["recipient"] = recipient
+    if TIMESTAMP_RE.fullmatch(timestamp):
+        state["timestamp"] = timestamp
+    if event:
+        state["event"] = event
+    if match.group("head"):
+        state["head"] = match.group("head")
+    return state
+
+
+def _urgency(value: float) -> Urgency:
+    if value < 1 / 3:
+        return "FYI"
+    if value < 2 / 3:
+        return "supervisor-action"
+    return "human-gate"
+
+
+def _bounded_answer_copy(answers: Mapping[str, object]) -> Mapping[str, object] | None:
+    try:
+        retained = copy.deepcopy(dict(answers))
+    except Exception:
+        return None
+    score = retained.get("score")
+    if not isinstance(score, dict):
+        return retained
+    for name in ("rationale", "evidence"):
+        if name not in score:
+            continue
+        original = score[name]
+        bounded = _bounded_texts(original)
+        if bounded is None:
+            return None
+        if isinstance(original, str):
+            score[name] = bounded[0] if bounded else ""
+        elif isinstance(original, list):
+            score[name] = list(bounded)
+    return retained
+
+
+def _parse_header_answers(answers: object) -> tuple[
+    UrgencyScore,
+    tuple[str, ...],
+    tuple[str, ...],
+    Mapping[str, object],
+] | None:
+    if not isinstance(answers, Mapping):
+        return None
+    score = answers.get("score")
+    if not isinstance(score, Mapping) or score.get("type") != "score":
+        return None
+    score_value = score.get("score")
+    if isinstance(score_value, bool) or not isinstance(score_value, (int, float)):
+        return None
+    try:
+        numeric_score = float(score_value)
+    except (OverflowError, TypeError, ValueError):
+        return None
+    if not math.isfinite(numeric_score) or not 0.0 <= numeric_score <= URGENCY_SCORE_MAX:
+        return None
+    rationale = _bounded_texts(score.get("rationale"))
+    if rationale is None:
+        return None
+    evidence = _bounded_texts(score.get("evidence"))
+    if evidence is None:
+        return None
+    raw_answers = _bounded_answer_copy(answers)
+    if raw_answers is None:
+        return None
+    normalized_score = numeric_score / URGENCY_SCORE_MAX
+    return (
+        UrgencyScore(
+            value=normalized_score,
+            raw_value=numeric_score,
+            urgency=_urgency(normalized_score),
+        ),
+        rationale,
+        evidence,
+        raw_answers,
+    )
 
 
 def _parse_answers(answers: object) -> tuple[
@@ -247,28 +411,17 @@ def _parse_answers(answers: object) -> tuple[
     )
 
 
-def triage_finding(finding: Finding) -> JevResult:
-    """Ask Jev to triage one finding, returning an advisory or sentinel.
-
-    No exception from credential lookup, request construction, transport, HTTP,
-    decoding, or answer validation reaches the caller. The only external
-    boundary is the TypeSafe HTTP request; model output is never executed or
-    used to authorize, move, or resolve a gate.
-    """
-    retained = _retained_finding(finding)
-    if not isinstance(finding, Mapping) or any(
-        field not in finding for field in REQUIRED_FINDING_FIELDS
-    ):
-        return _unavailable(retained, "invalid_finding")
-
+def _request_answers(
+    state: Mapping[str, object], questions: Mapping[str, object]
+) -> tuple[object | None, str | None]:
     key = os.environ.get("TYPESAFE_API_KEY", "")
     if not key.strip():
-        return _unavailable(retained, "missing_api_key")
+        return None, "missing_api_key"
 
     try:
-        state = json.dumps(retained, sort_keys=True, ensure_ascii=False)
+        state_text = json.dumps(dict(state), sort_keys=True, ensure_ascii=False)
         body = json.dumps(
-            {"state": state, "model": MODEL, "questions": copy.deepcopy(QUESTIONS)},
+            {"state": state_text, "model": MODEL, "questions": copy.deepcopy(questions)},
             ensure_ascii=False,
         ).encode("utf-8")
         request = urllib.request.Request(
@@ -283,19 +436,37 @@ def triage_finding(finding: Finding) -> JevResult:
         with urllib.request.urlopen(request, timeout=API_TIMEOUT_SECONDS) as response:
             status = getattr(response, "status", None)
             if status is not None and not 200 <= status < 300:
-                return _unavailable(retained, "http_error")
-            payload = json.load(response)
+                return None, "http_error"
+            return json.load(response), None
     except urllib.error.HTTPError:
-        return _unavailable(retained, "http_error")
+        return None, "http_error"
     except (urllib.error.URLError, TimeoutError, OSError):
-        return _unavailable(retained, "network_error")
+        return None, "network_error"
     except (ValueError, TypeError, UnicodeError):
-        return _unavailable(retained, "malformed_json")
+        return None, "malformed_json"
     except Exception:
         # The HTTP boundary is untrusted and must never make advisory triage a
         # caller failure. Keep this reason generic and free of exception data.
-        return _unavailable(retained, "api_error")
+        return None, "api_error"
 
+
+def triage_finding(finding: Finding) -> JevResult:
+    """Ask Jev to triage one finding, returning an advisory or sentinel.
+
+    No exception from credential lookup, request construction, transport, HTTP,
+    decoding, or answer validation reaches the caller. The only external
+    boundary is the TypeSafe HTTP request; model output is never executed or
+    used to authorize, move, or resolve a gate.
+    """
+    retained = _retained_finding(finding)
+    if not isinstance(finding, Mapping) or any(
+        field not in finding for field in REQUIRED_FINDING_FIELDS
+    ):
+        return _unavailable(retained, "invalid_finding")
+
+    payload, error = _request_answers(retained, QUESTIONS)
+    if error is not None:
+        return _unavailable(retained, error)
     if not isinstance(payload, Mapping) or "answers" not in payload:
         return _unavailable(retained, "invalid_answers")
     parsed = _parse_answers(payload["answers"])
@@ -306,6 +477,29 @@ def triage_finding(finding: Finding) -> JevResult:
         status="available",
         finding=retained,
         noul=noul,
+        score=score,
+        rationale=rationale,
+        evidence=evidence,
+        raw_answers=raw_answers,
+    )
+
+
+def triage_header(header: str) -> HeaderJevResult:
+    """Ask Jev for advisory urgency using only objective header facts."""
+    state = _header_state(header)
+    payload, error = _request_answers(state, HEADER_QUESTIONS)
+    if error is not None:
+        return _unavailable(state, error)
+    if not isinstance(payload, Mapping) or "answers" not in payload:
+        return _unavailable(state, "invalid_answers")
+    parsed = _parse_header_answers(payload["answers"])
+    if parsed is None:
+        return _unavailable(state, "invalid_answers")
+    score, rationale, evidence, raw_answers = parsed
+    return HeaderAdvisoryResult(
+        status="available",
+        header=header,
+        source_state=dict(state),
         score=score,
         rationale=rationale,
         evidence=evidence,

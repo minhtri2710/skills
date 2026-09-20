@@ -15,6 +15,7 @@ sys.path.insert(0, str(SCRIPTS))
 
 import mailbox  # noqa: E402
 import gate_row  # noqa: E402
+import jev  # noqa: E402
 
 
 SAMPLE = """---
@@ -81,6 +82,51 @@ class MailboxTest(unittest.TestCase):
                 "## lead-beo-skills -> supervisor | 2026-09-10T00:15:03Z | third\nthree",
             ],
         )
+
+    def test_triage_entries_preserves_every_entry_and_order(self):
+        entries = mailbox._entries(self.path.read_text(encoding="utf-8"))
+        calls = []
+
+        def fake_triage(header):
+            calls.append(header)
+            return jev.UnavailableResult(
+                status="unavailable",
+                finding={"header": header},
+                reason="missing_api_key",
+                fallback_actionable=False,
+            )
+
+        triaged = mailbox.triage_entries(entries, triage=fake_triage)
+        self.assertEqual(len(triaged), len(entries))
+        self.assertEqual([item.entry for item in triaged], entries)
+        self.assertEqual(calls, [entry.header for entry in entries])
+        self.assertEqual(
+            [item.advisory.reason for item in triaged],
+            ["missing_api_key"] * len(entries),
+        )
+        self.assertEqual([item.body for item in triaged], [entry.body for entry in entries])
+
+    def test_triage_entries_keeps_malformed_entry_data_once(self):
+        entries = [
+            mailbox.Entry("not a recognized header", "", "unrecognized body"),
+            mailbox.Entry(
+                "## malformed -> supervisor | not-a-timestamp | second",
+                "",
+                "malformed body",
+            ),
+        ]
+        triaged = mailbox.triage_entries(
+            entries,
+            triage=lambda header: jev.UnavailableResult(
+                status="unavailable",
+                finding={"header": header},
+                reason="invalid_answers",
+                fallback_actionable=False,
+            ),
+        )
+        self.assertEqual(len(triaged), 2)
+        self.assertEqual([item.header for item in triaged], [entry.header for entry in entries])
+        self.assertEqual([item.body for item in triaged], [entry.body for entry in entries])
 
     def test_since_and_last_are_mutually_exclusive(self):
         with self.assertRaisesRegex(ValueError, "since and last are mutually exclusive"):

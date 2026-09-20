@@ -8,6 +8,9 @@ import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Callable, Iterable
+
+import jev
 
 HEADER_RE = re.compile(
     r"^## [^|\r\n]+ -> [^|\r\n]+ \| "
@@ -30,6 +33,35 @@ class Entry:
     header: str
     timestamp: str
     body: str
+
+
+@dataclass(frozen=True)
+class TriagedEntry:
+    """One unchanged mailbox entry plus an optional Jev read-priority advisory."""
+
+    entry: Entry
+    advisory: jev.HeaderJevResult
+
+    @property
+    def header(self) -> str:
+        return self.entry.header
+
+    @property
+    def timestamp(self) -> str:
+        return self.entry.timestamp
+
+    @property
+    def body(self) -> str:
+        return self.entry.body
+
+
+def triage_entries(
+    entries: Iterable[Entry],
+    *,
+    triage: Callable[[str], jev.HeaderJevResult] = jev.triage_header,
+) -> list[TriagedEntry]:
+    """Annotate entries in input order without selecting, sorting, or dropping."""
+    return [TriagedEntry(entry=entry, advisory=triage(entry.header)) for entry in entries]
 
 
 def _entries(text: str) -> list[Entry]:
