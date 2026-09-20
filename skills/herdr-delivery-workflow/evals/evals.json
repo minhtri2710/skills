@@ -53,6 +53,24 @@
       ]
     },
     {
+      "id": 5,
+      "prompt": "A closeout checker reads a run staffing record for recorded peer panes. What evidence makes teardown pass or fail, and which persistent seats are protected?",
+      "expected_output": "Uses only the run-recorded Engineer/Reviewer panes through a fakeable Herdr read boundary: every recorded peer pane must be absent; an open pane fails even when agent lookup returns agent_not_found, while the same record passes after pane close removes it. Missing or malformed pane/process evidence fails closed, record-provided handles are opaque argv values rather than shell text, and no record-provided command executes. A live server/dev/preview process in a recorded peer pane whose cwd is the canonical checkout fails as the squatting-server anti-pattern. The persistent project Lead and Human Supervisor are protected, are not teardown targets, and do not make a clean run fail merely because they remain open.",
+      "files": [
+        "skills/herdr-delivery-workflow/scripts/closeout_check.py",
+        "tests/test_closeout_check.py",
+        "skills/herdr-delivery-workflow/references/closeout.md",
+        "skills/herdr-delivery-workflow/references/herdr-cli.md"
+      ],
+      "assertions": [
+        "Checks every recorded Engineer/Reviewer pane from the staffing record rather than inferring ownership from pane order or agent state",
+        "Fails on an open recorded peer pane even when agent lookup returns agent_not_found, and passes after that pane is absent",
+        "Fails closed on malformed or missing pane/process evidence and does not execute record-provided commands",
+        "Names a live canonical-checkout server/dev/preview process in a peer pane as the squatting-server anti-pattern",
+        "Protects persistent Lead and Human Supervisor panes from teardown and from clean-run failure merely because they remain open"
+      ]
+    },
+    {
       "id": 6,
       "prompt": "I'm implementing a normal Herdr task on the delivery branch. The change unexpectedly touches authorization and could delete user data, even though the original request looked local and reversible. Continue only if the workflow remains safe.",
       "expected_output": "Stops before crossing the original boundary; recognizes that the new authorization/data-loss risk changes the lane from normal to high-risk; emits REOPEN_REQUEST in the template shape with the assert question, a blast-radius cap, sources, recommended re-scope, old and proposed lanes, boundary, and decision needed; the relay carries an assertion and cap rather than a guessed path list, the Lead derives the affected paths, updates the plan/validation requirements and waits for the required Lead or Human decision instead of continuing under the old intake.",
@@ -195,13 +213,13 @@
     {
       "id": 17,
       "prompt": "In Herdr, the Reviewer just returned PASS on this issue and I've accepted it. Clean up the agents you spun up for it before moving on to the next issue.",
-      "expected_output": "Treats teardown as part of the same closeout that accepts the issue: preserves each agent's final evidence report first and, for the Reviewer, its transcript too (herdr agent read <name> into the run's workspace record), because the verdict names what was found and only the transcript shows what was tried, so a verdict without its attempts is a claim; then, when the project is idle and the safe-cleanup preconditions hold, tears down every Engineer in the partition and the Reviewer this run created for the issue by closing the panes it created to host them, since there is no agent stop command and the agent clears when its pane closes. Applies cleanup now when idle rather than deferring it to save effort or time; leaves the caller's own pane and the shared checkout untouched; verifies no process is running, no unexplained tracked change remains, reports are preserved, and no pending Human gate or dependent work remains, leaving any agent still working, blocked on a gate, or holding dependent work open with a stated reason; does not use pane release-agent as a shutdown; only then frees the flight slot for the next issue.",
+      "expected_output": "Treats teardown as part of the same closeout that accepts the issue: preserves each Engineer's final evidence report first and, for the Reviewer, its transcript too (herdr agent read <name> into the run's workspace record), because the verdict names what was found and only the transcript shows what was tried, so a verdict without its attempts is a claim; then, when the project is idle and the safe-cleanup preconditions hold, tears down every recorded Engineer and Reviewer this run created by attempting the optional native `herdr agent send-keys <seat> C-c C-c` sequence when appropriate, followed by the actual teardown action `herdr pane close <pane>` for each run-created peer pane. It does not use agent lookup or `agent_not_found` as proof while a recorded pane remains open. Before the flight slot moves, runs `scripts/closeout_check.py --staffing <run-staffing-record>` through its fakeable Herdr read boundary: any open or unknown recorded peer pane fails closed, and a live server/dev/preview process in a recorded peer pane in the canonical checkout names the `squatting-server anti-pattern`. Persistent Lead and Human Supervisor panes are protected and do not fail merely because they remain open. Applies cleanup now when idle rather than deferring it to save effort or time; leaves the caller's own pane and the shared checkout untouched; verifies no process is running, no unexplained tracked change remains, reports are preserved, and no pending Human gate or dependent work remains, leaving any agent still working, blocked on a gate, or holding dependent work open with a stated reason; does not use pane release-agent as a shutdown; only then frees the flight slot for the next issue.",
       "files": [],
       "assertions": [
-        "Tears down every Engineer in the partition and the Reviewer by closing the panes this run created, not with a nonexistent agent stop command",
+        "Tears down every recorded Engineer and Reviewer by preserving evidence, optionally attempting exactly herdr agent send-keys <seat> C-c C-c, then using herdr pane close <pane> as the teardown action",
         "Preserves each agent's evidence report before closing its pane, and additionally preserves the Reviewer's transcript, treating a verdict without the attempts behind it as a claim",
-        "Leaves the caller's own pane and the shared checkout untouched, and does not use pane release-agent as a teardown",
-        "Checks the safe-cleanup preconditions, applies cleanup now when the project is idle, and leaves any agent still working, blocked, or holding dependent work open with a stated reason",
+        "Leaves the caller's own pane, persistent Lead, and Human Supervisor panes untouched, and does not use pane release-agent as a teardown",
+        "Runs closeout_check.py against the recorded staffing record, fails on an open pane even with agent_not_found, flags a canonical-checkout live server as the squatting-server anti-pattern, and leaves any agent still working, blocked, or holding dependent work open with a stated reason",
         "Ties teardown to closeout before the flight slot moves to the next issue",
         "Treats a pane the Supervisor opened as the Human's hands to host a seat this run staffed as created by this run and tears it down with the seat, while leaving the Supervisor's own pane alone"
       ]
