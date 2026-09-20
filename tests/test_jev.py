@@ -376,6 +376,129 @@ class JevTest(unittest.TestCase):
         self.assertEqual(result.source_state, {"header": malformed})
         self.assertNotIn("body", json.loads(json.loads(urlopen.call_args.args[0].data)["state"]))
 
+    def test_charter_coherence_thresholds_and_request_contract(self) -> None:
+        body = "Disposition body with bounded responsibilities and authority."
+        for score, expected in ((0.0, "incoherent"), (0.5, "coherent"), (1.0, "coherent")):
+            payload = {
+                "answers": {
+                    "noul": {
+                        "type": "noul",
+                        "noul": score,
+                        "rationale": "bounded rationale",
+                        "evidence": ["bounded evidence"],
+                    }
+                }
+            }
+            with self.subTest(score=score), mock.patch.object(
+                jev.urllib.request, "urlopen", return_value=Response(payload)
+            ) as urlopen:
+                result = jev.triage_charter("Engineer", body)
+
+            self.assertIsInstance(result, jev.CharterAdvisoryResult)
+            self.assertEqual(result.coherence.value, expected)
+            self.assertEqual(result.coherence.probability, score)
+            self.assertEqual(result.source_state, {"disposition": "Engineer", "body": body})
+            request_body = json.loads(urlopen.call_args.args[0].data)
+            self.assertEqual(json.loads(request_body["state"]), result.source_state)
+            self.assertEqual(request_body["questions"], jev.CHARTER_QUESTIONS)
+            self.assertEqual(set(request_body["questions"]), {"noul"})
+            self.assertEqual(request_body["questions"]["noul"]["type"], "noul")
+            self.assertIn("responsibilities", request_body["questions"]["noul"]["instructions"])
+            self.assertIn("authority", request_body["questions"]["noul"]["instructions"])
+            self.assertIn("prohibitions", request_body["questions"]["noul"]["instructions"])
+            self.assertNotIn("test-key", urlopen.call_args.args[0].data.decode("utf-8"))
+
+    def test_charter_body_is_bounded_and_secret_safe(self) -> None:
+        secret = "test-key"
+        body = "prefix " + secret + " " + ("x" * jev.MAX_CHARTER_BODY_CHARS) + " suffix"
+        payload = {
+            "answers": {
+                "noul": {
+                    "type": "noul",
+                    "noul": 0.8,
+                    "rationale": f"answer mentions {secret}",
+                    "evidence": [f"evidence mentions {secret}"],
+                },
+                "ignored": f"ignored {secret}",
+            }
+        }
+        with mock.patch.object(
+            jev.urllib.request, "urlopen", return_value=Response(payload)
+        ) as urlopen:
+            result = jev.triage_charter("Reviewer", body)
+
+        self.assertIsInstance(result, jev.CharterAdvisoryResult)
+        self.assertNotIn(secret, repr(result))
+        self.assertEqual(len(result.source_state["body"]), jev.MAX_CHARTER_BODY_CHARS)
+        self.assertNotIn(secret, urlopen.call_args.args[0].data.decode("utf-8"))
+        self.assertNotIn(secret, json.dumps(result.raw_answers))
+        self.assertNotIn(secret, " ".join(result.rationale + result.evidence))
+
+    def test_charter_missing_key_invalid_input_and_invalid_answers_fail_open(self) -> None:
+        with mock.patch.dict(jev.os.environ, {}, clear=True), mock.patch.object(
+            jev.urllib.request, "urlopen"
+        ) as urlopen:
+            result = jev.triage_charter("Engineer", "body")
+            invalid_disposition = jev.triage_charter("Builder", "body")
+            invalid_body = jev.triage_charter("Engineer", None)
+
+        self.assertIsInstance(result, jev.UnavailableResult)
+        self.assertEqual(result.reason, "missing_api_key")
+        self.assertIsInstance(invalid_disposition, jev.UnavailableResult)
+        self.assertEqual(invalid_disposition.reason, "invalid_charter")
+        self.assertIsInstance(invalid_body, jev.UnavailableResult)
+        self.assertEqual(invalid_body.reason, "invalid_charter")
+        urlopen.assert_not_called()
+
+        invalid_answers = (
+            {"answers": {}},
+            {"answers": {"noul": {"type": "choice", "noul": 0.5}}},
+            {"answers": {"noul": {"type": "noul", "noul": "0.5"}}},
+            {"answers": {"noul": {"type": "noul", "noul": True}}},
+            {"answers": {"noul": {"type": "noul", "noul": -0.1}}},
+            {"answers": {"noul": {"type": "noul", "noul": 1.1}}},
+            {"answers": {"noul": {"type": "noul", "noul": float("nan")}}},
+            {"answers": {"noul": {"type": "noul", "noul": 0.5, "rationale": {}}}},
+        )
+        for payload in invalid_answers:
+            with self.subTest(payload=payload), mock.patch.object(
+                jev.urllib.request, "urlopen", return_value=Response(payload)
+            ):
+                result = jev.triage_charter("Architect", "body")
+            self.assertIsInstance(result, jev.UnavailableResult)
+            self.assertEqual(result.reason, "invalid_answers")
+            self.assertNotIn("test-key", repr(result))
+
+    def test_charter_transport_and_malformed_json_fail_open(self) -> None:
+        failures = (
+            (urllib.error.URLError("charter-secret"), "network_error"),
+            (TimeoutError("charter-secret"), "network_error"),
+            (
+                urllib.error.HTTPError(
+                    jev.API_URL, 503, "unavailable", {}, io.BytesIO(b"charter-secret")
+                ),
+                "http_error",
+            ),
+        )
+        for failure, reason in failures:
+            with self.subTest(reason=reason), mock.patch.object(
+                jev.urllib.request, "urlopen", side_effect=failure
+            ):
+                result = jev.triage_charter("Engineer", "body")
+            self.assertIsInstance(result, jev.UnavailableResult)
+            self.assertEqual(result.reason, reason)
+            self.assertNotIn("charter-secret", repr(result))
+
+        response = mock.Mock()
+        response.status = 200
+        response.__enter__ = mock.Mock(return_value=response)
+        response.__exit__ = mock.Mock(return_value=None)
+        response.read.return_value = b"{not-json"
+        with mock.patch.object(jev.urllib.request, "urlopen", return_value=response):
+            result = jev.triage_charter("Engineer", "body")
+        self.assertIsInstance(result, jev.UnavailableResult)
+        self.assertEqual(result.reason, "malformed_json")
+
     def test_fork_hard_gate_and_missing_delegation_are_deterministic_human_gate(self):
         for fork, delegation in (
             ({**FORK, "hard_gate": True}, DELEGATION),

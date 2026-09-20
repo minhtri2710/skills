@@ -7,6 +7,8 @@ import re
 import sys
 from pathlib import Path
 
+import jev
+
 DISPOSITION_RE = re.compile(
     r"^\s*[*#`_-]*\s*Disposition:\s*[*_`]*\s*(Engineer|Reviewer|Architect)\b",
     re.IGNORECASE | re.MULTILINE,
@@ -71,6 +73,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--charter", required=True, type=Path, help="path to the charter")
     parser.add_argument("--lead", required=True, help="Lead agent name used by the report block")
     parser.add_argument("--staffing", type=Path, help="optional staffing record")
+    parser.add_argument(
+        "--jev",
+        action="store_true",
+        help="print an optional Jev charter-coherence advisory",
+    )
     args = parser.parse_args(argv)
 
     try:
@@ -89,6 +96,16 @@ def main(argv: list[str] | None = None) -> int:
     except ValueError as exc:
         print(f"charter_lint: {exc}", file=sys.stderr)
         return 1
+
+    if args.jev:
+        if disposition_match is None:
+            advisory = jev.triage_charter(None, charter)
+        else:
+            advisory = jev.triage_charter(disposition_match.group(1).capitalize(), charter)
+        if advisory.available:
+            print(f"Jev advisory: {advisory.coherence.value}")
+        else:
+            print(f"Jev advisory: unavailable ({advisory.reason})")
 
     if problems:
         for problem in problems:

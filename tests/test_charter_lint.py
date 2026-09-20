@@ -20,10 +20,17 @@ class CharterLintTest(unittest.TestCase):
         self.tmp = Path(self._tmp.name)
         self.addCleanup(self._tmp.cleanup)
 
-    def run_lint(self, charter: str, staffing: str | None = None) -> tuple[int, str, str]:
+    def run_lint(
+        self,
+        charter: str,
+        staffing: str | None = None,
+        jev_enabled: bool = False,
+    ) -> tuple[int, str, str]:
         charter_path = self.tmp / "charter.md"
         charter_path.write_text(charter, encoding="utf-8")
         argv = ["--charter", str(charter_path), "--lead", "lead-beo-skills"]
+        if jev_enabled:
+            argv.append("--jev")
         if staffing is not None:
             staffing_path = self.tmp / "staffing.txt"
             staffing_path.write_text(staffing, encoding="utf-8")
@@ -137,6 +144,59 @@ class CharterLintTest(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertIn("OK:", output)
         self.assertEqual(error, "")
+
+    def test_default_lint_does_not_call_jev(self):
+        with unittest.mock.patch.object(charter_lint.jev, "triage_charter") as triage:
+            code, output, error = self.run_lint(self.engineer_charter(), self.staffing_record())
+        self.assertEqual(code, 0)
+        self.assertIn("OK:", output)
+        self.assertNotIn("Jev advisory", output)
+        self.assertEqual(error, "")
+        triage.assert_not_called()
+
+    def test_jev_is_opt_in_advisory_and_cannot_change_lint_result(self):
+        with unittest.mock.patch.object(
+            charter_lint.jev,
+            "triage_charter",
+            return_value=charter_lint.jev.UnavailableResult(
+                status="unavailable", finding={}, reason="missing_api_key"
+            ),
+        ) as triage:
+            clean = self.run_lint(self.engineer_charter(), self.staffing_record(), jev_enabled=True)
+            broken = self.run_lint(
+                self.engineer_charter().replace("Disposition: Engineer\n", ""),
+                jev_enabled=True,
+            )
+        self.assertEqual(clean[0], 0)
+        self.assertEqual(broken[0], 1)
+        self.assertIn("Jev advisory: unavailable (missing_api_key)", clean[1])
+        self.assertIn("Jev advisory: unavailable (missing_api_key)", broken[1])
+        self.assertIn("Disposition", broken[2])
+        self.assertEqual(triage.call_count, 2)
+
+    def test_available_jev_advisory_is_bounded_and_does_not_authorize(self):
+        judgment = charter_lint.jev.CharterAdvisoryResult(
+            status="available",
+            source_state={"disposition": "Engineer", "body": "body"},
+            coherence=charter_lint.jev.CharterCoherenceJudgment(
+                value="incoherent", probability=0.25
+            ),
+            rationale=("untrusted rationale",),
+            evidence=("untrusted evidence",),
+            raw_answers={"noul": {"type": "noul", "noul": 0.25}},
+        )
+        with unittest.mock.patch.object(
+            charter_lint.jev, "triage_charter", return_value=judgment
+        ) as triage:
+            code, output, error = self.run_lint(
+                self.engineer_charter(), self.staffing_record(), jev_enabled=True
+            )
+        self.assertEqual(code, 0)
+        self.assertEqual(error, "")
+        self.assertEqual(output.count("Jev advisory:"), 1)
+        self.assertIn("Jev advisory: incoherent", output)
+        self.assertIn("OK:", output)
+        triage.assert_called_once()
 
     def test_staffing_missing_each_required_key_is_named(self):
         complete = self.staffing_record()
