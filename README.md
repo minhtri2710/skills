@@ -40,6 +40,7 @@ skills/<name>/
 | `deep-module-design` | Design or deepen a module interface and seam placement with the deep-module vocabulary. |
 | `dependency-intake-audit` | Decide whether a package may enter, install it without unreviewed scripts, and triage the audit. |
 | `design-grilling` | Interview the user until a plan or underspecified ask reaches confirmed shared understanding. |
+| `doc-manager` | Reconcile Markdown documentation with code, cite non-obvious claims to `path:line`, and validate runbook sections through a safe check-only path. |
 | `destructive-path-guard` | Prove a delete, move, or overwrite target is contained before the operation runs. |
 | `effort-charting` | Chart a foggy effort as decision tickets, then split the approved spec into tracer slices with blocking edges. |
 | `frontend-design` | Implement a UI change whose rendered hierarchy, flow, or responsive behavior is part of acceptance. |

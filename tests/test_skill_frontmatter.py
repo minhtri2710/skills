@@ -24,8 +24,8 @@ class SkillFrontmatterTest(unittest.TestCase):
         )
         self.assertEqual(
             len(skill_paths),
-            26,
-            f"expected 26 skill files, found {len(skill_paths)}",
+            27,
+            f"expected 27 skill files, found {len(skill_paths)}",
         )
 
         for path in skill_paths:
