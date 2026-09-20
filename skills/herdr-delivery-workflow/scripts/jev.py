@@ -99,11 +99,35 @@ HEADER_QUESTIONS = {
     }
 }
 
+FORK_QUESTIONS = {
+    "route": {
+        "type": "choice",
+        "instructions": (
+            "Advise only whether this bounded Lead-facing fork may remain with "
+            "the delegated Supervisor or needs Human routing. This answer is "
+            "advisory; it does not decide the fork, resolve a gate, authorize "
+            "an action, execute a command, or move a seat."
+        ),
+        "criteria": {
+            "supervisor_decide": (
+                "The non-hard-gate fork may remain with the explicitly delegated "
+                "Supervisor for a decision; this is advisory only."
+            ),
+            "human_gate": (
+                "The fork needs Human routing or is not covered by the explicit "
+                "delegation; this is advisory only."
+            ),
+        },
+    }
+}
+
 Finding: TypeAlias = Mapping[str, object]
 HeaderState: TypeAlias = Mapping[str, object]
 NoulValue = Literal["actionable", "noise"]
 Severity = Literal["low", "medium", "high"]
 Urgency = Literal["FYI", "supervisor-action", "human-gate"]
+ForkRoute = Literal["supervisor_decide", "human_gate"]
+FORK_ROUTES = ("supervisor_decide", "human_gate")
 
 
 @dataclass(frozen=True)
@@ -154,6 +178,28 @@ class HeaderAdvisoryResult:
 
 
 @dataclass(frozen=True)
+class ForkAdvisoryResult:
+    """A valid advisory route for a bounded Lead-facing fork."""
+
+    status: Literal["available"]
+    source_state: Mapping[str, object]
+    route: ForkRoute
+    probabilities: Mapping[str, float]
+    confidence: float
+    deterministic: bool
+    raw_answers: Mapping[str, object]
+
+    @property
+    def available(self) -> bool:
+        return True
+
+    @property
+    def choice(self) -> ForkRoute:
+        """Expose the TypeSafe Choice field under its documented name."""
+        return self.route
+
+
+@dataclass(frozen=True)
 class AdvisoryResult:
     """A valid Jev result, retaining source and raw answer data."""
 
@@ -188,6 +234,7 @@ class UnavailableResult:
 
 JevResult: TypeAlias = AdvisoryResult | UnavailableResult
 HeaderJevResult: TypeAlias = HeaderAdvisoryResult | UnavailableResult
+ForkJevResult: TypeAlias = ForkAdvisoryResult | UnavailableResult
 
 
 def _retained_finding(finding: object) -> Finding:
@@ -297,6 +344,96 @@ def _bounded_answer_copy(answers: Mapping[str, object]) -> Mapping[str, object] 
         elif isinstance(original, list):
             score[name] = list(bounded)
     return retained
+
+
+def _bounded_untrusted_copy(value: object) -> object | None:
+    """Retain JSON-shaped answer data without retaining unbounded prose."""
+    try:
+        copied = copy.deepcopy(value)
+    except Exception:
+        return None
+
+    remaining = MAX_EVIDENCE_CHARS
+    max_items = 128
+
+    def bound(item: object) -> object | None:
+        nonlocal remaining
+        if isinstance(item, str):
+            if remaining <= 0:
+                return ""
+            clipped = item[:remaining]
+            remaining -= len(clipped)
+            return clipped
+        if isinstance(item, Mapping):
+            result: dict[str, object] = {}
+            for index, (key, child) in enumerate(item.items()):
+                if index >= max_items or not isinstance(key, str):
+                    break
+                result[key[:256]] = bound(child)
+            return result
+        if isinstance(item, list):
+            return [bound(child) for child in item[:max_items]]
+        if isinstance(item, tuple):
+            return tuple(bound(child) for child in item[:max_items])
+        if item is None or isinstance(item, (bool, int, float)):
+            return item
+        return None
+
+    return bound(copied)
+
+
+def _parse_fork_answers(answers: object) -> tuple[
+    ForkRoute,
+    Mapping[str, float],
+    float,
+    Mapping[str, object],
+] | None:
+    if not isinstance(answers, Mapping):
+        return None
+    route_answer = answers.get("route")
+    if not isinstance(route_answer, Mapping):
+        return None
+    if route_answer.get("type") != "choice":
+        return None
+
+    choice = route_answer.get("choice")
+    if not isinstance(choice, str) or choice not in FORK_ROUTES:
+        return None
+
+    probabilities = route_answer.get("probabilities")
+    if not isinstance(probabilities, Mapping):
+        return None
+    if any(not isinstance(key, str) for key in probabilities):
+        return None
+    if set(probabilities) != set(FORK_ROUTES):
+        return None
+    normalized_probabilities: dict[str, float] = {}
+    for option in FORK_ROUTES:
+        probability = probabilities.get(option)
+        if isinstance(probability, bool) or not isinstance(probability, (int, float)):
+            return None
+        try:
+            numeric_probability = float(probability)
+        except (OverflowError, TypeError, ValueError):
+            return None
+        if not math.isfinite(numeric_probability) or not 0.0 <= numeric_probability <= 1.0:
+            return None
+        normalized_probabilities[option] = numeric_probability
+
+    confidence = route_answer.get("confidence")
+    if isinstance(confidence, bool) or not isinstance(confidence, (int, float)):
+        return None
+    try:
+        numeric_confidence = float(confidence)
+    except (OverflowError, TypeError, ValueError):
+        return None
+    if not math.isfinite(numeric_confidence) or not 0.0 <= numeric_confidence <= 1.0:
+        return None
+
+    raw_answers = _bounded_untrusted_copy(answers)
+    if not isinstance(raw_answers, Mapping):
+        return None
+    return choice, normalized_probabilities, numeric_confidence, raw_answers
 
 
 def _parse_header_answers(answers: object) -> tuple[
@@ -505,3 +642,109 @@ def triage_header(header: str) -> HeaderJevResult:
         evidence=evidence,
         raw_answers=raw_answers,
     )
+
+
+def _retained_mapping(value: object) -> dict[str, object] | None:
+    if not isinstance(value, Mapping):
+        return None
+    try:
+        copied = copy.deepcopy(dict(value))
+    except Exception:
+        try:
+            copied = dict(value)
+        except Exception:
+            return None
+    return copied if isinstance(copied, dict) else None
+
+
+def _json_safe(value: object) -> bool:
+    try:
+        json.dumps(value, sort_keys=True, ensure_ascii=False, allow_nan=False)
+    except (TypeError, ValueError, OverflowError, UnicodeError):
+        return False
+    except Exception:
+        return False
+    return True
+
+
+def _fork_result(
+    source_state: Mapping[str, object],
+    route: ForkRoute,
+    *,
+    deterministic: bool,
+    probabilities: Mapping[str, float] | None = None,
+    confidence: float = 1.0,
+    raw_answers: Mapping[str, object] | None = None,
+) -> ForkAdvisoryResult:
+    if probabilities is None:
+        probabilities = {
+            "supervisor_decide": 0.0,
+            "human_gate": 1.0,
+        }
+    return ForkAdvisoryResult(
+        status="available",
+        source_state=copy.deepcopy(dict(source_state)),
+        route=route,
+        probabilities=dict(probabilities),
+        confidence=confidence,
+        deterministic=deterministic,
+        raw_answers={} if raw_answers is None else raw_answers,
+    )
+
+
+def route_fork(fork: object, delegation: object = None) -> ForkJevResult:
+    """Advise on a bounded fork without changing its authority or custody."""
+    source_state: Mapping[str, object] = {}
+    try:
+        retained_fork = _retained_mapping(fork)
+        retained_delegation = (
+            None if delegation is None else _retained_mapping(delegation)
+        )
+        source_state = {
+            "fork": {} if retained_fork is None else retained_fork,
+            "delegation": retained_delegation,
+        }
+        if retained_fork is None or not isinstance(retained_fork.get("hard_gate"), bool):
+            return _unavailable(source_state, "invalid_fork")
+        if delegation is not None and retained_delegation is None:
+            return _unavailable(source_state, "invalid_delegation")
+        if retained_delegation is not None and "in_force" in retained_delegation:
+            if not isinstance(retained_delegation["in_force"], bool):
+                return _unavailable(source_state, "invalid_delegation")
+
+        if not _json_safe(retained_fork):
+            return _unavailable(source_state, "invalid_fork")
+        if retained_delegation is not None and not _json_safe(retained_delegation):
+            return _unavailable(source_state, "invalid_delegation")
+
+        key = os.environ.get("TYPESAFE_API_KEY", "")
+        if not key.strip():
+            return _unavailable(source_state, "missing_api_key")
+
+        hard_gate = retained_fork["hard_gate"]
+        delegation_in_force = (
+            retained_delegation is not None
+            and retained_delegation.get("in_force") is True
+        )
+        if hard_gate or not delegation_in_force:
+            return _fork_result(source_state, "human_gate", deterministic=True)
+
+        payload, error = _request_answers(source_state, FORK_QUESTIONS)
+        if error is not None:
+            return _unavailable(source_state, error)
+        if not isinstance(payload, Mapping) or "answers" not in payload:
+            return _unavailable(source_state, "invalid_answers")
+        parsed = _parse_fork_answers(payload["answers"])
+        if parsed is None:
+            return _unavailable(source_state, "invalid_answers")
+        route, probabilities, confidence, raw_answers = parsed
+        return _fork_result(
+            source_state,
+            route,
+            deterministic=False,
+            probabilities=probabilities,
+            confidence=confidence,
+            raw_answers=raw_answers,
+        )
+    except Exception:
+        return _unavailable(source_state, "api_error")

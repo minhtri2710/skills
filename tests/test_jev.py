@@ -31,6 +31,16 @@ HEADER = (
     "ATTENTION beo-skills staffing: reviewer needs assignment | HEAD "
     "08642aa02d8ff65f7c84b70ed2e21d480edc1"
 )
+FORK = {
+    "hard_gate": False,
+    "question": "Which reversible implementation should remain in scope?",
+    "options": ["keep-current", "use-alternative"],
+}
+DELEGATION = {
+    "in_force": True,
+    "who": "supervisor",
+    "scope": "bounded reversible fork",
+}
 
 
 class Response:
@@ -365,6 +375,214 @@ class JevTest(unittest.TestCase):
         self.assertIsInstance(result, jev.HeaderAdvisoryResult)
         self.assertEqual(result.source_state, {"header": malformed})
         self.assertNotIn("body", json.loads(json.loads(urlopen.call_args.args[0].data)["state"]))
+
+    def test_fork_hard_gate_and_missing_delegation_are_deterministic_human_gate(self):
+        for fork, delegation in (
+            ({**FORK, "hard_gate": True}, DELEGATION),
+            (FORK, None),
+            (FORK, {}),
+            (FORK, {"in_force": False}),
+        ):
+            with self.subTest(delegation=delegation), mock.patch.object(
+                jev, "_request_answers"
+            ) as request_answers:
+                result = jev.route_fork(fork, delegation)
+
+            self.assertIsInstance(result, jev.ForkAdvisoryResult)
+            self.assertEqual(result.route, "human_gate")
+            self.assertEqual(result.choice, "human_gate")
+            self.assertTrue(result.deterministic)
+            self.assertEqual(result.probabilities, {
+                "supervisor_decide": 0.0,
+                "human_gate": 1.0,
+            })
+            self.assertEqual(result.source_state["fork"], fork)
+            self.assertEqual(result.source_state["delegation"], delegation)
+            request_answers.assert_not_called()
+
+    def test_fork_missing_key_stays_unavailable_even_when_deterministic(self):
+        with mock.patch.dict(jev.os.environ, {}, clear=True), mock.patch.object(
+            jev.urllib.request, "urlopen"
+        ) as urlopen:
+            result = jev.route_fork({**FORK, "hard_gate": True}, DELEGATION)
+
+        self.assertIsInstance(result, jev.UnavailableResult)
+        self.assertEqual(result.reason, "missing_api_key")
+        self.assertEqual(result.finding["fork"], {**FORK, "hard_gate": True})
+        urlopen.assert_not_called()
+
+    def test_fork_choice_request_and_available_result_retain_objective_state(self):
+        payload = {
+            "answers": {
+                "route": {
+                    "type": "choice",
+                    "choice": "supervisor_decide",
+                    "probabilities": {
+                        "supervisor_decide": 0.8,
+                        "human_gate": 0.2,
+                    },
+                    "confidence": 0.75,
+                    "ignored": "untrusted answer text",
+                }
+            }
+        }
+        with mock.patch.object(
+            jev.urllib.request, "urlopen", return_value=Response(payload)
+        ) as urlopen:
+            result = jev.route_fork(FORK, DELEGATION)
+
+        self.assertIsInstance(result, jev.ForkAdvisoryResult)
+        self.assertEqual(result.route, "supervisor_decide")
+        self.assertEqual(result.choice, "supervisor_decide")
+        self.assertFalse(result.deterministic)
+        self.assertEqual(result.probabilities, {
+            "supervisor_decide": 0.8,
+            "human_gate": 0.2,
+        })
+        self.assertEqual(result.confidence, 0.75)
+        self.assertEqual(result.source_state, {"fork": FORK, "delegation": DELEGATION})
+        self.assertEqual(result.raw_answers, payload["answers"])
+        self.assertIsNot(result.raw_answers, payload["answers"])
+
+        request = urlopen.call_args.args[0]
+        body = json.loads(request.data)
+        self.assertEqual(json.loads(body["state"]), result.source_state)
+        self.assertEqual(body["model"], "jev-latest")
+        self.assertEqual(set(body["questions"]), {"route"})
+        question = body["questions"]["route"]
+        self.assertEqual(question["type"], "choice")
+        self.assertEqual(set(question["criteria"]), {
+            "supervisor_decide",
+            "human_gate",
+        })
+        self.assertIn("delegated Supervisor", question["instructions"])
+        self.assertIn("Human routing", question["instructions"])
+        self.assertNotIn("test-key", request.data.decode("utf-8"))
+
+    def test_fork_model_answer_cannot_override_hard_gate(self):
+        payload = {
+            "answers": {
+                "route": {
+                    "type": "choice",
+                    "choice": "supervisor_decide",
+                    "probabilities": {
+                        "supervisor_decide": 1.0,
+                        "human_gate": 0.0,
+                    },
+                    "confidence": 1.0,
+                }
+            }
+        }
+        with mock.patch.object(jev, "_request_answers", return_value=(payload, None)) as request_answers:
+            result = jev.route_fork({**FORK, "hard_gate": True}, DELEGATION)
+
+        self.assertIsInstance(result, jev.ForkAdvisoryResult)
+        self.assertEqual(result.route, "human_gate")
+        self.assertTrue(result.deterministic)
+        request_answers.assert_not_called()
+
+    def test_fork_invalid_input_and_optional_data_fail_open(self):
+        cases = (
+            (None, None, "invalid_fork"),
+            ({}, None, "invalid_fork"),
+            ({"hard_gate": 1}, None, "invalid_fork"),
+            (FORK, [], "invalid_delegation"),
+            (FORK, {"in_force": "yes"}, "invalid_delegation"),
+            (FORK, {"in_force": True, "bad": float("nan")}, "invalid_delegation"),
+        )
+        with mock.patch.object(jev.urllib.request, "urlopen") as urlopen:
+            for fork, delegation, reason in cases:
+                with self.subTest(fork=fork, delegation=delegation):
+                    result = jev.route_fork(fork, delegation)
+                    self.assertIsInstance(result, jev.UnavailableResult)
+                    self.assertEqual(result.reason, reason)
+        urlopen.assert_not_called()
+
+    def test_fork_invalid_choice_answers_fail_open_without_exception_or_secret(self):
+        answers = (
+            {"answers": []},
+            {"answers": {"route": {"type": "score"}}},
+            {"answers": {"route": {
+                "type": "choice",
+                "choice": "unknown",
+                "probabilities": {"supervisor_decide": 0.5, "human_gate": 0.5},
+                "confidence": 0.5,
+            }}},
+            {"answers": {"route": {
+                "type": "choice",
+                "choice": "human_gate",
+                "probabilities": {"supervisor_decide": 0.5},
+                "confidence": 0.5,
+            }}},
+            {"answers": {"route": {
+                "type": "choice",
+                "choice": "human_gate",
+                "probabilities": {
+                    "supervisor_decide": 0.5,
+                    "human_gate": 0.5,
+                    "extra": 0.0,
+                },
+                "confidence": 0.5,
+            }}},
+            {"answers": {"route": {
+                "type": "choice",
+                "choice": "human_gate",
+                "probabilities": {"supervisor_decide": float("inf"), "human_gate": 0.0},
+                "confidence": 0.5,
+            }}},
+            {"answers": {"route": {
+                "type": "choice",
+                "choice": "human_gate",
+                "probabilities": {"supervisor_decide": 0.5, "human_gate": -0.1},
+                "confidence": 0.5,
+            }}},
+            {"answers": {"route": {
+                "type": "choice",
+                "choice": "human_gate",
+                "probabilities": {"supervisor_decide": 0.5, "human_gate": 0.5},
+                "confidence": float("nan"),
+            }}},
+            {"answers": {"route": {
+                "type": "choice",
+                "choice": "human_gate",
+                "probabilities": {"supervisor_decide": 0.5, "human_gate": 0.5},
+            }}},
+        )
+        for payload in answers:
+            with self.subTest(payload=payload), mock.patch.object(
+                jev.urllib.request, "urlopen", return_value=Response(payload)
+            ):
+                result = jev.route_fork(FORK, DELEGATION)
+            self.assertIsInstance(result, jev.UnavailableResult)
+            self.assertEqual(result.reason, "invalid_answers")
+            self.assertNotIn("test-key", repr(result))
+
+    def test_fork_transport_and_malformed_json_fail_open(self):
+        failures = (
+            (urllib.error.URLError("fork-secret"), "network_error"),
+            (TimeoutError("fork-secret"), "network_error"),
+            (urllib.error.HTTPError(
+                jev.API_URL, 503, "unavailable", {}, io.BytesIO(b"fork-secret")
+            ), "http_error"),
+        )
+        for failure, reason in failures:
+            with self.subTest(reason=reason), mock.patch.object(
+                jev.urllib.request, "urlopen", side_effect=failure
+            ):
+                result = jev.route_fork(FORK, DELEGATION)
+            self.assertIsInstance(result, jev.UnavailableResult)
+            self.assertEqual(result.reason, reason)
+            self.assertNotIn("fork-secret", repr(result))
+
+        response = mock.Mock()
+        response.status = 200
+        response.__enter__ = mock.Mock(return_value=response)
+        response.__exit__ = mock.Mock(return_value=None)
+        response.read.return_value = b"{not-json"
+        with mock.patch.object(jev.urllib.request, "urlopen", return_value=response):
+            result = jev.route_fork(FORK, DELEGATION)
+        self.assertIsInstance(result, jev.UnavailableResult)
+        self.assertEqual(result.reason, "malformed_json")
 
 
 if __name__ == "__main__":
