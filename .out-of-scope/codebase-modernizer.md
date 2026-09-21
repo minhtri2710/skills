@@ -1,0 +1,7 @@
+# Codebase modernizer
+
+The Luong `codebase-modernizer` package is not retained in this repository. It is a cross-skill orchestration hub: besides its own dependency/runtime scan and baseline gate, it coordinates ten audit dimensions, emits `MODERNIZATION_REPORT.md` and `MODERNIZATION_PLAN.md`, and validates the plan. Its required delegates (`code-review`, `dont-make-me-think`, `test-coverage`, `/agent-config`, and `tasks-generator`) are not part of the canonical beo inventory, and importing them would add an unsupported dependency/runtime rather than one standalone skill.
+
+The repository therefore keeps the narrower owners: `architecture-premise-audit` for wrong-system-archetype audits, `repo-refresh` for explicitly requested cleanup, `effort-charting` for foggy decisions and tracer slices, `capability-map` for bundled-capability decomposition, `quality-floor` for numerical constraints and diff guards, `dependency-intake-audit` for package intake and advisory triage, `devops-pipeline` for check routing, `security-setup` for local-first security setup, and `doc-manager` for source-grounded documentation reconciliation. Adding a `codebase-modernizer` directory or broadening one of those contracts would duplicate ownership and violate their sharp axes.
+
+Reconsider only after an explicit request for an aggregate modernization orchestrator and a supported delegate/runtime contract. Evidence and source citations are retained in `/Users/beowulf/.herdr/projects/beo-skills/runs/luong-skill-ports-2026-09-20/modernizer-fit-evidence.md`.
