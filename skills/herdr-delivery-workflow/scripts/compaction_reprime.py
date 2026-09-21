@@ -7,10 +7,12 @@ counts only marker records that can be associated with the resolved session.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
 import stat
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping, Sequence
@@ -18,7 +20,13 @@ from typing import Any, Mapping, Sequence
 
 _IDENTIFIER = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
 _PROJECT_KEY = re.compile(r"^-[A-Za-z0-9][A-Za-z0-9._-]*$")
+_PROJECT_SLUG = re.compile(r"^[a-z0-9][a-z0-9._-]{0,127}$")
 _SESSION_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
+
+BASELINE_STATE_VERSION = 1
+COMPACTION_THRESHOLD = 4
+_STATE_STATUS = {"initialized", "idle", "eligible"}
+_MISSING = object()
 
 
 @dataclass(frozen=True)
@@ -313,10 +321,10 @@ def _valid_claude_summary(record: Mapping[str, Any], session: SessionRecord, hea
     )
 
 
-def _observe_claude(records: list[Mapping[str, Any]], session: SessionRecord) -> int:
+def _observe_claude(records: list[Mapping[str, Any]], session: SessionRecord) -> int | None:
     header = _session_header(records, session)
     if header is None:
-        return 0
+        return None
     header_id, header_cwd = header
     pending = False
     count = 0
@@ -326,22 +334,22 @@ def _observe_claude(records: list[Mapping[str, Any]], session: SessionRecord) ->
         is_summary = record.get("isCompactSummary") is True
         if is_boundary:
             if not _valid_claude_boundary(record, session, header_id, header_cwd) or pending:
-                return 0
+                return None
             marker_id = record["uuid"]
             if marker_id in seen_marker_ids:
-                return 0
+                return None
             seen_marker_ids.add(marker_id)
             pending = True
         elif is_summary:
             if not _valid_claude_summary(record, session, header_id, header_cwd):
-                return 0
+                return None
             marker_id = record["uuid"]
             if marker_id in seen_marker_ids or not pending:
-                return 0
+                return None
             seen_marker_ids.add(marker_id)
             count += 1
             pending = False
-    return 0 if pending else count
+    return None if pending else count
 
 
 def _valid_pi_compaction(record: Mapping[str, Any], session: SessionRecord, header_id: str, header_cwd: Path) -> bool:
@@ -362,10 +370,10 @@ def _valid_pi_compaction(record: Mapping[str, Any], session: SessionRecord, head
     )
 
 
-def _observe_pi(records: list[Mapping[str, Any]], session: SessionRecord) -> int:
+def _observe_pi(records: list[Mapping[str, Any]], session: SessionRecord) -> int | None:
     header = _session_header(records, session)
     if header is None:
-        return 0
+        return None
     header_id, header_cwd = header
     seen_ids: set[str] = set()
     count = 0
@@ -373,30 +381,427 @@ def _observe_pi(records: list[Mapping[str, Any]], session: SessionRecord) -> int
         if record.get("type") != "compaction":
             continue
         if not _valid_pi_compaction(record, session, header_id, header_cwd):
-            return 0
+            return None
         record_id = record["id"]
         if record_id in seen_ids:
-            return 0
+            return None
         seen_ids.add(record_id)
         count += 1
     return count
 
 
-def observe_session(session: SessionRecord | None) -> int:
-    """Return the verified compaction count, or zero on any failed proof."""
+def _verified_observation(session: SessionRecord | None) -> int | None:
     if session is None:
-        return 0
+        return None
     path = _canonical_file(session.session_path, session.session_root)
     if path is None or path != session.session_path:
-        return 0
+        return None
     records = _parse_jsonl(path)
     if records is None:
-        return 0
+        return None
     if session.kind == "claude":
         return _observe_claude(records, session)
     if session.kind == "pi":
         return _observe_pi(records, session)
-    return 0
+    return None
+
+
+def observe_session(session: SessionRecord | None) -> int:
+    """Return the verified compaction count, or zero on any failed proof."""
+    observation = _verified_observation(session)
+    return 0 if observation is None else observation
+
+
+@dataclass(frozen=True)
+class BaselineState:
+    """The one validated durable baseline record for a live seat."""
+
+    schema_version: int
+    project_slug: str
+    run_id: str
+    seat: str
+    kind: str
+    session_id: str
+    session_path: str
+    cwd: str
+    baseline_count: int
+    observed_count: int
+    next_threshold: int
+    consumed_threshold: int
+    eligible_threshold: int | None
+    prompt_status: str
+
+
+@dataclass(frozen=True)
+class BaselineResult:
+    """The state after one verified observation and its newly crossed threshold."""
+
+    state: BaselineState
+    state_path: Path
+    newly_observed: int
+    newly_eligible_threshold: int | None
+
+    @property
+    def baseline_count(self) -> int:
+        return self.state.baseline_count
+
+    @property
+    def observed_count(self) -> int:
+        return self.state.observed_count
+
+    @property
+    def next_threshold(self) -> int:
+        return self.state.next_threshold
+
+    @property
+    def consumed_threshold(self) -> int:
+        return self.state.consumed_threshold
+
+    @property
+    def eligible_threshold(self) -> int | None:
+        """Return the durable threshold awaiting the later dispatch slice."""
+        return self.state.eligible_threshold
+
+    @property
+    def pending_threshold(self) -> int | None:
+        return self.state.eligible_threshold
+
+    @property
+    def eligible(self) -> bool:
+        return self.newly_eligible_threshold is not None
+
+
+def _project_slug(project: Path) -> str | None:
+    slug = project.name.lower()
+    return slug if _PROJECT_SLUG.fullmatch(slug) is not None else None
+
+
+def _validated_home(home_dir: str | os.PathLike[str] | None) -> Path | None:
+    raw_home = home_dir if home_dir is not None else os.environ.get("HOME")
+    if not isinstance(raw_home, (str, os.PathLike)) or not str(raw_home):
+        return None
+    return _canonical_directory(Path(raw_home))
+
+
+def _validated_state_root(home: Path, project_slug: str) -> Path | None:
+    """Create and validate the only directory in which baseline state may live."""
+    if _PROJECT_SLUG.fullmatch(project_slug) is None:
+        return None
+    current = home
+    for component in (".herdr", "projects", project_slug, "runs", "coordination"):
+        candidate = current / component
+        try:
+            info = os.lstat(candidate)
+        except FileNotFoundError:
+            try:
+                candidate.mkdir()
+                info = os.lstat(candidate)
+            except OSError:
+                return None
+        except OSError:
+            return None
+        if stat.S_ISLNK(info.st_mode) or not stat.S_ISDIR(info.st_mode):
+            return None
+        current = candidate
+
+    try:
+        resolved = current.resolve(strict=True)
+    except (OSError, RuntimeError):
+        return None
+    if resolved != current or not _contained(home, resolved):
+        return None
+    return resolved
+
+
+def _state_path(root: Path, seat: str) -> Path | None:
+    if not _valid_identifier(seat):
+        return None
+    digest = hashlib.sha256(seat.encode("utf-8")).hexdigest()
+    path = root / f"baseline-{digest}.json"
+    if not _contained(root, path):
+        return None
+    try:
+        info = os.lstat(path)
+    except FileNotFoundError:
+        return path
+    except OSError:
+        return None
+    if stat.S_ISLNK(info.st_mode) or not stat.S_ISREG(info.st_mode):
+        return None
+    return path
+
+
+def _is_nonnegative_int(value: Any) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool) and value >= 0
+
+
+def _state_payload(state: BaselineState) -> dict[str, Any]:
+    return {
+        "schema_version": state.schema_version,
+        "project_slug": state.project_slug,
+        "run_id": state.run_id,
+        "seat": state.seat,
+        "kind": state.kind,
+        "session_id": state.session_id,
+        "session_path": state.session_path,
+        "cwd": state.cwd,
+        "baseline_count": state.baseline_count,
+        "observed_count": state.observed_count,
+        "next_threshold": state.next_threshold,
+        "consumed_threshold": state.consumed_threshold,
+        "eligible_threshold": state.eligible_threshold,
+        "prompt_status": state.prompt_status,
+    }
+
+
+def _decode_state(
+    payload: Any,
+    session: SessionRecord,
+    project_slug: str,
+) -> BaselineState | None:
+    if not isinstance(payload, Mapping):
+        return None
+    expected = {
+        "schema_version", "project_slug", "run_id", "seat", "kind", "session_id",
+        "session_path", "cwd", "baseline_count", "observed_count", "next_threshold",
+        "consumed_threshold", "eligible_threshold", "prompt_status",
+    }
+    if set(payload) != expected:
+        return None
+    if not _is_nonnegative_int(payload.get("schema_version")) or payload["schema_version"] != BASELINE_STATE_VERSION:
+        return None
+    string_fields = ("project_slug", "run_id", "seat", "kind", "session_id", "session_path", "cwd", "prompt_status")
+    if any(not isinstance(payload.get(field), str) for field in string_fields):
+        return None
+    if (
+        payload["project_slug"] != project_slug
+        or not _PROJECT_SLUG.fullmatch(payload["project_slug"])
+        or not _valid_identifier(payload["run_id"], _SESSION_ID)
+        or not _valid_identifier(payload["seat"])
+        or payload["seat"] != session.seat
+        or payload["kind"] != session.kind
+        or payload["session_id"] != session.session_id
+        or payload["session_path"] != str(session.session_path)
+        or payload["cwd"] != str(session.cwd)
+        or payload["prompt_status"] not in _STATE_STATUS
+    ):
+        return None
+    integer_fields = ("baseline_count", "observed_count", "next_threshold", "consumed_threshold")
+    if any(not _is_nonnegative_int(payload.get(field)) for field in integer_fields):
+        return None
+    eligible = payload["eligible_threshold"]
+    if eligible is not None and not _is_nonnegative_int(eligible):
+        return None
+    baseline = payload["baseline_count"]
+    observed = payload["observed_count"]
+    next_threshold = payload["next_threshold"]
+    consumed = payload["consumed_threshold"]
+    if observed < baseline or consumed % COMPACTION_THRESHOLD:
+        return None
+    if eligible is not None and (
+        eligible == 0 or eligible % COMPACTION_THRESHOLD or eligible <= consumed
+    ):
+        return None
+    active_threshold = eligible if eligible is not None else consumed
+    newly_available = observed - baseline
+    if newly_available < active_threshold:
+        return None
+    if eligible is None and newly_available >= next_threshold:
+        return None
+    if next_threshold != active_threshold + COMPACTION_THRESHOLD:
+        return None
+    if payload["prompt_status"] == "initialized":
+        if observed != baseline or consumed != 0 or eligible is not None or next_threshold != COMPACTION_THRESHOLD:
+            return None
+    elif payload["prompt_status"] == "idle":
+        if eligible is not None:
+            return None
+    elif eligible is None:
+        return None
+    return BaselineState(
+        schema_version=payload["schema_version"],
+        project_slug=payload["project_slug"],
+        run_id=payload["run_id"],
+        seat=payload["seat"],
+        kind=payload["kind"],
+        session_id=payload["session_id"],
+        session_path=payload["session_path"],
+        cwd=payload["cwd"],
+        baseline_count=baseline,
+        observed_count=observed,
+        next_threshold=next_threshold,
+        consumed_threshold=consumed,
+        eligible_threshold=eligible,
+        prompt_status=payload["prompt_status"],
+    )
+
+
+def _read_state(
+    path: Path,
+    session: SessionRecord,
+    project_slug: str,
+) -> BaselineState | None | object:
+    try:
+        info = os.lstat(path)
+    except FileNotFoundError:
+        return _MISSING
+    except OSError:
+        return None
+    if stat.S_ISLNK(info.st_mode) or not stat.S_ISREG(info.st_mode):
+        return None
+    try:
+        with path.open("r", encoding="utf-8") as stream:
+            payload = json.load(stream)
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return None
+    return _decode_state(payload, session, project_slug)
+
+
+def _write_state(root: Path, path: Path, state: BaselineState) -> bool:
+    if path.parent != root or not _contained(root, path):
+        return False
+    try:
+        info = os.lstat(path)
+    except FileNotFoundError:
+        info = None
+    except OSError:
+        return False
+    if info is not None and (stat.S_ISLNK(info.st_mode) or not stat.S_ISREG(info.st_mode)):
+        return False
+
+    temporary: Path | None = None
+    descriptor: int | None = None
+    try:
+        descriptor, raw_temporary = tempfile.mkstemp(
+            prefix=f".{path.stem}-", suffix=".tmp", dir=str(root)
+        )
+        temporary = Path(raw_temporary)
+        if temporary.parent != root or not _contained(root, temporary):
+            return False
+        temporary_info = os.lstat(temporary)
+        if stat.S_ISLNK(temporary_info.st_mode) or not stat.S_ISREG(temporary_info.st_mode):
+            return False
+        with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
+            descriptor = None
+            json.dump(_state_payload(state), stream, sort_keys=True, separators=(",", ":"))
+            stream.write("\n")
+            stream.flush()
+            os.fsync(stream.fileno())
+        try:
+            target_info = os.lstat(path)
+        except FileNotFoundError:
+            target_info = None
+        if target_info is not None and (stat.S_ISLNK(target_info.st_mode) or not stat.S_ISREG(target_info.st_mode)):
+            return False
+        os.replace(temporary, path)
+        temporary = None
+        final_info = os.lstat(path)
+        return stat.S_ISREG(final_info.st_mode) and not stat.S_ISLNK(final_info.st_mode)
+    except (OSError, TypeError, ValueError):
+        return False
+    finally:
+        if descriptor is not None:
+            try:
+                os.close(descriptor)
+            except OSError:
+                pass
+        if temporary is not None:
+            try:
+                temporary.unlink()
+            except OSError:
+                pass
+
+
+def track_live_seat(
+    roster: Any,
+    seat: str,
+    *,
+    run_id: str,
+    project_root: str | os.PathLike[str],
+    home_dir: str | os.PathLike[str] | None = None,
+) -> BaselineResult | None:
+    """Persist one verified seat baseline and report a newly crossed threshold.
+
+    ``None`` means the live identity, marker evidence, state root, or state
+    record could not be proven.  No in-memory or alternate state is used.
+    """
+    if not _valid_identifier(run_id, _SESSION_ID):
+        return None
+    session = resolve_live_session(roster, seat, project_root=project_root, home_dir=home_dir)
+    observation = _verified_observation(session)
+    if session is None or observation is None:
+        return None
+    project = _canonical_directory(Path(project_root))
+    home = _validated_home(home_dir)
+    if project is None or home is None:
+        return None
+    project_slug = _project_slug(project)
+    if project_slug is None:
+        return None
+    root = _validated_state_root(home, project_slug)
+    if root is None:
+        return None
+    path = _state_path(root, session.seat)
+    if path is None:
+        return None
+    existing = _read_state(path, session, project_slug)
+    if existing is None:
+        return None
+
+    newly_eligible: int | None = None
+    if existing is _MISSING:
+        state = BaselineState(
+            schema_version=BASELINE_STATE_VERSION,
+            project_slug=project_slug,
+            run_id=run_id,
+            seat=session.seat,
+            kind=session.kind,
+            session_id=session.session_id,
+            session_path=str(session.session_path),
+            cwd=str(session.cwd),
+            baseline_count=observation,
+            observed_count=observation,
+            next_threshold=COMPACTION_THRESHOLD,
+            consumed_threshold=0,
+            eligible_threshold=None,
+            prompt_status="initialized",
+        )
+    else:
+        if observation < existing.observed_count:
+            return None
+        newly_observed = observation - existing.observed_count
+        eligible = existing.eligible_threshold
+        next_threshold = existing.next_threshold
+        status = existing.prompt_status
+        if eligible is None and newly_observed > 0 and observation - existing.baseline_count >= next_threshold:
+            newly_eligible = next_threshold
+            eligible = newly_eligible
+            next_threshold += COMPACTION_THRESHOLD
+            status = "eligible"
+        elif eligible is not None:
+            status = "eligible"
+        elif status == "initialized":
+            status = "idle"
+        state = BaselineState(
+            schema_version=existing.schema_version,
+            project_slug=existing.project_slug,
+            run_id=run_id,
+            seat=existing.seat,
+            kind=existing.kind,
+            session_id=existing.session_id,
+            session_path=existing.session_path,
+            cwd=existing.cwd,
+            baseline_count=existing.baseline_count,
+            observed_count=observation,
+            next_threshold=next_threshold,
+            consumed_threshold=existing.consumed_threshold,
+            eligible_threshold=eligible,
+            prompt_status=status,
+        )
+    if not _write_state(root, path, state):
+        return None
+    newly_observed = 0 if existing is _MISSING else observation - existing.observed_count
+    return BaselineResult(state, path, newly_observed, newly_eligible)
 
 
 def observe_live_seat(
