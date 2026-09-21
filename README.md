@@ -39,6 +39,7 @@ skills/<name>/
 | `decision-record-discipline` | Keep the glossary current and record only gated decisions and rejected concepts, once each. |
 | `deep-module-design` | Design or deepen a module interface and seam placement with the deep-module vocabulary. |
 | `dependency-intake-audit` | Decide whether a package may enter, install it without unreviewed scripts, and triage the audit. |
+| `devops-pipeline` | Route repository quality checks across pre-commit, pre-push, and lean CI lanes from evidence without duplicating adjacent delivery contracts. |
 | `design-grilling` | Interview the user until a plan or underspecified ask reaches confirmed shared understanding. |
 | `doc-manager` | Reconcile Markdown documentation with code, cite non-obvious claims to `path:line`, and validate runbook sections through a safe check-only path. |
 | `destructive-path-guard` | Prove a delete, move, or overwrite target is contained before the operation runs. |
