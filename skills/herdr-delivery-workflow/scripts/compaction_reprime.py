@@ -12,8 +12,9 @@ import json
 import os
 import re
 import stat
+import subprocess
 import tempfile
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
@@ -25,7 +26,7 @@ _SESSION_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 
 BASELINE_STATE_VERSION = 1
 COMPACTION_THRESHOLD = 4
-_STATE_STATUS = {"initialized", "idle", "eligible"}
+_STATE_STATUS = {"initialized", "idle", "eligible", "failed", "consumed"}
 _MISSING = object()
 
 
@@ -471,9 +472,167 @@ class BaselineResult:
         return self.newly_eligible_threshold is not None
 
 
+@dataclass(frozen=True)
+class ReprimePaths:
+    """Canonical durable pointers allowed in a reprime prompt."""
+
+    context_pack: Path
+    gates: Path
+    notebook: Path
+    intake: Path
+    plan: Path
+    specification: Path
+    slices: Path
+    lead_doctrine: Path
+    supervisor_doctrine: Path
+    closeout_doctrine: Path
+
+
+@dataclass(frozen=True)
+class ReprimeDispatchResult:
+    """The durable state and outcome of one threshold dispatch attempt."""
+
+    state: BaselineState
+    state_path: Path
+    threshold: int | None
+    prompt_attempted: bool
+    prompt_succeeded: bool
+    block: str | None
+
+    @property
+    def retryable(self) -> bool:
+        return self.prompt_attempted and not self.prompt_succeeded and self.threshold is not None
+
+
 def _project_slug(project: Path) -> str | None:
     slug = project.name.lower()
     return slug if _PROJECT_SLUG.fullmatch(slug) is not None else None
+
+
+def _canonical_child(path: Path, root: Path, *, directory: bool) -> Path | None:
+    if not path.is_absolute():
+        return None
+    try:
+        resolved = path.resolve(strict=True)
+    except (OSError, RuntimeError):
+        return None
+    if resolved != path or not _contained(root, resolved):
+        return None
+    try:
+        mode = resolved.stat().st_mode
+    except OSError:
+        return None
+    if directory:
+        return resolved if stat.S_ISDIR(mode) else None
+    return resolved if stat.S_ISREG(mode) else None
+
+
+def _validated_reprime_paths(
+    project: Path,
+    home: Path,
+    run_id: str,
+) -> ReprimePaths | None:
+    project_slug = _project_slug(project)
+    if project_slug is None or not _valid_identifier(run_id, _SESSION_ID):
+        return None
+
+    records_root = home / ".herdr" / "projects" / project_slug
+    records_root = _canonical_child(records_root, home, directory=True)
+    if records_root is None:
+        return None
+    runs_root = _canonical_child(records_root / "runs", records_root, directory=True)
+    run_root = _canonical_child(runs_root / run_id, runs_root, directory=True) if runs_root else None
+    if run_root is None:
+        return None
+
+    project_files = {
+        "context_pack": home / ".herdr" / "projects" / project_slug / "context-pack.md",
+        "gates": home / ".herdr" / "projects" / project_slug / "gates.md",
+        "notebook": home / ".herdr" / "projects" / project_slug / "supervisor-notebook.md",
+    }
+    run_files = {
+        "intake": run_root / "intake-record.md",
+        "plan": run_root / "plan.md",
+        "specification": run_root / "specification.md",
+        "slices": run_root / "slices.json",
+    }
+    canonical_project_files: dict[str, Path] = {}
+    for name, path in project_files.items():
+        resolved = _canonical_child(path, records_root, directory=False)
+        if resolved is None:
+            return None
+        canonical_project_files[name] = resolved
+    canonical_run_files: dict[str, Path] = {}
+    for name, path in run_files.items():
+        resolved = _canonical_child(path, run_root, directory=False)
+        if resolved is None:
+            return None
+        canonical_run_files[name] = resolved
+
+    doctrine_root = project / "skills" / "herdr-delivery-workflow" / "references"
+    doctrine_root = _canonical_child(doctrine_root, project, directory=True)
+    if doctrine_root is None:
+        return None
+    doctrine: dict[str, Path] = {}
+    for name in ("lead_doctrine", "supervisor_doctrine", "closeout_doctrine"):
+        filename = {
+            "lead_doctrine": "lead.md",
+            "supervisor_doctrine": "supervisor.md",
+            "closeout_doctrine": "closeout.md",
+        }[name]
+        resolved = _canonical_child(doctrine_root / filename, doctrine_root, directory=False)
+        if resolved is None:
+            return None
+        doctrine[name] = resolved
+
+    return ReprimePaths(
+        context_pack=canonical_project_files["context_pack"],
+        gates=canonical_project_files["gates"],
+        notebook=canonical_project_files["notebook"],
+        intake=canonical_run_files["intake"],
+        plan=canonical_run_files["plan"],
+        specification=canonical_run_files["specification"],
+        slices=canonical_run_files["slices"],
+        lead_doctrine=doctrine["lead_doctrine"],
+        supervisor_doctrine=doctrine["supervisor_doctrine"],
+        closeout_doctrine=doctrine["closeout_doctrine"],
+    )
+
+
+def build_reprime_block(
+    *,
+    run_id: str,
+    seat: str,
+    project_root: str | os.PathLike[str],
+    home_dir: str | os.PathLike[str] | None = None,
+) -> str | None:
+    """Build a prompt block containing only validated durable pointers."""
+    if not _valid_identifier(run_id, _SESSION_ID) or not _valid_identifier(seat):
+        return None
+    project = _canonical_directory(Path(project_root))
+    home = _validated_home(home_dir)
+    if project is None or home is None:
+        return None
+    pointers = _validated_reprime_paths(project, home, run_id)
+    if pointers is None:
+        return None
+    lines = (
+        f"run-id: {run_id}",
+        f"seat: {seat}",
+        f"context-pack: {pointers.context_pack}",
+        f"gate-ledger: {pointers.gates}",
+        f"supervisor-notebook: {pointers.notebook}",
+        f"intake: {pointers.intake}",
+        f"plan: {pointers.plan}",
+        f"specification: {pointers.specification}",
+        f"slices: {pointers.slices}",
+        f"lead-recovery: {pointers.lead_doctrine}#Recovery",
+        f"lead-delivery: {pointers.lead_doctrine}#Delivery sequence",
+        f"lead-gates: {pointers.lead_doctrine}#Gates and ledger",
+        f"supervisor-handoff: {pointers.supervisor_doctrine}#Handoff",
+        f"closeout: {pointers.closeout_doctrine}#Acceptance custody",
+    )
+    return "\n".join(lines)
 
 
 def _validated_home(home_dir: str | os.PathLike[str] | None) -> Path | None:
@@ -606,7 +765,7 @@ def _decode_state(
     newly_available = observed - baseline
     if newly_available < active_threshold:
         return None
-    if eligible is None and newly_available >= next_threshold:
+    if eligible is None and newly_available >= next_threshold and payload["prompt_status"] != "consumed":
         return None
     if next_threshold != active_threshold + COMPACTION_THRESHOLD:
         return None
@@ -616,7 +775,16 @@ def _decode_state(
     elif payload["prompt_status"] == "idle":
         if eligible is not None:
             return None
-    elif eligible is None:
+    elif payload["prompt_status"] == "consumed":
+        if eligible is not None or consumed == 0:
+            return None
+    elif payload["prompt_status"] == "failed":
+        if eligible is None:
+            return None
+    elif payload["prompt_status"] == "eligible":
+        if eligible is None:
+            return None
+    else:
         return None
     return BaselineState(
         schema_version=payload["schema_version"],
@@ -773,13 +941,13 @@ def track_live_seat(
         eligible = existing.eligible_threshold
         next_threshold = existing.next_threshold
         status = existing.prompt_status
-        if eligible is None and newly_observed > 0 and observation - existing.baseline_count >= next_threshold:
+        if eligible is None and observation - existing.baseline_count >= next_threshold:
             newly_eligible = next_threshold
             eligible = newly_eligible
             next_threshold += COMPACTION_THRESHOLD
             status = "eligible"
         elif eligible is not None:
-            status = "eligible"
+            status = existing.prompt_status
         elif status == "initialized":
             status = "idle"
         state = BaselineState(
@@ -802,6 +970,70 @@ def track_live_seat(
         return None
     newly_observed = 0 if existing is _MISSING else observation - existing.observed_count
     return BaselineResult(state, path, newly_observed, newly_eligible)
+
+
+def dispatch_live_seat(
+    roster: Any,
+    seat: str,
+    *,
+    run_id: str,
+    project_root: str | os.PathLike[str],
+    home_dir: str | os.PathLike[str] | None = None,
+) -> ReprimeDispatchResult | None:
+    """Prompt one validated live seat for its durable pending threshold.
+
+    The baseline result is the sole source of threshold state.  A pending
+    threshold is retried after a failed prompt and is consumed only after the
+    exact Herdr prompt returns success.  No other command or target is used.
+    """
+    result = track_live_seat(
+        roster,
+        seat,
+        run_id=run_id,
+        project_root=project_root,
+        home_dir=home_dir,
+    )
+    if result is None:
+        return None
+    threshold = result.state.eligible_threshold
+    if threshold is None:
+        return ReprimeDispatchResult(result.state, result.state_path, None, False, False, None)
+
+    block = build_reprime_block(
+        run_id=run_id,
+        seat=seat,
+        project_root=project_root,
+        home_dir=home_dir,
+    )
+    if block is None:
+        return ReprimeDispatchResult(result.state, result.state_path, threshold, False, False, None)
+
+    try:
+        prompt_result = subprocess.run(
+            ["herdr", "agent", "prompt", seat, block],
+            check=False,
+        )
+        prompt_succeeded = getattr(prompt_result, "returncode", None) == 0
+    except OSError:
+        prompt_succeeded = False
+
+    status = "consumed" if prompt_succeeded else "failed"
+    updated = replace(
+        result.state,
+        consumed_threshold=threshold if prompt_succeeded else result.state.consumed_threshold,
+        eligible_threshold=None if prompt_succeeded else threshold,
+        prompt_status=status,
+    )
+    if not _write_state(result.state_path.parent, result.state_path, updated):
+        return None
+    return ReprimeDispatchResult(
+        updated,
+        result.state_path,
+        threshold,
+        True,
+        prompt_succeeded,
+        block,
+    )
 
 
 def observe_live_seat(

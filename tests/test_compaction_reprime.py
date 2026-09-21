@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -435,6 +436,190 @@ class CompactionReprimeBaselineTest(unittest.TestCase):
         self.write_pi_count(path, 1)
         self.assertIsNone(self.track(path))
         self.assertEqual(list(outside.iterdir()), [])
+
+
+class CompactionReprimeDispatchTest(CompactionReprimeBaselineTest):
+    def write_pointer_files(self, run_id: str = "run-1") -> None:
+        project_records = self.home / ".herdr" / "projects" / "project"
+        for name, body in {
+            "context-pack.md": "RAW CONTEXT PACK BODY must not be copied",
+            "gates.md": "RAW GATE BODY must not be copied",
+            "supervisor-notebook.md": "RAW NOTEBOOK BODY must not be copied",
+        }.items():
+            project_records.joinpath(name).parent.mkdir(parents=True, exist_ok=True)
+            project_records.joinpath(name).write_text(body, encoding="utf-8")
+
+        run_dir = project_records / "runs" / run_id
+        run_dir.mkdir(parents=True, exist_ok=True)
+        for name, body in {
+            "intake-record.md": "RAW INTAKE BODY must not be copied",
+            "plan.md": "RAW PLAN BODY must not be copied",
+            "specification.md": "RAW SPECIFICATION BODY must not be copied",
+            "slices.json": '{"raw": "RAW SLICES BODY must not be copied"}',
+        }.items():
+            run_dir.joinpath(name).write_text(body, encoding="utf-8")
+
+        doctrine = self.project / "skills" / "herdr-delivery-workflow" / "references"
+        doctrine.mkdir(parents=True, exist_ok=True)
+        for name, body in {
+            "lead.md": "RAW LEAD DOCTRINE BODY must not be copied",
+            "supervisor.md": "RAW SUPERVISOR DOCTRINE BODY must not be copied",
+            "closeout.md": "RAW CLOSEOUT DOCTRINE BODY must not be copied",
+        }.items():
+            doctrine.joinpath(name).write_text(body, encoding="utf-8")
+
+    def make_pending(self, *, run_id: str = "run-1") -> Path:
+        path = self.pi_path()
+        self.write_pi_count(path, 3)
+        self.assertIsNotNone(self.track(path, run_id=run_id))
+        self.write_pi_count(path, 7)
+        pending = self.track(path, run_id=run_id)
+        self.assertIsNotNone(pending)
+        assert pending is not None
+        self.assertEqual(pending.eligible_threshold, 4)
+        return path
+
+    def dispatch(self, path: Path, *, run_id: str = "run-1"):
+        return compaction_reprime.dispatch_live_seat(
+            self.roster(path),
+            "lead-beo-skills",
+            run_id=run_id,
+            project_root=self.project,
+            home_dir=self.home,
+        )
+
+    def test_pointer_only_block_contains_canonical_paths_and_sections(self) -> None:
+        self.write_pointer_files()
+        block = compaction_reprime.build_reprime_block(
+            run_id="run-1",
+            seat="lead-beo-skills",
+            project_root=self.project,
+            home_dir=self.home,
+        )
+        self.assertIsNotNone(block)
+        assert block is not None
+        expected_pointers = (
+            self.home / ".herdr" / "projects" / "project" / "context-pack.md",
+            self.home / ".herdr" / "projects" / "project" / "gates.md",
+            self.home / ".herdr" / "projects" / "project" / "supervisor-notebook.md",
+            self.home / ".herdr" / "projects" / "project" / "runs" / "run-1" / "intake-record.md",
+            self.home / ".herdr" / "projects" / "project" / "runs" / "run-1" / "plan.md",
+            self.home / ".herdr" / "projects" / "project" / "runs" / "run-1" / "specification.md",
+            self.home / ".herdr" / "projects" / "project" / "runs" / "run-1" / "slices.json",
+            self.project / "skills" / "herdr-delivery-workflow" / "references" / "lead.md#Recovery",
+            self.project / "skills" / "herdr-delivery-workflow" / "references" / "lead.md#Delivery sequence",
+            self.project / "skills" / "herdr-delivery-workflow" / "references" / "lead.md#Gates and ledger",
+            self.project / "skills" / "herdr-delivery-workflow" / "references" / "supervisor.md#Handoff",
+            self.project / "skills" / "herdr-delivery-workflow" / "references" / "closeout.md#Acceptance custody",
+        )
+        for pointer in expected_pointers:
+            self.assertIn(str(pointer), block)
+        for raw_body in (
+            "RAW CONTEXT PACK BODY",
+            "RAW GATE BODY",
+            "RAW NOTEBOOK BODY",
+            "RAW INTAKE BODY",
+            "RAW PLAN BODY",
+            "RAW SPECIFICATION BODY",
+            "RAW SLICES BODY",
+            "RAW LEAD DOCTRINE BODY",
+            "RAW SUPERVISOR DOCTRINE BODY",
+            "RAW CLOSEOUT DOCTRINE BODY",
+        ):
+            self.assertNotIn(raw_body, block)
+        self.assertNotIn("{", block)
+        self.assertNotIn("}", block)
+
+    def test_success_dispatch_uses_exact_argv_and_is_idempotent(self) -> None:
+        self.write_pointer_files()
+        path = self.make_pending()
+        with patch.object(compaction_reprime.subprocess, "run", return_value=subprocess.CompletedProcess([], 0)) as run:
+            first = self.dispatch(path)
+        self.assertIsNotNone(first)
+        assert first is not None
+        self.assertTrue(first.prompt_succeeded)
+        self.assertEqual(first.threshold, 4)
+        self.assertEqual(run.call_count, 1)
+        argv = run.call_args.args[0]
+        self.assertEqual(argv[:4], ["herdr", "agent", "prompt", "lead-beo-skills"])
+        self.assertEqual(argv[4], first.block)
+        self.assertEqual(json.loads(first.state_path.read_text(encoding="utf-8"))["consumed_threshold"], 4)
+        self.assertEqual(json.loads(first.state_path.read_text(encoding="utf-8"))["prompt_status"], "consumed")
+
+        with patch.object(compaction_reprime.subprocess, "run") as repeated_run:
+            repeated = self.dispatch(path)
+        self.assertIsNotNone(repeated)
+        assert repeated is not None
+        self.assertFalse(repeated.prompt_attempted)
+        self.assertIsNone(repeated.threshold)
+        repeated_run.assert_not_called()
+
+    def test_successful_thresholds_progress_one_at_a_time(self) -> None:
+        self.write_pointer_files()
+        path = self.pi_path()
+        self.write_pi_count(path, 3)
+        self.assertIsNotNone(self.track(path))
+        self.write_pi_count(path, 11)
+        pending = self.track(path)
+        self.assertIsNotNone(pending)
+        assert pending is not None
+        self.assertEqual(pending.eligible_threshold, 4)
+
+        with patch.object(compaction_reprime.subprocess, "run", return_value=subprocess.CompletedProcess([], 0)) as first_run:
+            first = self.dispatch(path)
+        self.assertIsNotNone(first)
+        assert first is not None
+        self.assertEqual(first.threshold, 4)
+        self.assertEqual(first.state.next_threshold, 8)
+        self.assertEqual(first_run.call_count, 1)
+
+        with patch.object(compaction_reprime.subprocess, "run", return_value=subprocess.CompletedProcess([], 0)) as second_run:
+            second = self.dispatch(path)
+        self.assertIsNotNone(second)
+        assert second is not None
+        self.assertEqual(second.threshold, 8)
+        self.assertEqual(second.state.consumed_threshold, 8)
+        self.assertEqual(second_run.call_count, 1)
+
+    def test_failed_prompt_is_durable_and_retryable(self) -> None:
+        self.write_pointer_files()
+        path = self.make_pending()
+        with patch.object(compaction_reprime.subprocess, "run", return_value=subprocess.CompletedProcess([], 17)) as run:
+            failed = self.dispatch(path)
+        self.assertIsNotNone(failed)
+        assert failed is not None
+        self.assertTrue(failed.retryable)
+        self.assertFalse(failed.prompt_succeeded)
+        state = json.loads(failed.state_path.read_text(encoding="utf-8"))
+        self.assertEqual(state["prompt_status"], "failed")
+        self.assertEqual(state["eligible_threshold"], 4)
+        self.assertEqual(state["consumed_threshold"], 0)
+        self.assertEqual(run.call_count, 1)
+
+        with patch.object(compaction_reprime.subprocess, "run", return_value=subprocess.CompletedProcess([], 0)) as retry:
+            succeeded = self.dispatch(path)
+        self.assertIsNotNone(succeeded)
+        assert succeeded is not None
+        self.assertTrue(succeeded.prompt_succeeded)
+        self.assertEqual(succeeded.threshold, 4)
+        self.assertEqual(retry.call_count, 1)
+        state = json.loads(succeeded.state_path.read_text(encoding="utf-8"))
+        self.assertEqual(state["prompt_status"], "consumed")
+        self.assertIsNone(state["eligible_threshold"])
+        self.assertEqual(state["consumed_threshold"], 4)
+
+    def test_missing_pointer_fails_closed_without_prompt(self) -> None:
+        self.write_pointer_files()
+        path = self.make_pending()
+        (self.home / ".herdr" / "projects" / "project" / "context-pack.md").unlink()
+        with patch.object(compaction_reprime.subprocess, "run") as run:
+            result = self.dispatch(path)
+        self.assertIsNotNone(result)
+        assert result is not None
+        self.assertFalse(result.prompt_attempted)
+        self.assertEqual(result.threshold, 4)
+        self.assertEqual(json.loads(result.state_path.read_text(encoding="utf-8"))["eligible_threshold"], 4)
+        run.assert_not_called()
 
 
 if __name__ == "__main__":
