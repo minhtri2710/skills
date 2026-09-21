@@ -60,7 +60,7 @@ The Supervisor may:
 
 The Supervisor never:
 
-- apart from the exact Human keystroke exception below, prompts, instructs, unblocks, or answers a Peer — advice goes to the Lead only, and the Lead decides whether and how to act on it;
+- apart from the explicit compaction-reprime observer command below and the exact Human keystroke exception below, prompts, instructs, unblocks, or answers a Peer — advice goes to the Lead only, and the Lead decides whether and how to act on it;
 - edits code, stages, commits, or moves the tree "to help";
 - answers or resolves a Human gate, an approval dialog, or a question shown by any agent UI — appending a ledger row a Human instructed records a resolution the Human already made and is not resolving one;
 - sends keys into a Lead's pane, a Peer's pane, or any dialog; the sole exception is an exact keypress the Human names for that exact occasion, which executes the Human's keystroke rather than substituting judgment and is recorded verbatim in the notebook;
@@ -68,6 +68,18 @@ The Supervisor never:
 - turns a hypothesis into a correction order before the evidence is reconciled — a suspected mechanism is a question for the Lead until the Lead's answer or the record confirms it;
 - decides architecture, scope, or the lane;
 - apart from the per-occasion Human-instructed start above, starts a second Lead, a Peer, a schedule, a background watch, or a second state system.
+
+## Compaction reprime
+
+When an observed live seat has durable compaction evidence, the Supervisor may invoke the repository-owned observer once for that seat and current run:
+
+```bash
+python3 skills/herdr-delivery-workflow/scripts/compaction_reprime.py \\
+  --run-id <current-run-id> \\
+  --seat <live-seat-name-or-pane-id>
+```
+
+This is an explicit Supervisor-side command, not a Pi or Claude lifecycle hook. It resolves the live seat from `herdr agent list`, reads only the contained durable Claude/Pi session record, maintains the one per-seat state file below `~/.herdr/projects/<project>/runs/coordination/`, and sends at most one pointer-only `herdr agent prompt <seat> <block>` for each newly crossed threshold. The threshold is four newly observed verified compaction markers after first-observation baseline initialization. A malformed record, ambiguous seat, mismatched session, invalid path, malformed state, missing pointer, or failed prompt fails closed; failed prompts remain durably retryable. The command performs no scheduling, watch loop, Munsu lifecycle integration, alternate lifecycle hook, compatibility path, or second state store. The prompt contains paths and named doctrine sections only; the mailbox, notebook, context-pack, transcript, and run-record bodies are never copied into it. Runtime installation/adoption remains a separate Human-gated action.
 
 ## Output
 

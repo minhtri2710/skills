@@ -374,7 +374,7 @@ Doctrine and the permission allow-list load at seat start, not runtime; a seat p
 
 ### Recovery
 
-After compaction or relaunch, before acting, run the recovery checklist in `relaunch.md` in order; it confirms doctrine by hash, reconciles the ledger and tree, reconciles live Peers, and sends the relaunch attention event last. A missing recovery pointer or `ENOENT` is reportable and non-blocking: report the defect and continue without treating it as a blocking precondition or repeatedly rereading large documents.
+After compaction or relaunch, before acting, run the recovery checklist in `relaunch.md` in order; it confirms doctrine by hash, reconciles the ledger and tree, reconciles live Peers, and sends the relaunch attention event last. A missing recovery pointer or `ENOENT` is reportable and non-blocking: report the defect and continue without treating it as a blocking precondition or repeatedly rereading large documents. The Supervisor-side compaction reprime observer may supply pointer-only paths after a newly crossed threshold; it does not replace this recovery checklist or authorize any external write.
 
 ## Lead boundaries
 

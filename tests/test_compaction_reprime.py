@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import io
 import json
 import subprocess
 import sys
@@ -620,6 +621,25 @@ class CompactionReprimeDispatchTest(CompactionReprimeBaselineTest):
         self.assertEqual(result.threshold, 4)
         self.assertEqual(json.loads(result.state_path.read_text(encoding="utf-8"))["eligible_threshold"], 4)
         run.assert_not_called()
+
+    def test_cli_requires_run_id_and_seat(self) -> None:
+        with patch.object(compaction_reprime, "_load_live_roster") as load:
+            load.return_value = []
+            with self.assertRaises(SystemExit) as raised:
+                compaction_reprime.main([])
+            self.assertEqual(raised.exception.code, 2)
+            load.assert_not_called()
+
+    def test_cli_dispatches_from_live_roster_and_current_checkout(self) -> None:
+        with patch.object(compaction_reprime, "_load_live_roster", return_value={"result": {"agents": []}}), \
+                patch.object(compaction_reprime, "dispatch_live_seat", return_value=None) as dispatch:
+            with patch("sys.stderr", new_callable=io.StringIO) as stderr:
+                result = compaction_reprime.main(["--run-id", "run-1", "--seat", "lead-beo-skills"])
+        self.assertEqual(result, 1)
+        dispatch.assert_called_once()
+        self.assertEqual(dispatch.call_args.kwargs["run_id"], "run-1")
+        self.assertEqual(dispatch.call_args.args[1], "lead-beo-skills")
+        self.assertIn("failed closed", stderr.getvalue())
 
 
 if __name__ == "__main__":

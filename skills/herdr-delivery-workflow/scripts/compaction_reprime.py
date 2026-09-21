@@ -1,18 +1,20 @@
 #!/usr/bin/env python3
-"""Observe verified Claude and Pi compaction markers for one live Herdr seat.
+"""Observe and explicitly reprime one live Herdr seat after compaction.
 
-This slice is deliberately read-only.  It resolves a seat from a supplied
-live-roster payload, derives the durable session path from that identity, and
-counts only marker records that can be associated with the resolved session.
+The Supervisor-side command resolves a live seat from Herdr's roster, counts
+only verified durable Claude/Pi markers, persists one per-seat threshold state,
+and sends a pointer-only reprime prompt when a new threshold is crossed.
 """
 from __future__ import annotations
 
+import argparse
 import hashlib
 import json
 import os
 import re
 import stat
 import subprocess
+import sys
 import tempfile
 from dataclasses import dataclass, replace
 from pathlib import Path
@@ -1046,3 +1048,66 @@ def observe_live_seat(
     """Resolve one live seat and count only its verified durable markers."""
     session = resolve_live_session(roster, seat, project_root=project_root, home_dir=home_dir)
     return observe_session(session) if session is not None else 0
+
+
+def _load_live_roster() -> Any | None:
+    try:
+        result = subprocess.run(
+            ["herdr", "agent", "list"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except OSError:
+        return None
+    if result.returncode != 0:
+        return None
+    try:
+        return json.loads(result.stdout)
+    except (json.JSONDecodeError, TypeError):
+        return None
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    """Run one explicit Supervisor-side observation and optional reprime."""
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--run-id", required=True, help="canonical current run id")
+    parser.add_argument("--seat", required=True, help="live Herdr seat name or pane id")
+    args = parser.parse_args(argv)
+
+    roster = _load_live_roster()
+    if roster is None:
+        print("compaction_reprime: live Herdr roster unavailable", file=sys.stderr)
+        return 1
+
+    result = dispatch_live_seat(
+        roster,
+        args.seat,
+        run_id=args.run_id,
+        project_root=Path.cwd(),
+        home_dir=os.environ.get("HOME"),
+    )
+    if result is None:
+        print("compaction_reprime: observation or state validation failed closed", file=sys.stderr)
+        return 1
+    if result.threshold is None:
+        print(f"compaction_reprime: no newly crossed threshold for {args.seat}")
+        return 0
+    if not result.prompt_attempted:
+        print(
+            f"compaction_reprime: threshold {result.threshold} remains pending; prompt not attempted",
+            file=sys.stderr,
+        )
+        return 1
+    if not result.prompt_succeeded:
+        print(
+            f"compaction_reprime: prompt failed for {args.seat} at threshold {result.threshold}",
+            file=sys.stderr,
+        )
+        return 1
+    print(f"compaction_reprime: prompted {args.seat} at threshold {result.threshold}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
