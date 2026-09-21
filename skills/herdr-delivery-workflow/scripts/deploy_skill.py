@@ -217,7 +217,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--head", default="HEAD")
     parser.add_argument("--repo", type=Path, default=Path.cwd())
     parser.add_argument("--install-dir", type=Path,
-                        default=Path.home() / ".claude/skills")
+                        default=Path.home() / ".agents/skills")
     parser.add_argument("--skill", action="append", default=[],
                         help="top-level skill to deploy; repeat to select multiple (default: all)")
     parser.add_argument("--ledger", required=True, type=Path)

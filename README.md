@@ -8,7 +8,7 @@ A skill is a directory. To make one available to Claude Code, put it where the a
 
 ```bash
 # Personal use across all projects
-ln -s "$PWD/skills/bug-diagnosis" ~/.claude/skills/bug-diagnosis
+ln -s "$PWD/skills/bug-diagnosis" ~/.agents/skills/bug-diagnosis
 
 # Or copy it into a project's skills directory
 cp -R skills/bug-diagnosis /path/to/project/.claude/skills/

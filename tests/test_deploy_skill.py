@@ -7,6 +7,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 SCRIPTS = Path(__file__).resolve().parents[1] / "skills" / "herdr-delivery-workflow" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
@@ -70,6 +71,21 @@ class DeploySkillTest(unittest.TestCase):
 
         self.assertEqual(result, 0)
         self.assertTrue((real_root / "herdr-delivery-workflow" / "SKILL.md").is_file())
+
+    def test_cli_default_install_dir_uses_canonical_home(self):
+        ledger = self.tmp / "gates.md"
+        args = self.deploy_args(ledger)
+        install_index = args.index("--install-dir")
+        del args[install_index:install_index + 2]
+
+        with patch.object(deploy_skill.Path, "home", return_value=self.tmp):
+            result = deploy_skill.main(args)
+
+        self.assertEqual(result, 0)
+        self.assertTrue(
+            (self.tmp / ".agents" / "skills" / "herdr-delivery-workflow" / "SKILL.md").is_file()
+        )
+        self.assertFalse(self.install.exists())
 
     def test_default_deploy_selects_all_tracked_skills(self):
         second = self.skills / "second-skill"

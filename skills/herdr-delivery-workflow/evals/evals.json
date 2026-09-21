@@ -510,7 +510,7 @@
     },
     {
       "id": 41,
-      "prompt": "I'm in Herdr as the Lead. I redeployed the updated workflow skill to ~/.claude/skills/ ten minutes ago, and the new text changes how the partition has to be recorded. Two Engineers are mid-slice with their reports still outstanding. Start following the new text.",
+      "prompt": "I'm in Herdr as the Lead. I redeployed the updated workflow skill to ~/.agents/skills/ ten minutes ago, and the new text changes how the partition has to be recorded. Two Engineers are mid-slice with their reports still outstanding. Start following the new text.",
       "expected_output": "States that doctrine and the permission allow-list load at seat start and not at runtime, so this seat keeps the old doctrine and the old allow-list until it is relaunched; reading the redeployed file does not load it, and the seat cannot start following the new text by being told to. A relaunch is what loads it, and a relaunch happens only at a slice or delivery boundary, never mid-flight with Peers outstanding, so the seat finishes the outstanding slice first and lets the Engineers report. Does not replace its own seat on its own initiative: only the Human, or the Supervisor acting under the explicit Human-permission rule, replaces a Lead. Records the divergence between the installed text and the text this seat is running, writes the context pack before the exchange, and sends the Supervisor the relaunch attention event when it happens. The replacement takes the same seat name after the old one is cleared, so one canonical Lead survives the exchange.",
       "files": [],
       "assertions": [
@@ -651,7 +651,7 @@
     },
     {
       "id": 52,
-      "prompt": "I'm in Herdr as the Lead. The Reviewer returned PASS on the exact head and the acceptance checks are green, so I'm ready to accept this slice and write the handoff. The fix was to a skill this machine installs under ~/.claude/skills/ and loads from there.",
+      "prompt": "I'm in Herdr as the Lead. The Reviewer returned PASS on the exact head and the acceptance checks are green, so I'm ready to accept this slice and write the handoff. The fix was to a skill this machine installs under ~/.agents/skills/ and loads from there.",
       "expected_output": "Does not accept yet. A change is not landed where it runs by being merged: the delivery changed an artifact the repository installs outside the checkout, so acceptance requires one of two outcomes and either one recorded — the installed copy is at the accepted head with a deploy row appended for it, or the record states the artifact has no installed copy. Derives the answer rather than recalling it: enumerates the artifact's tracked files with git ls-tree -r --name-only at the accepted head, hashes each installed file with git hash-object, and compares each against git rev-parse \"${head}:<path>\" with the variable braced. Reads the fix back out of the installed file rather than the repository copy, since the repository copy is what was already known to be right. Recognizes that deploy is a gated act: without a standing waiver the seat routes the deploy gate and the run pauses there as any pending gate makes it pause, and the delivery is needs-human-gate rather than accepted — the obligation is dischargeable from every posture, by deploying under a waiver, by recording that nothing is installed, or by routing the gate. Carries the result into the handoff in the DEPLOYED field beside CHANGED. Names the failure mode: a merged fix to an artifact that runs from an installed copy has changed a file in git and nothing else, so when the fix was to a destructive or gating behaviour the unfixed behaviour stays live while the record says it was fixed, and every later slice builds on a record that is false about where the fix is.",
       "files": [],
       "assertions": [
@@ -743,7 +743,7 @@
     },
     {
       "id": 59,
-      "prompt": "I'm in Herdr as the Lead. The accepted head changes skills/herdr-delivery-workflow, and I need to deploy it to ~/.claude/skills/herdr-delivery-workflow/ and record the deploy. How do I prevent the install and ledger row from separating?",
+      "prompt": "I'm in Herdr as the Lead. The accepted head changes skills/herdr-delivery-workflow, and I need to deploy it to ~/.agents/skills/herdr-delivery-workflow/ and record the deploy. How do I prevent the install and ledger row from separating?",
       "expected_output": "Runs `scripts/deploy_skill.py` once with the accepted head, source, install, ledger, and gate-row arguments. It enumerates the tracked tree with `git ls-tree -r --name-only`, copies the tracked files, compares every installed file using `git hash-object` against `git rev-parse \"${head}:<path>\"`, fails on any missing or mismatched file, and invokes `scripts/gate_row.py` for the deploy row only after the comparison passes, so installation and its row are inseparable.",
       "files": [],
       "assertions": [

@@ -770,7 +770,7 @@ Plausible failure mode:
 Durable solution hypothesis:
 - Name the collision in `SKILL.md:3`'s description with an explicit "not for reviewing a diff — see `code-review`" exclusion, in the shape `architecture-premise-audit` and `repo-refresh` already use.
 Disconfirming check:
-- Read-only. `sed -n '3p;79p' skills/ultra-review/SKILL.md`, `sed -n '3p' skills/test-proof-debt-audit/SKILL.md`, and `grep -rn 'ultra' ~/.claude/skills/code-review/SKILL.md` if the skill is installed.
+- Read-only. `sed -n '3p;79p' skills/ultra-review/SKILL.md`, `sed -n '3p' skills/test-proof-debt-audit/SKILL.md`, and `grep -rn 'ultra' ~/.agents/skills/code-review/SKILL.md` if the skill is installed.
 
 ### F044 [P3] `--date` is validated only for shape
 
@@ -867,7 +867,7 @@ S1 queue got it wrong, so this one states the isolation on every entry rather th
 - F040: `sed -n '24,32p' skills/ultra-review-receive/SKILL.md`; `sed -n '108,115p' skills/ultra-review/SKILL.md`.
 - F041: `grep -rn 'status\|queue' skills/ultra-review/SKILL.md skills/ultra-review-receive/SKILL.md`.
 - F042: `cat skills/ultra-review/agents/openai.yaml skills/ultra-review-receive/agents/openai.yaml`; `grep -n 'implicit' skills/ultra-review-receive/SKILL.md`. A prose statement falsifies it.
-- F043: `sed -n '3p;79p' skills/ultra-review/SKILL.md`; `sed -n '3p' skills/test-proof-debt-audit/SKILL.md`; `grep -rn 'ultra' ~/.claude/skills/code-review/SKILL.md` if installed.
+- F043: `sed -n '3p;79p' skills/ultra-review/SKILL.md`; `sed -n '3p' skills/test-proof-debt-audit/SKILL.md`; `grep -rn 'ultra' ~/.agents/skills/code-review/SKILL.md` if installed.
 - F044: `sed -n '150,153p' skills/ultra-review/scripts/create_ultra_review_report.py`.
 - F045: `sed -n '168,185p' skills/ultra-review/scripts/create_ultra_review_report.py`.
 - F046: `grep -n 'G0' skills/ultra-review-workspace/campaign-01/S2-BRIEF.md`, compared against the ten dispatched packets.
