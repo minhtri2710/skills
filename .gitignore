@@ -17,3 +17,6 @@ skills-lock.json
 # skill eval run outputs (skill-creator workspaces)
 skills/*-workspace/
 /runs/
+
+# tasks-axi backlog archive artifact
+/done-archive.md
