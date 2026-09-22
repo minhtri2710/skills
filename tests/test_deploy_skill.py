@@ -2,6 +2,7 @@
 """Unit tests for tracked skill deployment acceptance."""
 from __future__ import annotations
 
+import io
 import stat
 import subprocess
 import sys
@@ -33,6 +34,12 @@ class DeploySkillTest(unittest.TestCase):
         self.git("add", "skills")
         self.git("commit", "-qm", "skill")
         self.install = self.tmp / "installed"
+        self._stdout_patch = patch.object(sys, "stdout", io.StringIO())
+        self._stderr_patch = patch.object(sys, "stderr", io.StringIO())
+        self._stdout_patch.start()
+        self._stderr_patch.start()
+        self.addCleanup(self._stderr_patch.stop)
+        self.addCleanup(self._stdout_patch.stop)
         self.addCleanup(self._tmp.cleanup)
 
     def git(self, *args: str) -> None:

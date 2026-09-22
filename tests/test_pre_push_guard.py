@@ -64,11 +64,12 @@ class PrePushGuardTest(unittest.TestCase):
         self.git("remote", "set-url", "origin", str(empty))
 
     def review(self, base: str, status: str = "recorded:review-pass", quote: str = "PASS") -> int:
-        return gate_row.main([
-            "--ledger", str(self.ledger), "--repo", str(self.repo),
-            "--kind", "review", "--status", status, "--review-base", base,
-            "--words", "seat", "--note", "review recorded", "--quote", quote,
-        ])
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            return gate_row.main([
+                "--ledger", str(self.ledger), "--repo", str(self.repo),
+                "--kind", "review", "--status", status, "--review-base", base,
+                "--words", "seat", "--note", "review recorded", "--quote", quote,
+            ])
 
     def ref_line(self, remote_base: str, local_tip: str) -> str:
         return f"refs/heads/main {local_tip} refs/heads/main {remote_base}\n"

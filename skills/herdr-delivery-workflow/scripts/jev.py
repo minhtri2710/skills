@@ -704,7 +704,8 @@ def _request_answers(
             if status is not None and not 200 <= status < 300:
                 return None, "http_error"
             return json.load(response), None
-    except urllib.error.HTTPError:
+    except urllib.error.HTTPError as exc:
+        exc.close()
         return None, "http_error"
     except (urllib.error.URLError, TimeoutError, OSError):
         return None, "network_error"

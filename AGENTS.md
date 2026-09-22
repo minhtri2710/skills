@@ -17,6 +17,7 @@ This repository contains retained standalone Agent Skills. The canonical invento
 ## Checks
 
 ```bash
+python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
 .venv/bin/python -m unittest discover -s tests
 git diff --check
 ```

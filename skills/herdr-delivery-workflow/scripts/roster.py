@@ -151,11 +151,12 @@ def format_stalled_roster(
     workspace: str | None = None,
     now: float | None = None,
 ) -> list[str]:
-    """Return settled peers stalled across two supplied samples.
+    """Return peers settled now after a prior non-settled sample that stalled.
 
-    A peer must be settled in both samples, have no report, and have a
-    progress mtime that did not advance and is older than ``stale_after``.
-    Missing or unreadable progress files fail closed and are not stalls.
+    A peer must be settled now after a prior non-settled sample, have no report,
+    and have a progress mtime that did not advance and is older than
+    ``stale_after``. Missing or unreadable progress files fail closed and are
+    not stalls.
     """
     if stale_after < 0:
         raise ValueError("stale-after must be non-negative")

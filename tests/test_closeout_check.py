@@ -152,6 +152,24 @@ class CloseoutCheckTest(unittest.TestCase):
             result.findings[0],
         )
 
+    def test_duplicate_persistent_pane_is_rejected(self):
+        record = dict(self.record)
+        record["persistent"] = [
+            self.record["persistent"][0],
+            {"role": "Human Supervisor", "name": "supervisor", "pane": "w1:p1"},
+        ]
+        with self.assertRaisesRegex(ValueError, "persistent pane 'w1:p1' is duplicated"):
+            closeout_check._validate_record(record)
+
+    def test_duplicate_persistent_name_is_rejected(self):
+        record = dict(self.record)
+        record["persistent"] = [
+            self.record["persistent"][0],
+            {"role": "Human Supervisor", "name": "lead-beo-skills", "pane": "w1:p2"},
+        ]
+        with self.assertRaisesRegex(ValueError, "persistent name 'lead-beo-skills' is duplicated"):
+            closeout_check._validate_record(record)
+
     def test_missing_pane_evidence_fails_closed(self):
         class MissingPane(FakeHerdr):
             def read_pane(self, pane_id: str) -> dict[str, Any]:

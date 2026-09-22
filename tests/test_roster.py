@@ -20,6 +20,14 @@ import roster  # noqa: E402
 
 
 class RosterTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self._stdout_patch = mock.patch.object(sys, "stdout", io.StringIO())
+        self._stderr_patch = mock.patch.object(sys, "stderr", io.StringIO())
+        self._stdout_patch.start()
+        self._stderr_patch.start()
+        self.addCleanup(self._stderr_patch.stop)
+        self.addCleanup(self._stdout_patch.stop)
+
     def test_formats_agents_and_filters_workspace(self):
         payload = {
             "result": {
@@ -60,15 +68,18 @@ class RosterTest(unittest.TestCase):
         with mock.patch.object(roster.subprocess, "run", return_value=completed) as run, \
                 mock.patch.object(roster.sys, "stdin", io.StringIO("")):
             output = io.StringIO()
-            with mock.patch("sys.stdout", output):
+            error = io.StringIO()
+            with mock.patch("sys.stdout", output), mock.patch("sys.stderr", error):
                 rc = roster.main(["--workspace", "w1"])
         self.assertEqual(rc, 0)
         self.assertEqual(output.getvalue(), "w1:p1 lead claude working\n")
+        self.assertEqual(error.getvalue(), "")
         run.assert_called_once()
 
     def test_stdin_flag_reads_stdin_and_skips_subprocess(self):
         with mock.patch.object(roster.subprocess, "run") as run, \
-                mock.patch.object(roster.sys, "stdin", io.StringIO(self._SAMPLE)):
+                mock.patch.object(roster.sys, "stdin", io.StringIO(self._SAMPLE)), \
+                mock.patch("sys.stdout", io.StringIO()), mock.patch("sys.stderr", io.StringIO()):
             rc = roster.main(["--stdin", "--workspace", "w1"])
         self.assertEqual(rc, 0)
         run.assert_not_called()
@@ -218,23 +229,25 @@ class RosterTest(unittest.TestCase):
             report = root / "report.md"
             progress = root / "progress.md"
             progress.write_text("fresh")
-            previous = root / "previous.json"
-            previous.write_text(json.dumps({"peers": {
-                "peer-1": {"state": "idle", "progress_mtime": progress.stat().st_mtime - 1},
-            }}))
+            current_mtime = progress.stat().st_mtime
+            previous = {
+                "peer-1": {
+                    "state": "working",
+                    "progress_mtime": current_mtime - 1,
+                }
+            }
             payload = {"result": {"agents": [{
                 "pane_id": "w1:p1", "name": "peer-1", "agent": "claude",
                 "agent_status": "idle", "workspace_id": "w1",
             }]}}
-            with mock.patch.object(roster.sys, "stdin", io.StringIO(json.dumps(payload))):
-                output = io.StringIO()
-                with mock.patch("sys.stdout", output):
-                    rc = roster.main([
-                        "--stdin", "--stalled", "--peer", f"peer-1:{report}:{progress}",
-                        "--previous-sample", str(previous), "--stale-after", "60",
-                    ])
-            self.assertEqual(rc, 0)
-            self.assertEqual(output.getvalue(), "")
+            lines = roster.format_stalled_roster(
+                payload,
+                {"peer-1": (report, progress)},
+                previous,
+                stale_after=60,
+                now=current_mtime + 61,
+            )
+            self.assertEqual(lines, [])
 
 
 if __name__ == "__main__":

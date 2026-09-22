@@ -42,6 +42,14 @@ class CompactionReprimeObserverTest(unittest.TestCase):
         self.home.mkdir()
         self.project.mkdir()
         _install_subprocess_guard(self)
+        self.stdout = io.StringIO()
+        self.stderr = io.StringIO()
+        self._stdout_patch = patch.object(sys, "stdout", self.stdout)
+        self._stderr_patch = patch.object(sys, "stderr", self.stderr)
+        self._stdout_patch.start()
+        self._stderr_patch.start()
+        self.addCleanup(self._stderr_patch.stop)
+        self.addCleanup(self._stdout_patch.stop)
 
     def tearDown(self) -> None:
         self.tmp.cleanup()
@@ -272,6 +280,14 @@ class CompactionReprimeBaselineTest(unittest.TestCase):
         self.home.mkdir()
         self.project.mkdir()
         _install_subprocess_guard(self)
+        self.stdout = io.StringIO()
+        self.stderr = io.StringIO()
+        self._stdout_patch = patch.object(sys, "stdout", self.stdout)
+        self._stderr_patch = patch.object(sys, "stderr", self.stderr)
+        self._stdout_patch.start()
+        self._stderr_patch.start()
+        self.addCleanup(self._stderr_patch.stop)
+        self.addCleanup(self._stdout_patch.stop)
 
     def tearDown(self) -> None:
         self.tmp.cleanup()
@@ -678,6 +694,7 @@ class CompactionReprimeDispatchTest(CompactionReprimeBaselineTest):
             with self.assertRaises(SystemExit) as raised:
                 compaction_reprime.main([])
             self.assertEqual(raised.exception.code, 2)
+            self.assertIn("the following arguments are required", self.stderr.getvalue())
             load.assert_not_called()
 
     def test_cli_dispatches_from_explicit_project_root(self) -> None:
@@ -717,6 +734,7 @@ class CompactionReprimeDispatchTest(CompactionReprimeBaselineTest):
         self.assertEqual(result, 0)
         prompt.assert_called_once()
         self.assertEqual(prompt.call_args.args[0][:4], ["herdr", "agent", "prompt", "lead-beo-skills"])
+        self.assertIn("prompted lead-beo-skills at threshold 4", self.stdout.getvalue())
 
     def test_cli_requires_absolute_project_root(self) -> None:
         with patch.object(compaction_reprime, "_load_live_roster") as load:
@@ -727,6 +745,7 @@ class CompactionReprimeDispatchTest(CompactionReprimeBaselineTest):
                 with self.subTest(project_root=project_root), self.assertRaises(SystemExit) as raised:
                     compaction_reprime.main(arguments)
                 self.assertEqual(raised.exception.code, 2)
+            self.assertIn("--project-root must be an absolute path", self.stderr.getvalue())
             load.assert_not_called()
 
 

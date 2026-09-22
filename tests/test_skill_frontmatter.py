@@ -2,7 +2,6 @@
 """Regression tests for skill YAML frontmatter."""
 from __future__ import annotations
 
-import subprocess
 import unittest
 from pathlib import Path
 
@@ -12,21 +11,9 @@ import yaml
 class SkillFrontmatterTest(unittest.TestCase):
     def test_every_skill_has_valid_frontmatter(self):
         repo_root = Path(__file__).resolve().parents[1]
-        result = subprocess.run(
-            ["git", "ls-files", "--", "skills/*/SKILL.md"],
-            cwd=repo_root,
-            check=True,
-            capture_output=True,
-            text=True,
-        )
-        skill_paths = sorted(
-            repo_root / relative_path for relative_path in result.stdout.splitlines()
-        )
-        self.assertEqual(
-            len(skill_paths),
-            29,
-            f"expected 29 skill files, found {len(skill_paths)}",
-        )
+        skill_paths = sorted((repo_root / "skills").glob("*/SKILL.md"))
+        skill_dirs = {path.parent.name for path in skill_paths}
+        self.assertEqual(len(skill_paths), len(skill_dirs))
 
         for path in skill_paths:
             with self.subTest(path=path):
@@ -45,8 +32,18 @@ class SkillFrontmatterTest(unittest.TestCase):
                 description = frontmatter.get("description")
                 self.assertIsInstance(name, str, path)
                 self.assertTrue(name.strip(), path)
+                self.assertEqual(name, path.parent.name)
                 self.assertIsInstance(description, str, path)
                 self.assertTrue(description.strip(), path)
+                self.assertLessEqual(len(description), 1024, path)
+
+        readme = (repo_root / "README.md").read_text(encoding="utf-8")
+        inventory = {
+            line.split("`", 2)[1]
+            for line in readme.splitlines()
+            if line.startswith("| `") and " |" in line
+        }
+        self.assertEqual(inventory, skill_dirs)
 
 
 if __name__ == "__main__":

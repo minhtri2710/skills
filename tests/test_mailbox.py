@@ -9,6 +9,7 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 SCRIPTS = Path(__file__).resolve().parents[1] / "skills" / "herdr-delivery-workflow" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
@@ -43,6 +44,12 @@ class MailboxTest(unittest.TestCase):
         self.path.write_text(SAMPLE, encoding="utf-8")
         prev_root = mailbox.HERDR_PROJECTS_ROOT
         mailbox.HERDR_PROJECTS_ROOT = root
+        self._stdout_patch = mock.patch.object(sys, "stdout", io.StringIO())
+        self._stderr_patch = mock.patch.object(sys, "stderr", io.StringIO())
+        self._stdout_patch.start()
+        self._stderr_patch.start()
+        self.addCleanup(self._stderr_patch.stop)
+        self.addCleanup(self._stdout_patch.stop)
         self.addCleanup(setattr, mailbox, "HERDR_PROJECTS_ROOT", prev_root)
         self.addCleanup(self.tmp.cleanup)
 
