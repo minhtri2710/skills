@@ -35,6 +35,9 @@ class DeployPruneTest(unittest.TestCase):
         self.paths = deploy_skill.tracked_files(
             self.repo, self.head, "skills/herdr-delivery-workflow"
         )
+        self.resolved = deploy_skill.resolved_files(
+            self.repo, self.head, self.paths, "skills/herdr-delivery-workflow"
+        )
         prefix = "skills/herdr-delivery-workflow/"
         self.tracked_relative = {Path(path[len(prefix):]) for path in self.paths}
         self.addCleanup(self._tmp.cleanup)
@@ -48,14 +51,7 @@ class DeployPruneTest(unittest.TestCase):
         )
 
     def deploy_to(self, install: Path) -> None:
-        deploy_skill.install_files(
-            self.repo,
-            self.head,
-            self.skills,
-            install,
-            self.paths,
-            "skills/herdr-delivery-workflow",
-        )
+        deploy_skill.install_files(install, self.resolved)
         deploy_skill.verify_install(
             self.repo,
             self.head,
@@ -103,14 +99,7 @@ class DeployPruneTest(unittest.TestCase):
         linked_parent.symlink_to(real_parent, target_is_directory=True)
         install = linked_parent / "skill"
 
-        deploy_skill.install_files(
-            self.repo,
-            self.head,
-            self.skills,
-            install,
-            self.paths,
-            "skills/herdr-delivery-workflow",
-        )
+        deploy_skill.install_files(install, self.resolved)
         deploy_skill.verify_install(
             self.repo,
             self.head,
@@ -173,14 +162,7 @@ class DeployPruneTest(unittest.TestCase):
         artifact = cache / "deploy.cpython-314.pyc"
         artifact.write_bytes(b"runtime artifact")
 
-        deploy_skill.install_files(
-            self.repo,
-            self.head,
-            self.skills,
-            self.install,
-            self.paths,
-            "skills/herdr-delivery-workflow",
-        )
+        deploy_skill.install_files(self.install, self.resolved)
         deploy_skill.verify_install(
             self.repo,
             self.head,

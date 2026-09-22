@@ -9,6 +9,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import deploy_skill
+
 
 class CheckError(Exception):
     """The requested relaunch evidence could not be derived or verified."""
@@ -37,20 +39,6 @@ def skill_prefix(value: str) -> str:
     return value.rstrip("/") + "/"
 
 
-def tracked_files(repo: Path, head: str, skill_path: str) -> list[str]:
-    prefix = skill_prefix(skill_path)
-    paths = git(repo, "ls-tree", "-r", "--name-only", head, prefix).splitlines()
-    if not paths:
-        raise CheckError(f"head {head!r} has no tracked files under {prefix}")
-    if any(not path.startswith(prefix) for path in paths):
-        raise CheckError(f"git ls-tree returned a path outside {prefix}")
-    return paths
-
-
-def _is_pycache(path: Path) -> bool:
-    return "__pycache__" in path.parts
-
-
 def installed_files(install_dir: Path) -> list[Path]:
     """List installed file entries, excluding every __pycache__ subtree."""
     if not install_dir.exists():
@@ -67,7 +55,7 @@ def installed_files(install_dir: Path) -> list[Path]:
         ]
         for name in names:
             relative = (root_path / name).relative_to(install_dir)
-            if not _is_pycache(relative):
+            if not deploy_skill._is_pycache(relative):
                 files.append(relative)
     return sorted(files)
 
@@ -80,8 +68,13 @@ def count_evidence(repo: Path, head: str, skill_path: str,
     mismatch. Extra installed files affect the installed count but not the
     hash-mismatch count; the two values expose both directions of drift.
     """
-    paths = tracked_files(repo, head, skill_path)
     prefix = skill_prefix(skill_path)
+    try:
+        paths = deploy_skill.runtime_paths(
+            deploy_skill.tracked_files(repo, head, prefix.rstrip("/")), prefix.rstrip("/")
+        )
+    except deploy_skill.DeployError as exc:
+        raise CheckError(str(exc)) from None
     installed = installed_files(install_dir)
     installed_set = set(installed)
     mismatches = 0

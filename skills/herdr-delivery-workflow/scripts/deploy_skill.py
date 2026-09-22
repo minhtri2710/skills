@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import argparse
 import os
-import shutil
 import stat
 import subprocess
 import sys
@@ -84,12 +83,39 @@ def _safe_install_dir(path: Path, *, allow_self_symlink: bool = False) -> Path:
     return path
 
 
-def _source_root(repo: Path, path: Path) -> Path:
-    expected = (repo / "skills").resolve()
-    candidate = (path if path.is_absolute() else repo / path).resolve()
-    if candidate != expected or not candidate.is_dir():
-        raise DeployError(f"source directory must be the repository skills root: {path}")
-    return candidate
+def resolved_files(repo: Path, head: str, paths: list[str], skill_prefix: str) -> list[tuple[Path, bytes, int]]:
+    prefix = skill_prefix.rstrip("/") + "/"
+    resolved: list[tuple[Path, bytes, int]] = []
+    for tracked in paths:
+        if not tracked.startswith(prefix):
+            raise DeployError(f"tracked path is outside {prefix}: {tracked}")
+        tree = subprocess.run(
+            ["git", "-C", str(repo), "ls-tree", head, "--", tracked],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if tree.returncode:
+            raise DeployError(f"git ls-tree failed for {tracked}: {tree.stderr.strip()}")
+        entries = tree.stdout.splitlines()
+        if len(entries) != 1:
+            raise DeployError(f"head {head} has no unique tree entry for {tracked}")
+        metadata = entries[0].split("\t", 1)[0].split()
+        if len(metadata) != 3:
+            raise DeployError(f"git ls-tree returned malformed metadata for {tracked}")
+        mode, object_type, _object_id = metadata
+        if object_type != "blob" or mode not in {"100644", "100755"}:
+            raise DeployError(f"tracked path has unsupported mode for {tracked}: {mode}")
+        blob = subprocess.run(
+            ["git", "-C", str(repo), "cat-file", "blob", f"{head}:{tracked}"],
+            capture_output=True,
+            check=False,
+        )
+        if blob.returncode:
+            detail = blob.stderr.decode(errors="replace").strip()
+            raise DeployError(f"git cat-file failed for {tracked}: {detail}")
+        resolved.append((Path(tracked[len(prefix):]), blob.stdout, 0o755 if mode == "100755" else 0o644))
+    return resolved
 
 
 def _relative_paths(paths: list[str], prefix: str) -> set[Path]:
@@ -124,38 +150,25 @@ def _prune_install(install_dir: Path, tracked: set[Path]) -> None:
                 pass
 
 
-def install_files(repo: Path, head: str, source_root: Path, install_dir: Path,
-                  paths: list[str], skill_prefix: str) -> None:
-    prefix = skill_prefix.rstrip("/") + "/"
-    source_root = _source_root(repo, source_root)
+def install_files(install_dir: Path, resolved: list[tuple[Path, bytes, int]]) -> None:
     install_dir = _safe_install_dir(install_dir)
-    skill = Path(skill_prefix).relative_to("skills")
-    sources: list[tuple[Path, Path]] = []
-    for tracked in paths:
-        relative = Path(tracked[len(prefix):])
-        source = source_root / skill / relative
-        try:
-            resolved_source = source.resolve(strict=True)
-            resolved_source.relative_to(source_root)
-        except (FileNotFoundError, OSError, ValueError):
-            raise DeployError(f"tracked source file is missing or escapes skills root: {source}")
-        if not resolved_source.is_file():
-            raise DeployError(f"tracked source file is missing: {source}")
-        sources.append((resolved_source, relative))
-
     install_dir.mkdir(parents=True, exist_ok=True)
-    _prune_install(install_dir, {relative for _, relative in sources})
-    for source, relative in sources:
+    _prune_install(install_dir, {relative for relative, _content, _mode in resolved})
+    for relative, content, mode in resolved:
         destination = install_dir / relative
         destination.parent.mkdir(parents=True, exist_ok=True)
+        if destination.is_symlink():
+            destination.unlink()
+        elif destination.exists() and not destination.is_file():
+            raise DeployError(f"installed path is not a file: {destination}")
         if (
             destination.is_file()
-            and not destination.is_symlink()
-            and source.read_bytes() == destination.read_bytes()
-            and stat.S_IMODE(source.stat().st_mode) == stat.S_IMODE(destination.stat().st_mode)
+            and destination.read_bytes() == content
+            and stat.S_IMODE(destination.stat().st_mode) == mode
         ):
             continue
-        shutil.copy2(source, destination)
+        destination.write_bytes(content)
+        os.chmod(destination, mode)
 
 
 def verify_install(repo: Path, head: str, install_dir: Path,
@@ -172,6 +185,15 @@ def verify_install(repo: Path, head: str, install_dir: Path,
         if actual != expected:
             raise DeployError(
                 f"installed hash mismatch for {tracked_path}: expected {expected}, got {actual}"
+            )
+        metadata = git(repo, "ls-tree", head, "--", tracked_path).split("\t", 1)[0].split()
+        if len(metadata) != 3 or metadata[0] not in {"100644", "100755"}:
+            raise DeployError(f"tracked path has unsupported mode for {tracked_path}")
+        expected_mode = 0o755 if metadata[0] == "100755" else 0o644
+        if stat.S_IMODE(installed.stat().st_mode) != expected_mode:
+            raise DeployError(
+                f"installed mode mismatch for {tracked_path}: expected {oct(expected_mode)}, "
+                f"got {oct(stat.S_IMODE(installed.stat().st_mode))}"
             )
 
     for root, dirs, files in os.walk(install_dir, topdown=True, followlinks=False):
@@ -238,18 +260,18 @@ def main(argv: list[str] | None = None) -> int:
                 f"--head {head} is not the current repository HEAD {current_head}; "
                 "gate_row.py records the current HEAD"
             )
-        source_root = _source_root(repo, repo / "skills")
-        install_root = _safe_install_dir(args.install_dir, allow_self_symlink=True)
         selected = selected_skills(repo, head, args.skill)
         deployments = []
         for skill in selected:
             skill_prefix = f"skills/{skill}"
             paths = runtime_paths(tracked_files(repo, head, skill_prefix), skill_prefix)
-            install_dir = install_root / skill
-            deployments.append((install_dir, paths, skill_prefix))
-            install_files(repo, head, source_root, install_dir, paths, skill_prefix)
-        for install_dir, paths, skill_prefix in deployments:
-            verify_install(repo, head, install_dir, paths, skill_prefix)
+            resolved = resolved_files(repo, head, paths, skill_prefix)
+            deployments.append((skill, paths, skill_prefix, resolved))
+        install_root = _safe_install_dir(args.install_dir, allow_self_symlink=True)
+        for skill, _paths, _skill_prefix, resolved in deployments:
+            install_files(install_root / skill, resolved)
+        for skill, paths, skill_prefix, _resolved in deployments:
+            verify_install(repo, head, install_root / skill, paths, skill_prefix)
         append_deploy_row(args, repo, Path(__file__).resolve().with_name("gate_row.py"))
     except (DeployError, OSError) as exc:
         print(f"deploy_skill: {exc}", file=sys.stderr)

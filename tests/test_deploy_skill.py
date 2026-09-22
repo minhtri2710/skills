@@ -2,6 +2,7 @@
 """Unit tests for tracked skill deployment acceptance."""
 from __future__ import annotations
 
+import stat
 import subprocess
 import sys
 import tempfile
@@ -46,6 +47,77 @@ class DeploySkillTest(unittest.TestCase):
             "--status", "resolved:deploy",
             "--words", "seat", "--note", "installed the skill", "--quote", "done",
         ]
+
+    def test_dirty_worktree_installs_head_blob(self):
+        (self.source / "SKILL.md").write_text("dirty working tree\n")
+
+        result = deploy_skill.main(self.deploy_args(self.tmp / "gates.md"))
+
+        self.assertEqual(result, 0)
+        installed = self.install / "herdr-delivery-workflow" / "SKILL.md"
+        self.assertEqual(installed.read_text(), "tracked skill\n")
+        head = deploy_skill.git(self.repo, "rev-parse", "HEAD")
+        paths = deploy_skill.tracked_files(self.repo, head, "skills/herdr-delivery-workflow")
+        deploy_skill.verify_install(
+            self.repo, head, installed.parent, paths, "skills/herdr-delivery-workflow"
+        )
+
+    def test_executable_mode_comes_from_head_tree(self):
+        script = self.source / "run.sh"
+        script.write_text("#!/bin/sh\nexit 0\n")
+        script.chmod(0o755)
+        self.git("add", "skills")
+        self.git("commit", "-qm", "add executable")
+        script.chmod(0o644)
+
+        result = deploy_skill.main(self.deploy_args(self.tmp / "gates.md"))
+
+        self.assertEqual(result, 0)
+        installed = self.install / "herdr-delivery-workflow" / "run.sh"
+        self.assertEqual(stat.S_IMODE(installed.stat().st_mode), 0o755)
+
+    def test_resolution_failure_leaves_earlier_install_byte_identical(self):
+        initial_ledger = self.tmp / "initial-gates.md"
+        self.assertEqual(deploy_skill.main(self.deploy_args(initial_ledger)), 0)
+        stale = self.install / "herdr-delivery-workflow" / "obsolete.txt"
+        stale.write_text("must remain when resolution fails\n")
+        before = {
+            path.relative_to(self.install): (path.read_bytes(), stat.S_IMODE(path.stat().st_mode))
+            for path in self.install.rglob("*")
+            if path.is_file()
+        }
+
+        second = self.skills / "second-skill"
+        second.mkdir()
+        (second / "SKILL.md").symlink_to(self.source / "SKILL.md")
+        self.git("add", "skills")
+        self.git("commit", "-qm", "add unsupported second skill")
+
+        result = deploy_skill.main(
+            self.deploy_args(self.tmp / "gates.md")
+            + ["--skill", "herdr-delivery-workflow", "--skill", "second-skill"]
+        )
+
+        self.assertEqual(result, 1)
+        after = {
+            path.relative_to(self.install): (path.read_bytes(), stat.S_IMODE(path.stat().st_mode))
+            for path in self.install.rglob("*")
+            if path.is_file()
+        }
+        self.assertEqual(after, before)
+
+    def test_symlink_mode_is_refused_before_install(self):
+        second = self.skills / "second-skill"
+        second.mkdir()
+        (second / "SKILL.md").symlink_to(self.source / "SKILL.md")
+        self.git("add", "skills")
+        self.git("commit", "-qm", "add symlink")
+        head = deploy_skill.git(self.repo, "rev-parse", "HEAD")
+        paths = deploy_skill.tracked_files(self.repo, head, "skills/second-skill")
+
+        with self.assertRaises(deploy_skill.DeployError):
+            deploy_skill.resolved_files(self.repo, head, paths, "skills/second-skill")
+        self.assertFalse(self.install.exists())
 
     def test_tampered_installed_file_fails_hash_comparison(self):
         self.install.mkdir()
@@ -149,9 +221,9 @@ class DeploySkillTest(unittest.TestCase):
         ledger = self.tmp / "gates.md"
         original_install = deploy_skill.install_files
 
-        def tamper_second(repo, head, source_root, install_dir, paths, skill_prefix):
-            original_install(repo, head, source_root, install_dir, paths, skill_prefix)
-            if skill_prefix == "skills/second-skill":
+        def tamper_second(install_dir, resolved):
+            original_install(install_dir, resolved)
+            if install_dir.name == "second-skill":
                 (install_dir / "SKILL.md").write_text("tampered\n")
 
         second = self.skills / "second-skill"

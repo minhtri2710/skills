@@ -94,7 +94,16 @@ class RelaunchEntryCheckTest(unittest.TestCase):
         self.assertEqual(stdout, "")
         self.assertIn("not a verbatim contiguous block", stderr)
 
-    def test_count_returns_tracked_installed_and_hash_mismatch_triple(self):
+    def test_count_excludes_repo_only_files_and_detects_tampering(self):
+        plugin = self.skill / ".claude-plugin"
+        plugin.mkdir()
+        (plugin / "x").write_text("plugin\n", encoding="utf-8")
+        evaluation = self.skill / "plugin-eval" / "case"
+        evaluation.mkdir(parents=True)
+        (evaluation / "y").write_text("eval\n", encoding="utf-8")
+        git(self.repo, "add", "skills/example")
+        git(self.repo, "commit", "-qm", "add repo-only files")
+
         code, stdout, stderr = self.run_main([
             "--count", "--repo", str(self.repo), "--head", "HEAD",
             "--skill-path", "skills/example", "--installed-path", str(self.install),
@@ -102,6 +111,16 @@ class RelaunchEntryCheckTest(unittest.TestCase):
 
         self.assertEqual(code, 0)
         self.assertEqual(stdout, "tracked=2 installed=2 hash-mismatches=0\n")
+        self.assertEqual(stderr, "")
+
+        (self.install / "SKILL.md").write_text("tampered\n", encoding="utf-8")
+        code, stdout, stderr = self.run_main([
+            "--count", "--repo", str(self.repo), "--head", "HEAD",
+            "--skill-path", "skills/example", "--installed-path", str(self.install),
+        ])
+
+        self.assertEqual(code, 0)
+        self.assertEqual(stdout, "tracked=2 installed=2 hash-mismatches=1\n")
         self.assertEqual(stderr, "")
 
 
