@@ -5,11 +5,13 @@ from __future__ import annotations
 import argparse
 import json
 import re
-import subprocess
+import shlex
 import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping, Protocol
+
+import herdr_cli
 
 
 class HerdrReadBoundary(Protocol):
@@ -61,7 +63,7 @@ _SERVER_MARKERS = (
     "vite",
     "webpack-dev-server",
 )
-_SERVER_WORD_RE = re.compile(r"(?:^|[\s/_-])(dev|preview|serve|server)(?:$|[\s/_-])")
+_SERVER_WORDS = frozenset({"dev", "preview", "serve", "server"})
 
 
 def _status(value: Any) -> str | None:
@@ -188,20 +190,33 @@ def _path_in_checkout(value: Any, canonical: Path) -> bool:
     return True
 
 
-def _process_text(process: Mapping[str, Any]) -> str:
+def _process_argv(process: Mapping[str, Any]) -> list[str]:
     values: list[str] = []
     for key in ("argv0", "name", "command", "cmdline"):
         value = process.get(key)
-        if isinstance(value, str):
-            values.append(value.lower())
-        elif isinstance(value, list) and all(isinstance(item, str) for item in value):
+        if isinstance(value, list) and all(isinstance(item, str) for item in value):
             values.extend(item.lower() for item in value)
-    return " ".join(values)
+        elif isinstance(value, str):
+            try:
+                values.extend(item.lower() for item in shlex.split(value))
+            except ValueError:
+                values.extend(value.lower().split())
+    return values
 
 
 def _is_server_process(process: Mapping[str, Any]) -> bool:
-    text = _process_text(process)
-    return any(marker in text for marker in _SERVER_MARKERS) or bool(_SERVER_WORD_RE.search(text))
+    argv = _process_argv(process)
+    tokens = set(argv)
+    basenames = {Path(token).name for token in argv}
+    for marker in _SERVER_MARKERS:
+        marker_tokens = marker.split()
+        if len(marker_tokens) == 1:
+            if marker_tokens[0] in tokens or marker_tokens[0] in basenames:
+                return True
+            continue
+        if any(argv[index:index + len(marker_tokens)] == marker_tokens for index in range(len(argv) - len(marker_tokens) + 1)):
+            return True
+    return bool(tokens & _SERVER_WORDS)
 
 
 def _process_list(evidence: Mapping[str, Any]) -> list[Any] | None:
@@ -303,9 +318,7 @@ class _SubprocessHerdr:
     """The production adapter; record fields are passed only as argv values."""
 
     def _run(self, args: list[str]) -> Mapping[str, Any]:
-        completed = subprocess.run(
-            ["herdr", *args], capture_output=True, text=True, check=False
-        )
+        completed = herdr_cli.run(args)
         text = completed.stdout.strip() or completed.stderr.strip()
         try:
             value = json.loads(text)

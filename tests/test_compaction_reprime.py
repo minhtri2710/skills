@@ -12,7 +12,9 @@ from pathlib import Path
 from unittest.mock import patch
 
 
-SCRIPT = Path(__file__).parents[1] / "skills" / "herdr-delivery-workflow" / "scripts" / "compaction_reprime.py"
+SCRIPTS = Path(__file__).parents[1] / "skills" / "herdr-delivery-workflow" / "scripts"
+SCRIPT = SCRIPTS / "compaction_reprime.py"
+sys.path.insert(0, str(SCRIPTS))
 SPEC = importlib.util.spec_from_file_location("compaction_reprime", SCRIPT)
 assert SPEC is not None and SPEC.loader is not None
 compaction_reprime = importlib.util.module_from_spec(SPEC)
@@ -28,7 +30,7 @@ def _guard_unpatched_subprocess_run(command: object, *args: object, **kwargs: ob
 
 
 def _install_subprocess_guard(test_case: unittest.TestCase) -> None:
-    guard = patch.object(compaction_reprime.subprocess, "run", side_effect=_guard_unpatched_subprocess_run)
+    guard = patch.object(compaction_reprime.herdr_cli.subprocess, "run", side_effect=_guard_unpatched_subprocess_run)
     guard.start()
     test_case.addCleanup(guard.stop)
 
@@ -116,6 +118,21 @@ class CompactionReprimeObserverTest(unittest.TestCase):
             2,
         )
 
+    def test_pi_valid_records_survive_one_partial_trailing_line(self) -> None:
+        path = self.pi_path()
+        self.write_jsonl(path, [self.pi_header(), self.pi_compaction()])
+        with path.open("a", encoding="utf-8") as stream:
+            stream.write('{"type":"assistant"')
+        self.assertEqual(
+            compaction_reprime.observe_live_seat(
+                self.roster(kind="pi", path=path),
+                "lead-beo-skills",
+                project_root=self.project,
+                home_dir=self.home,
+            ),
+            1,
+        )
+
     def test_pi_malformed_incomplete_or_mismatched_evidence_fails_closed(self) -> None:
         path = self.pi_path()
         cases = [
@@ -175,6 +192,38 @@ class CompactionReprimeObserverTest(unittest.TestCase):
                 home_dir=self.home,
             ),
             2,
+        )
+
+    def test_claude_session_cwd_may_change_within_project_root(self) -> None:
+        session_id = "058a68e8-ce90-4eae-9624-2310cc7e832f"
+        project_key = "-" + str(self.project.resolve()).lstrip("/").replace("/", "-")
+        path = self.home / ".claude" / "projects" / project_key / f"{session_id}.jsonl"
+        subdirectory = self.project / "subdir"
+        subdirectory.mkdir()
+        boundary = {
+            "type": "system",
+            "subtype": "compact_boundary",
+            "uuid": "e6ea46d6-901c-49e5-920a-10d06f333ef6",
+            "sessionId": session_id,
+            "cwd": str(subdirectory),
+            "compactMetadata": {"trigger": "auto"},
+        }
+        summary = {
+            "type": "user",
+            "isCompactSummary": True,
+            "uuid": "85ef7c32-1265-4a00-9395-0af4b3171f3e",
+            "sessionId": session_id,
+            "cwd": str(self.project),
+        }
+        self.write_jsonl(path, [boundary, summary])
+        self.assertEqual(
+            compaction_reprime.observe_live_seat(
+                self.roster(kind="claude", session_id=session_id),
+                "lead-beo-skills",
+                project_root=self.project,
+                home_dir=self.home,
+            ),
+            1,
         )
 
     def test_claude_missing_or_ambiguous_companion_fails_closed(self) -> None:
@@ -257,7 +306,7 @@ class CompactionReprimeObserverTest(unittest.TestCase):
         path = self.pi_path()
         self.write_jsonl(path, [self.pi_header(), self.pi_compaction()])
         before = sorted(str(item.relative_to(self.home)) for item in self.home.rglob("*") if item.is_file())
-        with patch("subprocess.run", side_effect=AssertionError("observer must not invoke commands")):
+        with patch.object(compaction_reprime.herdr_cli.subprocess, "run", side_effect=AssertionError("observer must not invoke commands")):
             self.assertEqual(
                 compaction_reprime.observe_live_seat(
                     self.roster(kind="pi", path=path),
@@ -567,7 +616,7 @@ class CompactionReprimeDispatchTest(CompactionReprimeBaselineTest):
     def test_success_dispatch_uses_exact_argv_and_is_idempotent(self) -> None:
         self.write_pointer_files()
         path = self.make_pending()
-        with patch.object(compaction_reprime.subprocess, "run", return_value=subprocess.CompletedProcess([], 0)) as run:
+        with patch.object(compaction_reprime.herdr_cli.subprocess, "run", return_value=subprocess.CompletedProcess([], 0)) as run:
             first = self.dispatch(path)
         self.assertIsNotNone(first)
         assert first is not None
@@ -580,7 +629,7 @@ class CompactionReprimeDispatchTest(CompactionReprimeBaselineTest):
         self.assertEqual(json.loads(first.state_path.read_text(encoding="utf-8"))["consumed_threshold"], 4)
         self.assertEqual(json.loads(first.state_path.read_text(encoding="utf-8"))["prompt_status"], "consumed")
 
-        with patch.object(compaction_reprime.subprocess, "run") as repeated_run:
+        with patch.object(compaction_reprime.herdr_cli.subprocess, "run") as repeated_run:
             repeated = self.dispatch(path)
         self.assertIsNotNone(repeated)
         assert repeated is not None
@@ -599,7 +648,7 @@ class CompactionReprimeDispatchTest(CompactionReprimeBaselineTest):
         assert pending is not None
         self.assertEqual(pending.eligible_threshold, 4)
 
-        with patch.object(compaction_reprime.subprocess, "run", return_value=subprocess.CompletedProcess([], 0)) as first_run:
+        with patch.object(compaction_reprime.herdr_cli.subprocess, "run", return_value=subprocess.CompletedProcess([], 0)) as first_run:
             first = self.dispatch(path)
         self.assertIsNotNone(first)
         assert first is not None
@@ -607,7 +656,7 @@ class CompactionReprimeDispatchTest(CompactionReprimeBaselineTest):
         self.assertEqual(first.state.next_threshold, 8)
         self.assertEqual(first_run.call_count, 1)
 
-        with patch.object(compaction_reprime.subprocess, "run", return_value=subprocess.CompletedProcess([], 0)) as second_run:
+        with patch.object(compaction_reprime.herdr_cli.subprocess, "run", return_value=subprocess.CompletedProcess([], 0)) as second_run:
             second = self.dispatch(path)
         self.assertIsNotNone(second)
         assert second is not None
@@ -615,10 +664,28 @@ class CompactionReprimeDispatchTest(CompactionReprimeBaselineTest):
         self.assertEqual(second.state.consumed_threshold, 8)
         self.assertEqual(second_run.call_count, 1)
 
+    def test_unavailable_prompt_is_durable_and_retryable(self) -> None:
+        self.write_pointer_files()
+        path = self.make_pending()
+        with patch.object(
+            compaction_reprime.herdr_cli,
+            "run",
+            side_effect=compaction_reprime.herdr_cli.HerdrUnavailable(
+                "herdr agent prompt lead-beo-skills timed out"
+            ),
+        ) as run:
+            failed = self.dispatch(path)
+        self.assertIsNotNone(failed)
+        assert failed is not None
+        self.assertTrue(failed.retryable)
+        self.assertFalse(failed.prompt_succeeded)
+        self.assertEqual(json.loads(failed.state_path.read_text(encoding="utf-8"))["eligible_threshold"], 4)
+        run.assert_called_once()
+
     def test_failed_prompt_is_durable_and_retryable(self) -> None:
         self.write_pointer_files()
         path = self.make_pending()
-        with patch.object(compaction_reprime.subprocess, "run", return_value=subprocess.CompletedProcess([], 17)) as run:
+        with patch.object(compaction_reprime.herdr_cli.subprocess, "run", return_value=subprocess.CompletedProcess([], 17)) as run:
             failed = self.dispatch(path)
         self.assertIsNotNone(failed)
         assert failed is not None
@@ -630,7 +697,7 @@ class CompactionReprimeDispatchTest(CompactionReprimeBaselineTest):
         self.assertEqual(state["consumed_threshold"], 0)
         self.assertEqual(run.call_count, 1)
 
-        with patch.object(compaction_reprime.subprocess, "run", return_value=subprocess.CompletedProcess([], 0)) as retry:
+        with patch.object(compaction_reprime.herdr_cli.subprocess, "run", return_value=subprocess.CompletedProcess([], 0)) as retry:
             succeeded = self.dispatch(path)
         self.assertIsNotNone(succeeded)
         assert succeeded is not None
@@ -646,7 +713,7 @@ class CompactionReprimeDispatchTest(CompactionReprimeBaselineTest):
         self.write_pointer_files()
         path = self.make_pending()
         (self.home / ".herdr" / "projects" / "project" / "context-pack.md").unlink()
-        with patch.object(compaction_reprime.subprocess, "run") as run:
+        with patch.object(compaction_reprime.herdr_cli.subprocess, "run") as run:
             result = self.dispatch(path)
         self.assertIsNotNone(result)
         assert result is not None
@@ -721,7 +788,7 @@ class CompactionReprimeDispatchTest(CompactionReprimeBaselineTest):
             try:
                 with patch.object(compaction_reprime, "_load_live_roster", return_value=roster), \
                         patch.object(
-                            compaction_reprime.subprocess,
+                            compaction_reprime.herdr_cli.subprocess,
                             "run",
                             return_value=subprocess.CompletedProcess([], 0),
                         ) as prompt, \

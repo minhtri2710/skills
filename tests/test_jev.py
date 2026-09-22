@@ -338,6 +338,14 @@ class JevTest(unittest.TestCase):
                     },
                 )
 
+    def test_fractional_and_minute_header_timestamps_are_not_objective_timestamps(self) -> None:
+        for timestamp in ("2026-09-19T12:34:56.500Z", "2026-09-19T12:34Z"):
+            with self.subTest(timestamp=timestamp):
+                state = jev._header_state(
+                    f"## lead-beo-skills -> supervisor | {timestamp} | event"
+                )
+                self.assertNotIn("timestamp", state)
+
     def test_header_malformed_score_or_prose_is_unavailable(self) -> None:
         responses = (
             {"answers": {"score": {"type": "choice", "score": 1}}},

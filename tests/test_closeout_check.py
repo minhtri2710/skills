@@ -100,6 +100,21 @@ class CloseoutCheckTest(unittest.TestCase):
         self.assertTrue(any("squatting-server anti-pattern" in finding
                             for finding in result.findings))
 
+    def test_server_detection_matches_argv_tokens_not_substrings(self):
+        cases = (
+            (["node", "vitest"], False),
+            (["tail", "-f", "/dev/null"], False),
+            (["vim", "server.py"], False),
+            (["npm", "run", "dev"], True),
+            (["vite"], True),
+            (["/usr/bin/python3", "-m", "http.server"], True),
+            (["next", "dev"], True),
+            (["uvicorn", "app:app"], True),
+        )
+        for argv, expected in cases:
+            with self.subTest(argv=argv):
+                self.assertEqual(closeout_check._is_server_process({"cmdline": argv}), expected)
+
     def test_persistent_lead_and_supervisor_are_not_teardown_targets(self):
         self.herdr.close("w1:p3")
         self.herdr.close("w1:p4")
@@ -212,6 +227,16 @@ class CloseoutCheckTest(unittest.TestCase):
         canonical, peers = closeout_check._validate_record(unsupervised)
         self.assertTrue(canonical.is_absolute())
         self.assertEqual([peer["role"] for peer in peers], ["Engineer", "Reviewer"])
+
+    def test_subprocess_herdr_unavailable_fails_closeout_closed(self):
+        with mock.patch.object(
+            closeout_check.herdr_cli,
+            "run",
+            side_effect=closeout_check.herdr_cli.HerdrUnavailable("herdr pane get timed out"),
+        ):
+            result = closeout_check.check_closeout(self.record, closeout_check._SubprocessHerdr())
+        self.assertFalse(result.passed)
+        self.assertTrue(any("pane read failed" in finding for finding in result.findings))
 
     def test_cli_reads_json_closeout_staffing_record_and_returns_pass(self):
         self.herdr.close("w1:p3")

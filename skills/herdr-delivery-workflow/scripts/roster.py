@@ -4,11 +4,12 @@ from __future__ import annotations
 
 import argparse
 import json
-import subprocess
 import sys
 import time
 from pathlib import Path
 from typing import Any
+
+import herdr_cli
 
 
 _SETTLED_STATES = frozenset({"idle", "done"})
@@ -211,13 +212,8 @@ def _agent_list_json(use_stdin: bool) -> str:
     if use_stdin:
         return sys.stdin.read()
     try:
-        proc = subprocess.run(
-            ["herdr", "agent", "list"],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-    except OSError as exc:
+        proc = herdr_cli.run(["agent", "list"])
+    except herdr_cli.HerdrUnavailable as exc:
         raise RuntimeError(f"could not run herdr agent list: {exc}") from exc
     if proc.returncode:
         detail = proc.stderr.strip() or proc.stdout.strip()

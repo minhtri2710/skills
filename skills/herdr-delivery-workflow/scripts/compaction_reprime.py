@@ -13,12 +13,13 @@ import json
 import os
 import re
 import stat
-import subprocess
 import sys
 import tempfile
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any, Mapping, Sequence
+
+import herdr_cli
 
 
 _IDENTIFIER = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
@@ -41,6 +42,7 @@ class SessionRecord:
     kind: str
     session_id: str
     cwd: Path
+    project_root: Path
     session_root: Path
     session_path: Path
 
@@ -130,7 +132,13 @@ def _validated_cwd(agent: Mapping[str, Any], project_root: Path) -> Path | None:
     if not isinstance(raw_cwd, str) or not raw_cwd or not Path(raw_cwd).is_absolute():
         return None
     cwd = _canonical_directory(Path(raw_cwd))
-    return cwd if cwd is not None and cwd == project_root else None
+    if cwd is None:
+        return None
+    try:
+        cwd.relative_to(project_root)
+    except ValueError:
+        return None
+    return cwd
 
 
 def _resolve_pi_session(
@@ -138,6 +146,7 @@ def _resolve_pi_session(
     seat: str,
     agent_name: str | None,
     cwd: Path,
+    project_root: Path,
     home: Path,
 ) -> SessionRecord | None:
     session = agent.get("agent_session")
@@ -157,7 +166,7 @@ def _resolve_pi_session(
     _, separator, session_id = path.stem.rpartition("_")
     if not separator or not _valid_identifier(session_id, _SESSION_ID):
         return None
-    return SessionRecord(seat, agent_name, "pi", session_id, cwd, root, path)
+    return SessionRecord(seat, agent_name, "pi", session_id, cwd, project_root, root, path)
 
 
 def _resolve_claude_session(
@@ -165,6 +174,7 @@ def _resolve_claude_session(
     seat: str,
     agent_name: str | None,
     cwd: Path,
+    project_root: Path,
     home: Path,
 ) -> SessionRecord | None:
     session = agent.get("agent_session")
@@ -175,7 +185,7 @@ def _resolve_claude_session(
     session_id = session.get("value")
     if not _valid_identifier(session_id, _SESSION_ID):
         return None
-    project_key = _project_key(cwd)
+    project_key = _project_key(project_root)
     if project_key is None:
         return None
     root = _canonical_directory(home / ".claude" / "projects")
@@ -187,7 +197,7 @@ def _resolve_claude_session(
     path = _canonical_file(project_dir / f"{session_id}.jsonl", root)
     if path is None:
         return None
-    return SessionRecord(seat, agent_name, "claude", session_id, cwd, root, path)
+    return SessionRecord(seat, agent_name, "claude", session_id, cwd, project_root, root, path)
 
 
 def resolve_live_session(
@@ -224,8 +234,8 @@ def resolve_live_session(
     if home is None:
         return None
     if kind == "pi":
-        return _resolve_pi_session(agent, seat, agent_name, cwd, home)
-    return _resolve_claude_session(agent, seat, agent_name, cwd, home)
+        return _resolve_pi_session(agent, seat, agent_name, cwd, project, home)
+    return _resolve_claude_session(agent, seat, agent_name, cwd, project, home)
 
 
 def _parse_jsonl(path: Path) -> list[Mapping[str, Any]] | None:
@@ -236,7 +246,9 @@ def _parse_jsonl(path: Path) -> list[Mapping[str, Any]] | None:
                 try:
                     value = json.loads(line)
                 except (json.JSONDecodeError, UnicodeDecodeError):
-                    return None
+                    if line.endswith("\n"):
+                        return None
+                    break
                 if not isinstance(value, Mapping):
                     return None
                 records.append(value)
@@ -245,7 +257,20 @@ def _parse_jsonl(path: Path) -> list[Mapping[str, Any]] | None:
     return records
 
 
-def _session_header(records: list[Mapping[str, Any]], session: SessionRecord) -> tuple[str, Path] | None:
+def _authorized_cwd(raw_cwd: object, session: SessionRecord) -> Path | None:
+    if not isinstance(raw_cwd, str) or not raw_cwd:
+        return None
+    record_cwd = _canonical_directory(Path(raw_cwd))
+    if record_cwd is None:
+        return None
+    try:
+        record_cwd.relative_to(session.project_root)
+    except ValueError:
+        return None
+    return record_cwd
+
+
+def _session_header(records: list[Mapping[str, Any]], session: SessionRecord) -> str | None:
     if not records:
         return None
     if session.kind == "claude":
@@ -260,10 +285,9 @@ def _session_header(records: list[Mapping[str, Any]], session: SessionRecord) ->
                 continue
             if not isinstance(raw_cwd, str):
                 return None
-            record_cwd = _canonical_directory(Path(raw_cwd))
-            if record_cwd is None or record_cwd != session.cwd:
+            if _authorized_cwd(raw_cwd, session) is None:
                 return None
-        return session.session_id, session.cwd
+        return session.session_id
 
     header = records[0]
     if header.get("type") != "session":
@@ -275,13 +299,12 @@ def _session_header(records: list[Mapping[str, Any]], session: SessionRecord) ->
         return None
     if not isinstance(raw_cwd, str) or not raw_cwd or not isinstance(timestamp, str) or not timestamp:
         return None
-    header_cwd = _canonical_directory(Path(raw_cwd))
-    if header_cwd is None or header_cwd != session.cwd:
+    if _authorized_cwd(raw_cwd, session) is None:
         return None
-    return session_id, header_cwd
+    return session_id
 
 
-def _record_matches_session(record: Mapping[str, Any], session: SessionRecord, header_id: str, header_cwd: Path) -> bool:
+def _record_matches_session(record: Mapping[str, Any], session: SessionRecord, header_id: str) -> bool:
     record_id = record.get("sessionId")
     if record_id is not None and record_id != header_id:
         return False
@@ -289,13 +312,12 @@ def _record_matches_session(record: Mapping[str, Any], session: SessionRecord, h
     if raw_cwd is not None:
         if not isinstance(raw_cwd, str):
             return False
-        record_cwd = _canonical_directory(Path(raw_cwd))
-        if record_cwd is None or record_cwd != header_cwd:
+        if _authorized_cwd(raw_cwd, session) is None:
             return False
     return True
 
 
-def _valid_claude_boundary(record: Mapping[str, Any], session: SessionRecord, header_id: str, header_cwd: Path) -> bool:
+def _valid_claude_boundary(record: Mapping[str, Any], session: SessionRecord, header_id: str) -> bool:
     metadata = record.get("compactMetadata")
     trigger = metadata.get("trigger") if isinstance(metadata, Mapping) else None
     return (
@@ -308,11 +330,11 @@ def _valid_claude_boundary(record: Mapping[str, Any], session: SessionRecord, he
         and isinstance(trigger, str)
         and bool(trigger.strip())
         and isinstance(record.get("cwd"), str)
-        and _record_matches_session(record, session, header_id, header_cwd)
+        and _record_matches_session(record, session, header_id)
     )
 
 
-def _valid_claude_summary(record: Mapping[str, Any], session: SessionRecord, header_id: str, header_cwd: Path) -> bool:
+def _valid_claude_summary(record: Mapping[str, Any], session: SessionRecord, header_id: str) -> bool:
     return (
         record.get("isCompactSummary") is True
         and isinstance(record.get("sessionId"), str)
@@ -320,7 +342,7 @@ def _valid_claude_summary(record: Mapping[str, Any], session: SessionRecord, hea
         and isinstance(record.get("uuid"), str)
         and _valid_identifier(record.get("uuid"), _SESSION_ID)
         and isinstance(record.get("cwd"), str)
-        and _record_matches_session(record, session, header_id, header_cwd)
+        and _record_matches_session(record, session, header_id)
     )
 
 
@@ -328,7 +350,7 @@ def _observe_claude(records: list[Mapping[str, Any]], session: SessionRecord) ->
     header = _session_header(records, session)
     if header is None:
         return None
-    header_id, header_cwd = header
+    header_id = header
     pending = False
     count = 0
     seen_marker_ids: set[str] = set()
@@ -336,7 +358,7 @@ def _observe_claude(records: list[Mapping[str, Any]], session: SessionRecord) ->
         is_boundary = record.get("type") == "system" and record.get("subtype") == "compact_boundary"
         is_summary = record.get("isCompactSummary") is True
         if is_boundary:
-            if not _valid_claude_boundary(record, session, header_id, header_cwd) or pending:
+            if not _valid_claude_boundary(record, session, header_id) or pending:
                 return None
             marker_id = record["uuid"]
             if marker_id in seen_marker_ids:
@@ -344,7 +366,7 @@ def _observe_claude(records: list[Mapping[str, Any]], session: SessionRecord) ->
             seen_marker_ids.add(marker_id)
             pending = True
         elif is_summary:
-            if not _valid_claude_summary(record, session, header_id, header_cwd):
+            if not _valid_claude_summary(record, session, header_id):
                 return None
             marker_id = record["uuid"]
             if marker_id in seen_marker_ids or not pending:
@@ -355,7 +377,7 @@ def _observe_claude(records: list[Mapping[str, Any]], session: SessionRecord) ->
     return None if pending else count
 
 
-def _valid_pi_compaction(record: Mapping[str, Any], session: SessionRecord, header_id: str, header_cwd: Path) -> bool:
+def _valid_pi_compaction(record: Mapping[str, Any], session: SessionRecord, header_id: str) -> bool:
     parent_id = record.get("parentId")
     return (
         record.get("type") == "compaction"
@@ -369,7 +391,7 @@ def _valid_pi_compaction(record: Mapping[str, Any], session: SessionRecord, head
         and isinstance(record.get("tokensBefore"), int)
         and not isinstance(record.get("tokensBefore"), bool)
         and record.get("tokensBefore") >= 0
-        and _record_matches_session(record, session, header_id, header_cwd)
+        and _record_matches_session(record, session, header_id)
     )
 
 
@@ -377,13 +399,13 @@ def _observe_pi(records: list[Mapping[str, Any]], session: SessionRecord) -> int
     header = _session_header(records, session)
     if header is None:
         return None
-    header_id, header_cwd = header
+    header_id = header
     seen_ids: set[str] = set()
     count = 0
     for record in records[1:]:
         if record.get("type") != "compaction":
             continue
-        if not _valid_pi_compaction(record, session, header_id, header_cwd):
+        if not _valid_pi_compaction(record, session, header_id):
             return None
         record_id = record["id"]
         if record_id in seen_ids:
@@ -1025,12 +1047,9 @@ def dispatch_live_seat(
         return ReprimeDispatchResult(result.state, result.state_path, threshold, False, False, None)
 
     try:
-        prompt_result = subprocess.run(
-            ["herdr", "agent", "prompt", seat, block],
-            check=False,
-        )
-        prompt_succeeded = getattr(prompt_result, "returncode", None) == 0
-    except OSError:
+        prompt_result = herdr_cli.run(["agent", "prompt", seat, block])
+        prompt_succeeded = prompt_result.returncode == 0
+    except herdr_cli.HerdrUnavailable:
         prompt_succeeded = False
 
     status = "consumed" if prompt_succeeded else "failed"
@@ -1066,13 +1085,8 @@ def observe_live_seat(
 
 def _load_live_roster() -> Any | None:
     try:
-        result = subprocess.run(
-            ["herdr", "agent", "list"],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-    except OSError:
+        result = herdr_cli.run(["agent", "list"])
+    except herdr_cli.HerdrUnavailable:
         return None
     if result.returncode != 0:
         return None

@@ -10,16 +10,15 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Iterable
 
+import herdr_cli
 import jev
 
 HEADER_RE = re.compile(
     r"^## [^|\r\n]+ -> [^|\r\n]+ \| "
-    r"([0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}"
-    r"(?::[0-9]{2}(?:\.[0-9]+)?)Z) \|"
+    r"([0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z) \|"
 )
 ISO_RE = re.compile(
-    r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}"
-    r"(?::[0-9]{2}(?:\.[0-9]+)?)Z"
+    r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z"
 )
 
 # The only mailbox that may drive a live seat is a real project mailbox under
@@ -107,12 +106,7 @@ def select_entries(
 
 def run_wake(seat: str, wake_text: str) -> subprocess.CompletedProcess[str]:
     """Issue one best-effort Herdr wake for a delivered mailbox entry."""
-    return subprocess.run(
-        ["herdr", "agent", "prompt", seat, wake_text],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    return herdr_cli.run(["agent", "prompt", seat, wake_text])
 
 
 def _default_wake_text(seat: str, mailbox_path: str, header: str) -> str:
@@ -148,7 +142,7 @@ def main(argv: list[str] | None = None) -> int:
             wake_text = _default_wake_text(args.wake, args.file, header)
             try:
                 result = run_wake(args.wake, wake_text)
-            except OSError as exc:
+            except herdr_cli.HerdrUnavailable as exc:
                 print(f"mailbox: ran herdr agent prompt {args.wake}", file=sys.stderr)
                 print(f"mailbox: wake failed: {exc}", file=sys.stderr)
                 return 1

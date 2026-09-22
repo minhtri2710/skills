@@ -178,6 +178,12 @@ class MailboxTest(unittest.TestCase):
         self.assertEqual(result, 1)
         self.assertIn("ISO-8601", stderr.getvalue())
 
+    def test_fractional_precision_header_and_since_are_rejected(self):
+        fractional_header = "## lead-beo-skills -> supervisor | 2026-09-10T00:20:00.500Z | fractional"
+        self.assertIsNone(mailbox.HEADER_RE.match(fractional_header))
+        with self.assertRaisesRegex(ValueError, "ISO-8601"):
+            mailbox.select_entries(fractional_header, since="2026-09-10T00:20:00.500Z")
+
     def test_seconds_precision_orders_entries_at_the_same_minute(self):
         text = (
             "## lead-beo-skills -> supervisor | 2026-09-10T04:20:05Z | later\n"
@@ -336,6 +342,19 @@ class MailboxTest(unittest.TestCase):
             calls[0][1],
             mailbox._default_wake_text("supervisor", str(self.path), last_header),
         )
+
+    def test_unavailable_wake_uses_the_existing_failed_path(self):
+        original = mailbox.run_wake
+        mailbox.run_wake = lambda seat, wake_text: (_ for _ in ()).throw(
+            mailbox.herdr_cli.HerdrUnavailable("herdr agent prompt supervisor timed out")
+        )
+        self.addCleanup(setattr, mailbox, "run_wake", original)
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            result = mailbox.main(["--file", str(self.path), "--wake", "supervisor"])
+        self.assertEqual(result, 1)
+        self.assertIn("wake failed", stderr.getvalue())
 
     def test_wake_failure_is_not_retried(self):
         calls = []

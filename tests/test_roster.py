@@ -65,7 +65,7 @@ class RosterTest(unittest.TestCase):
         completed = subprocess.CompletedProcess(
             args=["herdr", "agent", "list"], returncode=0, stdout=self._SAMPLE, stderr=""
         )
-        with mock.patch.object(roster.subprocess, "run", return_value=completed) as run, \
+        with mock.patch.object(roster.herdr_cli.subprocess, "run", return_value=completed) as run, \
                 mock.patch.object(roster.sys, "stdin", io.StringIO("")):
             output = io.StringIO()
             error = io.StringIO()
@@ -76,8 +76,20 @@ class RosterTest(unittest.TestCase):
         self.assertEqual(error.getvalue(), "")
         run.assert_called_once()
 
+    def test_herdr_unavailable_maps_to_the_existing_cli_error(self):
+        with mock.patch.object(
+            roster.herdr_cli,
+            "run",
+            side_effect=roster.herdr_cli.HerdrUnavailable("herdr agent list timed out"),
+        ), mock.patch.object(roster.sys, "stdin", io.StringIO("")):
+            error = io.StringIO()
+            with mock.patch("sys.stdout", io.StringIO()), mock.patch("sys.stderr", error):
+                rc = roster.main([])
+        self.assertEqual(rc, 1)
+        self.assertIn("could not run herdr agent list", error.getvalue())
+
     def test_stdin_flag_reads_stdin_and_skips_subprocess(self):
-        with mock.patch.object(roster.subprocess, "run") as run, \
+        with mock.patch.object(roster.herdr_cli.subprocess, "run") as run, \
                 mock.patch.object(roster.sys, "stdin", io.StringIO(self._SAMPLE)), \
                 mock.patch("sys.stdout", io.StringIO()), mock.patch("sys.stderr", io.StringIO()):
             rc = roster.main(["--stdin", "--workspace", "w1"])
