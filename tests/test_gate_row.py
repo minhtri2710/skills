@@ -311,13 +311,13 @@ class GateRowTest(unittest.TestCase):
         self.assertEqual(self.append(), 0)
         existing_rows = gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))
         args = SimpleNamespace(
-            kind="merge", status="resolved:test", channel="", writer="", record="timely",
+            kind="merge", status="resolved:test", channel="", writer="", record="timely", head="",
             push_base="", review_base="", boundary=[], resolves=[], words="human", note="backdated",
             quote="backdated", quote_file="",
         )
         with mock.patch.object(gate_row, "datetime") as clock:
             clock.now.return_value = datetime(2000, 1, 1, tzinfo=timezone.utc)
-            backdated = gate_row.build(args, self.repo, self.ledger, existing_rows)
+            backdated = gate_row.build(args, self.repo, existing_rows)
         self.ledger.write_text(
             self.ledger.read_text(encoding="utf-8") + backdated + "\n", encoding="utf-8"
         )

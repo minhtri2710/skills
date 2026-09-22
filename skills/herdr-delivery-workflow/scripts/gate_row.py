@@ -353,23 +353,23 @@ def repair_findings_since_boundary(rows: list[str]) -> set[str]:
                 raise RowError("kind=repair-grant requires exactly one finding= field")
             finding = finding_value(matching[0].split("=", 1)[1])
             if finding in findings:
-                raise RowError(
-                    f"repair cap reached (finding={finding} repeated since the last "
-                    "progress boundary): record kind=repair-cap-gate and route the Human "
-                    "instead of another kind=repair-grant"
-                )
+                refuse_repair_cap(finding)
             findings.add(finding)
     return findings
+
+
+def refuse_repair_cap(finding: str) -> None:
+    raise RowError(
+        f"repair cap reached (finding={finding} repeated since the last progress "
+        "boundary): record kind=repair-cap-gate and route the Human instead of "
+        "another kind=repair-grant"
+    )
 
 
 def require_repair_progress(rows: list[str], finding: str) -> None:
     previous_findings = repair_findings_since_boundary(rows)
     if finding in previous_findings:
-        raise RowError(
-            f"repair cap reached (finding={finding} repeated since the last progress "
-            "boundary): record kind=repair-cap-gate and route the Human instead of "
-            "another kind=repair-grant"
-        )
+        refuse_repair_cap(finding)
 
 
 def structured_row(row: str) -> tuple[str, str, list[str]]:
@@ -481,7 +481,7 @@ def push_field(base: str, head: str, count: str,
 def resolve_row_head(args: argparse.Namespace, repo: Path, record: str) -> tuple[str, str]:
     current_branch = git(repo, "rev-parse", "--abbrev-ref", "HEAD")
     current_head = git(repo, "rev-parse", "HEAD")
-    requested = getattr(args, "head", "")
+    requested = args.head
     if not requested:
         return current_branch, current_head
     match = HEAD_ARG_RE.fullmatch(requested)
@@ -499,8 +499,8 @@ def resolve_row_head(args: argparse.Namespace, repo: Path, record: str) -> tuple
     return branch, head
 
 
-def build(args: argparse.Namespace, repo: Path, ledger: Path,
-          existing_rows: list[str] | None = None) -> str:
+def build(args: argparse.Namespace, repo: Path,
+          existing_rows: list[str]) -> str:
     if not KIND_RE.fullmatch(args.kind):
         raise RowError(f"kind={args.kind!r} is not a lowercase token")
     if not STATUS_RE.fullmatch(args.status):
@@ -546,8 +546,6 @@ def build(args: argparse.Namespace, repo: Path, ledger: Path,
         words=args.words, quote=quote, note=note,
     )
     record = args.record or "timely"
-    if record == "reconstruction" and not note:
-        raise RowError("a reconstruction row names its source in note=")
     branch, head = resolve_row_head(args, repo, record)
 
     kind = args.kind
@@ -583,9 +581,7 @@ def build(args: argparse.Namespace, repo: Path, ledger: Path,
         finding = finding_value(args.finding)
         special_fields.append(f"finding={finding}")
 
-    rows = existing_rows if existing_rows is not None else (
-        ledger_rows(ledger.read_text()) if ledger.exists() else []
-    )
+    rows = existing_rows
     targets = resolve_ids(args.resolves)
     if targets:
         require_open_targets(rows, targets)
@@ -683,7 +679,8 @@ def check(row: str, repo: Path, prior_rows: list[str] | None = None) -> None:
     if len(fields) < 5:
         raise RowError(f"row has {len(fields)} fields before quote=, expected at least 5")
     gid, when, kind, head_field, status, *rest = fields
-    if not ID_RE.match(row) or gid != ID_RE.match(row).group("id"):
+    id_match = ID_RE.match(row)
+    if not id_match or gid != id_match.group("id"):
         raise RowError("row does not start with a namespace-agnostic gate id")
     for name, value, pattern in (
         ("kind", kind, KIND_RE), ("status", status, STATUS_RE),
@@ -772,7 +769,6 @@ def check(row: str, repo: Path, prior_rows: list[str] | None = None) -> None:
         values, index = required_fields(
             rest, index, ("who", "scope", "conditions", "expiry"), row_kind
         )
-        del values
         if status != f"status={STANDING_DELEGATION_STATUS}":
             raise RowError(f"kind=standing-delegation requires status={STANDING_DELEGATION_STATUS}")
     elif row_kind == "handoff":
@@ -1009,7 +1005,7 @@ def main(argv: list[str] | None = None) -> int:
         with locked_ledger(args.ledger, exclusive=True) as handle:
             before = handle_text(handle)
             existing_rows = ledger_rows(before)
-            row = build(args, args.repo, args.ledger, existing_rows)
+            row = build(args, args.repo, existing_rows)
             check(row, args.repo, existing_rows)
             if before and not before.endswith("\n"):
                 handle.seek(0, 2)
@@ -1020,7 +1016,6 @@ def main(argv: list[str] | None = None) -> int:
             stored_rows = ledger_rows(handle_text(handle))
             if not stored_rows or stored_rows[-1] != row:
                 raise RowError("the row read back from disk is not the row written")
-            check(row, args.repo, existing_rows)
         print(row)
         return 0
     except RowError as exc:
