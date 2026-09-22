@@ -1,16 +1,18 @@
 #!/usr/bin/env python3
 """Refuse a destructive target that is not provably contained in an allowlisted root.
 
-Resolves symlinks before deciding, requires the target at least ``--min-depth``
-levels below one allowlisted root so a root is never itself the target, and reads
-ownership evidence before the caller's delete, move, or overwrite runs. A refusal
-is final: no broader root is tried.
+A symlink leaf is kept as the link: only its parent is resolved, and its
+non-strict pointee must be inside an allowlisted root. With multiple roots,
+containment and depth use the nearest containing root; a target that is or
+contains an allowlisted root is refused. Ownership evidence is read before the
+caller's delete, move, or overwrite runs. A refusal is final: no broader root is tried.
 
-Exit codes: 0 accepted (the resolved path is printed), 1 refused, 2 cannot check.
+Exit codes: 0 accepted (the checked target is printed), 1 refused, 2 cannot check.
 """
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from pathlib import Path
 
@@ -24,9 +26,11 @@ class CannotCheck(Exception):
 
 
 def _resolve(candidate: Path) -> Path:
-    """Resolve symlinks. A target that does not exist resolves through its parent."""
+    """Resolve a target, keeping a symlink leaf as the link itself."""
     try:
-        if candidate.exists() or candidate.is_symlink():
+        if candidate.is_symlink():
+            return candidate.parent.resolve(strict=True) / candidate.name
+        if candidate.exists():
             return candidate.resolve(strict=True)
         parent = candidate.parent.resolve(strict=True)
     except OSError as exc:
@@ -47,22 +51,38 @@ def resolve_target(
     if min_depth < 1:
         raise CannotCheck("min_depth below 1 would let a root be the target")
     target = _resolve(Path(candidate))
+    resolved_roots = []
     for raw in roots:
         try:
-            root = Path(raw).resolve(strict=True)
+            resolved_roots.append(Path(raw).resolve(strict=True))
         except OSError as exc:
             raise CannotCheck(f"cannot resolve root {raw}: {exc}") from exc
-        try:
-            inside = target.relative_to(root)
-        except ValueError:
-            continue
-        if len(inside.parts) >= min_depth:
-            break
-    else:
+
+    if target.is_symlink():
+        pointee = Path(os.path.realpath(target))
+        if not any(
+            _is_contained(pointee, root)
+            for root in resolved_roots
+        ):
+            raise Refused(f"symlink points outside allowed roots: {target} -> {pointee}")
+
+    for root in resolved_roots:
+        if target == root or _is_contained(root, target):
+            raise Refused(f"target is or contains an allowed root: {target}")
+
+    containing = [
+        (root, target.relative_to(root))
+        for root in resolved_roots
+        if _is_contained(target, root)
+    ]
+    if not containing:
+        raise Refused(f"outside allowed roots or above min depth: {target}")
+    root, inside = max(containing, key=lambda item: len(item[0].parts))
+    if len(inside.parts) < min_depth:
         raise Refused(f"outside allowed roots or above min depth: {target}")
 
     if owner_file:
-        holder = target if target.is_dir() else target.parent
+        holder = target if (not target.is_symlink() and target.is_dir()) else target.parent
         if holder == root:
             raise Refused(f"unproven owner: evidence would be read from the root itself: {root}")
         evidence = holder / owner_file
@@ -74,6 +94,14 @@ def resolve_target(
             raise Refused(f"unproven owner: {evidence}")
 
     return target
+
+
+def _is_contained(candidate: Path, root: Path) -> bool:
+    try:
+        candidate.relative_to(root)
+    except ValueError:
+        return False
+    return True
 
 
 def main(argv: list[str] | None = None) -> int:

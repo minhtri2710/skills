@@ -52,6 +52,58 @@ class SafeTargetTest(unittest.TestCase):
         with self.assertRaises(safe_target.Refused):
             self.resolve(link)
 
+    def test_in_root_symlink_is_printed_as_the_link(self) -> None:
+        pointee = self.root / "abc123" / "object"
+        pointee.mkdir()
+        link = self.root / "abc123" / "link"
+        link.symlink_to(pointee)
+        code, out, _ = self.run_cli(str(link), "--root", str(self.root))
+        self.assertEqual((code, out.strip()), (0, str(link)))
+
+    def test_dangling_in_root_symlink_is_printed_as_the_link(self) -> None:
+        link = self.root / "abc123" / "dangling"
+        link.symlink_to(self.root / "abc123" / "not-created")
+        code, out, _ = self.run_cli(str(link), "--root", str(self.root))
+        self.assertEqual((code, out.strip()), (0, str(link)))
+
+    def test_target_equal_to_a_root_is_refused_even_with_a_parent_root(self) -> None:
+        nested = self.root / "abc123"
+        code, out, err = self.run_cli(
+            str(nested), "--root", str(nested), "--root", str(self.root)
+        )
+        self.assertEqual((code, out), (1, ""))
+        self.assertIn("target is or contains", err)
+
+    def test_target_containing_a_listed_root_is_refused(self) -> None:
+        nested = self.root / "a" / "b"
+        nested.mkdir(parents=True)
+        target = self.root / "a"
+        with self.assertRaisesRegex(safe_target.Refused, "target is or contains"):
+            safe_target.resolve_target(target, [str(self.root), str(nested)])
+
+    def test_depth_uses_the_nearest_containing_root(self) -> None:
+        nested = self.root / "a"
+        nested.mkdir()
+        target = nested / "x"
+        target.mkdir()
+        with self.assertRaises(safe_target.Refused):
+            safe_target.resolve_target(target, [str(self.root), str(nested)], min_depth=2)
+
+    def test_symlink_owner_evidence_is_read_from_its_parent(self) -> None:
+        pointee = self.root / "abc123" / "object"
+        pointee.mkdir()
+        link = self.root / "abc123" / "link"
+        link.symlink_to(pointee)
+        self.assertEqual(
+            safe_target.resolve_target(
+                link,
+                [str(self.root)],
+                owner_file=".owner",
+                expect_owner="worker-7",
+            ),
+            link,
+        )
+
     def test_sibling_named_like_traversal_is_accepted(self) -> None:
         sneaky = self.root / "..cache"
         sneaky.mkdir()

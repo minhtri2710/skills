@@ -14,11 +14,14 @@ That is how a cleanup routine removes the root instead of the leaf.
 
 ## Require three things, in this order
 
-1. **Containment after resolution.** Resolve symlinks first, then compare the
-   resolved target against an allowlist of roots. Comparing raw strings, or
+1. **Containment after resolution.** A symlink leaf is checked as the link:
+   resolve its parent, keep the link name, and refuse if the link points outside
+   the allowlisted roots; print the link itself. Comparing raw strings, or
    resolving after the check, lets a symlink inside the root point anywhere.
-2. **Depth below the root.** Require at least one level below the root so a root
-   is never itself the target. A misderived path usually collapses upward.
+2. **Depth below the root.** Count depth from the nearest listed root containing
+   the target, and refuse a target that is or contains any listed root. Require
+   at least one level below that root so a root is never itself the target. A
+   misderived path usually collapses upward.
 3. **Evidence the target is yours**, read from the target itself (or the parent of
    a not-yet-created leaf, never the root), before the operation and before any
    teardown that would remove the evidence. Without it, "absent" and "not mine"
