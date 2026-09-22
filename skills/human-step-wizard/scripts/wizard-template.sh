@@ -102,13 +102,21 @@ _existing() {
 ask() {
   local key="$1" prompt="$2" current input
   current=$(_existing "$key" || true)
-  if [[ -n "$current" ]]; then
-    printf '  %s%s%s %s[Enter keeps current]%s ' "$BOLD" "$prompt" "$RESET" "$DIM" "$RESET"
-  else
-    printf '  %s%s%s ' "$BOLD" "$prompt" "$RESET"
-  fi
-  read -r input || true
-  [[ -z "$input" && -n "$current" ]] && input="$current"
+  while :; do
+    if [[ -n "$current" ]]; then
+      printf '  %s%s%s %s[Enter keeps current]%s ' "$BOLD" "$prompt" "$RESET" "$DIM" "$RESET"
+    else
+      printf '  %s%s%s ' "$BOLD" "$prompt" "$RESET"
+    fi
+    if ! read -r input; then
+      if [[ -n "$current" ]]; then input="$current"; break; fi
+      printf 'wizard: required value %s was not provided\n' "$key" >&2
+      return 1
+    fi
+    if [[ -n "$input" ]]; then break; fi
+    if [[ -n "$current" ]]; then input="$current"; break; fi
+    printf 'wizard: %s is required; try again\n' "$key" >&2
+  done
   printf -v "$key" '%s' "$input"
 }
 
@@ -116,14 +124,23 @@ ask() {
 ask_secret() {
   local key="$1" prompt="$2" current input
   current=$(_existing "$key" || true)
-  if [[ -n "$current" ]]; then
-    printf '  %s%s%s %s[Enter keeps current]%s ' "$BOLD" "$prompt" "$RESET" "$DIM" "$RESET"
-  else
-    printf '  %s%s%s ' "$BOLD" "$prompt" "$RESET"
-  fi
-  read -rs input || true
-  printf '\n'
-  [[ -z "$input" && -n "$current" ]] && input="$current"
+  while :; do
+    if [[ -n "$current" ]]; then
+      printf '  %s%s%s %s[Enter keeps current]%s ' "$BOLD" "$prompt" "$RESET" "$DIM" "$RESET"
+    else
+      printf '  %s%s%s ' "$BOLD" "$prompt" "$RESET"
+    fi
+    if ! IFS= read -rs input; then
+      printf '\n'
+      if [[ -n "$current" ]]; then input="$current"; break; fi
+      printf 'wizard: required value %s was not provided\n' "$key" >&2
+      return 1
+    fi
+    printf '\n'
+    if [[ -n "$input" ]]; then break; fi
+    if [[ -n "$current" ]]; then input="$current"; break; fi
+    printf 'wizard: %s is required; try again\n' "$key" >&2
+  done
   printf -v "$key" '%s' "$input"
 }
 

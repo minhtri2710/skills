@@ -67,12 +67,56 @@ class GuardError(Exception):
 
 def _git(repo: Path, *args: str) -> str:
     try:
-        result = subprocess.run(["git", *args], cwd=repo, capture_output=True, text=True)
+        result = subprocess.run(
+            ["git", "-c", "core.quotePath=false", *args],
+            cwd=repo,
+            capture_output=True,
+            text=True,
+        )
     except OSError as exc:
         raise GuardError(f"git unavailable: {exc}") from exc
     if result.returncode != 0:
         raise GuardError(f"git {' '.join(args)} failed: {result.stderr.strip()}")
     return result.stdout
+
+
+def _decode_git_path(raw: str) -> str:
+    value = raw.rstrip("\t")
+    if not (value.startswith('"') and value.endswith('"')):
+        return value
+    encoded = value[1:-1]
+    decoded = bytearray()
+    escapes = {"a": 7, "b": 8, "t": 9, "n": 10, "v": 11, "f": 12, "r": 13}
+    index = 0
+    while index < len(encoded):
+        char = encoded[index]
+        if char != "\\":
+            decoded.extend(char.encode())
+            index += 1
+            continue
+        index += 1
+        if index >= len(encoded):
+            decoded.append(ord("\\"))
+            break
+        char = encoded[index]
+        if char in escapes:
+            decoded.append(escapes[char])
+            index += 1
+        elif char in '01234567':
+            end = index
+            while end < len(encoded) and end < index + 3 and encoded[end] in '01234567':
+                end += 1
+            decoded.append(int(encoded[index:end], 8))
+            index = end
+        else:
+            decoded.extend(char.encode())
+            index += 1
+    return decoded.decode()
+
+
+def _header_path(raw: str, prefix: str) -> str:
+    path = _decode_git_path(raw[4:])
+    return path[len(prefix):] if path.startswith(prefix) else ""
 
 
 def parse_diff(diff: str) -> tuple[list[Line], list[Line]]:
@@ -86,9 +130,9 @@ def parse_diff(diff: str) -> tuple[list[Line], list[Line]]:
         if raw.startswith("diff --git "):
             in_header = True
         elif in_header and raw.startswith("--- "):
-            old_path = raw[6:] if raw.startswith("--- a/") else ""
+            old_path = _header_path(raw, "a/")
         elif in_header and raw.startswith("+++ "):
-            new_path = raw[6:] if raw.startswith("+++ b/") else ""
+            new_path = _header_path(raw, "b/")
         elif raw.startswith("@@"):
             in_header = False
             match = HUNK.match(raw)
@@ -101,7 +145,7 @@ def parse_diff(diff: str) -> tuple[list[Line], list[Line]]:
             added.append(Line(new_path, new_number, raw[1:]))
             new_number += 1
         elif raw.startswith("-"):
-            removed.append(Line(new_path or old_path, old_number, raw[1:]))
+            removed.append(Line(old_path, old_number, raw[1:]))
             old_number += 1
     return added, removed
 

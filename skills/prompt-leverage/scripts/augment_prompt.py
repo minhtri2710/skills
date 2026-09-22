@@ -14,7 +14,6 @@ import re
 import sys
 import urllib.error
 import urllib.request
-from textwrap import dedent
 
 API_URL = "https://api.typesafe.ai/v1/systemone"
 MODEL = "jev-latest"
@@ -51,12 +50,16 @@ def _system_one(state: str, questions: dict) -> dict:
         headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
     )
     try:
-        with urllib.request.urlopen(request) as response:
+        with urllib.request.urlopen(request, timeout=10) as response:
             return json.load(response)["answers"]
+    except TimeoutError as exc:
+        raise SystemExit(f"augment_prompt: TypeSafe API timed out: {exc}")
     except urllib.error.HTTPError as exc:
         detail = exc.read().decode(errors="replace")[:200]
         raise SystemExit(f"augment_prompt: TypeSafe API error {exc.code}: {detail}")
     except urllib.error.URLError as exc:
+        if isinstance(exc.reason, TimeoutError):
+            raise SystemExit(f"augment_prompt: TypeSafe API timed out: {exc.reason}")
         raise SystemExit(f"augment_prompt: cannot reach TypeSafe API: {exc.reason}")
 
 
@@ -108,33 +111,34 @@ def upgrade_prompt(raw_prompt: str, task: str | None) -> str:
     detected_task, intensity = classify(normalized, task)
     tool_rules = build_tool_rules(detected_task)
     output_contract = build_output_contract(detected_task)
+    prompt = raw_prompt.strip("\n")
 
-    return dedent(
-        f"""
-        Objective:
-        - Complete this task: {normalized}
-
-        Context:
-        - Preserve the user's original intent and constraints.
-        - Surface any key assumptions if required information is missing.
-
-        Work Style:
-        - Task type: {detected_task}
-        - Effort level: {intensity}
-
-        Tool Rules:
-        - {tool_rules}
-
-        Output Contract:
-        - {output_contract}
-
-        Verification:
-        - Check correctness, completeness, and edge cases.
-        - Improve obvious weaknesses if a better approach is available within scope.
-
-        Done Criteria:
-        - Stop only when the response satisfies the task, matches the requested format, and passes the verification step.
-        """
+    return "\n".join(
+        [
+            "Objective:",
+            f"- Complete this task: {prompt}",
+            "",
+            "Context:",
+            "- Preserve the user's original intent and constraints.",
+            "- Surface any key assumptions if required information is missing.",
+            "",
+            "Work Style:",
+            f"- Task type: {detected_task}",
+            f"- Effort level: {intensity}",
+            "",
+            "Tool Rules:",
+            f"- {tool_rules}",
+            "",
+            "Output Contract:",
+            f"- {output_contract}",
+            "",
+            "Verification:",
+            "- Check correctness, completeness, and edge cases.",
+            "- Improve obvious weaknesses if a better approach is available within scope.",
+            "",
+            "Done Criteria:",
+            "- Stop only when the response satisfies the task, matches the requested format, and passes the verification step.",
+        ]
     ).strip()
 
 

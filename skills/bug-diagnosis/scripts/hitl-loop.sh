@@ -5,15 +5,25 @@
 # so signing in stays a `step`, never a `capture`.
 set -euo pipefail
 
+if [[ ! -t 0 ]]; then
+  printf '%s\n' 'hitl-loop: needs an interactive terminal' >&2
+  exit 2
+fi
+
 step() {
   printf '\n>>> %s\n' "$1"
   read -r -p "    [Enter when done] " _
 }
 
 capture() {
-  local var="$1" question="$2" answer
+  local var="$1" question="$2" answer="" line
   printf '\n>>> %s\n' "$question"
-  read -r -p "    > " answer
+  while :; do
+    if ! IFS= read -r -p "    > " line; then break; fi
+    [[ -z "$line" ]] && break
+    if [[ -n "$answer" ]]; then answer+='\n'; fi
+    answer+="$line"
+  done
   printf -v "$var" '%s' "$answer"
 }
 

@@ -72,10 +72,40 @@ class UpgradeTest(unittest.TestCase):
             augment_prompt, "_system_one", lambda s, q: answers(score=2.0, choice="coding")
         ):
             out = augment_prompt.upgrade_prompt("  fix   the\nparser bug  ", None)
-        self.assertIn("Complete this task: fix the parser bug", out)
+        self.assertIn("Complete this task:   fix   the\nparser bug  ", out)
         self.assertIn("Task type: coding", out)
         self.assertIn("Effort level: Deep", out)
         self.assertIn("Inspect the relevant files", out)  # coding tool rule
+
+    def test_template_preserves_prompt_whitespace_for_output(self):
+        prompt = "  fix   the\n```python\nvalue = 1\n```\n"
+        classify_call = mock.Mock(return_value=answers(score=1.0, choice="coding"))
+        with mock.patch.object(augment_prompt, "_system_one", classify_call):
+            out = augment_prompt.upgrade_prompt(prompt, None)
+        self.assertIn("Complete this task:   fix   the\n```python\nvalue = 1\n```", out)
+        self.assertEqual(classify_call.call_args.args[0], "fix the ```python value = 1 ```")
+
+
+class SystemOneTest(unittest.TestCase):
+    def test_urlopen_uses_timeout(self):
+        response = mock.MagicMock()
+        response.__enter__.return_value = response
+        response.__exit__.return_value = None
+        response.read.return_value = b'{"answers": {}}'
+        with mock.patch.object(augment_prompt.urllib.request, "urlopen", return_value=response) as urlopen:
+            with mock.patch.dict(augment_prompt.os.environ, {"TYPESAFE_API_KEY": "synthetic"}, clear=True):
+                augment_prompt._system_one("prompt", {})
+        self.assertEqual(urlopen.call_args.kwargs["timeout"], 10)
+
+    def test_timeout_reports_a_clear_system_exit(self):
+        with mock.patch.object(
+            augment_prompt.urllib.request,
+            "urlopen",
+            side_effect=TimeoutError("timed out"),
+        ):
+            with mock.patch.dict(augment_prompt.os.environ, {"TYPESAFE_API_KEY": "synthetic"}, clear=True):
+                with self.assertRaisesRegex(SystemExit, "TypeSafe API timed out"):
+                    augment_prompt._system_one("prompt", {})
 
 
 if __name__ == "__main__":

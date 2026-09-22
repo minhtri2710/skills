@@ -47,6 +47,8 @@ class FloorGuardRepoTest(unittest.TestCase):
             "from app import total\n\n\ndef test_total():\n    assert total([1, 2]) == 3\n    assert total([]) == 0\n",
         )
         self.write("tests/test_old.py", "def test_old():\n    assert True\n")
+        self.write("tests/test_é.py", "def test_non_ascii():\n    assert True\n")
+        self.write("src é.py", "value = 1\n")
         self.write("CONSTRAINTS.md", CONSTRAINTS)
         self.git("add", ".")
         self.git("commit", "-q", "-m", "base")
@@ -178,8 +180,33 @@ class FloorGuardRepoTest(unittest.TestCase):
         self.assertEqual(code, 2)
         self.assertIn("cannot run", err)
 
+    def test_non_ascii_and_spaced_paths_drive_findings_and_exceptions(self) -> None:
+        self.write("tests/test_é.py", "def test_non_ascii():\n    pass\n")
+        self.write("src é.py", "value = 1  # noqa: E501\n")
+        self.write(
+            "CONSTRAINTS.md",
+            CONSTRAINTS + "| E1 | silenced-checker | src *.py | generated | source removed |\n",
+        )
+        code, err = self.run_guard()
+        self.assertEqual(code, 1)
+        self.assertIn("[assertion-removed] tests/test_é.py:2", err)
+        self.assertNotIn("[silenced-checker]", err)
+
 
 class ParseDiffTest(unittest.TestCase):
+    def test_quoted_paths_are_unescaped_and_strip_trailing_tabs(self) -> None:
+        diff = (
+            'diff --git "a/tests/test_\\303\\251.py" "b/src \\303\\251.py"\n'
+            '--- "a/tests/test_\\303\\251.py"\t\n'
+            '+++ "b/src \\303\\251.py"\t\n'
+            "@@ -4,1 +4,1 @@\n"
+            "-    assert True\n"
+            "+    pass\n"
+        )
+        added, removed = floor_guard.parse_diff(diff)
+        self.assertEqual(removed, [floor_guard.Line("tests/test_é.py", 4, "    assert True")])
+        self.assertEqual(added, [floor_guard.Line("src é.py", 4, "    pass")])
+
     def test_removed_line_starting_with_dashes_is_content(self) -> None:
         diff = (
             "diff --git a/q.sql b/q.sql\n"

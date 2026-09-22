@@ -52,6 +52,16 @@ class WizardTemplateTest(unittest.TestCase):
         result = self.run_bash('ask TOKEN "Paste:"\nprintf "|%s|" "$TOKEN"', stdin="fresh\n")
         self.assertIn("|fresh|", result.stdout)
 
+    def test_ask_refuses_empty_required_input_and_reasks(self) -> None:
+        result = self.run_bash('ask TOKEN "Paste:"\nprintf "|%s|" "$TOKEN"', stdin="\nfresh\n")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("|fresh|", result.stdout)
+
+    def test_ask_eof_without_value_names_key_and_fails(self) -> None:
+        result = self.run_bash('ask TOKEN "Paste:"', stdin="")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("TOKEN", result.stderr)
+
     def test_set_secret_records_skip_when_gh_is_absent(self) -> None:
         result = self.run_bash('set_secret NAME value\nprintf "%s" "${SKIPPED[0]}"')
         self.assertEqual(result.returncode, 0, result.stderr)
