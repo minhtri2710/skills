@@ -617,7 +617,7 @@ class GateRowTest(unittest.TestCase):
     def test_a_count_that_does_not_match_the_range_is_rejected(self):
         """The recount rule as code: parts that do not sum fail --check."""
         base, head = self.rev("HEAD~2"), self.rev("HEAD")
-        row = (f'G9 | 2026-09-06T00:00:00Z | kind=push | main@{head} | '
+        row = (f'G2 | 2026-09-06T00:00:00Z | kind=push | main@{head} | '
                f'status=resolved:standing-waiver | record=timely | '
                f'push={base}..{head} count=7 boundary="f1.txt f2.txt" '
                f'boundary-check="" | words=human | note=n | quote="q"')
@@ -627,6 +627,115 @@ class GateRowTest(unittest.TestCase):
                 [self.fixture_row("G1", "recorded:review-pass", kind="review")],
             )
         self.assertIn("carries 2 commits", str(ctx.exception))
+
+    def test_a_failed_check_never_writes_a_row(self):
+        before = self.ledger.read_bytes()
+        with mock.patch.object(gate_row, "check", side_effect=gate_row.RowError("synthetic check failure")):
+            self.assertEqual(self.append(), 1)
+        self.assertIn("synthetic check failure", self.err.getvalue())
+        self.assertEqual(self.ledger.read_bytes(), before)
+
+    def test_explicit_head_requires_full_sha_and_reconstruction_for_a_past_head(self):
+        current = self.rev("HEAD")
+        past = self.rev("HEAD~1")
+        self.assertEqual(self.append("--head", f"main@{past}"), 1)
+        self.assertIn("--record reconstruction", self.err.getvalue())
+        self.assertEqual(self.append("--head", f"main@{past[:7]}"), 1)
+        self.assertIn("full 40-hex", self.err.getvalue())
+        self.assertEqual(self.append(
+            "--head", f"main@{past}", "--record", "reconstruction",
+        ), 0)
+        self.assertIn(f"main@{past}", self.last_row())
+        self.assertNotIn(current, self.last_row().split(" | ")[3])
+
+    def test_zero_base_review_includes_the_root_commit(self):
+        zero = "0" * 40
+        self.assertEqual(self.append_review_pass(zero), 0)
+        self.assertIn(f"review={zero}..{self.rev('HEAD')} count=3", self.last_row())
+        self.assertEqual(self.run_main([
+            "--ledger", str(self.ledger), "--repo", str(self.repo), "--check",
+        ]), 0)
+
+    def test_zero_base_push_requires_whole_history_review_coverage(self):
+        zero = "0" * 40
+        self.add_remote("HEAD")
+        before = self.ledger.read_bytes()
+        self.assertEqual(self.append(
+            "--kind", "push", "--push-base", zero, "--boundary", ".",
+        ), 1)
+        self.assertIn("not covered by any review PASS range", self.err.getvalue())
+        self.assertEqual(self.ledger.read_bytes(), before)
+        self.assertEqual(self.append_review_pass(zero), 0)
+        self.assertEqual(self.append(
+            "--kind", "push", "--push-base", zero, "--boundary", ".",
+        ), 0)
+        self.assertIn(f"push={zero}..{self.rev('HEAD')} count=3", self.last_row())
+
+    def test_first_publication_to_an_empty_remote_can_be_recorded_with_zero_base(self):
+        zero = "0" * 40
+        self.add_empty_remote()
+        self.assertEqual(self.append_review_pass(zero), 0)
+        subprocess.run(["git", "-C", str(self.repo), "push", "-q", "origin", "main"],
+                       check=True, capture_output=True)
+        self.assertEqual(self.append(
+            "--kind", "push", "--push-base", zero, "--boundary", ".",
+        ), 0)
+
+    def test_a_past_head_is_landed_when_a_newer_remote_tip_is_on_top(self):
+        zero = "0" * 40
+        past = self.rev("HEAD")
+        self.assertEqual(self.append_review_pass(zero), 0)
+        self.add_remote("HEAD")
+        (self.repo / "later.txt").write_text("later\n")
+        self.git("add", "later.txt")
+        self.git("commit", "-qm", "later remote commit")
+        subprocess.run(["git", "-C", str(self.repo), "push", "-q", "origin", "main"],
+                       check=True, capture_output=True)
+        self.assertEqual(self.append(
+            "--kind", "push", "--push-base", zero, "--boundary", ".",
+            "--head", f"main@{past}", "--record", "reconstruction",
+        ), 0)
+        self.assertIn(f"main@{past}", self.last_row())
+
+    def test_a_remote_tip_not_present_locally_is_refused_with_fetch_action(self):
+        zero = "0" * 40
+        self.assertEqual(self.append_review_pass(zero), 0)
+        self.add_remote("HEAD")
+        other = self.tmp / "other"
+        subprocess.run(["git", "clone", "-q", str(self.tmp / "origin.git"), str(other)],
+                       check=True, capture_output=True)
+        subprocess.run(["git", "-C", str(other), "config", "user.email", "t@example.invalid"],
+                       check=True)
+        subprocess.run(["git", "-C", str(other), "config", "user.name", "t"], check=True)
+        (other / "unknown.txt").write_text("unknown\n")
+        subprocess.run(["git", "-C", str(other), "add", "unknown.txt"], check=True)
+        subprocess.run(["git", "-C", str(other), "commit", "-qm", "unknown remote commit"], check=True)
+        subprocess.run(["git", "-C", str(other), "push", "-q", "origin", "main"],
+                       check=True, capture_output=True)
+        before = self.ledger.read_bytes()
+        self.assertEqual(self.append(
+            "--kind", "push", "--push-base", zero, "--boundary", ".",
+        ), 1)
+        self.assertIn("git fetch", self.err.getvalue())
+        self.assertEqual(self.ledger.read_bytes(), before)
+
+    def test_a_push_row_with_wrong_local_id_is_refused_by_check(self):
+        self.assertEqual(self.append(), 0)
+        self.assertEqual(self.append(), 0)
+        rows = gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))
+        prior = rows[:-1]
+        row = rows[-1].replace("G2", "G9", 1)
+        with self.assertRaisesRegex(gate_row.RowError, "next local id G2"):
+            gate_row.check(row, self.repo, prior)
+
+    def test_a_push_block_on_a_non_push_row_is_refused_by_check(self):
+        head = self.rev("HEAD")
+        row = (f'G2 | 2026-09-06T00:00:00Z | kind=merge | main@{head} | '
+               f'status=resolved:done | record=timely | '
+               f'push={self.rev("HEAD~1")}..{head} count=1 boundary="." '
+               f'boundary-check="" | words=human | note=n | quote="q"')
+        with self.assertRaisesRegex(gate_row.RowError, "push= is only on a kind=push row"):
+            gate_row.check(row, self.repo, [self.fixture_row("G1", "resolved:done")])
 
     def test_a_pipe_in_note_is_refused(self):
         """note= is the seat's own words, so it fails closed on the delimiter."""
@@ -659,6 +768,13 @@ class GateRowTest(unittest.TestCase):
         with self.assertRaises(gate_row.RowError) as ctx:
             gate_row.check(row, self.repo)
         self.assertIn("not in the row schema", str(ctx.exception))
+
+    def add_empty_remote(self) -> None:
+        """An empty bare origin, for a first publication test."""
+        bare = self.tmp / "origin.git"
+        subprocess.run(["git", "init", "-q", "--bare", str(bare)], check=True)
+        subprocess.run(["git", "-C", str(self.repo), "remote", "add", "origin", str(bare)],
+                       check=True)
 
     def add_remote(self, ref: str) -> None:
         """A bare origin holding `ref`, so ls-remote answers for real."""
@@ -763,21 +879,32 @@ class GateRowTest(unittest.TestCase):
     def test_every_tamper_the_receive_record_found_passing_is_now_refused(self):
         """S1 F001's six-of-six matrix: one field hand-edited at a time, re-checked."""
         row, boundary = self.valid_push_row()
+        prior_rows = gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))[:-1]
         tampers = {
-            "boundary-check": ('boundary-check=""', 'boundary-check="src/fabricated.py"'),
-            "boundary": ('boundary="f1.txt f2.txt"', 'boundary="f1.txt"'),
-            "record": ("record=timely", "record=bogus"),
-            "quote": ('quote="merge it"', 'quote=""'),
-            "head": (f"main@{self.rev('HEAD')}", f"main@{'0' * 40}"),
-            "channel": ("channel=supervisor-relay:typed", "channel=bogus:bogus"),
-            "writer": ("writer=lead-beo-skills", "writer=NOT_A_SEAT"),
+            "boundary-check": (
+                'boundary-check=""', 'boundary-check="src/fabricated.py"',
+                "outside the declared boundary",
+            ),
+            "boundary": (
+                'boundary="f1.txt f2.txt"', 'boundary="f1.txt"',
+                'boundary-check=""',
+            ),
+            "record": ("record=timely", "record=bogus", "not one of"),
+            "quote": ('quote="merge it"', 'quote=""', "words=none iff quote= is empty"),
+            "head": (
+                f"main@{self.rev('HEAD')}", f"main@{'0' * 40}",
+                "git rev-parse --verify",
+            ),
+            "channel": ("channel=supervisor-relay:typed", "channel=bogus:bogus", "valid channel"),
+            "writer": ("writer=lead-beo-skills", "writer=NOT_A_SEAT", "valid writer"),
+            "push-kind": ("kind=push", "kind=merge", "push= is only on a kind=push row"),
         }
-        for name, (before, after) in tampers.items():
+        for name, (before, after, message) in tampers.items():
             with self.subTest(name):
                 tampered = row.replace(before, after)
                 self.assertNotEqual(tampered, row, "the tamper did not change the row")
-                with self.assertRaises(gate_row.RowError):
-                    gate_row.check(tampered, self.repo)
+                with self.assertRaisesRegex(gate_row.RowError, re.escape(message)):
+                    gate_row.check(tampered, self.repo, prior_rows)
 
     def test_check_derives_a_push_row_with_no_boundary_flag(self):
         """The point of the slice: every input the check needs is in the row.

@@ -40,6 +40,7 @@ STATUS_RE = re.compile(r"^(open|(resolved|recorded):[a-z0-9-]+)$")
 CHANNEL_RE = re.compile(r"^(direct-seat-pane|supervisor-relay):(typed|dialog)$")
 WRITER_RE = re.compile(r"^[a-z][a-z0-9_-]*$")
 HEAD_RE = re.compile(r"^(?P<branch>[^ |@]+)@(?P<head>[0-9a-f]{7,40})$")
+HEAD_ARG_RE = re.compile(r"^(?P<branch>[^ |@]+)@(?P<head>[0-9a-f]{40})$")
 PUSH_RE = re.compile(
     r'^push=(?P<base>[0-9a-f]{7,40})\.\.(?P<head>[0-9a-f]{7,40}) '
     r'count=(?P<count>\d+) boundary="(?P<declared>[^"]*)" '
@@ -425,11 +426,14 @@ def require_open_targets(rows: list[str], targets: list[str]) -> None:
 def range_commits(repo: Path, base: str, head: str) -> list[str]:
     """The commits in base..head, newest first; the one range derivation both blocks share.
 
-    Raises when base is not an ancestor of head or the range is empty, so no push
-    or review block can be built or checked against a range that carries no commit.
+    A zero base means the whole history of head, including its root commit. Other
+    bases must be ancestors of head, and every range must carry at least one commit.
     """
-    git(repo, "merge-base", "--is-ancestor", base, head)
-    commits = git(repo, "rev-list", f"{base}..{head}").splitlines()
+    if base == "0" * 40:
+        commits = git(repo, "rev-list", head).splitlines()
+    else:
+        git(repo, "merge-base", "--is-ancestor", base, head)
+        commits = git(repo, "rev-list", f"{base}..{head}").splitlines()
     if not commits:
         raise RowError(f"range {base}..{head} carries no commit")
     return commits
@@ -472,6 +476,27 @@ def push_field(base: str, head: str, count: str,
     """The push block, carrying the derivation's input beside its output."""
     return (f'push={base}..{head} count={count} '
             f'boundary="{" ".join(boundary)}" boundary-check="{" ".join(outside)}"')
+
+
+def resolve_row_head(args: argparse.Namespace, repo: Path, record: str) -> tuple[str, str]:
+    current_branch = git(repo, "rev-parse", "--abbrev-ref", "HEAD")
+    current_head = git(repo, "rev-parse", "HEAD")
+    requested = getattr(args, "head", "")
+    if not requested:
+        return current_branch, current_head
+    match = HEAD_ARG_RE.fullmatch(requested)
+    if not match:
+        raise RowError(
+            f"--head {requested!r} is not <branch>@<full 40-hex commit SHA>"
+        )
+    branch, head = match.group("branch"), match.group("head")
+    git(repo, "rev-parse", "--verify", f"{head}^{{commit}}")
+    if head != current_head and record != "reconstruction":
+        raise RowError(
+            f"--head {requested} differs from repository HEAD {current_head}; "
+            "use --record reconstruction to record a past head"
+        )
+    return branch, head
 
 
 def build(args: argparse.Namespace, repo: Path, ledger: Path,
@@ -523,6 +548,7 @@ def build(args: argparse.Namespace, repo: Path, ledger: Path,
     record = args.record or "timely"
     if record == "reconstruction" and not note:
         raise RowError("a reconstruction row names its source in note=")
+    branch, head = resolve_row_head(args, repo, record)
 
     kind = args.kind
     reject_special_fields(args, kind)
@@ -566,8 +592,6 @@ def build(args: argparse.Namespace, repo: Path, ledger: Path,
     if kind == "repair-grant":
         require_repair_progress(rows, finding)
 
-    branch = git(repo, "rev-parse", "--abbrev-ref", "HEAD")
-    head = git(repo, "rev-parse", "HEAD")
     fields = [
         f"G{next_id_from_rows(rows)}",
         datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -587,22 +611,35 @@ def build(args: argparse.Namespace, repo: Path, ledger: Path,
                 "derived from it, and a push row carrying none of them asserts that a "
                 "push happened while holding no evidence that it did"
             )
-        pushed = git(repo, "rev-parse", "HEAD")
         remote = git(repo, "ls-remote", "origin", f"refs/heads/{branch}").split()
-        if not remote or remote[0] != pushed:
+        if not remote:
             raise RowError(
-                f"origin/{branch} is {remote[0] if remote else 'absent'}, not {pushed} — "
-                "the push this row claims has not landed"
+                f"origin/{branch} is absent — the push this row claims has not landed"
             )
+        remote_tip = remote[0]
+        try:
+            git(repo, "rev-parse", "--verify", f"{remote_tip}^{{commit}}")
+        except RowError:
+            raise RowError(
+                f"origin/{branch} points to {remote_tip}, which is not present locally — "
+                "the Lead must git fetch it; gate_row never fetches"
+            ) from None
+        try:
+            git(repo, "merge-base", "--is-ancestor", head, remote_tip)
+        except RowError:
+            raise RowError(
+                f"origin/{branch} is {remote_tip}, but {head} is not an ancestor of "
+                "the remote tip — the push this row claims has not landed"
+            ) from None
         if not args.boundary:
             raise RowError(
                 "a push row needs --boundary: the declared paths the push was judged "
                 "against are part of the row, and refusing here keeps the bad row out "
                 "of an append-only file rather than rejecting it after it lands"
             )
-        count, outside = derive_push(repo, args.push_base, pushed, args.boundary)
-        fields.append(push_field(args.push_base, pushed, count, args.boundary, outside))
-        require_review_coverage(rows, repo, args.push_base, pushed)
+        count, outside = derive_push(repo, args.push_base, head, args.boundary)
+        fields.append(push_field(args.push_base, head, count, args.boundary, outside))
+        require_review_coverage(rows, repo, args.push_base, head)
     elif args.kind == "review":
         if not args.review_base:
             raise RowError(
@@ -612,7 +649,7 @@ def build(args: argparse.Namespace, repo: Path, ledger: Path,
             )
         if args.push_base or args.boundary:
             raise RowError("--push-base and --boundary are only meaningful on a push row")
-        reviewed = git(repo, "rev-parse", "HEAD")
+        reviewed = head
         commits = range_commits(repo, args.review_base, reviewed)
         fields.append(review_field(args.review_base, reviewed, str(len(commits))))
     elif args.review_base:
@@ -716,6 +753,8 @@ def check(row: str, repo: Path, prior_rows: list[str] | None = None) -> None:
             "is what a stacked push is checked against, so a review row without it "
             "contributes no coverage and leaves its commits unverified"
         )
+    if push is not None and row_kind != "push":
+        raise RowError(f"push= is only on a kind=push row, not kind={row_kind}")
     if review is not None and row_kind != "review":
         raise RowError(f"review= is only on a kind=review row, not kind={row_kind}")
 
@@ -746,6 +785,11 @@ def check(row: str, repo: Path, prior_rows: list[str] | None = None) -> None:
         index += 1
     else:
         current_finding = None
+
+    if prior_rows and LOCAL_ID_RE.fullmatch(gid):
+        expected_gid = f"G{next_id_from_rows(prior_rows)}"
+        if gid != expected_gid:
+            raise RowError(f"gate id {gid} is not the next local id {expected_gid}")
 
     prev_hash = None
     if index < len(rest) and rest[index].startswith("prev_hash="):
@@ -902,6 +946,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--expiry", help="the granting Human's expiry text")
     parser.add_argument("--finding", help="the repair-grant finding identity")
     parser.add_argument("--record", choices=RECORD_VALUES)
+    parser.add_argument("--head", help="the row head as <branch>@<full 40-hex commit SHA>; "
+                        "a past head requires --record reconstruction")
     parser.add_argument("--push-base", help="the push base — the remote tip the stack lands on "
                         "under batching, not the intake merge-base; the head is derived")
     parser.add_argument("--review-base", help="the base of the reviewed range on a kind=review "
@@ -933,7 +979,7 @@ def main(argv: list[str] | None = None) -> int:
             ignored = (
                 args.kind, args.status, args.channel, args.writer, args.op, args.after,
                 args.who, args.scope, args.conditions, args.expiry, args.finding,
-                args.record, args.push_base, args.review_base, args.boundary, args.resolves, args.words,
+                args.record, args.head, args.push_base, args.review_base, args.boundary, args.resolves, args.words,
                 args.note, args.quote, args.quote_file, args.mailbox,
             )
             if any(ignored):
@@ -964,6 +1010,7 @@ def main(argv: list[str] | None = None) -> int:
             before = handle_text(handle)
             existing_rows = ledger_rows(before)
             row = build(args, args.repo, args.ledger, existing_rows)
+            check(row, args.repo, existing_rows)
             if before and not before.endswith("\n"):
                 handle.seek(0, 2)
                 handle.write("\n")
