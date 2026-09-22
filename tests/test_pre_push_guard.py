@@ -58,6 +58,11 @@ class PrePushGuardTest(unittest.TestCase):
         self.git("commit", "-qm", msg)
         return self.rev("HEAD")
 
+    def set_empty_origin(self) -> None:
+        empty = self.tmp / "empty-origin.git"
+        subprocess.run(["git", "init", "-q", "--bare", str(empty)], check=True)
+        self.git("remote", "set-url", "origin", str(empty))
+
     def review(self, base: str, status: str = "recorded:review-pass", quote: str = "PASS") -> int:
         return gate_row.main([
             "--ledger", str(self.ledger), "--repo", str(self.repo),
@@ -159,6 +164,43 @@ class PrePushGuardTest(unittest.TestCase):
         code, _, err = self.invoke(self.ref_line(ZERO, c1))
         self.assertEqual(code, 1)
         self.assertIn("no remote base", err)
+
+    def test_new_ref_with_zero_remote_base_is_admitted_on_empty_remote(self):
+        self.set_empty_origin()
+        c1 = self.advance("c1")
+        self.assertEqual(self.review(ZERO), 0)
+        code, out, err = self.invoke(self.ref_line(ZERO, c1))
+        self.assertEqual(code, 0, err)
+        self.assertIn("covered", out)
+
+    def test_pairs_none_absent_branch_on_empty_remote_is_admitted(self):
+        self.set_empty_origin()
+        self.git("checkout", "-qb", "feature")
+        self.advance("feature commit")
+        self.assertEqual(self.review(ZERO), 0)
+        code, out, err = self.invoke()
+        self.assertEqual(code, 0, err)
+        self.assertIn("covered", out)
+
+    def test_pairs_none_absent_branch_on_populated_remote_is_refused(self):
+        self.git("checkout", "-qb", "feature")
+        code, _, err = self.invoke()
+        self.assertEqual(code, 1)
+        self.assertIn("ref origin/feature has no remote base", err)
+
+    def test_ledger_is_read_under_a_shared_lock(self):
+        self.advance("c1")
+        self.assertEqual(self.review(self.base), 0)
+        with patch.object(
+            pre_push_guard.gate_row,
+            "locked_ledger",
+            wraps=pre_push_guard.gate_row.locked_ledger,
+        ) as locked:
+            code, out, err = self.invoke()
+        self.assertEqual(code, 0, err)
+        self.assertIn("covered", out)
+        self.assertEqual(err, "")
+        locked.assert_called_once_with(self.ledger, exclusive=False)
 
     def test_a_branch_deletion_pushes_no_range_and_is_admitted(self):
         code, out, err = self.invoke(f"(delete) {ZERO} refs/heads/dead {self.base}\n")

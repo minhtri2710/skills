@@ -29,7 +29,17 @@ def git(repo: Path, *args: str) -> str:
 ZERO = "0" * 40
 
 
-def push_refs() -> list[tuple[str, str]] | None:
+def first_publication_pair(repo: Path, ref: str, local_sha: str) -> tuple[str, str]:
+    """Return a zero-based range only when origin has no refs at all."""
+    if not git(repo, "ls-remote", "origin").splitlines():
+        return ZERO, local_sha
+    raise GuardError(
+        f"ref {ref} has no remote base — the review-coverage range is undefined, "
+        "and this guard does not admit the first push of a ref"
+    )
+
+
+def push_refs(repo: Path) -> list[tuple[str, str]] | None:
     """Return (remote base, local tip) pairs from the pre-push stdin, or None when empty.
 
     The base is fields[3], the remote SHA git is about to move — the range the push
@@ -50,11 +60,9 @@ def push_refs() -> list[tuple[str, str]] | None:
         if local_sha == ZERO:
             continue  # a deletion pushes no commit
         if remote_sha == ZERO:
-            raise GuardError(
-                f"ref {fields[0]} has no remote base — the review-coverage range is "
-                "undefined, and this guard does not admit the first push of a ref"
-            )
-        pairs.append((remote_sha, local_sha))
+            pairs.append(first_publication_pair(repo, fields[0], local_sha))
+        else:
+            pairs.append((remote_sha, local_sha))
     return pairs
 
 
@@ -64,13 +72,12 @@ def check(ledger: Path, repo: Path, pairs: list[tuple[str, str]] | None = None) 
         head = git(repo, "rev-parse", "HEAD")
         remote = git(repo, "ls-remote", "origin", f"refs/heads/{branch}").split()
         if not remote:
-            raise GuardError(
-                f"origin/{branch} is absent — the review-coverage range is undefined "
-                "without a remote base to push onto"
-            )
-        pairs = [(remote[0], head)]
+            pairs = [first_publication_pair(repo, f"origin/{branch}", head)]
+        else:
+            pairs = [(remote[0], head)]
     try:
-        rows = gate_row.ledger_rows(ledger.read_text(encoding="utf-8"))
+        with gate_row.locked_ledger(ledger, exclusive=False) as handle:
+            rows = gate_row.ledger_rows(gate_row.handle_text(handle))
     except OSError as exc:
         raise GuardError(f"cannot read ledger {ledger}: {exc}") from None
     except gate_row.RowError as exc:
@@ -90,7 +97,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--repo", type=Path, default=Path.cwd())
     args = parser.parse_args(argv)
     try:
-        pairs = push_refs()
+        pairs = push_refs(args.repo)
         checked = check(args.ledger, args.repo, pairs)
     except GuardError as exc:
         print(f"pre_push_guard: {exc}", file=sys.stderr)
