@@ -8,7 +8,9 @@ import os
 import re
 import sqlite3
 import sys
+import tempfile
 import unicodedata
+from dataclasses import dataclass
 
 PROJECTS_ROOT = os.path.expanduser("~/.herdr/projects")
 STOP = set(
@@ -89,63 +91,127 @@ LESSON_FIELDS = {
     "status",
     "last_used",
 }
-LESSON_STATUSES = {"active", "failure-mode", "rejected"}
+LESSON_STATUSES = ("active", "failure-mode", "rejected", "superseded")
+
+
+class LessonParseError(ValueError):
+    """A lesson file does not contain valid frontmatter."""
+
+
+@dataclass
+class LessonRecord:
+    lines: list[str]
+    end: int
+    fields: dict[str, tuple[int, str]]
 
 
 def lesson_record_lines(text):
+    """Parse one lesson and raise LessonParseError with a reportable reason."""
     lines = text.splitlines(keepends=True)
     if not lines:
-        return None
+        raise LessonParseError("file is empty")
+
     start = 0
     if lines[0].rstrip("\r\n") != "---":
-        if not re.fullmatch(r"<!--[\s\S]*-->\r?\n?", lines[0]):
-            return None
+        if not re.fullmatch(r"<!--[\s\S]*-->", lines[0].rstrip("\r\n")):
+            raise LessonParseError("missing frontmatter opening delimiter")
         start = 1
     if start >= len(lines) or lines[start].rstrip("\r\n") != "---":
-        return None
+        raise LessonParseError("missing frontmatter opening delimiter")
+
     end = next(
-        (index for index, line in enumerate(lines[start + 1 :], start=start + 1) if line.rstrip("\r\n") == "---"),
+        (
+            index
+            for index, line in enumerate(lines[start + 1 :], start=start + 1)
+            if line.rstrip("\r\n") == "---"
+        ),
         None,
     )
     if end is None:
-        return None
+        raise LessonParseError("missing frontmatter closing delimiter")
 
     fields = {}
     for index, line in enumerate(lines[start + 1 : end], start=start + 1):
-        match = re.fullmatch(r"([A-Za-z_][A-Za-z0-9_-]*):[ \t]*(.*?)(?:\r?\n)?", line)
-        if match is None or match.group(1) in fields:
-            return None
-        fields[match.group(1)] = (index, match.group(2))
-    if set(fields) != LESSON_FIELDS or fields["status"][1] not in LESSON_STATUSES:
-        return None
-    if any(not value for _index, value in fields.values()):
-        return None
+        match = re.fullmatch(
+            r"([A-Za-z_][A-Za-z0-9_-]*):[ \t]*(.*?)(?:\r?\n)?", line
+        )
+        if match is None:
+            raise LessonParseError(f"invalid frontmatter line {index + 1}")
+        name, value = match.groups()
+        if name in fields:
+            raise LessonParseError(f"duplicate field: {name}")
+        fields[name] = (index, value)
+
+    missing = LESSON_FIELDS - set(fields)
+    if missing:
+        raise LessonParseError(f"missing field: {sorted(missing)[0]}")
+    unexpected = set(fields) - LESSON_FIELDS - {"superseded_by"}
+    if unexpected:
+        raise LessonParseError(f"unexpected field: {sorted(unexpected)[0]}")
+
+    status = fields["status"][1]
+    if status not in LESSON_STATUSES:
+        raise LessonParseError(f"invalid status: {status}")
+    has_landing = "superseded_by" in fields
+    if status == "superseded" and not has_landing:
+        raise LessonParseError("superseded lesson is missing superseded_by")
+    if status != "superseded" and has_landing:
+        raise LessonParseError("superseded_by is valid only for superseded lessons")
+    for name, (_index, value) in fields.items():
+        if not value:
+            raise LessonParseError(f"empty field: {name}")
+
     try:
         datetime.date.fromisoformat(fields["added"][1])
         datetime.date.fromisoformat(fields["last_used"][1])
-    except ValueError:
-        return None
-    return lines, end, fields
+    except ValueError as exc:
+        raise LessonParseError("added and last_used must be ISO dates") from exc
+    return LessonRecord(lines, end, fields)
 
 
 def stamp_lesson(path, today):
+    temporary_path = None
+    descriptor = None
     try:
-        with open(path, encoding="utf-8") as handle:
-            text = handle.read()
-        parsed = lesson_record_lines(text)
-        if parsed is None:
+        with open(path, "rb") as handle:
+            original = handle.read()
+        record = lesson_record_lines(original.decode("utf-8"))
+        # Superseded records remain valid lessons for the shared parser, but
+        # recall keeps its existing behavior of not marking replaced doctrine.
+        if record.fields["status"][1] == "superseded":
             return
-        lines, _end, fields = parsed
-        line_index = fields["last_used"][0]
-        newline = "\r\n" if lines[line_index].endswith("\r\n") else "\n"
+        line_index = record.fields["last_used"][0]
+        newline = "\r\n" if record.lines[line_index].endswith("\r\n") else "\n"
         replacement = f"last_used: {today}{newline}"
-        if lines[line_index] == replacement:
+        if record.lines[line_index] == replacement:
             return
-        lines[line_index] = replacement
-        with open(path, "w", encoding="utf-8", newline="") as handle:
-            handle.write("".join(lines))
-    except (OSError, UnicodeError):
+        record.lines[line_index] = replacement
+        updated = "".join(record.lines).encode("utf-8")
+
+        directory = os.path.dirname(path) or "."
+        descriptor, temporary_path = tempfile.mkstemp(
+            prefix=f".{os.path.basename(path)}.", dir=directory
+        )
+        with os.fdopen(descriptor, "wb") as handle:
+            descriptor = None
+            handle.write(updated)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary_path, path)
+        temporary_path = None
+    except (OSError, UnicodeError, LessonParseError):
         return
+    finally:
+        if descriptor is not None:
+            try:
+                os.close(descriptor)
+            except OSError:
+                pass
+        if temporary_path is not None:
+            try:
+                os.unlink(temporary_path)
+            except OSError:
+                pass
 
 
 def lesson_result_path(relative):

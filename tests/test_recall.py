@@ -75,6 +75,91 @@ class RecallTest(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertEqual(output.splitlines()[0].split(":", 1)[0], "runs/INDEX.md")
 
+    def test_shared_parser_accepts_all_statuses_and_requires_superseded_ref(self):
+        for status in recall.LESSON_STATUSES:
+            landing = "superseded_by: replacement\n" if status == "superseded" else ""
+            text = (
+                "---\n"
+                "id: lesson\n"
+                "added: 2020-01-01\n"
+                "source_run: runs/issue\n"
+                "approved_by: human\n"
+                f"status: {status}\n"
+                "last_used: 2020-01-01\n"
+                f"{landing}"
+                "---\n"
+            )
+            record = recall.lesson_record_lines(text)
+            self.assertEqual(record.fields["status"][1], status)
+
+        without_landing = (
+            "---\n"
+            "id: lesson\n"
+            "added: 2020-01-01\n"
+            "source_run: runs/issue\n"
+            "approved_by: human\n"
+            "status: superseded\n"
+            "last_used: 2020-01-01\n"
+            "---\n"
+        )
+        with self.assertRaises(recall.LessonParseError):
+            recall.lesson_record_lines(without_landing)
+
+        active_with_landing = without_landing.replace(
+            "status: superseded\n", "status: active\n"
+        ).replace(
+            "last_used: 2020-01-01\n", "last_used: 2020-01-01\nsuperseded_by: replacement\n"
+        )
+        with self.assertRaises(recall.LessonParseError):
+            recall.lesson_record_lines(active_with_landing)
+
+    def test_stamp_preserves_crlf_and_every_other_byte(self):
+        path = self.root / "demo/runs/coordination/lessons/crlf.md"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        before = (
+            b"<!-- Store: lesson records. -->\r\n"
+            b"---\r\n"
+            b"id: lesson\r\n"
+            b"added: 2020-01-01\r\n"
+            b"source_run: runs/issue\r\n"
+            b"approved_by: human\r\n"
+            b"status: active\r\n"
+            b"last_used: 2020-01-01\r\n"
+            b"---\r\n\r\n"
+            b"body with trailing bytes \xc2\xa9\r\n"
+        )
+        path.write_bytes(before)
+
+        recall.stamp_lesson(str(path), "2026-09-23")
+
+        after = path.read_bytes()
+        self.assertEqual(
+            after,
+            before.replace(b"last_used: 2020-01-01\r\n", b"last_used: 2026-09-23\r\n"),
+        )
+        self.assertIn(b"\r\n", after)
+
+    def test_stamp_leaves_original_when_atomic_replace_fails(self):
+        path = self.root / "demo/runs/coordination/lessons/lesson.md"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        before = (
+            b"---\n"
+            b"id: lesson\n"
+            b"added: 2020-01-01\n"
+            b"source_run: runs/issue\n"
+            b"approved_by: human\n"
+            b"status: active\n"
+            b"last_used: 2020-01-01\n"
+            b"---\n\nlesson\n"
+        )
+        path.write_bytes(before)
+
+        with mock.patch.object(recall.os, "replace", side_effect=OSError("blocked")):
+            recall.stamp_lesson(str(path), "2026-09-23")
+
+        self.assertEqual(path.read_bytes(), before)
+        self.assertEqual(list(path.parent.glob(f".{path.name}.*")), [])
+
     def test_stamp_updates_returned_lessons_but_not_other_records(self):
         old = "2020-01-01"
         self.write(

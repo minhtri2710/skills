@@ -78,7 +78,9 @@ class LessonFlagsTest(unittest.TestCase):
         path = self.write_record(
             "old-superseded", "superseded", old, superseded_by="abc1234 (push G349)"
         )
-        self.assertIsNotNone(lesson_flags.record_fields(str(path)))
+        fields, last_used = lesson_flags.record_fields(str(path))
+        self.assertEqual(fields["status"], "superseded")
+        self.assertEqual(last_used.isoformat(), old)
 
         code, output = self.run_flags(["--project", "demo", "--days", "90"])
 
@@ -106,14 +108,36 @@ class LessonFlagsTest(unittest.TestCase):
     def test_superseded_without_landing_ref_is_unclassified(self):
         old = (datetime.now(timezone.utc) - timedelta(days=120)).date().isoformat()
         path = self.write_record("bare-superseded", "superseded", old)
-        self.assertIsNone(lesson_flags.record_fields(str(path)))
+        with self.assertRaises(lesson_flags.LessonParseError):
+            lesson_flags.record_fields(str(path))
 
     def test_superseded_by_on_non_superseded_status_is_unclassified(self):
         old = (datetime.now(timezone.utc) - timedelta(days=120)).date().isoformat()
         path = self.write_record(
             "active-with-ref", "active", old, superseded_by="abc1234"
         )
-        self.assertIsNone(lesson_flags.record_fields(str(path)))
+        with self.assertRaises(lesson_flags.LessonParseError):
+            lesson_flags.record_fields(str(path))
+
+    def test_malformed_lessons_are_reported_and_make_exit_nonzero(self):
+        malformed = self.root / "demo/runs/coordination/lessons/broken.md"
+        malformed.parent.mkdir(parents=True, exist_ok=True)
+        malformed.write_text(
+            "---\n"
+            "id: broken\n"
+            "added: 2020-01-01\n"
+            "source_run: runs/issue\n"
+            "approved_by: human\n"
+            "status: active\n"
+            "---\n\nBroken lesson.\n",
+            encoding="utf-8",
+        )
+
+        code, output = self.run_flags(["--project", "demo"])
+
+        self.assertEqual(code, 1)
+        self.assertIn(f"malformed: {malformed}: missing field: last_used", output)
+        self.assertNotIn("Nothing to flag", output)
 
     def test_missing_lessons_directory_exits_cleanly(self):
         code, output = self.run_flags(["--project", "demo"])

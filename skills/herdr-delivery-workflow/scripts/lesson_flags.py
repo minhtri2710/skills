@@ -4,12 +4,12 @@
 import argparse
 import datetime
 import os
-import re
 import sys
 
+from recall import LESSON_STATUSES, LessonParseError, lesson_record_lines
+
 PROJECTS_ROOT = os.path.expanduser("~/.herdr/projects")
-STATUSES = ("active", "failure-mode", "rejected", "superseded")
-REQUIRED_FIELDS = {"id", "added", "source_run", "approved_by", "status", "last_used"}
+STATUSES = LESSON_STATUSES
 
 
 def project_root(parser, project):
@@ -24,44 +24,10 @@ def project_root(parser, project):
 
 
 def record_fields(path):
-    try:
-        with open(path, encoding="utf-8") as handle:
-            lines = handle.read().splitlines()
-    except (OSError, UnicodeError):
-        return None
-    if not lines:
-        return None
-    start = 0
-    if lines[0] != "---":
-        if not re.fullmatch(r"<!--[\s\S]*-->", lines[0]):
-            return None
-        start = 1
-    if start >= len(lines) or lines[start] != "---":
-        return None
-    try:
-        end = lines.index("---", start + 1)
-    except ValueError:
-        return None
-    fields = {}
-    for line in lines[start + 1 : end]:
-        match = re.fullmatch(r"([A-Za-z_][A-Za-z0-9_-]*):[ \t]*(.*)", line)
-        if match is None or match.group(1) in fields:
-            return None
-        fields[match.group(1)] = match.group(2)
-    if REQUIRED_FIELDS - set(fields) or set(fields) - REQUIRED_FIELDS - {"superseded_by"}:
-        return None
-    if fields["status"] not in STATUSES:
-        return None
-    # superseded_by names what replaced a superseded lesson; it is valid only on
-    # a superseded record and required there, so a superseded lesson always cites
-    # its landing and no other status silently carries the field.
-    if ("superseded_by" in fields) != (fields["status"] == "superseded"):
-        return None
-    try:
-        last_used = datetime.date.fromisoformat(fields["last_used"])
-    except ValueError:
-        return None
-    return fields, last_used
+    with open(path, encoding="utf-8") as handle:
+        record = lesson_record_lines(handle.read())
+    fields = {name: value for name, (_index, value) in record.fields.items()}
+    return fields, datetime.date.fromisoformat(fields["last_used"])
 
 
 def main(argv=None):
@@ -79,15 +45,17 @@ def main(argv=None):
 
     cutoff = datetime.datetime.now(datetime.timezone.utc).date() - datetime.timedelta(days=args.days)
     flagged = []
+    malformed = []
     for root, _dirs, files in os.walk(lessons):
         for name in sorted(files):
             if not name.endswith(".md"):
                 continue
             path = os.path.join(root, name)
-            parsed = record_fields(path)
-            if parsed is None:
+            try:
+                fields, last_used = record_fields(path)
+            except (OSError, UnicodeError, LessonParseError) as exc:
+                malformed.append((path, str(exc)))
                 continue
-            fields, last_used = parsed
             # A superseded lesson is replaced doctrine; surface it for retirement
             # regardless of staleness. A freshly-used superseded record is the
             # dangerous case — a seat still recalling doctrine that has been
@@ -95,7 +63,11 @@ def main(argv=None):
             if last_used < cutoff or fields["status"] == "superseded":
                 flagged.append((fields["status"], os.path.relpath(path, lessons), fields["last_used"]))
 
+    for path, reason in malformed:
+        print(f"malformed: {path}: {reason}")
     if not flagged:
+        if malformed:
+            return 1
         print("Nothing to flag: no superseded or stale lessons.")
         return 0
     print(f"Retire candidates — superseded, or stale (last_used before {cutoff.isoformat()}):")
@@ -106,7 +78,7 @@ def main(argv=None):
         print(f"[{status}]")
         for _status, relative, last_used in status_records:
             print(f"- {relative} (last_used: {last_used}) — retire candidate for Human review")
-    return 0
+    return 1 if malformed else 0
 
 
 if __name__ == "__main__":
