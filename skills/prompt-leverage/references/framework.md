@@ -2,7 +2,7 @@
 
 The framework follows a structured goal-to-done pipeline:
 
-`Goal -> Context -> Work Style -> Tool Rules -> Output Contract -> Verification -> Done`
+`Objective -> Context -> Work Style -> Tool Rules -> Output Contract -> Verification -> Done`
 
 ## Block Definitions
 

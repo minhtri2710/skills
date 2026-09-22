@@ -66,7 +66,7 @@ Many of the skills here adapt material from [addyosmani/agent-skills](https://gi
 
 ## Checks
 
-Scripts with test coverage in `tests/` are `herdr-delivery-workflow`, `quality-floor/floor_guard.py`, `destructive-path-guard/safe_target.py`, and `human-step-wizard/wizard-template.sh`; `bug-diagnosis/hitl-loop.sh` and `prompt-leverage/augment_prompt.py` are not covered. Run:
+Scripts with test coverage in `tests/` are `herdr-delivery-workflow`, `quality-floor/floor_guard.py`, `destructive-path-guard/safe_target.py`, `human-step-wizard/wizard-template.sh`, and `prompt-leverage/augment_prompt.py`; `bug-diagnosis/hitl-loop.sh` and `security-setup/scripts/security_check.py` are not covered. Run:
 
 ```bash
 .venv/bin/python -m unittest discover -s tests
