@@ -41,6 +41,9 @@ class CloseoutResult:
 _HANDLE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$")
 _ROLE_RE = {"Engineer", "Reviewer"}
 _PERSISTENT_ROLES = {"Lead", "Human Supervisor"}
+_PERSISTENT_ROLE_ERROR = (
+    "persistent must record exactly one Lead and at most one Human Supervisor"
+)
 _ABSENT_STATUSES = {"absent", "closed", "not_found", "pane_not_found"}
 _SERVER_MARKERS = (
     "astro",
@@ -111,7 +114,7 @@ def _validate_record(record: Mapping[str, Any]) -> tuple[Path, list[dict[str, st
             raise ValueError(f"persistent[{index}] must be an object")
         role = seat.get("role")
         if role not in _PERSISTENT_ROLES:
-            raise ValueError(f"persistent[{index}] has an invalid protected role")
+            raise ValueError(_PERSISTENT_ROLE_ERROR)
         pane = _validate_handle(seat.get("pane"), f"persistent[{index}].pane")
         name = _validate_handle(seat.get("name"), f"persistent[{index}].name")
         if pane in persistent_panes:
@@ -119,12 +122,12 @@ def _validate_record(record: Mapping[str, Any]) -> tuple[Path, list[dict[str, st
         if name in persistent_names:
             raise ValueError(f"persistent name {name!r} is duplicated")
         if role in persistent_roles:
-            raise ValueError(f"persistent role {role!r} is duplicated")
+            raise ValueError(_PERSISTENT_ROLE_ERROR)
         persistent_panes.add(pane)
         persistent_names.add(name)
         persistent_roles.add(role)
-    if persistent_roles != _PERSISTENT_ROLES:
-        raise ValueError("persistent must record exactly one Lead and one Human Supervisor")
+    if "Lead" not in persistent_roles:
+        raise ValueError(_PERSISTENT_ROLE_ERROR)
 
     peers = record.get("peers")
     if not isinstance(peers, list):
@@ -214,7 +217,7 @@ def check_closeout(
 ) -> CloseoutResult:
     """Inspect exactly the recorded peer panes through a read-only Herdr boundary.
 
-    The staffing record is JSON with ``canonical_checkout``, ``persistent`` and
+    The closeout staffing record is JSON with ``canonical_checkout``, ``persistent`` and
     ``peers`` fields.  Each peer has ``issue``, ``role`` (Engineer or Reviewer),
     ``name`` and opaque ``pane`` fields.  Boundary methods return normalized
     mappings: ``read_pane`` returns ``{"status": "open", "pane_id": ...,
@@ -348,7 +351,9 @@ class _SubprocessHerdr:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--staffing", required=True, type=Path, help="JSON run staffing record")
+    parser.add_argument(
+        "--staffing", required=True, type=Path, help="JSON closeout staffing record"
+    )
     args = parser.parse_args(argv)
     result = check_closeout(args.staffing, _SubprocessHerdr())
     if result.passed:

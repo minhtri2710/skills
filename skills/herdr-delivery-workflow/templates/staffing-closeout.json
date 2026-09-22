@@ -1,0 +1,30 @@
+{
+  "run_id": "run-id",
+  "canonical_checkout": "/absolute/path/to/project",
+  "persistent": [
+    {
+      "role": "Lead",
+      "name": "lead-project-slug",
+      "pane": "w0:pLead"
+    },
+    {
+      "role": "Human Supervisor",
+      "name": "supervisor",
+      "pane": "w0:pSupervisor"
+    }
+  ],
+  "peers": [
+    {
+      "issue": "issue-id",
+      "role": "Engineer",
+      "name": "eng-issue-id",
+      "pane": "w0:pEngineer"
+    },
+    {
+      "issue": "issue-id",
+      "role": "Reviewer",
+      "name": "review-issue-id",
+      "pane": "w0:pReviewer"
+    }
+  ]
+}

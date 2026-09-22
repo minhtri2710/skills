@@ -107,6 +107,51 @@ class CloseoutCheckTest(unittest.TestCase):
         self.assertTrue(result.passed, result.findings)
         self.assertEqual(result.checked_panes, ("w1:p3", "w1:p4"))
 
+    def test_lead_only_persistent_record_passes_validation_and_closeout(self):
+        record = dict(self.record)
+        record["persistent"] = [self.record["persistent"][0]]
+        self.herdr.close("w1:p3")
+        self.herdr.close("w1:p4")
+        result = closeout_check.check_closeout(record, self.herdr)
+        self.assertTrue(result.passed, result.findings)
+
+    def test_zero_lead_persistent_record_refuses(self):
+        record = dict(self.record)
+        record["persistent"] = [self.record["persistent"][1]]
+        result = closeout_check.check_closeout(record, self.herdr)
+        self.assertFalse(result.passed)
+        self.assertIn(
+            "persistent must record exactly one Lead and at most one Human Supervisor",
+            result.findings[0],
+        )
+
+    def test_two_human_supervisors_refuse(self):
+        record = dict(self.record)
+        record["persistent"] = [
+            self.record["persistent"][0],
+            self.record["persistent"][1],
+            {"role": "Human Supervisor", "name": "supervisor-2", "pane": "w1:p5"},
+        ]
+        result = closeout_check.check_closeout(record, self.herdr)
+        self.assertFalse(result.passed)
+        self.assertIn(
+            "persistent must record exactly one Lead and at most one Human Supervisor",
+            result.findings[0],
+        )
+
+    def test_unknown_persistent_role_refuses(self):
+        record = dict(self.record)
+        record["persistent"] = [
+            self.record["persistent"][0],
+            {"role": "Architect", "name": "architect", "pane": "w1:p5"},
+        ]
+        result = closeout_check.check_closeout(record, self.herdr)
+        self.assertFalse(result.passed)
+        self.assertIn(
+            "persistent must record exactly one Lead and at most one Human Supervisor",
+            result.findings[0],
+        )
+
     def test_missing_pane_evidence_fails_closed(self):
         class MissingPane(FakeHerdr):
             def read_pane(self, pane_id: str) -> dict[str, Any]:
@@ -123,7 +168,34 @@ class CloseoutCheckTest(unittest.TestCase):
         self.assertFalse(result.passed)
         self.assertIn("malformed staffing record", result.findings[0])
 
-    def test_cli_reads_json_staffing_record_and_returns_pass(self):
+    def test_template_loads_and_validates(self):
+        template = (
+            Path(__file__).resolve().parents[1]
+            / "skills"
+            / "herdr-delivery-workflow"
+            / "templates"
+            / "staffing-closeout.json"
+        )
+        with template.open(encoding="utf-8") as handle:
+            record = json.load(handle)
+        canonical, peers = closeout_check._validate_record(record)
+        self.assertTrue(canonical.is_absolute())
+        self.assertEqual([peer["role"] for peer in peers], ["Engineer", "Reviewer"])
+        self.assertEqual(
+            record["persistent"],
+            [
+                {"role": "Lead", "name": "lead-project-slug", "pane": "w0:pLead"},
+                {"role": "Human Supervisor", "name": "supervisor", "pane": "w0:pSupervisor"},
+            ],
+        )
+
+        unsupervised = dict(record)
+        unsupervised["persistent"] = [record["persistent"][0]]
+        canonical, peers = closeout_check._validate_record(unsupervised)
+        self.assertTrue(canonical.is_absolute())
+        self.assertEqual([peer["role"] for peer in peers], ["Engineer", "Reviewer"])
+
+    def test_cli_reads_json_closeout_staffing_record_and_returns_pass(self):
         self.herdr.close("w1:p3")
         self.herdr.close("w1:p4")
         with tempfile.TemporaryDirectory() as directory:
