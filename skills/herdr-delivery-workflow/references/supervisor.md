@@ -71,15 +71,16 @@ The Supervisor never:
 
 ## Compaction reprime
 
-When an observed live seat has durable compaction evidence, the Supervisor may invoke the repository-owned observer once for that seat and current run:
+When an observed live seat has durable compaction evidence, the Supervisor may invoke the repository-owned observer once for that seat and current run from any Supervisor cwd:
 
 ```bash
-python3 skills/herdr-delivery-workflow/scripts/compaction_reprime.py \\
+python3 scripts/compaction_reprime.py \\
   --run-id <current-run-id> \\
-  --seat <live-seat-name-or-pane-id>
+  --seat <live-seat-name-or-pane-id> \\
+  --project-root <absolute-project-checkout>
 ```
 
-This is an explicit Supervisor-side command, not a Pi or Claude lifecycle hook. It resolves the live seat from `herdr agent list`, reads only the contained durable Claude/Pi session record, maintains the one per-seat state file below `~/.herdr/projects/<project>/runs/coordination/`, and sends at most one pointer-only `herdr agent prompt <seat> <block>` for each newly crossed threshold. The threshold is four newly observed verified compaction markers after first-observation baseline initialization. A malformed record, ambiguous seat, mismatched session, invalid path, malformed state, missing pointer, or failed prompt fails closed; failed prompts remain durably retryable. The command performs no scheduling, watch loop, Munsu lifecycle integration, alternate lifecycle hook, compatibility path, or second state store. The prompt contains paths and named doctrine sections only; the mailbox, notebook, context-pack, transcript, and run-record bodies are never copied into it. Runtime installation/adoption remains a separate Human-gated action.
+This is an explicit Supervisor-side command, not a Pi or Claude lifecycle hook. It resolves the live seat from `herdr agent list`, reads only the contained durable Claude/Pi session record, maintains the one per-seat state file below `~/.herdr/projects/<project>/runs/coordination/`, and sends at most one pointer-only `herdr agent prompt <seat> <block>` for each newly crossed threshold. The threshold is four newly observed verified compaction markers after first-observation baseline initialization. The required absolute project root must match the seat's roster cwd. Doctrine pointers name the running skill's own `references` files; run-dir is always included, and absent run files are omitted. A malformed record, ambiguous seat, mismatched session, invalid path, malformed state, missing pointer, or failed prompt fails closed; failed prompts remain durably retryable. The command performs no scheduling, watch loop, Munsu lifecycle integration, alternate lifecycle hook, compatibility path, or second state store. The prompt contains paths and named doctrine sections only; the mailbox, notebook, context-pack, transcript, and run-record bodies are never copied into it. Runtime installation/adoption remains a separate Human-gated action.
 
 ## Output
 

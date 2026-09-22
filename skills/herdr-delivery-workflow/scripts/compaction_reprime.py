@@ -481,10 +481,11 @@ class ReprimePaths:
     context_pack: Path
     gates: Path
     notebook: Path
-    intake: Path
-    plan: Path
-    specification: Path
-    slices: Path
+    run_dir: Path
+    intake: Path | None
+    plan: Path | None
+    specification: Path | None
+    slices: Path | None
     lead_doctrine: Path
     supervisor_doctrine: Path
     closeout_doctrine: Path
@@ -564,15 +565,18 @@ def _validated_reprime_paths(
         if resolved is None:
             return None
         canonical_project_files[name] = resolved
-    canonical_run_files: dict[str, Path] = {}
+    canonical_run_files: dict[str, Path | None] = {}
     for name, path in run_files.items():
+        if not os.path.lexists(path):
+            canonical_run_files[name] = None
+            continue
         resolved = _canonical_child(path, run_root, directory=False)
         if resolved is None:
             return None
         canonical_run_files[name] = resolved
 
-    doctrine_root = project / "skills" / "herdr-delivery-workflow" / "references"
-    doctrine_root = _canonical_child(doctrine_root, project, directory=True)
+    skill_root = Path(__file__).resolve().parents[1]
+    doctrine_root = _canonical_child(skill_root / "references", skill_root, directory=True)
     if doctrine_root is None:
         return None
     doctrine: dict[str, Path] = {}
@@ -591,6 +595,7 @@ def _validated_reprime_paths(
         context_pack=canonical_project_files["context_pack"],
         gates=canonical_project_files["gates"],
         notebook=canonical_project_files["notebook"],
+        run_dir=run_root,
         intake=canonical_run_files["intake"],
         plan=canonical_run_files["plan"],
         specification=canonical_run_files["specification"],
@@ -618,21 +623,30 @@ def build_reprime_block(
     pointers = _validated_reprime_paths(project, home, run_id)
     if pointers is None:
         return None
-    lines = (
+    lines = [
         f"run-id: {run_id}",
         f"seat: {seat}",
+        f"run-dir: {pointers.run_dir}",
         f"context-pack: {pointers.context_pack}",
         f"gate-ledger: {pointers.gates}",
         f"supervisor-notebook: {pointers.notebook}",
-        f"intake: {pointers.intake}",
-        f"plan: {pointers.plan}",
-        f"specification: {pointers.specification}",
-        f"slices: {pointers.slices}",
-        f"lead-recovery: {pointers.lead_doctrine}#Recovery",
-        f"lead-delivery: {pointers.lead_doctrine}#Delivery sequence",
-        f"lead-gates: {pointers.lead_doctrine}#Gates and ledger",
-        f"supervisor-handoff: {pointers.supervisor_doctrine}#Handoff",
-        f"closeout: {pointers.closeout_doctrine}#Acceptance custody",
+    ]
+    for label, path in (
+        ("intake", pointers.intake),
+        ("plan", pointers.plan),
+        ("specification", pointers.specification),
+        ("slices", pointers.slices),
+    ):
+        if path is not None:
+            lines.append(f"{label}: {path}")
+    lines.extend(
+        (
+            f"lead-recovery: {pointers.lead_doctrine}#Recovery",
+            f"lead-delivery: {pointers.lead_doctrine}#Delivery sequence",
+            f"lead-gates: {pointers.lead_doctrine}#Gates and ledger",
+            f"supervisor-handoff: {pointers.supervisor_doctrine}#Handoff",
+            f"closeout: {pointers.closeout_doctrine}#Acceptance custody",
+        )
     )
     return "\n".join(lines)
 
@@ -1073,7 +1087,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--run-id", required=True, help="canonical current run id")
     parser.add_argument("--seat", required=True, help="live Herdr seat name or pane id")
+    parser.add_argument("--project-root", required=True, help="absolute project checkout")
     args = parser.parse_args(argv)
+    if not Path(args.project_root).is_absolute():
+        parser.error("--project-root must be an absolute path")
 
     roster = _load_live_roster()
     if roster is None:
@@ -1084,7 +1101,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         roster,
         args.seat,
         run_id=args.run_id,
-        project_root=Path.cwd(),
+        project_root=args.project_root,
         home_dir=os.environ.get("HOME"),
     )
     if result is None:

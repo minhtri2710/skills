@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import io
+import os
 import json
 import subprocess
 import sys
@@ -19,6 +20,19 @@ sys.modules[SPEC.name] = compaction_reprime
 SPEC.loader.exec_module(compaction_reprime)
 
 
+def _guard_unpatched_subprocess_run(command: object, *args: object, **kwargs: object) -> None:
+    argv = command if isinstance(command, (list, tuple)) else ()
+    if argv and argv[0] == "herdr":
+        raise AssertionError("live herdr subprocess must be patched in this test")
+    raise AssertionError("unexpected unpatched subprocess.run in this test")
+
+
+def _install_subprocess_guard(test_case: unittest.TestCase) -> None:
+    guard = patch.object(compaction_reprime.subprocess, "run", side_effect=_guard_unpatched_subprocess_run)
+    guard.start()
+    test_case.addCleanup(guard.stop)
+
+
 class CompactionReprimeObserverTest(unittest.TestCase):
     def setUp(self) -> None:
         self.tmp = tempfile.TemporaryDirectory()
@@ -27,6 +41,7 @@ class CompactionReprimeObserverTest(unittest.TestCase):
         self.project = self.root / "project"
         self.home.mkdir()
         self.project.mkdir()
+        _install_subprocess_guard(self)
 
     def tearDown(self) -> None:
         self.tmp.cleanup()
@@ -256,6 +271,7 @@ class CompactionReprimeBaselineTest(unittest.TestCase):
         self.project = self.root / "project"
         self.home.mkdir()
         self.project.mkdir()
+        _install_subprocess_guard(self)
 
     def tearDown(self) -> None:
         self.tmp.cleanup()
@@ -440,7 +456,12 @@ class CompactionReprimeBaselineTest(unittest.TestCase):
 
 
 class CompactionReprimeDispatchTest(CompactionReprimeBaselineTest):
-    def write_pointer_files(self, run_id: str = "run-1") -> None:
+    def write_pointer_files(
+        self,
+        run_id: str = "run-1",
+        *,
+        run_files: tuple[str, ...] | None = None,
+    ) -> None:
         project_records = self.home / ".herdr" / "projects" / "project"
         for name, body in {
             "context-pack.md": "RAW CONTEXT PACK BODY must not be copied",
@@ -452,22 +473,16 @@ class CompactionReprimeDispatchTest(CompactionReprimeBaselineTest):
 
         run_dir = project_records / "runs" / run_id
         run_dir.mkdir(parents=True, exist_ok=True)
-        for name, body in {
+        run_file_bodies = {
             "intake-record.md": "RAW INTAKE BODY must not be copied",
             "plan.md": "RAW PLAN BODY must not be copied",
             "specification.md": "RAW SPECIFICATION BODY must not be copied",
             "slices.json": '{"raw": "RAW SLICES BODY must not be copied"}',
-        }.items():
-            run_dir.joinpath(name).write_text(body, encoding="utf-8")
-
-        doctrine = self.project / "skills" / "herdr-delivery-workflow" / "references"
-        doctrine.mkdir(parents=True, exist_ok=True)
-        for name, body in {
-            "lead.md": "RAW LEAD DOCTRINE BODY must not be copied",
-            "supervisor.md": "RAW SUPERVISOR DOCTRINE BODY must not be copied",
-            "closeout.md": "RAW CLOSEOUT DOCTRINE BODY must not be copied",
-        }.items():
-            doctrine.joinpath(name).write_text(body, encoding="utf-8")
+        }
+        selected_run_files = set(run_file_bodies) if run_files is None else set(run_files)
+        for name, body in run_file_bodies.items():
+            if name in selected_run_files:
+                run_dir.joinpath(name).write_text(body, encoding="utf-8")
 
     def make_pending(self, *, run_id: str = "run-1") -> Path:
         path = self.pi_path()
@@ -499,6 +514,8 @@ class CompactionReprimeDispatchTest(CompactionReprimeBaselineTest):
         )
         self.assertIsNotNone(block)
         assert block is not None
+        self.assertFalse((self.project / "skills").exists())
+        doctrine_root = SCRIPT.resolve().parents[1] / "references"
         expected_pointers = (
             self.home / ".herdr" / "projects" / "project" / "context-pack.md",
             self.home / ".herdr" / "projects" / "project" / "gates.md",
@@ -507,11 +524,11 @@ class CompactionReprimeDispatchTest(CompactionReprimeBaselineTest):
             self.home / ".herdr" / "projects" / "project" / "runs" / "run-1" / "plan.md",
             self.home / ".herdr" / "projects" / "project" / "runs" / "run-1" / "specification.md",
             self.home / ".herdr" / "projects" / "project" / "runs" / "run-1" / "slices.json",
-            self.project / "skills" / "herdr-delivery-workflow" / "references" / "lead.md#Recovery",
-            self.project / "skills" / "herdr-delivery-workflow" / "references" / "lead.md#Delivery sequence",
-            self.project / "skills" / "herdr-delivery-workflow" / "references" / "lead.md#Gates and ledger",
-            self.project / "skills" / "herdr-delivery-workflow" / "references" / "supervisor.md#Handoff",
-            self.project / "skills" / "herdr-delivery-workflow" / "references" / "closeout.md#Acceptance custody",
+            doctrine_root / "lead.md#Recovery",
+            doctrine_root / "lead.md#Delivery sequence",
+            doctrine_root / "lead.md#Gates and ledger",
+            doctrine_root / "supervisor.md#Handoff",
+            doctrine_root / "closeout.md#Acceptance custody",
         )
         for pointer in expected_pointers:
             self.assertIn(str(pointer), block)
@@ -622,6 +639,39 @@ class CompactionReprimeDispatchTest(CompactionReprimeBaselineTest):
         self.assertEqual(json.loads(result.state_path.read_text(encoding="utf-8"))["eligible_threshold"], 4)
         run.assert_not_called()
 
+    def test_optional_run_pointers_include_only_present_files(self) -> None:
+        self.write_pointer_files(run_files=("intake-record.md",))
+        block = compaction_reprime.build_reprime_block(
+            run_id="run-1",
+            seat="lead-beo-skills",
+            project_root=self.project,
+            home_dir=self.home,
+        )
+        self.assertIsNotNone(block)
+        assert block is not None
+        run_dir = (self.home / ".herdr" / "projects" / "project" / "runs" / "run-1").resolve()
+        intake = (run_dir / "intake-record.md").resolve()
+        self.assertIn(f"run-dir: {run_dir}", block)
+        self.assertIn(f"intake: {intake}", block)
+        for label in ("plan", "specification", "slices"):
+            self.assertNotIn(f"\n{label}:", f"\n{block}")
+
+    def test_symlinked_present_run_pointer_fails_closed(self) -> None:
+        self.write_pointer_files()
+        plan = self.home / ".herdr" / "projects" / "project" / "runs" / "run-1" / "plan.md"
+        outside = self.root / "outside-plan.md"
+        outside.write_text("outside", encoding="utf-8")
+        plan.unlink()
+        plan.symlink_to(outside)
+        self.assertIsNone(
+            compaction_reprime.build_reprime_block(
+                run_id="run-1",
+                seat="lead-beo-skills",
+                project_root=self.project,
+                home_dir=self.home,
+            )
+        )
+
     def test_cli_requires_run_id_and_seat(self) -> None:
         with patch.object(compaction_reprime, "_load_live_roster") as load:
             load.return_value = []
@@ -630,16 +680,54 @@ class CompactionReprimeDispatchTest(CompactionReprimeBaselineTest):
             self.assertEqual(raised.exception.code, 2)
             load.assert_not_called()
 
-    def test_cli_dispatches_from_live_roster_and_current_checkout(self) -> None:
+    def test_cli_dispatches_from_explicit_project_root(self) -> None:
         with patch.object(compaction_reprime, "_load_live_roster", return_value={"result": {"agents": []}}), \
                 patch.object(compaction_reprime, "dispatch_live_seat", return_value=None) as dispatch:
             with patch("sys.stderr", new_callable=io.StringIO) as stderr:
-                result = compaction_reprime.main(["--run-id", "run-1", "--seat", "lead-beo-skills"])
+                result = compaction_reprime.main([
+                    "--run-id", "run-1", "--seat", "lead-beo-skills", "--project-root", str(self.project),
+                ])
         self.assertEqual(result, 1)
         dispatch.assert_called_once()
         self.assertEqual(dispatch.call_args.kwargs["run_id"], "run-1")
+        self.assertEqual(dispatch.call_args.kwargs["project_root"], str(self.project))
         self.assertEqual(dispatch.call_args.args[1], "lead-beo-skills")
         self.assertIn("failed closed", stderr.getvalue())
+
+    def test_cli_from_different_cwd_reaches_prompt_with_explicit_project_root(self) -> None:
+        self.write_pointer_files()
+        path = self.make_pending()
+        roster = {"result": {"agents": self.roster(path)}}
+        original_cwd = Path.cwd()
+        with tempfile.TemporaryDirectory() as other_cwd:
+            os.chdir(other_cwd)
+            try:
+                with patch.object(compaction_reprime, "_load_live_roster", return_value=roster), \
+                        patch.object(
+                            compaction_reprime.subprocess,
+                            "run",
+                            return_value=subprocess.CompletedProcess([], 0),
+                        ) as prompt, \
+                        patch.dict(os.environ, {"HOME": str(self.home)}):
+                    result = compaction_reprime.main([
+                        "--run-id", "run-1", "--seat", "lead-beo-skills", "--project-root", str(self.project),
+                    ])
+            finally:
+                os.chdir(original_cwd)
+        self.assertEqual(result, 0)
+        prompt.assert_called_once()
+        self.assertEqual(prompt.call_args.args[0][:4], ["herdr", "agent", "prompt", "lead-beo-skills"])
+
+    def test_cli_requires_absolute_project_root(self) -> None:
+        with patch.object(compaction_reprime, "_load_live_roster") as load:
+            for project_root in (None, "relative/project"):
+                arguments = ["--run-id", "run-1", "--seat", "lead-beo-skills"]
+                if project_root is not None:
+                    arguments.extend(["--project-root", project_root])
+                with self.subTest(project_root=project_root), self.assertRaises(SystemExit) as raised:
+                    compaction_reprime.main(arguments)
+                self.assertEqual(raised.exception.code, 2)
+            load.assert_not_called()
 
 
 if __name__ == "__main__":
