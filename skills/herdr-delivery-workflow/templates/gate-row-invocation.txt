@@ -26,3 +26,63 @@ Dialog attribution:
 # Human-typed text uses channel=...:typed with words=human and, when resolved,
 # status=resolved:instruction. gate_row.py --check rejects dialog + words=human.
 # Do not retroactively rewrite apex G204/G206/G207; munsu G157/G158 is the precedent.
+
+Reconstruction push (a past head is an ancestor of the later live origin tip):
+```sh
+set -eu
+root=$(mktemp -d)
+repo=$root/repo
+origin=$root/origin.git
+ledger=$root/reconstruction-gates.md
+script=$PWD/skills/herdr-delivery-workflow/scripts/gate_row.py
+git init -q -b main "$repo"
+git init -q --bare "$origin"
+git -C "$repo" config user.name Example
+git -C "$repo" config user.email example@invalid
+printf 'first\n' > "$repo/record.txt"
+git -C "$repo" add record.txt && git -C "$repo" commit -q -m first
+base=$(git -C "$repo" rev-parse HEAD)
+printf 'past push\n' >> "$repo/record.txt"
+git -C "$repo" add record.txt && git -C "$repo" commit -q -m past-push
+past=$(git -C "$repo" rev-parse HEAD)
+git -C "$repo" remote add origin "$origin"
+git -C "$repo" push -q -u origin main
+printf 'later\n' >> "$repo/record.txt"
+git -C "$repo" add record.txt && git -C "$repo" commit -q -m later
+git -C "$repo" push -q origin main
+python3 "$script" --repo "$repo" --ledger "$ledger" \
+  --kind review --status recorded:review-pass --record reconstruction \
+  --head "main@$past" --review-base "$base" \
+  --words seat --note "reconstructed review for past push" --quote "review PASS"
+python3 "$script" --repo "$repo" --ledger "$ledger" \
+  --kind push --status resolved:standing-waiver --record reconstruction \
+  --head "main@$past" --push-base "$base" \
+  --boundary . --words seat --note "reconstructed past push" --quote "past push source"
+```
+
+First publication to an empty remote (zero-base review row, actual push, then zero-base push row):
+```sh
+set -eu
+root=$(mktemp -d)
+repo=$root/repo
+origin=$root/origin.git
+ledger=$root/first-publication-gates.md
+script=$PWD/skills/herdr-delivery-workflow/scripts/gate_row.py
+git init -q -b main "$repo"
+git init -q --bare "$origin"
+git -C "$repo" config user.name Example
+git -C "$repo" config user.email example@invalid
+printf 'whole history\n' > "$repo/record.txt"
+git -C "$repo" add record.txt && git -C "$repo" commit -q -m publication
+git -C "$repo" remote add origin "$origin"
+branch=$(git -C "$repo" rev-parse --abbrev-ref HEAD)
+python3 "$script" --repo "$repo" --ledger "$ledger" \
+  --kind review --status recorded:review-pass \
+  --review-base 0000000000000000000000000000000000000000 \
+  --words seat --note "reviewed whole first publication" --quote "review PASS"
+git -C "$repo" push -q -u origin "$branch"
+python3 "$script" --repo "$repo" --ledger "$ledger" \
+  --kind push --status resolved:standing-waiver \
+  --push-base 0000000000000000000000000000000000000000 \
+  --boundary . --words seat --note "recorded first publication" --quote "first publication"
+```
