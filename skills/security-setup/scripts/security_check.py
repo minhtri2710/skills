@@ -127,9 +127,14 @@ def normalize_severity(value: Any) -> str:
     return text if text in SEVERITIES else "INFO"
 
 
-def load_config(path: Path) -> Dict[str, Any]:
-    if not path.exists():
-        return DEFAULT_CONFIG
+def load_config(path: Optional[Path]) -> Dict[str, Any]:
+    if path is None:
+        path = Path("security/security-tools.json")
+        if not path.exists():
+            validate_config(DEFAULT_CONFIG)
+            return DEFAULT_CONFIG
+    elif not path.exists():
+        raise ConfigurationError("configuration file not found: " + str(path))
     try:
         value = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
@@ -142,8 +147,12 @@ def validate_config(config: Any) -> None:
     if not isinstance(config, dict):
         raise ConfigurationError("configuration must be a JSON object")
     fail_on = config.get("fail_on", ["CRITICAL", "HIGH"])
-    if not isinstance(fail_on, list) or any(normalize_severity(item) not in SEVERITIES for item in fail_on):
-        raise ConfigurationError("fail_on must be a list of known severities")
+    if (
+        not isinstance(fail_on, list)
+        or not fail_on
+        or any(not isinstance(item, str) or item.upper() not in SEVERITIES for item in fail_on)
+    ):
+        raise ConfigurationError("fail_on must be a non-empty list of known severities")
     checks = config.get("checks")
     if not isinstance(checks, list) or not checks:
         raise ConfigurationError("checks must be a non-empty list")
@@ -536,7 +545,7 @@ def summarize(results: List[Dict[str, Any]]) -> Tuple[List[Dict[str, str]], Dict
 
 
 def should_fail(findings: List[Dict[str, str]], fail_on: Sequence[str]) -> bool:
-    levels = {normalize_severity(item) for item in fail_on}
+    levels = {item.upper() for item in fail_on}
     return any(item.get("assessment") == "Assessed" and item["severity"] in levels for item in findings)
 
 
@@ -559,6 +568,12 @@ def format_counter(counter: Dict[str, int]) -> str:
     return ", ".join(ordered)
 
 
+def format_categories(counter: Dict[str, int]) -> str:
+    if not counter:
+        return "none"
+    return ", ".join("%s=%s" % (name, counter[name]) for name in sorted(counter))
+
+
 def render_markdown(payload: Dict[str, Any]) -> str:
     summary = payload["summary"]
     scope = payload["scope"]
@@ -574,7 +589,7 @@ def render_markdown(payload: Dict[str, Any]) -> str:
         "- Not-Assessed checks: %s" % summary["not_assessed"],
         "- Findings: %s" % summary["finding_count"],
         "- Severity: " + format_counter(summary["severity_counts"]),
-        "- Categories: " + format_counter(summary["category_counts"]),
+        "- Categories: " + format_categories(summary["category_counts"]),
         "- Bypass: " + bypass["status"], "", "## Scope Decisions", "",
     ]
     for check in payload["checks"]:
@@ -616,7 +631,7 @@ def print_summary(payload: Dict[str, Any], json_path: Path, markdown_path: Path)
         summary["checks_assessed"], summary["not_assessed"]))
     print("Findings: %s" % summary["finding_count"])
     print("Severity: " + format_counter(summary["severity_counts"]))
-    print("Categories: " + format_counter(summary["category_counts"]))
+    print("Categories: " + format_categories(summary["category_counts"]))
     print("Bypass: " + payload["bypass"]["status"])
     print("JSON report: " + str(json_path))
     print("Markdown report: " + str(markdown_path))
@@ -631,7 +646,7 @@ def print_summary(payload: Dict[str, Any], json_path: Path, markdown_path: Path)
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Run configured local security checks and write reports.")
-    parser.add_argument("--config", default="security/security-tools.json", help="JSON tool configuration path")
+    parser.add_argument("--config", default=None, help="JSON tool configuration path")
     parser.add_argument("--output", default="security/security-report.json", help="JSON report path")
     parser.add_argument("--markdown", default="security/security-report.md", help="Markdown report path")
     parser.add_argument("--force", action="store_true", help="Request an interactive YES bypass for blocking findings")
@@ -650,7 +665,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     json_path = Path(args.output)
     markdown_path = Path(args.markdown)
     try:
-        config = load_config(Path(args.config))
+        config = load_config(Path(args.config) if args.config is not None else None)
         if args.all_files:
             files = None
             mode = "full"
