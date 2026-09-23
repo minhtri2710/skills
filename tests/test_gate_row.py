@@ -155,6 +155,13 @@ class GateRowTest(unittest.TestCase):
                 f"main@{self.rev('HEAD')} | status={status} | record=timely"
                 f"{target} | words={words} | note={note} | quote=\"{quote}\"")
 
+    def chained(self, rows: list[str]) -> list[str]:
+        """Give fixture rows the ledger's chain: each row after the first hashes its predecessor."""
+        out = rows[:1]
+        for row in rows[1:]:
+            out.append(row.replace(" | words=", f" | prev_hash={gate_row.row_hash(out[-1])} | words=", 1))
+        return out
+
     def open_gates(self) -> list[str]:
         self.assertEqual(self.run_main([
             "--ledger", str(self.ledger), "--repo", str(self.repo), "--open-gates",
@@ -423,6 +430,7 @@ class GateRowTest(unittest.TestCase):
 
     def test_standing_delegation_append_readback_rederive_and_check(self):
         self.assertEqual(self.append_standing_delegation(), 0)
+        self.assertEqual(self.append_standing_delegation(), 0)
         row = self.last_row()
         self.assertIn("kind=standing-delegation", row)
         for field in ("who=lead-beo-skills", "scope=scripts only",
@@ -435,7 +443,7 @@ class GateRowTest(unittest.TestCase):
         rows = gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))
         self.ledger.write_text(
             "# Gate ledger — test\n\n" + "\n".join([
-                rows[0], row.replace(" | expiry=until the Human's next message", "")
+                rows[0], rows[1].replace(" | expiry=until the Human's next message", "")
             ]) + "\n", encoding="utf-8"
         )
         self.assertEqual(self.run_main([
@@ -596,7 +604,7 @@ class GateRowTest(unittest.TestCase):
             self.fixture_row("G29", "resolved:done", resolves="G28"),
             self.fixture_row("G30", "open", "none", ""),
         ]
-        self.ledger.write_text("# fixture\n" + "\n".join(rows) + "\n")
+        self.ledger.write_text("# fixture\n" + "\n".join(self.chained(rows)) + "\n")
         self.assertEqual(self.open_gates(), ["G27", "G30"])
 
     def test_words_values_require_the_matching_quote_presence(self):
@@ -621,11 +629,9 @@ class GateRowTest(unittest.TestCase):
                f'status=resolved:standing-waiver | record=timely | '
                f'push={base}..{head} count=7 boundary="f1.txt f2.txt" '
                f'boundary-check="" | words=human | note=n | quote="q"')
+        prior = self.fixture_row("G1", "recorded:review-pass", kind="review")
         with self.assertRaises(gate_row.RowError) as ctx:
-            gate_row.check(
-                row, self.repo,
-                [self.fixture_row("G1", "recorded:review-pass", kind="review")],
-            )
+            gate_row.check(self.chained([prior, row])[1], self.repo, [prior])
         self.assertIn("carries 2 commits", str(ctx.exception))
 
     def test_a_failed_check_never_writes_a_row(self):
@@ -1174,27 +1180,41 @@ class GateRowTest(unittest.TestCase):
             "--ledger", str(self.ledger), "--repo", str(self.repo), "--check",
         ]), 0)
 
-    def test_legacy_prefix_then_new_chain_is_accepted_without_backfill(self):
+    def test_a_second_row_without_prev_hash_is_refused_on_every_load(self):
         self.assertEqual(self.append(), 0)
         self.assertEqual(self.append(), 0)
         rows = gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))
-        legacy_rows = [rows[0], rows[1].replace(
-            " | prev_hash=" + hashlib.sha256(rows[0].encode("utf-8")).hexdigest(), ""
-        )]
-        self.ledger.write_text(
-            "# Gate ledger — test\n\n" + "\n".join(legacy_rows) + "\n", encoding="utf-8"
-        )
+        stripped = "# Gate ledger — test\n\n" + "\n".join([rows[0], rows[1].replace(
+            " | prev_hash=" + gate_row.row_hash(rows[0]), ""
+        )]) + "\n"
+        self.ledger.write_text(stripped, encoding="utf-8")
+        for mode in (["--check"], ["--open-gates"], []):
+            with self.subTest(mode=mode):
+                argv = ["--ledger", str(self.ledger), "--repo", str(self.repo), *mode]
+                if not mode:
+                    self.assertEqual(self.append(), 1)
+                else:
+                    self.assertEqual(self.run_main(argv), 1)
+                self.assertIn("row 'G2' is missing prev_hash=", self.err.getvalue())
+                self.assertEqual(self.ledger.read_text(encoding="utf-8"), stripped)
+
+    def test_a_first_row_carrying_prev_hash_is_refused_on_load(self):
+        self.assertEqual(self.append(), 0)
         self.assertEqual(self.append(), 0)
         rows = gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))
-        self.assertNotIn("prev_hash=", rows[0])
-        self.assertNotIn("prev_hash=", rows[1])
-        self.assertIn(
-            f"prev_hash={hashlib.sha256(rows[1].encode('utf-8')).hexdigest()}",
-            rows[2],
-        )
+        self.ledger.write_text("# Gate ledger — test\n\n" + rows[1] + "\n", encoding="utf-8")
         self.assertEqual(self.run_main([
             "--ledger", str(self.ledger), "--repo", str(self.repo), "--check",
-        ]), 0)
+        ]), 1)
+        self.assertIn("row 'G2' carries prev_hash= without a predecessor", self.err.getvalue())
+
+    def test_check_refuses_a_non_first_row_without_prev_hash_by_position(self):
+        self.assertEqual(self.append(), 0)
+        self.assertEqual(self.append(), 0)
+        rows = gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))
+        stripped = rows[1].replace(" | prev_hash=" + gate_row.row_hash(rows[0]), "")
+        with self.assertRaisesRegex(gate_row.RowError, "prev_hash= is missing; every row after the first"):
+            gate_row.check(stripped, self.repo, [rows[0]], self.ledger)
 
     def test_intact_chain_is_verified_on_check_and_open_gate_read(self):
         for _ in range(3):
@@ -1339,7 +1359,7 @@ class CutoverTest(unittest.TestCase):
         original = self.archive.read_bytes()
         self.archive.write_bytes(original.replace(b"merged the reviewed head", b"merged the reviewed HEAD"))
         self.assertEqual(self.check_main(), 1)
-        self.assertIn("prev_hash mismatch at row 'G2'", self.err.getvalue())
+        self.assertIn("archive= mismatch", self.err.getvalue())
         self.archive.write_bytes(original.replace(b"Gate ledger", b"Gate Ledger"))
         self.assertEqual(self.check_main(), 1)
         self.assertIn("archive= mismatch", self.err.getvalue())
@@ -1382,6 +1402,24 @@ class CutoverTest(unittest.TestCase):
             self.assertIn("kind=cutover refused: no gates.legacy.md", self.err.getvalue())
             self.assertEqual(self.ledger.read_bytes(), before)
 
+    def test_cutover_binds_a_real_shape_unchained_archive_by_bytes(self):
+        rows = gate_row.ledger_rows(self.archive.read_text(encoding="utf-8"))
+        unchained = [row.split(" | prev_hash=")[0] + " | words=" + row.split(" | words=", 1)[1]
+                     for row in rows]
+        self.assertTrue(all("prev_hash=" not in row for row in unchained))
+        self.archive.write_text("# Gate ledger — test\n\n" + "\n".join(unchained) + "\n", encoding="utf-8")
+        with self.assertRaisesRegex(gate_row.RowError, "row 'G2' is missing prev_hash="):
+            gate_row.ledger_rows(self.archive.read_text(encoding="utf-8"))
+        archive_bytes = self.archive.read_bytes()
+        self.assertEqual(self.cutover(), 0)
+        row = self.last_row()
+        self.assertTrue(row.startswith("G4 | "))
+        self.assertIn(f"archive={hashlib.sha256(archive_bytes).hexdigest()}", row)
+        self.assertEqual(self.check_main(), 0)
+        self.archive.write_bytes(archive_bytes.replace(b"merged the reviewed head", b"merged the reviewed HEAD", 1))
+        self.assertEqual(self.check_main(), 1)
+        self.assertIn("archive= mismatch", self.err.getvalue())
+
     def test_cutover_requires_its_status(self):
         before = self.ledger.read_bytes()
         self.assertEqual(self.run_main([
@@ -1397,7 +1435,7 @@ class CutoverTest(unittest.TestCase):
         self.assertEqual(self.append(), 0)
         cutover_row, row = gate_row.ledger_rows(self.ledger.read_text())
         archive = [f for f in cutover_row.split(" | ") if f.startswith("archive=")][0]
-        forged = row.replace(" | prev_hash=", f" | {archive} | prev_hash=")
+        forged = row.replace(" | words=", f" | {archive} | words=")
         with self.assertRaisesRegex(gate_row.RowError, "words= is missing or out of order"):
             gate_row.check(forged, self.repo, [cutover_row], self.ledger)
 

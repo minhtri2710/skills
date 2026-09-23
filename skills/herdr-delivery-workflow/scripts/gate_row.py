@@ -145,34 +145,36 @@ def row_hash(row: str) -> str:
 
 
 def verify_chain(rows: list[str]) -> None:
-    """Verify the adopted hash chain, leaving its legacy prefix untouched."""
-    chain_started = False
-    predecessor: str | None = None
+    """Verify the hash chain: the first row is unhashed, every later row chains to its predecessor."""
     for index, row in enumerate(rows):
         fields, _ = split_row(row)
         hashes = [field for field in fields if field.startswith("prev_hash=")]
         if len(hashes) > 1:
             raise RowError(f"row {fields[0]!r} carries more than one prev_hash=")
-        if hashes:
-            value = hashes[0].split("=", 1)[1]
-            if not PREV_HASH_RE.fullmatch(value):
-                raise RowError(f"field {hashes[0]!r} is not a 64-character lowercase hex prev_hash=")
-            if predecessor is None:
+        if index == 0:
+            if hashes:
                 raise RowError(f"row {fields[0]!r} carries prev_hash= without a predecessor")
-            expected = row_hash(predecessor)
-            if value != expected:
-                raise RowError(
-                    f"prev_hash mismatch at row {fields[0]!r}: expected {expected}, got {value}"
-                )
-            chain_started = True
-        elif chain_started:
-            raise RowError(f"row {fields[0]!r} is missing prev_hash= after the chain started")
-        predecessor = row
+            continue
+        if not hashes:
+            raise RowError(f"row {fields[0]!r} is missing prev_hash=; every row after the first is chained")
+        value = hashes[0].split("=", 1)[1]
+        if not PREV_HASH_RE.fullmatch(value):
+            raise RowError(f"field {hashes[0]!r} is not a 64-character lowercase hex prev_hash=")
+        expected = row_hash(rows[index - 1])
+        if value != expected:
+            raise RowError(
+                f"prev_hash mismatch at row {fields[0]!r}: expected {expected}, got {value}"
+            )
+
+
+def text_rows(text: str) -> list[str]:
+    """Every gate row in the text, in order, without verifying a chain."""
+    return [line for line in text.splitlines() if ID_RE.match(line)]
 
 
 def ledger_rows(text: str) -> list[str]:
-    """Return rows and fail closed when the adopted hash chain is tampered with."""
-    rows = [line for line in text.splitlines() if ID_RE.match(line)]
+    """Return rows and fail closed when the hash chain is broken."""
+    rows = text_rows(text)
     verify_chain(rows)
     return rows
 
@@ -190,11 +192,11 @@ def next_id_from_rows(rows: list[str]) -> int:
 
 
 def legacy_archive(ledger: Path) -> tuple[str, str] | None:
-    """The id and SHA-256 a cutover row derives from the sibling archive; None without archive rows."""
+    """The id and SHA-256 a cutover row derives from the archive's bytes; None without archive rows."""
     path = ledger.parent / LEGACY_LEDGER
     try:
         data = path.read_bytes()
-        rows = ledger_rows(data.decode("utf-8"))
+        rows = text_rows(data.decode("utf-8"))
     except FileNotFoundError:
         return None
     except (OSError, UnicodeError) as exc:
@@ -856,11 +858,8 @@ def check(row: str, repo: Path, prior_rows: list[str] | None = None,
                 f"prev_hash mismatch: expected {row_hash(prior_rows[-1])}, got {prev_hash}"
             )
         index += 1
-    elif prior_rows and any(
-        any(field.startswith("prev_hash=") for field in split_row(prior)[0])
-        for prior in prior_rows
-    ):
-        raise RowError("prev_hash= is missing after the chain started")
+    elif prior_rows:
+        raise RowError("prev_hash= is missing; every row after the first is chained")
 
     if index >= len(rest) or not rest[index].startswith("words="):
         raise RowError("words= is missing or out of order")
