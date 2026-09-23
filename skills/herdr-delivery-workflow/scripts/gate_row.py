@@ -379,8 +379,8 @@ def validate_push_scope(value: str, expiry: str) -> None:
 def require_push_authority(
     rows: list[str], repo: Path, remote: str, ref: str,
     remote_sha: str, local_sha: str, now: datetime,
-) -> None:
-    """Require recorded Human authority for one pushed ref, or name what is missing.
+) -> str:
+    """Return the id of the row that authorizes one pushed ref, or refuse naming what is missing.
 
     Authority is an unconsumed kind=push-grant naming this remote, ref and op whose
     range holds the pushed range, or, for a fast-forward or new branch only, an
@@ -419,7 +419,7 @@ def require_push_authority(
             if closed:
                 reasons.append(f"{gid} grant is consumed")
                 continue
-            return
+            return gid
         if kind == "standing-delegation":
             scope = row_field(fields, "push-scope")
             if scope is None:
@@ -438,7 +438,7 @@ def require_push_authority(
             if until is not None and now >= until:
                 reasons.append(f"{gid} standing delegation expiry {row_field(fields, 'expiry')} has passed")
                 continue
-            return
+            return gid
     need = f"a {special} needs a one-shot kind=push-grant naming op " \
         f"{op}; " if special else ""
     raise RowError(

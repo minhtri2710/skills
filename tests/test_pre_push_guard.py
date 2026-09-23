@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import contextlib
 import io
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -447,3 +448,144 @@ class PrePushGuardTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class PushDigestTest(unittest.TestCase):
+    """--digest: every project's open push gates as one range, read-only, one question."""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory(dir="/private/tmp")
+        self.tmp = Path(self._tmp.name)
+        self.addCleanup(self._tmp.cleanup)
+
+    def project(self, name: str) -> tuple[Path, Path, str]:
+        """A repo pushed to a bare origin, with an empty ledger at <name>/gates.md."""
+        root = self.tmp / name
+        repo = root / "repo"
+        repo.mkdir(parents=True)
+        origin = root / "origin.git"
+        subprocess.run(["git", "init", "-q", "--bare", str(origin)], check=True)
+        for args in (("init", "-q", "-b", "main"), ("config", "user.email", "t@example.invalid"),
+                     ("config", "user.name", "t"), ("remote", "add", "origin", str(origin))):
+            self.git(repo, *args)
+        base = self.advance(repo, "base")
+        self.git(repo, "push", "-q", "origin", "main")
+        ledger = root / "gates.md"
+        ledger.write_text("# Gate ledger — test\n\n")
+        return ledger, repo, base
+
+    def git(self, repo: Path, *args: str) -> str:
+        return subprocess.run(["git", "-C", str(repo), *args], check=True,
+                              capture_output=True, text=True).stdout.strip()
+
+    def advance(self, repo: Path, msg: str) -> str:
+        (repo / "file.txt").write_text(f"{msg}\n")
+        self.git(repo, "add", "file.txt")
+        self.git(repo, "commit", "-qm", msg)
+        return self.git(repo, "rev-parse", "HEAD")
+
+    def row(self, ledger: Path, repo: Path, *args: str) -> str:
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            self.assertEqual(gate_row.main(["--ledger", str(ledger), "--repo", str(repo), *args]), 0)
+        return gate_row.ledger_rows(ledger.read_text(encoding="utf-8"))[-1].split(" | ")[0]
+
+    def review(self, ledger: Path, repo: Path, base: str) -> str:
+        return self.row(ledger, repo, "--kind", "review", "--status", "recorded:review-pass",
+                        "--review-base", base, "--words", "seat", "--note", "review", "--quote", "PASS")
+
+    def push_gate(self, ledger: Path, repo: Path) -> str:
+        return self.row(ledger, repo, "--kind", "push-gate", "--status", "open",
+                        "--words", "none", "--note", "push awaits the Human")
+
+    def digest(self, *pairs: tuple[Path, Path]) -> tuple[int, str]:
+        out = io.StringIO()
+        argv = [arg for ledger, repo in pairs for arg in ("--digest", str(ledger), str(repo))]
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(io.StringIO()):
+            code = pre_push_guard.main(argv)
+        return code, out.getvalue()
+
+    def test_ready_and_uncovered_projects_only_ready_is_offered(self):
+        ready, ready_repo, ready_base = self.project("alpha")
+        tip = self.advance(ready_repo, "a1")
+        review = self.review(ready, ready_repo, ready_base)
+        gate = self.push_gate(ready, ready_repo)
+        bare, bare_repo, bare_base = self.project("beta")
+        self.advance(bare_repo, "b1")
+        self.push_gate(bare, bare_repo)
+        code, out = self.digest((ready, ready_repo), (bare, bare_repo))
+        self.assertEqual(code, 0)
+        alpha, beta = out.split("== beta")
+        self.assertIn(f"gates: {gate}", alpha)
+        self.assertIn(f"range: {ready_base}..{tip} (1 commits)", alpha)
+        self.assertIn(f"review rows: {review}; coverage ok", alpha)
+        self.assertIn("authority: needs push-grant", alpha)
+        self.assertIn("NOT READY: refusing push", beta)
+        self.assertIn("not covered by any review PASS range", beta)
+        self.assertIn(f"  1. alpha main {ready_base[:7]}..{tip[:7]} (1 commits)", out)
+        self.assertNotIn("2.", out.split("Question:")[1])
+
+    def test_stacked_open_gates_collapse_to_one_range(self):
+        ledger, repo, base = self.project("alpha")
+        self.advance(repo, "c1")
+        self.review(ledger, repo, base)
+        first = self.push_gate(ledger, repo)
+        mid = self.git(repo, "rev-parse", "HEAD")
+        tip = self.advance(repo, "c2")
+        self.review(ledger, repo, mid)
+        second = self.push_gate(ledger, repo)
+        code, out = self.digest((ledger, repo))
+        self.assertEqual(code, 0)
+        self.assertIn(f"gates: {first} {second}", out)
+        self.assertIn(f"range: {base}..{tip} (2 commits)", out)
+        self.assertEqual(out.count("== "), 1)
+        self.assertEqual(out.count("  1. "), 1)
+
+    def test_project_without_open_push_gate_is_omitted(self):
+        ledger, repo, _ = self.project("alpha")
+        quiet, quiet_repo, quiet_base = self.project("quiet")
+        self.advance(quiet_repo, "q1")
+        self.review(quiet, quiet_repo, quiet_base)
+        code, out = self.digest((ledger, repo), (quiet, quiet_repo))
+        self.assertEqual(code, 0)
+        self.assertNotIn("==", out)
+        self.assertIn("Question: none", out)
+
+    def test_read_error_in_one_project_reports_the_other_and_exits_nonzero(self):
+        ledger, repo, base = self.project("alpha")
+        self.advance(repo, "a1")
+        self.review(ledger, repo, base)
+        self.push_gate(ledger, repo)
+        missing = self.tmp / "gone" / "gates.md"
+        code, out = self.digest((missing, repo), (ledger, repo))
+        self.assertEqual(code, 1)
+        self.assertIn("== gone", out)
+        self.assertIn("ERROR:", out)
+        self.assertIn("  1. alpha main", out)
+
+    def test_digest_writes_no_ledger_byte(self):
+        ledger, repo, base = self.project("alpha")
+        self.advance(repo, "a1")
+        self.review(ledger, repo, base)
+        self.push_gate(ledger, repo)
+        other, other_repo, _ = self.project("beta")
+        self.advance(other_repo, "b1")
+        self.push_gate(other, other_repo)
+        before = (ledger.read_bytes(), other.read_bytes())
+        self.digest((ledger, repo), (other, other_repo))
+        self.assertEqual((ledger.read_bytes(), other.read_bytes()), before)
+
+    def test_printed_grant_command_writes_a_row_the_guard_accepts(self):
+        ledger, repo, base = self.project("alpha")
+        tip = self.advance(repo, "a1")
+        self.review(ledger, repo, base)
+        self.push_gate(ledger, repo)
+        _, out = self.digest((ledger, repo))
+        command = next(line for line in out.splitlines() if line.startswith("  grant: "))
+        argv = shlex.split(command.removeprefix("  grant: ").replace("<HUMAN-WORDS>", "push it"))
+        self.assertEqual(Path(argv[1]).resolve(), (SCRIPTS / "gate_row.py").resolve())
+        subprocess.run([sys.executable, *argv[1:]], check=True, capture_output=True)
+        grant = gate_row.ledger_rows(ledger.read_text(encoding="utf-8"))[-1].split(" | ")[0]
+        self.assertEqual(pre_push_guard.check(ledger, repo, "origin", [("refs/heads/main", base, tip)]), [tip])
+        _, again = self.digest((ledger, repo))
+        self.assertIn(f"authority: granted by {grant}", again)
+        self.assertNotIn("grant: ", again.replace("granted by", ""))
