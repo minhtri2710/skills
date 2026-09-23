@@ -73,6 +73,7 @@ python3 <this-skill>/scripts/floor_guard.py --base origin/main
 ```
 
 It compares the working tree, including untracked files, with the merge base and
+reads Git paths unquoted so non-ASCII and spaced names are matched as written. It
 flags: a new suppression comment; a stub, empty `catch`, `TODO`, or `FIXME`; a
 skipped, focused, or deleted test; a net loss of assertions in a kept test file; a
 loosened or removed bound, floor rule, or constraint row in `CONSTRAINTS.md`; and an

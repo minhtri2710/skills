@@ -22,10 +22,11 @@ That is how a cleanup routine removes the root instead of the leaf.
    the target, and refuse a target that is or contains any listed root. Require
    at least one level below that root so a root is never itself the target. A
    misderived path usually collapses upward.
-3. **Evidence the target is yours**, read from the target itself (or the parent of
-   a not-yet-created leaf, never the root), before the operation and before any
-   teardown that would remove the evidence. Without it, "absent" and "not mine"
-   are the same observation.
+3. **Evidence the target is yours**, read from the target itself only for an
+   existing directory; read it from the parent for a symlink leaf, an existing
+   non-directory, or a not-yet-created leaf, never the root. Check it before the
+   operation and before any teardown that would remove the evidence. Without it,
+   "absent" and "not mine" are the same observation.
 
 Then act on the resolved path the check returned, not on the original string.
 
@@ -37,7 +38,7 @@ python3 <this-skill>/scripts/safe_target.py "$TARGET" \
   --owner-file .owner --expect-owner "$WORKER_ID"
 ```
 
-Exit `0` prints the resolved target, `1` refuses, `2` means the check could not
+Exit `0` prints the checked target, `1` refuses, `2` means the check could not
 run and proves nothing. Import `resolve_target` for the same rule inside Python;
 port it directly in another language rather than weakening it. In the agent's own
 shell work, stop on a non-zero exit before the destructive command sees the path:

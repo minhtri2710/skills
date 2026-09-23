@@ -15,8 +15,11 @@ re-run offers the values already saved.
 The UX is already solved by [scripts/wizard-template.sh](scripts/wizard-template.sh):
 stage progress, screen clearing, cross-platform URL opening, hidden secret entry,
 idempotent `.env` upserts, `gh secret` and `gh variable` writes with a recorded
-skip when `gh` is not ready, and a closing summary. The library above the
-`STAGES` marker is identical in every wizard; author only what sits below it.
+skip when `gh` is not ready, and a closing summary. The `ask` and `ask_secret`
+helpers re-ask when a required answer is empty and no saved value exists; end
+of input without a saved value exits non-zero and names the required key. The
+library above the `STAGES` marker is identical in every wizard; author only what
+sits below it.
 
 ## 1. Scope the procedure
 

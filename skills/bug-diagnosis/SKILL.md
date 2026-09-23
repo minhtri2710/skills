@@ -24,7 +24,10 @@ request or event log; a minimal harness around one code path; a property or fuzz
 loop for "sometimes wrong"; `git bisect run` between a known-good and known-bad
 state; a differential run of two versions or configs. When only a human can
 trigger it, drive the human with [scripts/hitl-loop.sh](scripts/hitl-loop.sh) so
-the loop stays structured.
+the loop stays structured. The script requires an interactive terminal; with
+non-tty stdin it prints a message and exits `2`. Its multiline capture ends at
+an empty line and stores the result as one `KEY=VALUE` line with literal `\n`
+joins.
 
 Tighten it: faster (narrow scope, skip unrelated setup), sharper (assert the exact
 symptom, not "did not crash"), deterministic (pin time, seed randomness, isolate
