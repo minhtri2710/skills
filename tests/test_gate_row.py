@@ -526,6 +526,40 @@ class GateRowTest(unittest.TestCase):
         self.assertIn("--grant is only meaningful", self.err.getvalue())
         self.assertEqual(self.ledger.read_bytes(), before)
 
+    def test_a_push_row_must_consume_the_open_grant_its_push_landed_under(self):
+        """apexinvest-payload G511/G512: the grant named the pushed range, the push row
+        resolved only the push gate, and G511 stayed open."""
+        self.assertEqual(self.append_review_pass(), 0, self.err.getvalue())
+        self.add_remote("HEAD")
+        base, head = self.rev("HEAD~2"), self.rev("HEAD")
+        self.assertEqual(self.append_push_grant(f"origin refs/heads/main push {base}..{head}"), 0,
+                         self.err.getvalue())
+        grant_id = self.last_row().split(" | ")[0]
+        before = self.ledger.read_bytes()
+        self.assertEqual(self.append("--kind", "push", "--push-base", base, "--boundary", "."), 1)
+        self.assertIn(f"open grant {grant_id}", self.err.getvalue())
+        self.assertIn(f"--resolves {grant_id}", self.err.getvalue())
+        self.assertEqual(self.ledger.read_bytes(), before)
+        self.assertEqual(self.append("--kind", "push", "--push-base", base, "--boundary", ".",
+                                     "--resolves", grant_id), 0, self.err.getvalue())
+        self.assertEqual(self.check_last(), 0, self.err.getvalue())
+        rows = gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))
+        self.ledger.write_text("# Gate ledger — test\n\n" + "\n".join(
+            rows[:-1] + [rows[-1].replace(f" | resolves={grant_id}", "")]) + "\n", encoding="utf-8")
+        self.assertEqual(self.check_last(), 1)
+        self.assertIn(f"open grant {grant_id}", self.err.getvalue())
+
+    def test_a_push_row_ignores_grants_for_another_branch_or_range(self):
+        self.assertEqual(self.append_review_pass(), 0, self.err.getvalue())
+        self.add_remote("HEAD")
+        base, mid, head = self.rev("HEAD~2"), self.rev("HEAD~1"), self.rev("HEAD")
+        self.assertEqual(self.append_push_grant(f"origin refs/heads/other push {base}..{head}"), 0)
+        self.assertEqual(self.append_push_grant(f"upstream refs/heads/main push {base}..{head}"), 0)
+        self.assertEqual(self.append_push_grant(f"origin refs/heads/main push {base}..{mid}"), 0)
+        self.assertEqual(self.append("--kind", "push", "--push-base", base, "--boundary", "."), 0,
+                         self.err.getvalue())
+        self.assertEqual(self.check_last(), 0, self.err.getvalue())
+
     def test_a_standing_delegation_is_revoked_once_by_a_resolving_row(self):
         self.assertEqual(self.append_standing_delegation(
             "--expiry", "until-revoked", "--push-scope", "origin:main"), 0)

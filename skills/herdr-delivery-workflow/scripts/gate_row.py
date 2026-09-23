@@ -376,6 +376,33 @@ def validate_push_scope(value: str, expiry: str) -> None:
     expiry_instant(expiry)
 
 
+def grant_holds(repo: Path, grant: re.Match, op: str, remote_sha: str, local_sha: str) -> bool:
+    """A push grant holds every pushed commit; a force or delete grant names the exact range."""
+    if op == "push":
+        return set(range_commits(repo, remote_sha, local_sha)) <= set(
+            range_commits(repo, grant["base"], grant["tip"]))
+    return (grant["base"], grant["tip"]) == (remote_sha, local_sha)
+
+
+def require_grant_consumed(
+    rows: list[str], repo: Path, branch: str, base: str, head: str, resolves: list[str],
+) -> None:
+    """A push row resolves every unconsumed origin grant for its branch that holds its range."""
+    _, _, resolved_at = open_state(rows)
+    for row in rows:
+        fields, _ = split_row(row)
+        gid = fields[0]
+        if fields[2] != "kind=push-grant" or gid in resolved_at or gid in resolves:
+            continue
+        grant = GRANT_RE.fullmatch(row_field(fields, "grant") or "")
+        if (grant and (grant["remote"], grant["ref"]) == ("origin", f"refs/heads/{branch}")
+                and grant_holds(repo, grant, grant["op"], base, head)):
+            raise RowError(
+                f"push {base}..{head} lands under open grant {gid}, which this row "
+                f"leaves unconsumed; add --resolves {gid}"
+            )
+
+
 def require_push_authority(
     rows: list[str], repo: Path, remote: str, ref: str,
     remote_sha: str, local_sha: str, now: datetime,
@@ -408,12 +435,7 @@ def require_push_authority(
             if (grant["remote"], grant["ref"], grant["op"]) != (remote, ref, op):
                 reasons.append(f"{gid} grant scope is {grant['remote']} {grant['ref']} {grant['op']}")
                 continue
-            if op == "push":
-                inside = set(range_commits(repo, remote_sha, local_sha)) <= set(
-                    range_commits(repo, grant["base"], grant["tip"]))
-            else:
-                inside = (grant["base"], grant["tip"]) == (remote_sha, local_sha)
-            if not inside:
+            if not grant_holds(repo, grant, op, remote_sha, local_sha):
                 reasons.append(f"{gid} grant scope is range {grant['base']}..{grant['tip']}")
                 continue
             if closed:
@@ -1097,6 +1119,8 @@ def check(row: str, repo: Path, prior_rows: list[str] | None = None,
             )
         if row_kind == "push":
             require_review_coverage(prior_rows or [], repo, base, m.group("head"))
+            require_grant_consumed(prior_rows or [], repo, m.group("branch"), base,
+                                   m.group("head"), resolves)
 
     if review is not None:
         r = REVIEW_RE.fullmatch(review)
