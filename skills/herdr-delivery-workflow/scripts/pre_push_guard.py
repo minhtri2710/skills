@@ -29,9 +29,9 @@ def git(repo: Path, *args: str) -> str:
 ZERO = "0" * 40
 
 
-def first_publication_pair(repo: Path, ref: str, local_sha: str) -> tuple[str, str]:
-    """Return a zero-based range only when origin has no refs at all."""
-    if not git(repo, "ls-remote", "origin").splitlines():
+def first_publication_pair(repo: Path, remote: str, ref: str, local_sha: str) -> tuple[str, str]:
+    """Return a zero-based range only when the remote has no refs at all."""
+    if not git(repo, "ls-remote", remote).splitlines():
         return ZERO, local_sha
     raise GuardError(
         f"ref {ref} has no remote base — the review-coverage range is undefined, "
@@ -39,7 +39,7 @@ def first_publication_pair(repo: Path, ref: str, local_sha: str) -> tuple[str, s
     )
 
 
-def push_refs(repo: Path) -> list[tuple[str, str]] | None:
+def push_refs(repo: Path, remote: str) -> list[tuple[str, str]] | None:
     """Return (remote base, local tip) pairs from the pre-push stdin, or None when empty.
 
     The base is fields[3], the remote SHA git is about to move — the range the push
@@ -60,21 +60,23 @@ def push_refs(repo: Path) -> list[tuple[str, str]] | None:
         if local_sha == ZERO:
             continue  # a deletion pushes no commit
         if remote_sha == ZERO:
-            pairs.append(first_publication_pair(repo, fields[0], local_sha))
+            pairs.append(first_publication_pair(repo, remote, fields[0], local_sha))
         else:
             pairs.append((remote_sha, local_sha))
     return pairs
 
 
-def check(ledger: Path, repo: Path, pairs: list[tuple[str, str]] | None = None) -> list[str]:
+def check(
+    ledger: Path, repo: Path, remote: str, pairs: list[tuple[str, str]] | None = None
+) -> list[str]:
     if pairs is None:
         branch = git(repo, "rev-parse", "--abbrev-ref", "HEAD")
         head = git(repo, "rev-parse", "HEAD")
-        remote = git(repo, "ls-remote", "origin", f"refs/heads/{branch}").split()
-        if not remote:
-            pairs = [first_publication_pair(repo, f"origin/{branch}", head)]
+        remote_tip = git(repo, "ls-remote", remote, f"refs/heads/{branch}").split()
+        if not remote_tip:
+            pairs = [first_publication_pair(repo, remote, f"{remote}/{branch}", head)]
         else:
-            pairs = [(remote[0], head)]
+            pairs = [(remote_tip[0], head)]
     try:
         with gate_row.locked_ledger(ledger, exclusive=False) as handle:
             rows = gate_row.ledger_rows(gate_row.handle_text(handle))
@@ -95,10 +97,13 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--ledger", required=True, type=Path)
     parser.add_argument("--repo", type=Path, default=Path.cwd())
+    # git runs the hook as `<hook> <remote> <url>`; manual runs pass neither.
+    parser.add_argument("remote", nargs="?", default="origin")
+    parser.add_argument("url", nargs="?")
     args = parser.parse_args(argv)
     try:
-        pairs = push_refs(args.repo)
-        checked = check(args.ledger, args.repo, pairs)
+        pairs = push_refs(args.repo, args.remote)
+        checked = check(args.ledger, args.repo, args.remote, pairs)
     except GuardError as exc:
         print(f"pre_push_guard: {exc}", file=sys.stderr)
         return 1

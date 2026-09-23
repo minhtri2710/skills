@@ -74,11 +74,13 @@ class PrePushGuardTest(unittest.TestCase):
     def ref_line(self, remote_base: str, local_tip: str) -> str:
         return f"refs/heads/main {local_tip} refs/heads/main {remote_base}\n"
 
-    def invoke(self, stdin: str = "") -> tuple[int, str, str]:
+    def invoke(self, stdin: str = "", hook_argv: tuple[str, ...] = ()) -> tuple[int, str, str]:
         out, err = io.StringIO(), io.StringIO()
         with patch.object(pre_push_guard.sys, "stdin", io.StringIO(stdin)):
             with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
-                code = pre_push_guard.main(["--repo", str(self.repo), "--ledger", str(self.ledger)])
+                code = pre_push_guard.main(
+                    ["--repo", str(self.repo), "--ledger", str(self.ledger), *hook_argv]
+                )
         return code, out.getvalue(), err.getvalue()
 
     def test_covered_range_via_manual_mode_is_allowed(self):
@@ -207,6 +209,53 @@ class PrePushGuardTest(unittest.TestCase):
         code, out, err = self.invoke(f"(delete) {ZERO} refs/heads/dead {self.base}\n")
         self.assertEqual(code, 0, err)
         self.assertIn("0 pushed range", out)
+
+    def test_git_hook_argv_is_admitted_on_a_covered_range(self):
+        c1 = self.advance("c1")
+        self.assertEqual(self.review(self.base), 0)
+        code, out, err = self.invoke(self.ref_line(self.base, c1), ("origin", str(self.origin)))
+        self.assertEqual(code, 0, err)
+        self.assertIn("covered", out)
+
+    def test_hook_remote_decides_first_publication_not_origin(self):
+        other = self.tmp / "other.git"
+        subprocess.run(["git", "init", "-q", "--bare", str(other)], check=True)
+        self.git("remote", "add", "other", str(other))
+        c1 = self.advance("c1")
+        self.assertEqual(self.review(ZERO), 0)
+        code, out, err = self.invoke(self.ref_line(ZERO, c1), ("other", str(other)))
+        self.assertEqual(code, 0, err)
+        self.assertIn("covered", out)
+        code, _, err = self.invoke(self.ref_line(ZERO, c1), ("origin", str(self.origin)))
+        self.assertEqual(code, 1)
+        self.assertIn("no remote base", err)
+
+    def test_a_third_positional_is_refused(self):
+        with self.assertRaises(SystemExit) as exc:
+            self.invoke("", ("origin", str(self.origin), "extra"))
+        self.assertEqual(exc.exception.code, 2)
+
+    def test_real_git_push_through_a_forwarding_hook_wrapper(self):
+        hook = self.repo / ".git" / "hooks" / "pre-push"
+        hook.write_text(
+            "#!/bin/sh\n"
+            f'exec "{sys.executable}" "{SCRIPTS / "pre_push_guard.py"}" '
+            f'--ledger "{self.ledger}" --repo "{self.repo}" "$@"\n'
+        )
+        hook.chmod(0o755)
+        self.advance("c1")
+
+        def push() -> subprocess.CompletedProcess:
+            return subprocess.run(["git", "-C", str(self.repo), "push", "origin", "main"],
+                                  capture_output=True, text=True)
+
+        refused = push()
+        self.assertNotEqual(refused.returncode, 0)
+        self.assertIn("not covered", refused.stderr)
+        self.assertEqual(self.review(self.base), 0)
+        admitted = push()
+        self.assertEqual(admitted.returncode, 0, admitted.stderr)
+        self.assertIn("fully covered", admitted.stdout + admitted.stderr)
 
 
 if __name__ == "__main__":

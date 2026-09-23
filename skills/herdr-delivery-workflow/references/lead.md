@@ -359,10 +359,10 @@ The channel is metadata: it says whether the Human typed in this seat's pane or 
 #!/bin/sh
 exec python3 <abs>/scripts/pre_push_guard.py \
   --ledger <abs>/gates.md \
-  --repo <abs>/repo
+  --repo <abs>/repo "$@"
 ```
 
-Git passes `<remote> <url>` to the wrapper; it does not pass `--ledger`. The Human installs it, and the Lead records the install gate before relying on enforcement.
+The wrapper forwards git's `<remote> <url>` argv; the guard checks against that remote, and against `origin` when run by hand with neither. The Human installs it, and the Lead records the install gate before relying on enforcement.
 
 ### Validation-run custody
 
