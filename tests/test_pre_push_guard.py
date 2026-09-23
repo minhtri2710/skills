@@ -731,3 +731,71 @@ class PushDigestTest(unittest.TestCase):
         self.assertIn(f"range: {base}..{gated} (1 commits)", out)
         self.assertIn(f"UNGATED: branch main, 1 commits, range {gated}..{head}", out)
         self.assertIn(f"  1. alpha main {base[:7]}..{gated[:7]} (1 commits)", out)
+
+    def branch(self, ledger: Path, repo: Path, name: str, start: str, review: bool = True) -> str:
+        """A new branch from start with one commit, optionally reviewed, under an open push gate."""
+        self.git(repo, "checkout", "-qb", name, start)
+        tip = self.advance(repo, name)
+        if review:
+            self.review(ledger, repo, start)
+        self.push_gate(ledger, repo)
+        return tip
+
+    def test_independent_new_branches_are_two_items(self):
+        ledger, repo, base = self.project("alpha")
+        one = self.branch(ledger, repo, "one", base)
+        two = self.branch(ledger, repo, "two", base)
+        code, out = self.digest((ledger, repo))
+        self.assertEqual(code, 0)
+        self.assertIn(f"range: new branch {base}..{one} (1 commits)", out)
+        self.assertIn(f"range: new branch {base}..{two} (1 commits)", out)
+        self.assertIn(f"  1. alpha one new branch {base[:7]}..{one[:7]} (1 commits)\n", out)
+        self.assertIn(f"  2. alpha two new branch {base[:7]}..{two[:7]} (1 commits)\n", out)
+        self.assertNotIn("stacked", out)
+
+    def test_stacked_new_branch_names_its_dependency_and_starts_at_its_tip(self):
+        ledger, repo, base = self.project("alpha")
+        low = self.branch(ledger, repo, "low", base)
+        high = self.branch(ledger, repo, "high", low)
+        code, out = self.digest((ledger, repo))
+        self.assertEqual(code, 0)
+        self.assertIn("  stacked on low (item 1): push after it\n", out)
+        self.assertIn(f"range: new branch {low}..{high} (1 commits)", out)
+        self.assertIn(f"--grant 'origin refs/heads/high push {low}..{high}'", out)
+        self.assertIn(f"  1. alpha low new branch {base[:7]}..{low[:7]} (1 commits)\n", out)
+        self.assertIn(f"  2. alpha high new branch {low[:7]}..{high[:7]} (1 commits), "
+                      "stacked on low (item 1): push after it\n", out)
+
+    def test_branch_stacked_on_a_not_ready_branch_is_not_offered_and_others_are(self):
+        ledger, repo, base = self.project("alpha")
+        low = self.branch(ledger, repo, "low", base, review=False)
+        self.branch(ledger, repo, "high", low)
+        other = self.branch(ledger, repo, "other", base)
+        code, out = self.digest((ledger, repo))
+        self.assertEqual(code, 0)
+        low_block, high_block = out.split("branch: high")
+        self.assertIn("NOT READY: refusing push", low_block)
+        self.assertIn("stacked on low (NOT READY): push after it", high_block)
+        self.assertIn("NOT READY: a branch it is stacked on is not offered", high_block)
+        question = out.split("Question:")[1]
+        self.assertIn(f"  1. alpha other new branch {base[:7]}..{other[:7]} (1 commits)\n", question)
+        self.assertNotIn("2.", question)
+
+    def test_real_pushes_in_item_order_with_printed_grants_pass_the_guard(self):
+        ledger, repo, base = self.project("alpha")
+        low = self.branch(ledger, repo, "low", base)
+        self.branch(ledger, repo, "high", low)
+        hook = repo / ".git" / "hooks" / "pre-push"
+        hook.write_text(f"#!/bin/sh\nexec {shlex.quote(sys.executable)} "
+                        f"{shlex.quote(str(SCRIPTS / 'pre_push_guard.py'))} --ledger {shlex.quote(str(ledger))} "
+                        f"--repo {shlex.quote(str(repo))} \"$@\"\n")
+        hook.chmod(0o755)
+        _, out = self.digest((ledger, repo))
+        commands = [line.removeprefix("  grant: ") for line in out.splitlines() if line.startswith("  grant: ")]
+        self.assertEqual(len(commands), 2)
+        push = ["git", "-C", str(repo), "push", "-q", "origin"]
+        self.assertNotEqual(subprocess.run([*push, "low"], capture_output=True).returncode, 0)
+        for command, name in zip(commands, ("low", "high")):
+            argv = shlex.split(command.replace("<HUMAN-WORDS>", "push it"))
+            subprocess.run([sys.executable, *argv[1:]], check=True, capture_output=True)
+            subprocess.run([*push, name], check=True, capture_output=True)

@@ -2,8 +2,9 @@
 """Refuse a push unless every pushed ref is covered by review PASS ranges and by recorded Human authority.
 
 `--digest LEDGER REPO` (repeatable) instead prints, read-only, every project's open
-push gates as one range with its review coverage and push authority, flags a checkout
-with unpushed commits no open push gate covers as UNGATED, then asks one question.
+push gates as one range per branch with its review coverage and push authority, flags a
+checkout with unpushed commits no open push gate covers as UNGATED, then asks one question
+with one numbered item per ready branch.
 """
 from __future__ import annotations
 
@@ -175,8 +176,22 @@ def ungated_lines(repo: Path, remote: str, gate_tips: list[str]) -> list[str]:
             "no open push-gate: the Lead has not gated this work"]
 
 
-def digest_project(ledger: Path, repo: Path, remote: str, now: datetime) -> tuple[list[str], str | None]:
-    """One project's digest lines and, when its range is fully reviewed, its question item."""
+def tracking_tip(repo: Path, remote: str, branch: str) -> str | None:
+    """The local remote-tracking tip of a branch, or None for a new branch."""
+    try:
+        return git(repo, "rev-parse", "--verify", f"refs/remotes/{remote}/{branch}^{{commit}}")
+    except GuardError:
+        return None
+
+
+def digest_project(ledger: Path, repo: Path, remote: str, now: datetime,
+                   offered: int) -> tuple[list[str], list[str]]:
+    """One project's digest lines and one question item per branch whose range is fully reviewed.
+
+    Items are numbered from offered + 1. A new branch whose tip descends from another
+    open-gate branch's tip is stacked on it: those tips are excluded from its base, and
+    it is offered only when every branch it is stacked on is offered.
+    """
     with gate_row.locked_ledger(ledger, exclusive=False) as handle:
         rows = gate_row.ledger_rows(gate_row.handle_text(handle))
     open_ids = set(gate_row.open_gate_ids(rows))
@@ -186,29 +201,51 @@ def digest_project(ledger: Path, repo: Path, remote: str, now: datetime) -> tupl
     tips = [git(repo, "rev-parse", "--verify", f"{sha}^{{commit}}") for _, sha in heads]
     ungated = ungated_lines(repo, remote, tips)
     if not gates:
-        return ungated, None
-    lines, item = gated_lines(rows, gates, heads[-1], tips[-1], ledger, repo, remote, now)
-    return [*lines, *ungated], item
+        return ungated, []
+    branch_gates: dict[str, list[str]] = {}
+    branch_tip: dict[str, str] = {}
+    for row, (branch, _), tip in zip(gates, heads, tips):
+        branch_gates.setdefault(branch, []).append(row)
+        branch_tip[branch] = tip
+    deps = {branch: [] if tracking_tip(repo, remote, branch) else [
+        other for other in branch_gates if branch_tip[other] != tip
+        and gate_row.is_ancestor(repo, branch_tip[other], tip)
+    ] for branch, tip in branch_tip.items()}
+    blocks = {branch: gated_lines(rows, branch_gates[branch], branch, branch_tip[branch],
+                                  [branch_tip[dep] for dep in deps[branch]], ledger, repo, remote, now)
+              for branch in branch_gates}
+    for branch in sorted(branch_gates, key=lambda b: len(deps[b])):  # a dependency has fewer
+        if any(blocks[dep][1] is None for dep in deps[branch]):
+            blocks[branch] = ([*blocks[branch][0], "NOT READY: a branch it is stacked on is not offered"], None)
+    numbers = {}
+    for branch in branch_gates:
+        if blocks[branch][1]:
+            numbers[branch] = offered + len(numbers) + 1
+    lines, items = [], []
+    for branch in branch_gates:
+        block, item = blocks[branch]
+        stacked = [f"stacked on {dep} ({f'item {numbers[dep]}' if dep in numbers else 'NOT READY'}): push after it"
+                   for dep in deps[branch]]
+        lines += [*block[:2], *stacked, *block[2:]]
+        if item:
+            items.append(", ".join([item, *stacked]))
+    return [*lines, *ungated], items
 
 
-def gated_lines(rows: list[str], gates: list[str], head: list[str], tip: str, ledger: Path,
-                repo: Path, remote: str, now: datetime) -> tuple[list[str], str | None]:
-    branches = {gate_row.split_row(row)[0][3].split("@")[0] for row in gates}
-    if len(branches) != 1:
-        raise gate_row.RowError(f"open push gates name more than one branch: {', '.join(sorted(branches))}")
-    branch = head[0]
+def gated_lines(rows: list[str], gates: list[str], branch: str, tip: str, stacked_tips: list[str],
+                ledger: Path, repo: Path, remote: str, now: datetime) -> tuple[list[str], str | None]:
     ref = f"refs/heads/{branch}"
     lines = [
         f"gates: {' '.join(row.split(' | ')[0] for row in gates)}",
         f"branch: {branch}",
     ]
-    try:
-        base = git(repo, "rev-parse", "--verify", f"refs/remotes/{remote}/{branch}^{{commit}}")
-        label = ""
-    except GuardError:
+    base = tracking_tip(repo, remote, branch)
+    label = ""
+    if base is None:
         label = " new branch"
         try:
-            base = new_branch_base(repo, tip, [f"--remotes={remote}"], f"{remote}'s tracking refs (local estimate)")
+            base = new_branch_base(repo, tip, [f"--remotes={remote}", *stacked_tips],
+                                   f"{remote}'s tracking refs (local estimate)")
         except GuardError as exc:
             return [*lines, f"NOT READY: new branch: {exc}"], None
     try:
@@ -249,16 +286,15 @@ def digest(pairs: list[list[str]], remote: str) -> int:
     for ledger_text, repo_text in pairs:
         ledger, repo = Path(ledger_text), Path(repo_text)
         try:
-            lines, item = digest_project(ledger, repo, remote, now)
+            lines, items = digest_project(ledger, repo, remote, now, len(ready))
         except (OSError, UnicodeError, gate_row.RowError, GuardError) as exc:
             errors += 1
-            lines, item = [f"ERROR: {exc}"], None
+            lines, items = [f"ERROR: {exc}"], []
         if not lines:
             continue
         print(f"== {ledger.parent.name} (ledger {ledger}, repo {repo})")
         print("\n".join(f"  {line}" for line in lines))
-        if item:
-            ready.append(item)
+        ready += items
     if ready:
         print("Question: approve which pushes? Answer all, none, or the numbers.")
         print("\n".join(f"  {n}. {item}" for n, item in enumerate(ready, 1)))
