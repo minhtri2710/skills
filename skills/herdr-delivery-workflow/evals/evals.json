@@ -85,14 +85,14 @@
     {
       "id": 7,
       "prompt": "I'm in Herdr. The two Engineers for this change are both Claude panes; codex and gemini are also installed on this machine. The Lead has committed their scopes. Staff the review of that exact commit and tell me how independent that review actually is.",
-      "expected_output": "Staffs the Reviewer as a distinct agent instance from every Engineer and the Lead with `herdr agent start`; records each agent's kind and model beside its name, pane, and owned paths or exact head, with one ENGINEER line per agent; treats a different model and a different kind as PREFERRED, neither a hard gate, so a same-kind reviewer is a valid independent review and a different kind is not required; states that the Reviewer re-runs the objective acceptance checks on that exact SHA rather than judging prose; uses a fresh fallback on the same exact head on any trigger in the fixed FALLBACK list, copied verbatim from that text rather than restated in the answer's own words; explains that reusing the same model requires a distinct model pinned through reviewer-fallback-args to keep model independence, while the same agent instance is never independent; does not treat a mode or role instruction as proof of a read-only runtime.",
+      "expected_output": "Staffs the Reviewer as a distinct agent instance from every Engineer and the Lead with `herdr agent start`; records each agent's kind and model beside its name, pane, and owned paths or exact head, with one ENGINEER line per agent; places no kind or model requirement on the Reviewer, so a same-kind or same-model Reviewer is a valid independent review; states that the Reviewer re-runs the objective acceptance checks on that exact SHA rather than judging prose; uses a fresh fallback on the same exact head on any trigger in the fixed FALLBACK list, copied verbatim from that text rather than restated in the answer's own words; explains that the same agent instance is never independent; does not treat a mode or role instruction as proof of a read-only runtime.",
       "files": [],
       "assertions": [
-        "Staffs the Reviewer as a distinct agent instance from every Engineer and the Lead, treating a different model and a different kind as preferred but neither as a hard gate, so a same-kind reviewer is accepted as independent",
+        "Staffs the Reviewer as a distinct agent instance from every Engineer and the Lead, with no kind or model requirement or preference, so a same-kind or same-model reviewer is accepted as independent",
         "Records each agent's kind and model beside its name and pane, with one ENGINEER line per Engineer and the Reviewer pinned to the exact head",
         "States the Reviewer re-runs the objective acceptance checks on the exact SHA and pastes their output rather than issuing a prose judgement",
         "Names a pre-chosen fallback pinned to the same exact head and reproduces the fixed FALLBACK trigger line verbatim rather than paraphrasing, counting, or summarising it, including the trigger for the Lead's own runtime being unable to pass the preferred kind's posture and the Human declining to start the seat, whose absence proves the list was copied from a stale source",
-        "Explains that reusing the same model requires a distinct model pinned through reviewer-fallback-args to keep model independence, while the same agent instance is never a review, and does not treat a mode or role instruction as proof of a read-only runtime"
+        "Explains that the same agent instance is never a review, and does not treat a mode or role instruction as proof of a read-only runtime"
       ]
     },
     {
@@ -199,14 +199,14 @@
     {
       "id": 16,
       "prompt": "In Herdr, get the auth-timeout fix implemented and independently reviewed on its own branch. Stop there — do not merge it into main, I want to look at the branch myself first.",
-      "expected_output": "Runs the delivery route through implementation, evidence, and exact-head review, then treats the no-merge instruction as the recorded acceptance boundary: the integration step is removed from the chain rather than deferred behind a pending merge gate, the record shows no integrated head, and the reviewed head is named as the deliverable. The review runs in the same checkout once every Engineer is idle, the Lead has committed the scopes, and the tree is quiet at that exact SHA, on a different agent kind when one is available. Nothing is merged, landed, pushed, or opened as a PR; if landing later looks necessary, the run routes REOPEN_REQUEST to the Human instead of acting.",
+      "expected_output": "Runs the delivery route through implementation, evidence, and exact-head review, then treats the no-merge instruction as the recorded acceptance boundary: the integration step is removed from the chain rather than deferred behind a pending merge gate, the record shows no integrated head, and the reviewed head is named as the deliverable. The review runs in the same checkout once every Engineer is idle, the Lead has committed the scopes, and the tree is quiet at that exact SHA, on a distinct agent instance from every Engineer and the Lead. Nothing is merged, landed, pushed, or opened as a PR; if landing later looks necessary, the run routes REOPEN_REQUEST to the Human instead of acting.",
       "files": [],
       "assertions": [
         "Records the no-merge instruction as part of the acceptance boundary at intake, not as a later reminder",
         "Removes the integration step from the chain rather than deferring it behind an open merge gate",
         "Records that no integrated head exists and names the reviewed head as the deliverable",
         "Reviews in the shared checkout only after every Engineer is idle and the Lead has committed, with HEAD at the exact SHA and porcelain recorded before and after",
-        "Staffs the Reviewer on a different agent kind, or records same-kind review as residual risk",
+        "Staffs the Reviewer as a distinct agent instance from every Engineer and the Lead, without requiring a different agent kind or recording same-kind review as residual risk",
         "Does not merge, land, push, or open a PR, and names REOPEN_REQUEST as the route if landing turns out to be needed"
       ]
     },
@@ -252,7 +252,7 @@
     {
       "id": 20,
       "prompt": "I'm in Herdr. The issue is 'add CSV export': it needs a new exporter in packages/export/, a new button and hook in apps/web/src/reports/, and an endpoint in services/api/src/reports/. The three parts don't share any files. Use several agents so it goes faster, and get it reviewed.",
-      "expected_output": "Runs the delivery route; analyzes the issue against the code before staffing and records a partition of three scopes with disjoint owned paths, confirming no scope changes a contract another scope consumes (otherwise runs that contract slice first alone); staffs one Engineer per genuinely disjoint scope in its own pane on the same checkout and branch; each charter names its owned paths, its peer scopes, the shared-tree rules (no git write commands, no repo-wide --fix or codegen, advisory checks, no edits outside owned paths); expects each Engineer's report by prompt to the Lead seat and ends its turn rather than waiting on any of them; at quiesce confirms porcelain is confined to owned paths, stages each scope by path, commits, and runs the full acceptance checks on that head; reviews that exact head on a distinct agent instance from every Engineer and the Lead (a different model and a different kind preferred, neither required), re-running the objective acceptance checks on that head; routes findings to the owning agent. Treats worker-cap as a tree-contention and coordination safeguard rather than a staffing budget: never merges disjoint scopes merely to hit a number, and raises the cap with a recorded reason when the honest partition yields more scopes.",
+      "expected_output": "Runs the delivery route; analyzes the issue against the code before staffing and records a partition of three scopes with disjoint owned paths, confirming no scope changes a contract another scope consumes (otherwise runs that contract slice first alone); staffs one Engineer per genuinely disjoint scope in its own pane on the same checkout and branch; each charter names its owned paths, its peer scopes, the shared-tree rules (no git write commands, no repo-wide --fix or codegen, advisory checks, no edits outside owned paths); expects each Engineer's report by prompt to the Lead seat and ends its turn rather than waiting on any of them; at quiesce confirms porcelain is confined to owned paths, stages each scope by path, commits, and runs the full acceptance checks on that head; reviews that exact head on a distinct agent instance from every Engineer and the Lead (no kind or model requirement), re-running the objective acceptance checks on that head; routes findings to the owning agent. Treats worker-cap as a tree-contention and coordination safeguard rather than a staffing budget: never merges disjoint scopes merely to hit a number, and raises the cap with a recorded reason when the honest partition yields more scopes.",
       "files": [],
       "assertions": [
         "Analyzes the issue against the code and records a partition with concrete disjoint owned paths per scope before staffing any agent",
@@ -260,7 +260,7 @@
         "Charters each agent with its owned paths, the peer scopes, and the shared-tree rules including no git write commands and no repo-wide formatter, --fix, codegen, or lockfile changes",
         "Treats each agent's own check results as advisory and has the Lead run the acceptance checks on the committed quiet head as the evidence",
         "Quiesces only when every agent is idle, confirms porcelain stays inside the owned paths, stages by owned paths (not git add -A), and commits as the Lead; never merges disjoint scopes to satisfy a worker number",
-        "Reviews the exact Lead-committed head on a distinct agent instance from every Engineer and the Lead, with a different model and a different kind preferred but not required, re-running the objective acceptance checks on that head"
+        "Reviews the exact Lead-committed head on a distinct agent instance from every Engineer and the Lead, with no kind or model requirement, re-running the objective acceptance checks on that head"
       ]
     },
     {
@@ -835,22 +835,6 @@
       ]
     },
     {
-      "id": 67,
-      "prompt": "I'm a Lead at intake. The project config sets reviewer-fallback equal to engineer-kind. Run the mechanical config check and record/report any reviewer-fallback conflict before staffing.",
-      "expected_output": "Runs `scripts/config_lint.py --config <project config>` at intake and records/reports any CONFLICT it emits; a missing or same-model reviewer-fallback-args pin is non-zero and conflicting, while a distinct reviewer-fallback model passes, and an engineer-fallback same-model collision is only a WARNING with exit 0.",
-      "files": [
-        "skills/herdr-delivery-workflow/scripts/config_lint.py",
-        "skills/herdr-delivery-workflow/references/lead.md",
-        "skills/herdr-delivery-workflow/references/project-config.md"
-      ],
-      "assertions": [
-        "Runs scripts/config_lint.py with --config at intake",
-        "Records or reports a CONFLICT from the lint rather than relying only on judgment",
-        "Treats a distinct reviewer-fallback model as clean and a missing or same engineer model as a hard conflict",
-        "Treats the engineer-fallback same-model collision as a WARNING that does not make the lint exit non-zero"
-      ]
-    },
-    {
       "id": 68,
       "prompt": "I'm a Supervisor observing a delivery for a genuinely lightweight request. The Lead adds an Engineer, a Reviewer, extra artifacts, and a full delivery ceremony even though a direct path would solve it. What named anti-pattern should I record, and what mechanism belongs in the notebook entry?",
       "expected_output": "Names ceremony capture from the Supervisor's vocabulary and records that delivery machinery was added to genuinely lightweight work — agents, artifacts, roles, or ceremony that a direct path did not require — as the causal mechanism in the notebook entry.",
@@ -998,13 +982,13 @@
     {
       "id": 78,
       "prompt": "A self-improvement proposal would weaken one of the workflow's non-negotiable safety anchors. What does intake do, and which anchors are frozen?",
-      "expected_output": "The Lead refuses the proposal at intake. The frozen anchors are independent review on the exact head by a Reviewer that re-runs the objective acceptance checks and is a distinct agent instance from every Engineer and the Lead (solo-Lead: additionally a distinct model from the Lead), one ledger row per external write, rendered-artifact parity for visual or matches-design acceptance, and the Human push/PR/merge/deploy gate.",
+      "expected_output": "The Lead refuses the proposal at intake. The frozen anchors are independent review on the exact head by a Reviewer that re-runs the objective acceptance checks and is a distinct agent instance from every Engineer and the Lead, one ledger row per external write, rendered-artifact parity for visual or matches-design acceptance, and the Human push/PR/merge/deploy gate.",
       "files": [
         "skills/herdr-delivery-workflow/references/lead.md"
       ],
       "assertions": [
         "Refuses a self-improvement proposal that touches a frozen anchor at intake",
-        "Names independent exact-head review by a Reviewer that re-runs the objective checks and is a distinct instance from every Engineer and the Lead (solo-Lead: additionally a distinct model from the Lead)",
+        "Names independent exact-head review by a Reviewer that re-runs the objective checks and is a distinct instance from every Engineer and the Lead, with no model or kind clause",
         "Names one ledger row per external write",
         "Names rendered-artifact parity for visual or matches-design acceptance",
         "Names the Human push/PR/merge/deploy gate"
@@ -1790,16 +1774,16 @@
     ,{
       "id": 131,
       "prompt": "Both installed agent kinds are Claude. Can a Claude Reviewer independently review a Claude Engineer's committed head, and what is the essential independence bar?",
-      "expected_output": "Yes. A different kind is preferred but not a hard gate, so a same-kind Reviewer is a valid independent review. The essential bar is that the Reviewer (i) re-runs the objective acceptance checks on the exact SHA and pastes their output, and (ii) is a distinct agent instance from every Engineer and the Lead; same-instance self-review is always prohibited. A different model is preferred because it blunts self-enhancement bias, and when the same model is reused it is pinned to a distinct model through reviewer-fallback-args where the kind offers one. In solo-Lead mode a different model from the Lead is additionally required, because the Lead authored the code.",
+      "expected_output": "Yes. The Reviewer carries no kind or model requirement or preference, so a same-kind or same-model Reviewer is a valid independent review in every mode, including solo-Lead. The essential bar is that the Reviewer (i) re-runs the objective acceptance checks on the exact SHA and pastes their output, and (ii) is a distinct agent instance from every Engineer and the Lead; same-instance self-review is always prohibited.",
       "files": [
         "skills/herdr-delivery-workflow/SKILL.md",
         "skills/herdr-delivery-workflow/references/lead.md"
       ],
       "assertions": [
-        "Accepts a same-kind Reviewer as independent — a different kind is a preference, not a hard gate",
+        "Accepts a same-kind Reviewer as independent — no kind requirement or preference applies",
         "Requires the Reviewer to re-run the objective acceptance checks on the exact SHA and paste the output",
         "Requires the Reviewer to be a distinct agent instance from every Engineer and the Lead, prohibiting same-instance self-review",
-        "Prefers a different model to blunt self-enhancement bias and requires a distinct model from the Lead in solo-Lead mode"
+        "Places no model requirement or preference on the Reviewer, including in solo-Lead mode"
       ]
     }
     ,{
