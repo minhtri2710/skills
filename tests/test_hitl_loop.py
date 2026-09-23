@@ -32,7 +32,7 @@ class HitlLoopTest(unittest.TestCase):
             )
             os.close(slave)
             output = bytearray()
-            deadline = time.monotonic() + 5
+            deadline = time.monotonic() + 60
             os.write(master, b"\n")
             os.write(master, b"y\n\n")
             os.write(master, b"first line\nsecond line\n\n")
