@@ -8,7 +8,7 @@ A skill is a directory. To make one available to Claude Code, put it where the a
 
 ```bash
 # Personal use across all projects
-ln -s "$PWD/skills/bug-diagnosis" ~/.agents/skills/bug-diagnosis
+ln -s "$PWD/skills/bug-diagnosis" ~/.claude/skills/bug-diagnosis
 
 # Or copy it into a project's skills directory
 cp -R skills/bug-diagnosis /path/to/project/.claude/skills/
@@ -24,7 +24,11 @@ skills/<name>/
   references/       # optional: material the skill points to on demand
   templates/        # optional: fill-in artifacts the skill emits
   scripts/          # optional: helper commands the skill runs
+  agents/           # optional: per-agent interface metadata (e.g. openai.yaml)
+  evals/            # optional: prompt and expected-output cases for the skill
 ```
+
+`herdr-delivery-workflow` also carries `.claude-plugin/` and `plugin-eval/`, a repo-only `claude plugin eval` suite; its `deploy_skill.py` excludes both from the installed copy.
 
 ## Standalone skills
 
