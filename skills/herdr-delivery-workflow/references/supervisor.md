@@ -69,6 +69,10 @@ The Supervisor never:
 - decides architecture, scope, or the lane;
 - apart from the per-occasion Human-instructed start above, starts a second Lead, a Peer, a schedule, a background watch, or a second state system.
 
+## Jev advisory
+
+`scripts/jev.py` is an optional advisory helper that reads `TYPESAFE_API_KEY` from the environment only; it never decides. The Supervisor uses it at three steps: while reading headers, `scripts/mailbox.py --file <path> --headers --since <last-read ISO> --triage` appends one ` | jev=<label>` urgency label per header line; before deciding a bounded Lead-facing fork, `scripts/jev.py fork --file <input.json>` (or `--stdin`) with `{"fork": {..., "hard_gate": <bool>}, "delegation": {..., "in_force": <bool>} | null}` returns an advisory route; before escalating an agy anti-pattern finding, `scripts/jev.py finding --file <finding.json>` returns an advisory actionable/noise read. Jev fork routing applies only in a project whose own `gates.md` carries an in-force `kind=standing-delegation` row, and that row is the `delegation` input; without one the Supervisor sends the Lead recommendations, not rulings, and a Jev `supervisor_decide` route never overrides that. A hard-gate fork, or one with no delegation in force, returns the deterministic `human_gate` with or without a key, and a Human gate stays a Human gate whatever the route says. Every answer is advisory only: `status=unavailable` means today's deterministic behavior, and a jev label never lets the Supervisor skip reading an entry or skip escalating one. When the Supervisor acts on a Jev answer, the ledger note recording that decision cites it with the choice and its confidence. `TYPESAFE_API_KEY` never appears in output, logs, the notebook, or any record.
+
 ## Compaction reprime
 
 When an observed live seat has durable compaction evidence, the Supervisor may invoke the repository-owned observer once for that seat and current run from any Supervisor cwd:
