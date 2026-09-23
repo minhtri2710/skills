@@ -6,11 +6,13 @@ caller can retain the original source data without waiting on Jev.
 """
 from __future__ import annotations
 
+import argparse
 import copy
 import json
 import math
 import os
 import re
+import sys
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
@@ -877,10 +879,9 @@ def route_fork(fork: object, delegation: object = None) -> ForkJevResult:
         if retained_delegation is not None and not _json_safe(retained_delegation):
             return _unavailable(source_state, "invalid_delegation")
 
-        key = os.environ.get("TYPESAFE_API_KEY", "")
-        if not key.strip():
-            return _unavailable(source_state, "missing_api_key")
-
+        # The deterministic rule runs before the key check: a hard gate or an
+        # absent delegation keeps its human_gate route even when Jev and the
+        # key are unavailable. The rule never depends on Jev being reachable.
         hard_gate = retained_fork["hard_gate"]
         delegation_in_force = (
             retained_delegation is not None
@@ -888,6 +889,10 @@ def route_fork(fork: object, delegation: object = None) -> ForkJevResult:
         )
         if hard_gate or not delegation_in_force:
             return _fork_result(source_state, "human_gate", deterministic=True)
+
+        key = os.environ.get("TYPESAFE_API_KEY", "")
+        if not key.strip():
+            return _unavailable(source_state, "missing_api_key")
 
         payload, error = _request_answers(source_state, FORK_QUESTIONS)
         if error is not None:
@@ -908,3 +913,187 @@ def route_fork(fork: object, delegation: object = None) -> ForkJevResult:
         )
     except Exception:
         return _unavailable(source_state, "api_error")
+
+
+class _InputError(Exception):
+    """CLI usage or input failure, reported as one stderr line with exit 2."""
+
+
+def _one_line(value: object) -> str:
+    """Collapse a message to one bounded, single-line stderr-safe string."""
+    return " ".join(str(value).split())[:500]
+
+
+def _origin(path: str | None, use_stdin: bool) -> str:
+    return "--stdin" if use_stdin else f"--file {_one_line(path)}"
+
+
+def _read_text(path: str | None, use_stdin: bool, origin: str) -> str:
+    try:
+        if use_stdin:
+            return sys.stdin.read()
+        with open(path, encoding="utf-8") as handle:
+            return handle.read()
+    except (OSError, ValueError):
+        raise _InputError(f"unreadable input from {origin}") from None
+
+
+def _json_object(text: str, origin: str) -> dict[str, object]:
+    try:
+        value = json.loads(text)
+    except ValueError:
+        raise _InputError(f"invalid JSON from {origin}") from None
+    if not isinstance(value, dict):
+        raise _InputError(f"input from {origin} is not a JSON object")
+    return value
+
+
+def _advisory_json(
+    result: JevResult | HeaderJevResult | ForkJevResult | CharterJevResult,
+) -> dict[str, object]:
+    """Project one advisory result to its CLI JSON shape.
+
+    Raw answers and source state are never printed; unavailable keeps the
+    fixed reason and fail-open flag.
+    """
+    if isinstance(result, UnavailableResult):
+        return {
+            "status": "unavailable",
+            "reason": result.reason,
+            "fallback_actionable": result.fallback_actionable,
+            "rationale": [],
+            "evidence": [],
+        }
+    if isinstance(result, AdvisoryResult):
+        return {
+            "status": "available",
+            "actionable": result.noul.actionable,
+            "severity": result.score.severity,
+            "noise": result.score.noise,
+            "rationale": list(result.rationale),
+            "evidence": list(result.evidence),
+        }
+    if isinstance(result, HeaderAdvisoryResult):
+        return {
+            "status": "available",
+            "urgency": result.score.urgency,
+            "score": result.score.value,
+            "rationale": list(result.rationale),
+            "evidence": list(result.evidence),
+        }
+    if isinstance(result, ForkAdvisoryResult):
+        return {
+            "status": "available",
+            "route": result.route,
+            "deterministic": result.deterministic,
+            "confidence": result.confidence,
+            "probabilities": dict(result.probabilities),
+            "rationale": [],
+            "evidence": [],
+        }
+    return {
+        "status": "available",
+        "coherent": result.coherence.coherent,
+        "probability": result.coherence.probability,
+        "rationale": list(result.rationale),
+        "evidence": list(result.evidence),
+    }
+
+
+def _mode_result(
+    args: argparse.Namespace,
+) -> JevResult | HeaderJevResult | ForkJevResult | CharterJevResult:
+    if args.mode == "finding":
+        origin = _origin(args.file, args.stdin)
+        finding = _json_object(_read_text(args.file, args.stdin, origin), origin)
+        return triage_finding(finding)
+    if args.mode == "header":
+        if args.header is not None:
+            return triage_header(args.header)
+        origin = _origin(args.file, args.stdin)
+        return triage_header(_read_text(args.file, args.stdin, origin).rstrip("\r\n"))
+    if args.mode == "fork":
+        origin = _origin(args.file, args.stdin)
+        payload = _json_object(_read_text(args.file, args.stdin, origin), origin)
+        return route_fork(payload.get("fork"), payload.get("delegation"))
+    if args.charter is not None:
+        if not args.disposition:
+            raise _InputError("--charter requires --disposition")
+        body = _read_text(args.charter, False, f"--charter {_one_line(args.charter)}")
+        return triage_charter(args.disposition, body)
+    if args.disposition is not None:
+        raise _InputError("--disposition requires --charter")
+    origin = _origin(args.file, args.stdin)
+    payload = _json_object(_read_text(args.file, args.stdin, origin), origin)
+    return triage_charter(payload.get("disposition"), payload.get("body"))
+
+
+def _build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="jev.py",
+        description=(
+            "Advisory TypeSafe/Jev triage. Output is fail-open JSON: an "
+            "unavailable result keeps today's deterministic behavior."
+        ),
+    )
+    modes = parser.add_subparsers(
+        dest="mode", metavar="{finding,header,fork,charter}", required=True
+    )
+
+    finding = modes.add_parser(
+        "finding", help="advisory actionable/noise triage of one finding"
+    )
+    source = finding.add_mutually_exclusive_group(required=True)
+    source.add_argument("--file", metavar="PATH", help="read the finding JSON from PATH")
+    source.add_argument("--stdin", action="store_true", help="read the finding JSON from stdin")
+
+    header = modes.add_parser(
+        "header", help="advisory urgency of one mailbox header line"
+    )
+    source = header.add_mutually_exclusive_group(required=True)
+    source.add_argument("--header", metavar="TEXT", help="the header line text")
+    source.add_argument("--file", metavar="PATH", help="read the header line from PATH")
+    source.add_argument("--stdin", action="store_true", help="read the header line from stdin")
+
+    fork = modes.add_parser(
+        "fork", help="advisory routing for one bounded Lead-facing fork"
+    )
+    source = fork.add_mutually_exclusive_group(required=True)
+    source.add_argument("--file", metavar="PATH", help="read the fork JSON from PATH")
+    source.add_argument("--stdin", action="store_true", help="read the fork JSON from stdin")
+
+    charter = modes.add_parser(
+        "charter", help="advisory coherence of one charter body"
+    )
+    source = charter.add_mutually_exclusive_group(required=True)
+    source.add_argument(
+        "--file", metavar="PATH", help='read the {"disposition","body"} JSON from PATH'
+    )
+    source.add_argument(
+        "--stdin", action="store_true", help='read the {"disposition","body"} JSON from stdin'
+    )
+    source.add_argument("--charter", metavar="PATH", help="read the charter body text from PATH")
+    charter.add_argument(
+        "--disposition", metavar="NAME", help="declared disposition, required with --charter"
+    )
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    """Run one advisory mode; exit 0 on available/unavailable, 2 on usage errors."""
+    parser = _build_parser()
+    try:
+        args = parser.parse_args(argv)
+    except SystemExit as exc:  # argparse usage errors and --help
+        return exc.code if isinstance(exc.code, int) else 2
+    try:
+        output = _advisory_json(_mode_result(args))
+    except _InputError as exc:
+        print(f"jev: {_one_line(exc)}", file=sys.stderr)
+        return 2
+    print(json.dumps(output, ensure_ascii=False))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
