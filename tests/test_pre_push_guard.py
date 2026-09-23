@@ -625,7 +625,7 @@ class PushDigestTest(unittest.TestCase):
         self.assertIn("NOT READY: refusing push", beta)
         self.assertIn("not covered by any review PASS range", beta)
         self.assertIn(f"  1. alpha main {ready_base[:7]}..{tip[:7]} (1 commits)", out)
-        self.assertNotIn("2.", out.split("Question:")[1])
+        self.assertNotIn("\n  2. ", out.split("Question:")[1])
 
     def test_stacked_open_gates_collapse_to_one_range(self):
         ledger, repo, base = self.project("alpha")
@@ -779,7 +779,7 @@ class PushDigestTest(unittest.TestCase):
         self.assertIn("NOT READY: a branch it is stacked on is not offered", high_block)
         question = out.split("Question:")[1]
         self.assertIn(f"  1. alpha other new branch {base[:7]}..{other[:7]} (1 commits)\n", question)
-        self.assertNotIn("2.", question)
+        self.assertNotIn("\n  2. ", question)
 
     def test_real_pushes_in_item_order_with_printed_grants_pass_the_guard(self):
         ledger, repo, base = self.project("alpha")
