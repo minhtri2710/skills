@@ -21,6 +21,7 @@ WAKE_GUARD_RE = re.compile(
     r"never\s+run\s+`?mailbox\.py\s+--wake`?\s+against\s+a\s+real\s+seat",
     re.IGNORECASE,
 )
+KILL_GUARD_RE = re.compile(r"never\s+kill\s+a\s+process\s+by\s+pattern", re.IGNORECASE)
 
 
 def _read(path: Path, label: str) -> str:
@@ -47,6 +48,9 @@ def _charter_problems(text: str, lead: str) -> list[str]:
         problems.append(
             "missing live-wake guard: Never run `mailbox.py --wake` against a real seat"
         )
+
+    if KILL_GUARD_RE.search(text) is None:
+        problems.append("missing pattern-kill guard: Never kill a process by pattern")
 
     if f"herdr agent prompt {lead}" not in text:
         problems.append(f"missing report-by-prompt block: herdr agent prompt {lead}")
