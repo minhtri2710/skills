@@ -79,14 +79,13 @@ def _entries(text: str) -> list[Entry]:
     return entries
 
 
-def select_entries(
+def _selected_entries(
     text: str,
     *,
     since: str | None = None,
     last: int | None = None,
-    headers: bool = False,
-) -> list[str]:
-    """Select mailbox entries, optionally returning only their headers."""
+) -> list[Entry]:
+    """Select entries in mailbox order, keeping them as Entry objects."""
     if since is not None and last is not None:
         raise ValueError("since and last are mutually exclusive")
     entries = _entries(text)
@@ -99,9 +98,28 @@ def select_entries(
         if last < 0:
             raise ValueError("last must be non-negative")
         entries = entries[-last:] if last else []
+    return entries
+
+
+def select_entries(
+    text: str,
+    *,
+    since: str | None = None,
+    last: int | None = None,
+    headers: bool = False,
+) -> list[str]:
+    """Select mailbox entries, optionally returning only their headers."""
+    entries = _selected_entries(text, since=since, last=last)
     if headers:
         return [entry.header for entry in entries]
     return ["\n".join((entry.header, entry.body)) for entry in entries]
+
+
+def _triage_label(advisory: jev.HeaderJevResult) -> str:
+    """Render one advisory as the bounded ``jev=`` label value."""
+    if advisory.available:
+        return advisory.score.urgency
+    return f"unavailable:{advisory.reason}"
 
 
 def run_wake(seat: str, wake_text: str) -> subprocess.CompletedProcess[str]:
@@ -120,8 +138,19 @@ def main(argv: list[str] | None = None) -> int:
     selectors.add_argument("--since", metavar="ISO")
     selectors.add_argument("--last", metavar="N", type=int)
     parser.add_argument("--headers", action="store_true")
+    parser.add_argument(
+        "--triage",
+        action="store_true",
+        help="with --headers, append an advisory jev=<label> to each header line",
+    )
     parser.add_argument("--wake", metavar="SEAT", help="read the last header and wake a seat")
     args = parser.parse_args(argv)
+
+    if args.triage:
+        if args.wake is not None:
+            parser.error("--triage cannot be combined with --wake")
+        if not args.headers:
+            parser.error("--triage requires --headers")
 
     try:
         text = Path(args.file).read_text(encoding="utf-8")
@@ -155,7 +184,18 @@ def main(argv: list[str] | None = None) -> int:
 
         if args.since is None and args.last is None and not args.headers:
             raise ValueError("at least one of --headers, --since, or --last is required")
-        output = select_entries(text, since=args.since, last=args.last, headers=args.headers)
+        if args.triage:
+            # The callable is passed explicitly so the lookup happens at call
+            # time and tests can patch jev.triage_header through main().
+            triaged = triage_entries(
+                _selected_entries(text, since=args.since, last=args.last),
+                triage=jev.triage_header,
+            )
+            output = [
+                f"{item.header} | jev={_triage_label(item.advisory)}" for item in triaged
+            ]
+        else:
+            output = select_entries(text, since=args.since, last=args.last, headers=args.headers)
     except (OSError, ValueError) as exc:
         print(f"mailbox: {exc}", file=sys.stderr)
         return 1

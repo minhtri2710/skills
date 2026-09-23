@@ -135,6 +135,144 @@ class MailboxTest(unittest.TestCase):
         self.assertEqual([item.header for item in triaged], [entry.header for entry in entries])
         self.assertEqual([item.body for item in triaged], [entry.body for entry in entries])
 
+    def test_main_triage_appends_labels_without_changing_order_or_headers(self):
+        urgencies = {
+            "first": ("FYI", 0.0),
+            "second": ("supervisor-action", 1.0),
+            "third": ("human-gate", 2.0),
+        }
+        seen = []
+
+        def fake_triage(header):
+            seen.append(header)
+            urgency, raw_value = urgencies[header.rsplit("| ", 1)[1]]
+            return jev.HeaderAdvisoryResult(
+                status="available",
+                header=header,
+                source_state={"header": header},
+                score=jev.UrgencyScore(
+                    value=raw_value / jev.URGENCY_SCORE_MAX,
+                    raw_value=raw_value,
+                    urgency=urgency,
+                ),
+                rationale=(),
+                evidence=(),
+                raw_answers={},
+            )
+
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        with mock.patch.object(jev, "triage_header", fake_triage):
+            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                result = mailbox.main(["--file", str(self.path), "--headers", "--triage"])
+        self.assertEqual(result, 0)
+        entries = mailbox._entries(self.path.read_text(encoding="utf-8"))
+        self.assertEqual(seen, [entry.header for entry in entries])
+        self.assertEqual(
+            stdout.getvalue(),
+            "\n".join(
+                f"{entry.header} | jev={urgencies[entry.header.rsplit('| ', 1)[1]][0]}"
+                for entry in entries
+            )
+            + "\n",
+        )
+        self.assertEqual(stderr.getvalue(), "")
+
+    def test_main_triage_shows_unavailable_label_and_keeps_headers(self):
+        def fake_triage(header):
+            return jev.UnavailableResult(
+                status="unavailable",
+                finding={"header": header},
+                reason="missing_api_key",
+                fallback_actionable=False,
+            )
+
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        with mock.patch.object(jev, "triage_header", fake_triage):
+            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                result = mailbox.main(["--file", str(self.path), "--headers", "--triage"])
+        self.assertEqual(result, 0)
+        self.assertEqual(
+            stdout.getvalue(),
+            "\n".join(
+                header + " | jev=unavailable:missing_api_key"
+                for header in mailbox.select_entries(
+                    self.path.read_text(encoding="utf-8"), headers=True
+                )
+            )
+            + "\n",
+        )
+        self.assertEqual(stderr.getvalue(), "")
+
+    def test_main_triage_without_key_labels_unavailable_and_never_requests(self):
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        with mock.patch.dict(jev.os.environ, clear=True), mock.patch.object(
+            jev.urllib.request, "urlopen"
+        ) as urlopen:
+            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                result = mailbox.main(["--file", str(self.path), "--headers", "--triage"])
+        self.assertEqual(result, 0)
+        urlopen.assert_not_called()
+        for header, line in zip(
+            mailbox.select_entries(self.path.read_text(encoding="utf-8"), headers=True),
+            stdout.getvalue().splitlines(),
+        ):
+            self.assertEqual(line, header + " | jev=unavailable:missing_api_key")
+        self.assertEqual(stderr.getvalue(), "")
+
+    def test_main_without_triage_keeps_output_and_never_calls_jev(self):
+        def fail_triage(header):
+            raise AssertionError("triage_header must not be called without --triage")
+
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        with mock.patch.object(jev, "triage_header", fail_triage):
+            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                result = mailbox.main(["--file", str(self.path), "--headers"])
+        self.assertEqual(result, 0)
+        self.assertEqual(
+            stdout.getvalue(),
+            "## lead-beo-skills -> supervisor | 2026-09-10T00:05:01Z | first\n"
+            "## lead-beo-skills -> supervisor | 2026-09-10T00:10:02Z | second\n"
+            "## lead-beo-skills -> supervisor | 2026-09-10T00:15:03Z | third\n",
+        )
+        self.assertEqual(stderr.getvalue(), "")
+
+    def test_main_triage_without_headers_is_a_usage_error(self):
+        calls = []
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        with mock.patch.object(jev, "triage_header", lambda header: calls.append(header)):
+            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                with self.assertRaises(SystemExit) as ctx:
+                    mailbox.main(["--file", str(self.path), "--triage"])
+        self.assertEqual(ctx.exception.code, 2)
+        self.assertEqual(calls, [])
+        self.assertEqual(stdout.getvalue(), "")
+        self.assertIn("--triage requires --headers", stderr.getvalue())
+
+    def test_main_triage_with_wake_is_a_usage_error(self):
+        calls = []
+        wakes = []
+        original = mailbox.run_wake
+        mailbox.run_wake = lambda seat, wake_text: wakes.append((seat, wake_text))
+        self.addCleanup(setattr, mailbox, "run_wake", original)
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        with mock.patch.object(jev, "triage_header", lambda header: calls.append(header)):
+            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                with self.assertRaises(SystemExit) as ctx:
+                    mailbox.main(
+                        ["--file", str(self.path), "--headers", "--triage", "--wake", "supervisor"]
+                    )
+        self.assertEqual(ctx.exception.code, 2)
+        self.assertEqual(calls, [])
+        self.assertEqual(wakes, [])
+        self.assertEqual(stdout.getvalue(), "")
+        self.assertIn("--triage cannot be combined with --wake", stderr.getvalue())
+
     def test_since_and_last_are_mutually_exclusive(self):
         with self.assertRaisesRegex(ValueError, "since and last are mutually exclusive"):
             mailbox.select_entries(
