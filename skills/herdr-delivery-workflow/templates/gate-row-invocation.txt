@@ -5,6 +5,11 @@ scripts/gate_row.py --ledger ~/.herdr/projects/<project-slug>/gates.md --kind lo
 
 standing-delegation:
 scripts/gate_row.py --ledger ~/.herdr/projects/<project-slug>/gates.md --kind standing-delegation --status recorded:standing-delegation --record timely --who <delegate-seat> --scope "<delegated scope>" --conditions "<conditions>" --expiry "<the Human's verbatim expiry text>" --words human --note "<note>" --quote "<the Human's verbatim grant>"
+# A delegation covering pushes adds --push-scope <remote>:<branch>[,...], and its --expiry is
+# an ISO-8601 UTC timestamp or until-revoked; without --push-scope it authorizes no push.
+
+push-grant (one-shot; consumed by the kind=push row that resolves it):
+scripts/gate_row.py --ledger ~/.herdr/projects/<project-slug>/gates.md --kind push-grant --status open --writer supervisor --channel supervisor-relay:typed --grant "<remote> <refs/heads/..|refs/tags/..> <push|force|delete> <full base>..<full tip>" --words human --note "<note>" --quote "<the Human's verbatim grant>"
 
 cutover (first row of a fresh gates.md beside the archived gates.legacy.md):
 scripts/gate_row.py --ledger ~/.herdr/projects/<project-slug>/gates.md --kind cutover --status recorded:cutover --words seat --note "<note>" --quote "<source of the cutover>"

@@ -730,13 +730,13 @@
     {
       "id": 58,
       "prompt": "I'm in Herdr as the Lead and want to push the current HEAD. The gates.md ledger has no review PASS row for that HEAD. Can a standing waiver or an eval permit the push?",
-      "expected_output": "Runs `scripts/pre_push_guard.py` and refuses the push because the current HEAD lacks a `kind=review` row with `status=recorded:review-pass` for that exact SHA. A `recorded:review-fail` row, any other review status, or a resolved row does not qualify. When that exact passing review row exists, the guard allows the pre-push check; the push row is post-hoc evidence and is not a pre-push requirement. Appending a `kind=push` row, and checking it with `gate_row.py --check`, independently requires a preceding `kind=review status=recorded:review-pass` row naming the same SHA. Runtime enforcement applies after the Human installs the guard as the pre-push hook; until then, the Lead runs the mechanism before push under this doctrine, and a standing external-write waiver does not bypass it.",
+      "expected_output": "Runs `scripts/pre_push_guard.py` and refuses the push because the pushed range `<remote-tip>..HEAD` is not covered by `kind=review` rows with `status=recorded:review-pass` whose `review=<base>..<head>` ranges cover every commit in it. A `recorded:review-fail` row, any other review status, or a resolved row does not qualify. Coverage alone does not admit the push: the guard also requires recorded Human authority, an unconsumed one-shot `kind=push-grant` row naming this remote, ref, op, and range, or an in-force standing-delegation row whose `push-scope=` names the remote and branch. The guard is the pre-push precondition; the `kind=push` row records the landing afterwards and consumes the one-shot grant. Appending a `kind=push` row, and checking it with `gate_row.py --check`, independently requires its range to be covered by preceding `kind=review status=recorded:review-pass` ranges. Runtime enforcement applies after the Human installs the guard as the pre-push hook; until then, the Lead runs the mechanism before push under this doctrine, and a standing external-write waiver does not bypass it.",
       "files": [],
       "assertions": [
-        "Refuses a push when the pushed SHA lacks an exact kind=review row with status=recorded:review-pass",
-        "Requires every pushed SHA to have its own exact recorded:review-pass review row",
+        "Refuses a push when a commit in the pushed range is not covered by a kind=review status=recorded:review-pass range",
+        "Requires recorded Human authority as well: an unconsumed one-shot push-grant naming the push, or an in-force standing-delegation push-scope covering the remote and branch",
         "Does not qualify recorded:review-fail, other review statuses, or resolved rows",
-        "Does not require a push row before the push because that row is post-hoc evidence, while gate_row.py rejects a push row lacking a preceding same-SHA review-pass row",
+        "Does not require a push row before the push because the guard is the precondition and the push row records the landing, while gate_row.py rejects a push row whose range lacks preceding review-pass coverage",
         "States that runtime enforcement applies after the Human installs the pre-push hook, while until then the Lead runs the guard before push under doctrine",
         "Does not let a standing push or external-write waiver bypass the guard"
       ]
@@ -1055,14 +1055,14 @@
     {
       "id": 83,
       "prompt": "What shape must a Human delegation ruling record when standing approval authority is handed to a Lead or Supervisor?",
-      "expected_output": "It records the standing delegation through `scripts/gate_row.py` as kind=standing-delegation with status=recorded:standing-delegation, who=, scope=, conditions=, and the Human's verbatim expiry= text, with words=human and the verbatim grant in terminal quote=. The default expiry is the Human's next message unless the Human extends it in their own words; rows answered under it name the delegation and values chosen under it are attributed to the deciding seat. The record preserves the Human's decision without altering independent review or gates outside the stated scope.",
+      "expected_output": "It records the standing delegation through `scripts/gate_row.py` as kind=standing-delegation with status=recorded:standing-delegation, who=, scope=, conditions=, and expiry=, with words=human and the verbatim grant in terminal quote=. A delegation covering pushes adds push-scope=<remote>:<branch>, and its expiry= is then an ISO-8601 UTC timestamp or until-revoked; a row without push-scope= authorizes no push, and none covers a force push, deletion, or tag. The default expiry is the Human's next message unless the Human extends it in their own words; rows answered under it name the delegation and values chosen under it are attributed to the deciding seat. The record preserves the Human's decision without altering independent review or gates outside the stated scope.",
       "files": [
         "skills/herdr-delivery-workflow/references/lead.md",
         "skills/herdr-delivery-workflow/scripts/gate_row.py",
         "skills/herdr-delivery-workflow/templates/gate-row-invocation.txt"
       ],
       "assertions": [
-        "Requires who=, scope=, conditions=, and the Human's verbatim expiry= text in a kind=standing-delegation row",
+        "Requires who=, scope=, conditions=, and expiry= in a kind=standing-delegation row, with push-scope= and a machine expiry (ISO-8601 UTC or until-revoked) when it covers pushes",
         "Requires status=recorded:standing-delegation, words=human, and the verbatim grant in terminal quote=",
         "Defaults expiry to the Human's next message unless the Human extends it in their own words, and names the delegation on rows answered under it",
         "Does not alter independent review or any Human gate outside the stated scope merely by recording the delegation"
@@ -1237,7 +1237,7 @@
     {
       "id": 95,
       "prompt": "The Human granted a standing delegation to the Lead for this run. Record it and explain how later decisions under it are attributed and when it expires.",
-      "expected_output": "Appends a kind=standing-delegation row with who, scope, conditions, the Human's verbatim expiry text, words=human, and the verbatim grant in quote. Expiry defaults to the Human's next message unless the Human extends it in their own words; later rows name the delegation and attribute the values chosen under it to the deciding seat, without changing review or gates outside scope.",
+      "expected_output": "Appends a kind=standing-delegation row with who, scope, conditions, expiry, words=human, and the verbatim grant in quote; a delegation covering pushes adds push-scope=<remote>:<branch> with an ISO-8601 UTC or until-revoked expiry. Expiry defaults to the Human's next message unless the Human extends it in their own words; later rows name the delegation and attribute the values chosen under it to the deciding seat, without changing review or gates outside scope.",
       "files": [
         "skills/herdr-delivery-workflow/references/lead.md",
         "skills/herdr-delivery-workflow/scripts/gate_row.py",
@@ -1297,17 +1297,17 @@
     {
       "id": 99,
       "prompt": "The Lead is about to append a kind=push row for SHA abc123, but the ledger has no preceding kind=review row with status=recorded:review-pass for abc123. Can the row be recorded, and can a standing waiver bypass the requirement?",
-      "expected_output": "No. gate_row.py rejects a kind=push row unless a preceding kind=review row has status=recorded:review-pass for the same SHA; pre_push_guard.py independently refuses a push without that exact review-pass row. The push row is post-hoc evidence rather than a pre-push requirement, but appending and checking it still requires the preceding same-SHA review PASS, and a standing external-write waiver does not bypass the guard.",
+      "expected_output": "No. gate_row.py rejects a kind=push row unless preceding kind=review status=recorded:review-pass rows cover every commit in its range; pre_push_guard.py independently refuses a push whose range is not covered, and also refuses one without recorded Human authority (a one-shot push-grant or a standing push-scope). The guard is the pre-push precondition and the push row records the landing, but appending and checking it still requires the preceding review-pass coverage, and a standing external-write waiver does not bypass the guard.",
       "files": [
         "skills/herdr-delivery-workflow/scripts/gate_row.py",
         "skills/herdr-delivery-workflow/scripts/pre_push_guard.py",
         "tests/test_gate_row.py"
       ],
       "assertions": [
-        "Rejects a kind=push row without a preceding same-SHA kind=review status=recorded:review-pass row",
-        "Requires the exact review-pass SHA for the push guard as well as for the ledger row",
-        "Treats the push row as post-hoc evidence rather than a pre-push requirement",
-        "Does not let a standing external-write waiver bypass the same-SHA review requirement"
+        "Rejects a kind=push row whose range is not covered by preceding kind=review status=recorded:review-pass ranges",
+        "Requires review-pass range coverage for the push guard as well as for the ledger row",
+        "Treats the guard as the pre-push precondition, requiring Human authority besides coverage, and the push row as the landing record",
+        "Does not let a standing external-write waiver bypass the review coverage requirement"
       ]
     },
     {

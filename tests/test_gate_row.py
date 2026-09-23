@@ -467,6 +467,73 @@ class GateRowTest(unittest.TestCase):
         self.assertIn("requires words=human", self.err.getvalue())
         self.assertEqual(self.ledger.read_bytes(), before)
 
+    def check_last(self) -> int:
+        return self.run_main(["--ledger", str(self.ledger), "--repo", str(self.repo), "--check"])
+
+    def append_push_grant(self, spec: str, *extra: str) -> int:
+        return self.run_main([
+            "--ledger", str(self.ledger), "--repo", str(self.repo),
+            "--kind", "push-grant", "--status", "open", "--writer", "supervisor",
+            "--channel", "supervisor-relay:typed", "--grant", spec,
+            "--words", "human", "--note", "one-shot push grant", "--quote", "push it", *extra,
+        ])
+
+    def test_push_scope_delegation_round_trips_with_a_machine_expiry(self):
+        for expiry in ("until-revoked", "2030-01-01T00:00:00Z"):
+            self.assertEqual(self.append_standing_delegation(
+                "--expiry", expiry, "--push-scope", "origin:main,upstream:release/1"), 0, self.err.getvalue())
+            row = self.last_row()
+            self.assertIn(f"expiry={expiry} | push-scope=origin:main,upstream:release/1 | ", row)
+            self.assertEqual(self.check_last(), 0, self.err.getvalue())
+
+    def test_push_scope_refuses_a_free_text_expiry_and_a_malformed_scope(self):
+        before = self.ledger.read_bytes()
+        self.assertEqual(self.append_standing_delegation("--push-scope", "origin:main"), 1)
+        self.assertIn("not an ISO-8601 UTC timestamp or until-revoked", self.err.getvalue())
+        self.assertEqual(self.append_standing_delegation(
+            "--expiry", "until-revoked", "--push-scope", "main"), 1)
+        self.assertIn("is not <remote>:<branch>", self.err.getvalue())
+        self.assertEqual(self.ledger.read_bytes(), before)
+        self.assertEqual(self.append("--push-scope", "origin:main"), 1)
+        self.assertIn("--push-scope is only meaningful", self.err.getvalue())
+
+    def test_push_grant_round_trips_and_refuses_bad_shapes(self):
+        base, head = self.rev("HEAD~1"), self.rev("HEAD")
+        zero = "0" * 40
+        self.assertEqual(self.append_push_grant(f"origin refs/heads/main push {base}..{head}"), 0,
+                         self.err.getvalue())
+        self.assertIn(f"grant=origin refs/heads/main push {base}..{head} | ", self.last_row())
+        self.assertEqual(self.check_last(), 0, self.err.getvalue())
+        self.assertEqual(self.append_push_grant(f"origin refs/heads/dead delete {base}..{zero}"), 0,
+                         self.err.getvalue())
+        self.assertEqual(self.check_last(), 0, self.err.getvalue())
+        before = self.ledger.read_bytes()
+        for spec, message in (
+            (f"origin refs/heads/main push {head}..{base}", "is-ancestor"),
+            (f"origin refs/heads/main push {base[:12]}..{head}", "is not <remote>"),
+            (f"origin main push {base}..{head}", "is not <remote>"),
+            (f"origin refs/heads/main delete {base}..{head}", "zero tip"),
+            (f"origin refs/heads/main push {base}..{zero}", "op delete"),
+        ):
+            self.assertEqual(self.append_push_grant(spec), 1, spec)
+            self.assertIn(message, self.err.getvalue())
+        spec = f"origin refs/heads/main push {base}..{head}"
+        self.assertEqual(self.append_push_grant(spec, "--words", "seat"), 1)
+        self.assertIn("requires words=human or words=selected", self.err.getvalue())
+        self.assertEqual(self.append_push_grant(spec, "--status", "resolved:instruction"), 1)
+        self.assertIn("requires status=open", self.err.getvalue())
+        self.assertEqual(self.append("--grant", spec), 1)
+        self.assertIn("--grant is only meaningful", self.err.getvalue())
+        self.assertEqual(self.ledger.read_bytes(), before)
+
+    def test_a_standing_delegation_is_revoked_once_by_a_resolving_row(self):
+        self.assertEqual(self.append_standing_delegation(
+            "--expiry", "until-revoked", "--push-scope", "origin:main"), 0)
+        self.assertEqual(self.append("--resolves", "G1"), 0, self.err.getvalue())
+        self.assertEqual(self.check_last(), 0, self.err.getvalue())
+        self.assertEqual(self.append("--resolves", "G1"), 1)
+        self.assertIn("already-revoked", self.err.getvalue())
+
     def test_handoff_append_readback_rederive_and_check(self):
         self.assertEqual(self.append_handoff(), 0)
         row = self.last_row()

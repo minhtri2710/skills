@@ -41,7 +41,7 @@ On a relaunch or compaction, consult `references/relaunch.md` with `references/h
 
 | Seat | Who staffs it | Decides | Never |
 |------|---------------|---------|-------|
-| Human | — | owns the gates: push, PR mutation, merge, deploy, irreversible or security-sensitive change, any approval dialog; execution is delegable only under an in-force `words=human` standing-delegation row | — |
+| Human | — | owns the gates: push, PR mutation, merge, deploy, irreversible or security-sensitive change, any approval dialog; execution is delegable only under an in-force `words=human` standing-delegation row, and `scripts/pre_push_guard.py` admits a push only against a one-shot `kind=push-grant` row or a standing row's `push-scope=` | — |
 | Supervisor (`supervisor`) | Human, in its own pane | nothing in the delivery; observes, questions the Lead, relays Human decisions, keeps the notebook | instruct a Peer, edit, commit, answer a gate, accept |
 | Lead (`lead-<project-slug>`) | the caller's own seat | intake lane, mode, partition, every commit on the tree, routing of every message and finding, acceptance | write source content in a partitioned run, run a second Lead, poll |
 | Peer — Engineer | Lead, one per scope | local implementation inside its owned paths | edit outside owned paths, run a writing git command, commit, orchestrate |

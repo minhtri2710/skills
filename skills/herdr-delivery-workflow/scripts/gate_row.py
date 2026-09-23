@@ -13,7 +13,9 @@ Row shape, one line, ` | ` between fields:
          boundary-check="<paths outside the boundary>"]
       [| resolves=<id>[,<id>...]]
       [| op=<command> | after=<branch>@<head>]
-      [| who=<delegate> | scope=<scope> | conditions=<conditions> | expiry=<expiry>]
+      [| who=<delegate> | scope=<scope> | conditions=<conditions> | expiry=<expiry>
+         [| push-scope=<remote>:<branch>[,<remote>:<branch>...]]]
+      [| grant=<remote> <ref> <push|force|delete> <base>..<tip>]
       [| finding=<identity>] [| archive=<sha256 of gates.legacy.md>] [| prev_hash=<64 lowercase hex>]
       | words=<seat|human|selected|none>
       | note=<one line> | quote="<verbatim>"
@@ -71,6 +73,14 @@ HUMAN_GATE_KINDS = frozenset({
     "push", "merge", "deploy", "push-gate", "merge-gate", "deploy-gate",
 })
 SEAT_PERMISSION_GATE_KINDS = frozenset({"push-gate", "merge-gate", "deploy-gate"})
+ZERO = "0" * 40
+GRANT_RE = re.compile(
+    r"^(?P<remote>[A-Za-z0-9._-]+) (?P<ref>refs/(heads|tags)/[^\s|\"]+) "
+    r"(?P<op>push|force|delete) (?P<base>[0-9a-f]{40})\.\.(?P<tip>[0-9a-f]{40})$"
+)
+PUSH_SCOPE_ENTRY_RE = re.compile(r"^[A-Za-z0-9._-]+:[^\s|\",:]+$")
+UNTIL_REVOKED = "until-revoked"
+ISO_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
 
 
 class RowError(Exception):
@@ -308,6 +318,135 @@ def require_review_coverage(rows: list[str], repo: Path, base: str, head: str) -
         )
 
 
+def row_field(fields: list[str], name: str) -> str | None:
+    for field in fields:
+        if field.startswith(f"{name}="):
+            return field.split("=", 1)[1]
+    return None
+
+
+def is_ancestor(repo: Path, ancestor: str, descendant: str) -> bool:
+    try:
+        git(repo, "merge-base", "--is-ancestor", ancestor, descendant)
+    except RowError:
+        return False
+    return True
+
+
+def validate_grant(value: str, repo: Path) -> None:
+    """A one-shot grant names one remote, one ref, one op, and the exact range the Human approved."""
+    match = GRANT_RE.fullmatch(value)
+    if not match:
+        raise RowError(
+            f"grant={value!r} is not <remote> <refs/heads/..|refs/tags/..> "
+            "<push|force|delete> <40-hex base>..<40-hex tip>"
+        )
+    op, base, tip = match.group("op"), match.group("base"), match.group("tip")
+    if op == "delete":
+        if tip != ZERO or base == ZERO:
+            raise RowError("grant op delete names the deleted remote tip as base and a zero tip")
+        git(repo, "rev-parse", "--verify", f"{base}^{{commit}}")
+    elif op == "force":
+        if ZERO in (base, tip):
+            raise RowError("grant op force names the overwritten remote tip and the new tip")
+        for sha in (base, tip):
+            git(repo, "rev-parse", "--verify", f"{sha}^{{commit}}")
+    else:
+        if tip == ZERO:
+            raise RowError("grant op push names a non-zero tip; a deletion is op delete")
+        range_commits(repo, base, tip)
+
+
+def expiry_instant(value: str) -> datetime | None:
+    """The machine expiry of a push-scoped standing delegation; None means until-revoked."""
+    if value == UNTIL_REVOKED:
+        return None
+    if not ISO_RE.fullmatch(value):
+        raise RowError(
+            f"expiry={value!r} is not an ISO-8601 UTC timestamp or {UNTIL_REVOKED}; "
+            "a push-scope delegation needs a machine-readable expiry"
+        )
+    return datetime.strptime(value, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+
+
+def validate_push_scope(value: str, expiry: str) -> None:
+    entries = value.split(",")
+    if not value or any(not PUSH_SCOPE_ENTRY_RE.fullmatch(e) for e in entries):
+        raise RowError(f"push-scope={value!r} is not <remote>:<branch>[,<remote>:<branch>...]")
+    expiry_instant(expiry)
+
+
+def require_push_authority(
+    rows: list[str], repo: Path, remote: str, ref: str,
+    remote_sha: str, local_sha: str, now: datetime,
+) -> None:
+    """Require recorded Human authority for one pushed ref, or name what is missing.
+
+    Authority is an unconsumed kind=push-grant naming this remote, ref and op whose
+    range holds the pushed range, or, for a fast-forward or new branch only, an
+    unrevoked, unexpired kind=standing-delegation whose push-scope= names
+    <remote>:<branch>. A force push, a deletion and a tag need a one-shot grant.
+    """
+    if local_sha == ZERO:
+        op = "delete"
+    elif remote_sha != ZERO and not is_ancestor(repo, remote_sha, local_sha):
+        op = "force"
+    else:
+        op = "push"
+    tag = ref.startswith("refs/tags/")
+    special = "tag push" if tag else {"force": "force push", "delete": "deletion"}.get(op)
+    _, _, resolved_at = open_state(rows)
+    reasons: list[str] = []
+    for index, row in enumerate(rows):
+        fields, _ = split_row(row)
+        gid, kind = fields[0], fields[2].split("=", 1)[1]
+        closed = resolved_at.get(gid, -1) > index
+        if kind == "push-grant":
+            grant = GRANT_RE.fullmatch(row_field(fields, "grant") or "")
+            if not grant:
+                continue
+            if (grant["remote"], grant["ref"], grant["op"]) != (remote, ref, op):
+                reasons.append(f"{gid} grant scope is {grant['remote']} {grant['ref']} {grant['op']}")
+                continue
+            if op == "push":
+                inside = set(range_commits(repo, remote_sha, local_sha)) <= set(
+                    range_commits(repo, grant["base"], grant["tip"]))
+            else:
+                inside = (grant["base"], grant["tip"]) == (remote_sha, local_sha)
+            if not inside:
+                reasons.append(f"{gid} grant scope is range {grant['base']}..{grant['tip']}")
+                continue
+            if closed:
+                reasons.append(f"{gid} grant is consumed")
+                continue
+            return
+        if kind == "standing-delegation":
+            scope = row_field(fields, "push-scope")
+            if scope is None:
+                reasons.append(f"{gid} standing delegation has no push-scope")
+                continue
+            if special:
+                reasons.append(f"{gid} standing delegation never covers a {special}")
+                continue
+            if f"{remote}:{ref.removeprefix('refs/heads/')}" not in scope.split(","):
+                reasons.append(f"{gid} standing delegation scope is push-scope={scope}")
+                continue
+            if closed:
+                reasons.append(f"{gid} standing delegation is revoked")
+                continue
+            until = expiry_instant(row_field(fields, "expiry") or "")
+            if until is not None and now >= until:
+                reasons.append(f"{gid} standing delegation expiry {row_field(fields, 'expiry')} has passed")
+                continue
+            return
+    need = f"a {special} needs a one-shot kind=push-grant naming op " \
+        f"{op}; " if special else ""
+    raise RowError(
+        f"refusing {op} of {remote_sha}..{local_sha} to {remote} {ref}: no push authority — "
+        + need + ("; ".join(reasons) or "no grant row in the ledger")
+    )
+
+
 def field_text(name: str, value: str | None) -> str:
     value = (value or "").strip()
     if not value:
@@ -339,8 +478,9 @@ def required_fields(rest: list[str], index: int, names: tuple[str, ...], kind: s
 def reject_special_fields(args: argparse.Namespace, kind: str) -> None:
     allowed = {
         "local-ops": {"--op", "--after"},
-        "standing-delegation": {"--who", "--scope", "--conditions", "--expiry"},
+        "standing-delegation": {"--who", "--scope", "--conditions", "--expiry", "--push-scope"},
         "repair-grant": {"--finding"},
+        "push-grant": {"--grant"},
     }.get(kind, set())
     supplied = (
         ("--op", getattr(args, "op", "")), ("--after", getattr(args, "after", "")),
@@ -348,6 +488,8 @@ def reject_special_fields(args: argparse.Namespace, kind: str) -> None:
         ("--conditions", getattr(args, "conditions", "")),
         ("--expiry", getattr(args, "expiry", "")),
         ("--finding", getattr(args, "finding", "")),
+        ("--push-scope", getattr(args, "push_scope", "")),
+        ("--grant", getattr(args, "grant", "")),
     )
     for flag, value in supplied:
         if value and flag not in allowed:
@@ -444,9 +586,18 @@ def open_gate_ids(rows: list[str]) -> list[str]:
 
 
 def require_open_targets(rows: list[str], targets: list[str]) -> None:
+    """Resolve only an open gate, or revoke only an unrevoked standing delegation."""
     latest, ever_open, resolved_at = open_state(rows)
+    standing = {
+        split_row(row)[0][0]: index for index, row in enumerate(rows)
+        if row_evidence(row)[0] == "standing-delegation"
+    }
     for target in targets:
         own = latest.get(target)
+        if target in standing:
+            if resolved_at.get(target, -1) > standing[target]:
+                raise RowError(f"resolves={target} refused: already-revoked")
+            continue
         if target not in ever_open:
             raise RowError(f"resolves={target} refused: never-open")
         if own is None or own[1] != "open" or resolved_at.get(target, -1) > own[0]:
@@ -602,6 +753,10 @@ def build(args: argparse.Namespace, repo: Path,
                 raise RowError(f"kind=standing-delegation requires {name}= field")
             value = field_text(name, getattr(args, name))
             special_fields.append(f"{name}={value}")
+        if getattr(args, "push_scope", ""):
+            push_scope = field_text("push-scope", args.push_scope)
+            validate_push_scope(push_scope, args.expiry.strip())
+            special_fields.append(f"push-scope={push_scope}")
     elif kind == "handoff":
         if args.status != HANDOFF_STATUS:
             raise RowError(f"kind=handoff requires status={HANDOFF_STATUS}")
@@ -610,6 +765,16 @@ def build(args: argparse.Namespace, repo: Path,
             raise RowError("kind=repair-grant requires finding= field")
         finding = finding_value(args.finding)
         special_fields.append(f"finding={finding}")
+    elif kind == "push-grant":
+        if args.status != "open":
+            raise RowError("kind=push-grant requires status=open; the row that consumes it resolves it")
+        if args.words not in ("human", "selected"):
+            raise RowError("kind=push-grant requires words=human or words=selected: it records the Human's grant")
+        if not getattr(args, "grant", ""):
+            raise RowError("kind=push-grant requires grant= field")
+        grant = field_text("grant", args.grant)
+        validate_grant(grant, repo)
+        special_fields.append(f"grant={grant}")
 
     rows = existing_rows
     gid = f"G{next_id_from_rows(rows)}"
@@ -743,7 +908,7 @@ def check(row: str, repo: Path, prior_rows: list[str] | None = None,
 
     known = (
         "channel=", "writer=", "record=", "push=", "review=", "resolves=", "op=", "after=",
-        "who=", "scope=", "conditions=", "expiry=", "finding=", "archive=", "prev_hash=", "words=", "note=",
+        "who=", "scope=", "conditions=", "expiry=", "push-scope=", "grant=", "finding=", "archive=", "prev_hash=", "words=", "note=",
     )
     for field in rest:
         if not field.startswith(known):
@@ -809,6 +974,14 @@ def check(row: str, repo: Path, prior_rows: list[str] | None = None,
         )
         if status != f"status={STANDING_DELEGATION_STATUS}":
             raise RowError(f"kind=standing-delegation requires status={STANDING_DELEGATION_STATUS}")
+        if index < len(rest) and rest[index].startswith("push-scope="):
+            validate_push_scope(rest[index].split("=", 1)[1], values["expiry"])
+            index += 1
+    elif row_kind == "push-grant":
+        if status != "status=open":
+            raise RowError("kind=push-grant requires status=open")
+        values, index = required_fields(rest, index, ("grant",), row_kind)
+        validate_grant(values["grant"], repo)
     elif row_kind == "handoff":
         if status != f"status={HANDOFF_STATUS}":
             raise RowError(f"kind=handoff requires status={HANDOFF_STATUS}")
@@ -870,6 +1043,8 @@ def check(row: str, repo: Path, prior_rows: list[str] | None = None,
 
     if row_kind == "repair-grant":
         require_repair_progress(prior_rows or [], current_finding)
+    if row_kind == "push-grant" and words not in ("human", "selected"):
+        raise RowError("kind=push-grant requires words=human or words=selected")
 
     if index >= len(rest) or not rest[index].startswith("note="):
         raise RowError("note= is missing or out of order")
@@ -995,7 +1170,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--who", help="the delegate named by a standing-delegation row")
     parser.add_argument("--scope", help="the delegated scope")
     parser.add_argument("--conditions", help="the delegation conditions")
-    parser.add_argument("--expiry", help="the granting Human's expiry text")
+    parser.add_argument("--expiry", help="the granting Human's expiry; with --push-scope an ISO-8601 "
+                        "UTC timestamp or until-revoked")
+    parser.add_argument("--push-scope", help="the <remote>:<branch>[,...] a standing delegation "
+                        "authorizes fast-forward pushes to; without it the row authorizes no push")
+    parser.add_argument("--grant", help="a one-shot push-grant: <remote> <ref> <push|force|delete> "
+                        "<base>..<tip>, full SHAs")
     parser.add_argument("--finding", help="the repair-grant finding identity")
     parser.add_argument("--record", choices=RECORD_VALUES)
     parser.add_argument("--head", help="the row head as <branch>@<full 40-hex commit SHA>; "
@@ -1030,7 +1210,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.open_gates:
             ignored = (
                 args.kind, args.status, args.channel, args.writer, args.op, args.after,
-                args.who, args.scope, args.conditions, args.expiry, args.finding,
+                args.who, args.scope, args.conditions, args.expiry, args.push_scope, args.grant, args.finding,
                 args.record, args.head, args.push_base, args.review_base, args.boundary, args.resolves, args.words,
                 args.note, args.quote, args.quote_file, args.mailbox,
             )

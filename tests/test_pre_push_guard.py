@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Unit tests for the review-coverage pre-push guard."""
+"""Unit tests for the review-coverage and push-authority pre-push guard."""
 from __future__ import annotations
 
 import contextlib
@@ -8,6 +8,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import patch
 
@@ -71,8 +72,34 @@ class PrePushGuardTest(unittest.TestCase):
                 "--words", "seat", "--note", "review recorded", "--quote", quote,
             ])
 
-    def ref_line(self, remote_base: str, local_tip: str) -> str:
-        return f"refs/heads/main {local_tip} refs/heads/main {remote_base}\n"
+    def row(self, *args: str) -> int:
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            return gate_row.main(["--ledger", str(self.ledger), "--repo", str(self.repo), *args])
+
+    def standing(self, scope: str = "origin:main", expiry: str = "until-revoked") -> str:
+        """Record a push-scoped standing delegation and return its id."""
+        self.assertEqual(self.row(
+            "--kind", "standing-delegation", "--status", "recorded:standing-delegation",
+            "--who", "lead", "--scope", "pushes", "--conditions", "review PASS",
+            "--expiry", expiry, "--push-scope", scope,
+            "--words", "human", "--note", "standing push grant", "--quote", "push when green",
+        ), 0)
+        return self.last_id()
+
+    def grant(self, spec: str) -> str:
+        """Record a one-shot push-grant and return its id."""
+        self.assertEqual(self.row(
+            "--kind", "push-grant", "--status", "open", "--writer", "supervisor",
+            "--channel", "supervisor-relay:typed", "--grant", spec,
+            "--words", "human", "--note", "one-shot push grant", "--quote", "push this",
+        ), 0)
+        return self.last_id()
+
+    def last_id(self) -> str:
+        return gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))[-1].split(" | ")[0]
+
+    def ref_line(self, remote_base: str, local_tip: str, ref: str = "refs/heads/main") -> str:
+        return f"{ref} {local_tip} {ref} {remote_base}\n"
 
     def invoke(self, stdin: str = "", hook_argv: tuple[str, ...] = ()) -> tuple[int, str, str]:
         out, err = io.StringIO(), io.StringIO()
@@ -84,9 +111,9 @@ class PrePushGuardTest(unittest.TestCase):
         return code, out.getvalue(), err.getvalue()
 
     def test_covered_range_via_manual_mode_is_allowed(self):
-        c1 = self.advance("c1")
+        self.advance("c1")
         self.assertEqual(self.review(self.base), 0)
-        del c1
+        self.standing()
         code, out, err = self.invoke()  # empty stdin -> base derived from origin/main
         self.assertEqual(code, 0)
         self.assertIn("covered", out)
@@ -95,6 +122,7 @@ class PrePushGuardTest(unittest.TestCase):
     def test_empty_non_tty_stdin_uses_origin_fallback_without_isatty(self):
         self.advance("c1")
         self.assertEqual(self.review(self.base), 0)
+        self.standing()
 
         class EmptyNonTTY:
             def read(self):
@@ -116,6 +144,7 @@ class PrePushGuardTest(unittest.TestCase):
     def test_failed_review_leaves_the_range_uncovered(self):
         c1 = self.advance("c1")
         self.assertEqual(self.review(self.base, "recorded:review-fail", "FAIL: 2 findings"), 0)
+        self.standing()
         code, _, err = self.invoke(self.ref_line(self.base, c1))
         self.assertEqual(code, 1)
         self.assertIn("not covered", err)
@@ -125,6 +154,7 @@ class PrePushGuardTest(unittest.TestCase):
         self.assertEqual(self.review(self.base), 0)   # F-F: base..c1
         c2 = self.advance("c2")
         self.assertEqual(self.review(c1), 0)          # F-G: c1..c2
+        self.standing()
         code, out, err = self.invoke(self.ref_line(self.base, c2))
         self.assertEqual(code, 0, err)
         self.assertIn("covered", out)
@@ -133,6 +163,7 @@ class PrePushGuardTest(unittest.TestCase):
         c1 = self.advance("c1")
         self.assertEqual(self.review(self.base), 0)   # only base..c1 reviewed
         c2 = self.advance("c2")                        # c2 rides unreviewed
+        self.standing()
         code, _, err = self.invoke(self.ref_line(self.base, c2))
         self.assertEqual(code, 1)
         self.assertIn(c2, err)
@@ -157,6 +188,7 @@ class PrePushGuardTest(unittest.TestCase):
 
     def test_range_with_no_review_row_is_refused(self):
         c1 = self.advance("c1")
+        self.standing()
         code, _, err = self.invoke(self.ref_line(self.base, c1))
         self.assertEqual(code, 1)
         self.assertIn("not covered", err)
@@ -164,6 +196,7 @@ class PrePushGuardTest(unittest.TestCase):
     def test_new_ref_with_zero_remote_base_is_refused(self):
         c1 = self.advance("c1")
         self.assertEqual(self.review(self.base), 0)
+        self.standing()
         code, _, err = self.invoke(self.ref_line(ZERO, c1))
         self.assertEqual(code, 1)
         self.assertIn("no remote base", err)
@@ -172,6 +205,7 @@ class PrePushGuardTest(unittest.TestCase):
         self.set_empty_origin()
         c1 = self.advance("c1")
         self.assertEqual(self.review(ZERO), 0)
+        self.standing()
         code, out, err = self.invoke(self.ref_line(ZERO, c1))
         self.assertEqual(code, 0, err)
         self.assertIn("covered", out)
@@ -181,19 +215,22 @@ class PrePushGuardTest(unittest.TestCase):
         self.git("checkout", "-qb", "feature")
         self.advance("feature commit")
         self.assertEqual(self.review(ZERO), 0)
+        self.standing("origin:feature")
         code, out, err = self.invoke()
         self.assertEqual(code, 0, err)
         self.assertIn("covered", out)
 
     def test_pairs_none_absent_branch_on_populated_remote_is_refused(self):
         self.git("checkout", "-qb", "feature")
+        self.standing("origin:feature")
         code, _, err = self.invoke()
         self.assertEqual(code, 1)
-        self.assertIn("ref origin/feature has no remote base", err)
+        self.assertIn("ref refs/heads/feature has no remote base", err)
 
     def test_ledger_is_read_under_a_shared_lock(self):
         self.advance("c1")
         self.assertEqual(self.review(self.base), 0)
+        self.standing()
         with patch.object(
             pre_push_guard.gate_row,
             "locked_ledger",
@@ -205,14 +242,22 @@ class PrePushGuardTest(unittest.TestCase):
         self.assertEqual(err, "")
         locked.assert_called_once_with(self.ledger, exclusive=False)
 
-    def test_a_branch_deletion_pushes_no_range_and_is_admitted(self):
-        code, out, err = self.invoke(f"(delete) {ZERO} refs/heads/dead {self.base}\n")
+    def test_a_deletion_needs_a_one_shot_grant_naming_it(self):
+        line = f"(delete) {ZERO} refs/heads/dead {self.base}\n"
+        self.standing("origin:dead")
+        code, _, err = self.invoke(line)
+        self.assertEqual(code, 1)
+        self.assertIn("never covers a deletion", err)
+        self.assertIn("one-shot kind=push-grant naming op delete", err)
+        self.grant(f"origin refs/heads/dead delete {self.base}..{ZERO}")
+        code, out, err = self.invoke(line)
         self.assertEqual(code, 0, err)
-        self.assertIn("0 pushed range", out)
+        self.assertIn("1 pushed ref", out)
 
     def test_git_hook_argv_is_admitted_on_a_covered_range(self):
         c1 = self.advance("c1")
         self.assertEqual(self.review(self.base), 0)
+        self.standing()
         code, out, err = self.invoke(self.ref_line(self.base, c1), ("origin", str(self.origin)))
         self.assertEqual(code, 0, err)
         self.assertIn("covered", out)
@@ -223,6 +268,7 @@ class PrePushGuardTest(unittest.TestCase):
         self.git("remote", "add", "other", str(other))
         c1 = self.advance("c1")
         self.assertEqual(self.review(ZERO), 0)
+        self.standing("other:main,origin:main")
         code, out, err = self.invoke(self.ref_line(ZERO, c1), ("other", str(other)))
         self.assertEqual(code, 0, err)
         self.assertIn("covered", out)
@@ -249,13 +295,154 @@ class PrePushGuardTest(unittest.TestCase):
             return subprocess.run(["git", "-C", str(self.repo), "push", "origin", "main"],
                                   capture_output=True, text=True)
 
+        c1 = self.rev("HEAD")
+        self.assertEqual(self.review(self.base), 0)
         refused = push()
         self.assertNotEqual(refused.returncode, 0)
-        self.assertIn("not covered", refused.stderr)
-        self.assertEqual(self.review(self.base), 0)
+        self.assertIn("no push authority", refused.stderr)
+        self.assertIn("no grant row", refused.stderr)
+        self.grant(f"origin refs/heads/main push {self.base}..{c1}")
         admitted = push()
         self.assertEqual(admitted.returncode, 0, admitted.stderr)
-        self.assertIn("fully covered", admitted.stdout + admitted.stderr)
+        self.assertIn("a Human grant", admitted.stdout + admitted.stderr)
+
+    # --- push authority -------------------------------------------------
+
+    def test_covered_push_without_a_grant_is_refused(self):
+        c1 = self.advance("c1")
+        self.assertEqual(self.review(self.base), 0)
+        code, out, err = self.invoke(self.ref_line(self.base, c1))
+        self.assertEqual(code, 1)
+        self.assertEqual(out, "")
+        self.assertIn("no push authority", err)
+        self.assertIn("no grant row in the ledger", err)
+
+    def test_one_shot_grant_admits_exactly_its_range_remote_and_branch(self):
+        c1 = self.advance("c1")
+        self.assertEqual(self.review(self.base), 0)
+        c2 = self.advance("c2")
+        self.assertEqual(self.review(c1), 0)
+        self.grant(f"origin refs/heads/main push {self.base}..{c1}")
+        self.assertEqual(self.invoke(self.ref_line(self.base, c1))[0], 0)
+        code, _, err = self.invoke(self.ref_line(self.base, c2))
+        self.assertEqual(code, 1)
+        self.assertIn(f"grant scope is range {self.base}..{c1}", err)
+        code, _, err = self.invoke(self.ref_line(self.base, c1, "refs/heads/dev"))
+        self.assertEqual(code, 1)
+        self.assertIn("grant scope is origin refs/heads/main push", err)
+        other = self.tmp / "other.git"
+        subprocess.run(["git", "init", "-q", "--bare", str(other)], check=True)
+        code, _, err = self.invoke(self.ref_line(self.base, c1), ("other", str(other)))
+        self.assertEqual(code, 1)
+        self.assertIn("grant scope is origin refs/heads/main push", err)
+
+    def test_a_pushed_range_inside_the_granted_range_is_admitted(self):
+        c1 = self.advance("c1")
+        c2 = self.advance("c2")
+        self.assertEqual(self.review(self.base), 0)
+        self.grant(f"origin refs/heads/main push {self.base}..{c2}")
+        code, out, err = self.invoke(self.ref_line(c1, c2))
+        self.assertEqual(code, 0, err)
+
+    def test_a_consumed_grant_authorizes_nothing(self):
+        c1 = self.advance("c1")
+        self.assertEqual(self.review(self.base), 0)
+        gid = self.grant(f"origin refs/heads/main push {self.base}..{c1}")
+        self.git("push", "-q", "origin", "main")
+        self.assertEqual(self.row(
+            "--kind", "push", "--status", "resolved:instruction", "--push-base", self.base,
+            "--boundary", ".", "--resolves", gid,
+            "--words", "human", "--note", "pushed under grant", "--quote", "push this",
+        ), 0)
+        code, _, err = self.invoke(self.ref_line(self.base, c1))
+        self.assertEqual(code, 1)
+        self.assertIn(f"{gid} grant is consumed", err)
+        c2 = self.advance("c2")
+        self.assertEqual(self.review(c1), 0)
+        code, _, err = self.invoke(self.ref_line(c1, c2))
+        self.assertEqual(code, 1)
+        self.assertIn(f"{gid} grant scope is range", err)
+
+    def test_standing_grant_in_force_admits_and_expired_refuses(self):
+        c1 = self.advance("c1")
+        self.assertEqual(self.review(self.base), 0)
+        gid = self.standing(expiry="2001-01-01T00:00:00Z")
+        code, _, err = self.invoke(self.ref_line(self.base, c1))
+        self.assertEqual(code, 1)
+        self.assertIn(f"{gid} standing delegation expiry 2001-01-01T00:00:00Z has passed", err)
+        self.standing(expiry="2999-01-01T00:00:00Z")
+        self.assertEqual(self.invoke(self.ref_line(self.base, c1))[0], 0)
+
+    def test_expiry_is_compared_against_the_passed_clock(self):
+        c1 = self.advance("c1")
+        self.standing(expiry="2030-06-01T12:00:00Z")
+        rows = gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))
+
+        def at(instant: str) -> None:
+            gate_row.require_push_authority(
+                rows, self.repo, "origin", "refs/heads/main", self.base, c1,
+                datetime.strptime(instant, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc))
+
+        at("2030-06-01T11:59:59Z")
+        with self.assertRaisesRegex(gate_row.RowError, "has passed"):
+            at("2030-06-01T12:00:00Z")
+
+    def test_revoked_standing_grant_refuses(self):
+        c1 = self.advance("c1")
+        self.assertEqual(self.review(self.base), 0)
+        gid = self.standing()
+        self.assertEqual(self.invoke(self.ref_line(self.base, c1))[0], 0)
+        self.assertEqual(self.row(
+            "--kind", "revocation", "--status", "resolved:instruction", "--resolves", gid,
+            "--words", "human", "--note", "delegation revoked", "--quote", "stop pushing",
+        ), 0)
+        code, _, err = self.invoke(self.ref_line(self.base, c1))
+        self.assertEqual(code, 1)
+        self.assertIn(f"{gid} standing delegation is revoked", err)
+
+    def test_standing_grant_scope_names_remote_and_branch(self):
+        c1 = self.advance("c1")
+        self.assertEqual(self.review(self.base), 0)
+        gid = self.standing("origin:dev")
+        code, _, err = self.invoke(self.ref_line(self.base, c1))
+        self.assertEqual(code, 1)
+        self.assertIn(f"{gid} standing delegation scope is push-scope=origin:dev", err)
+
+    def test_standing_grant_never_covers_a_force_push(self):
+        c1 = self.advance("c1")
+        self.git("checkout", "-qb", "side", self.base)
+        d1 = self.advance("d1")
+        self.assertEqual(self.review(self.base), 0)
+        self.standing()
+        code, _, err = self.invoke(self.ref_line(c1, d1))
+        self.assertEqual(code, 1)
+        self.assertIn("never covers a force push", err)
+        self.assertIn("naming op force", err)
+        self.grant(f"origin refs/heads/main force {c1}..{d1}")
+        code, _, err = self.invoke(self.ref_line(c1, d1))
+        self.assertEqual(code, 0, err)
+
+    def test_standing_grant_never_covers_a_tag(self):
+        c1 = self.advance("c1")
+        self.assertEqual(self.review(self.base), 0)
+        self.standing()
+        code, _, err = self.invoke(self.ref_line(self.base, c1, "refs/tags/v1"))
+        self.assertEqual(code, 1)
+        self.assertIn("never covers a tag push", err)
+
+    def test_a_free_text_standing_row_authorizes_no_push(self):
+        c1 = self.advance("c1")
+        self.assertEqual(self.review(self.base), 0)
+        self.assertEqual(self.row(
+            "--kind", "standing-delegation", "--status", "recorded:standing-delegation",
+            "--who", "lead", "--scope", "push when green", "--conditions", "review PASS",
+            "--expiry", "the Human's next substantive instruction",
+            "--words", "human", "--note", "free-text delegation", "--quote", "push when green",
+        ), 0)
+        gid = self.last_id()
+        code, _, err = self.invoke(self.ref_line(self.base, c1))
+        self.assertEqual(code, 1)
+        self.assertIn(f"{gid} standing delegation has no push-scope", err)
 
 
 if __name__ == "__main__":
