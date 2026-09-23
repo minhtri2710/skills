@@ -2,7 +2,8 @@
 """Refuse a push unless every pushed ref is covered by review PASS ranges and by recorded Human authority.
 
 `--digest LEDGER REPO` (repeatable) instead prints, read-only, every project's open
-push gates as one range with its review coverage and push authority, then one question.
+push gates as one range with its review coverage and push authority, flags a checkout
+with unpushed commits no open push gate covers as UNGATED, then asks one question.
 """
 from __future__ import annotations
 
@@ -35,14 +36,41 @@ def git(repo: Path, *args: str) -> str:
 ZERO = "0" * 40
 
 
+def remote_is_empty(repo: Path, remote: str) -> bool:
+    return not git(repo, "ls-remote", remote).splitlines()
+
+
 def require_first_publication(repo: Path, remote: str, ref: str) -> None:
-    """Admit a zero-based range only when the remote has no refs at all."""
-    if not git(repo, "ls-remote", remote).splitlines():
+    """Admit a zero-based tag range only when the remote has no refs at all."""
+    if remote_is_empty(repo, remote):
         return
     raise GuardError(
         f"ref {ref} has no remote base — the review-coverage range is undefined, "
-        "and this guard does not admit the first push of a ref"
+        "and this guard admits a tag only as the first publication to an empty remote"
     )
+
+
+def new_branch_base(repo: Path, remote: str, tip: str) -> str:
+    """The single base of a new branch's published set, or refuse naming why.
+
+    The published set is `rev-list <tip> --not --remotes=<remote>`, read from local
+    tracking refs only; a stale tracking ref only enlarges it. It is publishable as
+    base..tip when it holds no root commit and every parent outside the set is one
+    commit, the base; base..tip is then exactly the set.
+    """
+    published = git(repo, "rev-list", "--parents", tip, "--not", f"--remotes={remote}").splitlines()
+    if not published:
+        raise GuardError(f"new branch at {tip} publishes no commit outside {remote}'s tracking refs")
+    shas = {line.split()[0] for line in published}
+    boundary = {p for line in published for p in line.split()[1:] if p not in shas}
+    roots = [line.split()[0] for line in published if len(line.split()) == 1]
+    if roots:
+        raise GuardError(f"new branch at {tip} publishes root commit {roots[0]}, which only "
+                         "a first publication to an empty remote may")
+    if len(boundary) != 1:
+        raise GuardError(f"new branch at {tip} leaves {remote}'s tracking refs at {len(boundary)} "
+                         f"boundary commits ({', '.join(sorted(boundary))}), not one base")
+    return boundary.pop()
 
 
 def push_refs() -> list[tuple[str, str, str]] | None:
@@ -88,6 +116,9 @@ def check(
     now = datetime.now(timezone.utc)
     for ref, base, tip in pairs:
         try:
+            if base == ZERO and tip != ZERO and ref.startswith("refs/heads/") \
+                    and not remote_is_empty(repo, remote):
+                base = new_branch_base(repo, remote, tip)
             gate_row.require_push_authority(rows, repo, remote, ref, base, tip, now)
             if tip == ZERO:
                 continue
@@ -103,6 +134,29 @@ def check(
     return [tip for _, _, tip in pairs]
 
 
+def ungated_lines(repo: Path, remote: str, gate_tips: list[str]) -> list[str]:
+    """Flag the commits of a checkout that neither its upstream (or every tracking ref) nor an open push-gate tip holds."""
+    head = git(repo, "rev-parse", "HEAD")
+    if any(gate_row.is_ancestor(repo, head, tip) for tip in gate_tips):
+        return []
+    branch = git(repo, "rev-parse", "--abbrev-ref", "HEAD")
+    try:
+        upstream = git(repo, "rev-parse", "--verify", "@{upstream}")
+    except GuardError:
+        exclude, rng = ["--remotes"], f"{head} (no upstream; outside every remote-tracking ref)"
+    else:
+        exclude, rng = [upstream], f"{upstream}..{head}"
+    commits = git(repo, "rev-list", head, "--not", *exclude, *gate_tips).splitlines()
+    if gate_tips and gate_row.is_ancestor(repo, gate_tips[-1], head):
+        rng = f"{gate_tips[-1]}..{head}"
+    elif gate_tips:
+        rng += f", excluding open push-gate tips {' '.join(gate_tips)}"
+    if not commits:
+        return []
+    return [f"UNGATED: branch {branch}, {len(commits)} commits, range {rng}",
+            "no open push-gate: the Lead has not gated this work"]
+
+
 def digest_project(ledger: Path, repo: Path, remote: str, now: datetime) -> tuple[list[str], str | None]:
     """One project's digest lines and, when its range is fully reviewed, its question item."""
     with gate_row.locked_ledger(ledger, exclusive=False) as handle:
@@ -110,29 +164,40 @@ def digest_project(ledger: Path, repo: Path, remote: str, now: datetime) -> tupl
     open_ids = set(gate_row.open_gate_ids(rows))
     gates = [row for row in rows if row.split(" | ")[0] in open_ids
              and gate_row.row_evidence(row)[0] == "push-gate"]
-    if not gates:
-        return [], None
     heads = [gate_row.split_row(row)[0][3].split("@") for row in gates]
-    branches = {branch for branch, _ in heads}
+    tips = [git(repo, "rev-parse", "--verify", f"{sha}^{{commit}}") for _, sha in heads]
+    ungated = ungated_lines(repo, remote, tips)
+    if not gates:
+        return ungated, None
+    lines, item = gated_lines(rows, gates, heads[-1], tips[-1], ledger, repo, remote, now)
+    return [*lines, *ungated], item
+
+
+def gated_lines(rows: list[str], gates: list[str], head: list[str], tip: str, ledger: Path,
+                repo: Path, remote: str, now: datetime) -> tuple[list[str], str | None]:
+    branches = {gate_row.split_row(row)[0][3].split("@")[0] for row in gates}
     if len(branches) != 1:
         raise gate_row.RowError(f"open push gates name more than one branch: {', '.join(sorted(branches))}")
-    branch = branches.pop()
-    tip = git(repo, "rev-parse", "--verify", f"{heads[-1][1]}^{{commit}}")
-    try:
-        base = git(repo, "rev-parse", "--verify", f"refs/remotes/{remote}/{branch}^{{commit}}")
-    except GuardError:
-        raise GuardError(f"no remote-tracking ref refs/remotes/{remote}/{branch}: a first publication "
-                         "or an unfetched branch, and the digest uses no network") from None
+    branch = head[0]
     ref = f"refs/heads/{branch}"
     lines = [
         f"gates: {' '.join(row.split(' | ')[0] for row in gates)}",
         f"branch: {branch}",
     ]
     try:
+        base = git(repo, "rev-parse", "--verify", f"refs/remotes/{remote}/{branch}^{{commit}}")
+        label = ""
+    except GuardError:
+        label = " new branch"
+        try:
+            base = new_branch_base(repo, remote, tip)
+        except GuardError as exc:
+            return [*lines, f"NOT READY: new branch: {exc}"], None
+    try:
         commits = gate_row.range_commits(repo, base, tip)
         gate_row.require_review_coverage(rows, repo, base, tip)
     except gate_row.RowError as exc:
-        return [*lines, f"range: {base}..{tip}", f"NOT READY: {exc}"], None
+        return [*lines, f"range:{label} {base}..{tip}", f"NOT READY: {exc}"], None
     reviews = []
     for row in rows:
         kind, _, status = gate_row.row_evidence(row)
@@ -140,7 +205,7 @@ def digest_project(ledger: Path, repo: Path, remote: str, now: datetime) -> tupl
         if rng and rng[1] in commits:
             reviews.append(row.split(" | ")[0])
     lines += [
-        f"range: {base}..{tip} ({len(commits)} commits)",
+        f"range:{label} {base}..{tip} ({len(commits)} commits)",
         f"review rows: {' '.join(reviews)}; coverage ok",
     ]
     try:
@@ -156,7 +221,7 @@ def digest_project(ledger: Path, repo: Path, remote: str, now: datetime) -> tupl
             "--quote", "<HUMAN-WORDS>",
         ])
         lines += [f"authority: needs push-grant: {exc}", f"grant: {command}"]
-    return lines, f"{ledger.parent.name} {branch} {base[:7]}..{tip[:7]} ({len(commits)} commits)"
+    return lines, f"{ledger.parent.name} {branch}{label} {base[:7]}..{tip[:7]} ({len(commits)} commits)"
 
 
 def digest(pairs: list[list[str]], remote: str) -> int:

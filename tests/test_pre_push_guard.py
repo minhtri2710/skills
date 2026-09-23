@@ -194,13 +194,41 @@ class PrePushGuardTest(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn("not covered", err)
 
-    def test_new_ref_with_zero_remote_base_is_refused(self):
+    def test_new_tag_with_zero_remote_base_is_refused_on_populated_remote(self):
         c1 = self.advance("c1")
         self.assertEqual(self.review(self.base), 0)
-        self.standing()
-        code, _, err = self.invoke(self.ref_line(ZERO, c1))
+        self.grant(f"origin refs/tags/v1 push {ZERO}..{c1}")
+        code, _, err = self.invoke(self.ref_line(ZERO, c1, "refs/tags/v1"))
         self.assertEqual(code, 1)
         self.assertIn("no remote base", err)
+
+    def test_new_branch_on_populated_remote_publishes_its_set_beyond_the_tracking_refs(self):
+        c1 = self.advance("c1")
+        line = self.ref_line(ZERO, c1, "refs/heads/feature")
+        self.standing("origin:feature")
+        code, _, err = self.invoke(line)
+        self.assertEqual(code, 1)
+        self.assertIn(f"refusing push of {self.base}..{c1}", err)
+        self.assertEqual(self.review(self.base), 0)
+        code, out, err = self.invoke(line)
+        self.assertEqual(code, 0, err)
+        self.assertIn("covered", out)
+
+    def test_new_branch_with_two_boundary_commits_is_refused(self):
+        self.git("checkout", "-qb", "side")
+        side = self.advance("s1")
+        self.git("push", "-q", "origin", "side")
+        self.git("checkout", "-q", "main")
+        self.advance("a1")
+        self.git("merge", "-q", "--no-edit", "-X", "ours", "side")
+        tip = self.rev("HEAD")
+        self.assertEqual(self.review(ZERO), 0)
+        self.standing("origin:feature")
+        code, _, err = self.invoke(self.ref_line(ZERO, tip, "refs/heads/feature"))
+        self.assertEqual(code, 1)
+        self.assertIn("2 boundary commits", err)
+        self.assertIn(self.base, err)
+        self.assertIn(side, err)
 
     def test_new_ref_with_zero_remote_base_is_admitted_on_empty_remote(self):
         self.set_empty_origin()
@@ -226,7 +254,7 @@ class PrePushGuardTest(unittest.TestCase):
         self.standing("origin:feature")
         code, _, err = self.invoke()
         self.assertEqual(code, 1)
-        self.assertIn("ref refs/heads/feature has no remote base", err)
+        self.assertIn("publishes no commit outside origin's tracking refs", err)
 
     def test_ledger_is_read_under_a_shared_lock(self):
         self.advance("c1")
@@ -269,11 +297,13 @@ class PrePushGuardTest(unittest.TestCase):
         self.git("remote", "add", "other", str(other))
         c1 = self.advance("c1")
         self.assertEqual(self.review(ZERO), 0)
-        self.standing("other:main,origin:main")
-        code, out, err = self.invoke(self.ref_line(ZERO, c1), ("other", str(other)))
+        self.grant(f"other refs/tags/v1 push {ZERO}..{c1}")
+        self.grant(f"origin refs/tags/v1 push {ZERO}..{c1}")
+        line = self.ref_line(ZERO, c1, "refs/tags/v1")
+        code, out, err = self.invoke(line, ("other", str(other)))
         self.assertEqual(code, 0, err)
         self.assertIn("covered", out)
-        code, _, err = self.invoke(self.ref_line(ZERO, c1), ("origin", str(self.origin)))
+        code, _, err = self.invoke(line, ("origin", str(self.origin)))
         self.assertEqual(code, 1)
         self.assertIn("no remote base", err)
 
@@ -306,6 +336,34 @@ class PrePushGuardTest(unittest.TestCase):
         admitted = push()
         self.assertEqual(admitted.returncode, 0, admitted.stderr)
         self.assertIn("a Human grant", admitted.stdout + admitted.stderr)
+
+    def test_real_git_push_of_a_new_branch_through_a_forwarding_hook_wrapper(self):
+        hook = self.repo / ".git" / "hooks" / "pre-push"
+        hook.write_text(
+            "#!/bin/sh\n"
+            f'exec "{sys.executable}" "{SCRIPTS / "pre_push_guard.py"}" '
+            f'--ledger "{self.ledger}" --repo "{self.repo}" "$@"\n'
+        )
+        hook.chmod(0o755)
+        self.git("checkout", "-qb", "feature")
+        f1 = self.advance("f1")
+
+        def push() -> subprocess.CompletedProcess:
+            return subprocess.run(["git", "-C", str(self.repo), "push", "origin", "feature"],
+                                  capture_output=True, text=True)
+
+        refused = push()
+        self.assertNotEqual(refused.returncode, 0)
+        self.assertIn("no push authority", refused.stderr)
+        self.grant(f"origin refs/heads/feature push {self.base}..{f1}")
+        uncovered = push()
+        self.assertNotEqual(uncovered.returncode, 0)
+        self.assertIn(f"refusing push of {self.base}..{f1}", uncovered.stderr)
+        self.assertIn("not covered", uncovered.stderr)
+        self.assertEqual(self.review(self.base), 0)
+        admitted = push()
+        self.assertEqual(admitted.returncode, 0, admitted.stderr)
+        self.assertEqual(self.rev("refs/remotes/origin/feature"), f1)
 
     # --- push authority -------------------------------------------------
 
@@ -545,6 +603,7 @@ class PushDigestTest(unittest.TestCase):
         quiet, quiet_repo, quiet_base = self.project("quiet")
         self.advance(quiet_repo, "q1")
         self.review(quiet, quiet_repo, quiet_base)
+        self.git(quiet_repo, "push", "-q", "origin", "main")
         code, out = self.digest((ledger, repo), (quiet, quiet_repo))
         self.assertEqual(code, 0)
         self.assertNotIn("==", out)
@@ -589,3 +648,41 @@ class PushDigestTest(unittest.TestCase):
         _, again = self.digest((ledger, repo))
         self.assertIn(f"authority: granted by {grant}", again)
         self.assertNotIn("grant: ", again.replace("granted by", ""))
+
+    def test_covered_new_branch_is_labeled_and_offered(self):
+        ledger, repo, base = self.project("alpha")
+        self.git(repo, "checkout", "-qb", "feature")
+        tip = self.advance(repo, "f1")
+        self.review(ledger, repo, base)
+        self.push_gate(ledger, repo)
+        code, out = self.digest((ledger, repo))
+        self.assertEqual(code, 0)
+        self.assertIn(f"range: new branch {base}..{tip} (1 commits)", out)
+        self.assertIn(f"--grant 'origin refs/heads/feature push {base}..{tip}'", out)
+        self.assertIn(f"  1. alpha feature new branch {base[:7]}..{tip[:7]} (1 commits)", out)
+        self.assertNotIn("UNGATED", out)
+
+    def test_checkout_ahead_of_upstream_without_open_gate_is_ungated_and_not_offered(self):
+        ledger, repo, base = self.project("alpha")
+        self.git(repo, "branch", "-q", "--set-upstream-to=origin/main")
+        self.advance(repo, "a1")
+        tip = self.advance(repo, "a2")
+        self.review(ledger, repo, base)
+        code, out = self.digest((ledger, repo))
+        self.assertEqual(code, 0)
+        self.assertIn(f"UNGATED: branch main, 2 commits, range {base}..{tip}", out)
+        self.assertIn("no open push-gate: the Lead has not gated this work", out)
+        self.assertIn("Question: none", out)
+
+    def test_commits_past_an_open_gate_tip_are_ungated_alone_and_the_gate_still_offered(self):
+        ledger, repo, base = self.project("alpha")
+        self.git(repo, "branch", "-q", "--set-upstream-to=origin/main")
+        gated = self.advance(repo, "a1")
+        self.review(ledger, repo, base)
+        self.push_gate(ledger, repo)
+        head = self.advance(repo, "a2")
+        code, out = self.digest((ledger, repo))
+        self.assertEqual(code, 0)
+        self.assertIn(f"range: {base}..{gated} (1 commits)", out)
+        self.assertIn(f"UNGATED: branch main, 1 commits, range {gated}..{head}", out)
+        self.assertIn(f"  1. alpha main {base[:7]}..{gated[:7]} (1 commits)", out)
