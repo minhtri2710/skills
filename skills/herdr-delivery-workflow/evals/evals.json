@@ -388,11 +388,11 @@
     {
       "id": 31,
       "prompt": "I'm in Herdr as the Lead. This change is split into two scopes on one branch: api-scope owns services/api/src/reports/ and must make the report endpoints accept an explicit date range instead of the fixed 30-day window; web-scope owns web/src/reports/ and is already staffed. The root config, the lockfile, and generated output are shared and belong to neither scope. api-scope's acceptance claim is that its own test command passes on the final quiet head. This project's config at ~/.herdr/projects/<slug>/config.md records nothing for the codex kind. Staff the Engineer for api-scope with the codex kind and send it its charter.",
-      "expected_output": "Names its own Lead seat first if not already named (herdr agent rename \"$HERDR_PANE_ID\" lead-<project-slug>); starts the Engineer with herdr agent start --kind codex on an available pane, learning what posture the codex kind offers from the kind's own --help at staffing because the project config records nothing for codex, and pre-authorizing after -- exactly the read-only and verify commands the charter names plus herdr agent prompt lead-<project-slug>, never push, merge, or another external write; sends a charter with a Disposition: Engineer line, the recorded lane, plan, contracts, validation, checkout, branch, base, merge-base, owned paths, peer scopes and shared paths, scoped verification commands, the shared-tree rules, the Lead's seat name, and the report-by-prompt rule (print the report in its pane, send it with herdr agent prompt lead-<project-slug> without --wait, stop, never retry a rejected send); keeps the solution shape provisional and the boundary binding.",
+      "expected_output": "Names its own Lead seat first if not already named (herdr agent rename \"$HERDR_PANE_ID\" lead-<project-slug>); starts the Engineer with herdr agent start --kind codex on an available pane, learning what posture the codex kind offers from the kind's own --help at staffing because the project config records nothing for codex, and pre-authorizing after -- exactly the read-only and verify commands the charter names plus herdr agent prompt lead-<project-slug>, never push, merge, or another external write; sends a charter with a Disposition: Engineer line, the recorded lane, plan, contracts, validation, checkout, branch, base, merge-base, owned paths, peer scopes and shared paths, scoped verification commands, the shared-tree rules, the Lead's seat name, and the report-by-prompt rule (print the report in its pane, send it with herdr agent prompt lead-<project-slug> without --wait, retry once on non-zero, then append SEND-FAILED and run the notification fallback after a second failure); keeps the solution shape provisional and the boundary binding.",
       "files": [],
       "assertions": [
         "Names the Lead seat so the Engineer has a prompt target, and passes that name in the charter",
-        "Charter carries a Disposition: Engineer line, owned paths, peer scopes, shared-tree rules, and the report-by-prompt instruction without --wait",
+        "Charter carries a Disposition: Engineer line, owned paths, peer scopes, shared-tree rules, and the report-by-prompt instruction with its retry-once and SEND-FAILED fallback",
         "Pre-authorizes only the charter's read-only and verify commands plus the report prompt, never an external write",
         "Keeps the ownership boundary binding and the solution shape provisional",
         "Establishes what permission posture the codex kind actually offers by checking the kind's own --help at staffing, rather than selecting a posture from memory; which posture it then records is not scored here"
@@ -474,7 +474,7 @@
     {
       "id": 38,
       "prompt": "I'm in Herdr as the Lead on a delivery whose Supervisor seat was recorded at intake. Two things just happened: the Supervisor asked me why I partitioned this issue into two scopes instead of three, and I finished committing the candidate head. The partition is going well and I think the Supervisor would want to know. Handle both.",
-      "expected_output": "Answers the Supervisor's question by appending the answer to the mailbox and running scripts/mailbox.py --file <path> --wake supervisor without --wait, after printing the answer in its own pane; the mailbox is the payload and the prompt is only the wake. Answering is not deciding: the Lead reports what it did and why it partitioned the issue that way, and does not hand the Supervisor the partition decision the Lead owns. Withholds the progress note: the channel carries attention events and the Lead's answer to a Supervisor question and nothing else, and the events are a gate opened, a REOPEN_REQUEST, a BLOCKED routed upward, the repair cap reached, a red CI result after a push or merge, a transient API or runtime error killing the Lead's turn, a Peer staffing event for an Engineer or Reviewer, a seat compaction or relaunch, and the final handoff — a good-progress update is none of them. Does not notify the Human about either message, does not block or wait on the Supervisor, and ends its turn.",
+      "expected_output": "Answers the Supervisor's question by appending the answer to the mailbox and running scripts/mailbox.py --file <path> --wake supervisor, after printing the answer in its own pane; the mailbox is the payload and the prompt is only the wake. Answering is not deciding: the Lead reports what it did and why it partitioned the issue that way, and does not hand the Supervisor the partition decision the Lead owns. Withholds the progress note: the channel carries attention events and the Lead's answer to a Supervisor question and nothing else, and the events are a gate opened, a REOPEN_REQUEST, a BLOCKED routed upward, the repair cap reached, a red CI result after a push or merge, a transient API or runtime error killing the Lead's turn, a Peer staffing event for an Engineer or Reviewer, a seat compaction or relaunch, and the final handoff — a good-progress update is none of them. Does not notify the Human about either message, does not block or wait on the Supervisor, and ends its turn.",
       "files": [],
       "assertions": [
         "Answers the Supervisor's question by appending the answer and running scripts/mailbox.py --file <path> --wake supervisor, after printing the answer in its own pane",
@@ -1102,13 +1102,13 @@
     {
       "id": 85,
       "prompt": "What real-artifact evidence is required when a slice changes a doctrine-enforcing lint or validator?",
-      "expected_output": "Before review, the Reviewer confirms the lint ran against real live apex and munsu charters or records, not only run fixtures, and acceptance custody preserves that lint output as evidence.",
+      "expected_output": "Before review, the Reviewer confirms the lint ran against real governed-project charters or records, not only run fixtures, and acceptance custody preserves that lint output as evidence.",
       "files": [
         "skills/herdr-delivery-workflow/references/charters.md",
         "skills/herdr-delivery-workflow/references/closeout.md"
       ],
       "assertions": [
-        "Requires the Reviewer to confirm a real-artifact run against apex and munsu before review",
+        "Requires the Reviewer to confirm a real governed-project artifact run before review",
         "Distinguishes real live charters or records from the run's own fixtures",
         "Requires acceptance custody to preserve the real-artifact lint output",
         "Keeps the Reviewer confirmation and acceptance-evidence duties as different halves"
@@ -1598,8 +1598,8 @@
     },
     {
       "id": 118,
-      "prompt": "The Lead wakes after staffing a Peer and wants a recurring poll or schedule to run the stall check. What is allowed, and what watchdog exception remains available?",
-      "expected_output": "The Lead runs the stall check once per wake it already has; it does not create a poll or schedule. The no-poll rule applies to LLM seats, while a non-LLM process watchdog is permitted when it only pings the Lead and does not make workflow decisions or act as a second coordinator.",
+      "prompt": "The Lead wakes after staffing a Peer and wants a recurring poll or schedule to run the stall check. What is allowed, and who owns recovery?",
+      "expected_output": "The Lead runs the stall check once per wake it already has; it does not create a poll or schedule. The no-poll rule applies to LLM seats, and recovery remains with the Lead rather than a second coordinator.",
       "files": [
         "skills/herdr-delivery-workflow/references/lead.md",
         "skills/herdr-delivery-workflow/references/herdr-cli.md"
@@ -1607,8 +1607,8 @@
       "assertions": [
         "Runs the stall check once per existing wake rather than on a recurring poll or schedule",
         "Scopes the no-poll rule to LLM seats",
-        "Permits a non-LLM process watchdog that only pings the Lead",
-        "Does not let a process watchdog become a second coordinator or make workflow decisions"
+        "Keeps recovery with the Lead rather than adding a second coordinator",
+        "Does not add a second coordinator or move recovery away from the Lead"
       ]
     },
     {
@@ -1850,13 +1850,13 @@
     ,{
       "id": 135,
       "prompt": "On the light-coordination path, which safety steps can be trimmed and which stay mandatory? Can the review be skipped for a tiny Human-specified diff?",
-      "expected_output": "The light-coordination path trims coordination bookkeeping only and never removes, defers, or shortens any safety gate. Independent review on the exact SHA by a distinct agent instance that re-runs the objective acceptance checks stays mandatory, and its verdict report (checkpoint b) is never skipped, even for a one-line Human-specified diff. Also unchanged: one ledger row per external write, the green-eval requirement (R1) pinning every new or changed behavior, and every Human gate — production deploy, version tags, secrets, force-push, and push/PR/merge/deploy. A run that would need to skip any of these is not eligible and takes full coordination.",
+      "expected_output": "The light-coordination path trims coordination bookkeeping only and never removes, defers, or shortens any safety gate. Independent review on the exact SHA by a distinct agent instance that re-runs the objective acceptance checks stays mandatory, and its verdict report (checkpoint b) is never skipped, even for a one-line Human-specified diff. Also unchanged: one ledger row per external write, the green eval or test requirement in `lead.md`, \"R1 evidence boundaries\", pinning every new or changed behavior, and every Human gate — production deploy, version tags, secrets, force-push, and push/PR/merge/deploy. A run that would need to skip any of these is not eligible and takes full coordination.",
       "files": [
         "skills/herdr-delivery-workflow/references/lead.md"
       ],
       "assertions": [
         "Keeps independent review on the exact SHA by a distinct re-running instance mandatory and never skips the checkpoint (b) verdict, even for a tiny Human-specified diff",
-        "Keeps one ledger row per external write, the green-eval requirement, and every Human gate unchanged on the light path",
+        "Keeps one ledger row per external write, the green eval or test requirement, and every Human gate unchanged on the light path",
         "States the light path trims coordination bookkeeping only and never removes, defers, or shortens a safety gate",
         "Treats a run that would need to skip any mandatory floor item as ineligible for the light path"
       ]

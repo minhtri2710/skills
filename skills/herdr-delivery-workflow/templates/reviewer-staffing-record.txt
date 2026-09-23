@@ -1,6 +1,6 @@
 MODE: <partitioned | solo-Lead>
 LEAD: kind=<kind> model=<model> workspace=<id>
-ENGINEER: <name> kind=<kind> model=<model> posture=<allowlisted | bypassed | none | human-started | prompting> dialog=<denied | absent | residual> skills=<none | name(s)> pane=<id> workspace=<id> owned=<paths or none> extensions=<none | name(s)>   (one line per Engineer; none in solo-Lead)
+ENGINEER: <name> kind=<kind> model=<model> posture=<allowlisted | bypassed | none | human-started | prompting> dialog=<denied | absent | residual> skills=<none | name(s)> pane=<id> workspace=<id> owned=<paths or none> extensions=<none | name(s)>   (one line per Engineer; omit the ENGINEER line in solo-Lead mode)
 HEAD: <exact SHA committed by the Lead>
 REVIEWER: <name> kind=<kind> model=<model> posture=<allowlisted | bypassed | none | human-started | prompting> dialog=<denied | absent | residual> skills=<none | name(s)> extensions=<none | name(s)> pane=<id> workspace=<id> head=<same exact SHA>
 FALLBACK: kind=<kind> model=<model>, pinned to the same exact head; triggers: preferred kind uninstalled or unavailable; Reviewer errors or reaches no verdict; solo-Lead review cannot obtain a model distinct from the Lead's; Reviewer breaks read-only — a no-mutation violation; Reviewer launches a subagent or background work or times out — a boundary failure; the Lead's own runtime cannot pass the preferred kind's posture and the Human declines to start the seat — the `human-started` gate resolved against staffing it

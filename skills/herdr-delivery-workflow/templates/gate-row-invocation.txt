@@ -25,8 +25,6 @@ Dialog attribution:
 # channel=...:dialog uses words=selected and status=recorded:<kind>.
 # Human-typed text uses channel=...:typed with words=human and, when resolved,
 # status=resolved:instruction. gate_row.py --check rejects dialog + words=human.
-# Do not retroactively rewrite apex G204/G206/G207; munsu G157/G158 is the precedent.
-
 Reconstruction push (a past head is an ancestor of the later live origin tip):
 ```sh
 set -eu

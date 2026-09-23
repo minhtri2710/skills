@@ -1,7 +1,7 @@
 Lane: tiny | normal | high-risk
 Reason: <material reason for the lane>
 Lead: lead-<project-slug>
-Supervisor: supervisor | none | unreachable
+Supervisor: supervisor | none
 Owners: <Lead, Engineer/Reviewer owners, governing contracts>
 Guidance: <the repository guidance that governs this work, or none found>
 Plan: <active plan reference or none>
@@ -11,3 +11,11 @@ Mode: partitioned | solo-Lead
 Mode reason: <which branch of the solo-Lead test was taken, and the evidence for it>
 Partition: <partitioned scope name: owned paths, one line per scope; or solo-Lead owned scope>
 Config: <applied project-config keys or none>
+Target repository/product line: <repository path and product line, or none>
+Exclusions: <out-of-scope paths, behavior, and external effects>
+Base: <full SHA>
+Merge-base: <full SHA>
+Working tree: porcelain=<output>; HEAD=<full SHA>; branch=<name>; stash=<output>
+Dependencies: <dependencies and cross-scope prerequisites, or none>
+Human gates: <gates and required decisions, or none>
+Herdr resources created: <panes, agents, workspaces, sandboxes, or none>
