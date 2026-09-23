@@ -64,6 +64,11 @@ _SERVER_MARKERS = (
     "webpack-dev-server",
 )
 _SERVER_WORDS = frozenset({"dev", "preview", "serve", "server"})
+_SCRIPT_INTERPRETERS = frozenset({
+    "bun", "deno", "node", "nodejs", "php", "python", "python3", "ruby", "ts-node", "tsx",
+})
+_INTERPRETER_SUBCOMMANDS = frozenset({"run"})
+_INLINE_CODE_FLAGS = frozenset({"-c", "-e", "-m", "-r", "--eval"})
 
 
 def _status(value: Any) -> str | None:
@@ -216,7 +221,22 @@ def _is_server_process(process: Mapping[str, Any]) -> bool:
             continue
         if any(argv[index:index + len(marker_tokens)] == marker_tokens for index in range(len(argv) - len(marker_tokens) + 1)):
             return True
-    return bool(tokens & _SERVER_WORDS)
+    return bool(tokens & _SERVER_WORDS) or _runs_server_script(argv)
+
+
+def _runs_server_script(argv: list[str]) -> bool:
+    for index, token in enumerate(argv):
+        if Path(token).name not in _SCRIPT_INTERPRETERS:
+            continue
+        for arg in argv[index + 1:]:
+            if arg in _INLINE_CODE_FLAGS:
+                break
+            if arg.startswith("-") or arg in _INTERPRETER_SUBCOMMANDS:
+                continue
+            if Path(arg).stem in _SERVER_WORDS:
+                return True
+            break
+    return False
 
 
 def _process_list(evidence: Mapping[str, Any]) -> list[Any] | None:

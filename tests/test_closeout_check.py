@@ -100,6 +100,20 @@ class CloseoutCheckTest(unittest.TestCase):
         self.assertTrue(any("squatting-server anti-pattern" in finding
                             for finding in result.findings))
 
+    def test_interpreter_server_script_in_peer_pane_names_squatting_server_anti_pattern(self):
+        self.herdr.processes["w1:p3"] = {
+            "foreground_processes": [{
+                "argv0": "node",
+                "command": "node server.js",
+                "cwd": str(self.canonical),
+                "alive": True,
+            }],
+        }
+        result = closeout_check.check_closeout(self.record, self.herdr)
+        self.assertFalse(result.passed)
+        self.assertTrue(any("squatting-server anti-pattern" in finding
+                            for finding in result.findings))
+
     def test_server_detection_matches_argv_tokens_not_substrings(self):
         cases = (
             (["node", "vitest"], False),
@@ -110,6 +124,16 @@ class CloseoutCheckTest(unittest.TestCase):
             (["/usr/bin/python3", "-m", "http.server"], True),
             (["next", "dev"], True),
             (["uvicorn", "app:app"], True),
+            (["node", "server.js"], True),
+            (["python3", "serve.py"], True),
+            (["bun", "./src/server.ts"], True),
+            (["deno", "run", "-A", "server.ts"], True),
+            (["/usr/local/bin/node", "--inspect", "dev.mjs"], True),
+            (["cat", "server.js"], False),
+            (["less", "dev.log"], False),
+            (["node", "build.js", "server.js"], False),
+            (["python3", "-c", "import server"], False),
+            (["node", "-e", "require('./server.js')"], False),
         )
         for argv, expected in cases:
             with self.subTest(argv=argv):
