@@ -58,6 +58,7 @@ The honest ceiling is a convention plus the existing validator: naming the requi
 
 - **Doctrine-hash comparison needs no change-list.** The loaded comparison procedure is owned by `relaunch.md`; it needs no list of what the redeploy changed, and a fresh seat's only sources for such a list are the pack and the start prompt, neither of which is a confirmation. The comparison, not the pack, confirms the doctrine. Origin: 7255169; 2026-09-06. Confirmed: 2026-09-06.
 - **The zsh history-modifier trap.** `relaunch.md` braces the head variable because under zsh a bare `$var` before a `:` is read as a history modifier. The implementation detail explains why the loaded procedure uses `git rev-parse "${head}:<path>"`, rather than restating that procedure here. Origin: e958e54; 2026-09-07. Confirmed: 2026-09-07.
+- **Repeated compaction ends in a recommended relaunch, not another pointer.** Each compaction loses context a reprime cannot restore, because the reprime only points back at the same records; from eight compactions since baseline a fresh start from the on-disk context pack serves the seat better than another pointer. The recommendation stays advice at a slice boundary, never an automatic exit or restart, so no in-flight Peer work is cut. Origin: supervisor-notebook 2026-09-23T11:28:26Z, y4-bounded-session-2026-09-23; 2026-09-23. Confirmed: 2026-09-23.
 
 ## Heartbeat and status requests
 

@@ -29,6 +29,7 @@ _SESSION_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 
 BASELINE_STATE_VERSION = 1
 COMPACTION_THRESHOLD = 4
+RELAUNCH_RECOMMEND_THRESHOLD = 8
 _STATE_STATUS = {"initialized", "idle", "eligible", "prompting", "failed", "consumed"}
 _MISSING = object()
 
@@ -633,6 +634,7 @@ def build_reprime_block(
     *,
     run_id: str,
     seat: str,
+    threshold: int,
     project_root: str | os.PathLike[str],
     home_dir: str | os.PathLike[str] | None = None,
 ) -> str | None:
@@ -671,6 +673,11 @@ def build_reprime_block(
             f"closeout: {pointers.closeout_doctrine}#Acceptance custody",
         )
     )
+    if threshold >= RELAUNCH_RECOMMEND_THRESHOLD:
+        lines.append(
+            f"relaunch-recommended: {threshold} compactions since baseline; "
+            f"at the next slice boundary: {pointers.lead_doctrine}#Relaunch and doctrine"
+        )
     return "\n".join(lines)
 
 
@@ -1054,6 +1061,7 @@ def dispatch_live_seat(
     block = build_reprime_block(
         run_id=run_id,
         seat=seat,
+        threshold=threshold,
         project_root=project_root,
         home_dir=home_dir,
     )
@@ -1159,7 +1167,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             file=sys.stderr,
         )
         return 1
-    print(f"compaction_reprime: prompted {args.seat} at threshold {result.threshold}")
+    suffix = "; relaunch recommended at the next slice boundary" if result.threshold >= RELAUNCH_RECOMMEND_THRESHOLD else ""
+    print(f"compaction_reprime: prompted {args.seat} at threshold {result.threshold}{suffix}")
     return 0
 
 

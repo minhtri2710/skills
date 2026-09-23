@@ -574,6 +574,7 @@ class CompactionReprimeDispatchTest(CompactionReprimeBaselineTest):
         block = compaction_reprime.build_reprime_block(
             run_id="run-1",
             seat="lead-beo-skills",
+            threshold=4,
             project_root=self.project,
             home_dir=self.home,
         )
@@ -663,6 +664,65 @@ class CompactionReprimeDispatchTest(CompactionReprimeBaselineTest):
         self.assertEqual(second.threshold, 8)
         self.assertEqual(second.state.consumed_threshold, 8)
         self.assertEqual(second_run.call_count, 1)
+
+    def relaunch_line(self, threshold: int) -> str:
+        lead = SCRIPT.resolve().parents[1] / "references" / "lead.md"
+        return (
+            f"relaunch-recommended: {threshold} compactions since baseline; "
+            f"at the next slice boundary: {lead}#Relaunch and doctrine"
+        )
+
+    def test_relaunch_recommendation_starts_at_threshold_eight(self) -> None:
+        self.write_pointer_files()
+        path = self.pi_path()
+        self.write_pi_count(path, 3)
+        self.assertIsNotNone(self.track(path))
+        self.write_pi_count(path, 15)
+        self.assertIsNotNone(self.track(path))
+        roster = {"result": {"agents": self.roster(path)}}
+        for threshold in (4, 8, 12):
+            with self.subTest(threshold=threshold):
+                self.stdout.seek(0)
+                self.stdout.truncate()
+                with patch.object(compaction_reprime, "_load_live_roster", return_value=roster), \
+                        patch.object(
+                            compaction_reprime.herdr_cli.subprocess,
+                            "run",
+                            return_value=subprocess.CompletedProcess([], 0),
+                        ) as prompt, \
+                        patch.dict(os.environ, {"HOME": str(self.home)}):
+                    result = compaction_reprime.main([
+                        "--run-id", "run-1", "--seat", "lead-beo-skills", "--project-root", str(self.project),
+                    ])
+                self.assertEqual(result, 0)
+                prompt.assert_called_once()
+                argv = prompt.call_args.args[0]
+                self.assertEqual(argv[:4], ["herdr", "agent", "prompt", "lead-beo-skills"])
+                self.assertEqual(len(argv), 5)
+                block_lines = argv[4].split("\n")
+                if threshold < compaction_reprime.RELAUNCH_RECOMMEND_THRESHOLD:
+                    self.assertNotIn("relaunch-recommended", argv[4])
+                    self.assertEqual(
+                        self.stdout.getvalue(),
+                        f"compaction_reprime: prompted lead-beo-skills at threshold {threshold}\n",
+                    )
+                else:
+                    self.assertEqual(block_lines[-1], self.relaunch_line(threshold))
+                    self.assertEqual(block_lines[-2].split(": ", 1)[0], "closeout")
+                    self.assertEqual(
+                        self.stdout.getvalue(),
+                        f"compaction_reprime: prompted lead-beo-skills at threshold {threshold}"
+                        "; relaunch recommended at the next slice boundary\n",
+                    )
+
+    def test_block_below_relaunch_threshold_has_no_relaunch_line(self) -> None:
+        self.write_pointer_files()
+        kwargs = dict(run_id="run-1", seat="lead-beo-skills", project_root=self.project, home_dir=self.home)
+        below = compaction_reprime.build_reprime_block(threshold=4, **kwargs)
+        at = compaction_reprime.build_reprime_block(threshold=8, **kwargs)
+        assert below is not None and at is not None
+        self.assertNotIn("relaunch-recommended", below)
+        self.assertEqual(at, below + "\n" + self.relaunch_line(8))
 
     def test_unavailable_prompt_is_durable_and_retryable(self) -> None:
         self.write_pointer_files()
@@ -793,6 +853,7 @@ class CompactionReprimeDispatchTest(CompactionReprimeBaselineTest):
         block = compaction_reprime.build_reprime_block(
             run_id="run-1",
             seat="lead-beo-skills",
+            threshold=4,
             project_root=self.project,
             home_dir=self.home,
         )
@@ -816,6 +877,7 @@ class CompactionReprimeDispatchTest(CompactionReprimeBaselineTest):
             compaction_reprime.build_reprime_block(
                 run_id="run-1",
                 seat="lead-beo-skills",
+                threshold=4,
                 project_root=self.project,
                 home_dir=self.home,
             )
