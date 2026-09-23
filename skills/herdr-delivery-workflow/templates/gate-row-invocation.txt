@@ -6,6 +6,9 @@ scripts/gate_row.py --ledger ~/.herdr/projects/<project-slug>/gates.md --kind lo
 standing-delegation:
 scripts/gate_row.py --ledger ~/.herdr/projects/<project-slug>/gates.md --kind standing-delegation --status recorded:standing-delegation --record timely --who <delegate-seat> --scope "<delegated scope>" --conditions "<conditions>" --expiry "<the Human's verbatim expiry text>" --words human --note "<note>" --quote "<the Human's verbatim grant>"
 
+cutover (first row of a fresh gates.md beside the archived gates.legacy.md):
+scripts/gate_row.py --ledger ~/.herdr/projects/<project-slug>/gates.md --kind cutover --status recorded:cutover --words seat --note "<note>" --quote "<source of the cutover>"
+
 Human-gate mailbox check (opt-in):
 scripts/gate_row.py --ledger ~/.herdr/projects/<project-slug>/gates.md --check --mailbox ~/.herdr/projects/<project-slug>/supervisor-mailbox.md
 # For an open push, merge, deploy, push-gate, merge-gate, or deploy-gate row, the mailbox must contain

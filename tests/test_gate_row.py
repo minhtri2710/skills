@@ -1277,5 +1277,130 @@ class GateRowTest(unittest.TestCase):
         self.assertIn("outside the declared boundary", self.err.getvalue())
 
 
+class CutoverTest(unittest.TestCase):
+    """A fresh ledger born from its archived predecessor by one kind=cutover row."""
+
+    run_main = GateRowTest.run_main
+    append = GateRowTest.append
+    append_handoff = GateRowTest.append_handoff
+    last_row = GateRowTest.last_row
+
+    def setUp(self):
+        GateRowTest.setUp(self)
+        self.assertEqual(self.append(), 0)
+        self.assertEqual(self.append_handoff(), 0)
+        self.assertEqual(self.run_main([
+            "--ledger", str(self.ledger), "--repo", str(self.repo),
+            "--kind", "push-gate", "--status", "open", "--words", "none",
+            "--note", "push gate awaiting the Human",
+        ]), 0)
+        self.archive = self.tmp / gate_row.LEGACY_LEDGER
+        self.ledger.rename(self.archive)
+        self.ledger.write_text("# Gate ledger — test\n\n")
+
+    def cutover(self, *extra: str) -> int:
+        return self.run_main([
+            "--ledger", str(self.ledger), "--repo", str(self.repo),
+            "--kind", "cutover", "--status", "recorded:cutover",
+            "--words", "seat", "--note", "ledger cut over", "--quote", "cutover", *extra,
+        ])
+
+    def check_main(self) -> int:
+        return self.run_main(["--ledger", str(self.ledger), "--repo", str(self.repo), "--check"])
+
+    def test_cutover_continues_ids_and_binds_the_archive_bytes(self):
+        archive_bytes = self.archive.read_bytes()
+        self.assertEqual(self.cutover(), 0)
+        row = self.last_row()
+        self.assertTrue(row.startswith("G4 | "))
+        self.assertIn(f"archive={hashlib.sha256(archive_bytes).hexdigest()}", row)
+        self.assertIn("status=recorded:cutover", row)
+        self.assertNotIn("prev_hash=", row)
+        self.assertEqual(self.archive.read_bytes(), archive_bytes)
+        self.assertEqual(self.check_main(), 0)
+
+    def test_next_row_chains_to_the_cutover_and_open_gates_carry_over(self):
+        self.assertEqual(self.cutover(), 0)
+        cutover_row = self.last_row()
+        self.assertEqual(self.run_main([
+            "--ledger", str(self.ledger), "--repo", str(self.repo),
+            "--kind", "push-gate", "--status", "open", "--words", "none",
+            "--note", "carried open gate G3",
+        ]), 0)
+        row = self.last_row()
+        self.assertTrue(row.startswith("G5 | "))
+        self.assertIn(f"prev_hash={gate_row.row_hash(cutover_row)}", row)
+        self.assertEqual(self.check_main(), 0)
+        self.assertEqual(self.run_main(["--ledger", str(self.ledger), "--open-gates"]), 0)
+        self.assertEqual(self.out.getvalue(), "G5\n")
+
+    def test_check_fails_when_the_archive_is_missing_edited_or_truncated(self):
+        self.assertEqual(self.cutover(), 0)
+        original = self.archive.read_bytes()
+        self.archive.write_bytes(original.replace(b"merged the reviewed head", b"merged the reviewed HEAD"))
+        self.assertEqual(self.check_main(), 1)
+        self.assertIn("prev_hash mismatch at row 'G2'", self.err.getvalue())
+        self.archive.write_bytes(original.replace(b"Gate ledger", b"Gate Ledger"))
+        self.assertEqual(self.check_main(), 1)
+        self.assertIn("archive= mismatch", self.err.getvalue())
+        self.archive.write_bytes(original + b"trailing prose\n")
+        self.assertEqual(self.check_main(), 1)
+        self.assertIn("archive= mismatch", self.err.getvalue())
+        rows = gate_row.ledger_rows(original.decode("utf-8"))
+        self.archive.write_text("# Gate ledger — test\n\n" + "\n".join(rows[:-1]) + "\n")
+        self.assertEqual(self.check_main(), 1)
+        self.assertIn("cutover id G4 is not the archive's next local id G3", self.err.getvalue())
+        self.archive.unlink()
+        self.assertEqual(self.check_main(), 1)
+        self.assertIn("no gates.legacy.md with at least one row", self.err.getvalue())
+
+    def test_a_non_cutover_first_row_beside_an_archive_is_refused(self):
+        before = self.ledger.read_bytes()
+        self.assertEqual(self.append(), 1)
+        self.assertIn("kind=merge refused as the first row beside a non-empty gates.legacy.md",
+                      self.err.getvalue())
+        self.assertEqual(self.ledger.read_bytes(), before)
+        stray = self.ledger.read_text() + self.archive.read_text().splitlines()[2] + "\n"
+        self.ledger.write_text(stray)
+        self.assertEqual(self.check_main(), 1)
+        self.assertIn("would restart ids at G1", self.err.getvalue())
+
+    def test_cutover_on_a_non_empty_ledger_is_refused(self):
+        self.assertEqual(self.cutover(), 0)
+        before = self.ledger.read_bytes()
+        self.assertEqual(self.cutover(), 1)
+        self.assertIn("kind=cutover refused: the ledger already holds rows", self.err.getvalue())
+        self.assertEqual(self.ledger.read_bytes(), before)
+
+    def test_cutover_without_an_archive_is_refused(self):
+        for archive_text in (None, "# Gate ledger — test\n\n"):
+            self.archive.unlink(missing_ok=True)
+            if archive_text is not None:
+                self.archive.write_text(archive_text)
+            before = self.ledger.read_bytes()
+            self.assertEqual(self.cutover(), 1)
+            self.assertIn("kind=cutover refused: no gates.legacy.md", self.err.getvalue())
+            self.assertEqual(self.ledger.read_bytes(), before)
+
+    def test_cutover_requires_its_status(self):
+        before = self.ledger.read_bytes()
+        self.assertEqual(self.run_main([
+            "--ledger", str(self.ledger), "--repo", str(self.repo),
+            "--kind", "cutover", "--status", "recorded:handoff",
+            "--words", "seat", "--note", "ledger cut over", "--quote", "cutover",
+        ]), 1)
+        self.assertIn("kind=cutover requires status=recorded:cutover", self.err.getvalue())
+        self.assertEqual(self.ledger.read_bytes(), before)
+
+    def test_archive_field_on_another_kind_is_refused_by_check(self):
+        self.assertEqual(self.cutover(), 0)
+        self.assertEqual(self.append(), 0)
+        cutover_row, row = gate_row.ledger_rows(self.ledger.read_text())
+        archive = [f for f in cutover_row.split(" | ") if f.startswith("archive=")][0]
+        forged = row.replace(" | prev_hash=", f" | {archive} | prev_hash=")
+        with self.assertRaisesRegex(gate_row.RowError, "words= is missing or out of order"):
+            gate_row.check(forged, self.repo, [cutover_row], self.ledger)
+
+
 if __name__ == "__main__":
     unittest.main()

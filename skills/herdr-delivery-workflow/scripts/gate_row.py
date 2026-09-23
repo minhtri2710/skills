@@ -14,7 +14,7 @@ Row shape, one line, ` | ` between fields:
       [| resolves=<id>[,<id>...]]
       [| op=<command> | after=<branch>@<head>]
       [| who=<delegate> | scope=<scope> | conditions=<conditions> | expiry=<expiry>]
-      [| finding=<identity>] [| prev_hash=<64 lowercase hex>]
+      [| finding=<identity>] [| archive=<sha256 of gates.legacy.md>] [| prev_hash=<64 lowercase hex>]
       | words=<seat|human|selected|none>
       | note=<one line> | quote="<verbatim>"
 
@@ -59,6 +59,9 @@ WORDS_VALUES = ("seat", "human", "selected", "none")
 LOCAL_OPS_STATUS = "recorded:local-ops"
 STANDING_DELEGATION_STATUS = "recorded:standing-delegation"
 HANDOFF_STATUS = "recorded:handoff"
+CUTOVER_STATUS = "recorded:cutover"
+LEGACY_LEDGER = "gates.legacy.md"
+ARCHIVE_RE = re.compile(r"^[0-9a-f]{64}$")
 FINDING_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]*$")
 MAILBOX_ATTENTION_RE = re.compile(
     r"^## .+ -> supervisor \| \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z "
@@ -184,6 +187,31 @@ def next_id_from_rows(rows: list[str]) -> int:
             if local:
                 ids.append(int(local.group(1)))
     return max(ids) + 1 if ids else 1
+
+
+def legacy_archive(ledger: Path) -> tuple[str, str] | None:
+    """The id and SHA-256 a cutover row derives from the sibling archive; None without archive rows."""
+    path = ledger.parent / LEGACY_LEDGER
+    try:
+        data = path.read_bytes()
+        rows = ledger_rows(data.decode("utf-8"))
+    except FileNotFoundError:
+        return None
+    except (OSError, UnicodeError) as exc:
+        raise RowError(f"archive {path} could not be read: {exc}") from None
+    if not rows:
+        return None
+    return f"G{next_id_from_rows(rows)}", hashlib.sha256(data).hexdigest()
+
+
+def cutover_binding(ledger: Path | None, prior_rows: list[str]) -> tuple[str, str]:
+    """The id and archive hash a kind=cutover row must carry, or the named refusal."""
+    if prior_rows:
+        raise RowError("kind=cutover refused: the ledger already holds rows; a cutover is only a fresh ledger's first row")
+    derived = legacy_archive(ledger) if ledger is not None else None
+    if derived is None:
+        raise RowError(f"kind=cutover refused: no {LEGACY_LEDGER} with at least one row beside the ledger")
+    return derived
 
 
 def split_row(row: str) -> tuple[list[str], str]:
@@ -582,6 +610,10 @@ def build(args: argparse.Namespace, repo: Path,
         special_fields.append(f"finding={finding}")
 
     rows = existing_rows
+    gid = f"G{next_id_from_rows(rows)}"
+    if kind == "cutover":
+        gid, archive = cutover_binding(args.ledger, rows)
+        special_fields.append(f"archive={archive}")
     targets = resolve_ids(args.resolves)
     if targets:
         require_open_targets(rows, targets)
@@ -589,7 +621,7 @@ def build(args: argparse.Namespace, repo: Path,
         require_repair_progress(rows, finding)
 
     fields = [
-        f"G{next_id_from_rows(rows)}",
+        gid,
         datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         f"kind={args.kind}",
         f"{branch}@{head}",
@@ -673,8 +705,12 @@ def build(args: argparse.Namespace, repo: Path,
     return " | ".join(fields)
 
 
-def check(row: str, repo: Path, prior_rows: list[str] | None = None) -> None:
-    """Re-derive every derived field in an existing row and compare."""
+def check(row: str, repo: Path, prior_rows: list[str] | None = None,
+          ledger: Path | None = None) -> None:
+    """Re-derive every derived field in an existing row and compare.
+
+    `ledger` locates the sibling archive a first row is judged against.
+    """
     fields, quote = split_row(row)
     if len(fields) < 5:
         raise RowError(f"row has {len(fields)} fields before quote=, expected at least 5")
@@ -705,7 +741,7 @@ def check(row: str, repo: Path, prior_rows: list[str] | None = None) -> None:
 
     known = (
         "channel=", "writer=", "record=", "push=", "review=", "resolves=", "op=", "after=",
-        "who=", "scope=", "conditions=", "expiry=", "finding=", "prev_hash=", "words=", "note=",
+        "who=", "scope=", "conditions=", "expiry=", "finding=", "archive=", "prev_hash=", "words=", "note=",
     )
     for field in rest:
         if not field.startswith(known):
@@ -779,8 +815,29 @@ def check(row: str, repo: Path, prior_rows: list[str] | None = None) -> None:
             raise RowError("kind=repair-grant requires finding= field")
         current_finding = finding_value(rest[index].split("=", 1)[1])
         index += 1
+    elif row_kind == "cutover":
+        if status != f"status={CUTOVER_STATUS}":
+            raise RowError(f"kind=cutover requires status={CUTOVER_STATUS}")
+        if index >= len(rest) or not rest[index].startswith("archive="):
+            raise RowError("kind=cutover requires archive= field")
+        archive = rest[index].split("=", 1)[1]
+        if not ARCHIVE_RE.fullmatch(archive):
+            raise RowError(f"field {rest[index]!r} is not a 64-character lowercase hex archive=")
+        index += 1
+        expected_gid, expected_archive = cutover_binding(ledger, prior_rows or [])
+        if gid != expected_gid:
+            raise RowError(f"cutover id {gid} is not the archive's next local id {expected_gid}")
+        if archive != expected_archive:
+            raise RowError(f"archive= mismatch: {LEGACY_LEDGER} hashes to {expected_archive}; it was edited or truncated")
+        current_finding = None
     else:
         current_finding = None
+    if (row_kind != "cutover" and not prior_rows and ledger is not None
+            and legacy_archive(ledger) is not None):
+        raise RowError(
+            f"kind={row_kind} refused as the first row beside a non-empty {LEGACY_LEDGER}: "
+            "it would restart ids at G1; the first row must be kind=cutover"
+        )
 
     if prior_rows and LOCAL_ID_RE.fullmatch(gid):
         expected_gid = f"G{next_id_from_rows(prior_rows)}"
@@ -990,7 +1047,7 @@ def main(argv: list[str] | None = None) -> int:
                 rows = ledger_rows(handle_text(handle))
                 if not rows:
                     raise RowError(f"{args.ledger} holds no gate row")
-                check(rows[-1], args.repo, rows[:-1])
+                check(rows[-1], args.repo, rows[:-1], args.ledger)
                 check_mailbox_for_open_gate(rows[-1], args.mailbox)
                 print(f"ok: {rows[-1].split(' | ')[0]} checks out")
             return 0
@@ -1006,7 +1063,7 @@ def main(argv: list[str] | None = None) -> int:
             before = handle_text(handle)
             existing_rows = ledger_rows(before)
             row = build(args, args.repo, existing_rows)
-            check(row, args.repo, existing_rows)
+            check(row, args.repo, existing_rows, args.ledger)
             if before and not before.endswith("\n"):
                 handle.seek(0, 2)
                 handle.write("\n")
