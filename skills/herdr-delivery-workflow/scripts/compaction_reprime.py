@@ -29,7 +29,7 @@ _SESSION_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 
 BASELINE_STATE_VERSION = 1
 COMPACTION_THRESHOLD = 4
-_STATE_STATUS = {"initialized", "idle", "eligible", "failed", "consumed"}
+_STATE_STATUS = {"initialized", "idle", "eligible", "prompting", "failed", "consumed"}
 _MISSING = object()
 
 
@@ -523,6 +523,7 @@ class ReprimeDispatchResult:
     prompt_attempted: bool
     prompt_succeeded: bool
     block: str | None
+    outcome_unknown: bool = False
 
     @property
     def retryable(self) -> bool:
@@ -816,7 +817,7 @@ def _decode_state(
     elif payload["prompt_status"] == "consumed":
         if eligible is not None or consumed == 0:
             return None
-    elif payload["prompt_status"] == "failed":
+    elif payload["prompt_status"] in {"failed", "prompting"}:
         if eligible is None:
             return None
     elif payload["prompt_status"] == "eligible":
@@ -1022,7 +1023,10 @@ def dispatch_live_seat(
 
     The baseline result is the sole source of threshold state.  A pending
     threshold is retried after a failed prompt and is consumed only after the
-    exact Herdr prompt returns success.  No other command or target is used.
+    exact Herdr prompt returns success.  The ``prompting`` status is written
+    before the prompt; a run that finds it consumes the threshold without
+    prompting, because the earlier outcome is unknown.  No other command or
+    target is used.
     """
     result = track_live_seat(
         roster,
@@ -1036,6 +1040,16 @@ def dispatch_live_seat(
     threshold = result.state.eligible_threshold
     if threshold is None:
         return ReprimeDispatchResult(result.state, result.state_path, None, False, False, None)
+    if result.state.prompt_status == "prompting":
+        consumed = replace(
+            result.state,
+            consumed_threshold=threshold,
+            eligible_threshold=None,
+            prompt_status="consumed",
+        )
+        if not _write_state(result.state_path.parent, result.state_path, consumed):
+            return None
+        return ReprimeDispatchResult(consumed, result.state_path, threshold, False, False, None, True)
 
     block = build_reprime_block(
         run_id=run_id,
@@ -1046,6 +1060,9 @@ def dispatch_live_seat(
     if block is None:
         return ReprimeDispatchResult(result.state, result.state_path, threshold, False, False, None)
 
+    prompting = replace(result.state, prompt_status="prompting")
+    if not _write_state(result.state_path.parent, result.state_path, prompting):
+        return None
     try:
         prompt_result = herdr_cli.run(["agent", "prompt", seat, block])
         prompt_succeeded = prompt_result.returncode == 0
@@ -1054,7 +1071,7 @@ def dispatch_live_seat(
 
     status = "consumed" if prompt_succeeded else "failed"
     updated = replace(
-        result.state,
+        prompting,
         consumed_threshold=threshold if prompt_succeeded else result.state.consumed_threshold,
         eligible_threshold=None if prompt_succeeded else threshold,
         prompt_status=status,
@@ -1124,6 +1141,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     if result.threshold is None:
         print(f"compaction_reprime: no newly crossed threshold for {args.seat}")
         return 0
+    if result.outcome_unknown:
+        print(
+            f"compaction_reprime: {args.seat} threshold {result.threshold} outcome unknown; not re-prompted",
+            file=sys.stderr,
+        )
+        return 1
     if not result.prompt_attempted:
         print(
             f"compaction_reprime: threshold {result.threshold} remains pending; prompt not attempted",

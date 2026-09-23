@@ -709,6 +709,72 @@ class CompactionReprimeDispatchTest(CompactionReprimeBaselineTest):
         self.assertIsNone(state["eligible_threshold"])
         self.assertEqual(state["consumed_threshold"], 4)
 
+    def fail_write_of(self, status: str):
+        real_write = compaction_reprime._write_state
+
+        def write(root, path, state):
+            if state.prompt_status == status:
+                return False
+            return real_write(root, path, state)
+
+        return patch.object(compaction_reprime, "_write_state", side_effect=write)
+
+    def main_run(self, path: Path) -> int:
+        roster = {"result": {"agents": self.roster(path)}}
+        with patch.object(compaction_reprime, "_load_live_roster", return_value=roster), \
+                patch.dict(os.environ, {"HOME": str(self.home)}):
+            return compaction_reprime.main([
+                "--run-id", "run-1", "--seat", "lead-beo-skills", "--project-root", str(self.project),
+            ])
+
+    def test_failed_write_after_prompt_is_never_re_prompted(self) -> None:
+        self.write_pointer_files()
+        path = self.make_pending()
+        with patch.object(compaction_reprime.herdr_cli.subprocess, "run", return_value=subprocess.CompletedProcess([], 0)) as run, \
+                self.fail_write_of("consumed"):
+            self.assertEqual(self.main_run(path), 1)
+        self.assertEqual(run.call_count, 1)
+        state = json.loads(self.state_path().read_text(encoding="utf-8"))
+        self.assertEqual(state["prompt_status"], "prompting")
+        self.assertEqual(state["eligible_threshold"], 4)
+
+        with patch.object(compaction_reprime.herdr_cli.subprocess, "run") as rerun:
+            self.assertEqual(self.main_run(path), 1)
+        rerun.assert_not_called()
+        self.assertIn("lead-beo-skills threshold 4 outcome unknown; not re-prompted", self.stderr.getvalue())
+        state = json.loads(self.state_path().read_text(encoding="utf-8"))
+        self.assertEqual(state["prompt_status"], "consumed")
+        self.assertEqual(state["consumed_threshold"], 4)
+        self.assertIsNone(state["eligible_threshold"])
+
+        with patch.object(compaction_reprime.herdr_cli.subprocess, "run") as third:
+            self.assertEqual(self.main_run(path), 0)
+        third.assert_not_called()
+
+    def test_failed_write_before_prompt_sends_nothing(self) -> None:
+        self.write_pointer_files()
+        path = self.make_pending()
+        with patch.object(compaction_reprime.herdr_cli.subprocess, "run") as run, self.fail_write_of("prompting"):
+            self.assertIsNone(self.dispatch(path))
+        run.assert_not_called()
+        state = json.loads(self.state_path().read_text(encoding="utf-8"))
+        self.assertEqual(state["prompt_status"], "eligible")
+        self.assertEqual(state["eligible_threshold"], 4)
+
+    def test_prompting_state_requires_an_eligible_threshold(self) -> None:
+        self.write_pointer_files()
+        path = self.make_pending()
+        state_file = self.state_path()
+        state = json.loads(state_file.read_text(encoding="utf-8"))
+        state["prompt_status"] = "prompting"
+        state_file.write_text(json.dumps(state), encoding="utf-8")
+        tracked = self.track(path)
+        assert tracked is not None
+        self.assertEqual(tracked.state.prompt_status, "prompting")
+        state["eligible_threshold"] = None
+        state_file.write_text(json.dumps(state), encoding="utf-8")
+        self.assertIsNone(self.track(path))
+
     def test_missing_pointer_fails_closed_without_prompt(self) -> None:
         self.write_pointer_files()
         path = self.make_pending()
