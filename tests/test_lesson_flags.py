@@ -5,7 +5,7 @@ from __future__ import annotations
 import io
 import tempfile
 import unittest
-from contextlib import redirect_stdout
+from contextlib import redirect_stderr, redirect_stdout
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest import mock
@@ -144,6 +144,95 @@ class LessonFlagsTest(unittest.TestCase):
 
         self.assertEqual(code, 0)
         self.assertIn("Nothing to flag", output)
+
+
+class RationaleFlagsTest(unittest.TestCase):
+    def setUp(self):
+        self.tempdir = tempfile.TemporaryDirectory()
+        self.path = Path(self.tempdir.name) / "RATIONALE.md"
+        self.patch_path = mock.patch.object(lesson_flags, "RATIONALE_PATH", str(self.path))
+        self.patch_path.start()
+        self.today = datetime.now(timezone.utc).date().isoformat()
+
+    def tearDown(self):
+        self.patch_path.stop()
+        self.tempdir.cleanup()
+
+    def tag(self, ref="G1", origin=None, confirmed=None):
+        origin = origin or self.today
+        return f"Origin: {ref}; {origin}. Confirmed: {confirmed or origin}."
+
+    def write(self, *sections):
+        self.path.write_text("# Rationale\n\nPreamble names Origin: nothing.\n\n" + "\n\n".join(sections) + "\n", encoding="utf-8")
+
+    def run_flags(self, argv):
+        output = io.StringIO()
+        with redirect_stdout(output):
+            code = lesson_flags.main(argv)
+        return code, output.getvalue()
+
+    def test_clean_file_flags_nothing(self):
+        self.write(f"## A\n\n- **One.** Why. {self.tag()}\n- **Two.** Why. {self.tag('abc1234, run-slug')}")
+        before = self.path.read_bytes()
+
+        code, output = self.run_flags(["--rationale"])
+
+        self.assertEqual(code, 0)
+        self.assertIn("Nothing to flag", output)
+        self.assertEqual(before, self.path.read_bytes())
+
+    def test_missing_tag_and_bad_date_are_malformed(self):
+        self.write(f"## A\n\n- **Bare.** Why.\n- **Dated.** Why. {self.tag(origin='2026-13-01')}")
+
+        code, output = self.run_flags(["--rationale"])
+
+        self.assertEqual(code, 1)
+        self.assertIn("malformed: A / Bare: missing provenance tag", output)
+        self.assertIn("malformed: A / Dated: bad origin date: 2026-13-01", output)
+
+    def test_unknown_origin_is_a_review_candidate(self):
+        self.write(f"## A\n\n- **Guess.** Why. {self.tag('unknown')}")
+
+        code, output = self.run_flags(["--rationale"])
+
+        self.assertEqual(code, 0)
+        self.assertIn("- A / Guess (origin unknown) — review candidate", output)
+
+    def test_stale_confirmed_is_a_review_candidate(self):
+        old = (datetime.now(timezone.utc) - timedelta(days=120)).date().isoformat()
+        self.write(f"## A\n\n- **Old.** Why. {self.tag(origin=old)}\n- **New.** Why. {self.tag()}")
+
+        code, output = self.run_flags(["--rationale", "--days", "90"])
+
+        self.assertEqual(code, 0)
+        self.assertIn(f"- A / Old (confirmed {old})", output)
+        self.assertNotIn("A / New", output)
+
+    def test_prose_section_is_one_entry_tagged_on_its_last_paragraph(self):
+        self.write(f"## Prose\n\nFirst paragraph.\n\nLast paragraph. {self.tag('unknown')}", "## Untagged\n\nOnly prose.")
+
+        code, output = self.run_flags(["--rationale"])
+
+        self.assertEqual(code, 1)
+        self.assertIn("- Prose / Prose (origin unknown)", output)
+        self.assertIn("malformed: Untagged / Untagged: missing provenance tag", output)
+        self.assertEqual(output.count("Prose / Prose"), 1)
+
+    def test_modes_are_mutually_exclusive_and_one_is_required(self):
+        for argv in (["--project", "demo", "--rationale"], []):
+            with self.subTest(argv=argv), redirect_stderr(io.StringIO()), self.assertRaises(SystemExit) as caught:
+                lesson_flags.main(argv)
+            self.assertEqual(caught.exception.code, 2)
+
+    def test_real_rationale_is_fully_tagged(self):
+        self.patch_path.stop()
+        try:
+            code, output = self.run_flags(["--rationale"])
+        finally:
+            self.patch_path.start()
+
+        self.assertEqual(code, 0)
+        self.assertNotIn("malformed:", output)
 
 
 if __name__ == "__main__":

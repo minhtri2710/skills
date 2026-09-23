@@ -36,7 +36,7 @@ Scope, staffing, sequencing, acceptance depth, and closeout are NEVER narrowed b
 
 ### External-signal rule
 
-**External-signal rule (R1).** A protocol candidate, notebook lesson, or self-improvement proposal becomes doctrine ONLY through a delivery that passes independent review on the exact head AND is pinned by a green eval or test exercising the new behavior; never by the Lead's self-judgment that a lesson is sound. The candidate is a hypothesis until an external signal — the independent verdict plus the green check — confirms it; recording a lesson (`closeout.md`) is not adoption, and no seat promotes its own proposal by asserting it works.
+**External-signal rule (R1).** A protocol candidate, notebook lesson, or self-improvement proposal becomes doctrine ONLY through a delivery that passes independent review on the exact head AND is pinned by a green eval or test exercising the new behavior; never by the Lead's self-judgment that a lesson is sound. The candidate is a hypothesis until an external signal — the independent verdict plus the green check — confirms it; recording a lesson (`closeout.md`) is not adoption, and no seat promotes its own proposal by asserting it works. A proposal that adds a new mechanically enforced fence — a script, guard, lint, validator, or hook that refuses or blocks a seat's action — needs the Human's own words (`words=human`) in addition to R1; a seat's reading or a delegated Supervisor ruling is not enough.
 
 ### R1 evidence boundaries
 
