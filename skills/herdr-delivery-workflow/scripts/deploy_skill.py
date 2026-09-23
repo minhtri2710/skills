@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import argparse
 import os
+import shutil
 import stat
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 
@@ -126,49 +128,76 @@ def _is_pycache(path: Path) -> bool:
     return "__pycache__" in path.parts
 
 
-def _prune_install(install_dir: Path, tracked: set[Path]) -> None:
-    for root, dirs, files in os.walk(install_dir, topdown=False, followlinks=False):
+def _is_current(install_dir: Path, resolved: list[tuple[Path, bytes, int]]) -> bool:
+    expected = {relative: (content, mode) for relative, content, mode in resolved}
+    seen: set[Path] = set()
+    for root, dirs, files in os.walk(install_dir, followlinks=False):
         root_path = Path(root)
+        dirs[:] = [name for name in dirs if name != "__pycache__"]
+        if any((root_path / name).is_symlink() for name in dirs):
+            return False
         for name in files:
-            path = root_path / name
-            relative = path.relative_to(install_dir)
-            if not _is_pycache(relative) and (
-                path.is_symlink() or relative not in tracked
-            ):
-                path.unlink()
-        for name in dirs:
             path = root_path / name
             relative = path.relative_to(install_dir)
             if _is_pycache(relative):
                 continue
-            if path.is_symlink():
-                path.unlink()
-                continue
-            try:
-                path.rmdir()
-            except OSError:
-                pass
+            if path.is_symlink() or not path.is_file() or relative not in expected:
+                return False
+            content, mode = expected[relative]
+            if path.read_bytes() != content or stat.S_IMODE(path.stat().st_mode) != mode:
+                return False
+            seen.add(relative)
+    return seen == set(expected)
 
 
-def install_files(install_dir: Path, resolved: list[tuple[Path, bytes, int]]) -> None:
-    install_dir = _safe_install_dir(install_dir)
-    install_dir.mkdir(parents=True, exist_ok=True)
-    _prune_install(install_dir, {relative for relative, _content, _mode in resolved})
-    for relative, content, mode in resolved:
-        destination = install_dir / relative
-        destination.parent.mkdir(parents=True, exist_ok=True)
-        if destination.is_symlink():
-            destination.unlink()
-        elif destination.exists() and not destination.is_file():
-            raise DeployError(f"installed path is not a file: {destination}")
-        if (
-            destination.is_file()
-            and destination.read_bytes() == content
-            and stat.S_IMODE(destination.stat().st_mode) == mode
-        ):
-            continue
-        destination.write_bytes(content)
-        os.chmod(destination, mode)
+def install_files(install_root: Path,
+                  skills: list[tuple[str, list[tuple[Path, bytes, int]]]]) -> None:
+    """Stage every changed skill beside the install root, then swap each into place.
+
+    Any failure restores every live skill directory. The staging directory sits in the
+    install root's real parent, so the swap renames stay on one filesystem and a leftover
+    is never a child of the skills root.
+    """
+    install_root.mkdir(parents=True, exist_ok=True)
+    changed = []
+    for skill, resolved in skills:
+        live = _safe_install_dir(install_root / skill)
+        if live.exists() and not live.is_dir():
+            raise DeployError(f"installed path is not a directory: {live}")
+        if not _is_current(live, resolved):
+            changed.append((live, resolved))
+    if not changed:
+        return
+    work = Path(tempfile.mkdtemp(prefix=f".{install_root.name}-deploy-",
+                                 dir=install_root.resolve().parent))
+    swapped: list[tuple[Path, Path, Path, bool]] = []
+    try:
+        (work / "old").mkdir()
+        for index, (_live, resolved) in enumerate(changed):
+            for relative, content, mode in resolved:
+                destination = work / "new" / str(index) / relative
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                destination.write_bytes(content)
+                os.chmod(destination, mode)
+        for index, (live, _resolved) in enumerate(changed):
+            new, old = work / "new" / str(index), work / "old" / str(index)
+            had_live = live.exists()
+            if had_live:
+                os.rename(live, old)
+            swapped.append((live, new, old, had_live))
+            os.rename(new, live)
+    except BaseException:
+        try:
+            for live, new, old, had_live in reversed(swapped):
+                if not new.exists():
+                    os.rename(live, new)
+                if had_live:
+                    os.rename(old, live)
+        except OSError as exc:
+            raise DeployError(f"rollback failed; previous install kept under {work}: {exc}") from exc
+        shutil.rmtree(work, ignore_errors=True)
+        raise
+    shutil.rmtree(work)
 
 
 def verify_install(repo: Path, head: str, install_dir: Path,
@@ -268,8 +297,7 @@ def main(argv: list[str] | None = None) -> int:
             resolved = resolved_files(repo, head, paths, skill_prefix)
             deployments.append((skill, paths, skill_prefix, resolved))
         install_root = _safe_install_dir(args.install_dir, allow_self_symlink=True)
-        for skill, _paths, _skill_prefix, resolved in deployments:
-            install_files(install_root / skill, resolved)
+        install_files(install_root, [(skill, resolved) for skill, _p, _s, resolved in deployments])
         for skill, paths, skill_prefix, _resolved in deployments:
             verify_install(repo, head, install_root / skill, paths, skill_prefix)
         append_deploy_row(args, repo, Path(__file__).resolve().with_name("gate_row.py"))

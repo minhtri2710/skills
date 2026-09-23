@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+import os
 import stat
 import subprocess
 import sys
@@ -54,6 +55,100 @@ class DeploySkillTest(unittest.TestCase):
             "--status", "resolved:deploy",
             "--words", "seat", "--note", "installed the skill", "--quote", "done",
         ]
+
+    def snapshot(self) -> dict:
+        return {
+            path.relative_to(self.tmp): (
+                path.is_dir(),
+                None if path.is_dir() or path.is_symlink() else path.read_bytes(),
+                stat.S_IMODE(path.lstat().st_mode),
+            )
+            for path in self.tmp.rglob("*")
+            if self.repo not in path.parents and path != self.repo
+        }
+
+    def two_skill_install(self) -> None:
+        (self.source / "policy.md").write_text("policy v1\n")
+        second = self.skills / "second-skill"
+        second.mkdir()
+        (second / "SKILL.md").write_text("second v1\n")
+        (second / "run.sh").write_text("#!/bin/sh\n")
+        (second / "run.sh").chmod(0o755)
+        self.git("add", "skills")
+        self.git("commit", "-qm", "v1")
+        self.assertEqual(deploy_skill.main(self.deploy_args(self.tmp / "v1-gates.md")), 0)
+        cache = self.install / "herdr-delivery-workflow" / "__pycache__"
+        cache.mkdir()
+        (cache / "x.pyc").write_bytes(b"cache")
+        (self.install / "herdr-delivery-workflow" / "policy.md").chmod(0o600)
+        (self.source / "SKILL.md").write_text("tracked skill v2\n")
+        (self.source / "policy.md").unlink()
+        (self.source / "added.md").write_text("added v2\n")
+        (second / "SKILL.md").write_text("second v2\n")
+        (second / "run.sh").unlink()
+        self.git("add", "-A", "skills")
+        self.git("commit", "-qm", "v2")
+
+    def failing_on_call(self, target, name: str, failing_call: int):
+        original = getattr(target, name)
+        calls = []
+
+        def fail(*args, **kwargs):
+            calls.append(args)
+            if len(calls) == failing_call:
+                raise OSError(28, "injected failure")
+            return original(*args, **kwargs)
+
+        return patch.object(target, name, fail)
+
+    def assert_failed_deploy_left_install_unchanged(self, target, name: str, failing_call: int):
+        self.two_skill_install()
+        before = self.snapshot()
+        ledger = self.tmp / "gates.md"
+
+        with self.failing_on_call(target, name, failing_call):
+            result = deploy_skill.main(self.deploy_args(ledger))
+
+        self.assertEqual(result, 1)
+        self.assertFalse(ledger.exists())
+        self.assertEqual(self.snapshot(), before)
+
+    def test_staging_failure_in_first_skill_leaves_live_trees_unchanged(self):
+        self.assert_failed_deploy_left_install_unchanged(Path, "write_bytes", 2)
+
+    def test_staging_failure_in_second_skill_leaves_first_skill_unchanged(self):
+        self.assert_failed_deploy_left_install_unchanged(Path, "write_bytes", 3)
+
+    def test_chmod_failure_leaves_live_trees_unchanged(self):
+        self.assert_failed_deploy_left_install_unchanged(deploy_skill.os, "chmod", 1)
+
+    def test_swap_failure_in_second_skill_restores_both_skills(self):
+        # Rename calls: live->old and new->live for the first skill, then live->old for the second.
+        self.assert_failed_deploy_left_install_unchanged(deploy_skill.os, "rename", 4)
+
+    def test_backup_rename_failure_in_second_skill_restores_first_skill(self):
+        self.assert_failed_deploy_left_install_unchanged(deploy_skill.os, "rename", 3)
+
+    def test_rollback_failure_names_the_kept_previous_install(self):
+        self.two_skill_install()
+        original = os.rename
+        calls = []
+
+        def fail(src, dst):
+            calls.append(src)
+            if len(calls) in {2, 3}:
+                raise OSError(5, "injected failure")
+            return original(src, dst)
+
+        with patch.object(deploy_skill.os, "rename", fail):
+            with self.assertRaises(deploy_skill.DeployError) as raised:
+                deploy_skill.install_files(self.install, [("herdr-delivery-workflow", [
+                    (Path("SKILL.md"), b"new\n", 0o644)])])
+
+        kept = str(raised.exception).split("kept under ", 1)[1].split(":", 1)[0]
+        self.assertEqual(
+            (Path(kept) / "old" / "0" / "SKILL.md").read_text(), "tracked skill\n"
+        )
 
     def test_dirty_worktree_installs_head_blob(self):
         (self.source / "SKILL.md").write_text("dirty working tree\n")
@@ -228,10 +323,9 @@ class DeploySkillTest(unittest.TestCase):
         ledger = self.tmp / "gates.md"
         original_install = deploy_skill.install_files
 
-        def tamper_second(install_dir, resolved):
-            original_install(install_dir, resolved)
-            if install_dir.name == "second-skill":
-                (install_dir / "SKILL.md").write_text("tampered\n")
+        def tamper_second(install_root, skills):
+            original_install(install_root, skills)
+            (install_root / "second-skill" / "SKILL.md").write_text("tampered\n")
 
         second = self.skills / "second-skill"
         second.mkdir()

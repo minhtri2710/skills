@@ -30,7 +30,7 @@ class DeployPruneTest(unittest.TestCase):
         (self.source / "policy.md").write_text("tracked policy\n")
         self.git("add", "skills")
         self.git("commit", "-qm", "skill")
-        self.install = self.tmp / "installed"
+        self.install = self.tmp / "installed" / "herdr-delivery-workflow"
         self.head = deploy_skill.git(self.repo, "rev-parse", "HEAD")
         self.paths = deploy_skill.tracked_files(
             self.repo, self.head, "skills/herdr-delivery-workflow"
@@ -51,7 +51,7 @@ class DeployPruneTest(unittest.TestCase):
         )
 
     def deploy_to(self, install: Path) -> None:
-        deploy_skill.install_files(install, self.resolved)
+        deploy_skill.install_files(install.parent, [(install.name, self.resolved)])
         deploy_skill.verify_install(
             self.repo,
             self.head,
@@ -64,7 +64,7 @@ class DeployPruneTest(unittest.TestCase):
         self.deploy_to(self.install)
 
     def test_stale_file_is_pruned(self):
-        self.install.mkdir()
+        self.install.mkdir(parents=True)
         stale = self.install / "obsolete" / "old-policy.md"
         stale.parent.mkdir()
         stale.write_text("deleted from the tracked tree\n")
@@ -99,7 +99,7 @@ class DeployPruneTest(unittest.TestCase):
         linked_parent.symlink_to(real_parent, target_is_directory=True)
         install = linked_parent / "skill"
 
-        deploy_skill.install_files(install, self.resolved)
+        deploy_skill.install_files(install.parent, [(install.name, self.resolved)])
         deploy_skill.verify_install(
             self.repo,
             self.head,
@@ -118,7 +118,7 @@ class DeployPruneTest(unittest.TestCase):
         outside.mkdir()
         sentinel = outside / "sentinel"
         sentinel.write_text("must survive\n")
-        self.install.mkdir()
+        self.install.mkdir(parents=True)
         escape = self.install / "obsolete"
         escape.symlink_to(outside, target_is_directory=True)
 
@@ -132,7 +132,7 @@ class DeployPruneTest(unittest.TestCase):
         outside.mkdir()
         sentinel = outside / "sentinel"
         sentinel.write_text("must survive\n")
-        self.install.mkdir()
+        self.install.mkdir(parents=True)
         (self.install / "SKILL.md").symlink_to(sentinel)
 
         self.deploy()
@@ -162,7 +162,7 @@ class DeployPruneTest(unittest.TestCase):
         artifact = cache / "deploy.cpython-314.pyc"
         artifact.write_bytes(b"runtime artifact")
 
-        deploy_skill.install_files(self.install, self.resolved)
+        deploy_skill.install_files(self.install.parent, [(self.install.name, self.resolved)])
         deploy_skill.verify_install(
             self.repo,
             self.head,
