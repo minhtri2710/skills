@@ -85,6 +85,36 @@ class CharterLintTest(unittest.TestCase):
         self.assertNotEqual(code, 0)
         self.assertIn("exact-head", error)
 
+    def test_reviewer_without_live_wake_guard_is_named(self):
+        charter = self.reviewer_charter().replace(self.live_wake_guard_sentence(), "")
+        code, _, error = self.run_lint(charter, self.staffing_record())
+        self.assertEqual(code, 1)
+        self.assertIn(
+            "missing live-wake guard: Never run `mailbox.py --wake` against a real seat", error
+        )
+
+    def test_reviewer_with_live_wake_guard_passes(self):
+        code, output, error = self.run_lint(self.reviewer_charter(), self.staffing_record())
+        self.assertEqual(code, 0)
+        self.assertIn("OK:", output)
+        self.assertEqual(error, "")
+
+    def test_engineer_without_live_wake_guard_still_passes(self):
+        code, output, error = self.run_lint(self.engineer_charter(), self.staffing_record())
+        self.assertEqual(code, 0)
+        self.assertIn("OK:", output)
+        self.assertNotIn("live-wake", error)
+
+    def test_live_wake_guard_match_ignores_case_and_backticks(self):
+        charter = self.reviewer_charter().replace(
+            "Never run `mailbox.py --wake` against a real seat",
+            "never run mailbox.py  --wake  against a REAL seat",
+        )
+        code, output, error = self.run_lint(charter, self.staffing_record())
+        self.assertEqual(code, 0)
+        self.assertIn("OK:", output)
+        self.assertEqual(error, "")
+
     def test_missing_prompt_command_is_named(self):
         charter = self.engineer_charter().replace("herdr agent prompt lead-beo-skills", "send the report")
         code, _, error = self.run_lint(charter)
@@ -224,11 +254,20 @@ class CharterLintTest(unittest.TestCase):
         )
 
     @staticmethod
-    def reviewer_charter() -> str:
+    def live_wake_guard_sentence() -> str:
+        return (
+            "No-mutation: the review changes no external state, so Never run `mailbox.py --wake` "
+            "against a real seat; exercise wake only with a patched subprocess or a nonexistent "
+            "seat name (expect `agent_not_found`).\n"
+        )
+
+    @classmethod
+    def reviewer_charter(cls) -> str:
         return (
             "Disposition: Reviewer\n"
             "Reviewed head: 0123456789abcdef0123456789abcdef01234567\n"
-            "Write the finished report/verdict to report-eng-lint.md with the editor/write tool (never via the shell), then print it as the pane's final output.\n"
+            + cls.live_wake_guard_sentence()
+            + "Write the finished report/verdict to report-eng-lint.md with the editor/write tool (never via the shell), then print it as the pane's final output.\n"
             "At send time, compose a prompt with the verdict/outcome line, a bounded summary (~200 words max), and full report at report-eng-lint.md; send ONLY that composed prompt with the EXACT command herdr agent prompt lead-beo-skills \"<composed prompt>\" and NO other flags. Do not send the report file contents. THIS SEND IS MANDATORY.\n"
             "If the command exits non-zero: retry it ONCE with exactly the same form; if it still fails, append a line SEND-FAILED to the end of the report file and run herdr notification show \"eng-lint: report send failed\" --body \"report-eng-lint.md\" --sound request, then stop.\n"
         )

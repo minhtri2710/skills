@@ -17,6 +17,10 @@ HEAD_RE = re.compile(r"(?<![0-9a-f])[0-9a-f]{40}(?![0-9a-f])", re.IGNORECASE)
 REPORT_PATH_RE = re.compile(r"report-[^\s/]+\.md")
 SEAT_RE = re.compile(r"^\s*(ENGINEER|REVIEWER):.*$", re.IGNORECASE | re.MULTILINE)
 PLACEHOLDER_RE = re.compile(r"<[^>\r\n]+>")
+WAKE_GUARD_RE = re.compile(
+    r"never\s+run\s+`?mailbox\.py\s+--wake`?\s+against\s+a\s+real\s+seat",
+    re.IGNORECASE,
+)
 
 
 def _read(path: Path, label: str) -> str:
@@ -39,6 +43,10 @@ def _charter_problems(text: str, lead: str) -> list[str]:
         problems.append("missing owned paths section")
     if disposition == "reviewer" and HEAD_RE.search(text) is None:
         problems.append("missing exact-head 40-hex SHA")
+    if disposition == "reviewer" and WAKE_GUARD_RE.search(text) is None:
+        problems.append(
+            "missing live-wake guard: Never run `mailbox.py --wake` against a real seat"
+        )
 
     if f"herdr agent prompt {lead}" not in text:
         problems.append(f"missing report-by-prompt block: herdr agent prompt {lead}")
