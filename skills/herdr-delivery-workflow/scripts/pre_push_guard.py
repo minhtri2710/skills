@@ -36,13 +36,14 @@ def git(repo: Path, *args: str) -> str:
 ZERO = "0" * 40
 
 
-def remote_is_empty(repo: Path, remote: str) -> bool:
-    return not git(repo, "ls-remote", remote).splitlines()
+def remote_refs(repo: Path, remote: str) -> dict[str, str]:
+    """Every ref the remote holds, by name, from one ls-remote; never local tracking refs."""
+    return {ref: sha for sha, ref in (line.split("\t") for line in git(repo, "ls-remote", remote).splitlines())}
 
 
-def require_first_publication(repo: Path, remote: str, ref: str) -> None:
+def require_first_publication(ref: str, held: dict[str, str]) -> None:
     """Admit a zero-based tag range only when the remote has no refs at all."""
-    if remote_is_empty(repo, remote):
+    if not held:
         return
     raise GuardError(
         f"ref {ref} has no remote base — the review-coverage range is undefined, "
@@ -50,17 +51,30 @@ def require_first_publication(repo: Path, remote: str, ref: str) -> None:
     )
 
 
-def new_branch_base(repo: Path, remote: str, tip: str) -> str:
+def remote_held_tips(repo: Path, remote: str, held: dict[str, str]) -> list[str]:
+    """The remote's ref tips as local objects, refusing any tip this repository lacks."""
+    tips = sorted(set(held.values()))
+    for sha in tips:
+        try:
+            git(repo, "cat-file", "-e", sha)
+        except GuardError:
+            names = ", ".join(sorted(ref for ref, value in held.items() if value == sha))
+            raise GuardError(f"{remote} holds {sha} ({names}), which is not a local object: "
+                             "the published set is undefined until it is fetched") from None
+    return tips
+
+
+def new_branch_base(repo: Path, tip: str, exclude: list[str], source: str) -> str:
     """The single base of a new branch's published set, or refuse naming why.
 
-    The published set is `rev-list <tip> --not --remotes=<remote>`, read from local
-    tracking refs only; a stale tracking ref only enlarges it. It is publishable as
-    base..tip when it holds no root commit and every parent outside the set is one
-    commit, the base; base..tip is then exactly the set.
+    The published set is `rev-list <tip> --not <exclude>`: the guard passes the tips
+    the remote holds, the digest its local tracking-ref estimate. It is publishable
+    as base..tip when it holds no root commit and every parent outside the set is
+    one commit, the base; base..tip is then exactly the set.
     """
-    published = git(repo, "rev-list", "--parents", tip, "--not", f"--remotes={remote}").splitlines()
+    published = git(repo, "rev-list", "--parents", tip, "--not", *exclude).splitlines()
     if not published:
-        raise GuardError(f"new branch at {tip} publishes no commit outside {remote}'s tracking refs")
+        raise GuardError(f"new branch at {tip} publishes no commit outside {source}")
     shas = {line.split()[0] for line in published}
     boundary = {p for line in published for p in line.split()[1:] if p not in shas}
     roots = [line.split()[0] for line in published if len(line.split()) == 1]
@@ -68,7 +82,7 @@ def new_branch_base(repo: Path, remote: str, tip: str) -> str:
         raise GuardError(f"new branch at {tip} publishes root commit {roots[0]}, which only "
                          "a first publication to an empty remote may")
     if len(boundary) != 1:
-        raise GuardError(f"new branch at {tip} leaves {remote}'s tracking refs at {len(boundary)} "
+        raise GuardError(f"new branch at {tip} leaves {source} at {len(boundary)} "
                          f"boundary commits ({', '.join(sorted(boundary))}), not one base")
     return boundary.pop()
 
@@ -99,12 +113,13 @@ def check(
     ledger: Path, repo: Path, remote: str,
     pairs: list[tuple[str, str, str]] | None = None,
 ) -> list[str]:
+    held: dict[str, str] | None = None
     if pairs is None:
         branch = git(repo, "rev-parse", "--abbrev-ref", "HEAD")
         head = git(repo, "rev-parse", "HEAD")
         ref = f"refs/heads/{branch}"
-        remote_tip = git(repo, "ls-remote", remote, ref).split()
-        pairs = [(ref, remote_tip[0] if remote_tip else ZERO, head)]
+        held = remote_refs(repo, remote)
+        pairs = [(ref, held.get(ref, ZERO), head)]
     try:
         with gate_row.locked_ledger(ledger, exclusive=False) as handle:
             rows = gate_row.ledger_rows(gate_row.handle_text(handle))
@@ -116,14 +131,17 @@ def check(
     now = datetime.now(timezone.utc)
     for ref, base, tip in pairs:
         try:
-            if base == ZERO and tip != ZERO and ref.startswith("refs/heads/") \
-                    and not remote_is_empty(repo, remote):
-                base = new_branch_base(repo, remote, tip)
+            if base == ZERO and tip != ZERO:
+                if held is None:
+                    held = remote_refs(repo, remote)
+                if held and ref.startswith("refs/heads/"):
+                    base = new_branch_base(repo, tip, remote_held_tips(repo, remote, held),
+                                           f"the tips {remote} holds")
             gate_row.require_push_authority(rows, repo, remote, ref, base, tip, now)
             if tip == ZERO:
                 continue
             if base == ZERO:
-                require_first_publication(repo, remote, ref)
+                require_first_publication(ref, held)
             elif not gate_row.is_ancestor(repo, base, tip):
                 base = git(repo, "merge-base", base, tip)  # a force push publishes merge-base..tip
                 if base == tip:
@@ -190,7 +208,7 @@ def gated_lines(rows: list[str], gates: list[str], head: list[str], tip: str, le
     except GuardError:
         label = " new branch"
         try:
-            base = new_branch_base(repo, remote, tip)
+            base = new_branch_base(repo, tip, [f"--remotes={remote}"], f"{remote}'s tracking refs (local estimate)")
         except GuardError as exc:
             return [*lines, f"NOT READY: new branch: {exc}"], None
     try:

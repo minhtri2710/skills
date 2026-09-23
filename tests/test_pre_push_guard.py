@@ -254,7 +254,7 @@ class PrePushGuardTest(unittest.TestCase):
         self.standing("origin:feature")
         code, _, err = self.invoke()
         self.assertEqual(code, 1)
-        self.assertIn("publishes no commit outside origin's tracking refs", err)
+        self.assertIn("publishes no commit outside the tips origin holds", err)
 
     def test_ledger_is_read_under_a_shared_lock(self):
         self.advance("c1")
@@ -364,6 +364,51 @@ class PrePushGuardTest(unittest.TestCase):
         admitted = push()
         self.assertEqual(admitted.returncode, 0, admitted.stderr)
         self.assertEqual(self.rev("refs/remotes/origin/feature"), f1)
+
+    def hook_wrapper(self) -> None:
+        hook = self.repo / ".git" / "hooks" / "pre-push"
+        hook.write_text(
+            "#!/bin/sh\n"
+            f'exec "{sys.executable}" "{SCRIPTS / "pre_push_guard.py"}" '
+            f'--ledger "{self.ledger}" --repo "{self.repo}" "$@"\n'
+        )
+        hook.chmod(0o755)
+
+    def test_real_git_push_of_a_new_branch_ignores_a_stale_tracking_ref(self):
+        self.git("checkout", "-qb", "old")
+        x = self.advance("x")
+        self.git("push", "-q", "origin", "old")
+        subprocess.run(["git", "-C", str(self.origin), "branch", "-D", "old"],
+                       check=True, capture_output=True)
+        self.assertEqual(self.rev("refs/remotes/origin/old"), x)  # unpruned, stale
+        self.git("checkout", "-qb", "feature")
+        f = self.advance("f")
+        self.assertEqual(self.review(x), 0)
+        self.grant(f"origin refs/heads/feature push {x}..{f}")
+        self.hook_wrapper()
+        pushed = subprocess.run(["git", "-C", str(self.repo), "push", "origin", "feature"],
+                                capture_output=True, text=True)
+        self.assertNotEqual(pushed.returncode, 0)
+        self.assertIn(f"refusing push of {self.base}..{f}", pushed.stderr)
+        branches = subprocess.run(["git", "-C", str(self.origin), "branch", "--contains", x],
+                                  capture_output=True, text=True).stdout
+        self.assertEqual(branches.strip(), "")
+
+    def test_a_remote_tip_missing_locally_refuses_a_new_branch_naming_it(self):
+        other = self.tmp / "other-clone"
+        subprocess.run(["git", "clone", "-q", str(self.origin), str(other)], check=True)
+        for args in (("config", "user.email", "t@example.invalid"), ("config", "user.name", "t"),
+                     ("commit", "-q", "--allow-empty", "-m", "elsewhere"), ("push", "-q", "origin", "HEAD:side")):
+            subprocess.run(["git", "-C", str(other), *args], check=True, capture_output=True)
+        unseen = subprocess.run(["git", "-C", str(other), "rev-parse", "HEAD"],
+                                check=True, capture_output=True, text=True).stdout.strip()
+        self.git("checkout", "-qb", "feature")
+        f = self.advance("f")
+        self.assertEqual(self.review(self.base), 0)
+        self.grant(f"origin refs/heads/feature push {self.base}..{f}")
+        code, _, err = self.invoke(self.ref_line(ZERO, f, "refs/heads/feature"))
+        self.assertEqual(code, 1)
+        self.assertIn(f"origin holds {unseen} (refs/heads/side), which is not a local object", err)
 
     # --- push authority -------------------------------------------------
 
