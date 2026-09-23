@@ -2,6 +2,7 @@
 """Regression tests for skill YAML frontmatter."""
 from __future__ import annotations
 
+import subprocess
 import unittest
 from pathlib import Path
 
@@ -11,12 +12,17 @@ import yaml
 class SkillFrontmatterTest(unittest.TestCase):
     def test_every_skill_has_valid_frontmatter(self):
         repo_root = Path(__file__).resolve().parents[1]
-        skill_root = repo_root / "skills"
-        skill_paths = sorted(skill_root.glob("*/SKILL.md"))
-        skill_dirs = {path.parent.name for path in skill_paths}
-        for skill_dir in sorted(path for path in skill_root.iterdir() if path.is_dir()):
+        tracked = subprocess.run(
+            ["git", "-C", str(repo_root), "ls-files", "-z", "--", "skills"],
+            capture_output=True, text=True, check=True,
+        ).stdout.split("\0")
+        tracked_parts = [Path(name).parts for name in tracked if name]
+        skill_dirs = {parts[1] for parts in tracked_parts if len(parts) > 2}
+        skill_paths = sorted(repo_root.joinpath(*parts) for parts in tracked_parts
+                             if len(parts) == 3 and parts[2] == "SKILL.md")
+        for skill_dir in sorted(skill_dirs):
             with self.subTest(skill_dir=skill_dir):
-                self.assertTrue((skill_dir / "SKILL.md").is_file(), skill_dir)
+                self.assertIn(repo_root / "skills" / skill_dir / "SKILL.md", skill_paths, skill_dir)
 
         for path in skill_paths:
             with self.subTest(path=path):
