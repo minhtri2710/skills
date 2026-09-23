@@ -85,6 +85,13 @@ def _safe_install_dir(path: Path, *, allow_self_symlink: bool = False) -> Path:
     return path
 
 
+def install_mode(git_mode: str, tracked_path: str) -> int:
+    """Map a head-tree git file mode to its install mode, rejecting any other mode."""
+    if git_mode not in {"100644", "100755"}:
+        raise DeployError(f"tracked path has unsupported mode for {tracked_path}: {git_mode}")
+    return 0o755 if git_mode == "100755" else 0o644
+
+
 def resolved_files(repo: Path, head: str, paths: list[str], skill_prefix: str) -> list[tuple[Path, bytes, int]]:
     prefix = skill_prefix.rstrip("/") + "/"
     resolved: list[tuple[Path, bytes, int]] = []
@@ -106,8 +113,9 @@ def resolved_files(repo: Path, head: str, paths: list[str], skill_prefix: str) -
         if len(metadata) != 3:
             raise DeployError(f"git ls-tree returned malformed metadata for {tracked}")
         mode, object_type, _object_id = metadata
-        if object_type != "blob" or mode not in {"100644", "100755"}:
+        if object_type != "blob":
             raise DeployError(f"tracked path has unsupported mode for {tracked}: {mode}")
+        file_mode = install_mode(mode, tracked)
         blob = subprocess.run(
             ["git", "-C", str(repo), "cat-file", "blob", f"{head}:{tracked}"],
             capture_output=True,
@@ -116,7 +124,7 @@ def resolved_files(repo: Path, head: str, paths: list[str], skill_prefix: str) -
         if blob.returncode:
             detail = blob.stderr.decode(errors="replace").strip()
             raise DeployError(f"git cat-file failed for {tracked}: {detail}")
-        resolved.append((Path(tracked[len(prefix):]), blob.stdout, 0o755 if mode == "100755" else 0o644))
+        resolved.append((Path(tracked[len(prefix):]), blob.stdout, file_mode))
     return resolved
 
 
@@ -200,6 +208,14 @@ def install_files(install_root: Path,
     shutil.rmtree(work)
 
 
+def tree_mode(repo: Path, head: str, tracked_path: str) -> int:
+    """Return the install mode the head tree records for one tracked file."""
+    metadata = git(repo, "ls-tree", head, "--", tracked_path).split("\t", 1)[0].split()
+    if len(metadata) != 3:
+        raise DeployError(f"git ls-tree returned malformed metadata for {tracked_path}")
+    return install_mode(metadata[0], tracked_path)
+
+
 def verify_install(repo: Path, head: str, install_dir: Path,
                    paths: list[str], skill_prefix: str) -> None:
     prefix = skill_prefix.rstrip("/") + "/"
@@ -215,10 +231,7 @@ def verify_install(repo: Path, head: str, install_dir: Path,
             raise DeployError(
                 f"installed hash mismatch for {tracked_path}: expected {expected}, got {actual}"
             )
-        metadata = git(repo, "ls-tree", head, "--", tracked_path).split("\t", 1)[0].split()
-        if len(metadata) != 3 or metadata[0] not in {"100644", "100755"}:
-            raise DeployError(f"tracked path has unsupported mode for {tracked_path}")
-        expected_mode = 0o755 if metadata[0] == "100755" else 0o644
+        expected_mode = tree_mode(repo, head, tracked_path)
         if stat.S_IMODE(installed.stat().st_mode) != expected_mode:
             raise DeployError(
                 f"installed mode mismatch for {tracked_path}: expected {oct(expected_mode)}, "

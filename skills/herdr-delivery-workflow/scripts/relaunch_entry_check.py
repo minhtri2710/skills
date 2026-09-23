@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import os
 import re
+import stat
 import subprocess
 import sys
 from pathlib import Path
@@ -62,11 +63,12 @@ def installed_files(install_dir: Path) -> list[Path]:
 
 def count_evidence(repo: Path, head: str, skill_path: str,
                    install_dir: Path) -> tuple[int, int, int]:
-    """Return tracked count, installed count, and missing/different hash count.
+    """Return tracked count, installed count, and drifted count.
 
-    A tracked file that is absent from the installed tree counts as a hash
-    mismatch. Extra installed files affect the installed count but not the
-    hash-mismatch count; the two values expose both directions of drift.
+    A tracked file drifts when it is absent from the installed tree, or its
+    installed hash or mode differs from the head tree (deploy_skill.tree_mode).
+    Extra installed files affect the installed count but not the drifted
+    count; the two values expose both directions of drift.
     """
     prefix = skill_prefix(skill_path)
     try:
@@ -77,18 +79,22 @@ def count_evidence(repo: Path, head: str, skill_path: str,
         raise CheckError(str(exc)) from None
     installed = installed_files(install_dir)
     installed_set = set(installed)
-    mismatches = 0
+    drifted = 0
     for tracked in paths:
         relative = Path(tracked[len(prefix):])
         destination = install_dir / relative
         if relative not in installed_set or destination.is_symlink() or not destination.is_file():
-            mismatches += 1
+            drifted += 1
             continue
         expected = git(repo, "rev-parse", f"{head}:{tracked}")
         actual = git(repo, "hash-object", str(destination))
-        if actual != expected:
-            mismatches += 1
-    return len(paths), len(installed), mismatches
+        try:
+            expected_mode = deploy_skill.tree_mode(repo, head, tracked)
+        except deploy_skill.DeployError as exc:
+            raise CheckError(str(exc)) from None
+        if actual != expected or stat.S_IMODE(destination.stat().st_mode) != expected_mode:
+            drifted += 1
+    return len(paths), len(installed), drifted
 
 
 def read_exact(path: Path) -> str:
@@ -144,7 +150,7 @@ def _require_verify_args(args: argparse.Namespace) -> tuple[Path, Path]:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     modes = parser.add_mutually_exclusive_group(required=True)
-    modes.add_argument("--count", action="store_true", help="derive tracked/installed/hash counts")
+    modes.add_argument("--count", action="store_true", help="derive tracked/installed/drifted counts")
     modes.add_argument("--verify", action="store_true", help="verify a next-item block verbatim")
     parser.add_argument("--repo", type=Path, default=Path.cwd())
     parser.add_argument("--head", help="deployed git head used for COUNT mode")
@@ -160,8 +166,8 @@ def main(argv: list[str] | None = None) -> int:
     try:
         if args.count:
             repo, head, skill_path, install_dir = _require_count_args(args)
-            tracked, installed, mismatches = count_evidence(repo, head, skill_path, install_dir)
-            print(f"tracked={tracked} installed={installed} hash-mismatches={mismatches}")
+            tracked, installed, drifted = count_evidence(repo, head, skill_path, install_dir)
+            print(f"tracked={tracked} installed={installed} drifted={drifted}")
         else:
             block_file, source_file = _require_verify_args(args)
             print(" ".join(verify_block(block_file, source_file)))

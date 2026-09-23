@@ -110,7 +110,7 @@ class RelaunchEntryCheckTest(unittest.TestCase):
         ])
 
         self.assertEqual(code, 0)
-        self.assertEqual(stdout, "tracked=2 installed=2 hash-mismatches=0\n")
+        self.assertEqual(stdout, "tracked=2 installed=2 drifted=0\n")
         self.assertEqual(stderr, "")
 
         (self.install / "SKILL.md").write_text("tampered\n", encoding="utf-8")
@@ -120,8 +120,34 @@ class RelaunchEntryCheckTest(unittest.TestCase):
         ])
 
         self.assertEqual(code, 0)
-        self.assertEqual(stdout, "tracked=2 installed=2 hash-mismatches=1\n")
+        self.assertEqual(stdout, "tracked=2 installed=2 drifted=1\n")
         self.assertEqual(stderr, "")
+
+    def count(self) -> tuple[int, str, str]:
+        return self.run_main([
+            "--count", "--repo", str(self.repo), "--head", "HEAD",
+            "--skill-path", "skills/example", "--installed-path", str(self.install),
+        ])
+
+    def test_count_flags_executable_bit_removed_from_installed_file(self):
+        (self.skill / "script.py").chmod(0o755)
+        git(self.repo, "add", "skills/example")
+        git(self.repo, "commit", "-qm", "executable script")
+        (self.install / "script.py").chmod(0o755)
+        self.assertEqual(self.count(), (0, "tracked=2 installed=2 drifted=0\n", ""))
+
+        (self.install / "script.py").chmod(0o644)
+        self.assertEqual(self.count(), (0, "tracked=2 installed=2 drifted=1\n", ""))
+
+    def test_count_flags_executable_bit_added_to_installed_file(self):
+        self.assertEqual(self.count(), (0, "tracked=2 installed=2 drifted=0\n", ""))
+
+        (self.install / "SKILL.md").chmod(0o755)
+        self.assertEqual(self.count(), (0, "tracked=2 installed=2 drifted=1\n", ""))
+
+    def test_count_reads_mode_from_head_tree_not_working_tree(self):
+        (self.skill / "script.py").chmod(0o755)
+        self.assertEqual(self.count(), (0, "tracked=2 installed=2 drifted=0\n", ""))
 
 
 if __name__ == "__main__":
