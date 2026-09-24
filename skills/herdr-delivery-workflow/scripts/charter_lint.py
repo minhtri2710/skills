@@ -21,6 +21,10 @@ WAKE_GUARD_RE = re.compile(
     r"never\s+run\s+`?mailbox\.py\s+--wake`?\s+against\s+a\s+real\s+seat",
     re.IGNORECASE,
 )
+OCR_STEP_RES = (
+    re.compile(r"ocr\s+delegate\s+preview", re.IGNORECASE),
+    re.compile(r"ocr\s+delegate\s+rule", re.IGNORECASE),
+)
 KILL_GUARD_RE = re.compile(r"never\s+kill\s+a\s+process\s+by\s+pattern", re.IGNORECASE)
 
 
@@ -49,6 +53,8 @@ def _charter_problems(text: str, lead: str) -> list[str]:
             "missing live-wake guard: Never run `mailbox.py --wake` against a real seat"
         )
 
+    if disposition == "reviewer" and not all(r.search(text) for r in OCR_STEP_RES):
+        problems.append("missing OCR delegate step: ocr delegate preview and ocr delegate rule")
     if KILL_GUARD_RE.search(text) is None:
         problems.append("missing pattern-kill guard: Never kill a process by pattern")
 

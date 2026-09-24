@@ -138,6 +138,22 @@ class CharterLintTest(unittest.TestCase):
         self.assertIn("OK:", output)
         self.assertEqual(error, "")
 
+    def test_reviewer_without_either_ocr_delegate_command_is_named(self):
+        for command in ("ocr delegate preview", "ocr delegate rule"):
+            with self.subTest(command=command):
+                charter = self.reviewer_charter().replace(command, "ocr")
+                code, _, error = self.run_lint(charter, self.staffing_record())
+                self.assertEqual(code, 1)
+                self.assertIn(
+                    "missing OCR delegate step: ocr delegate preview and ocr delegate rule", error
+                )
+
+    def test_engineer_without_ocr_delegate_step_still_passes(self):
+        code, output, error = self.run_lint(self.engineer_charter(), self.staffing_record())
+        self.assertEqual(code, 0)
+        self.assertIn("OK:", output)
+        self.assertNotIn("OCR", error)
+
     def test_missing_prompt_command_is_named(self):
         charter = self.engineer_charter().replace("herdr agent prompt lead-beo-skills", "send the report")
         code, _, error = self.run_lint(charter)
@@ -292,6 +308,13 @@ class CharterLintTest(unittest.TestCase):
             "stop only a process whose pid or task id you started yourself.\n"
         )
 
+    @staticmethod
+    def ocr_step_sentence() -> str:
+        return (
+            "Run `ocr delegate preview --format json --repo /repo --from base --to head`, then "
+            "`ocr delegate rule --format json --repo /repo <reviewable paths>`, and report the OCR coverage block.\n"
+        )
+
     @classmethod
     def reviewer_charter(cls) -> str:
         return (
@@ -299,6 +322,7 @@ class CharterLintTest(unittest.TestCase):
             "Reviewed head: 0123456789abcdef0123456789abcdef01234567\n"
             + cls.live_wake_guard_sentence()
             + cls.kill_guard_sentence()
+            + cls.ocr_step_sentence()
             + "Write the finished report/verdict to report-eng-lint.md with the editor/write tool (never via the shell), then print it as the pane's final output.\n"
             "At send time, compose a prompt with the verdict/outcome line, a bounded summary (~200 words max), and full report at report-eng-lint.md; send ONLY that composed prompt with the EXACT command herdr agent prompt lead-beo-skills \"<composed prompt>\" and NO other flags. Do not send the report file contents. THIS SEND IS MANDATORY.\n"
             "If the command exits non-zero: retry it ONCE with exactly the same form; if it still fails, append a line SEND-FAILED to the end of the report file and run herdr notification show \"eng-lint: report send failed\" --body \"report-eng-lint.md\" --sound request, then stop.\n"
