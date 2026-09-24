@@ -82,6 +82,10 @@ class CompactionReprimeObserverTest(unittest.TestCase):
             "agent_session": session,
         }]
 
+    def observe(self, roster: object, seat: str, **kwargs: object) -> int | None:
+        session = compaction_reprime.resolve_live_session(roster, seat, **kwargs)
+        return compaction_reprime._verified_observation(session)
+
     def pi_path(self, session_id: str = "01abc123") -> Path:
         return self.home / ".pi" / "agent" / "sessions" / "--project--" / f"2026-09-21T10-00-00-000Z_{session_id}.jsonl"
 
@@ -109,7 +113,7 @@ class CompactionReprimeObserverTest(unittest.TestCase):
         path = self.pi_path()
         self.write_jsonl(path, [self.pi_header(), self.pi_compaction(), self.pi_compaction("cmp456")])
         self.assertEqual(
-            compaction_reprime.observe_live_seat(
+            self.observe(
                 self.roster(kind="pi", path=path),
                 "lead-beo-skills",
                 project_root=self.project,
@@ -124,7 +128,7 @@ class CompactionReprimeObserverTest(unittest.TestCase):
         with path.open("a", encoding="utf-8") as stream:
             stream.write('{"type":"assistant"')
         self.assertEqual(
-            compaction_reprime.observe_live_seat(
+            self.observe(
                 self.roster(kind="pi", path=path),
                 "lead-beo-skills",
                 project_root=self.project,
@@ -145,23 +149,23 @@ class CompactionReprimeObserverTest(unittest.TestCase):
             with self.subTest(records=records):
                 self.write_jsonl(path, records)
                 self.assertEqual(
-                    compaction_reprime.observe_live_seat(
+                    self.observe(
                         self.roster(kind="pi", path=path),
                         "lead-beo-skills",
                         project_root=self.project,
                         home_dir=self.home,
                     ),
-                    0,
+                    None,
                 )
         path.write_text("{not-json}\n", encoding="utf-8")
         self.assertEqual(
-            compaction_reprime.observe_live_seat(
+            self.observe(
                 self.roster(kind="pi", path=path),
                 "lead-beo-skills",
                 project_root=self.project,
                 home_dir=self.home,
             ),
-            0,
+            None,
         )
 
     def test_claude_counts_boundary_summary_pairs_in_order(self) -> None:
@@ -185,7 +189,7 @@ class CompactionReprimeObserverTest(unittest.TestCase):
         }
         self.write_jsonl(path, [boundary, summary, {**boundary, "uuid": "fa54338c-1c77-4eae-9624-2310cc7e832f"}, {**summary, "uuid": "b09c0db6-ec20-4036-8289-7dacd32e7e25"}])
         self.assertEqual(
-            compaction_reprime.observe_live_seat(
+            self.observe(
                 self.roster(kind="claude", session_id=session_id),
                 "lead-beo-skills",
                 project_root=self.project,
@@ -217,7 +221,7 @@ class CompactionReprimeObserverTest(unittest.TestCase):
         }
         self.write_jsonl(path, [boundary, summary])
         self.assertEqual(
-            compaction_reprime.observe_live_seat(
+            self.observe(
                 self.roster(kind="claude", session_id=session_id),
                 "lead-beo-skills",
                 project_root=self.project,
@@ -249,13 +253,13 @@ class CompactionReprimeObserverTest(unittest.TestCase):
             with self.subTest(records=records):
                 self.write_jsonl(path, records)
                 self.assertEqual(
-                    compaction_reprime.observe_live_seat(
+                    self.observe(
                         self.roster(kind="claude", session_id=session_id),
                         "lead-beo-skills",
                         project_root=self.project,
                         home_dir=self.home,
                     ),
-                    0,
+                    None,
                 )
 
     def test_resolution_rejects_ambiguous_or_path_escaping_roster_evidence(self) -> None:
@@ -267,8 +271,8 @@ class CompactionReprimeObserverTest(unittest.TestCase):
         escaping = self.roster(kind="pi", path=self.root / "outside.jsonl")
         self.assertIsNone(compaction_reprime.resolve_live_session(escaping, "lead-beo-skills", project_root=self.project, home_dir=self.home))
         self.assertEqual(
-            compaction_reprime.observe_live_seat(roster, "../other", project_root=self.project, home_dir=self.home),
-            0,
+            self.observe(roster, "../other", project_root=self.project, home_dir=self.home),
+            None,
         )
 
     def test_symlinked_session_root_and_file_are_rejected(self) -> None:
@@ -293,13 +297,13 @@ class CompactionReprimeObserverTest(unittest.TestCase):
         path.parent.mkdir(parents=True, exist_ok=True)
         path.symlink_to(outside)
         self.assertEqual(
-            compaction_reprime.observe_live_seat(
+            self.observe(
                 self.roster(kind="pi", path=path),
                 "lead-beo-skills",
                 project_root=self.project,
                 home_dir=self.home,
             ),
-            0,
+            None,
         )
 
     def test_observer_does_not_prompt_or_write_state(self) -> None:
@@ -308,7 +312,7 @@ class CompactionReprimeObserverTest(unittest.TestCase):
         before = sorted(str(item.relative_to(self.home)) for item in self.home.rglob("*") if item.is_file())
         with patch.object(compaction_reprime.herdr_cli.subprocess, "run", side_effect=AssertionError("observer must not invoke commands")):
             self.assertEqual(
-                compaction_reprime.observe_live_seat(
+                self.observe(
                     self.roster(kind="pi", path=path),
                     "lead-beo-skills",
                     project_root=self.project,

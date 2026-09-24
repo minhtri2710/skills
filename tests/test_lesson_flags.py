@@ -16,13 +16,14 @@ import sys
 sys.path.insert(0, str(SCRIPTS))
 
 import lesson_flags  # noqa: E402
+import recall  # noqa: E402
 
 
 class LessonFlagsTest(unittest.TestCase):
     def setUp(self):
         self.tempdir = tempfile.TemporaryDirectory()
         self.root = Path(self.tempdir.name)
-        self.patch_root = mock.patch.object(lesson_flags, "PROJECTS_ROOT", str(self.root))
+        self.patch_root = mock.patch.object(recall, "PROJECTS_ROOT", str(self.root))
         self.patch_root.start()
 
     def tearDown(self):
@@ -144,6 +145,14 @@ class LessonFlagsTest(unittest.TestCase):
 
         self.assertEqual(code, 0)
         self.assertIn("Nothing to flag", output)
+
+    def test_project_must_be_a_slug(self):
+        for slug in ("", ".", "..", "/abs", "a/b"):
+            stderr = io.StringIO()
+            with self.subTest(slug=slug), redirect_stderr(stderr), self.assertRaises(SystemExit) as caught:
+                lesson_flags.main(["--project", slug])
+            self.assertEqual(caught.exception.code, 2)
+            self.assertIn("--project must be a project slug", stderr.getvalue())
 
 
 class RationaleFlagsTest(unittest.TestCase):

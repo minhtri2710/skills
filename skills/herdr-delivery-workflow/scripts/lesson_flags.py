@@ -7,26 +7,14 @@ import os
 import re
 import sys
 
-from recall import LESSON_STATUSES, LessonParseError, lesson_record_lines
+from recall import LESSON_STATUSES, LessonParseError, lesson_record_lines, project_root
 
-PROJECTS_ROOT = os.path.expanduser("~/.herdr/projects")
 STATUSES = LESSON_STATUSES
 RATIONALE_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "references", "RATIONALE.md"
 )
 TAG = re.compile(r"Origin: (?P<ref>[^;]+); (?P<origin>\S+)\. Confirmed: (?P<confirmed>\S+)\.$")
 DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
-
-
-def project_root(parser, project):
-    if (
-        not project
-        or project in (".", "..")
-        or os.path.isabs(project)
-        or os.path.basename(project) != project
-    ):
-        parser.error("--project must be a project slug")
-    return os.path.join(os.path.abspath(PROJECTS_ROOT), project)
 
 
 def record_fields(path):

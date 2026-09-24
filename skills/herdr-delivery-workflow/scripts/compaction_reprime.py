@@ -432,12 +432,6 @@ def _verified_observation(session: SessionRecord | None) -> int | None:
     return None
 
 
-def observe_session(session: SessionRecord | None) -> int:
-    """Return the verified compaction count, or zero on any failed proof."""
-    observation = _verified_observation(session)
-    return 0 if observation is None else observation
-
-
 @dataclass(frozen=True)
 class BaselineState:
     """The one validated durable baseline record for a live seat."""
@@ -1094,18 +1088,6 @@ def dispatch_live_seat(
         prompt_succeeded,
         block,
     )
-
-
-def observe_live_seat(
-    roster: Any,
-    seat: str,
-    *,
-    project_root: str | os.PathLike[str],
-    home_dir: str | os.PathLike[str] | None = None,
-) -> int:
-    """Resolve one live seat and count only its verified durable markers."""
-    session = resolve_live_session(roster, seat, project_root=project_root, home_dir=home_dir)
-    return observe_session(session) if session is not None else 0
 
 
 def _load_live_roster() -> Any | None:
