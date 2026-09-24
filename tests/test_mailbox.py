@@ -372,7 +372,7 @@ class MailboxTest(unittest.TestCase):
             result = mailbox.main(["--file", str(self.path)])
         self.assertEqual(result, 1)
         self.assertEqual(stdout.getvalue(), "")
-        self.assertIn(": at least one of", stderr.getvalue())
+        self.assertIn(f"mailbox: {self.path}: at least one of", stderr.getvalue())
 
     def test_wake_runs_once_for_last_header(self):
         calls = []
@@ -669,7 +669,7 @@ class MailboxAppendTest(unittest.TestCase):
         self.assertEqual(self.append("detail\n"), 0, self.stderr.getvalue())
         header = f"## lead-beo-skills -> supervisor | 2026-09-24T03:04:05Z | gate opened | HEAD {self.head}"
         self.assertEqual(self.path.read_text(encoding="utf-8"), f"---\n{header}\ndetail\n")
-        self.assertEqual(self.stdout.getvalue().splitlines()[0], header)
+        self.assertEqual(self.stdout.getvalue(), header + "\n")
         self.assertEqual(mailbox.select_entries(self.path.read_text(encoding="utf-8"), headers=True), [header])
         match = jev.HEADER_RE.fullmatch(header)
         self.assertEqual((match.group("event"), match.group("head")), ("gate opened", self.head))
