@@ -13,7 +13,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import patch
 
-SCRIPTS = Path(__file__).resolve().parents[1] / "skills" / "herdr-delivery-workflow" / "scripts"
+ROOT = Path(__file__).resolve().parents[1]
+SCRIPTS = ROOT / "src" if (ROOT / "src").is_dir() else ROOT / "skills" / "herdr-delivery-workflow" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 
 import gate_row  # noqa: E402
@@ -548,6 +549,44 @@ class PrePushGuardTest(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn(f"{gid} standing delegation has no push-scope", err)
 
+    def test_a_deletion_and_a_rewind_do_not_end_the_check_of_later_refs(self):
+        c1 = self.advance("c1")
+        self.git("checkout", "-qb", "side", self.base)
+        d1 = self.advance("d1")
+        self.grant(f"origin refs/heads/dead delete {self.base}..{ZERO}")
+        self.grant(f"origin refs/heads/main force {c1}..{self.base}")
+        self.grant(f"origin refs/heads/other force {c1}..{d1}")
+        stdin = (f"(delete) {ZERO} refs/heads/dead {self.base}\n\n"
+                 + self.ref_line(c1, self.base)
+                 + self.ref_line(c1, d1, "refs/heads/other"))
+        code, out, err = self.invoke(stdin)
+        self.assertEqual(code, 1)
+        self.assertEqual(out, "")
+        self.assertIn(d1, err)
+        self.assertIn("not covered", err)
+
+    def test_new_branch_publishing_a_root_commit_beside_one_base_is_refused(self):
+        self.git("checkout", "-q", "--orphan", "stray")
+        root = self.advance("stray root")
+        self.git("checkout", "-qb", "feature", self.base)
+        self.git("merge", "-q", "--no-edit", "--allow-unrelated-histories", "-X", "ours", "stray")
+        tip = self.rev("HEAD")
+        self.standing("origin:feature")
+        code, _, err = self.invoke(self.ref_line(ZERO, tip, "refs/heads/feature"))
+        self.assertEqual(code, 1)
+        self.assertIn(f"new branch at {tip} publishes root commit {root}", err)
+
+    def test_manual_mode_defaults_repo_to_the_working_directory(self):
+        self.advance("c1")
+        self.assertEqual(self.review(self.base), 0)
+        self.standing()
+        out, err = io.StringIO(), io.StringIO()
+        with contextlib.chdir(self.repo), patch.object(pre_push_guard.sys, "stdin", io.StringIO("")):
+            with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+                code = pre_push_guard.main(["--ledger", str(self.ledger)])
+        self.assertEqual(code, 0, err.getvalue())
+        self.assertIn("covered", out.getvalue())
+
 
 if __name__ == "__main__":
     unittest.main()
@@ -931,3 +970,88 @@ class PushDigestTest(unittest.TestCase):
         self.assertEqual(len(self.grant_rows(ledger)), 2)
         for name in ("low", "high"):
             subprocess.run([*push, name], check=True, capture_output=True)
+
+    def test_an_open_push_grant_row_is_not_listed_as_a_gate(self):
+        ledger, repo, base = self.project("alpha")
+        self.advance(repo, "a1")
+        self.review(ledger, repo, base)
+        gate = self.push_gate(ledger, repo)
+        self.assertEqual(self.grant((ledger, repo))[0], 0)
+        _, out = self.digest((ledger, repo))
+        self.assertIn(f"  gates: {gate}\n", out)
+
+    def test_review_rows_list_only_passing_reviews(self):
+        ledger, repo, base = self.project("alpha")
+        self.advance(repo, "a1")
+        self.row(ledger, repo, "--kind", "review", "--status", "recorded:review-fail",
+                 "--review-base", base, "--words", "seat", "--note", "review", "--quote", "FAIL")
+        passed = self.review(ledger, repo, base)
+        self.push_gate(ledger, repo)
+        _, out = self.digest((ledger, repo))
+        self.assertIn(f"review rows: {passed}; coverage ok", out)
+
+    def test_a_quiet_first_project_does_not_hide_later_projects(self):
+        quiet, quiet_repo, _ = self.project("quiet")
+        ledger, repo, base = self.project("alpha")
+        self.advance(repo, "a1")
+        self.review(ledger, repo, base)
+        self.push_gate(ledger, repo)
+        code, out = self.digest((quiet, quiet_repo), (ledger, repo))
+        self.assertEqual(code, 0)
+        self.assertIn("== alpha", out)
+        self.assertIn("  1. alpha main", out)
+
+    def test_digest_authority_honours_a_standing_delegation_expiry(self):
+        ledger, repo, base = self.project("alpha")
+        self.advance(repo, "a1")
+        self.review(ledger, repo, base)
+        self.push_gate(ledger, repo)
+        standing = self.row(
+            ledger, repo, "--kind", "standing-delegation", "--status", "recorded:standing-delegation",
+            "--who", "lead", "--scope", "pushes", "--conditions", "review PASS",
+            "--expiry", "2999-01-01T00:00:00Z", "--push-scope", "origin:main",
+            "--words", "human", "--note", "standing push grant", "--quote", "push when green")
+        code, out = self.digest((ledger, repo))
+        self.assertEqual(code, 0)
+        self.assertIn(f"authority: granted by {standing}", out)
+
+    def test_grant_of_a_number_list_writes_each_item(self):
+        ledger, repo, base, one, two = self.two_branches()
+        code, _, _ = self.grant((ledger, repo), selection="1,2")
+        self.assertEqual(code, 0)
+        rows = self.grant_rows(ledger)
+        self.assertEqual(len(rows), 2)
+        self.assertIn(f"| grant=origin refs/heads/one push {base}..{one} |", rows[0])
+        self.assertIn(f"| grant=origin refs/heads/two push {base}..{two} |", rows[1])
+
+    def test_stacked_line_names_the_item_number_of_a_later_dependency(self):
+        ledger, repo, base = self.project("alpha")
+        self.branch(ledger, repo, "one", base)
+        low = self.branch(ledger, repo, "low", base)
+        self.branch(ledger, repo, "high", low)
+        _, out = self.digest((ledger, repo))
+        self.assertIn("  stacked on low (item 2): push after it\n", out)
+
+    def test_an_existing_branch_is_never_stacked(self):
+        ledger, repo, base = self.project("alpha")
+        low = self.branch(ledger, repo, "low", base)
+        self.git(repo, "checkout", "-q", "main")
+        self.git(repo, "merge", "-q", "--ff-only", "low")
+        self.advance(repo, "m1")
+        self.review(ledger, repo, low)
+        self.push_gate(ledger, repo)
+        code, out = self.digest((ledger, repo))
+        self.assertEqual(code, 0)
+        self.assertNotIn("stacked", out)
+
+    def test_digest_and_hook_flags_do_not_mix(self):
+        ledger, repo, _ = self.project("alpha")
+        for argv, needle in (
+            (["--digest", str(ledger), str(repo), "--ledger", str(ledger)], "--digest takes no --ledger or url"),
+            (["--ledger", str(ledger), "--items", "x"], "--grant, --items and --quote require --digest"),
+            (["--ledger", str(ledger), "--quote", "q"], "--grant, --items and --quote require --digest"),
+        ):
+            err = io.StringIO()
+            with contextlib.redirect_stderr(err), self.assertRaises(SystemExit):
+                pre_push_guard.main(argv)
+            self.assertIn(needle, err.getvalue())

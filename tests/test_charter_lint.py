@@ -10,7 +10,8 @@ import unittest
 import unittest.mock
 from pathlib import Path
 
-SCRIPTS = Path(__file__).resolve().parents[1] / "skills" / "herdr-delivery-workflow" / "scripts"
+ROOT = Path(__file__).resolve().parents[1]
+SCRIPTS = ROOT / "src" if (ROOT / "src").is_dir() else ROOT / "skills" / "herdr-delivery-workflow" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 
 import charter_lint  # noqa: E402
@@ -309,6 +310,60 @@ class CharterLintTest(unittest.TestCase):
                 self.assertNotEqual(code, 0)
                 self.assertIn(key, error)
                 self.assertIn("ENGINEER", error)
+
+    def test_lowercase_seat_line_after_prose_is_still_checked(self):
+        staffing = "Staffed 2026-09-24.\nengineer: eng kind=pi model=m posture=none\n"
+        code, _, error = self.run_lint(self.engineer_charter(), staffing)
+        self.assertEqual(code, 1)
+        self.assertIn("ENGINEER seat missing dialog=", error)
+
+    def test_reviewer_without_staffing_record_is_named(self):
+        code, _, error = self.run_lint(self.reviewer_charter())
+        self.assertEqual(code, 1)
+        self.assertIn("staffing record is required", error)
+
+    def test_unreadable_charter_or_staffing_exits_1_on_stderr(self):
+        charter_path = self.tmp / "charter.md"
+        charter_path.write_text(self.engineer_charter(), encoding="utf-8")
+        missing = str(self.tmp / "missing.md")
+        for argv, label in (
+            (["--charter", missing], "could not read charter "),
+            (["--charter", str(charter_path), "--staffing", missing],
+             "could not read staffing record "),
+        ):
+            with self.subTest(label=label):
+                stdout, stderr = io.StringIO(), io.StringIO()
+                with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                    code = charter_lint.main([*argv, "--lead", "lead-beo-skills"])
+                self.assertEqual(code, 1)
+                self.assertEqual(stdout.getvalue(), "")
+                self.assertIn(f"charter_lint: {label}", stderr.getvalue())
+                self.assertIn(missing, stderr.getvalue())
+
+    def test_charter_and_lead_are_required_arguments(self):
+        charter_path = self.tmp / "charter.md"
+        charter_path.write_text(self.engineer_charter(), encoding="utf-8")
+        for argv in (["--lead", "lead-beo-skills"], ["--charter", str(charter_path)]):
+            with self.subTest(argv=argv), contextlib.redirect_stderr(io.StringIO()):
+                with self.assertRaises(SystemExit) as raised:
+                    charter_lint.main(argv)
+                self.assertEqual(raised.exception.code, 2)
+
+    def test_jev_receives_the_declared_disposition_and_full_charter(self):
+        unavailable = jev.UnavailableResult(status="unavailable", finding={}, reason="x")
+        no_disposition = self.engineer_charter().replace("Disposition: Engineer\n", "")
+        with unittest.mock.patch.object(
+            jev, "triage_charter", return_value=unavailable
+        ) as triage:
+            self.run_lint(self.engineer_charter(), self.staffing_record(), jev_enabled=True)
+            self.run_lint(no_disposition, jev_enabled=True)
+        self.assertEqual(
+            triage.call_args_list,
+            [
+                unittest.mock.call("Engineer", self.engineer_charter()),
+                unittest.mock.call(None, no_disposition),
+            ],
+        )
 
     @staticmethod
     def engineer_charter() -> str:

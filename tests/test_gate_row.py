@@ -15,7 +15,8 @@ from types import SimpleNamespace
 from unittest import mock
 from pathlib import Path
 
-SCRIPTS = Path(__file__).resolve().parents[1] / "skills" / "herdr-delivery-workflow" / "scripts"
+ROOT = Path(__file__).resolve().parents[1]
+SCRIPTS = ROOT / "src" if (ROOT / "src").is_dir() else ROOT / "skills" / "herdr-delivery-workflow" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 
 import gate_row  # noqa: E402
@@ -1397,6 +1398,320 @@ class GateRowTest(unittest.TestCase):
         self.assertEqual(self.run_main(argv), 1)
         self.assertIn("outside the declared boundary", self.err.getvalue())
 
+    def test_ledger_is_a_required_argument(self):
+        with self.assertRaises(SystemExit) as ctx:
+            self.run_main(["--repo", str(self.repo), "--check"])
+        self.assertEqual(ctx.exception.code, 2)
+
+    def test_repo_defaults_to_the_working_directory(self):
+        with contextlib.chdir(self.repo):
+            self.assertEqual(self.run_main([
+                "--ledger", str(self.ledger), "--kind", "merge", "--status", "resolved:standing-waiver",
+                "--words", "human", "--note", "merged the reviewed head", "--quote", "merge it",
+            ]), 0, self.err.getvalue())
+        self.assertIn(f" | main@{self.rev('HEAD')} | ", self.last_row())
+
+    def test_append_requires_kind_status_and_note(self):
+        before = self.ledger.read_bytes()
+        base = ["--ledger", str(self.ledger), "--repo", str(self.repo), "--words", "human", "--quote", "q"]
+        for extra, message in (
+            (["--kind", "merge", "--note", "n"], "--kind and --status are required"),
+            (["--kind", "merge", "--status", "open"], "note= is required"),
+        ):
+            with self.subTest(extra):
+                self.assertEqual(self.run_main(base + extra), 1)
+                self.assertIn(message, self.err.getvalue())
+        self.assertEqual(self.ledger.read_bytes(), before)
+
+    def test_a_ledger_without_a_trailing_newline_gets_one_before_the_row(self):
+        self.ledger.write_text("# Gate ledger — test", encoding="utf-8")
+        self.assertEqual(self.append(), 0, self.err.getvalue())
+        self.assertEqual(self.ledger.read_text(encoding="utf-8"),
+                         f"# Gate ledger — test\n{self.last_row()}\n")
+
+    def test_check_prints_the_id_it_checked(self):
+        self.assertEqual(self.append(), 0)
+        self.assertEqual(self.check_last(), 0)
+        self.assertEqual(self.out.getvalue(), "ok: G1 checks out\n")
+
+    def test_a_row_is_stamped_in_utc_whatever_the_local_zone(self):
+        import os
+        import time
+        self.addCleanup(time.tzset)
+        with mock.patch.dict(os.environ, {"TZ": "Etc/GMT-7"}):
+            time.tzset()
+            self.assertEqual(self.append(), 0, self.err.getvalue())
+        stamp = datetime.strptime(self.last_row().split(" | ")[1], "%Y-%m-%dT%H:%M:%SZ")
+        drift = abs(stamp.replace(tzinfo=timezone.utc) - datetime.now(timezone.utc))
+        self.assertLess(drift.total_seconds(), 600)
+
+    def test_a_note_of_exactly_the_cap_lands_and_checks_out(self):
+        self.assertEqual(self.append("--note", "n" * gate_row.NOTE_MAX), 0, self.err.getvalue())
+        self.assertEqual(self.check_last(), 0, self.err.getvalue())
+
+    def test_quote_file_strips_one_trailing_crlf(self):
+        path = self.tmp / "quote.txt"
+        path.write_bytes(b"merge it\r\n")
+        self.assertEqual(self.append("--quote", "", "--quote-file", str(path)), 0, self.err.getvalue())
+        self.assertIn(' | quote="merge it"', self.last_row())
+        self.assertTrue(self.last_row().endswith('"merge it"'))
+
+    def test_every_special_flag_is_refused_on_a_kind_it_does_not_belong_to(self):
+        before = self.ledger.read_bytes()
+        for flag in ("--op", "--after", "--who", "--scope", "--conditions", "--expiry", "--finding"):
+            with self.subTest(flag):
+                self.assertEqual(self.append(flag, "x"), 1)
+                self.assertIn(f"{flag} is only meaningful", self.err.getvalue())
+        self.assertEqual(self.ledger.read_bytes(), before)
+
+    def test_a_structured_field_refuses_the_row_delimiters(self):
+        before = self.ledger.read_bytes()
+        for op in ("git|status", 'git "status"', "git\nstatus"):
+            with self.subTest(op=op):
+                self.assertEqual(self.append_local_ops("--op", op), 1)
+        self.assertEqual(self.ledger.read_bytes(), before)
+
+    def test_one_resolves_flag_can_close_several_gates(self):
+        self.assertEqual(self.append("--status", "open"), 0, self.err.getvalue())
+        self.assertEqual(self.append("--status", "open"), 0, self.err.getvalue())
+        self.assertEqual(self.append("--resolves", "G1,G2"), 0, self.err.getvalue())
+        self.assertIn(" | resolves=G1,G2 | ", self.last_row())
+        self.assertEqual(self.open_gates(), [])
+
+    def test_a_selected_push_grant_lands_and_checks_out(self):
+        spec = f"origin refs/heads/main push {self.rev('HEAD~1')}..{self.rev('HEAD')}"
+        self.assertEqual(self.append_push_grant(
+            spec, "--channel", "supervisor-relay:dialog", "--words", "selected", "--quote", "Approve"),
+            0, self.err.getvalue())
+        self.assertEqual(self.check_last(), 0, self.err.getvalue())
+
+    def test_only_a_progress_boundary_resets_the_repair_cap(self):
+        self.add_remote("HEAD")
+        cases = (
+            ("merge resolved", True, lambda: self.append()),
+            ("repair-cap-gate", True, lambda: self.append("--kind", "repair-cap-gate", "--status", "open")),
+            ("push", True, lambda: self.append(
+                "--kind", "push", "--push-base", self.rev("HEAD~2"), "--boundary", ".")),
+            ("merge open", False, lambda: self.append("--status", "open")),
+            ("resolved non-merge", False, lambda: self.append("--kind", "deploy-gate")),
+        )
+        for name, resets, boundary in cases:
+            with self.subTest(name):
+                self.ledger.write_text("# Gate ledger — test\n\n")
+                self.assertEqual(self.append_review_pass(), 0, self.err.getvalue())
+                self.assertEqual(self.append_repair_grant(), 0, self.err.getvalue())
+                self.assertEqual(boundary(), 0, self.err.getvalue())
+                self.assertEqual(self.append_repair_grant(), 0 if resets else 1, self.err.getvalue())
+
+    def test_a_push_inside_a_wider_grant_must_consume_it(self):
+        self.assertEqual(self.append_review_pass(), 0, self.err.getvalue())
+        self.add_remote("HEAD")
+        self.assertEqual(self.append_push_grant(
+            f"origin refs/heads/main push {self.rev('HEAD~2')}..{self.rev('HEAD')}"), 0, self.err.getvalue())
+        self.assertEqual(self.append(
+            "--kind", "push", "--push-base", self.rev("HEAD~1"), "--boundary", "."), 1)
+        self.assertIn("open grant G2", self.err.getvalue())
+
+    def test_a_grant_already_consumed_is_not_demanded_again(self):
+        self.assertEqual(self.append_review_pass(), 0, self.err.getvalue())
+        self.add_remote("HEAD")
+        self.assertEqual(self.append_push_grant(
+            f"origin refs/heads/main push {self.rev('HEAD~2')}..{self.rev('HEAD')}"), 0, self.err.getvalue())
+        self.assertEqual(self.append("--resolves", "G2"), 0, self.err.getvalue())
+        self.assertEqual(self.append(
+            "--kind", "push", "--push-base", self.rev("HEAD~2"), "--boundary", "."), 0, self.err.getvalue())
+
+    def test_push_authority_is_found_past_rows_that_do_not_grant_it(self):
+        base, mid, head = self.rev("HEAD~2"), self.rev("HEAD~1"), self.rev("HEAD")
+        self.assertEqual(self.append_push_grant(f"origin refs/heads/other push {base}..{head}"), 0)
+        self.assertEqual(self.append_push_grant(f"origin refs/heads/main push {mid}..{head}"), 0)
+        self.assertEqual(self.append_push_grant(f"origin refs/heads/main push {base}..{head}"), 0)
+        self.assertEqual(self.append("--resolves", "G3"), 0, self.err.getvalue())
+        self.assertEqual(self.append_standing_delegation(), 0)
+        self.assertEqual(self.append_standing_delegation(
+            "--expiry", "until-revoked", "--push-scope", "upstream:main"), 0)
+        self.assertEqual(self.append_standing_delegation(
+            "--expiry", "until-revoked", "--push-scope", "origin:main"), 0)
+        self.assertEqual(self.append("--resolves", "G7"), 0, self.err.getvalue())
+        self.assertEqual(self.append_standing_delegation(
+            "--expiry", "until-revoked", "--push-scope", "upstream:release,origin:main"), 0)
+        rows = gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))
+        self.assertEqual(gate_row.require_push_authority(
+            rows, self.repo, "origin", "refs/heads/main", base, head, datetime.now(timezone.utc)), "G9")
+
+    def test_the_landed_check_reads_origins_copy_of_the_rows_branch(self):
+        self.assertEqual(self.append_review_pass(), 0, self.err.getvalue())
+        self.add_remote("HEAD")
+        subprocess.run(["git", "-C", str(self.repo), "push", "-q", "origin",
+                        f"{self.rev('HEAD~1')}:refs/heads/aaa"], check=True, capture_output=True)
+        subprocess.run(["git", "--git-dir", str(self.tmp / "origin.git"), "symbolic-ref", "HEAD",
+                        "refs/heads/aaa"], check=True)
+        self.assertEqual(self.append(
+            "--kind", "push", "--push-base", self.rev("HEAD~2"), "--boundary", "."), 0, self.err.getvalue())
+
+    def test_a_head_that_is_not_under_the_remote_tip_has_not_landed(self):
+        self.assertEqual(self.append_review_pass(), 0, self.err.getvalue())
+        self.add_remote("HEAD~1")
+        before = self.ledger.read_bytes()
+        self.assertEqual(self.append(
+            "--kind", "push", "--push-base", self.rev("HEAD~2"), "--boundary", "."), 1)
+        self.assertIn("has not landed", self.err.getvalue())
+        self.assertEqual(self.ledger.read_bytes(), before)
+
+    def test_boundary_alone_on_a_review_row_is_refused(self):
+        before = self.ledger.read_bytes()
+        self.assertEqual(self.run_main([
+            "--ledger", str(self.ledger), "--repo", str(self.repo),
+            "--kind", "review", "--status", "recorded:review-pass", "--review-base", self.rev("HEAD~2"),
+            "--boundary", "f1.txt", "--words", "seat", "--note", "review passed", "--quote", "PASS",
+        ]), 1)
+        self.assertEqual(self.ledger.read_bytes(), before)
+
+    def test_two_paths_outside_the_boundary_round_trip(self):
+        self.assertEqual(self.append_review_pass(), 0, self.err.getvalue())
+        self.add_remote("HEAD")
+        self.assertEqual(self.append(
+            "--kind", "push", "--push-base", self.rev("HEAD~2"), "--boundary", "docs"), 0, self.err.getvalue())
+        self.assertIn('boundary-check="f1.txt f2.txt"', self.last_row())
+        self.assertEqual(self.check_last(), 0, self.err.getvalue())
+
+    def test_the_touched_set_counts_the_root_commit_merges_and_both_rename_sides(self):
+        self.assertEqual(gate_row.derive_push(self.repo, gate_row.ZERO, self.rev("HEAD"), ["f1.txt", "f2.txt"]),
+                         ("3", ["f0.txt"]))
+        base = self.rev("HEAD")
+        self.git("checkout", "-qb", "side")
+        (self.repo / "side.txt").write_text("s\n")
+        self.git("add", "-A")
+        self.git("commit", "-qm", "side")
+        self.git("checkout", "-q", "main")
+        self.git("mv", "f0.txt", "kept.txt")
+        self.git("commit", "-qm", "rename")
+        self.git("merge", "-q", "--no-ff", "--no-commit", "side")
+        (self.repo / "evil.txt").write_text("e\n")
+        self.git("add", "-A")
+        self.git("commit", "-qm", "merge with a change of its own")
+        _, outside = gate_row.derive_push(self.repo, base, self.rev("HEAD"), ["side.txt", "kept.txt"])
+        self.assertEqual(outside, ["evil.txt", "f0.txt"])
+
+    def test_a_directory_boundary_covers_its_files_with_or_without_a_slash(self):
+        base = self.rev("HEAD")
+        (self.repo / "docs").mkdir()
+        (self.repo / "docs" / "a.md").write_text("a\n")
+        self.git("add", "-A")
+        self.git("commit", "-qm", "docs")
+        for boundary in ("docs", "docs/"):
+            with self.subTest(boundary):
+                self.assertEqual(gate_row.derive_push(self.repo, base, self.rev("HEAD"), [boundary]), ("1", []))
+
+    def test_an_outside_path_holding_a_row_delimiter_is_refused(self):
+        for name in ("pipe|name.txt", 'quote"name.txt'):
+            with self.subTest(name):
+                base = self.rev("HEAD")
+                (self.repo / name).write_text("x\n")
+                self.git("add", "-A")
+                self.git("commit", "-qm", "delimiter path")
+                with self.assertRaises(gate_row.RowError):
+                    gate_row.derive_push(self.repo, base, self.rev("HEAD"), ["docs"])
+
+    def test_mailbox_attention_is_required_only_of_an_open_human_gate(self):
+        mailbox = self.tmp / "supervisor-mailbox.md"
+        mailbox.write_text("", encoding="utf-8")
+        argv = ["--ledger", str(self.ledger), "--repo", str(self.repo), "--check", "--mailbox", str(mailbox)]
+        self.assertEqual(self.append(), 0, self.err.getvalue())
+        self.assertEqual(self.run_main(argv), 0, self.err.getvalue())
+        self.assertEqual(self.append("--kind", "note", "--status", "open"), 0, self.err.getvalue())
+        self.assertEqual(self.run_main(argv), 0, self.err.getvalue())
+
+    def test_mailbox_attention_is_found_below_other_lines(self):
+        self.assertEqual(self.append("--status", "open"), 0, self.err.getvalue())
+        mailbox = self.tmp / "supervisor-mailbox.md"
+        mailbox.write_text(
+            "# Supervisor mailbox\n\n"
+            "## lead-beo-skills -> supervisor | 2026-09-13T00:00:00Z | "
+            f"ATTENTION project human gate G1 | HEAD {self.rev('HEAD')}\n",
+            encoding="utf-8",
+        )
+        self.assertEqual(self.run_main([
+            "--ledger", str(self.ledger), "--repo", str(self.repo), "--check", "--mailbox", str(mailbox),
+        ]), 0, self.err.getvalue())
+
+    def test_a_field_value_carrying_a_second_equals_is_refused_by_check(self):
+        self.assertEqual(self.append("--status", "open", "--channel", "supervisor-relay:typed",
+                                     "--writer", "lead-beo-skills"), 0, self.err.getvalue())
+        self.assertEqual(self.append("--resolves", "G1"), 0, self.err.getvalue())
+        self.assertEqual(self.append_repair_grant(), 0, self.err.getvalue())
+        self.assertEqual(self.append_local_ops(), 0, self.err.getvalue())
+        rows = gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))
+        names = {"channel", "writer", "record", "status", "resolves", "finding", "after", "prev_hash", "words"}
+        for index, row in enumerate(rows):
+            for field in row.split(" | ")[1:-1]:
+                name, _, value = field.partition("=")
+                if name not in names:
+                    continue
+                # A branch name may hold "=", so after=x=<branch>@<sha> is a valid after=.
+                prefixed = () if name == "after" else (f"{name}=x={value}",)
+                for forged in (f"{field}=x", *prefixed):
+                    with self.subTest(forged):
+                        tampered = row.replace(f" | {field} | ", f" | {forged} | ", 1)
+                        self.assertNotEqual(tampered, row)
+                        with self.assertRaises(gate_row.RowError):
+                            gate_row.check(tampered, self.repo, rows[:index], self.ledger)
+
+    def test_a_truncated_row_is_a_row_error_not_a_crash(self):
+        head = self.rev("HEAD")
+        record = " | record=timely"
+
+        def row(kind: str, status: str, tail: str) -> str:
+            return f'G1 | 2026-09-06T00:00:00Z | kind={kind} | main@{head} | status={status}{tail} | quote=""'
+
+        rows = [
+            row("merge", "open", ""),
+            row("merge", "open", " | channel=supervisor-relay:typed"),
+            row("merge", "open", " | writer=lead-beo-skills"),
+            row("merge", "open", record),
+            row("merge", "open", record + " | words=none"),
+            row("local-ops", gate_row.LOCAL_OPS_STATUS, record),
+            row("repair-grant", "recorded:granted", record),
+            row("cutover", gate_row.CUTOVER_STATUS, record),
+            row("standing-delegation", gate_row.STANDING_DELEGATION_STATUS,
+                record + " | who=w | scope=s | conditions=c | expiry=until-revoked"),
+        ]
+        for text in rows:
+            with self.subTest(text), self.assertRaises(gate_row.RowError):
+                gate_row.check(text, self.repo, [], self.ledger)
+        cutover = row("cutover", gate_row.CUTOVER_STATUS,
+                      f"{record} | archive={'a' * 64} | words=none | note=n")
+        with self.assertRaises(gate_row.RowError):
+            gate_row.check(cutover, self.repo)
+
+    def test_check_refuses_hand_edits_the_writer_never_emits(self):
+        """--check is the one guard on a hand-edited row; each edit keeps the row's shape."""
+        self.assertEqual(self.append(), 0, self.err.getvalue())
+        self.assertEqual(self.append_push_grant(
+            f"origin refs/heads/other push {self.rev('HEAD~1')}..{self.rev('HEAD')}"), 0, self.err.getvalue())
+        push, _ = self.valid_push_row()
+        rows = gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))
+        merge, grant, review = rows[0], rows[1], rows[2]
+        head, mid = self.rev("HEAD"), self.rev("HEAD~1")
+        tampers = [
+            (merge, "status=resolved:standing-waiver", "status=Done"),
+            (merge, "kind=merge", "kind=Merge"),
+            (merge, "note=merged the reviewed head", "writer=lead-beo-skills"),
+            (merge, "note=merged the reviewed head", "note=merged|the reviewed head"),
+            (merge, "note=merged the reviewed head", 'note=merged "the" reviewed head'),
+            (merge, 'quote="merge it"', 'quote="merge it'),
+            (merge, 'quote="merge it"', 'quote=merge it"'),
+            (grant, "words=human", "words=seat"),
+            (review, f"main@{head}", f"main@{mid}"),
+            (push, f"main@{head}", f"main@{mid}"),
+        ]
+        for row, before, after in tampers:
+            with self.subTest(after):
+                tampered = row.replace(before, after, 1)
+                self.assertNotEqual(tampered, row)
+                with self.assertRaises(gate_row.RowError):
+                    gate_row.check(tampered, self.repo, rows[:rows.index(row)], self.ledger)
+
 
 class CutoverTest(unittest.TestCase):
     """A fresh ledger born from its archived predecessor by one kind=cutover row."""
@@ -1539,6 +1854,14 @@ class CutoverTest(unittest.TestCase):
         forged = row.replace(" | words=", f" | {archive} | words=")
         with self.assertRaisesRegex(gate_row.RowError, "words= is missing or out of order"):
             gate_row.check(forged, self.repo, [cutover_row], self.ledger)
+
+    def test_an_archive_value_carrying_a_second_equals_is_refused(self):
+        self.assertEqual(self.cutover(), 0, self.err.getvalue())
+        row = self.last_row()
+        field = next(f for f in row.split(" | ") if f.startswith("archive="))
+        for forged in (f"{field}=x", f"archive=x={field.split('=', 1)[1]}"):
+            with self.subTest(forged), self.assertRaises(gate_row.RowError):
+                gate_row.check(row.replace(field, forged), self.repo, [], self.ledger)
 
 
 if __name__ == "__main__":

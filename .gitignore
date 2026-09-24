@@ -20,3 +20,8 @@ skills/*-workspace/
 
 # tasks-axi backlog archive artifact
 /done-archive.md
+
+# mutmut run artifacts
+mutants/
+.pytest_cache/
+/src
