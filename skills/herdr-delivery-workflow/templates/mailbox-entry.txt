@@ -1,5 +1,5 @@
-Append with (the body is read from stdin as data; quote the heredoc):
-scripts/mailbox.py --file ~/.herdr/projects/<project-slug>/supervisor-mailbox.md --append --from <lead> --to supervisor --repo <checkout> --event "<one line>" [--attention <event>] --stdin [--wake supervisor] <<'EOF'
+Append with (the body is read from stdin as data; quote the heredoc; the append always wakes the --to seat and exits with the wake's code):
+scripts/mailbox.py --file ~/.herdr/projects/<project-slug>/supervisor-mailbox.md --append --from <lead> --to supervisor --repo <checkout> --event "<one line>" [--attention <event>] --stdin <<'EOF'
 <the same event or answer detail the Lead's pane shows; capped at roughly ten lines, with any narrative going to the run's workspace record rather than the mailbox>
 EOF
 

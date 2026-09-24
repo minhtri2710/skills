@@ -17,7 +17,7 @@ scripts/gate_row.py --ledger ~/.herdr/projects/<project-slug>/gates.md --kind cu
 Human-gate mailbox check (opt-in):
 scripts/gate_row.py --ledger ~/.herdr/projects/<project-slug>/gates.md --check --mailbox ~/.herdr/projects/<project-slug>/supervisor-mailbox.md
 # For an open push, merge, deploy, push-gate, merge-gate, or deploy-gate row, the mailbox must contain
-# an exact-shape header, as `scripts/mailbox.py --append --attention` writes it (templates/mailbox-entry.txt):
+# an exact-shape header, as `scripts/mailbox.py --append --attention` writes it before its wake (templates/mailbox-entry.txt):
 # ## <lead> -> supervisor | <full-seconds ISO> | ATTENTION <text> | HEAD <sha>
 # and <text> must name the row's gate id or exact full head SHA as a complete token.
 # The header's HEAD field alone does not match. Without --mailbox, --check is unchanged.

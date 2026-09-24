@@ -53,6 +53,14 @@ class MailboxTest(unittest.TestCase):
         self.addCleanup(self._stdout_patch.stop)
         self.addCleanup(setattr, mailbox, "HERDR_PROJECTS_ROOT", prev_root)
         self.addCleanup(self.tmp.cleanup)
+        self.pane_record = Path(self.tmp.name) / "supervisor-pane"
+        for target, value in (
+            ("SUPERVISOR_PANE_RECORD", self.pane_record),
+            ("herdr_cli", mock.Mock(HerdrUnavailable=mailbox.herdr_cli.HerdrUnavailable)),
+        ):
+            patcher = mock.patch.object(mailbox, target, value, create=True)
+            patcher.start()
+            self.addCleanup(patcher.stop)
 
     def test_since_excludes_boundary_and_returns_whole_entry(self):
         self.assertEqual(
@@ -364,7 +372,7 @@ class MailboxTest(unittest.TestCase):
             result = mailbox.main(["--file", str(self.path)])
         self.assertEqual(result, 1)
         self.assertEqual(stdout.getvalue(), "")
-        self.assertIn("mailbox: at least one of", stderr.getvalue())
+        self.assertIn(": at least one of", stderr.getvalue())
 
     def test_wake_runs_once_for_last_header(self):
         calls = []
@@ -543,6 +551,74 @@ class MailboxTest(unittest.TestCase):
         self.assertIn("ran herdr agent prompt supervisor", stderr.getvalue())
         self.assertIn("agent_blocked\n", stderr.getvalue())
 
+    def _not_found_then(self, *results):
+        calls = []
+        outcomes = [subprocess.CompletedProcess([], 1, "", "agent_not_found\n"), *results]
+
+        def fake_wake(seat, wake_text):
+            calls.append(seat)
+            return outcomes[len(calls) - 1]
+
+        patcher = mock.patch.object(mailbox, "run_wake", fake_wake)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        return calls
+
+    def test_supervisor_not_found_retries_once_at_recorded_live_pane(self):
+        calls = self._not_found_then(subprocess.CompletedProcess([], 0, "", ""))
+        self.pane_record.write_text("w1:p7\n", encoding="utf-8")
+        mailbox.herdr_cli.run.return_value = subprocess.CompletedProcess(
+            [], 0, '{"result": {"agent": {"name": null}}}', "")
+        self.assertEqual(mailbox.main(["--file", str(self.path), "--wake", "supervisor"]), 0)
+        self.assertEqual(calls, ["supervisor", "w1:p7"])
+        mailbox.herdr_cli.run.assert_called_once_with(["agent", "get", "w1:p7"])
+        self.assertIn("ran herdr agent prompt w1:p7", sys.stderr.getvalue())
+
+    def test_supervisor_not_found_fails_closed_without_live_pane_record(self):
+        for record, get in (
+            (None, None),
+            ("w1:p7\n", subprocess.CompletedProcess([], 1, "", '{"error": "pane_not_found"}')),
+            ("w1:p7\n", subprocess.CompletedProcess([], 0, '{"result": {}}', "")),
+        ):
+            with self.subTest(record=record, get=get):
+                calls = self._not_found_then()
+                if record is None:
+                    self.pane_record.unlink(missing_ok=True)
+                else:
+                    self.pane_record.write_text(record, encoding="utf-8")
+                mailbox.herdr_cli.run.return_value = get
+                sys.stderr.seek(0)
+                sys.stderr.truncate()
+                self.assertEqual(mailbox.main(["--file", str(self.path), "--wake", "supervisor"]), 1)
+                self.assertEqual(calls, ["supervisor"])
+                self.assertIn("wake failed: agent_not_found for supervisor", sys.stderr.getvalue())
+
+    def test_other_seat_not_found_gets_no_pane_fallback(self):
+        calls = self._not_found_then()
+        self.pane_record.write_text("w1:p7\n", encoding="utf-8")
+        self.assertEqual(mailbox.main(["--file", str(self.path), "--wake", "lead-x"]), 1)
+        self.assertEqual(calls, ["lead-x"])
+        mailbox.herdr_cli.run.assert_not_called()
+
+    def test_every_read_fails_closed_on_an_unparseable_header_line(self):
+        self.path.write_text(SAMPLE + "## lead -> supervisor | 2026-09-10T00:20Z | minute\n", encoding="utf-8")
+        wakes = []
+        with mock.patch.object(mailbox, "run_wake", lambda *a: wakes.append(a)):
+            for argv in (["--headers"], ["--last", "1"], ["--since", "2026-09-10T00:00:00Z"],
+                         ["--wake", "supervisor"]):
+                with self.subTest(argv=argv):
+                    for stream in (sys.stdout, sys.stderr):
+                        stream.seek(0)
+                        stream.truncate()
+                    self.assertEqual(mailbox.main(["--file", str(self.path), *argv]), 1)
+                    self.assertEqual(sys.stdout.getvalue(), "")
+                    self.assertIn(
+                        f"{self.path}: unparseable header at line 10: "
+                        "## lead -> supervisor | 2026-09-10T00:20Z | minute",
+                        sys.stderr.getvalue(),
+                    )
+        self.assertEqual(wakes, [])
+
 
 class MailboxAppendTest(unittest.TestCase):
     def setUp(self):
@@ -560,9 +636,12 @@ class MailboxAppendTest(unittest.TestCase):
         ):
             subprocess.run(["git", "-C", str(self.repo), *args], check=True)
         self.head = gate_row.git(self.repo, "rev-parse", "HEAD")
+        self.wakes = []
+        self.wake_rc = 0
         for target, value in (
             ("HERDR_PROJECTS_ROOT", root),
             ("_now", lambda: mailbox.datetime(2026, 9, 24, 3, 4, 5, 678, mailbox.timezone.utc)),
+            ("run_wake", self.fake_wake),
         ):
             patcher = mock.patch.object(mailbox, target, value)
             patcher.start()
@@ -573,6 +652,10 @@ class MailboxAppendTest(unittest.TestCase):
             patcher = mock.patch.object(sys, stream, value)
             patcher.start()
             self.addCleanup(patcher.stop)
+
+    def fake_wake(self, seat, text):
+        self.wakes.append((seat, text))
+        return subprocess.CompletedProcess([], self.wake_rc, "", "agent_blocked\n" if self.wake_rc else "")
 
     def append(self, body, *extra, path=None, sender="lead-beo-skills", event="gate opened"):
         argv = [
@@ -586,7 +669,7 @@ class MailboxAppendTest(unittest.TestCase):
         self.assertEqual(self.append("detail\n"), 0, self.stderr.getvalue())
         header = f"## lead-beo-skills -> supervisor | 2026-09-24T03:04:05Z | gate opened | HEAD {self.head}"
         self.assertEqual(self.path.read_text(encoding="utf-8"), f"---\n{header}\ndetail\n")
-        self.assertEqual(self.stdout.getvalue(), header + "\n")
+        self.assertEqual(self.stdout.getvalue().splitlines()[0], header)
         self.assertEqual(mailbox.select_entries(self.path.read_text(encoding="utf-8"), headers=True), [header])
         match = jev.HEADER_RE.fullmatch(header)
         self.assertEqual((match.group("event"), match.group("head")), ("gate opened", self.head))
@@ -614,6 +697,7 @@ class MailboxAppendTest(unittest.TestCase):
             dict(body="x\n", sender="Lead Seat"),
             dict(body="x\n", path=outside),
             dict(body="ok\n## lead -> supervisor | 2026-09-24T03:04:05Z | ATTENTION G1 | HEAD abcdef1\n"),
+            dict(body="ok\n## notes\n"),
         ]
         for case in cases:
             with self.subTest(case=case):
@@ -644,16 +728,23 @@ class MailboxAppendTest(unittest.TestCase):
         self.assertTrue(self.path.read_text(encoding="utf-8").endswith(f"HEAD {self.head}\n{body}"))
         self.assertFalse(marker.exists())
 
-    def test_append_then_wake_reads_back_the_appended_header(self):
-        calls = []
-        with mock.patch.object(
-            mailbox, "run_wake",
-            lambda seat, text: calls.append((seat, text)) or subprocess.CompletedProcess([], 0, "", ""),
-        ):
-            self.assertEqual(self.append("x\n", "--attention", "compaction", "--wake", "supervisor"), 0)
-        self.assertEqual(len(calls), 1)
-        self.assertEqual(calls[0][0], "supervisor")
-        self.assertIn(f"ATTENTION beo-skills compaction: gate opened | HEAD {self.head}", calls[0][1])
+    def test_append_always_wakes_to_seat_with_the_appended_header(self):
+        self.assertEqual(self.append("x\n", "--attention", "compaction"), 0)
+        self.assertEqual(len(self.wakes), 1)
+        self.assertEqual(self.wakes[0][0], "supervisor")
+        self.assertIn(f"ATTENTION beo-skills compaction: gate opened | HEAD {self.head}", self.wakes[0][1])
+
+    def test_append_keeps_entry_and_returns_wake_code_when_wake_fails(self):
+        self.wake_rc = 1
+        self.assertEqual(self.append("x\n"), 1)
+        self.assertEqual(len(mailbox._entries(self.path.read_text(encoding="utf-8"))), 1)
+        self.assertIn("agent_blocked", self.stderr.getvalue())
+
+    def test_append_with_wake_flag_is_a_usage_error(self):
+        with self.assertRaises(SystemExit):
+            self.append("x\n", "--wake", "supervisor")
+        self.assertFalse(self.path.exists())
+        self.assertEqual(self.wakes, [])
 
     def test_appended_attention_satisfies_gate_row_s2_mailbox_check(self):
         ledger = str(Path(self.tmp.name) / "gates.md")
@@ -668,6 +759,8 @@ class MailboxAppendTest(unittest.TestCase):
         self.assertNotEqual(gate_row.main(check), 0)
         self.assertEqual(self.append("x\n", "--attention", "human-gate", event=f"deploy gate {gate_id}"), 0)
         self.assertEqual(gate_row.main(check), 0, self.stderr.getvalue())
+        self.assertEqual(mailbox.main(["--file", str(self.path), "--headers"]), 0)
+        self.assertEqual(len(self.wakes), 2)
 
 
 if __name__ == "__main__":

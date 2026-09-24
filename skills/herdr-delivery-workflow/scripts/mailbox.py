@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import re
 import subprocess
@@ -31,6 +32,9 @@ ISO_RE = re.compile(
 HERDR_PROJECTS_ROOT = Path.home() / ".herdr" / "projects"
 SEAT_RE = re.compile(r"[a-z][a-z0-9_-]{0,31}")
 SHA_RE = re.compile(r"[0-9a-f]{40}")
+# One line: the Supervisor's $HERDR_PANE_ID, written after every rename
+# (supervisor.md) so a cleared seat name can still be woken by pane.
+SUPERVISOR_PANE_RECORD = Path.home() / ".herdr" / "supervisor-pane"
 
 
 @dataclass(frozen=True)
@@ -71,6 +75,9 @@ def triage_entries(
 
 def _entries(text: str) -> list[Entry]:
     lines = text.splitlines()
+    for number, line in enumerate(lines, 1):
+        if line.startswith("## ") and not HEADER_RE.match(line):
+            raise ValueError(f"unparseable header at line {number}: {line}")
     starts = [i for i, line in enumerate(lines) if HEADER_RE.match(line)]
     entries = []
     for number, start in enumerate(starts):
@@ -94,10 +101,10 @@ def _selected_entries(
     """Select entries in mailbox order, keeping them as Entry objects."""
     if since is not None and last is not None:
         raise ValueError("since and last are mutually exclusive")
+    if since is not None and ISO_RE.fullmatch(since) is None:
+        raise ValueError("since must be an ISO-8601 UTC timestamp ending in Z")
     entries = _entries(text)
     if since is not None:
-        if ISO_RE.fullmatch(since) is None:
-            raise ValueError("since must be an ISO-8601 UTC timestamp ending in Z")
         # UTC ISO-8601 Z timestamps sort correctly lexicographically.
         entries = [entry for entry in entries if entry.timestamp > since]
     elif last is not None:
@@ -170,9 +177,9 @@ def append_entry(
     if not body.strip():
         raise ValueError("stdin body must be non-empty")
     for line in body.splitlines():
-        # A header-shaped body line would read back as a forged entry.
-        if line.startswith("## ") and " -> " in line:
-            raise ValueError("stdin body must not contain a header-shaped line")
+        # Every "## " line a script writes is a header; readers fail closed on any other.
+        if line.startswith("## "):
+            raise ValueError("stdin body must not contain a line starting '## '")
     proc = subprocess.run(
         ["git", "-C", repo, "rev-parse", "HEAD"],
         capture_output=True, text=True, check=False,
@@ -210,6 +217,60 @@ def _default_wake_text(seat: str, mailbox_path: str, header: str) -> str:
     return f"Seat {seat}: read project mailbox {mailbox_path} for the latest entry ({header})."
 
 
+def _supervisor_pane() -> str:
+    """Return the recorded Supervisor pane if Herdr shows an agent in it."""
+    try:
+        pane = SUPERVISOR_PANE_RECORD.read_text(encoding="utf-8").strip()
+    except OSError as exc:
+        raise ValueError(f"no pane record: {exc}") from exc
+    if not pane or "\n" in pane:
+        raise ValueError(f"pane record {SUPERVISOR_PANE_RECORD} is not one pane id")
+    got = herdr_cli.run(["agent", "get", pane])
+    try:
+        agent = json.loads(got.stdout)["result"]["agent"]
+    except (ValueError, KeyError, TypeError):
+        agent = None
+    if got.returncode or not isinstance(agent, dict):
+        raise ValueError(f"recorded pane {pane} shows no agent")
+    return pane
+
+
+def wake(seat: str, mailbox_path: str) -> int:
+    """Read back the last header, then wake the seat once; a cleared supervisor
+    name gets one retry at its recorded pane."""
+    _require_project_mailbox(mailbox_path, "--wake")
+    text = Path(mailbox_path).read_text(encoding="utf-8")
+    output = select_entries(text, last=1, headers=True)
+    if not output:
+        print("mailbox: UNSENT: no parseable last header; wake not attempted", file=sys.stderr)
+        return 1
+    wake_text = _default_wake_text(seat, mailbox_path, output[0])
+    target = seat
+    try:
+        result = run_wake(target, wake_text)
+        if (seat == "supervisor" and result.returncode
+                and "agent_not_found" in result.stdout + result.stderr):
+            try:
+                target = _supervisor_pane()
+            except ValueError as exc:
+                print(f"mailbox: wake failed: agent_not_found for supervisor; "
+                      f"pane fallback refused: {exc}", file=sys.stderr)
+            else:
+                print(f"mailbox: supervisor agent_not_found; retrying pane {target}",
+                      file=sys.stderr)
+                result = run_wake(target, wake_text)
+    except herdr_cli.HerdrUnavailable as exc:
+        print(f"mailbox: ran herdr agent prompt {target}", file=sys.stderr)
+        print(f"mailbox: wake failed: {exc}", file=sys.stderr)
+        return 1
+    print(f"mailbox: ran herdr agent prompt {target}", file=sys.stderr)
+    if result.stdout:
+        sys.stdout.write(result.stdout)
+    if result.stderr:
+        sys.stderr.write(result.stderr)
+    return result.returncode
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="select Supervisor mailbox entries")
     parser.add_argument("--file", required=True, metavar="PATH", help="mailbox file")
@@ -222,9 +283,9 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="with --headers, append an advisory jev=<label> to each header line",
     )
-    parser.add_argument("--wake", metavar="SEAT", help="read the last header and wake a seat")
+    parser.add_argument("--wake", metavar="SEAT", help="read the last header and re-wake a seat")
     parser.add_argument("--append", action="store_true",
-                        help="append one entry whose body is read from stdin")
+                        help="append one entry whose body is read from stdin, then wake --to")
     parser.add_argument("--from", dest="sender", metavar="SEAT")
     parser.add_argument("--to", dest="recipient", metavar="SEAT")
     parser.add_argument("--repo", metavar="PATH", help="checkout whose HEAD the header carries")
@@ -239,6 +300,8 @@ def main(argv: list[str] | None = None) -> int:
             parser.error("--append requires --from, --to, --repo, --event and --stdin")
         if args.since is not None or args.last is not None or args.headers:
             parser.error("--append cannot be combined with mailbox selectors")
+        if args.wake is not None:
+            parser.error("--append wakes its --to seat; --wake is only a standalone re-wake")
     elif any(value is not None for value in append_args) or args.attention or args.stdin:
         parser.error("--from, --to, --repo, --event, --attention and --stdin require --append")
 
@@ -255,31 +318,12 @@ def main(argv: list[str] | None = None) -> int:
                 event=args.event, attention=args.attention, body=sys.stdin.read(),
             )
             print(header)
-            if args.wake is None:
-                return 0
-        text = Path(args.file).read_text(encoding="utf-8")
+            return wake(args.recipient, args.file)
         if args.wake is not None:
             if args.since is not None or args.last is not None or args.headers:
                 raise ValueError("--wake cannot be combined with mailbox selectors")
-            _require_project_mailbox(args.file, "--wake")
-            output = select_entries(text, last=1, headers=True)
-            if not output:
-                print("mailbox: UNSENT: no parseable last header; wake not attempted", file=sys.stderr)
-                return 1
-            header = output[0]
-            wake_text = _default_wake_text(args.wake, args.file, header)
-            try:
-                result = run_wake(args.wake, wake_text)
-            except herdr_cli.HerdrUnavailable as exc:
-                print(f"mailbox: ran herdr agent prompt {args.wake}", file=sys.stderr)
-                print(f"mailbox: wake failed: {exc}", file=sys.stderr)
-                return 1
-            print(f"mailbox: ran herdr agent prompt {args.wake}", file=sys.stderr)
-            if result.stdout:
-                sys.stdout.write(result.stdout)
-            if result.stderr:
-                sys.stderr.write(result.stderr)
-            return result.returncode
+            return wake(args.wake, args.file)
+        text = Path(args.file).read_text(encoding="utf-8")
 
         if args.since is None and args.last is None and not args.headers:
             raise ValueError("at least one of --headers, --since, or --last is required")
@@ -298,7 +342,7 @@ def main(argv: list[str] | None = None) -> int:
         else:
             output = select_entries(text, since=args.since, last=args.last, headers=args.headers)
     except (OSError, ValueError) as exc:
-        print(f"mailbox: {exc}", file=sys.stderr)
+        print(f"mailbox: {args.file}: {exc}", file=sys.stderr)
         return 1
 
     if output:
