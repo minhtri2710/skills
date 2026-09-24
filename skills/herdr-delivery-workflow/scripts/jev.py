@@ -16,12 +16,12 @@ import sys
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
-from typing import Literal, Mapping, TypeAlias
+from typing import Literal, Mapping, Sequence, TypeAlias
 
 API_URL = "https://api.typesafe.ai/v1/systemone"
 MODEL = "jev-latest"
 API_TIMEOUT_SECONDS = 10.0
-MAX_EVIDENCE_CHARS = 2_000
+MAX_RAW_ANSWER_CHARS = 2_000
 MAX_CHARTER_BODY_CHARS = 8_000
 REQUIRED_FINDING_FIELDS = (
     "severity",
@@ -35,45 +35,58 @@ REQUIRED_FINDING_FIELDS = (
     "escalation",
 )
 
-# The finding API receives one Noul and one Score. The criteria keep the model
-# advisory: expected status, in-flight work, and benign Human-gate information
-# are noise; a genuine workflow or structural misfit is actionable.
+# A Score answer is labelled with the highest level whose probability reaches
+# this floor, never below the argmax: a real chance of a worse level escalates.
+SCORE_ESCALATE_FLOOR = 0.2
+# A Noul probability at or above NOUL_HIGH is the positive label, below NOUL_LOW
+# the negative label, and anything between is "uncertain" (read it).
+NOUL_LOW = 0.2
+NOUL_HIGH = 0.8
+# A Jev supervisor_decide choice becomes the route only at this confidence.
+FORK_CONFIDENCE_FLOOR = 0.9
+
+# One dimension per question. Expected status, in-flight work, and benign
+# Human-gate information are not misfits.
 QUESTIONS = {
-    "noul": {
+    "actionable_misfit": {
         "type": "noul",
         "instructions": (
-            "Is this a genuine workflow or structural anti-pattern that is "
-            "actionable, rather than expected status, in-flight work, or "
-            "benign Human-gate information?"
+            "Does this finding name a genuine, actionable workflow or "
+            "structural misfit, rather than expected status, in-flight work, "
+            "or benign Human-gate information?"
         ),
         "criteria": {
-            "true": (
-                "A real workflow or structural misfit supported by the finding "
-                "that merits attention."
-            ),
+            "true": "It names a genuine, actionable workflow or structural misfit.",
             "false": (
-                "Expected status, in-flight work, benign Human-gate information, "
-                "or an observation without an actionable anti-pattern."
+                "It is expected status, in-flight work, benign Human-gate "
+                "information, or an observation without an actionable misfit."
             ),
         },
     },
-    "score": {
+    "cites_artifact": {
+        "type": "noul",
+        "instructions": (
+            "Does the evidence cite a concrete artifact: a file, row, SHA, "
+            "command or log?"
+        ),
+        "criteria": {
+            "true": "The evidence cites a concrete file, row, SHA, command or log.",
+            "false": "The evidence cites no concrete artifact.",
+        },
+    },
+    "severity": {
         "type": "score",
         "instructions": (
-            "How severe and actionable is this workflow or structural misfit?"
+            "Assuming the misfit exists, how severe is it?"
         ),
         "criteria": [
-            "Expected status, in-flight work, benign Human-gate information, "
-            "or an observation without an actionable anti-pattern.",
-            "A material or uncertain finding that may warrant attention but is "
-            "not clearly a severe misfit.",
-            "A well-supported, severe, actionable workflow or structural misfit.",
+            "Low: minor friction with no risk to authority, data or delivery.",
+            "Medium: material friction or risk that warrants attention.",
+            "High: a severe risk to authority, data, security or delivery.",
         ],
     },
 }
-SCORE_MAX = len(QUESTIONS["score"]["criteria"]) - 1
-NOUL_ACTIONABLE_THRESHOLD = 0.5
-URGENCY_SCORE_MAX = 2
+SEVERITY_LEVELS = ("low", "medium", "high")
 URGENCY_LEVELS = ("FYI", "supervisor-action", "human-gate")
 HEADER_RE = re.compile(
     r"^## (?P<sender>[^|\r\n]+?) -> (?P<recipient>[^|\r\n]+?) \| "
@@ -147,47 +160,29 @@ CHARTER_QUESTIONS = {
     }
 }
 CHARTER_DISPOSITIONS = ("Engineer", "Reviewer", "Architect")
-CHARTER_COHERENT_THRESHOLD = 0.5
 
 Finding: TypeAlias = Mapping[str, object]
 HeaderState: TypeAlias = Mapping[str, object]
-NoulValue = Literal["actionable", "noise"]
-Severity = Literal["low", "medium", "high"]
-Urgency = Literal["FYI", "supervisor-action", "human-gate"]
 ForkRoute = Literal["supervisor_decide", "human_gate"]
-CharterDisposition = Literal["Engineer", "Reviewer", "Architect"]
-CharterCoherence = Literal["coherent", "incoherent"]
 FORK_ROUTES = ("supervisor_decide", "human_gate")
 
 
 @dataclass(frozen=True)
 class NoulJudgment:
-    """Typed actionable-vs-noise judgment returned by Jev."""
+    """A Noul probability banded into positive / uncertain / negative."""
 
-    value: NoulValue
+    label: str
     probability: float
-
-    @property
-    def actionable(self) -> bool:
-        return self.value == "actionable"
 
 
 @dataclass(frozen=True)
 class ScoreJudgment:
-    """Typed severity/noise score returned by Jev."""
+    """A Score answer labelled from its level probabilities, not its mean."""
 
-    value: float
-    severity: Severity
-    noise: bool
-
-
-@dataclass(frozen=True)
-class UrgencyScore:
-    """Typed normalized urgency score returned for one mailbox header."""
-
-    value: float
-    raw_value: float
-    urgency: Urgency
+    label: str
+    argmax: str
+    probability: float
+    confidence: float
 
 
 @dataclass(frozen=True)
@@ -197,9 +192,7 @@ class HeaderAdvisoryResult:
     status: Literal["available"]
     header: str
     source_state: HeaderState
-    score: UrgencyScore
-    rationale: tuple[str, ...]
-    evidence: tuple[str, ...]
+    urgency: ScoreJudgment
     raw_answers: Mapping[str, object]
 
     @property
@@ -209,11 +202,16 @@ class HeaderAdvisoryResult:
 
 @dataclass(frozen=True)
 class ForkAdvisoryResult:
-    """A valid advisory route for a bounded Lead-facing fork."""
+    """A valid advisory route for a bounded Lead-facing fork.
+
+    ``choice`` is Jev's own choice (None when the deterministic rule decided);
+    ``route`` is the advisory route after the confidence brake.
+    """
 
     status: Literal["available"]
     source_state: Mapping[str, object]
     route: ForkRoute
+    choice: ForkRoute | None
     probabilities: Mapping[str, float]
     confidence: float
     deterministic: bool
@@ -223,23 +221,6 @@ class ForkAdvisoryResult:
     def available(self) -> bool:
         return True
 
-    @property
-    def choice(self) -> ForkRoute:
-        """Expose the TypeSafe Choice field under its documented name."""
-        return self.route
-
-
-@dataclass(frozen=True)
-class CharterCoherenceJudgment:
-    """Typed coherence judgment derived from one charter Noul answer."""
-
-    value: CharterCoherence
-    probability: float
-
-    @property
-    def coherent(self) -> bool:
-        return self.value == "coherent"
-
 
 @dataclass(frozen=True)
 class CharterAdvisoryResult:
@@ -247,9 +228,7 @@ class CharterAdvisoryResult:
 
     status: Literal["available"]
     source_state: Mapping[str, object]
-    coherence: CharterCoherenceJudgment
-    rationale: tuple[str, ...]
-    evidence: tuple[str, ...]
+    coherence: NoulJudgment
     raw_answers: Mapping[str, object]
 
     @property
@@ -259,14 +238,13 @@ class CharterAdvisoryResult:
 
 @dataclass(frozen=True)
 class AdvisoryResult:
-    """A valid Jev result, retaining source and raw answer data."""
+    """A valid Jev finding result, retaining source and raw answer data."""
 
     status: Literal["available"]
     finding: Finding
-    noul: NoulJudgment
-    score: ScoreJudgment
-    rationale: tuple[str, ...]
-    evidence: tuple[str, ...]
+    actionable_misfit: NoulJudgment
+    cites_artifact: NoulJudgment
+    severity: ScoreJudgment
     raw_answers: Mapping[str, object]
 
     @property
@@ -320,35 +298,55 @@ def _unavailable(
     )
 
 
-def _bounded_texts(value: object) -> tuple[str, ...] | None:
-    if value is None:
-        return ()
-    if isinstance(value, str):
-        values = [value]
-    elif isinstance(value, list) and all(isinstance(item, str) for item in value):
-        values = value
-    else:
+def _unit(value: object) -> float | None:
+    """Return a finite number in [0, 1], or None for anything else."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
         return None
-
-    bounded: list[str] = []
-    remaining = MAX_EVIDENCE_CHARS
-    for item in values:
-        if not item:
-            continue
-        if remaining <= 0:
-            break
-        clipped = item[:remaining]
-        bounded.append(clipped)
-        remaining -= len(clipped)
-    return tuple(bounded)
+    try:
+        number = float(value)
+    except OverflowError:
+        return None
+    if not math.isfinite(number) or not 0.0 <= number <= 1.0:
+        return None
+    return number
 
 
-def _score_severity(value: float) -> Severity:
-    if value < 1 / 3:
-        return "low"
-    if value < 2 / 3:
-        return "medium"
-    return "high"
+def _noul(answer: object, positive: str, negative: str) -> NoulJudgment | None:
+    if not isinstance(answer, Mapping) or answer.get("type") != "noul":
+        return None
+    probability = _unit(answer.get("noul"))
+    if probability is None:
+        return None
+    if probability >= NOUL_HIGH:
+        label = positive
+    elif probability < NOUL_LOW:
+        label = negative
+    else:
+        label = "uncertain"
+    return NoulJudgment(label=label, probability=probability)
+
+
+def _score(answer: object, levels: Sequence[str]) -> ScoreJudgment | None:
+    if not isinstance(answer, Mapping) or answer.get("type") != "score":
+        return None
+    probabilities = answer.get("probabilities")
+    keys = [str(index) for index in range(len(levels))]
+    if not isinstance(probabilities, Mapping) or set(probabilities) != set(keys):
+        return None
+    values = [_unit(probabilities[key]) for key in keys]
+    confidence = _unit(answer.get("confidence"))
+    if confidence is None or any(value is None for value in values):
+        return None
+    # Ties resolve to the higher level, so the label only ever escalates.
+    argmax = max(range(len(levels)), key=lambda index: (values[index], index))
+    escalated = [index for index, value in enumerate(values) if value >= SCORE_ESCALATE_FLOOR]
+    level = max(escalated + [argmax])
+    return ScoreJudgment(
+        label=levels[level],
+        argmax=levels[argmax],
+        probability=values[level],
+        confidence=confidence,
+    )
 
 
 def _header_state(header: object) -> HeaderState:
@@ -373,36 +371,6 @@ def _header_state(header: object) -> HeaderState:
     if match.group("head"):
         state["head"] = match.group("head")
     return state
-
-
-def _urgency(value: float) -> Urgency:
-    if value < 1 / 3:
-        return "FYI"
-    if value < 2 / 3:
-        return "supervisor-action"
-    return "human-gate"
-
-
-def _bounded_answer_copy(answers: Mapping[str, object]) -> Mapping[str, object] | None:
-    try:
-        retained = copy.deepcopy(dict(answers))
-    except Exception:
-        return None
-    score = retained.get("score")
-    if not isinstance(score, dict):
-        return retained
-    for name in ("rationale", "evidence"):
-        if name not in score:
-            continue
-        original = score[name]
-        bounded = _bounded_texts(original)
-        if bounded is None:
-            return None
-        if isinstance(original, str):
-            score[name] = bounded[0] if bounded else ""
-        elif isinstance(original, list):
-            score[name] = list(bounded)
-    return retained
 
 
 def _redact_secret(value: object, secret: str) -> object:
@@ -434,7 +402,7 @@ def _bounded_untrusted_copy(value: object) -> object | None:
     except Exception:
         return None
 
-    remaining = MAX_EVIDENCE_CHARS
+    remaining = MAX_RAW_ANSWER_CHARS
     max_items = 128
 
     def bound(item: object) -> object | None:
@@ -463,219 +431,11 @@ def _bounded_untrusted_copy(value: object) -> object | None:
     return bound(copied)
 
 
-def _parse_charter_answers(answers: object) -> tuple[
-    CharterCoherenceJudgment,
-    tuple[str, ...],
-    tuple[str, ...],
-    Mapping[str, object],
-] | None:
-    if not isinstance(answers, Mapping):
-        return None
-    secret = os.environ.get("TYPESAFE_API_KEY", "")
-    safe_answers = _redact_secret(answers, secret)
-    if not isinstance(safe_answers, Mapping):
-        return None
-    noul = safe_answers.get("noul")
-    if not isinstance(noul, Mapping) or noul.get("type") != "noul":
-        return None
-    noul_value = noul.get("noul")
-    if isinstance(noul_value, bool) or not isinstance(noul_value, (int, float)):
-        return None
-    try:
-        numeric_noul = float(noul_value)
-    except (OverflowError, TypeError, ValueError):
-        return None
-    if not math.isfinite(numeric_noul) or not 0.0 <= numeric_noul <= 1.0:
-        return None
-
-    rationale = _bounded_texts(noul.get("rationale"))
-    if rationale is None:
-        return None
-    evidence = _bounded_texts(noul.get("evidence"))
-    if evidence is None:
-        return None
-    raw_answers = _bounded_untrusted_copy(safe_answers)
-    if not isinstance(raw_answers, Mapping):
-        return None
-    return (
-        CharterCoherenceJudgment(
-            value=(
-                "coherent"
-                if numeric_noul >= CHARTER_COHERENT_THRESHOLD
-                else "incoherent"
-            ),
-            probability=numeric_noul,
-        ),
-        rationale,
-        evidence,
-        raw_answers,
-    )
-
-
-def _parse_fork_answers(answers: object) -> tuple[
-    ForkRoute,
-    Mapping[str, float],
-    float,
-    Mapping[str, object],
-] | None:
-    if not isinstance(answers, Mapping):
-        return None
-    route_answer = answers.get("route")
-    if not isinstance(route_answer, Mapping):
-        return None
-    if route_answer.get("type") != "choice":
-        return None
-
-    choice = route_answer.get("choice")
-    if not isinstance(choice, str) or choice not in FORK_ROUTES:
-        return None
-
-    probabilities = route_answer.get("probabilities")
-    if not isinstance(probabilities, Mapping):
-        return None
-    if any(not isinstance(key, str) for key in probabilities):
-        return None
-    if set(probabilities) != set(FORK_ROUTES):
-        return None
-    normalized_probabilities: dict[str, float] = {}
-    for option in FORK_ROUTES:
-        probability = probabilities.get(option)
-        if isinstance(probability, bool) or not isinstance(probability, (int, float)):
-            return None
-        try:
-            numeric_probability = float(probability)
-        except (OverflowError, TypeError, ValueError):
-            return None
-        if not math.isfinite(numeric_probability) or not 0.0 <= numeric_probability <= 1.0:
-            return None
-        normalized_probabilities[option] = numeric_probability
-
-    confidence = route_answer.get("confidence")
-    if isinstance(confidence, bool) or not isinstance(confidence, (int, float)):
-        return None
-    try:
-        numeric_confidence = float(confidence)
-    except (OverflowError, TypeError, ValueError):
-        return None
-    if not math.isfinite(numeric_confidence) or not 0.0 <= numeric_confidence <= 1.0:
-        return None
-
-    raw_answers = _bounded_untrusted_copy(answers)
-    if not isinstance(raw_answers, Mapping):
-        return None
-    return choice, normalized_probabilities, numeric_confidence, raw_answers
-
-
-def _parse_header_answers(answers: object) -> tuple[
-    UrgencyScore,
-    tuple[str, ...],
-    tuple[str, ...],
-    Mapping[str, object],
-] | None:
-    if not isinstance(answers, Mapping):
-        return None
-    score = answers.get("score")
-    if not isinstance(score, Mapping) or score.get("type") != "score":
-        return None
-    score_value = score.get("score")
-    if isinstance(score_value, bool) or not isinstance(score_value, (int, float)):
-        return None
-    try:
-        numeric_score = float(score_value)
-    except (OverflowError, TypeError, ValueError):
-        return None
-    if not math.isfinite(numeric_score) or not 0.0 <= numeric_score <= URGENCY_SCORE_MAX:
-        return None
-    rationale = _bounded_texts(score.get("rationale"))
-    if rationale is None:
-        return None
-    evidence = _bounded_texts(score.get("evidence"))
-    if evidence is None:
-        return None
-    raw_answers = _bounded_answer_copy(answers)
-    if raw_answers is None:
-        return None
-    normalized_score = numeric_score / URGENCY_SCORE_MAX
-    return (
-        UrgencyScore(
-            value=normalized_score,
-            raw_value=numeric_score,
-            urgency=_urgency(normalized_score),
-        ),
-        rationale,
-        evidence,
-        raw_answers,
-    )
-
-
-def _parse_answers(answers: object) -> tuple[
-    NoulJudgment,
-    ScoreJudgment,
-    tuple[str, ...],
-    tuple[str, ...],
-    Mapping[str, object],
-] | None:
-    if not isinstance(answers, Mapping):
-        return None
-    noul = answers.get("noul")
-    score = answers.get("score")
-    if not isinstance(noul, Mapping) or not isinstance(score, Mapping):
-        return None
-
-    if noul.get("type") != "noul" or score.get("type") != "score":
-        return None
-    noul_value = noul.get("noul")
-    score_value = score.get("score")
-    if isinstance(noul_value, bool) or not isinstance(noul_value, (int, float)):
-        return None
-    if isinstance(score_value, bool) or not isinstance(score_value, (int, float)):
-        return None
-    try:
-        numeric_noul = float(noul_value)
-        numeric_score = float(score_value)
-    except (OverflowError, TypeError, ValueError):
-        return None
-    if not math.isfinite(numeric_noul) or not 0.0 <= numeric_noul <= 1.0:
-        return None
-    if not math.isfinite(numeric_score) or not 0.0 <= numeric_score <= SCORE_MAX:
-        return None
-
-    rationale = _bounded_texts(noul.get("rationale"))
-    if rationale is None:
-        return None
-    score_rationale = _bounded_texts(score.get("rationale"))
-    if score_rationale is None:
-        return None
-    evidence = _bounded_texts(noul.get("evidence"))
-    if evidence is None:
-        return None
-    score_evidence = _bounded_texts(score.get("evidence"))
-    if score_evidence is None:
-        return None
-
-    normalized_score = numeric_score / SCORE_MAX
-    try:
-        raw_answers = copy.deepcopy(dict(answers))
-    except Exception:
-        return None
-    return (
-        NoulJudgment(
-            value=(
-                "actionable"
-                if numeric_noul >= NOUL_ACTIONABLE_THRESHOLD
-                else "noise"
-            ),
-            probability=numeric_noul,
-        ),
-        ScoreJudgment(
-            value=normalized_score,
-            severity=_score_severity(normalized_score),
-            noise=normalized_score < 0.5,
-        ),
-        rationale + score_rationale,
-        evidence + score_evidence,
-        raw_answers,
-    )
+def _raw_answers(answers: Mapping[str, object]) -> Mapping[str, object] | None:
+    """Redact the key from untrusted answers and keep a bounded copy."""
+    safe = _redact_secret(answers, os.environ.get("TYPESAFE_API_KEY", ""))
+    raw = _bounded_untrusted_copy(safe)
+    return raw if isinstance(raw, Mapping) else None
 
 
 def _request_answers(
@@ -686,9 +446,8 @@ def _request_answers(
         return None, "missing_api_key"
 
     try:
-        state_text = json.dumps(dict(state), sort_keys=True, ensure_ascii=False)
         body = json.dumps(
-            {"state": state_text, "model": MODEL, "questions": copy.deepcopy(questions)},
+            {"state": dict(state), "model": MODEL, "questions": copy.deepcopy(questions)},
             ensure_ascii=False,
         ).encode("utf-8")
         request = urllib.request.Request(
@@ -718,6 +477,18 @@ def _request_answers(
         return None, "api_error"
 
 
+def _ask(
+    state: Mapping[str, object], questions: Mapping[str, object]
+) -> tuple[Mapping[str, object] | None, str | None]:
+    """Return the answers mapping, or the fail-open reason it is missing."""
+    payload, error = _request_answers(state, questions)
+    if error is not None:
+        return None, error
+    if not isinstance(payload, Mapping) or not isinstance(payload.get("answers"), Mapping):
+        return None, "invalid_answers"
+    return payload["answers"], None
+
+
 def triage_finding(finding: Finding) -> JevResult:
     """Ask Jev to triage one finding, returning an advisory or sentinel.
 
@@ -732,22 +503,21 @@ def triage_finding(finding: Finding) -> JevResult:
     ):
         return _unavailable(retained, "invalid_finding")
 
-    payload, error = _request_answers(retained, QUESTIONS)
-    if error is not None:
+    answers, error = _ask(retained, QUESTIONS)
+    if answers is None:
         return _unavailable(retained, error)
-    if not isinstance(payload, Mapping) or "answers" not in payload:
+    actionable = _noul(answers.get("actionable_misfit"), "actionable", "noise")
+    cites = _noul(answers.get("cites_artifact"), "cited", "uncited")
+    severity = _score(answers.get("severity"), SEVERITY_LEVELS)
+    raw_answers = _raw_answers(answers)
+    if actionable is None or cites is None or severity is None or raw_answers is None:
         return _unavailable(retained, "invalid_answers")
-    parsed = _parse_answers(payload["answers"])
-    if parsed is None:
-        return _unavailable(retained, "invalid_answers")
-    noul, score, rationale, evidence, raw_answers = parsed
     return AdvisoryResult(
         status="available",
         finding=retained,
-        noul=noul,
-        score=score,
-        rationale=rationale,
-        evidence=evidence,
+        actionable_misfit=actionable,
+        cites_artifact=cites,
+        severity=severity,
         raw_answers=raw_answers,
     )
 
@@ -755,22 +525,18 @@ def triage_finding(finding: Finding) -> JevResult:
 def triage_header(header: str) -> HeaderJevResult:
     """Ask Jev for advisory urgency using only objective header facts."""
     state = _header_state(header)
-    payload, error = _request_answers(state, HEADER_QUESTIONS)
-    if error is not None:
+    answers, error = _ask(state, HEADER_QUESTIONS)
+    if answers is None:
         return _unavailable(state, error)
-    if not isinstance(payload, Mapping) or "answers" not in payload:
+    urgency = _score(answers.get("score"), URGENCY_LEVELS)
+    raw_answers = _raw_answers(answers)
+    if urgency is None or raw_answers is None:
         return _unavailable(state, "invalid_answers")
-    parsed = _parse_header_answers(payload["answers"])
-    if parsed is None:
-        return _unavailable(state, "invalid_answers")
-    score, rationale, evidence, raw_answers = parsed
     return HeaderAdvisoryResult(
         status="available",
         header=header,
         source_state=dict(state),
-        score=score,
-        rationale=rationale,
-        evidence=evidence,
+        urgency=urgency,
         raw_answers=raw_answers,
     )
 
@@ -785,25 +551,39 @@ def triage_charter(disposition: object, body: object) -> CharterJevResult:
             "disposition": disposition,
             "body": _redact_secret(body, secret)[:MAX_CHARTER_BODY_CHARS],
         }
-        payload, error = _request_answers(state, CHARTER_QUESTIONS)
-        if error is not None:
+        answers, error = _ask(state, CHARTER_QUESTIONS)
+        if answers is None:
             return _unavailable(state, error)
-        if not isinstance(payload, Mapping) or "answers" not in payload:
+        coherence = _noul(answers.get("noul"), "coherent", "incoherent")
+        raw_answers = _raw_answers(answers)
+        if coherence is None or raw_answers is None:
             return _unavailable(state, "invalid_answers")
-        parsed = _parse_charter_answers(payload["answers"])
-        if parsed is None:
-            return _unavailable(state, "invalid_answers")
-        coherence, rationale, evidence, raw_answers = parsed
         return CharterAdvisoryResult(
             status="available",
             source_state=dict(state),
             coherence=coherence,
-            rationale=rationale,
-            evidence=evidence,
             raw_answers=raw_answers,
         )
     except Exception:
         return _unavailable({}, "api_error")
+
+
+def _parse_fork_answer(
+    answer: object,
+) -> tuple[ForkRoute, Mapping[str, float], float] | None:
+    if not isinstance(answer, Mapping) or answer.get("type") != "choice":
+        return None
+    choice = answer.get("choice")
+    if not isinstance(choice, str) or choice not in FORK_ROUTES:
+        return None
+    probabilities = answer.get("probabilities")
+    if not isinstance(probabilities, Mapping) or set(probabilities) != set(FORK_ROUTES):
+        return None
+    normalized = {option: _unit(probabilities[option]) for option in FORK_ROUTES}
+    confidence = _unit(answer.get("confidence"))
+    if confidence is None or any(value is None for value in normalized.values()):
+        return None
+    return choice, normalized, confidence
 
 
 def _retained_mapping(value: object) -> dict[str, object] | None:
@@ -827,31 +607,6 @@ def _json_safe(value: object) -> bool:
     except Exception:
         return False
     return True
-
-
-def _fork_result(
-    source_state: Mapping[str, object],
-    route: ForkRoute,
-    *,
-    deterministic: bool,
-    probabilities: Mapping[str, float] | None = None,
-    confidence: float = 1.0,
-    raw_answers: Mapping[str, object] | None = None,
-) -> ForkAdvisoryResult:
-    if probabilities is None:
-        probabilities = {
-            "supervisor_decide": 0.0,
-            "human_gate": 1.0,
-        }
-    return ForkAdvisoryResult(
-        status="available",
-        source_state=copy.deepcopy(dict(source_state)),
-        route=route,
-        probabilities=dict(probabilities),
-        confidence=confidence,
-        deterministic=deterministic,
-        raw_answers={} if raw_answers is None else raw_answers,
-    )
 
 
 def route_fork(fork: object, delegation: object = None) -> ForkJevResult:
@@ -888,27 +643,40 @@ def route_fork(fork: object, delegation: object = None) -> ForkJevResult:
             and retained_delegation.get("in_force") is True
         )
         if hard_gate or not delegation_in_force:
-            return _fork_result(source_state, "human_gate", deterministic=True)
+            return ForkAdvisoryResult(
+                status="available",
+                source_state=copy.deepcopy(dict(source_state)),
+                route="human_gate",
+                choice=None,
+                probabilities={"supervisor_decide": 0.0, "human_gate": 1.0},
+                confidence=1.0,
+                deterministic=True,
+                raw_answers={},
+            )
 
-        key = os.environ.get("TYPESAFE_API_KEY", "")
-        if not key.strip():
-            return _unavailable(source_state, "missing_api_key")
-
-        payload, error = _request_answers(source_state, FORK_QUESTIONS)
-        if error is not None:
+        answers, error = _ask(source_state, FORK_QUESTIONS)
+        if answers is None:
             return _unavailable(source_state, error)
-        if not isinstance(payload, Mapping) or "answers" not in payload:
+        parsed = _parse_fork_answer(answers.get("route"))
+        raw_answers = _raw_answers(answers)
+        if parsed is None or raw_answers is None:
             return _unavailable(source_state, "invalid_answers")
-        parsed = _parse_fork_answers(payload["answers"])
-        if parsed is None:
-            return _unavailable(source_state, "invalid_answers")
-        route, probabilities, confidence, raw_answers = parsed
-        return _fork_result(
-            source_state,
-            route,
-            deterministic=False,
+        choice, probabilities, confidence = parsed
+        # Jev can only brake: anything short of a confident supervisor_decide
+        # stays human_gate.
+        route: ForkRoute = (
+            "supervisor_decide"
+            if choice == "supervisor_decide" and confidence >= FORK_CONFIDENCE_FLOOR
+            else "human_gate"
+        )
+        return ForkAdvisoryResult(
+            status="available",
+            source_state=copy.deepcopy(dict(source_state)),
+            route=route,
+            choice=choice,
             probabilities=probabilities,
             confidence=confidence,
+            deterministic=False,
             raw_answers=raw_answers,
         )
     except Exception:
@@ -948,6 +716,19 @@ def _json_object(text: str, origin: str) -> dict[str, object]:
     return value
 
 
+def _noul_json(judgment: NoulJudgment) -> dict[str, object]:
+    return {"label": judgment.label, "probability": judgment.probability}
+
+
+def _score_json(judgment: ScoreJudgment) -> dict[str, object]:
+    return {
+        "label": judgment.label,
+        "argmax": judgment.argmax,
+        "probability": judgment.probability,
+        "confidence": judgment.confidence,
+    }
+
+
 def _advisory_json(
     result: JevResult | HeaderJevResult | ForkJevResult | CharterJevResult,
 ) -> dict[str, object]:
@@ -961,43 +742,26 @@ def _advisory_json(
             "status": "unavailable",
             "reason": result.reason,
             "fallback_actionable": result.fallback_actionable,
-            "rationale": [],
-            "evidence": [],
         }
     if isinstance(result, AdvisoryResult):
         return {
             "status": "available",
-            "actionable": result.noul.actionable,
-            "severity": result.score.severity,
-            "noise": result.score.noise,
-            "rationale": list(result.rationale),
-            "evidence": list(result.evidence),
+            "actionable_misfit": _noul_json(result.actionable_misfit),
+            "cites_artifact": _noul_json(result.cites_artifact),
+            "severity": _score_json(result.severity),
         }
     if isinstance(result, HeaderAdvisoryResult):
-        return {
-            "status": "available",
-            "urgency": result.score.urgency,
-            "score": result.score.value,
-            "rationale": list(result.rationale),
-            "evidence": list(result.evidence),
-        }
+        return {"status": "available", "urgency": _score_json(result.urgency)}
     if isinstance(result, ForkAdvisoryResult):
         return {
             "status": "available",
             "route": result.route,
+            "choice": result.choice,
             "deterministic": result.deterministic,
             "confidence": result.confidence,
             "probabilities": dict(result.probabilities),
-            "rationale": [],
-            "evidence": [],
         }
-    return {
-        "status": "available",
-        "coherent": result.coherence.coherent,
-        "probability": result.coherence.probability,
-        "rationale": list(result.rationale),
-        "evidence": list(result.evidence),
-    }
+    return {"status": "available", "coherence": _noul_json(result.coherence)}
 
 
 def _mode_result(
@@ -1041,7 +805,7 @@ def _build_parser() -> argparse.ArgumentParser:
     )
 
     finding = modes.add_parser(
-        "finding", help="advisory actionable/noise triage of one finding"
+        "finding", help="advisory misfit, citation and severity triage of one finding"
     )
     source = finding.add_mutually_exclusive_group(required=True)
     source.add_argument("--file", metavar="PATH", help="read the finding JSON from PATH")

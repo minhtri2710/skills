@@ -8,10 +8,12 @@ import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Iterable
+from typing import TYPE_CHECKING, Callable, Iterable
 
 import herdr_cli
-import jev
+
+if TYPE_CHECKING:
+    import jev
 
 HEADER_RE = re.compile(
     r"^## [^|\r\n]+ -> [^|\r\n]+ \| "
@@ -57,7 +59,7 @@ class TriagedEntry:
 def triage_entries(
     entries: Iterable[Entry],
     *,
-    triage: Callable[[str], jev.HeaderJevResult] = jev.triage_header,
+    triage: Callable[[str], jev.HeaderJevResult],
 ) -> list[TriagedEntry]:
     """Annotate entries in input order without selecting, sorting, or dropping."""
     return [TriagedEntry(entry=entry, advisory=triage(entry.header)) for entry in entries]
@@ -118,7 +120,7 @@ def select_entries(
 def _triage_label(advisory: jev.HeaderJevResult) -> str:
     """Render one advisory as the bounded ``jev=`` label value."""
     if advisory.available:
-        return advisory.score.urgency
+        return advisory.urgency.label
     return f"unavailable:{advisory.reason}"
 
 
@@ -185,6 +187,8 @@ def main(argv: list[str] | None = None) -> int:
         if args.since is None and args.last is None and not args.headers:
             raise ValueError("at least one of --headers, --since, or --last is required")
         if args.triage:
+            import jev  # jev needs python >= 3.10; only --triage loads it
+
             # The callable is passed explicitly so the lookup happens at call
             # time and tests can patch jev.triage_header through main().
             triaged = triage_entries(

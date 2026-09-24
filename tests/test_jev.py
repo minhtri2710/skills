@@ -45,6 +45,43 @@ DELEGATION = {
 }
 
 
+def score_answer(probabilities: tuple[float, ...], confidence: float) -> dict[str, object]:
+    """A documented Score answer: mean score, legend, level probabilities, confidence."""
+    return {
+        "type": "score",
+        "score": sum(index * p for index, p in enumerate(probabilities)),
+        "legend": {str(index): f"level {index}" for index in range(len(probabilities))},
+        "probabilities": {str(index): p for index, p in enumerate(probabilities)},
+        "confidence": confidence,
+    }
+
+
+def finding_answers(
+    actionable: float = 0.9,
+    cites: float = 0.85,
+    severity: tuple[float, ...] = (0.1, 0.2, 0.7),
+    confidence: float = 0.6,
+) -> dict[str, object]:
+    return {
+        "actionable_misfit": {"type": "noul", "noul": actionable},
+        "cites_artifact": {"type": "noul", "noul": cites},
+        "severity": score_answer(severity, confidence),
+    }
+
+
+def fork_answer(choice: str, confidence: float) -> dict[str, object]:
+    return {
+        "answers": {
+            "route": {
+                "type": "choice",
+                "choice": choice,
+                "probabilities": {"supervisor_decide": 0.7, "human_gate": 0.3},
+                "confidence": confidence,
+            }
+        }
+    }
+
+
 class Response:
     def __init__(self, payload: object, status: int = 200) -> None:
         self.status = status
@@ -116,51 +153,18 @@ class JevTest(unittest.TestCase):
         self.assert_unavailable(result, "malformed_json")
 
     def test_unusable_answers_are_unavailable(self) -> None:
+        valid = finding_answers()
         responses = (
             {},
             {"answers": {}},
-            {
-                "answers": {
-                    "noul": {"type": "choice", "noul": 0.5},
-                    "score": {"type": "score", "score": 1.0},
-                }
-            },
-            {
-                "answers": {
-                    "noul": {"type": "noul", "noul": 0.5},
-                    "score": {"type": "choice", "score": 1.0},
-                }
-            },
-            {
-                "answers": {
-                    "noul": {"type": "noul", "noul": 0.5},
-                    "score": {"type": "score", "score": 2.1},
-                }
-            },
-            {
-                "answers": {
-                    "noul": {"type": "noul", "noul": 1.1},
-                    "score": {"type": "score", "score": 1.0},
-                }
-            },
-            {
-                "answers": {
-                    "noul": {"type": "noul", "noul": float("nan")},
-                    "score": {"type": "score", "score": 1.0},
-                }
-            },
-            {
-                "answers": {
-                    "noul": {"type": "noul", "noul": 0.5},
-                    "score": {"type": "score", "score": 10**1_000},
-                }
-            },
-            {
-                "answers": {
-                    "noul": {"type": "noul", "noul": 0.5},
-                    "score": {"type": "score", "score": 1.0, "rationale": {"unexpected": True}},
-                }
-            },
+            {"answers": []},
+            {"answers": {**valid, "actionable_misfit": {"type": "choice", "noul": 0.5}}},
+            {"answers": {**valid, "cites_artifact": {"type": "noul", "noul": 1.1}}},
+            {"answers": {**valid, "actionable_misfit": {"type": "noul", "noul": float("nan")}}},
+            {"answers": {**valid, "actionable_misfit": {"type": "noul", "noul": True}}},
+            {"answers": {k: v for k, v in valid.items() if k != "cites_artifact"}},
+            {"answers": {**valid, "severity": {**valid["severity"], "type": "choice"}}},
+            {"answers": {**valid, "severity": {"type": "score", "score": 1.0}}},
         )
         for payload in responses:
             with self.subTest(payload=payload):
@@ -170,24 +174,8 @@ class JevTest(unittest.TestCase):
                     result = jev.triage_finding(FINDING)
                 self.assert_unavailable(result, "invalid_answers")
 
-    def test_valid_typed_answers_retain_finding_and_bounded_raw_data(self) -> None:
-        payload = {
-            "answers": {
-                "noul": {
-                    "type": "noul",
-                    "noul": 0.8,
-                    "rationale": "The observation identifies a real ownership misfit.",
-                    "evidence": ["gate row", "watcher report"],
-                },
-                "score": {
-                    "type": "score",
-                    "score": 1.6,
-                    "rationale": ["High impact", "requires attention"],
-                    "evidence": "The recommendation preserves the gate.",
-                },
-                "ignored": {"free_form": "not parsed into a judgment"},
-            }
-        }
+    def test_finding_asks_three_one_dimension_questions_in_one_request(self) -> None:
+        payload = {"answers": {**finding_answers(), "ignored": {"free_form": "kept raw"}}}
         with mock.patch.object(
             jev.urllib.request, "urlopen", return_value=Response(payload)
         ) as urlopen:
@@ -198,55 +186,78 @@ class JevTest(unittest.TestCase):
         self.assertTrue(result.available)
         self.assertEqual(result.finding, FINDING)
         self.assertIsNot(result.finding, FINDING)
-        self.assertEqual(result.noul.value, "actionable")
-        self.assertEqual(result.noul.probability, 0.8)
-        self.assertTrue(result.noul.actionable)
-        self.assertEqual(result.score.value, 0.8)
-        self.assertEqual(result.score.severity, "high")
-        self.assertFalse(result.score.noise)
+        self.assertEqual(result.actionable_misfit, jev.NoulJudgment("actionable", 0.9))
+        self.assertEqual(result.cites_artifact, jev.NoulJudgment("cited", 0.85))
         self.assertEqual(
-            result.rationale,
-            ("The observation identifies a real ownership misfit.", "High impact", "requires attention"),
-        )
-        self.assertEqual(
-            result.evidence,
-            ("gate row", "watcher report", "The recommendation preserves the gate."),
+            result.severity,
+            jev.ScoreJudgment(label="high", argmax="high", probability=0.7, confidence=0.6),
         )
         self.assertEqual(result.raw_answers, payload["answers"])
         self.assertIsNot(result.raw_answers, payload["answers"])
+        self.assertFalse(hasattr(result, "rationale"))
+        self.assertFalse(hasattr(result, "evidence"))
 
+        urlopen.assert_called_once()
         request = urlopen.call_args.args[0]
         self.assertEqual(request.full_url, jev.API_URL)
         self.assertEqual(request.method, "POST")
         self.assertEqual(request.get_header("Authorization"), "Bearer test-key")
         body = json.loads(request.data)
-        self.assertEqual(json.loads(body["state"]), FINDING)
+        self.assertEqual(body["state"], FINDING)
         self.assertEqual(body["model"], "jev-latest")
-        self.assertEqual(body["questions"]["noul"]["type"], "noul")
-        self.assertEqual(body["questions"]["noul"]["criteria"].keys(), {"true", "false"})
-        self.assertEqual(body["questions"]["score"]["type"], "score")
-        self.assertEqual(len(body["questions"]["score"]["criteria"]), 3)
+        questions = body["questions"]
+        self.assertEqual(set(questions), {"actionable_misfit", "cites_artifact", "severity"})
+        self.assertEqual(questions["actionable_misfit"]["type"], "noul")
+        self.assertEqual(questions["cites_artifact"]["type"], "noul")
+        self.assertEqual(questions["severity"]["type"], "score")
+        self.assertEqual(len(questions["severity"]["criteria"]), 3)
+        self.assertEqual(
+            len({question["instructions"] for question in questions.values()}), 3
+        )
 
-    def test_documented_typed_answers_without_optional_prose_are_accepted(self) -> None:
-        payload = {
-            "answers": {
-                "noul": {"type": "noul", "noul": 0.2},
-                "score": {"type": "score", "score": 2.0},
-            }
-        }
-        with mock.patch.object(
-            jev.urllib.request, "urlopen", return_value=Response(payload)
+    def test_noul_bands_are_asymmetric_with_an_uncertain_middle(self) -> None:
+        for probability, expected in (
+            (0.0, "noise"),
+            (0.19, "noise"),
+            (0.2, "uncertain"),
+            (0.5, "uncertain"),
+            (0.79, "uncertain"),
+            (0.8, "actionable"),
+            (1.0, "actionable"),
         ):
-            result = jev.triage_finding(FINDING)
+            payload = {"answers": finding_answers(actionable=probability, cites=probability)}
+            with self.subTest(probability=probability), mock.patch.object(
+                jev.urllib.request, "urlopen", return_value=Response(payload)
+            ):
+                result = jev.triage_finding(FINDING)
+            self.assertIsInstance(result, jev.AdvisoryResult)
+            self.assertEqual(result.actionable_misfit.label, expected)
+            self.assertEqual(result.actionable_misfit.probability, probability)
+            self.assertEqual(
+                result.cites_artifact.label,
+                {"noise": "uncited", "actionable": "cited"}.get(expected, expected),
+            )
 
-        self.assertIsInstance(result, jev.AdvisoryResult)
-        self.assertEqual(result.noul.value, "noise")
-        self.assertEqual(result.noul.probability, 0.2)
-        self.assertEqual(result.rationale, ())
-        self.assertEqual(result.evidence, ())
-        self.assertEqual(result.score.value, 1.0)
-        self.assertEqual(result.score.severity, "high")
-        self.assertEqual(result.raw_answers, payload["answers"])
+    def test_severity_is_labelled_from_probabilities_not_the_mean(self) -> None:
+        for probabilities, expected, argmax in (
+            ((0.9, 0.1, 0.0), "low", "low"),
+            ((0.53, 0.43, 0.04), "medium", "low"),
+            ((0.6, 0.19, 0.21), "high", "low"),
+            ((0.3, 0.5, 0.2), "high", "medium"),
+            ((0.0, 0.0, 1.0), "high", "high"),
+        ):
+            payload = {"answers": finding_answers(severity=probabilities)}
+            with self.subTest(probabilities=probabilities), mock.patch.object(
+                jev.urllib.request, "urlopen", return_value=Response(payload)
+            ):
+                result = jev.triage_finding(FINDING)
+            self.assertIsInstance(result, jev.AdvisoryResult)
+            self.assertEqual(result.severity.label, expected)
+            self.assertEqual(result.severity.argmax, argmax)
+            self.assertEqual(
+                result.severity.probability,
+                probabilities[jev.SEVERITY_LEVELS.index(expected)],
+            )
 
     def test_unavailable_result_is_a_fail_open_pass_through(self) -> None:
         with mock.patch.object(
@@ -259,24 +270,23 @@ class JevTest(unittest.TestCase):
         self.assertEqual(result.finding["recommendation"], FINDING["recommendation"])
         self.assertEqual(result.finding["escalation"], FINDING["escalation"])
 
-    def test_header_scores_normalize_to_ordered_urgency_levels(self) -> None:
-        for raw_score, expected_value, expected_urgency in (
-            (0, 0.0, "FYI"),
-            (1, 0.5, "supervisor-action"),
-            (2, 1.0, "human-gate"),
+    def test_header_urgency_escalates_on_level_probabilities(self) -> None:
+        for probabilities, expected, argmax in (
+            ((1.0, 0.0, 0.0), "FYI", "FYI"),
+            # The live example: the mean (0.51) reads FYI, but a 0.43 chance of
+            # supervisor-action escalates.
+            ((0.53, 0.43, 0.04), "supervisor-action", "FYI"),
+            ((0.1, 0.2, 0.7), "human-gate", "human-gate"),
         ):
             payload = {
                 "answers": {
                     "score": {
-                        "type": "score",
-                        "score": raw_score,
-                        "rationale": "bounded explanation",
-                        "evidence": ["header fact"],
+                        **score_answer(probabilities, 0.23),
                         "ignored": "retained but not interpreted",
                     }
                 }
             }
-            with self.subTest(raw_score=raw_score), mock.patch.object(
+            with self.subTest(probabilities=probabilities), mock.patch.object(
                 jev.urllib.request, "urlopen", return_value=Response(payload)
             ) as urlopen:
                 result = jev.triage_header(HEADER)
@@ -296,17 +306,18 @@ class JevTest(unittest.TestCase):
             self.assertNotIn("anti_pattern", result.source_state)
             self.assertNotIn("impact", result.source_state)
             self.assertNotIn("urgency", result.source_state)
-            self.assertEqual(result.score.raw_value, raw_score)
-            self.assertEqual(result.score.value, expected_value)
-            self.assertEqual(result.score.urgency, expected_urgency)
+            self.assertEqual(result.urgency.label, expected)
+            self.assertEqual(result.urgency.argmax, argmax)
+            self.assertEqual(
+                result.urgency.probability,
+                probabilities[jev.URGENCY_LEVELS.index(expected)],
+            )
+            self.assertEqual(result.urgency.confidence, 0.23)
             self.assertEqual(result.raw_answers, payload["answers"])
             self.assertEqual(result.raw_answers["score"]["ignored"], "retained but not interpreted")
-            self.assertEqual(result.raw_answers["score"]["rationale"], "bounded explanation")
-            self.assertEqual(result.raw_answers["score"]["evidence"], ["header fact"])
 
             request_body = json.loads(urlopen.call_args.args[0].data)
-            state = json.loads(request_body["state"])
-            self.assertEqual(state["header"], HEADER)
+            self.assertEqual(request_body["state"]["header"], HEADER)
             self.assertEqual(request_body["questions"], jev.HEADER_QUESTIONS)
             self.assertEqual(request_body["questions"]["score"]["type"], "score")
             self.assertEqual(len(request_body["questions"]["score"]["criteria"]), 3)
@@ -348,24 +359,29 @@ class JevTest(unittest.TestCase):
                 )
                 self.assertNotIn("timestamp", state)
 
-    def test_header_malformed_score_or_prose_is_unavailable(self) -> None:
+    def test_header_score_without_valid_probabilities_or_confidence_is_unavailable(self) -> None:
+        valid = score_answer((0.53, 0.43, 0.04), 0.23)
+        probabilities = valid["probabilities"]
         responses = (
-            {"answers": {"score": {"type": "choice", "score": 1}}},
-            {"answers": {"score": {"type": "score", "score": -1}}},
-            {"answers": {"score": {"type": "score", "score": 3}}},
-            {"answers": {"score": {"type": "score", "score": float("nan")}}},
-            {
-                "answers": {
-                    "score": {
-                        "type": "score",
-                        "score": 1,
-                        "rationale": {"unexpected": True},
-                    }
-                }
-            },
+            {**valid, "type": "choice"},
+            # The mean alone, as the old parser read it, is not enough.
+            {"type": "score", "score": 1},
+            {k: v for k, v in valid.items() if k != "probabilities"},
+            {**valid, "probabilities": [0.53, 0.43, 0.04]},
+            {**valid, "probabilities": {"0": 0.53, "1": 0.47}},
+            {**valid, "probabilities": {**probabilities, "3": 0.0}},
+            {**valid, "probabilities": {**probabilities, "2": -0.1}},
+            {**valid, "probabilities": {**probabilities, "2": 1.5}},
+            {**valid, "probabilities": {**probabilities, "2": float("nan")}},
+            {**valid, "probabilities": {**probabilities, "2": "0.04"}},
+            {k: v for k, v in valid.items() if k != "confidence"},
+            {**valid, "confidence": 1.1},
+            {**valid, "confidence": float("inf")},
+            {**valid, "confidence": True},
         )
-        for payload in responses:
-            with self.subTest(payload=payload), mock.patch.object(
+        for answer in responses:
+            payload = {"answers": {"score": answer}}
+            with self.subTest(answer=answer), mock.patch.object(
                 jev.urllib.request, "urlopen", return_value=Response(payload)
             ):
                 result = jev.triage_header(HEADER)
@@ -378,38 +394,36 @@ class JevTest(unittest.TestCase):
     def test_header_state_keeps_unrecognized_header_objective_text_only(self) -> None:
         malformed = "not a recognized mailbox header with no body"
         with mock.patch.object(jev.urllib.request, "urlopen", return_value=Response(
-            {"answers": {"score": {"type": "score", "score": 0}}}
+            {"answers": {"score": score_answer((1.0, 0.0, 0.0), 0.9)}}
         )) as urlopen:
             result = jev.triage_header(malformed)
 
         self.assertIsInstance(result, jev.HeaderAdvisoryResult)
         self.assertEqual(result.source_state, {"header": malformed})
-        self.assertNotIn("body", json.loads(json.loads(urlopen.call_args.args[0].data)["state"]))
+        self.assertNotIn("body", json.loads(urlopen.call_args.args[0].data)["state"])
 
-    def test_charter_coherence_thresholds_and_request_contract(self) -> None:
+    def test_charter_coherence_bands_and_request_contract(self) -> None:
         body = "Disposition body with bounded responsibilities and authority."
-        for score, expected in ((0.0, "incoherent"), (0.5, "coherent"), (1.0, "coherent")):
-            payload = {
-                "answers": {
-                    "noul": {
-                        "type": "noul",
-                        "noul": score,
-                        "rationale": "bounded rationale",
-                        "evidence": ["bounded evidence"],
-                    }
-                }
-            }
+        for score, expected in (
+            (0.0, "incoherent"),
+            (0.19, "incoherent"),
+            (0.2, "uncertain"),
+            (0.79, "uncertain"),
+            (0.8, "coherent"),
+            (1.0, "coherent"),
+        ):
+            payload = {"answers": {"noul": {"type": "noul", "noul": score}}}
             with self.subTest(score=score), mock.patch.object(
                 jev.urllib.request, "urlopen", return_value=Response(payload)
             ) as urlopen:
                 result = jev.triage_charter("Engineer", body)
 
             self.assertIsInstance(result, jev.CharterAdvisoryResult)
-            self.assertEqual(result.coherence.value, expected)
+            self.assertEqual(result.coherence.label, expected)
             self.assertEqual(result.coherence.probability, score)
             self.assertEqual(result.source_state, {"disposition": "Engineer", "body": body})
             request_body = json.loads(urlopen.call_args.args[0].data)
-            self.assertEqual(json.loads(request_body["state"]), result.source_state)
+            self.assertEqual(request_body["state"], result.source_state)
             self.assertEqual(request_body["questions"], jev.CHARTER_QUESTIONS)
             self.assertEqual(set(request_body["questions"]), {"noul"})
             self.assertEqual(request_body["questions"]["noul"]["type"], "noul")
@@ -423,12 +437,7 @@ class JevTest(unittest.TestCase):
         body = "prefix " + secret + " " + ("x" * jev.MAX_CHARTER_BODY_CHARS) + " suffix"
         payload = {
             "answers": {
-                "noul": {
-                    "type": "noul",
-                    "noul": 0.8,
-                    "rationale": f"answer mentions {secret}",
-                    "evidence": [f"evidence mentions {secret}"],
-                },
+                "noul": {"type": "noul", "noul": 0.8, "note": f"answer mentions {secret}"},
                 "ignored": f"ignored {secret}",
             }
         }
@@ -442,7 +451,27 @@ class JevTest(unittest.TestCase):
         self.assertEqual(len(result.source_state["body"]), jev.MAX_CHARTER_BODY_CHARS)
         self.assertNotIn(secret, urlopen.call_args.args[0].data.decode("utf-8"))
         self.assertNotIn(secret, json.dumps(result.raw_answers))
-        self.assertNotIn(secret, " ".join(result.rationale + result.evidence))
+
+    def test_raw_answers_are_bounded_and_secret_safe_in_every_mode(self) -> None:
+        long_text = "test-key " + "y" * (jev.MAX_RAW_ANSWER_CHARS * 2)
+        cases = (
+            (lambda: jev.triage_finding(FINDING), {**finding_answers(), "extra": long_text}),
+            (
+                lambda: jev.triage_header(HEADER),
+                {"score": score_answer((1.0, 0.0, 0.0), 0.9), "extra": long_text},
+            ),
+            (lambda: jev.route_fork(FORK, DELEGATION), {
+                **fork_answer("human_gate", 0.5)["answers"], "extra": long_text,
+            }),
+        )
+        for call, answers in cases:
+            with self.subTest(answers=list(answers)), mock.patch.object(
+                jev.urllib.request, "urlopen", return_value=Response({"answers": answers})
+            ):
+                result = call()
+            self.assertTrue(result.available)
+            self.assertNotIn("test-key", json.dumps(result.raw_answers))
+            self.assertLessEqual(len(result.raw_answers["extra"]), jev.MAX_RAW_ANSWER_CHARS)
 
     def test_charter_missing_key_invalid_input_and_invalid_answers_fail_open(self) -> None:
         with mock.patch.dict(jev.os.environ, {}, clear=True), mock.patch.object(
@@ -468,7 +497,6 @@ class JevTest(unittest.TestCase):
             {"answers": {"noul": {"type": "noul", "noul": -0.1}}},
             {"answers": {"noul": {"type": "noul", "noul": 1.1}}},
             {"answers": {"noul": {"type": "noul", "noul": float("nan")}}},
-            {"answers": {"noul": {"type": "noul", "noul": 0.5, "rationale": {}}}},
         )
         for payload in invalid_answers:
             with self.subTest(payload=payload), mock.patch.object(
@@ -523,7 +551,7 @@ class JevTest(unittest.TestCase):
 
             self.assertIsInstance(result, jev.ForkAdvisoryResult)
             self.assertEqual(result.route, "human_gate")
-            self.assertEqual(result.choice, "human_gate")
+            self.assertIsNone(result.choice)
             self.assertTrue(result.deterministic)
             self.assertEqual(result.probabilities, {
                 "supervisor_decide": 0.0,
@@ -563,7 +591,7 @@ class JevTest(unittest.TestCase):
 
                     self.assertIsInstance(result, jev.ForkAdvisoryResult)
                     self.assertEqual(result.route, "human_gate")
-                    self.assertEqual(result.choice, "human_gate")
+                    self.assertIsNone(result.choice)
                     self.assertTrue(result.deterministic)
                     self.assertEqual(result.probabilities, {
                         "supervisor_decide": 0.0,
@@ -580,10 +608,10 @@ class JevTest(unittest.TestCase):
                     "type": "choice",
                     "choice": "supervisor_decide",
                     "probabilities": {
-                        "supervisor_decide": 0.8,
-                        "human_gate": 0.2,
+                        "supervisor_decide": 0.95,
+                        "human_gate": 0.05,
                     },
-                    "confidence": 0.75,
+                    "confidence": 0.92,
                     "ignored": "untrusted answer text",
                 }
             }
@@ -598,17 +626,17 @@ class JevTest(unittest.TestCase):
         self.assertEqual(result.choice, "supervisor_decide")
         self.assertFalse(result.deterministic)
         self.assertEqual(result.probabilities, {
-            "supervisor_decide": 0.8,
-            "human_gate": 0.2,
+            "supervisor_decide": 0.95,
+            "human_gate": 0.05,
         })
-        self.assertEqual(result.confidence, 0.75)
+        self.assertEqual(result.confidence, 0.92)
         self.assertEqual(result.source_state, {"fork": FORK, "delegation": DELEGATION})
         self.assertEqual(result.raw_answers, payload["answers"])
         self.assertIsNot(result.raw_answers, payload["answers"])
 
         request = urlopen.call_args.args[0]
         body = json.loads(request.data)
-        self.assertEqual(json.loads(body["state"]), result.source_state)
+        self.assertEqual(body["state"], result.source_state)
         self.assertEqual(body["model"], "jev-latest")
         self.assertEqual(set(body["questions"]), {"route"})
         question = body["questions"]["route"]
@@ -620,6 +648,24 @@ class JevTest(unittest.TestCase):
         self.assertIn("delegated Supervisor", question["instructions"])
         self.assertIn("Human routing", question["instructions"])
         self.assertNotIn("test-key", request.data.decode("utf-8"))
+
+    def test_fork_confidence_floor_only_brakes_and_keeps_jev_choice(self):
+        for choice, confidence, expected in (
+            ("supervisor_decide", 0.89, "human_gate"),
+            ("supervisor_decide", 0.9, "supervisor_decide"),
+            ("supervisor_decide", 1.0, "supervisor_decide"),
+            ("human_gate", 0.99, "human_gate"),
+            ("human_gate", 0.1, "human_gate"),
+        ):
+            with self.subTest(choice=choice, confidence=confidence), mock.patch.object(
+                jev.urllib.request, "urlopen", return_value=Response(fork_answer(choice, confidence))
+            ):
+                result = jev.route_fork(FORK, DELEGATION)
+            self.assertIsInstance(result, jev.ForkAdvisoryResult)
+            self.assertEqual(result.route, expected)
+            self.assertEqual(result.choice, choice)
+            self.assertEqual(result.confidence, confidence)
+            self.assertFalse(result.deterministic)
 
     def test_fork_model_answer_cannot_override_hard_gate(self):
         payload = {
@@ -748,85 +794,44 @@ class JevTest(unittest.TestCase):
 
 
 CLI_AVAILABLE_PAYLOADS = {
-    "finding": {
-        "answers": {
-            "noul": {
-                "type": "noul",
-                "noul": 0.8,
-                "rationale": "real ownership misfit",
-                "evidence": ["gate row"],
-            },
-            "score": {
-                "type": "score",
-                "score": 1.6,
-                "rationale": "severe",
-                "evidence": "kept for the Lead",
-            },
-        }
-    },
-    "header": {
-        "answers": {
-            "score": {
-                "type": "score",
-                "score": 2,
-                "rationale": "human gate",
-                "evidence": ["gate row"],
-            }
-        }
-    },
-    "fork": {
-        "answers": {
-            "route": {
-                "type": "choice",
-                "choice": "supervisor_decide",
-                "probabilities": {"supervisor_decide": 0.8, "human_gate": 0.2},
-                "confidence": 0.75,
-            }
-        }
-    },
-    "charter": {
-        "answers": {
-            "noul": {
-                "type": "noul",
-                "noul": 0.8,
-                "rationale": "matches the disposition",
-                "evidence": ["body section"],
-            }
-        }
-    },
+    "finding": {"answers": finding_answers()},
+    "header": {"answers": {"score": score_answer((0.53, 0.43, 0.04), 0.23)}},
+    "fork": fork_answer("supervisor_decide", 0.75),
+    "charter": {"answers": {"noul": {"type": "noul", "noul": 0.8}}},
 }
 
 CLI_AVAILABLE_OUTPUTS = {
     "finding": {
         "status": "available",
-        "actionable": True,
-        "severity": "high",
-        "noise": False,
-        "rationale": ["real ownership misfit", "severe"],
-        "evidence": ["gate row", "kept for the Lead"],
+        "actionable_misfit": {"label": "actionable", "probability": 0.9},
+        "cites_artifact": {"label": "cited", "probability": 0.85},
+        "severity": {
+            "label": "high",
+            "argmax": "high",
+            "probability": 0.7,
+            "confidence": 0.6,
+        },
     },
     "header": {
         "status": "available",
-        "urgency": "human-gate",
-        "score": 1.0,
-        "rationale": ["human gate"],
-        "evidence": ["gate row"],
+        "urgency": {
+            "label": "supervisor-action",
+            "argmax": "FYI",
+            "probability": 0.43,
+            "confidence": 0.23,
+        },
     },
     "fork": {
         "status": "available",
-        "route": "supervisor_decide",
+        "route": "human_gate",
+        "choice": "supervisor_decide",
         "deterministic": False,
         "confidence": 0.75,
-        "probabilities": {"supervisor_decide": 0.8, "human_gate": 0.2},
-        "rationale": [],
-        "evidence": [],
+        "probabilities": {"supervisor_decide": 0.7, "human_gate": 0.3},
     },
     "charter": {
         "status": "available",
-        "coherent": True,
-        "probability": 0.8,
-        "rationale": ["matches the disposition"],
-        "evidence": ["body section"],
+        "coherence": {"label": "coherent", "probability": 0.8},
     },
 }
 
@@ -836,6 +841,14 @@ CLI_MODE_INPUTS = {
     "fork": json.dumps({"fork": FORK, "delegation": DELEGATION}),
     "charter": json.dumps({"disposition": "Engineer", "body": "Engineer body text."}),
 }
+
+
+def _keys(value: object) -> set[str]:
+    if isinstance(value, dict):
+        return set(value) | {key for child in value.values() for key in _keys(child)}
+    if isinstance(value, list):
+        return {key for child in value for key in _keys(child)}
+    return set()
 
 
 class JevCliTest(unittest.TestCase):
@@ -884,6 +897,21 @@ class JevCliTest(unittest.TestCase):
             self.assertNotIn(self.FAKE_KEY, err)
             self.assertEqual(urlopen.call_count, 1)
 
+    def test_cli_output_never_carries_rationale_or_evidence(self) -> None:
+        for mode in ("finding", "header", "fork", "charter"):
+            for scenario, patch_kwargs in (
+                ("available", {"return_value": Response(CLI_AVAILABLE_PAYLOADS[mode])}),
+                ("unavailable", {"side_effect": urllib.error.URLError("offline")}),
+            ):
+                with self.subTest(mode=mode, scenario=scenario), mock.patch.object(
+                    jev.urllib.request, "urlopen", **patch_kwargs
+                ):
+                    code, out, err = self.run_main([mode, "--stdin"], CLI_MODE_INPUTS[mode])
+                self.assertEqual(code, 0)
+                keys = _keys(json.loads(out))
+                self.assertNotIn("rationale", keys)
+                self.assertNotIn("evidence", keys)
+
     def test_cli_header_line_from_flag_and_file_matches_stdin_path(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "header.txt"
@@ -920,7 +948,7 @@ class JevCliTest(unittest.TestCase):
         self.assertEqual(json.loads(out), CLI_AVAILABLE_OUTPUTS["charter"])
         request_body = json.loads(urlopen.call_args.args[0].data)
         self.assertEqual(
-            json.loads(request_body["state"]),
+            request_body["state"],
             {"disposition": "Engineer", "body": "Engineer responsibilities and authority."},
         )
 
@@ -939,8 +967,6 @@ class JevCliTest(unittest.TestCase):
                 "status": "unavailable",
                 "reason": "invalid_charter",
                 "fallback_actionable": True,
-                "rationale": [],
-                "evidence": [],
             },
         )
         urlopen.assert_not_called()
@@ -971,6 +997,7 @@ class JevCliTest(unittest.TestCase):
                     self.assertEqual(output[key], value)
                 if expected["status"] == "available":
                     self.assertTrue(output["deterministic"])
+                    self.assertIsNone(output["choice"])
                     self.assertEqual(
                         output["probabilities"],
                         {"supervisor_decide": 0.0, "human_gate": 1.0},
@@ -993,8 +1020,6 @@ class JevCliTest(unittest.TestCase):
                 "status": "unavailable",
                 "reason": "missing_api_key",
                 "fallback_actionable": True,
-                "rationale": [],
-                "evidence": [],
             },
         )
         urlopen.assert_not_called()

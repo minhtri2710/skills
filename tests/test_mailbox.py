@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import importlib.util
 import io
 import sys
 import subprocess
@@ -150,13 +151,12 @@ class MailboxTest(unittest.TestCase):
                 status="available",
                 header=header,
                 source_state={"header": header},
-                score=jev.UrgencyScore(
-                    value=raw_value / jev.URGENCY_SCORE_MAX,
-                    raw_value=raw_value,
-                    urgency=urgency,
+                urgency=jev.ScoreJudgment(
+                    label=urgency,
+                    argmax=urgency,
+                    probability=0.9,
+                    confidence=0.9,
                 ),
-                rationale=(),
-                evidence=(),
                 raw_answers={},
             )
 
@@ -239,6 +239,30 @@ class MailboxTest(unittest.TestCase):
             "## lead-beo-skills -> supervisor | 2026-09-10T00:15:03Z | third\n",
         )
         self.assertEqual(stderr.getvalue(), "")
+
+    def test_main_without_triage_runs_when_jev_is_unimportable(self):
+        # jev needs python >= 3.10; a fresh mailbox must load and read headers
+        # without it, and only --triage may import it.
+        spec = importlib.util.spec_from_file_location(
+            "mailbox_without_jev", SCRIPTS / "mailbox.py"
+        )
+        module = importlib.util.module_from_spec(spec)
+        stdout = io.StringIO()
+        with mock.patch.dict(sys.modules, {"jev": None, spec.name: module}):
+            spec.loader.exec_module(module)
+            with contextlib.redirect_stdout(stdout):
+                result = module.main(["--file", str(self.path), "--headers", "--last", "1"])
+            with self.assertRaises(ImportError):
+                module.main(["--file", str(self.path), "--headers", "--triage"])
+        self.assertEqual(result, 0)
+        self.assertEqual(
+            stdout.getvalue(),
+            "## lead-beo-skills -> supervisor | 2026-09-10T00:15:03Z | third\n",
+        )
+
+    def test_triage_entries_requires_an_explicit_triage_callable(self):
+        with self.assertRaises(TypeError):
+            mailbox.triage_entries(mailbox._entries(self.path.read_text(encoding="utf-8")))
 
     def test_main_triage_without_headers_is_a_usage_error(self):
         calls = []

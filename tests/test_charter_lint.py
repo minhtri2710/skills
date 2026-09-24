@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import contextlib
+import importlib.util
 import io
 import sys
 import tempfile
@@ -13,6 +14,7 @@ SCRIPTS = Path(__file__).resolve().parents[1] / "skills" / "herdr-delivery-workf
 sys.path.insert(0, str(SCRIPTS))
 
 import charter_lint  # noqa: E402
+import jev  # noqa: E402
 
 
 class CharterLintTest(unittest.TestCase):
@@ -216,7 +218,7 @@ class CharterLintTest(unittest.TestCase):
         self.assertEqual(error, "")
 
     def test_default_lint_does_not_call_jev(self):
-        with unittest.mock.patch.object(charter_lint.jev, "triage_charter") as triage:
+        with unittest.mock.patch.object(jev, "triage_charter") as triage:
             code, output, error = self.run_lint(self.engineer_charter(), self.staffing_record())
         self.assertEqual(code, 0)
         self.assertIn("OK:", output)
@@ -226,9 +228,9 @@ class CharterLintTest(unittest.TestCase):
 
     def test_jev_is_opt_in_advisory_and_cannot_change_lint_result(self):
         with unittest.mock.patch.object(
-            charter_lint.jev,
+            jev,
             "triage_charter",
-            return_value=charter_lint.jev.UnavailableResult(
+            return_value=jev.UnavailableResult(
                 status="unavailable", finding={}, reason="missing_api_key"
             ),
         ) as triage:
@@ -245,18 +247,14 @@ class CharterLintTest(unittest.TestCase):
         self.assertEqual(triage.call_count, 2)
 
     def test_available_jev_advisory_is_bounded_and_does_not_authorize(self):
-        judgment = charter_lint.jev.CharterAdvisoryResult(
+        judgment = jev.CharterAdvisoryResult(
             status="available",
             source_state={"disposition": "Engineer", "body": "body"},
-            coherence=charter_lint.jev.CharterCoherenceJudgment(
-                value="incoherent", probability=0.25
-            ),
-            rationale=("untrusted rationale",),
-            evidence=("untrusted evidence",),
-            raw_answers={"noul": {"type": "noul", "noul": 0.25}},
+            coherence=jev.NoulJudgment(label="incoherent", probability=0.1),
+            raw_answers={"noul": {"type": "noul", "noul": 0.1}},
         )
         with unittest.mock.patch.object(
-            charter_lint.jev, "triage_charter", return_value=judgment
+            jev, "triage_charter", return_value=judgment
         ) as triage:
             code, output, error = self.run_lint(
                 self.engineer_charter(), self.staffing_record(), jev_enabled=True
@@ -267,6 +265,36 @@ class CharterLintTest(unittest.TestCase):
         self.assertIn("Jev advisory: incoherent", output)
         self.assertIn("OK:", output)
         triage.assert_called_once()
+
+    def test_lint_without_jev_runs_when_jev_is_unimportable(self):
+        # jev needs python >= 3.10; a fresh charter_lint must load and lint
+        # without it, and only --jev may import it.
+        spec = importlib.util.spec_from_file_location(
+            "charter_lint_without_jev", SCRIPTS / "charter_lint.py"
+        )
+        module = importlib.util.module_from_spec(spec)
+        charter_path = self.tmp / "charter.md"
+        charter_path.write_text(self.engineer_charter(), encoding="utf-8")
+        staffing_path = self.tmp / "staffing.txt"
+        staffing_path.write_text(self.staffing_record(), encoding="utf-8")
+        stdout = io.StringIO()
+        with unittest.mock.patch.dict(sys.modules, {"jev": None, spec.name: module}):
+            spec.loader.exec_module(module)
+            with contextlib.redirect_stdout(stdout):
+                code = module.main([
+                    "--charter", str(charter_path),
+                    "--lead", "lead-beo-skills",
+                    "--staffing", str(staffing_path),
+                ])
+            with self.assertRaises(ImportError):
+                module.main([
+                    "--charter", str(charter_path),
+                    "--lead", "lead-beo-skills",
+                    "--staffing", str(staffing_path),
+                    "--jev",
+                ])
+        self.assertEqual(code, 0)
+        self.assertIn("OK:", stdout.getvalue())
 
     def test_staffing_missing_each_required_key_is_named(self):
         complete = self.staffing_record()

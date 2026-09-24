@@ -7,8 +7,6 @@ import re
 import sys
 from pathlib import Path
 
-import jev
-
 DISPOSITION_RE = re.compile(
     r"^\s*[*#`_-]*\s*Disposition:\s*[*_`]*\s*(Engineer|Reviewer|Architect)\b",
     re.IGNORECASE | re.MULTILINE,
@@ -116,12 +114,14 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     if args.jev:
+        import jev  # jev needs python >= 3.10; only --jev loads it
+
         if disposition_match is None:
             advisory = jev.triage_charter(None, charter)
         else:
             advisory = jev.triage_charter(disposition_match.group(1).capitalize(), charter)
         if advisory.available:
-            print(f"Jev advisory: {advisory.coherence.value}")
+            print(f"Jev advisory: {advisory.coherence.label}")
         else:
             print(f"Jev advisory: unavailable ({advisory.reason})")
 
