@@ -1603,6 +1603,94 @@ class GateRowTest(unittest.TestCase):
             with self.subTest(boundary):
                 self.assertEqual(gate_row.derive_push(self.repo, base, self.rev("HEAD"), [boundary]), ("1", []))
 
+    def test_a_boundary_ending_in_a_letter_does_not_cover_its_siblings(self):
+        base = self.rev("HEAD")
+        (self.repo / "lib").mkdir()
+        (self.repo / "lib" / "core.py").write_text("c\n")
+        self.git("add", "-A")
+        self.git("commit", "-qm", "lib")
+        self.assertEqual(gate_row.derive_push(self.repo, base, self.rev("HEAD"), ["lib/X"]),
+                         ("1", ["lib/core.py"]))
+
+    def test_a_boundary_holding_whitespace_is_refused(self):
+        with self.assertRaises(gate_row.RowError):
+            gate_row.derive_push(self.repo, self.rev("HEAD~1"), self.rev("HEAD"), ["a b"])
+
+    def test_an_id_token_not_followed_by_the_field_delimiter_is_refused(self):
+        row = self.fixture_row("G1", "open", "none", "").replace("G1 | ", "G1 |x | ", 1)
+        self.ledger.write_text(row + "\n", encoding="utf-8")
+        self.assertEqual(self.check_last(), 1)
+        self.assertIn("namespace-agnostic gate id", self.err.getvalue())
+
+    def test_a_row_ending_before_a_required_field_is_refused_naming_it(self):
+        head = f"main@{self.rev('HEAD')}"
+        for middle, needle in (
+            ("kind=merge | {head} | status=open", "record="),
+            ("kind=repair-grant | {head} | status=recorded:granted | record=timely", "finding="),
+            ("kind=cutover | {head} | status=recorded:cutover | record=timely", "archive="),
+        ):
+            with self.subTest(needle):
+                row = f'G1 | 2026-09-06T00:00:00Z | {middle.format(head=head)} | quote=""'
+                self.ledger.write_text(row + "\n", encoding="utf-8")
+                self.assertEqual(self.check_last(), 1)
+                self.assertIn(needle, self.err.getvalue())
+
+    def test_a_push_scope_branch_may_carry_an_equals_sign(self):
+        self.assertEqual(self.append_standing_delegation(
+            "--expiry", "until-revoked", "--push-scope", "origin:a=b"), 0, self.err.getvalue())
+        self.assertEqual(self.check_last(), 0, self.err.getvalue())
+
+    def test_resolving_a_standing_delegation_still_checks_the_next_target(self):
+        self.assertEqual(self.append_standing_delegation(), 0, self.err.getvalue())
+        self.assertEqual(self.append("--resolves", "G1,G9"), 1)
+        self.assertIn("resolves=G9 refused: never-open", self.err.getvalue())
+
+    def test_a_gate_whose_latest_own_row_is_closed_cannot_be_resolved(self):
+        rows = [self.fixture_row("G1", "open", "none", ""), self.fixture_row("G1", "resolved:done")]
+        self.ledger.write_text("# fixture\n" + "\n".join(self.chained(rows)) + "\n")
+        self.assertEqual(self.append("--resolves", "G1"), 1)
+        self.assertIn("resolves=G1 refused: already-closed", self.err.getvalue())
+
+    def test_a_row_naming_its_own_id_in_resolves_does_not_close_itself(self):
+        for kind, status in (("merge", "open"), ("standing-delegation", "recorded:standing-delegation")):
+            with self.subTest(kind):
+                row = self.fixture_row("G1", status, resolves="G1", kind=kind)
+                self.ledger.write_text(row + "\n", encoding="utf-8")
+                self.assertEqual(self.append("--resolves", "G1"), 0, self.err.getvalue())
+
+    def test_a_prior_repair_grant_finding_is_read_whole(self):
+        row = self.fixture_row("G1", "recorded:granted", kind="repair-grant").replace(
+            " | words=", " | finding=a=b | words=", 1)
+        self.ledger.write_text(row + "\n", encoding="utf-8")
+        self.assertEqual(self.append_repair_grant("c"), 1)
+        self.assertIn("finding='a=b' is not an identity token", self.err.getvalue())
+
+    def test_a_hand_edited_review_pass_status_is_not_a_repair_progress_boundary(self):
+        for status in ("recorded:review-pass=x", "x=recorded:review-pass"):
+            with self.subTest(status):
+                rows = [
+                    self.fixture_row("G1", "recorded:granted", kind="repair-grant").replace(
+                        " | words=", " | finding=F-1 | words=", 1),
+                    self.fixture_row("G2", status, kind="review"),
+                ]
+                self.ledger.write_text("# fixture\n" + "\n".join(self.chained(rows)) + "\n")
+                self.assertEqual(self.append_repair_grant("F-1"), 1)
+                self.assertIn("repair cap reached", self.err.getvalue())
+
+    def test_read_only_modes_do_not_create_a_missing_ledger(self):
+        missing = self.tmp / "missing" / "gates.md"
+        missing.parent.mkdir()
+        for mode in ("--check", "--open-gates"):
+            with self.subTest(mode):
+                self.assertEqual(self.run_main(["--ledger", str(missing), "--repo", str(self.repo), mode]), 1)
+                self.assertFalse(missing.exists())
+
+    def test_an_unknown_record_or_words_value_is_a_usage_error(self):
+        for flag in ("--record", "--words"):
+            with self.subTest(flag), self.assertRaises(SystemExit) as caught:
+                self.append(flag, "bogus")
+            self.assertEqual(caught.exception.code, 2)
+
     def test_an_outside_path_holding_a_row_delimiter_is_refused(self):
         for name in ("pipe|name.txt", 'quote"name.txt'):
             with self.subTest(name):

@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import contextlib
 import io
+import os
+import re
 import shlex
 import subprocess
 import sys
@@ -21,6 +23,18 @@ import gate_row  # noqa: E402
 import pre_push_guard  # noqa: E402
 
 ZERO = "0" * 40
+
+
+def rechained(text: str) -> str:
+    """Re-chain hand-edited rows: each row's prev_hash= hashes its edited predecessor."""
+    out, prev = [], None
+    for line in text.splitlines():
+        if gate_row.ID_RE.match(line):
+            if prev is not None:
+                line = re.sub(r"prev_hash=[0-9a-f]{64}", f"prev_hash={gate_row.row_hash(prev)}", line, count=1)
+            prev = line
+        out.append(line)
+    return "\n".join(out) + "\n"
 
 
 class PrePushGuardTest(unittest.TestCase):
@@ -587,6 +601,123 @@ class PrePushGuardTest(unittest.TestCase):
         self.assertEqual(code, 0, err.getvalue())
         self.assertIn("covered", out.getvalue())
 
+    def test_manual_mode_force_push_is_judged_from_the_remote_tip(self):
+        c1 = self.advance("c1")
+        self.git("push", "-q", "origin", "main")
+        self.git("reset", "-q", "--hard", self.base)
+        d1 = self.advance("d1")
+        self.assertEqual(self.review(self.base), 0)
+        self.grant(f"origin refs/heads/main force {c1}..{d1}")
+        code, out, err = self.invoke()
+        self.assertEqual(code, 0, err)
+        self.assertIn("covered", out)
+
+    def test_a_push_of_no_new_commit_is_refused(self):
+        self.advance("c1")
+        self.assertEqual(self.review(self.base), 0)
+        self.standing()
+        self.git("push", "-q", "origin", "main")
+        code, _, err = self.invoke()
+        self.assertEqual(code, 1)
+        self.assertIn("carries no commit", err)
+
+    def edit(self, gid: str, old: str, new: str) -> None:
+        """Hand-edit one row of the ledger and re-chain every row after it."""
+        lines = self.ledger.read_text(encoding="utf-8").splitlines()
+        i = next(i for i, line in enumerate(lines) if line.startswith(f"{gid} | "))
+        self.assertIn(old, lines[i])
+        lines[i] = lines[i].replace(old, new, 1)
+        self.ledger.write_text(rechained("\n".join(lines)), encoding="utf-8")
+
+    def hand_row(self, fields: str) -> None:
+        """Append a hand-written row carrying `fields`, chained to the last row."""
+        row = (f"G9 | 2026-09-06T00:00:00Z | kind=merge | main@{self.base} | status=open | "
+               f"{fields} | prev_hash={'0' * 64} | words=none | note=hand | quote=\"\"")
+        self.ledger.write_text(rechained(self.ledger.read_text(encoding="utf-8") + row), encoding="utf-8")
+
+    def granted(self) -> tuple[str, str]:
+        """A reviewed c1 under a one-shot grant G2; return c1 and the grant spec."""
+        c1 = self.advance("c1")
+        self.assertEqual(self.review(self.base), 0)
+        spec = f"origin refs/heads/main push {self.base}..{c1}"
+        self.grant(spec)
+        return c1, spec
+
+    def test_a_hand_edited_value_carrying_a_second_equals_is_read_whole(self):
+        c1, spec = self.granted()
+        original = self.ledger.read_text(encoding="utf-8")
+        self.assertEqual(self.invoke(self.ref_line(self.base, c1))[0], 0)
+        for gid, old, new in (
+            ("G2", "kind=push-grant", "kind=push-grant=x"), ("G2", "kind=push-grant", "kind=x=push-grant"),
+            ("G2", "status=open", "status=open=x"), ("G2", "status=open", "status=x=open"),
+            ("G2", f"grant={spec}", f"grant={spec}=x"), ("G2", f"grant={spec}", f"grant=x={spec}"),
+            ("G1", "kind=review", "kind=review=x"), ("G1", "kind=review", "kind=x=review"),
+        ):
+            with self.subTest(new):
+                self.ledger.write_text(original, encoding="utf-8")
+                self.edit(gid, old, new)
+                self.assertNotEqual(self.invoke(self.ref_line(self.base, c1))[0], 0)
+
+    def test_a_later_row_resolves_only_the_exact_id_it_names(self):
+        c1, _ = self.granted()
+        original = self.ledger.read_text(encoding="utf-8")
+        for target in ("G2=x", "x=G2"):
+            with self.subTest(target):
+                self.ledger.write_text(original, encoding="utf-8")
+                self.hand_row(f"resolves={target}")
+                code, _, err = self.invoke(self.ref_line(self.base, c1))
+                self.assertEqual(code, 0, err)
+
+    def test_a_malformed_resolves_row_fails_the_read(self):
+        c1, _ = self.granted()
+        original = self.ledger.read_text(encoding="utf-8")
+        for fields in ("resolves=G1,", "resolves=G1 | resolves=G1"):
+            with self.subTest(fields):
+                self.ledger.write_text(original, encoding="utf-8")
+                self.hand_row(fields)
+                self.assertNotEqual(self.invoke(self.ref_line(self.base, c1))[0], 0)
+
+    def test_a_duplicate_or_malformed_prev_hash_fails_the_read(self):
+        c1, _ = self.granted()
+        original = self.ledger.read_text(encoding="utf-8")
+        field = re.search(r"prev_hash=[0-9a-f]{64}", original.splitlines()[-1]).group(0)
+        value = field.split("=", 1)[1]
+        for new in (f"{field} | {field}", f"{field}=x", f"prev_hash=x={value}"):
+            with self.subTest(new):
+                self.ledger.write_text(original.replace(field, new, 1), encoding="utf-8")
+                self.assertNotEqual(self.invoke(self.ref_line(self.base, c1))[0], 0)
+
+    def test_a_grant_naming_its_own_id_in_resolves_is_not_consumed_by_itself(self):
+        c1, _ = self.granted()
+        self.edit("G2", " | words=", " | resolves=G2 | words=")
+        code, _, err = self.invoke(self.ref_line(self.base, c1))
+        self.assertEqual(code, 0, err)
+
+    def test_a_malformed_grant_row_does_not_end_the_authority_search(self):
+        c1, spec = self.granted()
+        self.grant(spec)
+        self.edit("G2", f"grant={spec}", "grant=garbage")
+        code, _, err = self.invoke(self.ref_line(self.base, c1))
+        self.assertEqual(code, 0, err)
+
+    def test_a_review_row_without_its_block_does_not_end_the_coverage_search(self):
+        c1 = self.advance("c1")
+        self.assertEqual(self.review(self.base), 0)
+        self.assertEqual(self.review(self.base), 0)
+        self.grant(f"origin refs/heads/main push {self.base}..{c1}")
+        block = re.search(r" \| review=\S+ count=\d+", self.ledger.read_text(encoding="utf-8")).group(0)
+        self.edit("G1", block, "")
+        code, _, err = self.invoke(self.ref_line(self.base, c1))
+        self.assertEqual(code, 0, err)
+
+    def test_a_five_field_first_row_is_read(self):
+        c1, _ = self.granted()
+        self.edit("G1", " | words=", f" | prev_hash={'0' * 64} | words=")
+        first = f'G0 | 2026-09-06T00:00:00Z | kind=merge | main@{self.base} | status=open | quote=""\n'
+        self.ledger.write_text(rechained(first + self.ledger.read_text(encoding="utf-8")), encoding="utf-8")
+        code, _, err = self.invoke(self.ref_line(self.base, c1))
+        self.assertEqual(code, 0, err)
+
 
 if __name__ == "__main__":
     unittest.main()
@@ -663,6 +794,18 @@ class PushDigestTest(unittest.TestCase):
         return [row for row in gate_row.ledger_rows(ledger.read_text(encoding="utf-8"))
                 if gate_row.row_evidence(row)[0] == "push-grant"]
 
+    def test_a_push_gate_naming_its_own_id_in_resolves_stays_open(self):
+        ledger, repo, base = self.project("alpha")
+        self.advance(repo, "a1")
+        self.review(ledger, repo, base)
+        gate = self.push_gate(ledger, repo)
+        text = ledger.read_text(encoding="utf-8")
+        ledger.write_text(rechained(text.replace(" | words=none", f" | resolves={gate} | words=none", 1)),
+                          encoding="utf-8")
+        code, out = self.digest((ledger, repo))
+        self.assertEqual(code, 0)
+        self.assertIn(f"gates: {gate}", out)
+
     def test_ready_and_uncovered_projects_only_ready_is_offered(self):
         ready, ready_repo, ready_base = self.project("alpha")
         tip = self.advance(ready_repo, "a1")
@@ -734,6 +877,23 @@ class PushDigestTest(unittest.TestCase):
         self.digest((ledger, repo), (other, other_repo))
         self.assertEqual((ledger.read_bytes(), other.read_bytes()), before)
 
+    def test_digest_of_a_missing_ledger_creates_no_file(self):
+        _, repo, _ = self.project("alpha")
+        missing = self.tmp / "absent" / "gates.md"
+        missing.parent.mkdir()
+        self.assertEqual(self.digest((missing, repo))[0], 1)
+        self.assertFalse(missing.exists())
+
+    def test_ungated_work_beside_an_open_gate_names_the_excluded_gate_tips(self):
+        ledger, repo, base = self.project("alpha")
+        gate_tip = self.advance(repo, "a1")
+        self.push_gate(ledger, repo)
+        self.git(repo, "checkout", "-qb", "side", base)
+        head = self.advance(repo, "s1")
+        _, out = self.digest((ledger, repo))
+        self.assertIn(f"UNGATED: branch side, 1 commits, range {head} (no upstream; outside every "
+                      f"remote-tracking ref), excluding open push-gate tips {gate_tip}\n", out)
+
     def test_grant_mode_writes_a_row_the_guard_accepts(self):
         ledger, repo, base = self.project("alpha")
         tip = self.advance(repo, "a1")
@@ -789,6 +949,23 @@ class PushDigestTest(unittest.TestCase):
         self.assertEqual(len(rows), 1)
         self.assertIn(f"| grant=origin refs/heads/two push {base}..{two} |", rows[0])
         self.assertEqual(pre_push_guard.check(ledger, repo, "origin", [("refs/heads/two", base, two)]), [two])
+
+    def test_only_the_selected_items_ledgers_must_be_absolute(self):
+        ledger, repo, base = self.project("alpha")
+        self.advance(repo, "a1")
+        self.review(ledger, repo, base)
+        self.push_gate(ledger, repo)
+        _, beta_repo, beta_base = self.project("beta")
+        self.addCleanup(os.chdir, os.getcwd())
+        os.chdir(self.tmp)
+        relative = Path("beta/gates.md")
+        self.advance(beta_repo, "b1")
+        self.review(relative.resolve(), beta_repo, beta_base)
+        self.push_gate(relative.resolve(), beta_repo)
+        self.assertIn("  2. beta main", self.digest((ledger, repo), (relative, beta_repo))[1])
+        code, _, err = self.grant((ledger, repo), (relative, beta_repo), selection="1")
+        self.assertEqual(code, 0, err)
+        self.assertEqual(len(self.grant_rows(ledger)), 1)
 
     def assert_refused_without_write(self, pairs, needle: str, **kwargs) -> None:
         before = [ledger.read_bytes() for ledger, _ in pairs]
@@ -939,6 +1116,15 @@ class PushDigestTest(unittest.TestCase):
         self.assertIn(f"  1. alpha low new branch {base[:7]}..{low[:7]} (1 commits)\n", out)
         self.assertIn(f"  2. alpha high new branch {low[:7]}..{high[:7]} (1 commits), "
                       "stacked on low (item 1): push after it\n", out)
+
+    def test_a_stacked_note_follows_the_branch_line_once(self):
+        ledger, repo, base = self.project("alpha")
+        low = self.branch(ledger, repo, "low", base)
+        high = self.branch(ledger, repo, "high", low)
+        _, out = self.digest((ledger, repo))
+        self.assertIn("  branch: high\n  stacked on low (item 1): push after it\n"
+                      f"  range: new branch {low}..{high} (1 commits)\n", out)
+        self.assertEqual(out.count(f"range: new branch {low}..{high}"), 1)
 
     def test_branch_stacked_on_a_not_ready_branch_is_not_offered_and_others_are(self):
         ledger, repo, base = self.project("alpha")
