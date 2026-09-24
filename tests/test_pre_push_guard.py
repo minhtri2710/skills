@@ -600,12 +600,29 @@ class PushDigestTest(unittest.TestCase):
         return self.row(ledger, repo, "--kind", "push-gate", "--status", "open",
                         "--words", "none", "--note", "push awaits the Human")
 
-    def digest(self, *pairs: tuple[Path, Path]) -> tuple[int, str]:
-        out = io.StringIO()
+    def digest(self, *pairs: tuple[Path, Path], extra: tuple[str, ...] = ()) -> tuple[int, str]:
+        code, out, _ = self.run_guard(*pairs, extra=extra)
+        return code, out
+
+    def run_guard(self, *pairs: tuple[Path, Path], extra: tuple[str, ...] = ()) -> tuple[int, str, str]:
+        out, err = io.StringIO(), io.StringIO()
         argv = [arg for ledger, repo in pairs for arg in ("--digest", str(ledger), str(repo))]
-        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(io.StringIO()):
-            code = pre_push_guard.main(argv)
-        return code, out.getvalue()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            code = pre_push_guard.main([*argv, *extra])
+        return code, out.getvalue(), err.getvalue()
+
+    def items(self, out: str) -> str:
+        return next(line for line in out.splitlines() if line.startswith("items: ")).removeprefix("items: ")
+
+    def grant(self, *pairs: tuple[Path, Path], selection: str = "all", quote: str = "push it",
+              items: str | None = None) -> tuple[int, str, str]:
+        if items is None:
+            items = self.items(self.digest(*pairs)[1])
+        return self.run_guard(*pairs, extra=("--grant", selection, "--items", items, "--quote", quote))
+
+    def grant_rows(self, ledger: Path) -> list[str]:
+        return [row for row in gate_row.ledger_rows(ledger.read_text(encoding="utf-8"))
+                if gate_row.row_evidence(row)[0] == "push-grant"]
 
     def test_ready_and_uncovered_projects_only_ready_is_offered(self):
         ready, ready_repo, ready_base = self.project("alpha")
@@ -678,21 +695,137 @@ class PushDigestTest(unittest.TestCase):
         self.digest((ledger, repo), (other, other_repo))
         self.assertEqual((ledger.read_bytes(), other.read_bytes()), before)
 
-    def test_printed_grant_command_writes_a_row_the_guard_accepts(self):
+    def test_grant_mode_writes_a_row_the_guard_accepts(self):
         ledger, repo, base = self.project("alpha")
         tip = self.advance(repo, "a1")
         self.review(ledger, repo, base)
         self.push_gate(ledger, repo)
-        _, out = self.digest((ledger, repo))
-        command = next(line for line in out.splitlines() if line.startswith("  grant: "))
-        argv = shlex.split(command.removeprefix("  grant: ").replace("<HUMAN-WORDS>", "push it"))
-        self.assertEqual(Path(argv[1]).resolve(), (SCRIPTS / "gate_row.py").resolve())
-        subprocess.run([sys.executable, *argv[1:]], check=True, capture_output=True)
+        code, out, _ = self.grant((ledger, repo))
+        self.assertEqual(code, 0)
         grant = gate_row.ledger_rows(ledger.read_text(encoding="utf-8"))[-1].split(" | ")[0]
+        self.assertEqual(out, f"item 1: wrote {grant} to {ledger}\n")
+        self.assertEqual(self.row(ledger, repo, "--check"), grant)
         self.assertEqual(pre_push_guard.check(ledger, repo, "origin", [("refs/heads/main", base, tip)]), [tip])
         _, again = self.digest((ledger, repo))
         self.assertIn(f"authority: granted by {grant}", again)
-        self.assertNotIn("grant: ", again.replace("granted by", ""))
+
+    def test_digest_prints_an_items_hash_and_no_grant_command(self):
+        ledger, repo, base = self.project("alpha")
+        self.advance(repo, "a1")
+        self.review(ledger, repo, base)
+        self.push_gate(ledger, repo)
+        _, out = self.digest((ledger, repo))
+        self.assertRegex(out, r"\nitems: [0-9a-f]{64}\n$")
+        self.assertFalse([line for line in out.splitlines() if line.lstrip().startswith("grant:")])
+        self.assertNotIn("<HUMAN-WORDS>", out)
+
+    def two_branches(self) -> tuple[Path, Path, str, str, str]:
+        ledger, repo, base = self.project("alpha")
+        one = self.branch(ledger, repo, "one", base)
+        two = self.branch(ledger, repo, "two", base)
+        return ledger, repo, base, one, two
+
+    def test_grant_all_writes_one_supervisor_row_per_item(self):
+        ledger, repo, base, one, two = self.two_branches()
+        code, out, _ = self.grant((ledger, repo))
+        self.assertEqual(code, 0)
+        rows = self.grant_rows(ledger)
+        self.assertEqual(len(rows), 2)
+        for row, name, tip in zip(rows, ("one", "two"), (one, two)):
+            self.assertIn(f"| grant=origin refs/heads/{name} push {base}..{tip} |", row)
+            self.assertIn("| status=open |", row)
+            self.assertIn("| writer=supervisor |", row)
+            self.assertIn("| channel=supervisor-relay:typed |", row)
+            self.assertIn("| words=human |", row)
+            self.assertIn(f"| note=Human grants push of {name} {base[:7]}..{tip[:7]} |", row)
+            self.assertTrue(row.endswith(' | quote="push it"'))
+        self.assertEqual(out.splitlines(), [f"item {n}: wrote {row.split(' | ')[0]} to {ledger}"
+                                            for n, row in zip((1, 2), rows)])
+
+    def test_grant_of_one_number_writes_only_that_item(self):
+        ledger, repo, base, _, two = self.two_branches()
+        code, _, _ = self.grant((ledger, repo), selection="2")
+        self.assertEqual(code, 0)
+        rows = self.grant_rows(ledger)
+        self.assertEqual(len(rows), 1)
+        self.assertIn(f"| grant=origin refs/heads/two push {base}..{two} |", rows[0])
+        self.assertEqual(pre_push_guard.check(ledger, repo, "origin", [("refs/heads/two", base, two)]), [two])
+
+    def assert_refused_without_write(self, pairs, needle: str, **kwargs) -> None:
+        before = [ledger.read_bytes() for ledger, _ in pairs]
+        code, out, err = self.grant(*pairs, **kwargs)
+        self.assertEqual(code, 1)
+        self.assertEqual(out, "")
+        self.assertIn(needle, err)
+        self.assertEqual([ledger.read_bytes() for ledger, _ in pairs], before)
+
+    def test_grant_refuses_a_stale_items_hash_after_a_new_commit(self):
+        ledger, repo, base = self.project("alpha")
+        self.advance(repo, "a1")
+        self.review(ledger, repo, base)
+        self.push_gate(ledger, repo)
+        stale = self.items(self.digest((ledger, repo))[1])
+        mid = self.git(repo, "rev-parse", "HEAD")
+        self.advance(repo, "a2")
+        self.review(ledger, repo, mid)
+        self.push_gate(ledger, repo)
+        self.assert_refused_without_write([(ledger, repo)], "--items does not match", items=stale)
+
+    def test_grant_refuses_a_not_ready_or_unknown_number_and_an_empty_quote(self):
+        ledger, repo, base = self.project("alpha")
+        self.branch(ledger, repo, "ready", base)
+        self.branch(ledger, repo, "unreviewed", base, review=False)
+        _, out = self.digest((ledger, repo))
+        self.assertIn("NOT READY", out)
+        self.assertNotIn("\n  2. ", out)
+        for selection in ("2", "1,2", "0", "x"):
+            self.assert_refused_without_write([(ledger, repo)], "--grant", selection=selection)
+        for quote in ("", "  ", "two\nlines"):
+            self.assert_refused_without_write([(ledger, repo)], "--quote", quote=quote)
+
+    def test_grant_quote_with_shell_metacharacters_is_recorded_verbatim(self):
+        ledger, repo, base = self.project("alpha")
+        self.advance(repo, "a1")
+        self.review(ledger, repo, base)
+        self.push_gate(ledger, repo)
+        marker = self.tmp / "executed"
+        quote = f"it's ok $(touch {marker}) `touch {marker}` push"
+        code, _, _ = self.grant((ledger, repo), quote=quote)
+        self.assertEqual(code, 0)
+        self.assertTrue(self.grant_rows(ledger)[0].endswith(f' | quote="{quote}"'))
+        self.assertFalse(marker.exists())
+
+    def test_a_failing_later_row_names_the_rows_already_written(self):
+        ledger, repo, base, _, _ = self.two_branches()
+        items = self.items(self.digest((ledger, repo))[1])
+        real = gate_row.main
+        calls = []
+
+        def second_fails(argv):
+            calls.append(argv)
+            return real(argv) if len(calls) == 1 else (print("gate_row: boom", file=sys.stderr) or 1)
+
+        with patch.object(pre_push_guard.gate_row, "main", second_fails):
+            code, out, err = self.grant((ledger, repo), items=items)
+        first = self.grant_rows(ledger)
+        self.assertEqual(code, 1)
+        self.assertEqual(len(first), 1)
+        written = first[0].split(" | ")[0]
+        self.assertIn(f"item 2: gate_row: boom; rows written before it: {written}", err)
+        self.assertEqual(out, f"item 1: wrote {written} to {ledger}\n")
+
+    def test_grant_flags_require_digest_and_each_other(self):
+        ledger, repo, _ = self.project("alpha")
+        for argv, needle in (
+            (["--ledger", str(ledger), "--grant", "all"], "--grant, --items and --quote require --digest"),
+            (["--digest", str(ledger), str(repo), "--grant", "all", "--quote", "q"],
+             "--grant requires --items and --quote"),
+            (["--digest", str(ledger), str(repo), "--items", "x"], "--items and --quote require --grant"),
+        ):
+            err = io.StringIO()
+            with contextlib.redirect_stderr(err), self.assertRaises(SystemExit):
+                pre_push_guard.main(argv)
+            self.assertIn(needle, err.getvalue())
 
     def test_covered_new_branch_is_labeled_and_offered(self):
         ledger, repo, base = self.project("alpha")
@@ -703,7 +836,8 @@ class PushDigestTest(unittest.TestCase):
         code, out = self.digest((ledger, repo))
         self.assertEqual(code, 0)
         self.assertIn(f"range: new branch {base}..{tip} (1 commits)", out)
-        self.assertIn(f"--grant 'origin refs/heads/feature push {base}..{tip}'", out)
+        self.assertEqual(self.grant((ledger, repo))[0], 0)
+        self.assertIn(f"| grant=origin refs/heads/feature push {base}..{tip} |", self.grant_rows(ledger)[0])
         self.assertIn(f"  1. alpha feature new branch {base[:7]}..{tip[:7]} (1 commits)", out)
         self.assertNotIn("UNGATED", out)
 
@@ -761,7 +895,8 @@ class PushDigestTest(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertIn("  stacked on low (item 1): push after it\n", out)
         self.assertIn(f"range: new branch {low}..{high} (1 commits)", out)
-        self.assertIn(f"--grant 'origin refs/heads/high push {low}..{high}'", out)
+        self.assertEqual(self.grant((ledger, repo), selection="2")[0], 0)
+        self.assertIn(f"| grant=origin refs/heads/high push {low}..{high} |", self.grant_rows(ledger)[0])
         self.assertIn(f"  1. alpha low new branch {base[:7]}..{low[:7]} (1 commits)\n", out)
         self.assertIn(f"  2. alpha high new branch {low[:7]}..{high[:7]} (1 commits), "
                       "stacked on low (item 1): push after it\n", out)
@@ -781,7 +916,7 @@ class PushDigestTest(unittest.TestCase):
         self.assertIn(f"  1. alpha other new branch {base[:7]}..{other[:7]} (1 commits)\n", question)
         self.assertNotIn("\n  2. ", question)
 
-    def test_real_pushes_in_item_order_with_printed_grants_pass_the_guard(self):
+    def test_real_pushes_in_item_order_with_recorded_grants_pass_the_guard(self):
         ledger, repo, base = self.project("alpha")
         low = self.branch(ledger, repo, "low", base)
         self.branch(ledger, repo, "high", low)
@@ -790,12 +925,9 @@ class PushDigestTest(unittest.TestCase):
                         f"{shlex.quote(str(SCRIPTS / 'pre_push_guard.py'))} --ledger {shlex.quote(str(ledger))} "
                         f"--repo {shlex.quote(str(repo))} \"$@\"\n")
         hook.chmod(0o755)
-        _, out = self.digest((ledger, repo))
-        commands = [line.removeprefix("  grant: ") for line in out.splitlines() if line.startswith("  grant: ")]
-        self.assertEqual(len(commands), 2)
         push = ["git", "-C", str(repo), "push", "-q", "origin"]
         self.assertNotEqual(subprocess.run([*push, "low"], capture_output=True).returncode, 0)
-        for command, name in zip(commands, ("low", "high")):
-            argv = shlex.split(command.replace("<HUMAN-WORDS>", "push it"))
-            subprocess.run([sys.executable, *argv[1:]], check=True, capture_output=True)
+        self.assertEqual(self.grant((ledger, repo))[0], 0)
+        self.assertEqual(len(self.grant_rows(ledger)), 2)
+        for name in ("low", "high"):
             subprocess.run([*push, name], check=True, capture_output=True)

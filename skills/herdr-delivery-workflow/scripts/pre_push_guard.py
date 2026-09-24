@@ -4,16 +4,24 @@
 `--digest LEDGER REPO` (repeatable) instead prints, read-only, every project's open
 push gates as one range per branch with its review coverage and push authority, flags a
 checkout with unpushed commits no open push gate covers as UNGATED, then asks one question
-with one numbered item per ready branch.
+with one numbered item per ready branch and an `items:` hash of those items.
+
+`--digest ... --grant <all|N[,N...]> --items <hash> --quote "<Human words>"` is the
+Supervisor's recording tool for a Human's answer: it recomputes the digest, refuses unless
+the items hash still matches, and writes one open push-grant row per selected item through
+gate_row in-process. It authorizes nothing by itself.
 """
 from __future__ import annotations
 
 import argparse
-import shlex
+import contextlib
+import hashlib
+import io
 import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import NamedTuple
 
 import gate_row
 
@@ -184,8 +192,17 @@ def tracking_tip(repo: Path, remote: str, branch: str) -> str | None:
         return None
 
 
+class Item(NamedTuple):
+    text: str
+    ledger: Path
+    repo: Path
+    branch: str
+    base: str
+    tip: str
+
+
 def digest_project(ledger: Path, repo: Path, remote: str, now: datetime,
-                   offered: int) -> tuple[list[str], list[str]]:
+                   offered: int) -> tuple[list[str], list[Item]]:
     """One project's digest lines and one question item per branch whose range is fully reviewed.
 
     Items are numbered from offered + 1. A new branch whose tip descends from another
@@ -228,12 +245,12 @@ def digest_project(ledger: Path, repo: Path, remote: str, now: datetime,
                    for dep in deps[branch]]
         lines += [*block[:2], *stacked, *block[2:]]
         if item:
-            items.append(", ".join([item, *stacked]))
+            items.append(item._replace(text=", ".join([item.text, *stacked])))
     return [*lines, *ungated], items
 
 
 def gated_lines(rows: list[str], gates: list[str], branch: str, tip: str, stacked_tips: list[str],
-                ledger: Path, repo: Path, remote: str, now: datetime) -> tuple[list[str], str | None]:
+                ledger: Path, repo: Path, remote: str, now: datetime) -> tuple[list[str], Item | None]:
     ref = f"refs/heads/{branch}"
     lines = [
         f"gates: {' '.join(row.split(' | ')[0] for row in gates)}",
@@ -266,22 +283,22 @@ def gated_lines(rows: list[str], gates: list[str], branch: str, tip: str, stacke
     try:
         lines.append(f"authority: granted by {gate_row.require_push_authority(rows, repo, remote, ref, base, tip, now)}")
     except gate_row.RowError as exc:
-        command = shlex.join([
-            "python3", str(Path(gate_row.__file__).resolve()),
-            "--ledger", str(ledger), "--repo", str(repo),
-            "--kind", "push-grant", "--status", "open",
-            "--writer", "supervisor", "--channel", "supervisor-relay:typed",
-            "--grant", f"{remote} {ref} push {base}..{tip}", "--words", "human",
-            "--note", f"Human grants push of {branch} {base[:7]}..{tip[:7]}",
-            "--quote", "<HUMAN-WORDS>",
-        ])
-        lines += [f"authority: needs push-grant: {exc}", f"grant: {command}"]
-    return lines, f"{ledger.parent.name} {branch}{label} {base[:7]}..{tip[:7]} ({len(commits)} commits)"
+        lines.append(f"authority: needs push-grant: {exc}")
+    text = f"{ledger.parent.name} {branch}{label} {base[:7]}..{tip[:7]} ({len(commits)} commits)"
+    return lines, Item(text, ledger, repo, branch, base, tip)
 
 
-def digest(pairs: list[list[str]], remote: str) -> int:
+def items_hash(items: list[Item]) -> str:
+    """The hash of the numbered question items: number, project, branch and full range."""
+    text = "".join(f"{n} {item.ledger.parent.name} {item.branch} {item.base}..{item.tip}\n"
+                   for n, item in enumerate(items, 1))
+    return hashlib.sha256(text.encode()).hexdigest()
+
+
+def collect(pairs: list[list[str]], remote: str) -> tuple[list[str], list[Item], int]:
     now = datetime.now(timezone.utc)
-    ready: list[str] = []
+    out: list[str] = []
+    ready: list[Item] = []
     errors = 0
     for ledger_text, repo_text in pairs:
         ledger, repo = Path(ledger_text), Path(repo_text)
@@ -292,15 +309,65 @@ def digest(pairs: list[list[str]], remote: str) -> int:
             lines, items = [f"ERROR: {exc}"], []
         if not lines:
             continue
-        print(f"== {ledger.parent.name} (ledger {ledger}, repo {repo})")
-        print("\n".join(f"  {line}" for line in lines))
+        out.append(f"== {ledger.parent.name} (ledger {ledger}, repo {repo})")
+        out += [f"  {line}" for line in lines]
         ready += items
+    return out, ready, errors
+
+
+def digest(pairs: list[list[str]], remote: str) -> int:
+    out, ready, errors = collect(pairs, remote)
     if ready:
-        print("Question: approve which pushes? Answer all, none, or the numbers.")
-        print("\n".join(f"  {n}. {item}" for n, item in enumerate(ready, 1)))
+        out.append("Question: approve which pushes? Answer all, none, or the numbers.")
+        out += [f"  {n}. {item.text}" for n, item in enumerate(ready, 1)]
+        out.append(f"items: {items_hash(ready)}")
     else:
-        print("Question: none — no push is ready.")
+        out.append("Question: none — no push is ready.")
+    print("\n".join(out))
     return 1 if errors else 0
+
+
+def grant(pairs: list[list[str]], remote: str, selection: str, expected: str,
+          quote: str, channel: str) -> int:
+    """Write one open push-grant row per selected item; nothing unless every input holds."""
+    _, ready, _ = collect(pairs, remote)
+    if not quote.strip() or "\n" in quote:
+        raise GuardError("--quote must be the Human's verbatim words on one non-empty line")
+    if items_hash(ready) != expected:
+        raise GuardError("--items does not match the current question items; rerun --digest and ask again")
+    if selection == "all":
+        numbers = list(range(1, len(ready) + 1))
+    else:
+        try:
+            numbers = sorted({int(n) for n in selection.split(",")})
+        except ValueError:
+            raise GuardError(f"--grant {selection!r} is not all or N[,N...]") from None
+    unknown = [n for n in numbers if not 1 <= n <= len(ready)]
+    if unknown or not numbers:
+        raise GuardError(f"--grant names no ready item: {unknown or selection}")
+    for item in (ready[n - 1] for n in numbers):
+        if not item.ledger.is_absolute():
+            raise GuardError(f"ledger {item.ledger} is not absolute")
+    written: list[str] = []
+    for n in numbers:
+        item = ready[n - 1]
+        out, err = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            code = gate_row.main([
+                "--ledger", str(item.ledger), "--repo", str(item.repo),
+                "--kind", "push-grant", "--status", "open",
+                "--writer", "supervisor", "--channel", channel,
+                "--grant", f"{remote} refs/heads/{item.branch} push {item.base}..{item.tip}",
+                "--words", "human",
+                "--note", f"Human grants push of {item.branch} {item.base[:7]}..{item.tip[:7]}",
+                "--quote", quote,
+            ])
+        if code:
+            raise GuardError(f"item {n}: {err.getvalue().strip()}; rows written before it: "
+                             f"{' '.join(written) or 'none'}")
+        written.append(out.getvalue().split(" | ")[0])
+        print(f"item {n}: wrote {written[-1]} to {item.ledger}")
+    return 0
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -308,6 +375,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--ledger", type=Path)
     parser.add_argument("--digest", nargs=2, action="append", metavar=("LEDGER", "REPO"),
                         help="print the open push gates of this project; repeatable; read-only")
+    parser.add_argument("--grant", metavar="all|N[,N...]",
+                        help="with --digest: record the Human's grant of these items as push-grant rows")
+    parser.add_argument("--items", help="with --grant: the items: hash the digest printed")
+    parser.add_argument("--quote", help="with --grant: the Human's verbatim words")
+    parser.add_argument("--channel", default="supervisor-relay:typed", help="with --grant: the relay channel")
     parser.add_argument("--repo", type=Path, default=Path.cwd())
     # git runs the hook as `<hook> <remote> <url>`; manual runs pass neither.
     parser.add_argument("remote", nargs="?", default="origin")
@@ -316,7 +388,19 @@ def main(argv: list[str] | None = None) -> int:
     if args.digest:
         if args.ledger or args.url:
             parser.error("--digest takes no --ledger or url")
-        return digest(args.digest, args.remote)
+        if args.grant is None:
+            if args.items or args.quote is not None:
+                parser.error("--items and --quote require --grant")
+            return digest(args.digest, args.remote)
+        if not args.items or args.quote is None:
+            parser.error("--grant requires --items and --quote")
+        try:
+            return grant(args.digest, args.remote, args.grant, args.items, args.quote, args.channel)
+        except GuardError as exc:
+            print(f"pre_push_guard: {exc}", file=sys.stderr)
+            return 1
+    if args.grant or args.items or args.quote is not None:
+        parser.error("--grant, --items and --quote require --digest")
     if not args.ledger:
         parser.error("--ledger is required")
     try:
