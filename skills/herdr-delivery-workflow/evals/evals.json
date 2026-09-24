@@ -553,7 +553,7 @@
         "Treats the mailbox append as the record of delivery, so agent_blocked means the wake was refused but the event is already delivered",
         "Does not run herdr agent wait, re-send, add a failed-delivery marker, carry the event as owed, loop, sleep, or open a standing watch",
         "States that the Supervisor reads the mailbox at its next wake, including when the Human answers the dialog and its turn resumes; does not answer the dialog or treat the refusal as a Human decision",
-        "Distinguishes agent_blocked, which is already delivered and needs no recovery, from agent_not_found, which requires re-reading herdr agent list for the seat name and waking again",
+        "Distinguishes agent_blocked, which is already delivered and needs no recovery, from agent_not_found for supervisor, which the script itself retries once at the pane in ~/.herdr/supervisor-pane and otherwise fails closed, so the Lead does no name recovery or re-wake loop of its own",
         "Keeps the Peer direction: a Peer whose report send is refused stops without retrying and is read from its pane by the Lead's end-of-turn roster check"
       ]
     },
