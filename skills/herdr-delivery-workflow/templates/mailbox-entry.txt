@@ -1,3 +1,8 @@
-## <lead> -> supervisor | <YYYY-MM-DDTHH:MM:SSZ from `date -u +%FT%TZ`> | ATTENTION <project-slug> <event>: <one line> | HEAD <current exact SHA>
-(an answer to a Supervisor question omits the ATTENTION segment)
+Append with (the body is read from stdin as data; quote the heredoc):
+scripts/mailbox.py --file ~/.herdr/projects/<project-slug>/supervisor-mailbox.md --append --from <lead> --to supervisor --repo <checkout> --event "<one line>" [--attention <event>] --stdin [--wake supervisor] <<'EOF'
 <the same event or answer detail the Lead's pane shows; capped at roughly ten lines, with any narrative going to the run's workspace record rather than the mailbox>
+EOF
+
+The script writes this exact header, then the body:
+## <lead> -> supervisor | <UTC YYYY-MM-DDTHH:MM:SSZ at write time> | ATTENTION <project-slug> <event>: <one line> | HEAD <full 40-hex HEAD of --repo>
+(without --attention the header is an answer header and omits the ATTENTION segment; <project-slug> is the mailbox's directory name)

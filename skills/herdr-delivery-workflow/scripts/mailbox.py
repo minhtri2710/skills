@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
-"""Select entries from an append-only Supervisor mailbox."""
+"""Append to and select entries from an append-only Supervisor mailbox."""
 from __future__ import annotations
 
 import argparse
+import os
 import re
 import subprocess
 import sys
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Callable, Iterable
 
@@ -27,6 +29,8 @@ ISO_RE = re.compile(
 # this root. A scratch or test file resolving elsewhere is refused before any
 # wake so a test context can never prompt the production supervisor.
 HERDR_PROJECTS_ROOT = Path.home() / ".herdr" / "projects"
+SEAT_RE = re.compile(r"[a-z][a-z0-9_-]{0,31}")
+SHA_RE = re.compile(r"[0-9a-f]{40}")
 
 
 @dataclass(frozen=True)
@@ -124,6 +128,79 @@ def _triage_label(advisory: jev.HeaderJevResult) -> str:
     return f"unavailable:{advisory.reason}"
 
 
+def _require_project_mailbox(path: str, flag: str) -> None:
+    root = HERDR_PROJECTS_ROOT.resolve()
+    if root not in Path(path).resolve().parents:
+        raise ValueError(
+            f"{flag} refused: {path} is not under {root}; a scratch "
+            "or test mailbox must never drive a live seat"
+        )
+
+
+def _now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def _one_line(name: str, value: str) -> str:
+    if not value.strip() or "|" in value or "\n" in value or "\r" in value:
+        raise ValueError(f"{name} must be one non-empty line without '|'")
+    return value.strip()
+
+
+def append_entry(
+    path: str,
+    *,
+    sender: str,
+    recipient: str,
+    repo: str,
+    event: str,
+    attention: str | None,
+    body: str,
+) -> str:
+    """Append one header-plus-body entry in a single O_APPEND write."""
+    _require_project_mailbox(path, "--append")
+    for name, seat in (("--from", sender), ("--to", recipient)):
+        if SEAT_RE.fullmatch(seat) is None:
+            raise ValueError(f"{name} {seat!r} is not a Herdr seat name")
+    text = _one_line("--event", event)
+    if attention is not None:
+        slug = Path(path).resolve().parent.name
+        text = f"ATTENTION {slug} {_one_line('--attention', attention)}: {text}"
+    body = body.rstrip("\n")
+    if not body.strip():
+        raise ValueError("stdin body must be non-empty")
+    for line in body.splitlines():
+        # A header-shaped body line would read back as a forged entry.
+        if line.startswith("## ") and " -> " in line:
+            raise ValueError("stdin body must not contain a header-shaped line")
+    proc = subprocess.run(
+        ["git", "-C", repo, "rev-parse", "HEAD"],
+        capture_output=True, text=True, check=False,
+    )
+    head = proc.stdout.strip()
+    if proc.returncode != 0 or SHA_RE.fullmatch(head) is None:
+        raise ValueError(f"--repo {repo}: git rev-parse HEAD failed: {proc.stderr.strip()}")
+    stamp = _now().strftime("%Y-%m-%dT%H:%M:%SZ")
+    header = f"## {sender} -> {recipient} | {stamp} | {text} | HEAD {head}"
+    assert HEADER_RE.match(header) is not None
+    data = f"---\n{header}\n{body}\n"
+    try:
+        with open(path, "rb") as existing:
+            existing.seek(0, os.SEEK_END)
+            if existing.tell():
+                existing.seek(-1, os.SEEK_END)
+                if existing.read(1) != b"\n":
+                    data = "\n" + data
+    except FileNotFoundError:
+        pass
+    fd = os.open(path, os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o644)
+    try:
+        os.write(fd, data.encode("utf-8"))
+    finally:
+        os.close(fd)
+    return header
+
+
 def run_wake(seat: str, wake_text: str) -> subprocess.CompletedProcess[str]:
     """Issue one best-effort Herdr wake for a delivered mailbox entry."""
     return herdr_cli.run(["agent", "prompt", seat, wake_text])
@@ -146,7 +223,24 @@ def main(argv: list[str] | None = None) -> int:
         help="with --headers, append an advisory jev=<label> to each header line",
     )
     parser.add_argument("--wake", metavar="SEAT", help="read the last header and wake a seat")
+    parser.add_argument("--append", action="store_true",
+                        help="append one entry whose body is read from stdin")
+    parser.add_argument("--from", dest="sender", metavar="SEAT")
+    parser.add_argument("--to", dest="recipient", metavar="SEAT")
+    parser.add_argument("--repo", metavar="PATH", help="checkout whose HEAD the header carries")
+    parser.add_argument("--event", metavar="LINE", help="the header's one-line event or answer")
+    parser.add_argument("--attention", metavar="EVENT", help="make the header an ATTENTION event")
+    parser.add_argument("--stdin", action="store_true", help="read the entry body from stdin")
     args = parser.parse_args(argv)
+
+    append_args = (args.sender, args.recipient, args.repo, args.event)
+    if args.append:
+        if None in append_args or not args.stdin:
+            parser.error("--append requires --from, --to, --repo, --event and --stdin")
+        if args.since is not None or args.last is not None or args.headers:
+            parser.error("--append cannot be combined with mailbox selectors")
+    elif any(value is not None for value in append_args) or args.attention or args.stdin:
+        parser.error("--from, --to, --repo, --event, --attention and --stdin require --append")
 
     if args.triage:
         if args.wake is not None:
@@ -155,16 +249,19 @@ def main(argv: list[str] | None = None) -> int:
             parser.error("--triage requires --headers")
 
     try:
+        if args.append:
+            header = append_entry(
+                args.file, sender=args.sender, recipient=args.recipient, repo=args.repo,
+                event=args.event, attention=args.attention, body=sys.stdin.read(),
+            )
+            print(header)
+            if args.wake is None:
+                return 0
         text = Path(args.file).read_text(encoding="utf-8")
         if args.wake is not None:
             if args.since is not None or args.last is not None or args.headers:
                 raise ValueError("--wake cannot be combined with mailbox selectors")
-            root = HERDR_PROJECTS_ROOT.resolve()
-            if root not in Path(args.file).resolve().parents:
-                raise ValueError(
-                    f"--wake refused: {args.file} is not under {root}; a scratch "
-                    "or test mailbox must never drive a live seat"
-                )
+            _require_project_mailbox(args.file, "--wake")
             output = select_entries(text, last=1, headers=True)
             if not output:
                 print("mailbox: UNSENT: no parseable last header; wake not attempted", file=sys.stderr)

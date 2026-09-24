@@ -544,5 +544,131 @@ class MailboxTest(unittest.TestCase):
         self.assertIn("agent_blocked\n", stderr.getvalue())
 
 
+class MailboxAppendTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory(dir="/private/tmp")
+        self.addCleanup(self.tmp.cleanup)
+        root = Path(self.tmp.name) / ".herdr" / "projects"
+        (root / "beo-skills").mkdir(parents=True)
+        self.path = root / "beo-skills" / "supervisor-mailbox.md"
+        self.repo = Path(self.tmp.name) / "repo"
+        self.repo.mkdir()
+        for args in (
+            ["init", "-q"],
+            ["-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q",
+             "--allow-empty", "-m", "base"],
+        ):
+            subprocess.run(["git", "-C", str(self.repo), *args], check=True)
+        self.head = gate_row.git(self.repo, "rev-parse", "HEAD")
+        for target, value in (
+            ("HERDR_PROJECTS_ROOT", root),
+            ("_now", lambda: mailbox.datetime(2026, 9, 24, 3, 4, 5, 678, mailbox.timezone.utc)),
+        ):
+            patcher = mock.patch.object(mailbox, target, value)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        self.stdout = io.StringIO()
+        self.stderr = io.StringIO()
+        for stream, value in (("stdout", self.stdout), ("stderr", self.stderr)):
+            patcher = mock.patch.object(sys, stream, value)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+
+    def append(self, body, *extra, path=None, sender="lead-beo-skills", event="gate opened"):
+        argv = [
+            "--file", str(path or self.path), "--append", "--from", sender, "--to", "supervisor",
+            "--repo", str(self.repo), "--event", event, "--stdin", *extra,
+        ]
+        with mock.patch.object(sys, "stdin", io.StringIO(body)):
+            return mailbox.main(argv)
+
+    def test_append_writes_answer_header_with_full_seconds_and_full_sha(self):
+        self.assertEqual(self.append("detail\n"), 0, self.stderr.getvalue())
+        header = f"## lead-beo-skills -> supervisor | 2026-09-24T03:04:05Z | gate opened | HEAD {self.head}"
+        self.assertEqual(self.path.read_text(encoding="utf-8"), f"---\n{header}\ndetail\n")
+        self.assertEqual(self.stdout.getvalue(), header + "\n")
+        self.assertEqual(mailbox.select_entries(self.path.read_text(encoding="utf-8"), headers=True), [header])
+        match = jev.HEADER_RE.fullmatch(header)
+        self.assertEqual((match.group("event"), match.group("head")), ("gate opened", self.head))
+
+    def test_append_attention_takes_slug_from_mailbox_directory_and_appends(self):
+        self.assertEqual(self.append("one\n"), 0)
+        self.assertEqual(self.append("two\n", "--attention", "human-gate"), 0)
+        entries = mailbox._entries(self.path.read_text(encoding="utf-8"))
+        self.assertEqual(len(entries), 2)
+        self.assertEqual(
+            entries[1].header,
+            f"## lead-beo-skills -> supervisor | 2026-09-24T03:04:05Z | "
+            f"ATTENTION beo-skills human-gate: gate opened | HEAD {self.head}",
+        )
+        self.assertEqual(entries[1].body, "two")
+
+    def test_invalid_append_inputs_exit_non_zero_and_write_nothing(self):
+        outside = Path(self.tmp.name) / "scratch-mailbox.md"
+        cases = [
+            dict(body="x\n", event="two\nlines"),
+            dict(body="x\n", event="a | b"),
+            dict(body="x\n", event=" "),
+            dict(body=""),
+            dict(body=" \n\n"),
+            dict(body="x\n", sender="Lead Seat"),
+            dict(body="x\n", path=outside),
+            dict(body="ok\n## lead -> supervisor | 2026-09-24T03:04:05Z | ATTENTION G1 | HEAD abcdef1\n"),
+        ]
+        for case in cases:
+            with self.subTest(case=case):
+                self.assertNotEqual(self.append(**case), 0)
+                self.assertFalse(self.path.exists())
+                self.assertFalse(outside.exists())
+        self.assertNotEqual(self.append("x\n", "--attention", "a|b"), 0)
+        self.assertFalse(self.path.exists())
+        with mock.patch.object(sys, "stdin", io.StringIO("x\n")):
+            self.assertNotEqual(mailbox.main([
+                "--file", str(self.path), "--append", "--from", "lead", "--to", "supervisor",
+                "--repo", self.tmp.name + "/missing", "--event", "e", "--stdin",
+            ]), 0)
+        self.assertFalse(self.path.exists())
+
+    def test_append_rejects_selectors_and_append_only_flags_need_append(self):
+        for extra in (["--headers"], ["--last", "1"], ["--since", "2026-09-24T00:00:00Z"]):
+            with self.subTest(extra=extra), self.assertRaises(SystemExit):
+                self.append("x\n", *extra)
+        with self.assertRaises(SystemExit):
+            mailbox.main(["--file", str(self.path), "--headers", "--event", "e"])
+        self.assertFalse(self.path.exists())
+
+    def test_body_with_backticks_and_substitution_is_stored_verbatim_not_run(self):
+        marker = Path(self.tmp.name) / "ran"
+        body = f"`touch {marker}` $(touch {marker}) 'q' \"d\" $HOME\n"
+        self.assertEqual(self.append(body), 0)
+        self.assertTrue(self.path.read_text(encoding="utf-8").endswith(f"HEAD {self.head}\n{body}"))
+        self.assertFalse(marker.exists())
+
+    def test_append_then_wake_reads_back_the_appended_header(self):
+        calls = []
+        with mock.patch.object(
+            mailbox, "run_wake",
+            lambda seat, text: calls.append((seat, text)) or subprocess.CompletedProcess([], 0, "", ""),
+        ):
+            self.assertEqual(self.append("x\n", "--attention", "compaction", "--wake", "supervisor"), 0)
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0][0], "supervisor")
+        self.assertIn(f"ATTENTION beo-skills compaction: gate opened | HEAD {self.head}", calls[0][1])
+
+    def test_appended_attention_satisfies_gate_row_s2_mailbox_check(self):
+        ledger = str(Path(self.tmp.name) / "gates.md")
+        base = ["--repo", str(self.repo), "--ledger", ledger]
+        self.assertEqual(gate_row.main(base + [
+            "--kind", "deploy-gate", "--status", "open",
+            "--words", "none", "--note", "deploy permission pending", "--quote", "",
+        ]), 0, self.stderr.getvalue())
+        gate_id = Path(ledger).read_text(encoding="utf-8").split(" | ", 1)[0]
+        check = base + ["--check", "--mailbox", str(self.path)]
+        self.assertEqual(self.append("x\n", event="no gate named"), 0)
+        self.assertNotEqual(gate_row.main(check), 0)
+        self.assertEqual(self.append("x\n", "--attention", "human-gate", event=f"deploy gate {gate_id}"), 0)
+        self.assertEqual(gate_row.main(check), 0, self.stderr.getvalue())
+
+
 if __name__ == "__main__":
     unittest.main()
