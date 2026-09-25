@@ -22,6 +22,13 @@ STAFFED_HEAD_RE = re.compile(
 )
 NULL_OID = "0" * 40
 SPLICE_PREFIX = 7
+PRIOR_RE = re.compile(r"^\W*Prior reviews?\W*:?[ \t]*(.*)$", re.IGNORECASE | re.MULTILINE)
+PRIOR_GLOSS_RE = re.compile(r"\(`none`, or the prior FAIL report[^)]*\)")
+UNIT_RANGE_RE = re.compile(
+    r"^\W*Reviewed unit\W*:?.*?(?<![0-9a-f])([0-9a-f]{7,40})\.\.\.?([0-9a-f]{7,40})(?![0-9a-f])",
+    re.IGNORECASE | re.MULTILINE,
+)
+SHORT_SHA_RE = re.compile(r"(?<![0-9a-f])[0-9a-f]{7,40}(?![0-9a-f])", re.IGNORECASE)
 REPORT_PATH_RE = re.compile(r"report-[^\s/]+\.md")
 SEAT_RE = re.compile(r"^\s*(ENGINEER|REVIEWER):.*$", re.IGNORECASE | re.MULTILINE)
 PLACEHOLDER_RE = re.compile(r"<[^>\r\n]+>")
@@ -101,16 +108,17 @@ def _staffing_problems(text: str, disposition: str | None) -> list[str]:
     return problems
 
 
-def _missing_objects(repo: Path, shas: list[str]) -> set[str]:
+def _git(repo: Path, args: list[str], stdin: str = "") -> subprocess.CompletedProcess[str]:
     try:
-        proc = subprocess.run(
-            ["git", "-C", str(repo), "cat-file", "--batch-check"],
-            input="".join(f"{sha}\n" for sha in shas),
-            capture_output=True,
-            text=True,
+        return subprocess.run(
+            ["git", "-C", str(repo), *args], input=stdin, capture_output=True, text=True
         )
     except OSError as exc:
         raise ValueError(f"could not run git: {exc}") from exc
+
+
+def _missing_objects(repo: Path, shas: list[str]) -> set[str]:
+    proc = _git(repo, ["cat-file", "--batch-check"], "".join(f"{sha}\n" for sha in shas))
     if proc.returncode != 0:
         raise ValueError(f"could not read repo {repo}: {proc.stderr.strip()}")
     return {line.split()[0] for line in proc.stdout.splitlines() if line.endswith(" missing")}
@@ -133,6 +141,32 @@ def _sha_problems(repo: Path, texts: dict[str, str]) -> list[str]:
         for sha, label in found.items()
         if sha in missing and (sha in critical or sha[:SPLICE_PREFIX] in anchors)
     ]
+
+
+def _repair_range_problems(repo: Path, charter: str) -> list[str]:
+    """A repair re-review keeps the slice base: a commit its Prior review names lies in the unit."""
+    prior = PRIOR_RE.search(charter)
+    line = PRIOR_GLOSS_RE.sub("", prior.group(1)) if prior else ""
+    if not re.search(r"\bFAIL", line):
+        return []
+    unit = UNIT_RANGE_RE.search(charter)
+    if unit is None:
+        return ["repair re-review has no Reviewed unit range"]
+    base, head = unit.groups()
+    names = "".join(f"{sha}^{{commit}}\n" for sha in SHORT_SHA_RE.findall(line))
+    named = {out.split()[0] for out in _git(repo, ["cat-file", "--batch-check"], names).stdout.splitlines()
+             if out.split()[1:2] == ["commit"]}
+    if not named:
+        return ["repair re-review Prior review names a FAIL but no commit in --repo"]
+    listed = _git(repo, ["rev-list", f"{base}..{head}"])
+    if listed.returncode != 0:
+        return [f"repair re-review range {base}..{head} does not resolve in {repo}"]
+    if named.isdisjoint(listed.stdout.split()):
+        return [
+            f"repair re-review range {base}..{head} must keep the slice base: "
+            "no commit named on the Prior review line lies inside it"
+        ]
+    return []
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -164,6 +198,7 @@ def main(argv: list[str] | None = None) -> int:
             texts["staffing record"] = _read(args.staffing, "staffing record")
             problems.extend(_staffing_problems(texts["staffing record"], disposition))
         problems.extend(_sha_problems(args.repo, texts))
+        problems.extend(_repair_range_problems(args.repo, charter))
     except ValueError as exc:
         print(f"charter_lint: {exc}", file=sys.stderr)
         return 1

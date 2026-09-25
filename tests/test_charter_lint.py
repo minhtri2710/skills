@@ -27,10 +27,10 @@ class CharterLintTest(unittest.TestCase):
         cls.addClassCleanup(cls._repo_tmp.cleanup)
         git = ["git", "-C", str(cls.repo), "-c", "user.name=t", "-c", "user.email=t@example.com"]
         subprocess.run([*git, "init", "-q"], check=True)
-        for message in ("base", "head"):
+        for message in ("base", "mid", "head"):
             subprocess.run([*git, "commit", "-q", "--allow-empty", "-m", message], check=True)
-        cls.base, cls.head = subprocess.run(
-            [*git, "rev-parse", "HEAD~1", "HEAD"], check=True, capture_output=True, text=True
+        cls.base, cls.mid, cls.head = subprocess.run(
+            [*git, "rev-parse", "HEAD~2", "HEAD~1", "HEAD"], check=True, capture_output=True, text=True
         ).stdout.split()
 
     def setUp(self):
@@ -430,6 +430,34 @@ class CharterLintTest(unittest.TestCase):
             ])
         self.assertEqual(code, 1)
         self.assertIn("charter_lint: could not run git: ", stderr.getvalue())
+
+    def test_repair_re_review_range_must_hold_a_commit_its_prior_fail_review_names(self):
+        base, mid, head = self.base, self.mid, self.head
+        gloss = "(`none`, or the prior FAIL report, its head and the finding ids)"
+        failed = f"Prior review: report-review-{mid[:12]}.md FAIL (F1)\n"
+        narrowed = f"Reviewed unit: the range {mid}..{head}\n"
+        cases = (
+            ("base kept", f"Reviewed unit: the range {base}..{head}\n"
+             f"Prior review: report-review-{mid[:12]}.md FAIL (F1); slice base {base[:8]}\n", None),
+            ("narrowed to the prior head", narrowed + failed,
+             f"repair re-review range {mid}..{head} must keep the slice base: "
+             "no commit named on the Prior review line lies inside it"),
+            ("no prior review", narrowed + f"Prior review: none {gloss}\n", None),
+            ("prior FAIL named mid-line in prose", f"Scope note. Prior reviews: report-review-{mid[:12]}.md FAIL\n",
+             None),
+            ("FAIL naming no commit", narrowed + "Prior review: report-review-deadbeefcafe.md FAIL\n",
+             "repair re-review Prior review names a FAIL but no commit in --repo"),
+            ("no Reviewed unit range", failed, "repair re-review has no Reviewed unit range"),
+            ("unresolvable range", f"Reviewed unit: the range abcdef0..{head[:7]}\n" + failed,
+             f"repair re-review range abcdef0..{head[:7]} does not resolve in {self.repo}"),
+        )
+        for label, charter_lines, problem in cases:
+            with self.subTest(label):
+                code, _, error = self.run_lint(
+                    self.reviewer_charter() + charter_lines, self.staffing_record()
+                )
+                expected = (0, "") if problem is None else (1, f"charter_lint: {problem}\n")
+                self.assertEqual((code, error), expected)
 
     def test_jev_receives_the_declared_disposition_and_full_charter(self):
         unavailable = jev.UnavailableResult(status="unavailable", finding={}, reason="x")

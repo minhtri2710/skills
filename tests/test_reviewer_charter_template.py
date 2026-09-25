@@ -21,7 +21,10 @@ TEMPLATE = SKILL / "templates" / "reviewer-charter.txt"
 REPORT_BLOCK = SKILL / "templates" / "report-by-prompt.txt"
 LEAD = "lead-beo-skills"
 SLOT_RE = re.compile(r"<([a-z][a-z0-9_]*)>")
-NOT_CLAUSES = {"SEAT_RE", "PLACEHOLDER_RE", "RANGE_RE", "STAFFED_HEAD_RE"}
+NOT_CLAUSES = {
+    "SEAT_RE", "PLACEHOLDER_RE", "RANGE_RE", "STAFFED_HEAD_RE",
+    "PRIOR_RE", "PRIOR_GLOSS_RE", "UNIT_RANGE_RE", "SHORT_SHA_RE",
+}
 
 
 def staffing(head: str) -> str:
