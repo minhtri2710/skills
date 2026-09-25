@@ -421,6 +421,7 @@ class CharterLintTest(unittest.TestCase):
             + cls.live_wake_guard_sentence()
             + cls.kill_guard_sentence()
             + cls.ocr_step_sentence()
+            + "Review order: first the diff and your own findings; only then read the implementation reports.\n"
             + "Write the finished report/verdict to report-eng-lint.md with the editor/write tool (never via the shell), then print it as the pane's final output.\n"
             "At send time, compose a prompt with the verdict/outcome line, a bounded summary (~200 words max), and full report at report-eng-lint.md; send ONLY that composed prompt with the EXACT command herdr agent prompt lead-beo-skills \"<composed prompt>\" and NO other flags. Do not send the report file contents. THIS SEND IS MANDATORY.\n"
             "If the command exits non-zero: retry it ONCE with exactly the same form; if it still fails, append a line SEND-FAILED to the end of the report file and run herdr notification show \"eng-lint: report send failed\" --body \"report-eng-lint.md\" --sound request, then stop.\n"

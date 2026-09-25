@@ -24,6 +24,9 @@ OCR_STEP_RES = (
     re.compile(r"ocr\s+delegate\s+rule", re.IGNORECASE),
 )
 KILL_GUARD_RE = re.compile(r"never\s+kill\s+a\s+process\s+by\s+pattern", re.IGNORECASE)
+REVIEW_ORDER_RE = re.compile(
+    r"only\s+then\s+read\s+the\s+implementation\s+reports", re.IGNORECASE
+)
 
 
 def _read(path: Path, label: str) -> str:
@@ -53,6 +56,10 @@ def _charter_problems(text: str, lead: str) -> list[str]:
 
     if disposition == "reviewer" and not all(r.search(text) for r in OCR_STEP_RES):
         problems.append("missing OCR delegate step: ocr delegate preview and ocr delegate rule")
+    if disposition == "reviewer" and REVIEW_ORDER_RE.search(text) is None:
+        problems.append(
+            "missing review order: only then read the implementation reports"
+        )
     if KILL_GUARD_RE.search(text) is None:
         problems.append("missing pattern-kill guard: Never kill a process by pattern")
 
