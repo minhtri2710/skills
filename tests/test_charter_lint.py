@@ -441,7 +441,11 @@ class CharterLintTest(unittest.TestCase):
              f"Prior review: report-review-{mid[:12]}.md FAIL (F1); slice base {base[:8]}\n", None),
             ("narrowed to the prior head", narrowed + failed,
              f"repair re-review range {mid}..{head} must keep the slice base: "
-             "no commit named on the Prior review line lies inside it"),
+             "no commit named on the Prior review line lies inside it below its head"),
+            ("narrowed, naming the new head too", narrowed
+             + f"Prior review: report-review-{mid[:12]}.md FAIL (F1); repair head {head[:7]}\n",
+             f"repair re-review range {mid}..{head} must keep the slice base: "
+             "no commit named on the Prior review line lies inside it below its head"),
             ("no prior review", narrowed + f"Prior review: none {gloss}\n", None),
             ("prior FAIL named mid-line in prose", f"Scope note. Prior reviews: report-review-{mid[:12]}.md FAIL\n",
              None),

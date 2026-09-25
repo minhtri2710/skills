@@ -161,10 +161,10 @@ def _repair_range_problems(repo: Path, charter: str) -> list[str]:
     listed = _git(repo, ["rev-list", f"{base}..{head}"])
     if listed.returncode != 0:
         return [f"repair re-review range {base}..{head} does not resolve in {repo}"]
-    if named.isdisjoint(listed.stdout.split()):
+    if named.isdisjoint(listed.stdout.split()[1:]):  # rev-list lists the head first; naming it proves nothing
         return [
             f"repair re-review range {base}..{head} must keep the slice base: "
-            "no commit named on the Prior review line lies inside it"
+            "no commit named on the Prior review line lies inside it below its head"
         ]
     return []
 
