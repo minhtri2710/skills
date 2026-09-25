@@ -47,7 +47,7 @@ def format_roster(payload: dict[str, Any], workspace: str | None = None) -> list
 
 def _load_previous_sample(path: str) -> dict[str, dict[str, Any]]:
     try:
-        raw = json.loads(Path(path).read_text())
+        raw = json.loads(Path(path).read_text(encoding="utf-8"))
     except OSError as exc:
         raise RuntimeError(f"could not read previous sample: {exc}") from exc
     except json.JSONDecodeError as exc:

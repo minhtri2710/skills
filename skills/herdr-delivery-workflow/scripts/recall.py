@@ -50,7 +50,7 @@ def build_index(index_root):
     )
     root = os.path.abspath(PROJECTS_ROOT)
     for path in glob.glob(os.path.join(index_root, "**", "*.md"), recursive=True):
-        with open(path, errors="ignore") as handle:
+        with open(path, encoding="utf-8", errors="ignore") as handle:
             lines = handle.read().splitlines()
         relative = os.path.relpath(path, root)
         for start in range(0, len(lines), 8):
@@ -278,7 +278,7 @@ def main(argv=None):
     root = project_root(parser, args.project)
     if args.get is not None:
         target, start, count = span_target(parser, args.get)
-        with open(target, errors="ignore") as handle:
+        with open(target, encoding="utf-8", errors="ignore") as handle:
             lines = handle.read().splitlines(keepends=True)
         sys.stdout.write("".join(lines[start - 1 : start - 1 + count]))
         return 0

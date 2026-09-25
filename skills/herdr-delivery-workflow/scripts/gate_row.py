@@ -81,6 +81,8 @@ GRANT_RE = re.compile(
 PUSH_SCOPE_ENTRY_RE = re.compile(r"^[A-Za-z0-9._-]+:[^\s|\",:]+$")
 UNTIL_REVOKED = "until-revoked"
 ISO_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
+# Every character str.splitlines() splits on; a row is one line, so no field holds one.
+LINE_BREAKS = "\n\r\x0b\x0c\x1c\x1d\x1e\x85\u2028\u2029"
 
 
 class RowError(Exception):
@@ -178,8 +180,12 @@ def verify_chain(rows: list[str]) -> None:
 
 
 def text_rows(text: str) -> list[str]:
-    """Every gate row in the text, in order, without verifying a chain."""
-    return [line for line in text.splitlines() if ID_RE.match(line)]
+    """Every gate row in the text, in order, without verifying a chain.
+
+    Rows end at "\n" only, so a hand-edited row holding another line separator
+    stays one row and split_row refuses it by field instead of misreading its halves.
+    """
+    return [line for line in text.split("\n") if ID_RE.match(line)]
 
 
 def ledger_rows(text: str) -> list[str]:
@@ -232,7 +238,22 @@ def split_row(row: str) -> tuple[list[str], str]:
     if (not marker or not quoted.startswith('"') or not quoted.endswith('"')
             or not ID_RE.match(row)):
         raise RowError("quote= is not the terminal field, or the row has no namespace-agnostic id")
-    return prefix.split(" | "), quoted[1:-1]
+    fields, quote = prefix.split(" | "), quoted[1:-1]
+    gid = fields[0]
+    if gid != ID_RE.match(row).group("id"):
+        raise RowError("row does not start with a namespace-agnostic gate id")
+    if len(fields) < 5:
+        raise RowError(f"row {gid!r} has {len(fields)} fields before quote=, expected at least 5")
+    for position, field in enumerate(fields, 1):
+        if not field or "|" in field:
+            raise RowError(f"row {gid!r} field {position} is empty or holds |")
+    for position, field in enumerate([*fields, f"quote={quote}"], 1):
+        name, eq, _ = field.partition("=")
+        breaks = [ch for ch in field if ch in LINE_BREAKS]
+        if breaks:
+            label = f"{name}=" if eq else f"field {position}"
+            raise RowError(f"row {gid!r} {label} is one line; it holds line separator {breaks[0]!r}")
+    return fields, quote
 
 
 def parse_resolves(value: str) -> list[str]:
@@ -256,8 +277,6 @@ def resolve_ids(values: list[str]) -> list[str]:
 def row_evidence(row: str) -> tuple[str, str, str]:
     """Read the kind, SHA, and status used by review and push gates."""
     fields, _ = split_row(row)
-    if len(fields) < 5:
-        raise RowError(f"malformed ledger row: {row}")
     kind = fields[2]
     head = fields[3]
     status = fields[4]
@@ -473,8 +492,8 @@ def field_text(name: str, value: str | None) -> str:
     value = (value or "").strip()
     if not value:
         raise RowError(f"{name}= is required")
-    if "|" in value or '"' in value or "\n" in value:
-        raise RowError(f"{name}= refuses |, \" and newlines — it is a structured row field")
+    if "|" in value or '"' in value:
+        raise RowError(f"{name}= refuses | and \" — it is a structured row field")
     return value
 
 
@@ -722,7 +741,7 @@ def build(args: argparse.Namespace, repo: Path,
             f"note= is {len(note)} chars, over the {NOTE_MAX} cap — "
             "narrative belongs in the workspace record, not the ledger"
         )
-    if "|" in note or '"' in note or "\n" in note:
+    if "|" in note or '"' in note:
         raise RowError('note= refuses | and " — they are the row\'s delimiters')
     if args.quote and args.quote_file:
         raise RowError("--quote and --quote-file are mutually exclusive")
@@ -738,8 +757,6 @@ def build(args: argparse.Namespace, repo: Path,
             quote = quote[:-1]
     else:
         quote = args.quote
-    if "\n" in quote:
-        raise RowError("quote= is one line")
     if (args.words == "none") != (quote == ""):
         raise RowError("words=none iff quote= is empty")
     if not quote and args.status != "open":
@@ -891,7 +908,9 @@ def build(args: argparse.Namespace, repo: Path,
     fields.append(f"words={args.words}")
     fields.append(f"note={note}")
     fields.append(f'quote="{quote}"')
-    return " | ".join(fields)
+    row = " | ".join(fields)
+    split_row(row)
+    return row
 
 
 def check(row: str, repo: Path, prior_rows: list[str] | None = None,
@@ -901,12 +920,7 @@ def check(row: str, repo: Path, prior_rows: list[str] | None = None,
     `ledger` locates the sibling archive a first row is judged against.
     """
     fields, quote = split_row(row)
-    if len(fields) < 5:
-        raise RowError(f"row has {len(fields)} fields before quote=, expected at least 5")
     gid, when, kind, head_field, status, *rest = fields
-    id_match = ID_RE.match(row)
-    if not id_match or gid != id_match.group("id"):
-        raise RowError("row does not start with a namespace-agnostic gate id")
     for name, value, pattern in (
         ("kind", kind, KIND_RE), ("status", status, STATUS_RE),
     ):
@@ -1078,10 +1092,8 @@ def check(row: str, repo: Path, prior_rows: list[str] | None = None,
         raise RowError("note= is missing or empty")
     if len(note) > NOTE_MAX:
         raise RowError(f"note= is {len(note)} chars, over the {NOTE_MAX} cap")
-    if "|" in note or '"' in note or "\n" in note:
+    if '"' in note:
         raise RowError('note= refuses | and " — they are the row\'s delimiters')
-    if "\n" in quote:
-        raise RowError("quote= is one line")
     if (words == "none") != (quote == ""):
         raise RowError("words=none iff quote= is empty")
     status_value = status.split("=", 1)[1]
@@ -1159,7 +1171,7 @@ def locked_ledger(ledger: Path, exclusive: bool):
         raise RowError(f"{ledger} holds no gate ledger")
     mode = "a+" if exclusive else "r"
     try:
-        with ledger.open(mode) as handle:
+        with ledger.open(mode, encoding="utf-8") as handle:
             fcntl.flock(handle.fileno(), fcntl.LOCK_EX if exclusive else fcntl.LOCK_SH)
             try:
                 yield handle
@@ -1171,7 +1183,10 @@ def locked_ledger(ledger: Path, exclusive: bool):
 
 def handle_text(handle) -> str:
     handle.seek(0)
-    return handle.read()
+    try:
+        return handle.read()
+    except UnicodeError as exc:
+        raise RowError(f"ledger is not UTF-8: {exc}") from None
 
 
 def main(argv: list[str] | None = None) -> int:

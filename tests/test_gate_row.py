@@ -1966,6 +1966,79 @@ class GateRowTest(unittest.TestCase):
         self.assertEqual(proc.returncode, 0, proc.stderr)
 
 
+    def test_every_line_separator_in_quote_quote_file_or_note_is_refused_and_writes_nothing(self):
+        quote_file = self.tmp / "quote.txt"
+        before = self.ledger.read_bytes()
+        for sep in (*gate_row.LINE_BREAKS, "\r\n"):
+            quote_file.write_bytes(f"a{sep}b".encode("utf-8"))
+            for name, extra in (
+                ("quote", ("--quote", f"a{sep}b")),
+                ("quote", ("--quote", "", "--quote-file", str(quote_file))),
+                ("note", ("--note", f"a{sep}b")),
+            ):
+                with self.subTest(sep=sep, args=extra[::2]):
+                    self.assertEqual(self.append(*extra), 1)
+                    self.assertIn(f"{name}= is one line", self.err.getvalue())
+                    self.assertEqual(self.ledger.read_bytes(), before)
+        self.assertEqual(self.append(), 0, self.err.getvalue())
+        self.assertEqual(self.check_last(), 0, self.err.getvalue())
+
+    def test_a_quote_file_ending_in_a_lone_cr_is_refused(self):
+        # newline="" keeps the CR; a universal-newline read would turn it into
+        # the one trailing newline the strip removes and admit the row.
+        quote_file = self.tmp / "quote.txt"
+        quote_file.write_bytes(b"merge it\r")
+        before = self.ledger.read_bytes()
+        self.assertEqual(self.append("--quote", "", "--quote-file", str(quote_file)), 1)
+        self.assertIn("quote= is one line; it holds line separator '\\r'", self.err.getvalue())
+        self.assertEqual(self.ledger.read_bytes(), before)
+
+    def test_every_ledger_read_refuses_a_chained_row_holding_a_line_separator_by_field(self):
+        cases = (
+            ("note=", self.fixture_row("G2", "open", words="none", quote="", note="a\x0cb")),
+            ("quote=", self.fixture_row("G2", "resolved:x", quote="a\u2029b")),
+            ("words=", self.fixture_row("G2", "open", words="none\x85", quote="")),
+        )
+        for label, row in cases:
+            with self.subTest(label):
+                rows = self.chained([self.fixture_row("G1", "open", words="none", quote=""), row])
+                self.ledger.write_text("\n".join(rows) + "\n", encoding="utf-8")
+                for mode in ("--check", "--open-gates"):
+                    self.assertEqual(self.run_main(
+                        ["--ledger", str(self.ledger), "--repo", str(self.repo), mode]), 1)
+                    self.assertIn(f"row 'G2' {label} is one line", self.err.getvalue())
+
+    def test_a_malformed_ledger_is_refused_cleanly_by_every_read(self):
+        first = self.fixture_row("G1", "open", words="none", quote="")
+        second = self.fixture_row("G2", "open", words="none", quote="")
+        cases = (
+            ("empty field", self.chained([first, second.replace(" | record=", " |  | record=")]),
+             "row 'G2' field 6 is empty or holds |"),
+            ("field holding |", self.chained([first, second.replace(" | record=", " | | record=")]),
+             "row 'G2' field 6 is empty or holds |"),
+            ("short predecessor", self.chained(['G1 | quote=""', second]),
+             "row 'G1' has 1 fields before quote=, expected at least 5"),
+            ("invalid single status", [first.replace("status=open", "status=bogus")],
+             "field 'status=bogus' is not a valid status="),
+            ("invalid single prev_hash", [first, second.replace(" | words=", " | prev_hash=zz | words=")],
+             "field 'prev_hash=zz' is not a 64-character lowercase hex prev_hash="),
+        )
+        for name, rows, message in cases:
+            self.ledger.write_text("\n".join(rows) + "\n", encoding="utf-8")
+            for mode in ("--check", "--open-gates"):
+                with self.subTest(name, mode=mode):
+                    self.assertEqual(self.run_main(
+                        ["--ledger", str(self.ledger), "--repo", str(self.repo), mode]), 1)
+                    self.assertIn(message, self.err.getvalue())
+        self.ledger.write_bytes(first.encode("utf-8") + b"\n" + b"G2 | caf\xe9\n")
+        for argv in (["--check"], ["--open-gates"], [*self.append_args()]):
+            with self.subTest("non-UTF-8", argv=argv[:1]):
+                self.assertEqual(self.run_main(["--ledger", str(self.ledger), "--repo", str(self.repo), *argv]), 1)
+                self.assertIn("ledger is not UTF-8", self.err.getvalue())
+
+    def append_args(self) -> list[str]:
+        return ["--kind", "merge", "--status", "open", "--words", "none", "--note", "n"]
+
 class CutoverTest(unittest.TestCase):
     """A fresh ledger born from its archived predecessor by one kind=cutover row."""
 
