@@ -1,6 +1,6 @@
 ---
 name: test-first-seams
-description: Build a feature, fix a bug, or add tests to existing code test-first in red-green vertical slices at agreed seams. Use when the user asks for TDD, red-green, or test-first work, wants a bug proven by a failing test before the fix, or asks what tests a module needs and where to put them. Do not use to audit an existing test's proof value.
+description: Build a feature, fix a bug, or add tests to existing code test-first in red-green vertical slices at agreed seams. Use when the user asks for TDD, red-green, or test-first work, wants a bug proven by a failing test before the fix, or asks what tests a module needs and where to put them. Do not use to audit existing tests for proof value or redundancy.
 ---
 
 # Test-First Seams
@@ -18,6 +18,17 @@ Prefer existing seams, and the highest one that exercises the behavior; fewer se
 is better. When the shape of the interface itself is in question, use
 `deep-module-design`.
 
+## Before adding a test
+
+Beyond what behavior the test protects and which regression turns it red, answer
+two more questions; without an answer, do not add the test yet:
+
+- Why does existing coverage miss that regression? Each contract has one primary
+  test at its strongest seam. Another test needs its own risk that the owner cannot
+  reach. Extend a table case or shared fixture rather than add a near-duplicate.
+- Does it need a production seam (export, flag, wrapper, injection hook) that no
+  production caller needs? If so, test at the real seam instead.
+
 ## The loop
 
 Work one vertical slice at a time: one test at one seam, then the least code that
@@ -32,8 +43,11 @@ Writing all tests first and all implementation after tests imagined behavior and
 locks in test structure before the design is understood.
 
 For a bug, prove it first: write the test that reproduces the reported symptom,
-watch it fail, then fix. When independence matters, have a subagent write that
-reproduction test from the bug report alone, without seeing the intended fix.
+watch it fail on the pre-fix code for the intended reason, then fix. A reproduction
+that never failed proves nothing about the fix. Write one regression test at the
+owner boundary, not one per layer the bug crosses. When independence matters, have
+a subagent write that reproduction test from the bug report alone, without seeing
+the intended fix.
 
 Refactoring belongs to review, after the slice is green.
 

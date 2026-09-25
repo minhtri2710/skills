@@ -61,12 +61,14 @@ skills/<name>/
 | `spec-conformance-review` | Review a diff against the spec it claims to implement, quoting the spec line per finding. |
 | `telemetry-questions-first` | Instrument a path from the on-call questions and prove the telemetry by diagnosing an induced failure. |
 | `test-first-seams` | Build a feature or fix a bug test-first in red-green vertical slices at agreed seams. |
-| `test-proof-debt-audit` | Audit one behavioral claim and the test or gate cited as its proof. |
+| `test-proof-debt-audit` | Audit one behavioral claim and the test or gate cited as its proof, or a named test set for redundant tests. |
 | `throwaway-prototype` | Build throwaway code that answers one design question: a logic demo or structurally different UI variants. |
 
 ## Sources
 
 Many of the skills here adapt material from [addyosmani/agent-skills](https://github.com/addyosmani/agent-skills) (MIT, Copyright (c) 2025 Addy Osmani) and [mattpocock/skills](https://github.com/mattpocock/skills) (MIT, Copyright (c) 2026 Matt Pocock).
+
+`test-proof-debt-audit` and `test-first-seams` adapt ideas from the `test-audit` skill in [openclaw/openclaw](https://github.com/openclaw/openclaw/tree/main/.agents/skills/test-audit) (MIT, Copyright (c) 2026 OpenClaw Foundation).
 
 ## Checks
 
