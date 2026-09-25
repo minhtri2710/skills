@@ -23,11 +23,12 @@ is better. When the shape of the interface itself is in question, use
 Beyond what behavior the test protects and which regression turns it red, answer
 two more questions; without an answer, do not add the test yet:
 
-- Why does existing coverage miss that regression? Each contract has one primary
-  test at its strongest seam. Another test needs its own risk that the owner cannot
-  reach. Extend a table case or shared fixture rather than add a near-duplicate.
-- Does it need a production seam (export, flag, wrapper, injection hook) that no
-  production caller needs? If so, test at the real seam instead.
+- Which existing test should already catch that regression, and why does it not?
+  A contract gets one owning test at its strongest seam; a second one must be able
+  to fail where the owner cannot. If the gap is just a missing input, add a row to
+  the owner's table or fixture instead of a sibling test.
+- Would the test only work through a hook, export, flag, or wrapper added for it
+  alone? Then drop that seam and drive the test through the one production uses.
 
 ## The loop
 
@@ -43,11 +44,11 @@ Writing all tests first and all implementation after tests imagined behavior and
 locks in test structure before the design is understood.
 
 For a bug, prove it first: write the test that reproduces the reported symptom,
-watch it fail on the pre-fix code for the intended reason, then fix. A reproduction
-that never failed proves nothing about the fix. Write one regression test at the
-owner boundary, not one per layer the bug crosses. When independence matters, have
-a subagent write that reproduction test from the bug report alone, without seeing
-the intended fix.
+watch it fail against the unfixed code, for the reason the bug report gives, then
+fix. A reproduction that never failed proves nothing about the fix. Write one
+regression test at the owner boundary, not one per layer the bug crosses. When
+independence matters, have a subagent write that reproduction test from the bug
+report alone, without seeing the intended fix.
 
 Refactoring belongs to review, after the slice is green.
 

@@ -23,29 +23,29 @@ contract without repository history. Replace it with current-boundary cases,
 demote it to closeout-only evidence, or delete it unless the historical value
 is itself a current public machine/security contract.
 
-For a redundancy audit of a named test set, give each contract one primary owner
-test at the strongest boundary. Another test of the same contract earns its place
-only with a distinct risk the owner cannot reach, such as a transport or lifecycle
-failure. Otherwise it is a duplicate: fold it into the owner's table case or shared
-fixture, or delete it.
+For a redundancy audit of a named test set, map each contract to the one test
+that owns it at the strongest boundary. A second test of that contract stays only
+if it can fail where the owner cannot, for example across a process, network, or
+lifecycle boundary the owner never crosses. Any other second test is a duplicate:
+merge its case into the owner's table or fixture, or delete it.
 
 Before choosing `delete`, apply the retention bar. Keep a test that independently
-enforces a public API, protocol, config, storage, security, or architecture
-contract, observable call ordering, or a regression with a credible failure mode,
-even when it resembles the implementation. Static or slow is not a reason to
-delete. A retained test that fails on the baseline may be a product bug: reproduce
-it and route the owner fix instead of deleting the test.
+enforces a current public API, protocol, config, storage, security, or
+architecture contract (a history-only value stays under the rule above),
+observable call ordering, or a regression with a credible failure mode, even when
+it looks like the implementation. Being static or slow never justifies a delete.
+A retained test that is red on the baseline may be exposing a product bug:
+reproduce it and route the owner fix rather than removing the test.
 
-Record these fields for a delete candidate; if any is missing, choose `keep` or
-`escalate`, never `delete`:
+A `delete` needs a filled record; any gap turns it into `keep` or `escalate`:
 
-- exact test name and location;
-- the failure it can actually detect;
-- non-test callers of the production or support seam it covers;
-- the stronger owner-boundary proof that remains, or why none is needed;
-- why the test or seam exists, from history;
-- the production or test-support code the deletion unlocks;
-- risk and the focused validation command.
+- where the test lives and what it is called;
+- the regression it would catch, stated concretely;
+- the production callers, if any, of the seam it exercises;
+- which remaining test at the owner boundary still catches that regression, or why nothing needs to;
+- why the test was written, from its commit history;
+- what else can go once it is gone, in production or test support;
+- the risk, and the narrow command that validates the removal.
 
 Proxy evidence can support lint or closeout but cannot prove runtime behavior. Mocks and replicas prove only their own boundary unless the claim is explicitly about that boundary.
 

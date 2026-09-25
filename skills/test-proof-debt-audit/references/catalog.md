@@ -26,12 +26,12 @@ Use repository-appropriate search and semantic tools. Search hits are leads, not
 - full error-message prose locked where a typed or semantic rejection exists
 - benchmarks whose measured path differs from the claimed path
 - tests that survive deletion of the production module
-- several tests invoking the same contract with no distinct risk between them
-- tests whose only purpose is to keep a test-only export, global, or wrapper alive, and production code whose only callers are tests
-- mocks that implement the behavior being asserted, or one mock standing in for different APIs
-- fixtures that supply what the owner should produce, such as a receipt, an ordering, or a store the path never writes
-- negative controls that pass for an unrelated reason, such as a denial from a different guard or a rejection the production path never reaches
-- names or fixtures that promise more than the input exercises
+- two or more tests driving one contract where neither covers a risk the other misses
+- a test that exists only because it calls a hook, export, or wrapper nothing in production uses; production code reached only from tests
+- a mock that computes the result the test then asserts, or a single mock reused for unrelated APIs
+- a fixture that hands the code under test the output its owner is supposed to create, or a store assertion on a store the path never touches
+- a refusal test that goes red for another reason, for example a different check rejecting first or an input production never sends
+- a test name or fixture that claims a scenario the input never reaches
 
 ## Better Routes
 
