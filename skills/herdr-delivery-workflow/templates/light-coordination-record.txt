@@ -14,6 +14,7 @@ INTEGRATED: <exact integrated SHA or none>
 CHANGED: <changed-file list>
 LEDGER: <one line per ledger row appended this run: id, kind, status>
 HANDOFF: <kind=handoff ledger row id naming the accepted head>
+LESSONS: <lesson record store paths, each read back after writing, or none>
 DEPLOYED: <artifact=installed path, files compared, differences, deploy row id; or "none installed"; or "gate <id> pending">
 CHECKOUT: <branch>@<exact head> — the caller's checkout stays on the branch and head the record names; closeout never checks out, resets, rebases, or cleans it
 RISKS: <residual risks and skipped checks>
