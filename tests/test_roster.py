@@ -264,15 +264,18 @@ class RosterTest(unittest.TestCase):
 
     _DRIFT_CONFIG = (
         "# Delivery config\n"
-        "<!-- TEMPORARY OVERRIDE: staff every Engineer as claude --model claude-opus-5-5 -->\n"
         "- engineer-kind: pi\n"
         "- engineer-args: --approve --model prov/luna\n"
         "- engineer-fallback: pi\n"
         "- engineer-fallback-args: --approve --model=prov/flash\n"
         "- reviewer-kind: agy\n"
+        "<!-- restore after the override:\n"
+        "- engineer-kind: claude\n"
+        "- engineer-args: --model claude-opus-5-5\n"
+        "-->\n"
     )
 
-    def _drift(self, agents, argv_by_pane, seats, config=_DRIFT_CONFIG):
+    def _drift(self, agents, argv_by_pane, seats, config=_DRIFT_CONFIG, extra_argv=()):
         """Drive main() on the live path; only the herdr subprocess is mocked."""
         listing = json.dumps({"result": {"agents": agents}})
 
@@ -292,7 +295,7 @@ class RosterTest(unittest.TestCase):
             with mock.patch.object(roster.herdr_cli.subprocess, "run", side_effect=run), \
                     mock.patch.object(roster.sys, "stdin", io.StringIO("")), \
                     mock.patch("sys.stdout", output), mock.patch("sys.stderr", error):
-                argv = ["--drift", str(config_path)]
+                argv = ["--drift", str(config_path), *extra_argv]
                 for seat in seats:
                     argv += ["--seat", seat]
                 rc = roster.main(argv)
@@ -328,17 +331,21 @@ class RosterTest(unittest.TestCase):
             "expected=pi --model prov/luna or pi --model prov/flash",
         ])
 
-    def test_drift_fails_closed_without_the_role_key_or_the_seat_process(self):
+    def test_drift_fails_closed_without_the_role_key_the_seat_process_or_the_seat(self):
         seat = [{"pane_id": "w1:p1", "name": "eng", "agent": "pi", "agent_status": "idle"}]
+        pi, claude = {"w1:p1": ["pi"]}, {"w1:p1": ["claude", "--model", "x"]}
         cases = [
-            ("- reviewer-kind: agy\n", {"w1:p1": ["pi"]}, "config lacks engineer-kind"),
-            (self._DRIFT_CONFIG, {"w1:p1": ["claude", "--model", "x"]}, "no pi process in pane w1:p1"),
+            ("- reviewer-kind: agy\n", pi, "eng:engineer", (), "config lacks engineer-kind"),
+            (self._DRIFT_CONFIG, claude, "eng:engineer", (), "no pi process in pane w1:p1"),
+            (self._DRIFT_CONFIG, pi, "gone:engineer", (), "no live seat named gone"),
+            (self._DRIFT_CONFIG, pi, "eng:engineer", ("--workspace", "w2"), "no live seat named eng"),
         ]
-        for config, argv, message in cases:
+        for config, argv, name, extra_argv, message in cases:
             with self.subTest(message=message):
-                rc, lines, error = self._drift(seat, argv, ["eng:engineer"], config)
+                rc, lines, error = self._drift(seat, argv, [name], config, extra_argv)
                 self.assertEqual((rc, lines), (1, []))
                 self.assertIn(message, error)
+
 
 if __name__ == "__main__":
     unittest.main()

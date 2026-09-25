@@ -289,6 +289,7 @@ def format_drift_roster(
     (an allowlist, a disallowed tool) that are not drift.
     """
     lines = []
+    unseen = set(seats)
     for agent in _agents(payload):
         if not isinstance(agent, dict):
             raise ValueError("agent-list JSON contains a non-object agent")
@@ -297,6 +298,7 @@ def format_drift_roster(
         name = agent.get("name")
         if not isinstance(name, str) or name not in seats:
             continue
+        unseen.discard(name)
         try:
             pane_id = agent["pane_id"]
             kind = agent["agent"]
@@ -311,6 +313,8 @@ def format_drift_roster(
         lines.append(
             f"{pane_id} {name} {kind} DRIFT role={role} running={kind} --model {model or '-'} expected={want}"
         )
+    if unseen:
+        raise ValueError(f"no live seat named {', '.join(sorted(unseen))}")
     return lines
 
 
