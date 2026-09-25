@@ -133,7 +133,8 @@ def upgrade_prompt(raw_prompt: str, task: str | None) -> str:
             f"- {output_contract}",
             "",
             "Done Criteria:",
-            "- Stop when the response satisfies the task and matches the requested format. If a better approach exists, say so in a sentence and complete the task as asked.",
+            "- Name the objective checks that decide this task (tests, a build, cited sources, the requested format) and stop only when they pass.",
+            "- If a better approach exists, say so in a sentence and complete the task as asked.",
         ]
     ).strip()
 

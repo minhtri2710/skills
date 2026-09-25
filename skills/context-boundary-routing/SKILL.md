@@ -50,7 +50,9 @@ When step 4 wins, pick the shape and refuse the others.
   sub-tasks share no mutable state or ordering, each produces a different *kind*
   of finding rather than the same finding from another angle, and the merge fits
   in the room this session has left. Skip the fan-out when this session could
-  finish the sub-tasks itself in a handful of tool calls.
+  finish the sub-tasks itself in a handful of tool calls and the change touches
+  no auth, payments, data access, or configuration; otherwise fan out even if
+  the diff looks small.
 - **Research isolation** sends an agent to read what would otherwise flood this
   context and returns a digest much smaller than what it read.
 
