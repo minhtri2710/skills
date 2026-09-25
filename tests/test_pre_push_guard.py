@@ -613,6 +613,21 @@ class PrePushGuardTest(unittest.TestCase):
         self.assertEqual(code, 0, err)
         self.assertIn("covered", out)
 
+    def test_manual_mode_in_a_linked_worktree_judges_that_worktrees_branch_and_tip(self):
+        worktree = self.tmp / "wt"
+        self.git("worktree", "add", "-q", "-b", "side", str(worktree))
+        (worktree / "s.txt").write_text("s\n")
+        subprocess.run(["git", "-C", str(worktree), "add", "s.txt"], check=True)
+        subprocess.run(["git", "-C", str(worktree), "commit", "-qm", "s1"], check=True)
+        s1 = subprocess.run(["git", "-C", str(worktree), "rev-parse", "HEAD"],
+                            capture_output=True, text=True, check=True).stdout.strip()
+        self.repo = worktree
+        self.assertEqual(self.review(self.base), 0)
+        self.grant(f"origin refs/heads/side push {self.base}..{s1}")
+        code, out, err = self.invoke()
+        self.assertEqual(code, 0, err)
+        self.assertIn("covered", out)
+
     def test_a_push_of_no_new_commit_is_refused(self):
         self.advance("c1")
         self.assertEqual(self.review(self.base), 0)
@@ -894,6 +909,15 @@ class PushDigestTest(unittest.TestCase):
         _, out = self.digest((ledger, repo))
         self.assertIn(f"UNGATED: branch side, 1 commits, range {head} (no upstream; outside every "
                       f"remote-tracking ref), excluding open push-gate tips {gate_tip}\n", out)
+
+    def test_ungated_work_in_a_linked_worktree_is_named_by_that_worktrees_branch(self):
+        ledger, repo, base = self.project("alpha")
+        worktree = self.tmp / "wt"
+        self.git(repo, "worktree", "add", "-q", "-b", "side", str(worktree))
+        head = self.advance(worktree, "s1")
+        _, out = self.digest((ledger, worktree))
+        self.assertIn(f"UNGATED: branch side, 1 commits, range {head} (no upstream; outside every "
+                      "remote-tracking ref)\n", out)
 
     def test_grant_mode_writes_a_row_the_guard_accepts(self):
         ledger, repo, base = self.project("alpha")

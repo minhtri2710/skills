@@ -1861,6 +1861,44 @@ class GateRowTest(unittest.TestCase):
         self.assertEqual(str(caught.exception),
                          f"prev_hash mismatch: expected {gate_row.row_hash(first)}, got {'0' * 64}")
 
+    def test_a_row_in_a_linked_worktree_records_that_worktrees_branch_and_head(self):
+        worktree = self.tmp / "wt"
+        self.git("worktree", "add", "-q", "-b", "side", str(worktree))
+        (worktree / "s.txt").write_text("s\n")
+        subprocess.run(["git", "-C", str(worktree), "add", "s.txt"], check=True)
+        subprocess.run(["git", "-C", str(worktree), "commit", "-qm", "s1"], check=True)
+        side = subprocess.run(["git", "-C", str(worktree), "rev-parse", "HEAD"],
+                              capture_output=True, text=True, check=True).stdout.strip()
+        self.repo = worktree
+        self.assertEqual(self.append_local_ops(), 0, self.err.getvalue())
+        self.assertIn(f" | side@{side} | ", self.last_row())
+
+    def test_a_row_on_a_detached_head_records_the_branch_as_HEAD(self):
+        self.git("checkout", "-q", "--detach")
+        self.assertEqual(self.append_local_ops(), 0, self.err.getvalue())
+        self.assertIn(f" | HEAD@{self.rev('HEAD')} | ", self.last_row())
+
+    def test_check_refuses_an_empty_field(self):
+        self.assertEqual(self.append_local_ops(), 0, self.err.getvalue())
+        self.ledger.write_text(self.last_row().replace(" | words=", " |  | words=") + "\n", encoding="utf-8")
+        before = self.ledger.read_bytes()
+        self.assertEqual(self.check_last(), 1)
+        self.assertEqual(self.ledger.read_bytes(), before)
+
+    def test_open_gates_refuses_a_ledger_row_with_an_invalid_status_or_prev_hash(self):
+        for old, new in (("status=recorded:local-ops", "status=BAD"), (None, "prev_hash=zz")):
+            with self.subTest(new):
+                self.ledger.write_text("# Gate ledger — test\n\n")
+                self.assertEqual(self.append_local_ops(), 0, self.err.getvalue())
+                self.assertEqual(self.append_local_ops(), 0, self.err.getvalue())
+                first, second = [l for l in self.ledger.read_text().splitlines() if gate_row.ID_RE.match(l)]
+                old = old or f"prev_hash={gate_row.row_hash(first)}"
+                self.ledger.write_text(f"# Gate ledger — test\n\n{first}\n{second.replace(old, new)}\n",
+                                       encoding="utf-8")
+                before = self.ledger.read_bytes()
+                self.assertEqual(self.run_main(["--ledger", str(self.ledger), "--open-gates"]), 1)
+                self.assertEqual(self.ledger.read_bytes(), before)
+
     def test_a_push_row_lists_every_outside_path_space_separated(self):
         self.assertEqual(self.append_review_pass(), 0, self.err.getvalue())
         self.add_remote("HEAD")
