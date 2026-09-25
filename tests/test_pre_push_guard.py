@@ -1208,10 +1208,16 @@ class PushDigestTest(unittest.TestCase):
         for name in ("low", "high"):
             subprocess.run([*push, name], check=True, capture_output=True)
 
-    def test_first_publication_to_an_empty_remote_is_offered_and_its_grant_passes_the_guard(self):
+    def test_first_publication_is_not_ready_while_unreachable_then_offered_and_its_grant_passes_the_guard(self):
         ledger, repo, root = self.project("alpha", pushed=False)
         self.review(ledger, repo, ZERO)
         self.push_gate(ledger, repo)
+        url = self.git(repo, "remote", "get-url", "origin")
+        self.git(repo, "remote", "set-url", "origin", str(self.tmp / "missing.git"))
+        code, out = self.digest((ledger, repo))
+        self.assertEqual(code, 0, out)
+        self.assertIn("NOT READY: new branch publishes a root commit and git ls-remote origin failed", out)
+        self.git(repo, "remote", "set-url", "origin", url)
         code, out = self.digest((ledger, repo))
         self.assertEqual(code, 0, out)
         self.assertIn(f"range: first publication {ZERO}..{root} (1 commits)", out)
