@@ -6,7 +6,8 @@ text live in exactly one loaded file; any other file cites it by section rather
 than restating it. This measures that invariant: no rule-bearing sentence
 (>=8 words, code blocks stripped) may appear verbatim in more than one loaded
 prose file. Templates are verbatim record shapes, and RATIONALE.md restates
-rule gist by design, so both are excluded.
+rule gist by design, so both are excluded. Each loaded file also stays within
+its byte ceiling, so doctrine that every seat loads cannot grow unnoticed.
 """
 from __future__ import annotations
 
@@ -16,19 +17,21 @@ from pathlib import Path
 
 SKILL = Path(__file__).resolve().parents[1] / "skills" / "herdr-delivery-workflow"
 
-# Prose files a seat loads on some route. Templates and RATIONALE.md are excluded
-# for the reasons in the module docstring.
-LOADED = [
-    "SKILL.md",
-    "references/lead.md",
-    "references/relaunch.md",
-    "references/herdr-cli.md",
-    "references/project-config.md",
-    "references/structural-misfit-policy.md",
-    "references/charters.md",
-    "references/closeout.md",
-    "references/supervisor.md",
-]
+# Prose files a seat loads on some route, each with its byte ceiling. Templates and
+# RATIONALE.md are excluded for the reasons in the module docstring. A ceiling is the
+# file's size when the budget was last set: a new clause moves or retires as many
+# bytes (reasoning goes to RATIONALE.md), or raises the ceiling in the same diff.
+BUDGET = {
+    "SKILL.md": 10_237,
+    "references/lead.md": 97_243,
+    "references/relaunch.md": 4_451,
+    "references/herdr-cli.md": 20_870,
+    "references/project-config.md": 5_527,
+    "references/structural-misfit-policy.md": 9_485,
+    "references/charters.md": 29_285,
+    "references/closeout.md": 12_508,
+    "references/supervisor.md": 25_777,
+}
 
 
 def _sentences(path: Path) -> list[str]:
@@ -45,7 +48,7 @@ def _sentences(path: Path) -> list[str]:
 class DoctrineDedupTest(unittest.TestCase):
     def test_no_rule_text_duplicated_across_loaded_files(self):
         owners: dict[str, set[str]] = {}
-        for name in LOADED:
+        for name in BUDGET:
             path = SKILL / name
             self.assertTrue(path.exists(), f"loaded doctrine file missing: {name}")
             for sent in _sentences(path):
@@ -59,6 +62,14 @@ class DoctrineDedupTest(unittest.TestCase):
                 f"  {files}: {sent[:120]}" for sent, files in dupes.items()
             ),
         )
+
+    def test_loaded_files_stay_within_byte_budget(self):
+        over = {
+            name: (size, cap)
+            for name, cap in BUDGET.items()
+            if (size := len((SKILL / name).read_bytes())) > cap
+        }
+        self.assertEqual(over, {}, "loaded doctrine over its byte ceiling (size, ceiling)")
 
 
 if __name__ == "__main__":
