@@ -16,8 +16,7 @@ from types import SimpleNamespace
 from unittest import mock
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
-SCRIPTS = ROOT / "src" if (ROOT / "src").is_dir() else ROOT / "skills" / "herdr-delivery-workflow" / "scripts"
+SCRIPTS = Path(__file__).resolve().parents[1] / "skills" / "herdr-delivery-workflow" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 
 import gate_row  # noqa: E402
