@@ -16,8 +16,10 @@ This repository contains standalone Agent Skills. The canonical inventory is in 
 
 ## Checks
 
+The suite needs Python 3.11 or newer; if `python3` resolves older, use a 3.11+ interpreter in its place.
+
 ```bash
-python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
+python3 -c 'import sys; assert sys.version_info >= (3, 11), sys.version' && python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
 .venv/bin/python -m unittest discover -s tests
 git diff --check
 ```
