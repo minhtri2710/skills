@@ -262,5 +262,83 @@ class RosterTest(unittest.TestCase):
             self.assertEqual(lines, [])
 
 
+    _DRIFT_CONFIG = (
+        "# Delivery config\n"
+        "<!-- TEMPORARY OVERRIDE: staff every Engineer as claude --model claude-opus-5-5 -->\n"
+        "- engineer-kind: pi\n"
+        "- engineer-args: --approve --model prov/luna\n"
+        "- engineer-fallback: pi\n"
+        "- engineer-fallback-args: --approve --model=prov/flash\n"
+        "- reviewer-kind: agy\n"
+    )
+
+    def _drift(self, agents, argv_by_pane, seats, config=_DRIFT_CONFIG):
+        """Drive main() on the live path; only the herdr subprocess is mocked."""
+        listing = json.dumps({"result": {"agents": agents}})
+
+        def run(command, **_):
+            if command[1:3] == ["agent", "list"]:
+                out = listing
+            else:
+                pane = command[-1]
+                procs = [{"argv": ["caffeinate", "-i"]}, {"argv": argv_by_pane[pane]}]
+                out = json.dumps({"result": {"process_info": {"foreground_processes": procs}}})
+            return subprocess.CompletedProcess(command, 0, out, "")
+
+        with tempfile.TemporaryDirectory() as directory:
+            config_path = Path(directory) / "config.md"
+            config_path.write_text(config, encoding="utf-8")
+            output, error = io.StringIO(), io.StringIO()
+            with mock.patch.object(roster.herdr_cli.subprocess, "run", side_effect=run), \
+                    mock.patch.object(roster.sys, "stdin", io.StringIO("")), \
+                    mock.patch("sys.stdout", output), mock.patch("sys.stderr", error):
+                argv = ["--drift", str(config_path)]
+                for seat in seats:
+                    argv += ["--seat", seat]
+                rc = roster.main(argv)
+        return rc, output.getvalue().splitlines(), error.getvalue()
+
+    def test_drift_flags_only_seats_matching_neither_config_route(self):
+        def agent(pane, name, kind):
+            return {"pane_id": pane, "name": name, "agent": kind, "agent_status": "working"}
+
+        agents = [
+            agent("w1:p1", "eng-primary", "pi"),
+            agent("w1:p2", "eng-fallback", "pi"),
+            agent("w1:p3", "eng-model", "pi"),
+            agent("w1:p4", "eng-kind", "claude"),
+            agent("w1:p5", "review-a", "agy"),
+            agent("w1:p6", "unlisted", "claude"),
+        ]
+        argv = {
+            "w1:p1": ["node", "/opt/bin/pi", "--approve", "--model", "prov/luna", "--no-skills"],
+            "w1:p2": ["pi", "--model", "prov/flash"],
+            "w1:p3": ["pi", "--model", "prov/old"],
+            "w1:p4": ["/usr/local/bin/claude", "--model", "claude-opus-5-5", "--effort", "low"],
+            "w1:p5": ["agy", "--dangerously-skip-permissions"],
+        }
+        seats = ["eng-primary:engineer", "eng-fallback:engineer", "eng-model:engineer",
+                 "eng-kind:engineer", "review-a:reviewer"]
+        rc, lines, error = self._drift(agents, argv, seats)
+        self.assertEqual((rc, error), (0, ""))
+        self.assertEqual(lines, [
+            "w1:p3 eng-model pi DRIFT role=engineer running=pi --model prov/old "
+            "expected=pi --model prov/luna or pi --model prov/flash",
+            "w1:p4 eng-kind claude DRIFT role=engineer running=claude --model claude-opus-5-5 "
+            "expected=pi --model prov/luna or pi --model prov/flash",
+        ])
+
+    def test_drift_fails_closed_without_the_role_key_or_the_seat_process(self):
+        seat = [{"pane_id": "w1:p1", "name": "eng", "agent": "pi", "agent_status": "idle"}]
+        cases = [
+            ("- reviewer-kind: agy\n", {"w1:p1": ["pi"]}, "config lacks engineer-kind"),
+            (self._DRIFT_CONFIG, {"w1:p1": ["claude", "--model", "x"]}, "no pi process in pane w1:p1"),
+        ]
+        for config, argv, message in cases:
+            with self.subTest(message=message):
+                rc, lines, error = self._drift(seat, argv, ["eng:engineer"], config)
+                self.assertEqual((rc, lines), (1, []))
+                self.assertIn(message, error)
+
 if __name__ == "__main__":
     unittest.main()

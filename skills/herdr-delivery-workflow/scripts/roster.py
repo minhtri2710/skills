@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
+import shlex
 import sys
 import time
 from pathlib import Path
@@ -13,6 +15,9 @@ import herdr_cli
 
 
 _SETTLED_STATES = frozenset({"idle", "done"})
+_ROLES = ("engineer", "reviewer")
+_COMMENT_RE = re.compile(r"<!--.*?-->", re.DOTALL)
+_KEY_RE = re.compile(r"^\s*-\s*([a-z][a-z-]*):[ \t]*(.*?)\s*$", re.MULTILINE)
 
 
 def _agents(payload: dict[str, Any]) -> list[Any]:
@@ -208,6 +213,107 @@ def format_stalled_roster(
     return lines
 
 
+def _config_keys(path: str) -> dict[str, str]:
+    """Read `- key: value` lines; comments are provenance and never read."""
+    try:
+        text = Path(path).read_text(encoding="utf-8")
+    except OSError as exc:
+        raise RuntimeError(f"could not read config: {exc}") from exc
+    return dict(_KEY_RE.findall(_COMMENT_RE.sub("", text)))
+
+
+def _model(args: list[str]) -> str | None:
+    for i, arg in enumerate(args):
+        if arg == "--model" and i + 1 < len(args):
+            return args[i + 1]
+        if arg.startswith("--model="):
+            return arg.split("=", 1)[1]
+    return None
+
+
+def _expected(keys: dict[str, str], role: str) -> list[tuple[str, str | None]]:
+    kind = keys.get(f"{role}-kind")
+    if not kind:
+        raise ValueError(f"config lacks {role}-kind")
+    expected = [(kind, _model(shlex.split(keys.get(f"{role}-args", ""))))]
+    fallback = keys.get(f"{role}-fallback")
+    if fallback:
+        expected.append((fallback, _model(shlex.split(keys.get(f"{role}-fallback-args", "")))))
+    return expected
+
+
+def _seat_specs(raw_seats: list[str] | None) -> dict[str, str]:
+    seats: dict[str, str] = {}
+    for raw in raw_seats or []:
+        name, _, role = raw.partition(":")
+        if not name or role not in _ROLES:
+            raise ValueError("seat must use NAME:engineer or NAME:reviewer")
+        if name in seats:
+            raise ValueError(f"duplicate seat specification: {name}")
+        seats[name] = role
+    return seats
+
+
+def _launch_args(pane_id: str, kind: str) -> list[str]:
+    """Arguments after the seat's own binary, from the pane's foreground processes."""
+    try:
+        proc = herdr_cli.run(["pane", "process-info", "--pane", pane_id])
+    except herdr_cli.HerdrUnavailable as exc:
+        raise RuntimeError(f"could not run herdr pane process-info: {exc}") from exc
+    if proc.returncode:
+        detail = proc.stderr.strip() or proc.stdout.strip()
+        raise RuntimeError(f"herdr pane process-info {pane_id} failed: {detail or proc.returncode}")
+    try:
+        processes = json.loads(proc.stdout)["result"]["process_info"]["foreground_processes"]
+    except (json.JSONDecodeError, KeyError, TypeError) as exc:
+        raise ValueError(f"process-info JSON for {pane_id} lacks foreground_processes") from exc
+    for process in processes:
+        argv = process.get("argv") if isinstance(process, dict) else None
+        if not isinstance(argv, list):
+            continue
+        for i, arg in enumerate(argv):
+            if isinstance(arg, str) and Path(arg).name == kind:
+                return [str(a) for a in argv[i + 1:]]
+    raise ValueError(f"no {kind} process in pane {pane_id}")
+
+
+def format_drift_roster(
+    payload: dict[str, Any],
+    keys: dict[str, str],
+    seats: dict[str, str],
+    workspace: str | None = None,
+) -> list[str]:
+    """Return named seats whose running kind or --model matches neither config route.
+
+    Only the kind and the model are compared: a charter may add tightenings
+    (an allowlist, a disallowed tool) that are not drift.
+    """
+    lines = []
+    for agent in _agents(payload):
+        if not isinstance(agent, dict):
+            raise ValueError("agent-list JSON contains a non-object agent")
+        if workspace is not None and agent.get("workspace_id") != workspace:
+            continue
+        name = agent.get("name")
+        if not isinstance(name, str) or name not in seats:
+            continue
+        try:
+            pane_id = agent["pane_id"]
+            kind = agent["agent"]
+        except KeyError as exc:
+            raise ValueError(f"agent record lacks {exc.args[0]}") from exc
+        role = seats[name]
+        expected = _expected(keys, role)
+        model = _model(_launch_args(pane_id, kind))
+        if any(kind == k and (m is None or model == m) for k, m in expected):
+            continue
+        want = " or ".join(f"{k} --model {m or '-'}" for k, m in expected)
+        lines.append(
+            f"{pane_id} {name} {kind} DRIFT role={role} running={kind} --model {model or '-'} expected={want}"
+        )
+    return lines
+
+
 def _agent_list_json(use_stdin: bool) -> str:
     if use_stdin:
         return sys.stdin.read()
@@ -241,6 +347,17 @@ def main(argv: list[str] | None = None) -> int:
         help="report an explicitly identified never-prompted peer",
     )
     parser.add_argument(
+        "--drift",
+        metavar="CONFIG",
+        help="report named seats whose kind or --model differs from this config.md's keys",
+    )
+    parser.add_argument(
+        "--seat",
+        action="append",
+        metavar="NAME:ROLE",
+        help="seat and role (engineer or reviewer) for --drift; repeat per seat",
+    )
+    parser.add_argument(
         "--peer",
         action="append",
         metavar="NAME:REPORT_PATH:PROGRESS_PATH",
@@ -262,9 +379,15 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         payload = json.loads(_agent_list_json(args.stdin))
-        if args.stalled and args.never_started:
-            raise ValueError("--stalled and --never-started are mutually exclusive")
-        if args.never_started:
+        if sum(map(bool, (args.stalled, args.never_started, args.drift))) > 1:
+            raise ValueError("--stalled, --never-started and --drift are mutually exclusive")
+        if args.drift:
+            if not args.seat:
+                raise ValueError("--drift requires at least one --seat")
+            lines = format_drift_roster(
+                payload, _config_keys(args.drift), _seat_specs(args.seat), args.workspace
+            )
+        elif args.never_started:
             if not args.peer:
                 raise ValueError("--never-started requires at least one --peer")
             lines = format_never_started_roster(
