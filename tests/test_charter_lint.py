@@ -386,17 +386,21 @@ class CharterLintTest(unittest.TestCase):
     def test_range_endpoints_staffed_heads_and_their_splices_must_resolve(self):
         base, head, null = self.base, self.head, "0" * 40
         spliced_base = base[:12] + head[12:]
-        spliced_echo = head[:12] + base[12:]
+        spliced_echo = head[:7] + ("0" if head[7] != "0" else "1") + base[8:]
+        null_prefixed_pin = "0" * 7 + "d" * 33
         cases = (
             ("resolved range", f"Reviewed unit: the range {base}..{head}\n", "", None),
             ("first-push null base", f"Reviewed unit: the range {null}..{head}\n", "", None),
             ("external pin", f"Range {base}..{head}; upstream pin gitea @ {'d' * 40}\n", "", None),
+            ("null base anchors no splice", f"Range {null}..{head}; pin @ {null_prefixed_pin}\n", "", None),
             ("spliced range base", f"Reviewed unit: the range {spliced_base}..{head}\n", "",
              f"unresolved SHA {spliced_base} in charter"),
             ("spliced head echo", f"Range {base}...{head}; verdict line REVIEW {spliced_echo}\n", "",
              f"unresolved SHA {spliced_echo} in charter"),
             ("unresolved staffed head", "", f"HEAD: main@{'e' * 40}\n",
              f"unresolved SHA {'e' * 40} in staffing record"),
+            ("unresolved staffed head=", "", f"Restaffed at head={'f' * 40}\n",
+             f"unresolved SHA {'f' * 40} in staffing record"),
         )
         for label, charter_line, staffing_line, problem in cases:
             with self.subTest(label):
@@ -417,6 +421,15 @@ class CharterLintTest(unittest.TestCase):
             ])
         self.assertEqual(code, 1)
         self.assertIn(f"charter_lint: could not read repo {self.tmp}: ", stderr.getvalue())
+        stderr = io.StringIO()
+        missing_git = FileNotFoundError(2, "No such file or directory", "git")
+        with unittest.mock.patch.object(charter_lint.subprocess, "run", side_effect=missing_git), \
+                contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(stderr):
+            code = charter_lint.main([
+                "--charter", str(charter_path), "--lead", "lead-beo-skills", "--repo", str(self.repo),
+            ])
+        self.assertEqual(code, 1)
+        self.assertIn("charter_lint: could not run git: ", stderr.getvalue())
 
     def test_jev_receives_the_declared_disposition_and_full_charter(self):
         unavailable = jev.UnavailableResult(status="unavailable", finding={}, reason="x")
