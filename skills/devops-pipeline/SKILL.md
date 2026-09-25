@@ -9,7 +9,7 @@ This skill designs a check-routing plan. It does not silently install tools,
 change hooks, write CI, use credentials, commit, push, deploy, or make another
 outward change.
 
-The retained axis is **where an already evidenced repository check should run**:
+The axis is **where an already evidenced repository check should run**:
 fast changed-file checks at `pre-commit`, repository-wide local checks at
 `pre-push`, and only genuinely environment-, version-, secret-, or
 deployment-dependent work in CI. The three lanes are a routing policy, not a
@@ -36,7 +36,7 @@ approve or reject them separately.
 
 ## Scope and adjacent owners
 
-Keep this skill to routing and overlap policy. Do not recreate another retained
+Keep this skill to routing and overlap policy. Do not recreate another skill's
 contract:
 
 - `quality-floor` owns numerical quality constraints and its diff guard. Reuse

@@ -14,7 +14,7 @@ Tightening the bar is silent; loosening it is loud.
 
 Read the manifests, test runner, linters and their configs, CI workflows, current
 coverage output, and agent instruction files before asking anything. Report what
-exists in two lines.
+exists as a short summary the user can scan before the first question.
 
 ## 2. Ask four questions
 

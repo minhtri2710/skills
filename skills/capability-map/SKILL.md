@@ -51,8 +51,7 @@ Build order: identity → billing, notifications → reporting
 - **Build order is topological.** Every module appears after everything it
   depends on; independent modules on the same line can be built in parallel.
 
-Check the table before showing it: every `Depends on` id exists in the table, no
-cycle exists, and the build order respects every edge.
+Every `Depends on` id names a module in the table.
 
 ## Gate, then recurse
 

@@ -50,7 +50,7 @@ and `triggers` fields. The command must be an argv array, not a shell string;
       "category": "secrets",
       "required": true,
       "triggers": {"always": true},
-      "command": ["gitleaks", "detect", "--source", ".", "--redact", "--report-format", "json", "--report-path", "{output}"]
+      "command": ["gitleaks", "git", ".", "--redact", "--report-format", "json", "--report-path", "{output}"]
     }
   ]
 }

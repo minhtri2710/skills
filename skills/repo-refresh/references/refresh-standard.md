@@ -1,7 +1,6 @@
 # Repository Refresh Standard
 
-This standard takes the strongest useful lessons from the NOVA cleanup and makes
-them the default baseline for every refreshed repository.
+This standard is the default baseline for every refreshed repository.
 
 ## Current Truth
 

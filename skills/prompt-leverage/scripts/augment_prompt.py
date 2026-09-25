@@ -132,12 +132,8 @@ def upgrade_prompt(raw_prompt: str, task: str | None) -> str:
             "Output Contract:",
             f"- {output_contract}",
             "",
-            "Verification:",
-            "- Check correctness, completeness, and edge cases.",
-            "- Improve obvious weaknesses if a better approach is available within scope.",
-            "",
             "Done Criteria:",
-            "- Stop only when the response satisfies the task, matches the requested format, and passes the verification step.",
+            "- Stop when the response satisfies the task and matches the requested format. If a better approach exists, say so in a sentence and complete the task as asked.",
         ]
     ).strip()
 

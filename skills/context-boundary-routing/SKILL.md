@@ -31,8 +31,10 @@ staying costs more.
    artifacts (spec, plan, diff, records) instead of duplicating them, names the
    skills the next agent should load, and is redacted.
 4. **Delegate.** Yes when the remaining task is scoped tightly enough to run
-   with nobody steering, so a subagent takes it and this session stays intact.
-   An automated review of a finished diff is the standard case.
+   with nobody steering and either needs independence from this session's
+   reasoning (a review of a finished diff is the standard case) or is too large
+   to finish here in a handful of tool calls; a subagent takes it and this
+   session stays intact. Checking your own work stays here.
 5. **Compact.** Relevant context, same harness, same directory, and the user has
    to stay in the loop. This is where the tree lands often, and it is the
    default, not the first reach: pass it what the next phase needs
@@ -47,9 +49,8 @@ When step 4 wins, pick the shape and refuse the others.
 - **Parallel fan-out with a merge in this context** is justified when the
   sub-tasks share no mutable state or ordering, each produces a different *kind*
   of finding rather than the same finding from another angle, and the merge fits
-  in the room this session has left. Skip the fan-out when the change is at
-  most two files and under fifty lines and touches no auth, payments, data
-  access, or configuration; otherwise fan out even if the diff looks small.
+  in the room this session has left. Skip the fan-out when this session could
+  finish the sub-tasks itself in a handful of tool calls.
 - **Research isolation** sends an agent to read what would otherwise flood this
   context and returns a digest much smaller than what it read.
 

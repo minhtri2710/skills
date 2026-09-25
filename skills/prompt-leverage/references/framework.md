@@ -31,7 +31,7 @@ Define exact structure, tone, formatting, depth, and any required sections or sc
 
 ### Verification
 
-Require checks for correctness, grounding, completeness, side effects, and better alternatives.
+Name the objective checks that decide done: tests to run, a command's output, sources to cite. Do not ask the agent to re-review its own work.
 
 ### Done Criteria
 
@@ -78,5 +78,5 @@ An upgraded prompt is good when it:
 2. reduces ambiguity
 3. sets the right depth and care level
 4. defines the expected output clearly
-5. includes an appropriate verification step
+5. names the objective checks that decide done, when the task has them
 6. tells the agent when to stop

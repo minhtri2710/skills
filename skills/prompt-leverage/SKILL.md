@@ -21,7 +21,7 @@ Turn the user's current prompt into a stronger working prompt without changing t
 - Prefer adding missing structure over rewriting everything stylistically.
 - Add context requirements only when they improve correctness.
 - Add tool rules only when tool use materially affects correctness.
-- Add verification and completion criteria for non-trivial tasks.
+- Add completion criteria for non-trivial tasks, naming the objective checks that decide them.
 - Keep prompts compact enough to be practical in repeated use.
 
 ## Output Modes
@@ -50,11 +50,8 @@ internal whitespace, including code fences and newlines, in the rewritten result
 
 ## Quality Bar
 
-Before finalizing, check the upgraded prompt:
-
-- still matches the original intent
-- does not add unnecessary ceremony
-- includes the right verification level for the task
-- gives the agent a clear definition of done
+An upgraded prompt still matches the original intent, adds no unnecessary
+ceremony, names the objective checks the task has, and gives the agent a clear
+definition of done.
 
 If the prompt is already strong, say so and make only minimal edits.

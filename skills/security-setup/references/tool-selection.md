@@ -41,9 +41,9 @@ controls for adding packages.
 The runner's staged mode decides whether a configured check is relevant from
 staged POSIX paths. The command itself remains the source of truth for what it
 scans, so the report must retain both the scope decision and the configured
-command target. In particular, a command such as `gitleaks ... --source .`
-scans the working-tree source rather than proving that only staged blobs were
-scanned.
+command target. In particular, a command such as `gitleaks git .`
+scans the repository's commit history, not the staged blobs or the working
+tree.
 
 - Secret detection uses `always: true` and is never restricted to source or
   lockfile extensions.

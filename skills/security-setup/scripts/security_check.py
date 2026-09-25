@@ -75,7 +75,7 @@ DEFAULT_CONFIG = {
             "category": "secrets",
             "required": True,
             "command": [
-                "gitleaks", "detect", "--source", ".", "--redact",
+                "gitleaks", "git", ".", "--redact",
                 "--report-format", "json", "--report-path", "{output}",
             ],
         },

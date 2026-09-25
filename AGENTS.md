@@ -1,10 +1,10 @@
 # Agent Skills repository
 
-This repository contains retained standalone Agent Skills. The canonical inventory is in `README.md`; each retained skill owns its `skills/<name>/SKILL.md` contract and supporting files.
+This repository contains standalone Agent Skills. The canonical inventory is in `README.md`; each skill owns its `skills/<name>/SKILL.md` contract and supporting files.
 
 ## Repository structure
 
-- `skills/*/SKILL.md` — retained standalone skill contracts.
+- `skills/*/SKILL.md` — standalone skill contracts.
 - `skills/*/references/`, `templates/`, and `scripts/` — skill-owned supporting material where present.
 - `tests/` — repository checks.
 

@@ -17,7 +17,7 @@ Prioritize usable structure before decoration:
 - preserve semantic controls, keyboard and focus behavior
 - handle loading, empty, error, disabled, selected, and recovery states that belong to the flow
 - prevent clipping, overlap, hidden actions, and unintended layout shifts
-- use domain content and established assets instead of generic card grids, gradients, glass, blobs, or oversized marketing headings
+- use domain content and established assets instead of generic card grids, gradients, glass, blobs, oversized marketing headings, cream or off-white backgrounds, italic accent words in headlines, numbered "01/02/03" section labels, monospace labels, or pill-shaped buttons, unless the repository's design language already uses them
 
 Inspect the rendered result at the representative viewports required by the change
 and exercise the primary affected workflow. Do not add a separate verification
