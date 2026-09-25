@@ -20,6 +20,19 @@ import jev  # noqa: E402
 
 
 class CharterLintTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls._repo_tmp = tempfile.TemporaryDirectory(dir="/private/tmp")
+        cls.repo = Path(cls._repo_tmp.name)
+        cls.addClassCleanup(cls._repo_tmp.cleanup)
+        git = ["git", "-C", str(cls.repo), "-c", "user.name=t", "-c", "user.email=t@example.com"]
+        subprocess.run([*git, "init", "-q"], check=True)
+        for message in ("base", "head"):
+            subprocess.run([*git, "commit", "-q", "--allow-empty", "-m", message], check=True)
+        cls.base, cls.head = subprocess.run(
+            [*git, "rev-parse", "HEAD~1", "HEAD"], check=True, capture_output=True, text=True
+        ).stdout.split()
+
     def setUp(self):
         self._tmp = tempfile.TemporaryDirectory(dir="/private/tmp")
         self.tmp = Path(self._tmp.name)
@@ -33,7 +46,7 @@ class CharterLintTest(unittest.TestCase):
     ) -> tuple[int, str, str]:
         charter_path = self.tmp / "charter.md"
         charter_path.write_text(charter, encoding="utf-8")
-        argv = ["--charter", str(charter_path), "--lead", "lead-beo-skills"]
+        argv = ["--charter", str(charter_path), "--lead", "lead-beo-skills", "--repo", str(self.repo)]
         if jev_enabled:
             argv.append("--jev")
         if staffing is not None:
@@ -287,12 +300,14 @@ class CharterLintTest(unittest.TestCase):
                     "--charter", str(charter_path),
                     "--lead", "lead-beo-skills",
                     "--staffing", str(staffing_path),
+                    "--repo", str(self.repo),
                 ])
             with self.assertRaises(ImportError):
                 module.main([
                     "--charter", str(charter_path),
                     "--lead", "lead-beo-skills",
                     "--staffing", str(staffing_path),
+                    "--repo", str(self.repo),
                     "--jev",
                 ])
         self.assertEqual(code, 0)
@@ -335,16 +350,20 @@ class CharterLintTest(unittest.TestCase):
             with self.subTest(label=label):
                 stdout, stderr = io.StringIO(), io.StringIO()
                 with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
-                    code = charter_lint.main([*argv, "--lead", "lead-beo-skills"])
+                    code = charter_lint.main(
+                        [*argv, "--lead", "lead-beo-skills", "--repo", str(self.repo)]
+                    )
                 self.assertEqual(code, 1)
                 self.assertEqual(stdout.getvalue(), "")
                 self.assertIn(f"charter_lint: {label}", stderr.getvalue())
                 self.assertIn(missing, stderr.getvalue())
 
-    def test_charter_and_lead_are_required_arguments(self):
+    def test_charter_lead_and_repo_are_required_arguments(self):
         charter_path = self.tmp / "charter.md"
         charter_path.write_text(self.engineer_charter(), encoding="utf-8")
-        for argv in (["--lead", "lead-beo-skills"], ["--charter", str(charter_path)]):
+        given = {"--charter": str(charter_path), "--lead": "lead-beo-skills", "--repo": str(self.repo)}
+        for omitted in given:
+            argv = [part for flag, value in given.items() if flag != omitted for part in (flag, value)]
             with self.subTest(argv=argv), contextlib.redirect_stderr(io.StringIO()):
                 with self.assertRaises(SystemExit) as raised:
                     charter_lint.main(argv)
@@ -359,10 +378,45 @@ class CharterLintTest(unittest.TestCase):
         proc = subprocess.run(
             [sys.executable, "-c", "import sys; sys.path.insert(0, sys.argv[1]); import charter_lint; "
              "sys.exit(charter_lint.main(sys.argv[2:]))", str(SCRIPTS), "--charter", str(charter),
-             "--lead", "lead-beo-skills", "--staffing", str(staffing)],
+             "--lead", "lead-beo-skills", "--staffing", str(staffing), "--repo", str(self.repo)],
             capture_output=True, text=True, env={**env, "LC_ALL": "en_US.US-ASCII"},
         )
         self.assertEqual(proc.returncode, 0, proc.stderr)
+
+    def test_range_endpoints_staffed_heads_and_their_splices_must_resolve(self):
+        base, head, null = self.base, self.head, "0" * 40
+        spliced_base = base[:12] + head[12:]
+        spliced_echo = head[:12] + base[12:]
+        cases = (
+            ("resolved range", f"Reviewed unit: the range {base}..{head}\n", "", None),
+            ("first-push null base", f"Reviewed unit: the range {null}..{head}\n", "", None),
+            ("external pin", f"Range {base}..{head}; upstream pin gitea @ {'d' * 40}\n", "", None),
+            ("spliced range base", f"Reviewed unit: the range {spliced_base}..{head}\n", "",
+             f"unresolved SHA {spliced_base} in charter"),
+            ("spliced head echo", f"Range {base}...{head}; verdict line REVIEW {spliced_echo}\n", "",
+             f"unresolved SHA {spliced_echo} in charter"),
+            ("unresolved staffed head", "", f"HEAD: main@{'e' * 40}\n",
+             f"unresolved SHA {'e' * 40} in staffing record"),
+        )
+        for label, charter_line, staffing_line, problem in cases:
+            with self.subTest(label):
+                code, output, error = self.run_lint(
+                    self.reviewer_charter() + charter_line, self.staffing_record() + staffing_line
+                )
+                if problem is None:
+                    self.assertEqual((code, error), (0, ""))
+                else:
+                    self.assertEqual(code, 1)
+                    self.assertEqual(error, f"charter_lint: {problem}: not an object in {self.repo}\n")
+        charter_path = self.tmp / "charter.md"
+        charter_path.write_text(self.engineer_charter(), encoding="utf-8")
+        stderr = io.StringIO()
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(stderr):
+            code = charter_lint.main([
+                "--charter", str(charter_path), "--lead", "lead-beo-skills", "--repo", str(self.tmp),
+            ])
+        self.assertEqual(code, 1)
+        self.assertIn(f"charter_lint: could not read repo {self.tmp}: ", stderr.getvalue())
 
     def test_jev_receives_the_declared_disposition_and_full_charter(self):
         unavailable = jev.UnavailableResult(status="unavailable", finding={}, reason="x")
@@ -417,7 +471,7 @@ class CharterLintTest(unittest.TestCase):
     def reviewer_charter(cls) -> str:
         return (
             "Disposition: Reviewer\n"
-            "Reviewed head: 0123456789abcdef0123456789abcdef01234567\n"
+            f"Reviewed head: {cls.head}\n"
             + cls.live_wake_guard_sentence()
             + cls.kill_guard_sentence()
             + cls.ocr_step_sentence()

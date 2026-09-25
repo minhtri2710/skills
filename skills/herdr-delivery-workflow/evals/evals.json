@@ -864,7 +864,7 @@
     {
       "id": 70,
       "prompt": "I'm a Lead about to dispatch an Engineer charter, but the charter omits the report-by-prompt block. What must I do before `herdr agent prompt <peer>`?",
-      "expected_output": "Runs `scripts/charter_lint.py --charter <charter-file> --lead <lead-name>` before `herdr agent prompt <peer>`; the lint fails and names the missing report-by-prompt block, so the charter is fixed before dispatch. It does not poll.",
+      "expected_output": "Runs `scripts/charter_lint.py --charter <charter-file> --lead <lead-name> --repo <checkout>` before `herdr agent prompt <peer>`; the lint fails and names the missing report-by-prompt block, so the charter is fixed before dispatch. It does not poll.",
       "files": [
         "skills/herdr-delivery-workflow/references/charters.md",
         "skills/herdr-delivery-workflow/scripts/charter_lint.py"

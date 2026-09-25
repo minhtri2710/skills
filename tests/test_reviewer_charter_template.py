@@ -6,6 +6,7 @@ import contextlib
 import inspect
 import io
 import re
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -19,28 +20,29 @@ import charter_lint  # noqa: E402
 TEMPLATE = SKILL / "templates" / "reviewer-charter.txt"
 REPORT_BLOCK = SKILL / "templates" / "report-by-prompt.txt"
 LEAD = "lead-beo-skills"
-HEAD = "a" * 40
-BASE = "b" * 40
 SLOT_RE = re.compile(r"<([a-z][a-z0-9_]*)>")
-STAFFING_ONLY = {"SEAT_RE", "PLACEHOLDER_RE"}
-STAFFING = (
-    "MODE: solo-Lead\n"
-    "LEAD: kind=claude model=claude-opus-5-5 workspace=w1\n"
-    f"HEAD: {HEAD}\n"
-    "REVIEWER: review-aaaaaaaaaaaa kind=claude model=claude-opus-5-5 posture=allowlisted "
-    f"dialog=denied skills=none extensions=none pane=w1:p1 workspace=w1 head={HEAD}\n"
-)
+NOT_CLAUSES = {"SEAT_RE", "PLACEHOLDER_RE", "RANGE_RE", "STAFFED_HEAD_RE"}
 
 
-def fill(text: str) -> str:
-    values = {"head_sha": HEAD, "base_sha": BASE, "lead_name": LEAD, "peer_name": "review-aaaaaaaaaaaa"}
+def staffing(head: str) -> str:
+    return (
+        "MODE: solo-Lead\n"
+        "LEAD: kind=claude model=claude-opus-5-5 workspace=w1\n"
+        f"HEAD: {head}\n"
+        "REVIEWER: review-aaaaaaaaaaaa kind=claude model=claude-opus-5-5 posture=allowlisted "
+        f"dialog=denied skills=none extensions=none pane=w1:p1 workspace=w1 head={head}\n"
+    )
+
+
+def fill(text: str, base: str, head: str) -> str:
+    values = {"head_sha": head, "base_sha": base, "lead_name": LEAD, "peer_name": "review-aaaaaaaaaaaa"}
     return SLOT_RE.sub(lambda m: values.get(m.group(1), f"filled-{m.group(1)}"), text)
 
 
 def lint_patterns() -> dict[str, re.Pattern[str]]:
     patterns = {}
     for name, value in vars(charter_lint).items():
-        if name in STAFFING_ONLY:
+        if name in NOT_CLAUSES:
             continue
         if isinstance(value, re.Pattern):
             patterns[name] = value
@@ -66,21 +68,35 @@ def lint_literals() -> list[str]:
 
 
 class ReviewerCharterTemplateTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls._repo_tmp = tempfile.TemporaryDirectory(dir="/private/tmp")
+        cls.repo = Path(cls._repo_tmp.name)
+        cls.addClassCleanup(cls._repo_tmp.cleanup)
+        git = ["git", "-C", str(cls.repo), "-c", "user.name=t", "-c", "user.email=t@example.com"]
+        subprocess.run([*git, "init", "-q"], check=True)
+        for message in ("base", "head"):
+            subprocess.run([*git, "commit", "-q", "--allow-empty", "-m", message], check=True)
+        cls.base, cls.head = subprocess.run(
+            [*git, "rev-parse", "HEAD~1", "HEAD"], check=True, capture_output=True, text=True
+        ).stdout.split()
+
     def setUp(self):
         self._tmp = tempfile.TemporaryDirectory(dir="/private/tmp")
         self.tmp = Path(self._tmp.name)
         self.addCleanup(self._tmp.cleanup)
-        self.filled = fill(TEMPLATE.read_text(encoding="utf-8"))
+        self.filled = fill(TEMPLATE.read_text(encoding="utf-8"), self.base, self.head)
 
     def run_lint(self, charter: str) -> tuple[int, str]:
         charter_path = self.tmp / "charter.md"
         staffing_path = self.tmp / "staffing.txt"
         charter_path.write_text(charter, encoding="utf-8")
-        staffing_path.write_text(STAFFING, encoding="utf-8")
+        staffing_path.write_text(staffing(self.head), encoding="utf-8")
         stderr = io.StringIO()
         with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(stderr):
             rc = charter_lint.main(
-                ["--charter", str(charter_path), "--lead", LEAD, "--staffing", str(staffing_path)]
+                ["--charter", str(charter_path), "--lead", LEAD, "--staffing", str(staffing_path),
+                 "--repo", str(self.repo)]
             )
         return rc, stderr.getvalue()
 

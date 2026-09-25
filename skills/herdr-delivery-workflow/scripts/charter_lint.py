@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -12,6 +13,15 @@ DISPOSITION_RE = re.compile(
     re.IGNORECASE | re.MULTILINE,
 )
 HEAD_RE = re.compile(r"(?<![0-9a-f])[0-9a-f]{40}(?![0-9a-f])", re.IGNORECASE)
+RANGE_RE = re.compile(
+    r"(?<![0-9a-f])([0-9a-f]{40})\.\.\.?([0-9a-f]{40})(?![0-9a-f])", re.IGNORECASE
+)
+STAFFED_HEAD_RE = re.compile(
+    r"(?:^\s*HEAD:\s*|\bhead=)(?:\S*@)?([0-9a-f]{40})(?![0-9a-f])",
+    re.IGNORECASE | re.MULTILINE,
+)
+NULL_OID = "0" * 40
+SPLICE_PREFIX = 7
 REPORT_PATH_RE = re.compile(r"report-[^\s/]+\.md")
 SEAT_RE = re.compile(r"^\s*(ENGINEER|REVIEWER):.*$", re.IGNORECASE | re.MULTILINE)
 PLACEHOLDER_RE = re.compile(r"<[^>\r\n]+>")
@@ -91,11 +101,48 @@ def _staffing_problems(text: str, disposition: str | None) -> list[str]:
     return problems
 
 
+def _missing_objects(repo: Path, shas: list[str]) -> set[str]:
+    try:
+        proc = subprocess.run(
+            ["git", "-C", str(repo), "cat-file", "--batch-check"],
+            input="".join(f"{sha}\n" for sha in shas),
+            capture_output=True,
+            text=True,
+        )
+    except OSError as exc:
+        raise ValueError(f"could not run git: {exc}") from exc
+    if proc.returncode != 0:
+        raise ValueError(f"could not read repo {repo}: {proc.stderr.strip()}")
+    return {line.split()[0] for line in proc.stdout.splitlines() if line.endswith(" missing")}
+
+
+def _sha_problems(repo: Path, texts: dict[str, str]) -> list[str]:
+    """Range endpoints and staffed heads must resolve; so must any SHA spliced from one."""
+    found: dict[str, str] = {}
+    critical: set[str] = set()
+    for label, text in texts.items():
+        for sha in HEAD_RE.findall(text):
+            found.setdefault(sha.lower(), label)
+        critical.update(sha.lower() for pair in RANGE_RE.findall(text) for sha in pair)
+        critical.update(sha.lower() for sha in STAFFED_HEAD_RE.findall(text))
+    missing = _missing_objects(repo, list(found))
+    missing.discard(NULL_OID)
+    anchors = {sha[:SPLICE_PREFIX] for sha in critical - missing if sha != NULL_OID}
+    return [
+        f"unresolved SHA {sha} in {label}: not an object in {repo}"
+        for sha, label in found.items()
+        if sha in missing and (sha in critical or sha[:SPLICE_PREFIX] in anchors)
+    ]
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Lint a Herdr charter before dispatch.")
     parser.add_argument("--charter", required=True, type=Path, help="path to the charter")
     parser.add_argument("--lead", required=True, help="Lead agent name used by the report block")
     parser.add_argument("--staffing", type=Path, help="optional staffing record")
+    parser.add_argument(
+        "--repo", required=True, type=Path, help="checkout whose objects the SHAs must name"
+    )
     parser.add_argument(
         "--jev",
         action="store_true",
@@ -112,10 +159,11 @@ def main(argv: list[str] | None = None) -> int:
             problems.append(
                 "staffing record is required for an Engineer/Reviewer disposition"
             )
+        texts = {"charter": charter}
         if args.staffing is not None:
-            problems.extend(
-                _staffing_problems(_read(args.staffing, "staffing record"), disposition)
-            )
+            texts["staffing record"] = _read(args.staffing, "staffing record")
+            problems.extend(_staffing_problems(texts["staffing record"], disposition))
+        problems.extend(_sha_problems(args.repo, texts))
     except ValueError as exc:
         print(f"charter_lint: {exc}", file=sys.stderr)
         return 1
