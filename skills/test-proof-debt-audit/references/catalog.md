@@ -30,7 +30,7 @@ Use repository-appropriate search and semantic tools. Search hits are leads, not
 - a test that exists only because it calls a hook, export, or wrapper nothing in production uses; production code reached only from tests
 - a mock that computes the result the test then asserts, or a single mock reused for unrelated APIs
 - a fixture that hands the code under test the output its owner is supposed to create, or a store assertion on a store the path never touches
-- a refusal test that goes red for another reason, for example a different check rejecting first or an input production never sends
+- a refusal test that stays green because of something other than the guard it names, for example a different check rejecting first or an input production never sends
 - a test name or fixture that claims a scenario the input never reaches
 
 ## Better Routes
