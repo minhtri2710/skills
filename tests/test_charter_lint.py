@@ -4,6 +4,8 @@ from __future__ import annotations
 import contextlib
 import importlib.util
 import io
+import os
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -348,6 +350,20 @@ class CharterLintTest(unittest.TestCase):
                 with self.assertRaises(SystemExit) as raised:
                     charter_lint.main(argv)
                 self.assertEqual(raised.exception.code, 2)
+
+    def test_a_charter_is_read_as_utf8_whatever_the_locale(self):
+        charter = self.tmp / "charter.md"
+        charter.write_text(self.engineer_charter() + "café\n", encoding="utf-8")
+        staffing = self.tmp / "staffing.txt"
+        staffing.write_text(self.staffing_record(), encoding="utf-8")
+        env = {k: v for k, v in os.environ.items() if k not in ("PYTHONUTF8", "PYTHONIOENCODING", "LANG")}
+        proc = subprocess.run(
+            [sys.executable, "-c", "import sys; sys.path.insert(0, sys.argv[1]); import charter_lint; "
+             "sys.exit(charter_lint.main(sys.argv[2:]))", str(SCRIPTS), "--charter", str(charter),
+             "--lead", "lead-beo-skills", "--staffing", str(staffing)],
+            capture_output=True, text=True, env={**env, "LC_ALL": "en_US.US-ASCII"},
+        )
+        self.assertEqual(proc.returncode, 0, proc.stderr)
 
     def test_jev_receives_the_declared_disposition_and_full_charter(self):
         unavailable = jev.UnavailableResult(status="unavailable", finding={}, reason="x")

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import hashlib
 import io
 import os
 import re
@@ -1081,6 +1082,32 @@ class PushDigestTest(unittest.TestCase):
         self.assertIn(f"range: {base}..{gated} (1 commits)", out)
         self.assertIn(f"UNGATED: branch main, 1 commits, range {gated}..{head}", out)
         self.assertIn(f"  1. alpha main {base[:7]}..{gated[:7]} (1 commits)", out)
+
+    def test_the_items_hash_is_sha256_of_the_numbered_item_lines(self):
+        expected, pairs = "", []
+        for n, name in enumerate(("alpha", "beta"), 1):
+            ledger, repo, base = self.project(name)
+            tip = self.advance(repo, f"{name}1")
+            self.review(ledger, repo, base)
+            self.push_gate(ledger, repo)
+            expected += f"{n} {name} main {base}..{tip}\n"
+            pairs.append((ledger, repo))
+        code, out = self.digest(*pairs)
+        self.assertEqual(code, 0, out)
+        self.assertIn(f"items: {hashlib.sha256(expected.encode()).hexdigest()}", out)
+
+    def test_an_open_gate_head_missing_locally_is_an_error_naming_rev_parse_verify(self):
+        ledger, repo, base = self.project("alpha")
+        head = self.advance(repo, "a1")
+        self.review(ledger, repo, base)
+        self.push_gate(ledger, repo)
+        bad = "1" * 40
+        text = ledger.read_text(encoding="utf-8")
+        ledger.write_text(rechained(text.replace(f"main@{head} | status=open", f"main@{bad} | status=open")),
+                          encoding="utf-8")
+        code, out = self.digest((ledger, repo))
+        self.assertEqual(code, 1)
+        self.assertIn(f"ERROR: git rev-parse --verify {bad}^{{commit}} failed", out)
 
     def branch(self, ledger: Path, repo: Path, name: str, start: str, review: bool = True) -> str:
         """A new branch from start with one commit, optionally reviewed, under an open push gate."""

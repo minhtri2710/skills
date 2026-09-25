@@ -5,6 +5,7 @@ from __future__ import annotations
 import contextlib
 import hashlib
 import io
+import os
 import re
 import subprocess
 import sys
@@ -1640,6 +1641,22 @@ class GateRowTest(unittest.TestCase):
             "--expiry", "until-revoked", "--push-scope", "origin:a=b"), 0, self.err.getvalue())
         self.assertEqual(self.check_last(), 0, self.err.getvalue())
 
+    def test_a_push_scope_is_validated_whole_past_a_second_equals(self):
+        self.assertEqual(self.append_standing_delegation(
+            "--expiry", "until-revoked", "--push-scope", "origin:a=b"), 0, self.err.getvalue())
+        row = self.last_row()
+        for scope in ("origin:a=b:c", "origin:a=b,,"):
+            with self.subTest(scope):
+                self.ledger.write_text(row.replace("push-scope=origin:a=b", f"push-scope={scope}") + "\n",
+                                       encoding="utf-8")
+                self.assertEqual(self.check_last(), 1)
+                self.assertIn("is not <remote>:<branch>", self.err.getvalue())
+
+    def test_local_ops_values_are_read_up_to_the_first_equals(self):
+        self.assertEqual(self.append_local_ops("--op", "export X="), 0, self.err.getvalue())
+        self.git("branch", "a=")
+        self.assertEqual(self.append_local_ops("--after", f"a=@{self.rev('HEAD')}"), 0, self.err.getvalue())
+
     def test_resolving_a_standing_delegation_still_checks_the_next_target(self):
         self.assertEqual(self.append_standing_delegation(), 0, self.err.getvalue())
         self.assertEqual(self.append("--resolves", "G1,G9"), 1)
@@ -1800,6 +1817,117 @@ class GateRowTest(unittest.TestCase):
                 with self.assertRaises(gate_row.RowError):
                     gate_row.check(tampered, self.repo, rows[:rows.index(row)], self.ledger)
 
+    def test_an_unknown_commit_is_refused_naming_git_rev_parse_verify(self):
+        bad, zero = "1" * 40, "0" * 40
+        appends = {
+            "--after": lambda: self.append_local_ops("--after", f"main@{bad}"),
+            "--head": lambda: self.append("--head", f"main@{bad}", "--record", "reconstruction"),
+            "delete base": lambda: self.append_push_grant(f"origin refs/heads/main delete {bad}..{zero}"),
+            "force base": lambda: self.append_push_grant(f"origin refs/heads/main force {bad}..{self.rev('HEAD')}"),
+        }
+        for name, append in appends.items():
+            with self.subTest(name):
+                self.assertEqual(append(), 1)
+                self.assertIn(f"git rev-parse --verify {bad}^{{commit}} failed: fatal: Needed a single revision",
+                              self.err.getvalue())
+
+    def test_an_empty_special_field_value_is_refused_by_check(self):
+        self.assertEqual(self.append_local_ops(), 0, self.err.getvalue())
+        self.ledger.write_text(self.last_row().replace("op=git status --short", "op=") + "\n", encoding="utf-8")
+        self.assertEqual(self.check_last(), 1)
+        self.assertIn("op= is required", self.err.getvalue())
+
+    def test_a_field_without_an_equals_sign_is_refused_naming_it(self):
+        self.assertEqual(self.append_local_ops(), 0, self.err.getvalue())
+        row = self.last_row()
+        for edited, message in (
+            (row.replace(" | words=", " | junk | words="), "field 'junk' is not in the row schema"),
+            (row.replace(" | quote=", " | op=x | quote="), "field 'op' is out of order or duplicated"),
+        ):
+            with self.subTest(message):
+                self.err.truncate(0)
+                self.err.seek(0)
+                self.ledger.write_text(edited + "\n", encoding="utf-8")
+                self.assertEqual(self.check_last(), 1)
+                self.assertIn(message, self.err.getvalue())
+
+    def test_a_prev_hash_mismatch_names_the_expected_hash(self):
+        self.assertEqual(self.append_local_ops(), 0, self.err.getvalue())
+        self.assertEqual(self.append_local_ops(), 0, self.err.getvalue())
+        first, second = [l for l in self.ledger.read_text().splitlines() if gate_row.ID_RE.match(l)]
+        bad = second.replace(f"prev_hash={gate_row.row_hash(first)}", "prev_hash=" + "0" * 64)
+        with self.assertRaises(gate_row.RowError) as caught:
+            gate_row.check(bad, self.repo, prior_rows=[first])
+        self.assertEqual(str(caught.exception),
+                         f"prev_hash mismatch: expected {gate_row.row_hash(first)}, got {'0' * 64}")
+
+    def test_a_push_row_lists_every_outside_path_space_separated(self):
+        self.assertEqual(self.append_review_pass(), 0, self.err.getvalue())
+        self.add_remote("HEAD")
+        self.assertEqual(self.append("--kind", "push", "--push-base", self.rev("HEAD~2"), "--boundary", "f0.txt"),
+                         0, self.err.getvalue())
+        self.assertIn('boundary-check="f1.txt f2.txt"', self.last_row())
+
+    def test_a_row_resolving_two_gates_writes_them_comma_separated(self):
+        for _ in range(2):
+            self.assertEqual(self.run_main([
+                "--ledger", str(self.ledger), "--repo", str(self.repo),
+                "--kind", "push-gate", "--status", "open", "--words", "none", "--note", "push gate",
+            ]), 0, self.err.getvalue())
+        self.assertEqual(self.append("--resolves", "G1,G2"), 0, self.err.getvalue())
+        self.assertIn(" | resolves=G1,G2 | ", self.last_row())
+
+    def push_scope_rows(self) -> list[str]:
+        self.assertEqual(self.append_standing_delegation(
+            "--expiry", "until-revoked", "--push-scope", "upstream:x,origin:main"), 0, self.err.getvalue())
+        return gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))
+
+    def test_push_authority_matches_any_push_scope_entry(self):
+        rows = self.push_scope_rows()
+        self.assertEqual(gate_row.require_push_authority(
+            rows, self.repo, "origin", "refs/heads/main", self.rev("HEAD~1"), self.rev("HEAD"),
+            datetime.now(timezone.utc)), "G1")
+
+    def test_push_authority_names_a_push_scope_row_without_expiry(self):
+        rows = [self.push_scope_rows()[0].replace(" | expiry=until-revoked", "")]
+        with self.assertRaisesRegex(gate_row.RowError, re.escape("expiry='' is not an ISO-8601")):
+            gate_row.require_push_authority(
+                rows, self.repo, "origin", "refs/heads/main", self.rev("HEAD~1"), self.rev("HEAD"),
+                datetime.now(timezone.utc))
+
+    def test_words_outside_the_choices_is_a_usage_error(self):
+        with self.assertRaises(SystemExit) as raised:
+            self.append("--words", "bogus")
+        self.assertEqual(raised.exception.code, 2)
+
+    def run_in_locale(self, locale: str, *argv: str) -> subprocess.CompletedProcess:
+        env = {k: v for k, v in os.environ.items() if k not in ("PYTHONUTF8", "PYTHONIOENCODING", "LANG")}
+        return subprocess.run([sys.executable, "-c", "import sys; sys.path.insert(0, sys.argv[1]); import gate_row; "
+                               "sys.exit(gate_row.main(sys.argv[2:]))", str(SCRIPTS), *argv],
+                              capture_output=True, env={**env, "LC_ALL": locale})
+
+    def test_a_quote_file_is_read_as_utf8_whatever_the_locale(self):
+        quote = self.tmp / "quote.txt"
+        quote.write_text("café\n", encoding="utf-8")
+        proc = self.run_in_locale("en_US.ISO8859-1", "--ledger", str(self.ledger), "--repo", str(self.repo),
+                                  "--kind", "merge", "--status", "resolved:standing-waiver", "--words", "human",
+                                  "--note", "merged", "--quote-file", str(quote))
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertIn('quote="café"'.encode("latin-1"), proc.stdout)
+
+    def test_a_mailbox_is_read_as_utf8_whatever_the_locale(self):
+        self.ledger.write_text("# Gate ledger\n\n", encoding="utf-8")
+        self.assertEqual(self.run_main([
+            "--ledger", str(self.ledger), "--repo", str(self.repo),
+            "--kind", "push-gate", "--status", "open", "--words", "none", "--note", "push gate",
+        ]), 0, self.err.getvalue())
+        mailbox = self.tmp / "mailbox.md"
+        mailbox.write_text(f"## lead -> supervisor | 2026-09-25T01:02:03Z | ATTENTION G1 café | HEAD {self.rev('HEAD')}\n",
+                           encoding="utf-8")
+        proc = self.run_in_locale("en_US.US-ASCII", "--ledger", str(self.ledger), "--repo", str(self.repo),
+                                  "--check", "--mailbox", str(mailbox))
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+
 
 class CutoverTest(unittest.TestCase):
     """A fresh ledger born from its archived predecessor by one kind=cutover row."""
@@ -1842,6 +1970,14 @@ class CutoverTest(unittest.TestCase):
         self.assertNotIn("prev_hash=", row)
         self.assertEqual(self.archive.read_bytes(), archive_bytes)
         self.assertEqual(self.check_main(), 0)
+
+    def test_a_chained_cutover_row_after_other_rows_is_refused_by_check(self):
+        self.assertEqual(self.cutover(), 0)
+        prior = [l for l in self.archive.read_text(encoding="utf-8").splitlines() if gate_row.ID_RE.match(l)]
+        row = self.last_row().replace(" | words=", f" | prev_hash={gate_row.row_hash(prior[-1])} | words=", 1)
+        self.ledger.write_text("\n".join([*prior, row]) + "\n", encoding="utf-8")
+        self.assertEqual(self.check_main(), 1)
+        self.assertIn("the ledger already holds rows", self.err.getvalue())
 
     def test_next_row_chains_to_the_cutover_and_open_gates_carry_over(self):
         self.assertEqual(self.cutover(), 0)
