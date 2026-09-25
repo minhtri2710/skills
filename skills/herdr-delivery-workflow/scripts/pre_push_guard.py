@@ -258,7 +258,10 @@ def gated_lines(rows: list[str], gates: list[str], branch: str, tip: str, stacke
     ]
     base = tracking_tip(repo, remote, branch)
     label = ""
-    if base is None:
+    if base is None and git(repo, "rev-list", "--max-parents=0", tip, "--not", f"--remotes={remote}",
+                            *stacked_tips) and not remote_refs(repo, remote):
+        base, label = ZERO, " first publication"  # the guard's ls-remote admits a zero base only here
+    elif base is None:
         label = " new branch"
         try:
             base = new_branch_base(repo, tip, [f"--remotes={remote}", *stacked_tips],

@@ -746,8 +746,8 @@ class PushDigestTest(unittest.TestCase):
         self.tmp = Path(self._tmp.name)
         self.addCleanup(self._tmp.cleanup)
 
-    def project(self, name: str) -> tuple[Path, Path, str]:
-        """A repo pushed to a bare origin, with an empty ledger at <name>/gates.md."""
+    def project(self, name: str, pushed: bool = True) -> tuple[Path, Path, str]:
+        """A repo with a bare origin (pushed to unless pushed=False), with an empty ledger at <name>/gates.md."""
         root = self.tmp / name
         repo = root / "repo"
         repo.mkdir(parents=True)
@@ -757,7 +757,8 @@ class PushDigestTest(unittest.TestCase):
                      ("config", "user.name", "t"), ("remote", "add", "origin", str(origin))):
             self.git(repo, *args)
         base = self.advance(repo, "base")
-        self.git(repo, "push", "-q", "origin", "main")
+        if pushed:
+            self.git(repo, "push", "-q", "origin", "main")
         ledger = root / "gates.md"
         ledger.write_text("# Gate ledger — test\n\n")
         return ledger, repo, base
@@ -1206,6 +1207,23 @@ class PushDigestTest(unittest.TestCase):
         self.assertEqual(len(self.grant_rows(ledger)), 2)
         for name in ("low", "high"):
             subprocess.run([*push, name], check=True, capture_output=True)
+
+    def test_first_publication_to_an_empty_remote_is_offered_and_its_grant_passes_the_guard(self):
+        ledger, repo, root = self.project("alpha", pushed=False)
+        self.review(ledger, repo, ZERO)
+        self.push_gate(ledger, repo)
+        code, out = self.digest((ledger, repo))
+        self.assertEqual(code, 0, out)
+        self.assertIn(f"range: first publication {ZERO}..{root} (1 commits)", out)
+        self.assertIn(f"  1. alpha main first publication {ZERO[:7]}..{root[:7]} (1 commits)", out)
+        self.assertEqual(self.grant((ledger, repo))[0], 0)
+        self.assertIn(f"| grant=origin refs/heads/main push {ZERO}..{root} |", self.grant_rows(ledger)[0])
+        hook = repo / ".git" / "hooks" / "pre-push"
+        hook.write_text(f"#!/bin/sh\nexec {shlex.quote(sys.executable)} "
+                        f"{shlex.quote(str(SCRIPTS / 'pre_push_guard.py'))} --ledger {shlex.quote(str(ledger))} "
+                        f"--repo {shlex.quote(str(repo))} \"$@\"\n")
+        hook.chmod(0o755)
+        subprocess.run(["git", "-C", str(repo), "push", "-q", "origin", "main"], check=True, capture_output=True)
 
     def test_an_open_push_grant_row_is_not_listed_as_a_gate(self):
         ledger, repo, base = self.project("alpha")
