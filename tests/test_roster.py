@@ -261,7 +261,6 @@ class RosterTest(unittest.TestCase):
             )
             self.assertEqual(lines, [])
 
-
     _DRIFT_CONFIG = (
         "# Delivery config\n"
         "- engineer-kind: pi\n"
@@ -284,6 +283,8 @@ class RosterTest(unittest.TestCase):
                 out = listing
             else:
                 pane = command[-1]
+                if isinstance(argv_by_pane[pane], tuple):
+                    return subprocess.CompletedProcess(command, *argv_by_pane[pane], "")
                 procs = [{"argv": ["caffeinate", "-i"]}, {"argv": argv_by_pane[pane]}]
                 out = json.dumps({"result": {"process_info": {"foreground_processes": procs}}})
             return subprocess.CompletedProcess(command, 0, out, "")
@@ -339,6 +340,8 @@ class RosterTest(unittest.TestCase):
             (self._DRIFT_CONFIG, claude, "eng:engineer", (), "no pi process in pane w1:p1"),
             (self._DRIFT_CONFIG, pi, "gone:engineer", (), "no live seat named gone"),
             (self._DRIFT_CONFIG, pi, "eng:engineer", ("--workspace", "w2"), "no live seat named eng"),
+            (self._DRIFT_CONFIG, {"w1:p1": (1, "")}, "eng:engineer", (), "process-info w1:p1 failed"),
+            (self._DRIFT_CONFIG, {"w1:p1": (0, "{}")}, "eng:engineer", (), "lacks foreground_processes"),
         ]
         for config, argv, name, extra_argv, message in cases:
             with self.subTest(message=message):

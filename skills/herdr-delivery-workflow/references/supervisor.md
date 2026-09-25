@@ -36,6 +36,8 @@ When observing a Lead staffing a Peer, use this staffing-wake checklist after th
 - check that seat's staffing record line for `posture=`/`dialog=`/`skills=`/`extensions=`;
 - confirm the Peer is not writing outside its owned paths or into a design or reference tree it does not own.
 
+After a staffing override is written into a project's config keys (`project-config.md`, "Format"), run the `roster.py --drift` check (`herdr-cli.md`, roster mechanics) against that config for each live Peer in that project's staffing records, and send each `DRIFT` line or refusal to its Lead as a finding; the Lead decides any restaff.
+
 The Supervisor still never staffs, edits, or accepts; this is an observation checklist only.
 
 A finish, error, or permission notification is an attention event, not acceptance and not a verdict. After each Lead wake that mentions staffing, read the relevant Peer pane once for an error line such as `stream disconnected before completion`, in addition to the existing skill/report-block markers; this is the detector of last resort for a no-wake-at-all case. Look when the mailbox has been read at a wake, when the Human asks, or when a Human-set deadline has meaning; do not read panes or history on a schedule to feel in control. When the Human asks for a standing watch, answer that the seat is woken by mailbox-backed Lead attention events, by the Lead's answers, and by the Human, and that Herdr's pane labels and toasts are the watch; never run a wait on the Lead, a polling loop, a sleep loop, or a background watch.
