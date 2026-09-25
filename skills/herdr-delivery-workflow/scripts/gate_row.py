@@ -182,8 +182,9 @@ def verify_chain(rows: list[str]) -> None:
 def text_rows(text: str) -> list[str]:
     """Every gate row in the text, in order, without verifying a chain.
 
-    Rows end at "\n" only, so a hand-edited row holding another line separator
-    stays one row and split_row refuses it by field instead of misreading its halves.
+    Rows end at "\n" only, so a row holding \x0b, \x0c, \x1c-\x1e, \x85, U+2028 or U+2029
+    stays one row and split_row refuses it by field. The ledger read (newline=None, C3)
+    has already turned a "\r" into "\n", so a CR row splits and is refused as malformed.
     """
     return [line for line in text.split("\n") if ID_RE.match(line)]
 
@@ -1093,7 +1094,7 @@ def check(row: str, repo: Path, prior_rows: list[str] | None = None,
     if len(note) > NOTE_MAX:
         raise RowError(f"note= is {len(note)} chars, over the {NOTE_MAX} cap")
     if '"' in note:
-        raise RowError('note= refuses | and " — they are the row\'s delimiters')
+        raise RowError('note= refuses " — it is a row delimiter')
     if (words == "none") != (quote == ""):
         raise RowError("words=none iff quote= is empty")
     status_value = status.split("=", 1)[1]
