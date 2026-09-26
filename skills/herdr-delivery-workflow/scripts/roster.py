@@ -254,8 +254,8 @@ def _seat_specs(raw_seats: list[str] | None) -> dict[str, str]:
     return seats
 
 
-def _launch_args(pane_id: str, kind: str) -> list[str]:
-    """Arguments after the seat's own binary, from the pane's foreground processes."""
+def _launch_args(pane_id: str, kind: str) -> list[str] | None:
+    """Arguments after the seat's own binary, when its foreground process exposes them."""
     try:
         proc = herdr_cli.run(["pane", "process-info", "--pane", pane_id])
     except herdr_cli.HerdrUnavailable as exc:
@@ -267,13 +267,19 @@ def _launch_args(pane_id: str, kind: str) -> list[str]:
         processes = json.loads(proc.stdout)["result"]["process_info"]["foreground_processes"]
     except (json.JSONDecodeError, KeyError, TypeError) as exc:
         raise ValueError(f"process-info JSON for {pane_id} lacks foreground_processes") from exc
+    if not isinstance(processes, list):
+        raise ValueError(f"process-info JSON for {pane_id} lacks foreground_processes")
     for process in processes:
-        argv = process.get("argv") if isinstance(process, dict) else None
-        if not isinstance(argv, list):
+        if not isinstance(process, dict):
             continue
-        for i, arg in enumerate(argv):
-            if isinstance(arg, str) and Path(arg).name == kind:
-                return [str(a) for a in argv[i + 1:]]
+        argv = process.get("argv")
+        if isinstance(argv, list):
+            for i, arg in enumerate(argv):
+                if isinstance(arg, str) and Path(arg).name == kind:
+                    return [str(a) for a in argv[i + 1:]]
+        argv0 = process.get("argv0")
+        if isinstance(argv0, str) and Path(argv0).name == kind:
+            return None
     raise ValueError(f"no {kind} process in pane {pane_id}")
 
 
@@ -282,13 +288,14 @@ def format_drift_roster(
     keys: dict[str, str],
     seats: dict[str, str],
     workspace: str | None = None,
-) -> list[str]:
-    """Return named seats whose running kind or --model matches neither config route.
+) -> tuple[list[str], bool]:
+    """Return DRIFT lines, an UNVERIFIABLE line for a matching kind with an unbound model, and whether any UNVERIFIABLE line was produced.
 
     Only the kind and the model are compared: a charter may add tightenings
     (an allowlist, a disallowed tool) that are not drift.
     """
     lines = []
+    unverifiable = False
     unseen = set(seats)
     for agent in _agents(payload):
         if not isinstance(agent, dict):
@@ -306,8 +313,20 @@ def format_drift_roster(
             raise ValueError(f"agent record lacks {exc.args[0]}") from exc
         role = seats[name]
         expected = _expected(keys, role)
-        model = _model(_launch_args(pane_id, kind))
-        if any(kind == k and (m is None or model == m) for k, m in expected):
+        launch_args = _launch_args(pane_id, kind)
+        model = _model(launch_args) if launch_args is not None else None
+        matching_kinds = [(k, m) for k, m in expected if kind == k]
+        if matching_kinds and launch_args is None:
+            if any(m is None for _, m in matching_kinds):
+                continue
+            want = " or ".join(f"{k} --model {m or '-'}" for k, m in expected)
+            lines.append(
+                f"{pane_id} {name} {kind} UNVERIFIABLE role={role} "
+                f"reason=model-unavailable expected={want}"
+            )
+            unverifiable = True
+            continue
+        if any(m is None or model == m for _, m in matching_kinds):
             continue
         want = " or ".join(f"{k} --model {m or '-'}" for k, m in expected)
         lines.append(
@@ -315,7 +334,7 @@ def format_drift_roster(
         )
     if unseen:
         raise ValueError(f"no live seat named {', '.join(sorted(unseen))}")
-    return lines
+    return lines, unverifiable
 
 
 def _agent_list_json(use_stdin: bool) -> str:
@@ -381,6 +400,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
+    exit_code = 0
     try:
         payload = json.loads(_agent_list_json(args.stdin))
         if sum(map(bool, (args.stalled, args.never_started, args.drift))) > 1:
@@ -388,9 +408,10 @@ def main(argv: list[str] | None = None) -> int:
         if args.drift:
             if not args.seat:
                 raise ValueError("--drift requires at least one --seat")
-            lines = format_drift_roster(
+            lines, unverifiable = format_drift_roster(
                 payload, _config_keys(args.drift), _seat_specs(args.seat), args.workspace
             )
+            exit_code = int(unverifiable)
         elif args.never_started:
             if not args.peer:
                 raise ValueError("--never-started requires at least one --peer")
@@ -420,7 +441,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if lines:
         print("\n".join(lines))
-    return 0
+    return exit_code
 
 
 if __name__ == "__main__":

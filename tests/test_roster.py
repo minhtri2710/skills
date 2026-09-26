@@ -285,7 +285,9 @@ class RosterTest(unittest.TestCase):
                 pane = command[-1]
                 if isinstance(argv_by_pane[pane], tuple):
                     return subprocess.CompletedProcess(command, *argv_by_pane[pane], "")
-                procs = [{"argv": ["caffeinate", "-i"]}, {"argv": argv_by_pane[pane]}]
+                process = argv_by_pane[pane]
+                procs = [{"argv": ["caffeinate", "-i"]}]
+                procs.append(process if isinstance(process, dict) else {"argv": process})
                 out = json.dumps({"result": {"process_info": {"foreground_processes": procs}}})
             return subprocess.CompletedProcess(command, 0, out, "")
 
@@ -313,6 +315,8 @@ class RosterTest(unittest.TestCase):
             agent("w1:p4", "eng-kind", "claude"),
             agent("w1:p5", "review-a", "agy"),
             agent("w1:p6", "unlisted", "claude"),
+            agent("w1:p7", "eng-noargv", "pi"),
+            agent("w1:p8", "review-noargv", "claude"),
         ]
         argv = {
             "w1:p1": ["node", "/opt/bin/pi", "--approve", "--model", "prov/luna", "--no-skills"],
@@ -320,16 +324,26 @@ class RosterTest(unittest.TestCase):
             "w1:p3": ["pi", "--model", "prov/old"],
             "w1:p4": ["/usr/local/bin/claude", "--model", "claude-opus-5-5", "--effort", "low"],
             "w1:p5": ["agy", "--dangerously-skip-permissions"],
+            "w1:p7": {
+                "argv0": "pi", "cwd": "/Users/beowulf/Work/beo-skills",
+                "name": "node", "pid": 14423,
+            },
+            "w1:p8": {"argv0": "claude", "cwd": "/tmp", "name": "node", "pid": 99},
         }
         seats = ["eng-primary:engineer", "eng-fallback:engineer", "eng-model:engineer",
-                 "eng-kind:engineer", "review-a:reviewer"]
+                 "eng-kind:engineer", "review-a:reviewer", "eng-noargv:engineer",
+                 "review-noargv:reviewer"]
         rc, lines, error = self._drift(agents, argv, seats)
-        self.assertEqual((rc, error), (0, ""))
+        self.assertEqual((rc, error), (1, ""))
         self.assertEqual(lines, [
             "w1:p3 eng-model pi DRIFT role=engineer running=pi --model prov/old "
             "expected=pi --model prov/luna or pi --model prov/flash",
             "w1:p4 eng-kind claude DRIFT role=engineer running=claude --model claude-opus-5-5 "
             "expected=pi --model prov/luna or pi --model prov/flash",
+            "w1:p7 eng-noargv pi UNVERIFIABLE role=engineer reason=model-unavailable "
+            "expected=pi --model prov/luna or pi --model prov/flash",
+            "w1:p8 review-noargv claude DRIFT role=reviewer running=claude --model - "
+            "expected=agy --model -",
         ])
 
     def test_drift_fails_closed_without_the_role_key_the_seat_process_or_the_seat(self):

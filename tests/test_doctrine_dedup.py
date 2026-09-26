@@ -24,13 +24,13 @@ SKILL = Path(__file__).resolve().parents[1] / "skills" / "herdr-delivery-workflo
 BUDGET = {
     "SKILL.md": 10_237,
     "references/lead.md": 97_352,
-    "references/relaunch.md": 4_635,
-    "references/herdr-cli.md": 20_870,
+    "references/relaunch.md": 4_655,
+    "references/herdr-cli.md": 20_997,
     "references/project-config.md": 5_527,
     "references/structural-misfit-policy.md": 9_485,
     "references/charters.md": 29_769,
     "references/closeout.md": 12_569,
-    "references/supervisor.md": 26_125,
+    "references/supervisor.md": 26_145,
 }
 
 
