@@ -91,7 +91,7 @@ Rename works on an unnamed agent, including the caller's own. A name follows the
 
 ## Report to the Lead by prompt
 
-The Peer report-send block belongs to `charters.md` ("Report by prompt"), including its durable file and failed-send handling. More generally, any prompt carrying code, backticks, or `$` is composed by writing the text to a file by a means that does not invoke the shell, then sending it as `"$(cat <file>)"`. The Lead's own refused report to the Supervisor remains a separate exception, because nothing reads the Lead's pane the way the Lead reads a Peer's.
+The Peer report-send block belongs to `charters.md` ("Report by prompt"), including its durable file and failed-send handling. More generally, any prompt carrying code, backticks, or `$` is composed by writing the text to a file with the editor/write tool, or, for a seat without one, the quoted-delimiter form in `templates/report-by-prompt.txt`, then sending it as `"$(cat <file>)"`. The Lead's own refused report to the Supervisor remains a separate exception, because nothing reads the Lead's pane the way the Lead reads a Peer's.
 
 ## Notify the Human
 

@@ -104,17 +104,36 @@ class ReviewerCharterTemplateTest(unittest.TestCase):
         return rc, stderr.getvalue()
 
     def test_placeholders_are_snake_case_and_all_filled(self):
-        text = TEMPLATE.read_text(encoding="utf-8")
+        # A quoted heredoc opener (<<') in the report block is shell syntax, not a slot.
+        text = TEMPLATE.read_text(encoding="utf-8").replace("<<'", "'")
         self.assertEqual(
             charter_lint.PLACEHOLDER_RE.findall(text), [m.group(0) for m in SLOT_RE.finditer(text)]
         )
-        self.assertIsNone(charter_lint.PLACEHOLDER_RE.search(self.filled))
+        self.assertIsNone(charter_lint.PLACEHOLDER_RE.search(self.filled.replace("<<'", "'")))
 
     def test_report_block_matches_report_by_prompt_template(self):
         block = REPORT_BLOCK.read_text(encoding="utf-8").strip()
         block = block.replace("<run-dir>", "<run_dir>").replace("<peer-name>", "<peer_name>")
         block = block.replace("<lead-name>", "<lead_name>")
         self.assertIn(block, TEMPLATE.read_text(encoding="utf-8"))
+
+    def test_report_block_no_write_form_writes_hostile_body_verbatim(self):
+        form = re.search(
+            r"`(cat > <run-dir>/report-<peer-name>\.md <<(\S+))`",
+            REPORT_BLOCK.read_text(encoding="utf-8"),
+        )
+        self.assertIsNotNone(form)
+        with tempfile.TemporaryDirectory() as tmp:
+            marker = Path(tmp) / "ran"
+            body = (
+                f"Verdict: PASS $HOME `id` $(touch {marker}) \"dq\" 'sq' \\n\n"
+                f"EOF\nEND\ntouch {marker}\n"
+            )
+            command = form.group(1).replace("<run-dir>", tmp).replace("<peer-name>", "review-x")
+            delimiter = form.group(2).strip("'\"").replace("<peer-name>", "review-x")
+            subprocess.run(["bash", "-c", f"{command}\n{body}{delimiter}\n"], check=True)
+            self.assertEqual((Path(tmp) / "report-review-x.md").read_text(encoding="utf-8"), body)
+            self.assertFalse(marker.exists())
 
     def test_filled_template_lints_ok(self):
         self.assertEqual(self.run_lint(self.filled), (0, ""))
