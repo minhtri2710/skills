@@ -23,14 +23,14 @@ SKILL = Path(__file__).resolve().parents[1] / "skills" / "herdr-delivery-workflo
 # bytes (reasoning goes to RATIONALE.md), or raises the ceiling in the same diff.
 BUDGET = {
     "SKILL.md": 10_312,
-    "references/lead.md": 100_081,
+    "references/lead.md": 100_809,
     "references/relaunch.md": 4_655,
     "references/herdr-cli.md": 21_312,
     "references/project-config.md": 5_527,
     "references/structural-misfit-policy.md": 9_485,
-    "references/charters.md": 32_533,
+    "references/charters.md": 33_054,
     "references/closeout.md": 12_569,
-    "references/supervisor.md": 27_016,
+    "references/supervisor.md": 27_337,
 }
 
 
