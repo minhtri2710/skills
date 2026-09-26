@@ -343,7 +343,7 @@ class RosterTest(unittest.TestCase):
                  "review-noargv:reviewer", "review-noargs:reviewer"]
         rc, lines, error = self._drift(agents, argv, seats)
         self.assertEqual((rc, error), (1, ""))
-        self.assertEqual(lines, [
+        expected_lines = [
             "w1:p3 eng-model pi DRIFT role=engineer running=pi --model prov/old "
             "expected=pi --model prov/luna or pi --model prov/flash",
             "w1:p4 eng-kind claude DRIFT role=engineer running=claude --model claude-opus-5-5 "
@@ -352,7 +352,10 @@ class RosterTest(unittest.TestCase):
             "expected=pi --model prov/luna or pi --model prov/flash",
             "w1:p8 review-noargv claude DRIFT role=reviewer running=claude --model - "
             "expected=agy --model -",
-        ])
+        ]
+        self.assertEqual(lines, expected_lines)
+        rc, lines, error = self._drift(agents[:5], argv, seats[:5])
+        self.assertEqual((rc, error, lines), (0, "", expected_lines[:2]))
 
     def test_drift_fails_closed_without_the_role_key_the_seat_process_or_the_seat(self):
         seat = [{"pane_id": "w1:p1", "name": "eng", "agent": "pi", "agent_status": "idle"}]
