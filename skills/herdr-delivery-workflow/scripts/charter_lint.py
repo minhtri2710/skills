@@ -144,7 +144,7 @@ def _sha_problems(repo: Path, texts: dict[str, str]) -> list[str]:
 
 
 def _repair_range_problems(repo: Path, charter: str) -> list[str]:
-    """A repair re-review keeps the slice base: a commit its Prior review names lies in the unit."""
+    """A repair re-review keeps the slice base: a commit its Prior review names lies in the unit, or was rewritten and the unit starts at or below where the head diverged from it."""
     prior = PRIOR_RE.search(charter)
     line = PRIOR_GLOSS_RE.sub("", prior.group(1)) if prior else ""
     if not re.search(r"\bFAIL", line):
@@ -161,12 +161,23 @@ def _repair_range_problems(repo: Path, charter: str) -> list[str]:
     listed = _git(repo, ["rev-list", f"{base}..{head}"])
     if listed.returncode != 0:
         return [f"repair re-review range {base}..{head} does not resolve in {repo}"]
-    if named.isdisjoint(listed.stdout.split()[1:]):  # rev-list lists the head first; naming it proves nothing
-        return [
-            f"repair re-review range {base}..{head} must keep the slice base: "
-            "no commit named on the Prior review line lies inside it below its head"
-        ]
-    return []
+    below_head = set(listed.stdout.split()[1:])  # rev-list lists the head first; naming it proves nothing
+    if not named.isdisjoint(below_head):
+        return []
+    for commit in named:
+        divergence = _git(repo, ["merge-base", commit, head])
+        if divergence.returncode != 0:
+            continue
+        merge_base = divergence.stdout.strip()
+        if merge_base in {commit, head}:
+            continue
+        kept = _git(repo, ["merge-base", "--is-ancestor", base, merge_base])
+        if kept.returncode == 0:
+            return []
+    return [
+        f"repair re-review range {base}..{head} must keep the slice base: "
+        "no commit named on the Prior review line lies inside it below its head, or was rewritten with the range starting at or below where the head diverged from it"
+    ]
 
 
 def main(argv: list[str] | None = None) -> int:

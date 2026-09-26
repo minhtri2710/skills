@@ -436,16 +436,39 @@ class CharterLintTest(unittest.TestCase):
         gloss = "(`none`, or the prior FAIL report, its head and the finding ids)"
         failed = f"Prior review: report-review-{mid[:12]}.md FAIL (F1)\n"
         narrowed = f"Reviewed unit: the range {mid}..{head}\n"
+        rewritten = subprocess.run(
+            ["git", "-C", str(self.repo), "-c", "user.name=t", "-c", "user.email=t@example.com",
+             "commit-tree", f"{head}^{{tree}}", "-p", mid, "-m", "rewritten"],
+            check=True, capture_output=True, text=True,
+        ).stdout.strip()
+        rewritten_child = subprocess.run(
+            ["git", "-C", str(self.repo), "-c", "user.name=t", "-c", "user.email=t@example.com",
+             "commit-tree", f"{head}^{{tree}}", "-p", rewritten, "-m", "rewritten child"],
+            check=True, capture_output=True, text=True,
+        ).stdout.strip()
+        keep_base = (
+            "must keep the slice base: no commit named on the Prior review line lies inside it below its head, "
+            "or was rewritten with the range starting at or below where the head diverged from it"
+        )
         cases = (
             ("base kept", f"Reviewed unit: the range {base}..{head}\n"
              f"Prior review: report-review-{mid[:12]}.md FAIL (F1); slice base {base[:8]}\n", None),
             ("narrowed to the prior head", narrowed + failed,
-             f"repair re-review range {mid}..{head} must keep the slice base: "
-             "no commit named on the Prior review line lies inside it below its head"),
+             f"repair re-review range {mid}..{head} {keep_base}"),
             ("narrowed, naming the new head too", narrowed
              + f"Prior review: report-review-{mid[:12]}.md FAIL (F1); repair head {head[:7]}\n",
-             f"repair re-review range {mid}..{head} must keep the slice base: "
-             "no commit named on the Prior review line lies inside it below its head"),
+             f"repair re-review range {mid}..{head} {keep_base}"),
+            ("rewritten sibling with divergence base kept",
+             f"Reviewed unit: the range {mid}..{rewritten}\n"
+             + f"Prior review: report-review-{head[:12]}.md FAIL (F1)\n", None),
+            ("rewritten sibling with base narrowed above divergence",
+             f"Reviewed unit: the range {rewritten}..{rewritten_child}\n"
+             + f"Prior review: report-review-{head[:12]}.md FAIL (F1)\n",
+             f"repair re-review range {rewritten}..{rewritten_child} {keep_base}"),
+            ("head is ancestor of named commit",
+             f"Reviewed unit: the range {base}..{mid}\n"
+             + f"Prior review: report-review-{head[:12]}.md FAIL (F1)\n",
+             f"repair re-review range {base}..{mid} {keep_base}"),
             ("no prior review", narrowed + f"Prior review: none {gloss}\n", None),
             ("prior FAIL named mid-line in prose", f"Scope note. Prior reviews: report-review-{mid[:12]}.md FAIL\n",
              None),
