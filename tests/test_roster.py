@@ -10,6 +10,7 @@ import sys
 import tempfile
 import time
 import unittest
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest import mock
 
@@ -274,11 +275,19 @@ class RosterTest(unittest.TestCase):
         "-->\n"
     )
 
-    def _drift(self, agents, argv_by_pane, seats, config=_DRIFT_CONFIG, extra_argv=()):
-        """Drive main() on the live path; only the herdr subprocess is mocked."""
+    def _drift(
+        self, agents, argv_by_pane, seats, config=_DRIFT_CONFIG, extra_argv=(),
+        pi_sessions=None, process_start=None, ps_result=(0, None),
+    ):
+        """Drive main() with isolated pi sessions and mocked process commands."""
         listing = json.dumps({"result": {"agents": agents}})
 
         def run(command, **_):
+            if command[0] == "ps":
+                rc, output = ps_result
+                start = process_start or datetime(2026, 9, 26, 13).astimezone()
+                stamp = start.strftime("%a %b %d %H:%M:%S %Y")
+                return subprocess.CompletedProcess(command, rc, output or stamp, "ps failed" if rc else "")
             if command[1:3] == ["agent", "list"]:
                 out = listing
             else:
@@ -292,10 +301,22 @@ class RosterTest(unittest.TestCase):
             return subprocess.CompletedProcess(command, 0, out, "")
 
         with tempfile.TemporaryDirectory() as directory:
-            config_path = Path(directory) / "config.md"
+            root = Path(directory)
+            config_path = root / "config.md"
             config_path.write_text(config, encoding="utf-8")
+            agent_dir = root / "pi-agent"
+            for pane, files in (pi_sessions or {}).items():
+                process = argv_by_pane[pane]
+                cwd = process.get("cwd", "/workspace") if isinstance(process, dict) else "/workspace"
+                slug = cwd.removeprefix("/").replace("/", "-").replace(":", "-")
+                session_dir = agent_dir / "sessions" / f"--{slug}--"
+                session_dir.mkdir(parents=True, exist_ok=True)
+                for index, entries in enumerate(files):
+                    path = session_dir / f"{pane.replace(':', '-')}-{index}.jsonl"
+                    path.write_text("".join(json.dumps(entry) + "\n" for entry in entries), encoding="utf-8")
             output, error = io.StringIO(), io.StringIO()
             with mock.patch.object(roster.herdr_cli.subprocess, "run", side_effect=run), \
+                    mock.patch.dict(os.environ, {"PI_CODING_AGENT_DIR": str(agent_dir)}), \
                     mock.patch.object(roster.sys, "stdin", io.StringIO("")), \
                     mock.patch("sys.stdout", output), mock.patch("sys.stderr", error):
                 argv = ["--drift", str(config_path), *extra_argv]
@@ -305,6 +326,19 @@ class RosterTest(unittest.TestCase):
         return rc, output.getvalue().splitlines(), error.getvalue()
 
     def test_drift_flags_only_seats_matching_neither_config_route(self):
+        process_start = datetime(2026, 9, 26, 13).astimezone()
+        session_timestamp = process_start.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+
+        def session(name, model_changes, timestamp=session_timestamp, messages=True):
+            entries = [
+                {"type": "session", "timestamp": timestamp},
+                {"type": "session_info", "name": name},
+                *model_changes,
+            ]
+            if messages:
+                entries.append({"type": "message"})
+            return entries
+
         def agent(pane, name, kind):
             return {"pane_id": pane, "name": name, "agent": kind, "agent_status": "working"}
 
@@ -318,6 +352,15 @@ class RosterTest(unittest.TestCase):
             agent("w1:p7", "eng-noargv", "pi"),
             agent("w1:p8", "review-noargv", "claude"),
             agent("w1:p9", "review-noargs", "agy"),
+            agent("w1:p10", "eng-named", "pi"),
+            agent("w1:p11", "eng-wrong-model", "pi"),
+            agent("w1:p12", "eng-no-session", "pi"),
+            agent("w1:p13", "eng-old-session", "pi"),
+            agent("w1:p14", "eng-other-seat", "pi"),
+            agent("w1:p15", "eng-ambiguous", "pi"),
+            agent("w1:p16", "eng-last-model", "pi"),
+            agent("w1:p17", "eng-bare-route", "pi"),
+            agent("w1:p19", "eng-no-model-change", "pi"),
         ]
         argv = {
             "w1:p1": ["node", "/opt/bin/pi", "--approve", "--model", "prov/luna", "--no-skills"],
@@ -337,25 +380,91 @@ class RosterTest(unittest.TestCase):
                 "name": "node", "pid": 14423,
             },
             "w1:p8": {"argv0": "claude", "cwd": "/tmp", "name": "node", "pid": 99},
+            "w1:p10": {"argv0": "pi", "cwd": "/workspace:project", "name": "node", "pid": 14410},
+            **{
+                f"w1:p{i}": {
+                    "argv0": "pi", "cwd": "/workspace/project", "name": "node", "pid": 14400 + i,
+                }
+                for i in range(11, 18)
+            },
+            "w1:p19": {"argv0": "pi", "cwd": "/workspace/project", "name": "node", "pid": 14419},
         }
         seats = ["eng-primary:engineer", "eng-fallback:engineer", "eng-model:engineer",
                  "eng-kind:engineer", "review-a:reviewer", "eng-noargv:engineer",
-                 "review-noargv:reviewer", "review-noargs:reviewer"]
-        rc, lines, error = self._drift(agents, argv, seats)
+                 "review-noargv:reviewer", "review-noargs:reviewer", "eng-named:engineer",
+                 "eng-wrong-model:engineer", "eng-no-session:engineer", "eng-old-session:engineer",
+                 "eng-other-seat:engineer", "eng-ambiguous:engineer", "eng-last-model:engineer",
+                 "eng-bare-route:engineer", "eng-no-model-change:engineer"]
+        pi_sessions = {
+            "w1:p10": [session("eng-named", [{"type": "model_change", "provider": "prov", "modelId": "luna"}])],
+            "w1:p11": [session("eng-wrong-model", [{"type": "model_change", "provider": "prov", "modelId": "other"}])],
+            "w1:p13": [session(
+                "eng-old-session", [{"type": "model_change", "provider": "prov", "modelId": "luna"}],
+                (process_start - timedelta(seconds=1)).astimezone(timezone.utc).isoformat().replace("+00:00", "Z"),
+            )],
+            "w1:p14": [session("a-different-seat", [{"type": "model_change", "provider": "prov", "modelId": "luna"}])],
+            "w1:p15": [
+                session("eng-ambiguous", [{"type": "model_change", "provider": "prov", "modelId": "luna"}]),
+                session("eng-ambiguous", [{"type": "model_change", "provider": "prov", "modelId": "flash"}]),
+            ],
+            "w1:p16": [session("eng-last-model", [
+                {"type": "model_change", "provider": "prov", "modelId": "old"},
+                {"type": "model_change", "provider": "prov", "modelId": "luna"},
+            ])],
+            "w1:p17": [session("eng-bare-route", [{"type": "model_change", "provider": "prov", "modelId": "luna"}])],
+        }
+        pi_sessions["w1:p12"] = []
+        pi_sessions["w1:p19"] = [session("eng-no-model-change", [])]
+        rc, lines, error = self._drift(
+            agents, argv, seats, pi_sessions=pi_sessions, process_start=process_start
+        )
         self.assertEqual((rc, error), (1, ""))
         expected_lines = [
             "w1:p3 eng-model pi DRIFT role=engineer running=pi --model prov/old "
             "expected=pi --model prov/luna or pi --model prov/flash",
             "w1:p4 eng-kind claude DRIFT role=engineer running=claude --model claude-opus-5-5 "
             "expected=pi --model prov/luna or pi --model prov/flash",
-            "w1:p7 eng-noargv pi UNVERIFIABLE role=engineer reason=model-unavailable "
+            "w1:p7 eng-noargv pi UNVERIFIABLE role=engineer reason=no-named-session "
             "expected=pi --model prov/luna or pi --model prov/flash",
             "w1:p8 review-noargv claude DRIFT role=reviewer running=claude --model - "
             "expected=agy --model -",
+            "w1:p11 eng-wrong-model pi DRIFT role=engineer running=pi --model prov/other "
+            "expected=pi --model prov/luna or pi --model prov/flash",
+            "w1:p12 eng-no-session pi UNVERIFIABLE role=engineer reason=no-named-session "
+            "expected=pi --model prov/luna or pi --model prov/flash",
+            "w1:p13 eng-old-session pi UNVERIFIABLE role=engineer reason=no-named-session "
+            "expected=pi --model prov/luna or pi --model prov/flash",
+            "w1:p14 eng-other-seat pi UNVERIFIABLE role=engineer reason=no-named-session "
+            "expected=pi --model prov/luna or pi --model prov/flash",
+            "w1:p15 eng-ambiguous pi UNVERIFIABLE role=engineer reason=ambiguous-session "
+            "expected=pi --model prov/luna or pi --model prov/flash",
+            "w1:p19 eng-no-model-change pi UNVERIFIABLE role=engineer reason=no-named-session "
+            "expected=pi --model prov/luna or pi --model prov/flash",
         ]
         self.assertEqual(lines, expected_lines)
+        bare_config = self._DRIFT_CONFIG.replace(
+            "- engineer-fallback-args: --approve --model=prov/flash",
+            "- engineer-fallback-args: --approve --model=luna",
+        )
+        rc, lines, error = self._drift(
+            [next(item for item in agents if item["name"] == "eng-bare-route")],
+            argv, ["eng-bare-route:engineer"], config=bare_config,
+            pi_sessions={"w1:p17": pi_sessions["w1:p17"]}, process_start=process_start,
+        )
+        self.assertEqual((rc, error, lines), (0, "", []))
         rc, lines, error = self._drift(agents[:5], argv, seats[:5])
         self.assertEqual((rc, error, lines), (0, "", expected_lines[:2]))
+        reviewer_agent = agent("w1:p18", "review-unavailable", "agy")
+        reviewer_process = {"w1:p18": {"argv0": "agy", "cwd": "/workspace", "pid": 812}}
+        reviewer_config = self._DRIFT_CONFIG + "- reviewer-args: --model review/model\n"
+        rc, lines, error = self._drift(
+            [reviewer_agent], reviewer_process, ["review-unavailable:reviewer"],
+            config=reviewer_config,
+        )
+        self.assertEqual((rc, error, lines), (1, "", [
+            "w1:p18 review-unavailable agy UNVERIFIABLE role=reviewer reason=model-unavailable "
+            "expected=agy --model review/model",
+        ]))
 
     def test_drift_fails_closed_without_the_role_key_the_seat_process_or_the_seat(self):
         seat = [{"pane_id": "w1:p1", "name": "eng", "agent": "pi", "agent_status": "idle"}]
@@ -373,6 +482,12 @@ class RosterTest(unittest.TestCase):
                 rc, lines, error = self._drift(seat, argv, [name], config, extra_argv)
                 self.assertEqual((rc, lines), (1, []))
                 self.assertIn(message, error)
+        pi_process = {"w1:p1": {"argv0": "pi", "cwd": "/workspace", "pid": 321}}
+        rc, lines, error = self._drift(
+            seat, pi_process, ["eng:engineer"], ps_result=(1, "")
+        )
+        self.assertEqual((rc, lines), (1, []))
+        self.assertIn("pi process start for pid 321", error)
 
 
 if __name__ == "__main__":

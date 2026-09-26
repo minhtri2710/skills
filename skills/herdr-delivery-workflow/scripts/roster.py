@@ -4,10 +4,13 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import shlex
+import subprocess
 import sys
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -254,8 +257,8 @@ def _seat_specs(raw_seats: list[str] | None) -> dict[str, str]:
     return seats
 
 
-def _launch_args(pane_id: str, kind: str) -> list[str] | None:
-    """Arguments after the seat's own binary, when its foreground process exposes them."""
+def _launch_args(pane_id: str, kind: str) -> tuple[list[str] | None, dict[str, Any] | None]:
+    """Return exposed arguments, or the argv0-only matching process record."""
     try:
         proc = herdr_cli.run(["pane", "process-info", "--pane", pane_id])
     except herdr_cli.HerdrUnavailable as exc:
@@ -274,11 +277,117 @@ def _launch_args(pane_id: str, kind: str) -> list[str] | None:
         if isinstance(argv, list):
             for i, arg in enumerate(argv):
                 if isinstance(arg, str) and Path(arg).name == kind:
-                    return [str(a) for a in argv[i + 1:]]
+                    return [str(a) for a in argv[i + 1:]], None
         argv0 = process.get("argv0")
         if isinstance(argv0, str) and Path(argv0).name == kind:
-            return None
+            return None, process
     raise ValueError(f"no {kind} process in pane {pane_id}")
+
+
+def _pi_process_start(pid: Any) -> datetime:
+    try:
+        proc = subprocess.run(
+            ["ps", "-o", "lstart=", "-p", str(pid)],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=10,
+            env={**os.environ, "LC_ALL": "C"},
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise RuntimeError(f"could not read pi process start for pid {pid}: {exc}") from exc
+    if proc.returncode:
+        detail = proc.stderr.strip() or proc.stdout.strip() or str(proc.returncode)
+        raise RuntimeError(f"could not read pi process start for pid {pid}: {detail}")
+    try:
+        return datetime.strptime(proc.stdout.strip(), "%a %b %d %H:%M:%S %Y").astimezone()
+    except ValueError as exc:
+        raise RuntimeError(
+            f"could not read pi process start for pid {pid}: invalid ps timestamp"
+        ) from exc
+
+
+def _pi_session_dir(cwd: str) -> Path:
+    agent_dir = os.path.expanduser(os.environ.get("PI_CODING_AGENT_DIR") or "~/.pi/agent")
+    slug = cwd.removeprefix("/").replace("/", "-").replace(":", "-")
+    return Path(agent_dir) / "sessions" / f"--{slug}--"
+
+
+def _pi_session_is_named(path: Path, name: str, process_start: datetime) -> bool:
+    try:
+        with path.open(encoding="utf-8") as session:
+            first = json.loads(next(session))
+            if not isinstance(first, dict) or first.get("type") != "session":
+                return False
+            raw_timestamp = first.get("timestamp")
+            if not isinstance(raw_timestamp, str):
+                return False
+            timestamp = datetime.fromisoformat(raw_timestamp.replace("Z", "+00:00"))
+            if timestamp.tzinfo is None or timestamp < process_start.astimezone(timezone.utc):
+                return False
+            named = False
+            for line in session:
+                try:
+                    entry = json.loads(line)
+                except (json.JSONDecodeError, UnicodeDecodeError):
+                    return False
+                if not isinstance(entry, dict):
+                    return False
+                if entry.get("type") == "message":
+                    return named
+                if entry.get("type") == "session_info" and entry.get("name") == name:
+                    named = True
+            return named
+    except (OSError, StopIteration, KeyError, TypeError, ValueError, UnicodeDecodeError):
+        return False
+
+
+def _pi_running_model(name: str, process: dict[str, Any]) -> tuple[str | None, str | None]:
+    pid = process.get("pid")
+    process_start = _pi_process_start(pid)
+    cwd = process.get("cwd")
+    if not isinstance(cwd, str):
+        return None, "no-named-session"
+    session_dir = _pi_session_dir(cwd)
+    try:
+        candidates = [
+            path for path in session_dir.glob("*.jsonl")
+            if _pi_session_is_named(path, name, process_start)
+        ]
+    except OSError:
+        candidates = []
+    if not candidates:
+        return None, "no-named-session"
+    if len(candidates) != 1:
+        return None, "ambiguous-session"
+    model = None
+    try:
+        with candidates[0].open(encoding="utf-8") as session:
+            for line in session:
+                try:
+                    entry = json.loads(line)
+                except (json.JSONDecodeError, UnicodeDecodeError):
+                    return None, "no-named-session"
+                if isinstance(entry, dict) and entry.get("type") == "model_change":
+                    provider, model_id = entry.get("provider"), entry.get("modelId")
+                    valid_model = (
+                        isinstance(provider, str)
+                        and provider
+                        and isinstance(model_id, str)
+                        and model_id
+                    )
+                    model = f"{provider}/{model_id}" if valid_model else None
+    except (OSError, UnicodeDecodeError):
+        return None, "no-named-session"
+    return (model, None) if model is not None else (None, "no-named-session")
+
+
+def _route_matches_model(route_model: str | None, running_model: str) -> bool:
+    return route_model == running_model or (
+        route_model is not None
+        and "/" not in route_model
+        and running_model.rpartition("/")[2] == route_model
+    )
 
 
 def format_drift_roster(
@@ -311,10 +420,23 @@ def format_drift_roster(
             raise ValueError(f"agent record lacks {exc.args[0]}") from exc
         role = seats[name]
         expected = _expected(keys, role)
-        launch_args = _launch_args(pane_id, kind)
+        launch_args, argv0_process = _launch_args(pane_id, kind)
         model = _model(launch_args) if launch_args is not None else None
         matching_kinds = [(k, m) for k, m in expected if kind == k]
-        if matching_kinds and launch_args is None:
+        pi_session_model = bool(matching_kinds and argv0_process is not None and kind == "pi")
+        if pi_session_model:
+            if any(m is None for _, m in matching_kinds):
+                continue
+            model, reason = _pi_running_model(name, argv0_process)
+            if reason is not None:
+                want = " or ".join(f"{k} --model {m or '-'}" for k, m in expected)
+                lines.append(
+                    f"{pane_id} {name} {kind} UNVERIFIABLE role={role} "
+                    f"reason={reason} expected={want}"
+                )
+                unverifiable = True
+                continue
+        elif matching_kinds and launch_args is None:
             if any(m is None for _, m in matching_kinds):
                 continue
             want = " or ".join(f"{k} --model {m or '-'}" for k, m in expected)
@@ -324,7 +446,10 @@ def format_drift_roster(
             )
             unverifiable = True
             continue
-        if any(m is None or model == m for _, m in matching_kinds):
+        if any(
+            m is None or (_route_matches_model(m, model) if pi_session_model else model == m)
+            for _, m in matching_kinds
+        ):
             continue
         want = " or ".join(f"{k} --model {m or '-'}" for k, m in expected)
         lines.append(
