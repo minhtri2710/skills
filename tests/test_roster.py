@@ -313,7 +313,10 @@ class RosterTest(unittest.TestCase):
                 session_dir.mkdir(parents=True, exist_ok=True)
                 for index, entries in enumerate(files):
                     path = session_dir / f"{pane.replace(':', '-')}-{index}.jsonl"
-                    path.write_text("".join(json.dumps(entry) + "\n" for entry in entries), encoding="utf-8")
+                    if isinstance(entries, str):
+                        path.write_text(entries, encoding="utf-8")
+                    else:
+                        path.write_text("".join(json.dumps(entry) + "\n" for entry in entries), encoding="utf-8")
             output, error = io.StringIO(), io.StringIO()
             with mock.patch.object(roster.herdr_cli.subprocess, "run", side_effect=run), \
                     mock.patch.dict(os.environ, {"PI_CODING_AGENT_DIR": str(agent_dir)}), \
@@ -361,6 +364,8 @@ class RosterTest(unittest.TestCase):
             agent("w1:p16", "eng-last-model", "pi"),
             agent("w1:p17", "eng-bare-route", "pi"),
             agent("w1:p19", "eng-no-model-change", "pi"),
+            agent("w1:p20", "eng-after-message", "pi"),
+            agent("w1:p21", "eng-malformed-files", "pi"),
         ]
         argv = {
             "w1:p1": ["node", "/opt/bin/pi", "--approve", "--model", "prov/luna", "--no-skills"],
@@ -388,13 +393,16 @@ class RosterTest(unittest.TestCase):
                 for i in range(11, 18)
             },
             "w1:p19": {"argv0": "pi", "cwd": "/workspace/project", "name": "node", "pid": 14419},
+            "w1:p20": {"argv0": "pi", "cwd": "/workspace/project", "name": "node", "pid": 14420},
+            "w1:p21": {"argv0": "pi", "cwd": "/workspace/project", "name": "node", "pid": 14421},
         }
         seats = ["eng-primary:engineer", "eng-fallback:engineer", "eng-model:engineer",
                  "eng-kind:engineer", "review-a:reviewer", "eng-noargv:engineer",
                  "review-noargv:reviewer", "review-noargs:reviewer", "eng-named:engineer",
                  "eng-wrong-model:engineer", "eng-no-session:engineer", "eng-old-session:engineer",
                  "eng-other-seat:engineer", "eng-ambiguous:engineer", "eng-last-model:engineer",
-                 "eng-bare-route:engineer", "eng-no-model-change:engineer"]
+                 "eng-bare-route:engineer", "eng-no-model-change:engineer",
+                 "eng-after-message:engineer", "eng-malformed-files:engineer"]
         pi_sessions = {
             "w1:p10": [session("eng-named", [{"type": "model_change", "provider": "prov", "modelId": "luna"}])],
             "w1:p11": [session("eng-wrong-model", [{"type": "model_change", "provider": "prov", "modelId": "other"}])],
@@ -415,6 +423,16 @@ class RosterTest(unittest.TestCase):
         }
         pi_sessions["w1:p12"] = []
         pi_sessions["w1:p19"] = [session("eng-no-model-change", [])]
+        pi_sessions["w1:p20"] = [session("another-seat", [
+            {"type": "message"},
+            {"type": "session_info", "name": "eng-after-message"},
+            {"type": "model_change", "provider": "prov", "modelId": "luna"},
+        ], messages=False)]
+        pi_sessions["w1:p21"] = [
+            session("eng-malformed-files", [{"type": "model_change", "provider": "prov", "modelId": "luna"}]),
+            "not-json\n",
+            [],
+        ]
         rc, lines, error = self._drift(
             agents, argv, seats, pi_sessions=pi_sessions, process_start=process_start
         )
@@ -439,6 +457,8 @@ class RosterTest(unittest.TestCase):
             "w1:p15 eng-ambiguous pi UNVERIFIABLE role=engineer reason=ambiguous-session "
             "expected=pi --model prov/luna or pi --model prov/flash",
             "w1:p19 eng-no-model-change pi UNVERIFIABLE role=engineer reason=no-named-session "
+            "expected=pi --model prov/luna or pi --model prov/flash",
+            "w1:p20 eng-after-message pi UNVERIFIABLE role=engineer reason=no-named-session "
             "expected=pi --model prov/luna or pi --model prov/flash",
         ]
         self.assertEqual(lines, expected_lines)
