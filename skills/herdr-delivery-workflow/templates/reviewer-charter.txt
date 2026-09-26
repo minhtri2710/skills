@@ -26,7 +26,7 @@ Required checks, each with output pasted and its real exit code:
 
 Never kill a process by pattern (`pkill -f`, `killall`, `pgrep ... | xargs kill`); stop only a process whose pid or task id you started yourself.
 
-Delete every temp directory you create before you report, and name them in the report. Never write to anything under <herdr_home> except your own report and send files named below.
+Make every temp directory with `d=$(mktemp -d /private/tmp/<peer_name>.XXXXXX)`, delete each before you report, and name them in the report. Never write to anything under <herdr_home> except your own report and send files named below. Run every check that writes files (a build, the test suite) in your own copy of <head_sha> in such a directory, never in the checkout: `git archive <head_sha> | tar -x -C "$d"`, or, when the check reads git metadata, `git clone --no-checkout <repo> "$d/r"` then `git -C "$d/r" checkout --detach <head_sha>`. Your seat may run under a write fence: a write anywhere else then fails with `Operation not permitted`. That is the boundary working; never route around it by another path, tool or copy, and report a required check that fails only on it as a finding.
 
 Never run `mailbox.py --wake` against a real seat; exercise wake only with a patched subprocess or a nonexistent seat name (expect `agent_not_found`).
 

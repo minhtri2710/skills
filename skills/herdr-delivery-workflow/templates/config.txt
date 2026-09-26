@@ -8,7 +8,7 @@
 - reviewer-args: <the same for the Reviewer kind; read-only inspection and verify commands, plus the report prompt>
 - engineer-fallback-args: <native arguments for the fallback Engineer kind: model selection and the same pre-authorizations as engineer-args>
 - reviewer-fallback-args: <the same for the fallback Reviewer kind>
-# Skill- and extension-isolation flags (`--no-skills`, `--no-extensions` for `pi`) are passed by DOCTRINE at the launch line per `charters.md`, not carried as config `*-args` values.
+# Skill-, extension- and prompt-template-isolation flags (`--no-skills --no-extensions --no-prompt-templates` for `pi`) are passed by DOCTRINE at the launch line per `charters.md`, not carried as config `*-args` values.
 # A model reasoning-effort flag, where the kind exposes one, rides IN `*-args` after `--` like model selection — claude `--effort low|medium|high|xhigh|max`, agy `--effort low|medium|high`, pi `--thinking off|minimal|low|medium|high|xhigh|max` (or a `--model prov/id:<thinking>` suffix); the writer uses the exact flag its kind exposes. There is no separate effort key: it tunes per-turn reasoning depth only (`project-config.md`, "Precedence and guards").
 - checks: <claim-shaped commands, `;`-separated>
 - local-ops: <exact named commands the Lead may run on the Human's checkout after a landed merge; ;-separated; dev/disposable data only; never an external write>

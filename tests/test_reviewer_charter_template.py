@@ -6,6 +6,7 @@ import contextlib
 import inspect
 import io
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -19,6 +20,7 @@ import charter_lint  # noqa: E402
 
 TEMPLATE = SKILL / "templates" / "reviewer-charter.txt"
 REPORT_BLOCK = SKILL / "templates" / "report-by-prompt.txt"
+FENCE = SKILL / "templates" / "reviewer-write-fence.sb"
 LEAD = "lead-beo-skills"
 SLOT_RE = re.compile(r"<([a-z][a-z0-9_]*)>")
 NOT_CLAUSES = {
@@ -145,6 +147,30 @@ class ReviewerCharterTemplateTest(unittest.TestCase):
         for route in routes:
             self.assertIn(f"`{route}`", lines[0])
         self.assertIn("send it with the same command", lines[0])
+
+    @unittest.skipUnless(shutil.which("sandbox-exec"), "sandbox-exec is macOS-only")
+    def test_write_fence_admits_only_its_targets(self):
+        if subprocess.run(["sandbox-exec", "-p", "(version 1)(allow default)", "true"]).returncode:
+            self.skipTest("inside a sandbox already: sandbox_apply refuses a nested profile")
+        # Every temp root is admitted, so the denied targets live outside them.
+        with tempfile.TemporaryDirectory(dir="/Users/Shared") as outside:
+            root = Path(outside)
+            values = {"herdr_home": f"{root}/herdr", "kind_state_dir": f"{root}/state",
+                      "run_dir": f"{root}/herdr/run", "peer_name": "review-x"}
+            profile = root / "fence.sb"
+            profile.write_text(SLOT_RE.sub(lambda m: values[m.group(1)], FENCE.read_text(encoding="utf-8")))
+            for d in ("herdr/run", "herdr/heavy-slots", "state"):
+                (root / d).mkdir(parents=True)
+            allowed = [root / "herdr/run/report-review-x.md", root / "herdr/run/send-review-x.txt",
+                       root / "herdr/heavy-slots/1", root / "state/session", self.tmp / "scratch"]
+            denied = [root / "herdr/run/other.md", root / "herdr/gates.md", root / "checkout-file"]
+            for path in allowed + denied:
+                with self.subTest(path=str(path)):
+                    run = subprocess.run(["sandbox-exec", "-f", str(profile), "touch", str(path)],
+                                         capture_output=True, text=True)
+                    self.assertEqual(path.exists(), path in allowed, run.stderr)
+                    if path in denied:
+                        self.assertIn("Operation not permitted", run.stderr)
 
     def test_filled_template_lints_ok(self):
         self.assertEqual(self.run_lint(self.filled), (0, ""))

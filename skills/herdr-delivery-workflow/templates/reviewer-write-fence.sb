@@ -1,0 +1,14 @@
+; Write fence for one Reviewer or Architect seat (charters.md, "Write fence").
+; Fill every slot with an absolute path, save as <run_dir>/fence-<peer_name>.sb,
+; and start the seat's pane shell with sandbox-exec -f on that file.
+(version 1)
+(allow default)
+(deny file-write*
+  (require-all
+    (require-not (subpath "/private/tmp"))
+    (require-not (subpath "/private/var/folders"))
+    (require-not (subpath "/dev"))
+    (require-not (subpath "<herdr_home>/heavy-slots"))
+    (require-not (subpath "<kind_state_dir>"))
+    (require-not (literal "<run_dir>/report-<peer_name>.md"))
+    (require-not (literal "<run_dir>/send-<peer_name>.txt"))))

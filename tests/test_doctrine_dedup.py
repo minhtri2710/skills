@@ -22,15 +22,15 @@ SKILL = Path(__file__).resolve().parents[1] / "skills" / "herdr-delivery-workflo
 # file's size when the budget was last set: a new clause moves or retires as many
 # bytes (reasoning goes to RATIONALE.md), or raises the ceiling in the same diff.
 BUDGET = {
-    "SKILL.md": 10_237,
-    "references/lead.md": 98_511,
+    "SKILL.md": 10_312,
+    "references/lead.md": 99_355,
     "references/relaunch.md": 4_655,
     "references/herdr-cli.md": 21_073,
     "references/project-config.md": 5_527,
     "references/structural-misfit-policy.md": 9_485,
-    "references/charters.md": 30_108,
+    "references/charters.md": 31_927,
     "references/closeout.md": 12_569,
-    "references/supervisor.md": 26_979,
+    "references/supervisor.md": 27_016,
 }
 
 
