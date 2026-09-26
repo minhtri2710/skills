@@ -135,6 +135,17 @@ class ReviewerCharterTemplateTest(unittest.TestCase):
             self.assertEqual((Path(tmp) / "report-review-x.md").read_text(encoding="utf-8"), body)
             self.assertFalse(marker.exists())
 
+    def test_report_block_sends_every_peer_route_by_prompt(self):
+        lead = (SKILL / "references" / "lead.md").read_text(encoding="utf-8")
+        section = lead.split("\n### Routes\n", 1)[1].split("\n### ", 1)[0]
+        routes = re.findall(r"^- `([A-Z_]+)`", section, re.M)
+        self.assertGreaterEqual(len(routes), 4)
+        lines = [l for l in REPORT_BLOCK.read_text(encoding="utf-8").splitlines() if f"`{routes[0]}`" in l]
+        self.assertEqual(len(lines), 1)
+        for route in routes:
+            self.assertIn(f"`{route}`", lines[0])
+        self.assertIn("send it with the same command", lines[0])
+
     def test_filled_template_lints_ok(self):
         self.assertEqual(self.run_lint(self.filled), (0, ""))
 
