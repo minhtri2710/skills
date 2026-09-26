@@ -111,6 +111,13 @@ class PrePushGuardTest(unittest.TestCase):
         ), 0)
         return self.last_id()
 
+    def correction(self, target: str) -> str:
+        self.assertEqual(self.row(
+            "--kind", "correction", "--status", "recorded:correction", "--void", target,
+            "--words", "seat", "--note", "grant or verdict voided", "--quote", "correction",
+        ), 0)
+        return self.last_id()
+
     def last_id(self) -> str:
         return gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))[-1].split(" | ")[0]
 
@@ -164,6 +171,49 @@ class PrePushGuardTest(unittest.TestCase):
         code, _, err = self.invoke(self.ref_line(self.base, c1))
         self.assertEqual(code, 1)
         self.assertIn("not covered", err)
+
+        self.ledger.write_text("# Gate ledger — test\n\n")
+        self.assertEqual(self.review(self.base, "recorded:review-fail", "FAIL: 2 findings"), 0)
+        self.standing()
+        code, _, err = self.invoke(self.ref_line(self.base, c1))
+        self.assertEqual(code, 1)
+        self.assertIn("not covered", err)
+
+        self.ledger.write_text("# Gate ledger — test\n\n")
+        self.assertEqual(self.review(self.base), 0)
+        review_id = self.last_id()
+        self.correction(review_id)
+        self.standing()
+        code, _, err = self.invoke(self.ref_line(self.base, c1))
+        self.assertEqual(code, 1)
+        self.assertIn("not covered", err)
+        self.assertIn(f"{review_id} review row is void", err)
+
+        self.ledger.write_text("# Gate ledger — test\n\n")
+        self.assertEqual(self.review(self.base), 0)
+        grant_id = self.grant(f"origin refs/heads/main push {self.base}..{c1}")
+        correction = self.correction(grant_id)
+        code, _, err = self.invoke(self.ref_line(self.base, c1))
+        self.assertEqual(code, 1)
+        self.assertIn("no push authority", err)
+        self.assertIn(f"{grant_id} grant is void ({correction})", err)
+        self.assertNotIn("grant is consumed", err)
+
+        self.ledger.write_text("# Gate ledger — test\n\n")
+        self.assertEqual(self.review(self.base), 0)
+        self.standing()
+        self.grant(f"origin refs/heads/main push {self.base}..{c1}")
+        rows = gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))
+        legacy = (f"G3 | 2026-09-06T00:00:00Z | kind=correction | main@{self.base} | "
+                  "status=recorded:correction | record=timely | "
+                  f"prev_hash={gate_row.row_hash(rows[-1])} | words=seat | "
+                  "note=legacy prose correction | quote=\"legacy\"")
+        self.ledger.write_text("# Gate ledger — test\n\n" + "\n".join([*rows, legacy]) + "\n",
+                               encoding="utf-8")
+        self.edit(rows[-1].split(" | ")[0], "kind=push-grant", "kind=standing-delegation")
+        code, out, err = self.invoke(self.ref_line(self.base, c1))
+        self.assertEqual(code, 0, err)
+        self.assertIn("covered", out)
 
     def test_tiled_stack_of_two_reviewed_deliveries_is_allowed(self):
         c1 = self.advance("c1")

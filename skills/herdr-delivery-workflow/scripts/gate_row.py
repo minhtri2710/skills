@@ -11,7 +11,7 @@ Row shape, one line, ` | ` between fields:
       [| channel=<channel>] [| writer=<seat>] | record=<timely|reconstruction>
       [| push=<base>..<head> count=<n> boundary="<declared paths>"
          boundary-check="<paths outside the boundary>"]
-      [| resolves=<id>[,<id>...]]
+      [| resolves=<id>[,<id>...]] [| void=<id>]
       [| op=<command> | after=<branch>@<head>]
       [| who=<delegate> | scope=<scope> | conditions=<conditions> | expiry=<expiry>
          [| push-scope=<remote>:<branch>[,<remote>:<branch>...]]]
@@ -319,9 +319,12 @@ def require_review_coverage(rows: list[str], repo: Path, base: str, head: str) -
     """
     pushed = set(range_commits(repo, base, head))
     covered: set[str] = set()
+    _, _, _, voided_by = open_state(rows)
     for row in rows:
+        fields, _ = split_row(row)
+        gid = fields[0]
         kind, _row_head, status = row_evidence(row)
-        if kind != "review" or status != "recorded:review-pass":
+        if kind != "review" or status != "recorded:review-pass" or gid in voided_by:
             continue
         rng = review_range(row)
         if rng is None:
@@ -332,9 +335,18 @@ def require_review_coverage(rows: list[str], repo: Path, base: str, head: str) -
         covered.update(range_commits(repo, rbase, rhead))
     missing = [sha for sha in pushed if sha not in covered]
     if missing:
+        voided_reviews = []
+        for row in rows:
+            fields, _ = split_row(row)
+            gid = fields[0]
+            kind, _, status = row_evidence(row)
+            rng = review_range(row) if kind == "review" and status == "recorded:review-pass" else None
+            if gid in voided_by and rng and rng[1] in pushed:
+                voided_reviews.append(f"{gid} review row is void ({voided_by[gid]})")
+        detail = f"; {', '.join(voided_reviews)}" if voided_reviews else ""
         raise RowError(
             f"refusing push of {base}..{head}: {', '.join(sorted(missing))} "
-            "is not covered by any review PASS range"
+            f"is not covered by any review PASS range{detail}"
         )
 
 
@@ -408,7 +420,7 @@ def require_grant_consumed(
     rows: list[str], repo: Path, branch: str, base: str, head: str, resolves: list[str],
 ) -> None:
     """A push row resolves every unconsumed origin grant for its branch that holds its range."""
-    _, _, resolved_at = open_state(rows)
+    _, _, resolved_at, _ = open_state(rows)
     for row in rows:
         fields, _ = split_row(row)
         gid = fields[0]
@@ -442,7 +454,7 @@ def require_push_authority(
         op = "push"
     tag = ref.startswith("refs/tags/")
     special = "tag push" if tag else {"force": "force push", "delete": "deletion"}.get(op)
-    _, _, resolved_at = open_state(rows)
+    _, _, resolved_at, voided_by = open_state(rows)
     reasons: list[str] = []
     for index, row in enumerate(rows):
         fields, _ = split_row(row)
@@ -459,7 +471,10 @@ def require_push_authority(
                 reasons.append(f"{gid} grant scope is range {grant['base']}..{grant['tip']}")
                 continue
             if closed:
-                reasons.append(f"{gid} grant is consumed")
+                if gid in voided_by:
+                    reasons.append(f"{gid} grant is void ({voided_by[gid]})")
+                else:
+                    reasons.append(f"{gid} grant is consumed")
                 continue
             return gid
         if kind == "standing-delegation":
@@ -519,6 +534,7 @@ def required_fields(rest: list[str], index: int, names: tuple[str, ...], kind: s
 
 def reject_special_fields(args: argparse.Namespace, kind: str) -> None:
     allowed = {
+        "correction": {"--void"},
         "local-ops": {"--op", "--after"},
         "standing-delegation": {"--who", "--scope", "--conditions", "--expiry", "--push-scope"},
         "repair-grant": {"--finding"},
@@ -532,8 +548,11 @@ def reject_special_fields(args: argparse.Namespace, kind: str) -> None:
         ("--finding", getattr(args, "finding", "")),
         ("--push-scope", getattr(args, "push_scope", "")),
         ("--grant", getattr(args, "grant", "")),
+        ("--void", getattr(args, "void", [])),
     )
     for flag, value in supplied:
+        if flag == "--void" and value and flag not in allowed:
+            raise RowError(f"--void is only meaningful on kind=correction, not kind={kind}")
         if value and flag not in allowed:
             raise RowError(f"{flag} is only meaningful on its corresponding special row, not kind={kind}")
 
@@ -586,8 +605,8 @@ def require_repair_progress(rows: list[str], finding: str) -> None:
         refuse_repair_cap(finding)
 
 
-def structured_row(row: str) -> tuple[str, str, list[str]]:
-    """Read only the structured fields needed for open-gate derivation."""
+def structured_row(row: str) -> tuple[str, str, list[str], str, str | None]:
+    """Read the structured fields needed for gate state and correction derivation."""
     fields, _ = split_row(row)
     status_fields = [field for field in fields if field.startswith("status=")]
     if len(status_fields) != 1:
@@ -599,26 +618,42 @@ def structured_row(row: str) -> tuple[str, str, list[str]]:
     if len(resolve_fields) > 1:
         raise RowError(f"row {fields[0]!r} carries more than one resolves=")
     resolves = parse_resolves(resolve_fields[0].split("=", 1)[1]) if resolve_fields else []
-    return fields[0], status, resolves
+    kind = fields[2].split("=", 1)[1] if fields[2].startswith("kind=") else ""
+    void_fields = [field for field in fields if field.startswith("void=")]
+    if len(void_fields) > 1:
+        raise RowError(f"row {fields[0]!r} carries more than one void=")
+    if void_fields and kind != "correction":
+        raise RowError(f"void= is only on a kind=correction row, not kind={kind}")
+    void = void_fields[0].split("=", 1)[1] if void_fields else None
+    if void is not None and (status != "recorded:correction" or not RESOLVE_ID_RE.fullmatch(void)):
+        raise RowError(f"kind=correction has an invalid status= or void= field: {fields[0]!r}")
+    return fields[0], status, resolves, kind, void
 
 
-def open_state(rows: list[str]) -> tuple[dict[str, tuple[int, str]], set[str], dict[str, int]]:
-    """Return latest own rows, ids ever opened, and latest resolver positions."""
+def open_state(
+    rows: list[str],
+) -> tuple[dict[str, tuple[int, str]], set[str], dict[str, int], dict[str, str]]:
+    """Return latest rows, opened ids, closure positions, and the correction for each void."""
     latest: dict[str, tuple[int, str]] = {}
     ever_open: set[str] = set()
     resolved_at: dict[str, int] = {}
+    voided_by: dict[str, str] = {}
     for index, row in enumerate(rows):
-        gid, status, resolves = structured_row(row)
+        gid, status, resolves, _kind, void = structured_row(row)
         latest[gid] = (index, status)
         if status == "open":
             ever_open.add(gid)
         for target in resolves:
             resolved_at[target] = index
-    return latest, ever_open, resolved_at
+        if void is not None:
+            validate_void_target(void, rows[:index], voided_by)
+            voided_by[void] = gid
+            resolved_at[void] = index
+    return latest, ever_open, resolved_at, voided_by
 
 
 def open_gate_ids(rows: list[str]) -> list[str]:
-    latest, _, resolved_at = open_state(rows)
+    latest, _, resolved_at, _ = open_state(rows)
     open_rows = [
         (index, gid)
         for gid, (index, status) in latest.items()
@@ -629,7 +664,7 @@ def open_gate_ids(rows: list[str]) -> list[str]:
 
 def require_open_targets(rows: list[str], targets: list[str]) -> None:
     """Resolve only an open gate, or revoke only an unrevoked standing delegation."""
-    latest, ever_open, resolved_at = open_state(rows)
+    latest, ever_open, resolved_at, _ = open_state(rows)
     standing = {
         split_row(row)[0][0]: index for index, row in enumerate(rows)
         if row_evidence(row)[0] == "standing-delegation"
@@ -644,6 +679,23 @@ def require_open_targets(rows: list[str], targets: list[str]) -> None:
             raise RowError(f"resolves={target} refused: never-open")
         if own is None or own[1] != "open" or resolved_at.get(target, -1) > own[0]:
             raise RowError(f"resolves={target} refused: already-closed")
+
+
+def validate_void_target(target: str, prior_rows: list[str], voided_by: dict[str, str]) -> None:
+    """Require one earlier, eligible ledger row that no correction already voided."""
+    if not target or not RESOLVE_ID_RE.fullmatch(target):
+        raise RowError(f"void={target!r} is an empty or malformed id")
+    row = next((row for row in prior_rows if split_row(row)[0][0] == target), None)
+    if row is None:
+        raise RowError(f"void={target} refused: target is not an earlier row of this ledger")
+    kind, _, status = row_evidence(row)
+    if not (kind == "review" and status == "recorded:review-pass") and kind != "push-grant":
+        raise RowError(
+            f"void={target} refused: target must be a kind=review status=recorded:review-pass "
+            "row or a kind=push-grant row"
+        )
+    if target in voided_by:
+        raise RowError(f"void={target} refused: already voided by {voided_by[target]}")
 
 
 def range_commits(repo: Path, base: str, head: str) -> list[str]:
@@ -714,11 +766,16 @@ def resolve_row_head(args: argparse.Namespace, repo: Path, record: str) -> tuple
         )
     branch, head = match.group("branch"), match.group("head")
     git(repo, "rev-parse", "--verify", f"{head}^{{commit}}")
-    if head != current_head and record != "reconstruction":
-        raise RowError(
-            f"--head {requested} differs from repository HEAD {current_head}; "
-            "use --record reconstruction to record a past head"
+    if head != current_head:
+        timely_review = (
+            getattr(args, "kind", "") == "review"
+            and is_ancestor(repo, head, current_head)
         )
+        if not timely_review and record != "reconstruction":
+            raise RowError(
+                f"--head {requested} differs from repository HEAD {current_head}; "
+                "use --record reconstruction to record a past head"
+            )
     return branch, head
 
 
@@ -772,6 +829,17 @@ def build(args: argparse.Namespace, repo: Path,
     kind = args.kind
     reject_special_fields(args, kind)
     special_fields: list[str] = []
+    if kind == "correction":
+        if args.status != "recorded:correction":
+            raise RowError("kind=correction requires status=recorded:correction")
+        void_values = getattr(args, "void", None) or []
+        if not void_values:
+            raise RowError("kind=correction requires --void <id>")
+        if len(void_values) != 1:
+            raise RowError("kind=correction requires exactly one --void <id>")
+        target = void_values[0]
+        validate_void_target(target, existing_rows, open_state(existing_rows)[3])
+        special_fields.append(f"void={target}")
     if kind == "local-ops":
         if args.status != LOCAL_OPS_STATUS:
             raise RowError(f"kind=local-ops requires status={LOCAL_OPS_STATUS}")
@@ -944,7 +1012,7 @@ def check(row: str, repo: Path, prior_rows: list[str] | None = None,
     git(repo, "rev-parse", "--verify", f"{m.group('head')}^{{commit}}")
 
     known = (
-        "channel=", "writer=", "record=", "push=", "review=", "resolves=", "op=", "after=",
+        "channel=", "writer=", "record=", "push=", "review=", "resolves=", "void=", "op=", "after=",
         "who=", "scope=", "conditions=", "expiry=", "push-scope=", "grant=", "finding=", "archive=", "prev_hash=", "words=", "note=",
     )
     for field in rest:
@@ -999,6 +1067,22 @@ def check(row: str, repo: Path, prior_rows: list[str] | None = None,
     if index < len(rest) and rest[index].startswith("resolves="):
         resolves = parse_resolves(rest[index].split("=", 1)[1])
         index += 1
+
+    void_fields = [field for field in rest if field.startswith("void=")]
+    if len(void_fields) > 1:
+        raise RowError(f"row {gid!r} carries more than one void=")
+    void_target = None
+    if index < len(rest) and rest[index].startswith("void="):
+        void_target = rest[index].split("=", 1)[1]
+        index += 1
+    if row_kind == "correction":
+        if status != "status=recorded:correction":
+            raise RowError("kind=correction requires status=recorded:correction")
+        if void_target is None:
+            raise RowError("kind=correction requires exactly one void= field after resolves=")
+        validate_void_target(void_target, prior_rows or [], open_state(prior_rows or [])[3])
+    elif void_fields:
+        raise RowError(f"void= is only on a kind=correction row, not kind={row_kind}")
 
     if row_kind == "local-ops":
         values, index = required_fields(rest, index, ("op", "after"), row_kind)
@@ -1217,6 +1301,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--grant", help="a one-shot push-grant: <remote> <ref> <push|force|delete> "
                         "<base>..<tip>, full SHAs")
     parser.add_argument("--finding", help="the repair-grant finding identity")
+    parser.add_argument("--void", action="append", default=[],
+                        help="the earlier review-pass or push-grant row a correction voids")
     parser.add_argument("--record", choices=RECORD_VALUES)
     parser.add_argument("--head", help="the row head as <branch>@<full 40-hex commit SHA>; "
                         "a past head requires --record reconstruction")
@@ -1250,7 +1336,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.open_gates:
             ignored = (
                 args.kind, args.status, args.channel, args.writer, args.op, args.after,
-                args.who, args.scope, args.conditions, args.expiry, args.push_scope, args.grant, args.finding,
+                args.who, args.scope, args.conditions, args.expiry, args.push_scope, args.grant, args.finding, args.void,
                 args.record, args.head, args.push_base, args.review_base, args.boundary, args.resolves, args.words,
                 args.note, args.quote, args.quote_file, args.mailbox,
             )

@@ -88,6 +88,14 @@ class GateRowTest(unittest.TestCase):
             "--words", "seat", "--note", "review failed", "--quote", "FAIL",
         ])
 
+    def append_correction(self, target: str, *extra: str) -> int:
+        return self.run_main([
+            "--ledger", str(self.ledger), "--repo", str(self.repo),
+            "--kind", "correction", "--status", "recorded:correction",
+            "--void", target, "--words", "seat", "--note", "verdict corrected",
+            "--quote", "correction recorded", *extra,
+        ])
+
     def append_local_ops(self, *extra: str) -> int:
         return self.run_main([
             "--ledger", str(self.ledger), "--repo", str(self.repo),
@@ -695,6 +703,71 @@ class GateRowTest(unittest.TestCase):
         self.assertEqual(self.append("--resolves", "G1"), 1)
         self.assertIn("G1", self.err.getvalue())
         self.assertIn("already-closed", self.err.getvalue())
+        rows = [
+            self.fixture_row("G1", "open", "none", "", kind="push-grant"),
+            self.fixture_row("G2", "recorded:correction", kind="correction").replace(
+                " | words=", " | void=G1 | words=", 1
+            ),
+        ]
+        self.ledger.write_text("# fixture\n" + "\n".join(self.chained(rows)) + "\n")
+        self.assertEqual(self.open_gates(), [])
+        legacy = self.fixture_row("G3", "recorded:correction", kind="correction")
+        self.ledger.write_text(legacy + "\n", encoding="utf-8")
+        self.assertEqual(self.open_gates(), [])
+
+        self.assertEqual(self.append_review_pass(), 0)
+        review_id = self.last_row().split(" | ")[0]
+        self.assertEqual(self.append_correction(review_id), 0, self.err.getvalue())
+        self.assertIn(f" | void={review_id} | ", self.last_row())
+        self.assertEqual(self.check_last(), 0, self.err.getvalue())
+        self.assertEqual(self.append_correction(review_id), 1)
+        self.assertIn("already voided", self.err.getvalue())
+        self.assertEqual(self.append_correction("G404"), 1)
+        self.assertIn("not an earlier row of this ledger", self.err.getvalue())
+        self.ledger.write_text(self.fixture_row("G1", "open", kind="merge") + "\n",
+                               encoding="utf-8")
+        self.assertEqual(self.append_correction("G1"), 1)
+        self.assertIn("target must be a kind=review", self.err.getvalue())
+
+        for args, reason in (
+            (("--kind", "correction", "--status", "recorded:wrong", "--void", review_id),
+             "requires status=recorded:correction"),
+            (("--kind", "correction", "--status", "recorded:correction"), "requires --void"),
+            (("--kind", "correction", "--status", "recorded:correction",
+              "--void", review_id, "--void", review_id), "exactly one --void"),
+            (("--void", review_id), "only meaningful on kind=correction"),
+        ):
+            self.assertEqual(self.append(*args), 1)
+            self.assertIn(reason, self.err.getvalue())
+
+        prior = self.fixture_row("G1", "open", kind="merge")
+        bad_rows = [
+            (self.fixture_row("G2", "recorded:correction", kind="merge").replace(
+                " | words=", " | void=G1 | words=", 1), "only on a kind=correction"),
+            (self.fixture_row("G2", "recorded:wrong", kind="correction").replace(
+                " | words=", " | void=G1 | words=", 1), "requires status=recorded:correction"),
+            (self.fixture_row("G2", "recorded:correction", kind="correction"), "requires exactly one void="),
+            (self.fixture_row("G2", "recorded:correction", kind="correction").replace(
+                " | words=", " | void=G1 | words=", 1), "target must be a kind=review"),
+            (self.fixture_row("G2", "recorded:correction", kind="correction").replace(
+                " | words=", " | void=G404 | words=", 1), "not an earlier row of this ledger"),
+            (self.fixture_row("G2", "recorded:correction", kind="correction").replace(
+                " | words=", " | void=G1 | void=G1 | words=", 1), "more than one void="),
+        ]
+        for row, reason in bad_rows:
+            row = row.replace(" | words=", f" | prev_hash={gate_row.row_hash(prior)} | words=", 1)
+            with self.subTest(reason=reason), self.assertRaisesRegex(gate_row.RowError, re.escape(reason)):
+                gate_row.check(row, self.repo, [prior])
+
+        review = self.fixture_row("G1", "recorded:review-pass", kind="review")
+        first = self.fixture_row("G2", "recorded:correction", kind="correction").replace(
+            " | words=", " | void=G1 | words=", 1
+        ).replace(" | words=", f" | prev_hash={gate_row.row_hash(review)} | words=", 1)
+        repeated = self.fixture_row("G3", "recorded:correction", kind="correction").replace(
+            " | words=", " | void=G1 | words=", 1
+        ).replace(" | words=", f" | prev_hash={gate_row.row_hash(first)} | words=", 1)
+        with self.assertRaisesRegex(gate_row.RowError, "already voided"):
+            gate_row.check(repeated, self.repo, [review, first])
 
     def test_open_gate_mode_uses_last_rows_and_structured_resolves_only(self):
         rows = [
@@ -705,6 +778,11 @@ class GateRowTest(unittest.TestCase):
             self.fixture_row("G28", "open", "none", ""),
             self.fixture_row("G29", "resolved:done", resolves="G28"),
             self.fixture_row("G30", "open", "none", ""),
+            self.fixture_row("G31", "open", "none", "", kind="push-grant"),
+            self.fixture_row("G32", "recorded:correction", kind="correction").replace(
+                " | words=", " | void=G31 | words=", 1
+            ),
+            self.fixture_row("G33", "recorded:correction", kind="correction"),
         ]
         self.ledger.write_text("# fixture\n" + "\n".join(self.chained(rows)) + "\n")
         self.assertEqual(self.open_gates(), ["G27", "G30"])
@@ -755,6 +833,26 @@ class GateRowTest(unittest.TestCase):
         ), 0)
         self.assertIn(f"main@{past}", self.last_row())
         self.assertNotIn(current, self.last_row().split(" | ")[3])
+
+        (self.repo / "later.txt").write_text("later\n")
+        self.git("add", "later.txt")
+        self.git("commit", "-qm", "later review time")
+        self.assertEqual(self.append(
+            "--kind", "review", "--status", "recorded:review-pass",
+            "--review-base", self.rev("HEAD~3"), "--head", f"main@{past}",
+            "--words", "seat", "--note", "replacement review", "--quote", "PASS",
+        ), 0, self.err.getvalue())
+        self.assertIn(f"main@{past}", self.last_row().split(" | ")[3])
+        self.assertIn("record=timely", self.last_row())
+        self.assertEqual(self.check_last(), 0, self.err.getvalue())
+        self.assertEqual(self.append(
+            "--kind", "review", "--status", "recorded:review-pass",
+            "--review-base", self.rev("HEAD~3"), "--head", f"main@{past}",
+            "--record", "reconstruction", "--words", "seat",
+            "--note", "reconstructed replacement review", "--quote", "PASS",
+        ), 0, self.err.getvalue())
+        self.assertIn("record=reconstruction", self.last_row())
+        self.assertEqual(self.check_last(), 0, self.err.getvalue())
 
     def test_zero_base_review_includes_the_root_commit(self):
         zero = "0" * 40

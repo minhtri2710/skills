@@ -8,6 +8,9 @@ scripts/gate_row.py --ledger ~/.herdr/projects/<project-slug>/gates.md --kind st
 # A delegation covering pushes adds --push-scope <remote>:<branch>[,...], and its --expiry is
 # an ISO-8601 UTC timestamp or until-revoked; without --push-scope it authorizes no push.
 
+correction (void one earlier review-pass or push-grant row):
+scripts/gate_row.py --ledger ~/.herdr/projects/<project-slug>/gates.md --kind correction --status recorded:correction --void <id> --words seat --note "<why the verdict or grant does not stand>" --quote "<correction source>"
+
 push-grant (one-shot; consumed by the kind=push row that resolves it):
 scripts/gate_row.py --ledger ~/.herdr/projects/<project-slug>/gates.md --kind push-grant --status open --writer supervisor --channel supervisor-relay:typed --grant "<remote> <refs/heads/..|refs/tags/..> <push|force|delete> <full base>..<full tip>" --words human --note "<note>" --quote "<the Human's verbatim grant>"
 
