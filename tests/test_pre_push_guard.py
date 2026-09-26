@@ -201,16 +201,24 @@ class PrePushGuardTest(unittest.TestCase):
 
         self.ledger.write_text("# Gate ledger — test\n\n")
         self.assertEqual(self.review(self.base), 0)
-        self.standing()
-        self.grant(f"origin refs/heads/main push {self.base}..{c1}")
+        grant_id = self.grant(f"origin refs/heads/main push {self.base}..{c1}")
         rows = gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))
-        legacy = (f"G3 | 2026-09-06T00:00:00Z | kind=correction | main@{self.base} | "
+        for index, row in enumerate(rows):
+            with self.subTest(checked_row=row.split(" | ")[0]):
+                gate_row.check(row, self.repo, rows[:index])
+        legacy_id = f"G{gate_row.next_id_from_rows(rows)}"
+        legacy = (f"{legacy_id} | 2026-09-06T00:00:00Z | kind=correction | main@{self.base} | "
                   "status=recorded:correction | record=timely | "
                   f"prev_hash={gate_row.row_hash(rows[-1])} | words=seat | "
                   "note=legacy prose correction | quote=\"legacy\"")
         self.ledger.write_text("# Gate ledger — test\n\n" + "\n".join([*rows, legacy]) + "\n",
                                encoding="utf-8")
-        self.edit(rows[-1].split(" | ")[0], "kind=push-grant", "kind=standing-delegation")
+        loaded_rows = gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))
+        self.assertEqual(loaded_rows[-1], legacy)
+        self.assertEqual(gate_row.require_push_authority(
+            loaded_rows, self.repo, "origin", "refs/heads/main", self.base, c1,
+            datetime.now(timezone.utc),
+        ), grant_id)
         code, out, err = self.invoke(self.ref_line(self.base, c1))
         self.assertEqual(code, 0, err)
         self.assertIn("covered", out)

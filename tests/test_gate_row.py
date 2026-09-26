@@ -711,6 +711,8 @@ class GateRowTest(unittest.TestCase):
         ]
         self.ledger.write_text("# fixture\n" + "\n".join(self.chained(rows)) + "\n")
         self.assertEqual(self.open_gates(), [])
+        self.assertEqual(self.append("--resolves", "G1"), 1)
+        self.assertIn("already-closed", self.err.getvalue())
         legacy = self.fixture_row("G3", "recorded:correction", kind="correction")
         self.ledger.write_text(legacy + "\n", encoding="utf-8")
         self.assertEqual(self.open_gates(), [])
@@ -758,6 +760,18 @@ class GateRowTest(unittest.TestCase):
             row = row.replace(" | words=", f" | prev_hash={gate_row.row_hash(prior)} | words=", 1)
             with self.subTest(reason=reason), self.assertRaisesRegex(gate_row.RowError, re.escape(reason)):
                 gate_row.check(row, self.repo, [prior])
+
+        failed_review = self.fixture_row("G1", "recorded:review-fail", kind="review")
+        voided_failed_review = self.fixture_row(
+            "G2", "recorded:correction", kind="correction"
+        ).replace(" | words=", " | void=G1 | words=", 1)
+        voided_failed_review = voided_failed_review.replace(
+            " | words=", f" | prev_hash={gate_row.row_hash(failed_review)} | words=", 1
+        )
+        with self.assertRaisesRegex(
+            gate_row.RowError, "target must be a kind=review status=recorded:review-pass"
+        ):
+            gate_row.check(voided_failed_review, self.repo, [failed_review])
 
         review = self.fixture_row("G1", "recorded:review-pass", kind="review")
         first = self.fixture_row("G2", "recorded:correction", kind="correction").replace(
