@@ -449,7 +449,8 @@ class RosterTest(unittest.TestCase):
         rc, lines, error = self._drift(
             [next(item for item in agents if item["name"] == "eng-bare-route")],
             argv, ["eng-bare-route:engineer"], config=bare_config,
-            pi_sessions={"w1:p17": pi_sessions["w1:p17"]}, process_start=process_start,
+            pi_sessions={"w1:p17": [session("eng-bare-route", [{"type": "model_change", "provider": "other", "modelId": "luna"}])]},
+            process_start=process_start,
         )
         self.assertEqual((rc, error, lines), (0, "", []))
         rc, lines, error = self._drift(agents[:5], argv, seats[:5])
