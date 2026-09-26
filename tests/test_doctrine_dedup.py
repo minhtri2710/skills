@@ -25,10 +25,10 @@ BUDGET = {
     "SKILL.md": 10_312,
     "references/lead.md": 100_081,
     "references/relaunch.md": 4_655,
-    "references/herdr-cli.md": 21_073,
+    "references/herdr-cli.md": 21_312,
     "references/project-config.md": 5_527,
     "references/structural-misfit-policy.md": 9_485,
-    "references/charters.md": 32_367,
+    "references/charters.md": 32_533,
     "references/closeout.md": 12_569,
     "references/supervisor.md": 27_016,
 }
