@@ -267,8 +267,6 @@ def _launch_args(pane_id: str, kind: str) -> list[str] | None:
         processes = json.loads(proc.stdout)["result"]["process_info"]["foreground_processes"]
     except (json.JSONDecodeError, KeyError, TypeError) as exc:
         raise ValueError(f"process-info JSON for {pane_id} lacks foreground_processes") from exc
-    if not isinstance(processes, list):
-        raise ValueError(f"process-info JSON for {pane_id} lacks foreground_processes")
     for process in processes:
         if not isinstance(process, dict):
             continue

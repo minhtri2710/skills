@@ -317,13 +317,21 @@ class RosterTest(unittest.TestCase):
             agent("w1:p6", "unlisted", "claude"),
             agent("w1:p7", "eng-noargv", "pi"),
             agent("w1:p8", "review-noargv", "claude"),
+            agent("w1:p9", "review-noargs", "agy"),
         ]
         argv = {
             "w1:p1": ["node", "/opt/bin/pi", "--approve", "--model", "prov/luna", "--no-skills"],
             "w1:p2": ["pi", "--model", "prov/flash"],
             "w1:p3": ["pi", "--model", "prov/old"],
-            "w1:p4": ["/usr/local/bin/claude", "--model", "claude-opus-5-5", "--effort", "low"],
+            "w1:p4": {
+                "argv0": "claude",
+                "argv": ["claude", "--model", "claude-opus-5-5", "--effort", "low"],
+                "cwd": "/Users/beowulf/Work/beo-skills",
+                "name": "2.1.283",
+                "pid": 6753,
+            },
             "w1:p5": ["agy", "--dangerously-skip-permissions"],
+            "w1:p9": {"argv0": "agy", "cwd": "/tmp", "name": "agy", "pid": 100},
             "w1:p7": {
                 "argv0": "pi", "cwd": "/Users/beowulf/Work/beo-skills",
                 "name": "node", "pid": 14423,
@@ -332,7 +340,7 @@ class RosterTest(unittest.TestCase):
         }
         seats = ["eng-primary:engineer", "eng-fallback:engineer", "eng-model:engineer",
                  "eng-kind:engineer", "review-a:reviewer", "eng-noargv:engineer",
-                 "review-noargv:reviewer"]
+                 "review-noargv:reviewer", "review-noargs:reviewer"]
         rc, lines, error = self._drift(agents, argv, seats)
         self.assertEqual((rc, error), (1, ""))
         self.assertEqual(lines, [
