@@ -51,7 +51,7 @@ class PrePushGuardTest(unittest.TestCase):
         self.git("commit", "-qm", "base")
         # A bare origin the guard's manual mode and the pushed range resolve against.
         self.origin = self.tmp / "origin.git"
-        subprocess.run(["git", "init", "-q", "--bare", str(self.origin)], check=True)
+        subprocess.run(["git", "init", "-q", "--bare", str(self.origin)], check=True, stdin=subprocess.DEVNULL)
         self.git("remote", "add", "origin", str(self.origin))
         self.git("push", "-q", "origin", "main")
         self.base = self.rev("HEAD")
@@ -61,12 +61,12 @@ class PrePushGuardTest(unittest.TestCase):
 
     def git(self, *args: str) -> None:
         subprocess.run(["git", "-C", str(self.repo), *args], check=True,
-                       capture_output=True, text=True)
+                       capture_output=True, text=True, stdin=subprocess.DEVNULL)
 
     def rev(self, ref: str) -> str:
         return subprocess.run(
             ["git", "-C", str(self.repo), "rev-parse", ref],
-            check=True, capture_output=True, text=True,
+            check=True, capture_output=True, text=True, stdin=subprocess.DEVNULL,
         ).stdout.strip()
 
     def advance(self, msg: str) -> str:
@@ -77,7 +77,7 @@ class PrePushGuardTest(unittest.TestCase):
 
     def set_empty_origin(self) -> None:
         empty = self.tmp / "empty-origin.git"
-        subprocess.run(["git", "init", "-q", "--bare", str(empty)], check=True)
+        subprocess.run(["git", "init", "-q", "--bare", str(empty)], check=True, stdin=subprocess.DEVNULL)
         self.git("remote", "set-url", "origin", str(empty))
 
     def review(self, base: str, status: str = "recorded:review-pass", quote: str = "PASS") -> int:
@@ -366,7 +366,7 @@ class PrePushGuardTest(unittest.TestCase):
 
     def test_hook_remote_decides_first_publication_not_origin(self):
         other = self.tmp / "other.git"
-        subprocess.run(["git", "init", "-q", "--bare", str(other)], check=True)
+        subprocess.run(["git", "init", "-q", "--bare", str(other)], check=True, stdin=subprocess.DEVNULL)
         self.git("remote", "add", "other", str(other))
         c1 = self.advance("c1")
         self.assertEqual(self.review(ZERO), 0)
@@ -397,7 +397,7 @@ class PrePushGuardTest(unittest.TestCase):
 
         def push() -> subprocess.CompletedProcess:
             return subprocess.run(["git", "-C", str(self.repo), "push", "origin", "main"],
-                                  capture_output=True, text=True)
+                                  capture_output=True, text=True, stdin=subprocess.DEVNULL)
 
         c1 = self.rev("HEAD")
         self.assertEqual(self.review(self.base), 0)
@@ -423,7 +423,7 @@ class PrePushGuardTest(unittest.TestCase):
 
         def push() -> subprocess.CompletedProcess:
             return subprocess.run(["git", "-C", str(self.repo), "push", "origin", "feature"],
-                                  capture_output=True, text=True)
+                                  capture_output=True, text=True, stdin=subprocess.DEVNULL)
 
         refused = push()
         self.assertNotEqual(refused.returncode, 0)
@@ -452,7 +452,7 @@ class PrePushGuardTest(unittest.TestCase):
         x = self.advance("x")
         self.git("push", "-q", "origin", "old")
         subprocess.run(["git", "-C", str(self.origin), "branch", "-D", "old"],
-                       check=True, capture_output=True)
+                       check=True, capture_output=True, stdin=subprocess.DEVNULL)
         self.assertEqual(self.rev("refs/remotes/origin/old"), x)  # unpruned, stale
         self.git("checkout", "-qb", "feature")
         f = self.advance("f")
@@ -460,21 +460,21 @@ class PrePushGuardTest(unittest.TestCase):
         self.grant(f"origin refs/heads/feature push {x}..{f}")
         self.hook_wrapper()
         pushed = subprocess.run(["git", "-C", str(self.repo), "push", "origin", "feature"],
-                                capture_output=True, text=True)
+                                capture_output=True, text=True, stdin=subprocess.DEVNULL)
         self.assertNotEqual(pushed.returncode, 0)
         self.assertIn(f"refusing push of {self.base}..{f}", pushed.stderr)
         branches = subprocess.run(["git", "-C", str(self.origin), "branch", "--contains", x],
-                                  capture_output=True, text=True).stdout
+                                  capture_output=True, text=True, stdin=subprocess.DEVNULL).stdout
         self.assertEqual(branches.strip(), "")
 
     def test_a_remote_tip_missing_locally_refuses_a_new_branch_naming_it(self):
         other = self.tmp / "other-clone"
-        subprocess.run(["git", "clone", "-q", str(self.origin), str(other)], check=True)
+        subprocess.run(["git", "clone", "-q", str(self.origin), str(other)], check=True, stdin=subprocess.DEVNULL)
         for args in (("config", "user.email", "t@example.invalid"), ("config", "user.name", "t"),
                      ("commit", "-q", "--allow-empty", "-m", "elsewhere"), ("push", "-q", "origin", "HEAD:side")):
-            subprocess.run(["git", "-C", str(other), *args], check=True, capture_output=True)
+            subprocess.run(["git", "-C", str(other), *args], check=True, capture_output=True, stdin=subprocess.DEVNULL)
         unseen = subprocess.run(["git", "-C", str(other), "rev-parse", "HEAD"],
-                                check=True, capture_output=True, text=True).stdout.strip()
+                                check=True, capture_output=True, text=True, stdin=subprocess.DEVNULL).stdout.strip()
         self.git("checkout", "-qb", "feature")
         f = self.advance("f")
         self.assertEqual(self.review(self.base), 0)
@@ -508,7 +508,7 @@ class PrePushGuardTest(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn("grant scope is origin refs/heads/main push", err)
         other = self.tmp / "other.git"
-        subprocess.run(["git", "init", "-q", "--bare", str(other)], check=True)
+        subprocess.run(["git", "init", "-q", "--bare", str(other)], check=True, stdin=subprocess.DEVNULL)
         code, _, err = self.invoke(self.ref_line(self.base, c1), ("other", str(other)))
         self.assertEqual(code, 1)
         self.assertIn("grant scope is origin refs/heads/main push", err)
@@ -674,10 +674,10 @@ class PrePushGuardTest(unittest.TestCase):
         worktree = self.tmp / "wt"
         self.git("worktree", "add", "-q", "-b", "side", str(worktree))
         (worktree / "s.txt").write_text("s\n")
-        subprocess.run(["git", "-C", str(worktree), "add", "s.txt"], check=True)
-        subprocess.run(["git", "-C", str(worktree), "commit", "-qm", "s1"], check=True)
+        subprocess.run(["git", "-C", str(worktree), "add", "s.txt"], check=True, stdin=subprocess.DEVNULL)
+        subprocess.run(["git", "-C", str(worktree), "commit", "-qm", "s1"], check=True, stdin=subprocess.DEVNULL)
         s1 = subprocess.run(["git", "-C", str(worktree), "rev-parse", "HEAD"],
-                            capture_output=True, text=True, check=True).stdout.strip()
+                            capture_output=True, text=True, check=True, stdin=subprocess.DEVNULL).stdout.strip()
         self.repo = worktree
         self.assertEqual(self.review(self.base), 0)
         self.grant(f"origin refs/heads/side push {self.base}..{s1}")
@@ -810,7 +810,7 @@ class PushDigestTest(unittest.TestCase):
         repo = root / "repo"
         repo.mkdir(parents=True)
         origin = root / "origin.git"
-        subprocess.run(["git", "init", "-q", "--bare", str(origin)], check=True)
+        subprocess.run(["git", "init", "-q", "--bare", str(origin)], check=True, stdin=subprocess.DEVNULL)
         for args in (("init", "-q", "-b", "main"), ("config", "user.email", "t@example.invalid"),
                      ("config", "user.name", "t"), ("remote", "add", "origin", str(origin))):
             self.git(repo, *args)
@@ -823,7 +823,7 @@ class PushDigestTest(unittest.TestCase):
 
     def git(self, repo: Path, *args: str) -> str:
         return subprocess.run(["git", "-C", str(repo), *args], check=True,
-                              capture_output=True, text=True).stdout.strip()
+                              capture_output=True, text=True, stdin=subprocess.DEVNULL).stdout.strip()
 
     def advance(self, repo: Path, msg: str) -> str:
         (repo / "file.txt").write_text(f"{msg}\n")
@@ -1260,11 +1260,11 @@ class PushDigestTest(unittest.TestCase):
                         f"--repo {shlex.quote(str(repo))} \"$@\"\n")
         hook.chmod(0o755)
         push = ["git", "-C", str(repo), "push", "-q", "origin"]
-        self.assertNotEqual(subprocess.run([*push, "low"], capture_output=True).returncode, 0)
+        self.assertNotEqual(subprocess.run([*push, "low"], capture_output=True, stdin=subprocess.DEVNULL).returncode, 0)
         self.assertEqual(self.grant((ledger, repo))[0], 0)
         self.assertEqual(len(self.grant_rows(ledger)), 2)
         for name in ("low", "high"):
-            subprocess.run([*push, name], check=True, capture_output=True)
+            subprocess.run([*push, name], check=True, capture_output=True, stdin=subprocess.DEVNULL)
 
     def test_first_publication_is_not_ready_while_unreachable_then_offered_and_its_grant_passes_the_guard(self):
         ledger, repo, root = self.project("alpha", pushed=False)
@@ -1287,7 +1287,7 @@ class PushDigestTest(unittest.TestCase):
                         f"{shlex.quote(str(SCRIPTS / 'pre_push_guard.py'))} --ledger {shlex.quote(str(ledger))} "
                         f"--repo {shlex.quote(str(repo))} \"$@\"\n")
         hook.chmod(0o755)
-        subprocess.run(["git", "-C", str(repo), "push", "-q", "origin", "main"], check=True, capture_output=True)
+        subprocess.run(["git", "-C", str(repo), "push", "-q", "origin", "main"], check=True, capture_output=True, stdin=subprocess.DEVNULL)
 
     def test_an_open_push_grant_row_is_not_listed_as_a_gate(self):
         ledger, repo, base = self.project("alpha")

@@ -80,11 +80,11 @@ class ReviewerCharterTemplateTest(unittest.TestCase):
         cls.repo = Path(cls._repo_tmp.name)
         cls.addClassCleanup(cls._repo_tmp.cleanup)
         git = ["git", "-C", str(cls.repo), "-c", "user.name=t", "-c", "user.email=t@example.com"]
-        subprocess.run([*git, "init", "-q"], check=True)
+        subprocess.run([*git, "init", "-q"], check=True, stdin=subprocess.DEVNULL)
         for message in ("base", "head"):
-            subprocess.run([*git, "commit", "-q", "--allow-empty", "-m", message], check=True)
+            subprocess.run([*git, "commit", "-q", "--allow-empty", "-m", message], check=True, stdin=subprocess.DEVNULL)
         cls.base, cls.head = subprocess.run(
-            [*git, "rev-parse", "HEAD~1", "HEAD"], check=True, capture_output=True, text=True
+            [*git, "rev-parse", "HEAD~1", "HEAD"], check=True, capture_output=True, text=True, stdin=subprocess.DEVNULL
         ).stdout.split()
 
     def setUp(self):
@@ -134,7 +134,7 @@ class ReviewerCharterTemplateTest(unittest.TestCase):
             )
             command = form.group(1).replace("<run-dir>", tmp).replace("<peer-name>", "review-x")
             delimiter = form.group(2).strip("'\"").replace("<peer-name>", "review-x")
-            subprocess.run(["bash", "-c", f"{command}\n{body}{delimiter}\n"], check=True)
+            subprocess.run(["bash", "-c", f"{command}\n{body}{delimiter}\n"], check=True, stdin=subprocess.DEVNULL)
             self.assertEqual((Path(tmp) / "report-review-x.md").read_text(encoding="utf-8"), body)
             self.assertFalse(marker.exists())
 
@@ -151,7 +151,7 @@ class ReviewerCharterTemplateTest(unittest.TestCase):
 
     @unittest.skipUnless(shutil.which("sandbox-exec"), "sandbox-exec is macOS-only")
     def test_write_fence_admits_only_its_targets(self):
-        if subprocess.run(["sandbox-exec", "-p", "(version 1)(allow default)", "true"]).returncode:
+        if subprocess.run(["sandbox-exec", "-p", "(version 1)(allow default)", "true"], stdin=subprocess.DEVNULL).returncode:
             self.skipTest("inside a sandbox already: sandbox_apply refuses a nested profile")
         # Every temp root is admitted, so the denied targets live outside them.
         with tempfile.TemporaryDirectory(dir="/Users/Shared") as outside:
@@ -168,7 +168,7 @@ class ReviewerCharterTemplateTest(unittest.TestCase):
             for path in allowed + denied:
                 with self.subTest(path=str(path)):
                     run = subprocess.run(["sandbox-exec", "-f", str(profile), "touch", str(path)],
-                                         capture_output=True, text=True)
+                                         capture_output=True, text=True, stdin=subprocess.DEVNULL)
                     self.assertEqual(path.exists(), path in allowed, run.stderr)
                     if path in denied:
                         self.assertIn("Operation not permitted", run.stderr)

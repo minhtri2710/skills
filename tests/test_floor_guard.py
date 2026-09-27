@@ -62,6 +62,7 @@ class FloorGuardRepoTest(unittest.TestCase):
             cwd=self.repo,
             check=True,
             capture_output=True,
+            stdin=subprocess.DEVNULL,
         )
 
     def write(self, name: str, text: str) -> None:

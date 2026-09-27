@@ -14,7 +14,7 @@ class SkillFrontmatterTest(unittest.TestCase):
         repo_root = Path(__file__).resolve().parents[1]
         tracked = subprocess.run(
             ["git", "-C", str(repo_root), "ls-files", "-z", "--", "skills"],
-            capture_output=True, text=True, check=True,
+            capture_output=True, text=True, check=True, stdin=subprocess.DEVNULL,
         ).stdout.split("\0")
         tracked_parts = [Path(name).parts for name in tracked if name]
         skill_dirs = {parts[1] for parts in tracked_parts if len(parts) > 2}

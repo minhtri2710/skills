@@ -634,7 +634,7 @@ class MailboxAppendTest(unittest.TestCase):
             ["-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q",
              "--allow-empty", "-m", "base"],
         ):
-            subprocess.run(["git", "-C", str(self.repo), *args], check=True)
+            subprocess.run(["git", "-C", str(self.repo), *args], check=True, stdin=subprocess.DEVNULL)
         self.head = gate_row.git(self.repo, "rev-parse", "HEAD")
         self.wakes = []
         self.wake_rc = 0

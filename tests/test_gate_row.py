@@ -26,7 +26,7 @@ def make_repo(tmp: Path) -> Path:
     repo = tmp / "repo"
     repo.mkdir()
     run = lambda *a: subprocess.run(["git", "-C", str(repo), *a], check=True,
-                                    capture_output=True, text=True)
+                                    capture_output=True, text=True, stdin=subprocess.DEVNULL)
     run("init", "-q", "-b", "main")
     run("config", "user.email", "t@example.invalid")
     run("config", "user.name", "t")
@@ -125,11 +125,11 @@ class GateRowTest(unittest.TestCase):
 
     def git(self, *args: str) -> str:
         return subprocess.run(["git", "-C", str(self.repo), *args],
-                              capture_output=True, text=True, check=True).stdout.strip()
+                              capture_output=True, text=True, check=True, stdin=subprocess.DEVNULL).stdout.strip()
 
     def rev(self, ref: str) -> str:
         return subprocess.run(["git", "-C", str(self.repo), "rev-parse", ref],
-                              capture_output=True, text=True, check=True).stdout.strip()
+                              capture_output=True, text=True, check=True, stdin=subprocess.DEVNULL).stdout.strip()
 
     def last_row(self) -> str:
         return [l for l in self.ledger.read_text().splitlines()
@@ -906,7 +906,7 @@ class GateRowTest(unittest.TestCase):
         self.add_empty_remote()
         self.assertEqual(self.append_review_pass(zero), 0)
         subprocess.run(["git", "-C", str(self.repo), "push", "-q", "origin", "main"],
-                       check=True, capture_output=True)
+                       check=True, capture_output=True, stdin=subprocess.DEVNULL)
         self.assertEqual(self.append(
             "--kind", "push", "--push-base", zero, "--boundary", ".",
         ), 0)
@@ -920,7 +920,7 @@ class GateRowTest(unittest.TestCase):
         self.git("add", "later.txt")
         self.git("commit", "-qm", "later remote commit")
         subprocess.run(["git", "-C", str(self.repo), "push", "-q", "origin", "main"],
-                       check=True, capture_output=True)
+                       check=True, capture_output=True, stdin=subprocess.DEVNULL)
         self.assertEqual(self.append(
             "--kind", "push", "--push-base", zero, "--boundary", ".",
             "--head", f"main@{past}", "--record", "reconstruction",
@@ -933,15 +933,15 @@ class GateRowTest(unittest.TestCase):
         self.add_remote("HEAD")
         other = self.tmp / "other"
         subprocess.run(["git", "clone", "-q", str(self.tmp / "origin.git"), str(other)],
-                       check=True, capture_output=True)
+                       check=True, capture_output=True, stdin=subprocess.DEVNULL)
         subprocess.run(["git", "-C", str(other), "config", "user.email", "t@example.invalid"],
-                       check=True)
-        subprocess.run(["git", "-C", str(other), "config", "user.name", "t"], check=True)
+                       check=True, stdin=subprocess.DEVNULL)
+        subprocess.run(["git", "-C", str(other), "config", "user.name", "t"], check=True, stdin=subprocess.DEVNULL)
         (other / "unknown.txt").write_text("unknown\n")
-        subprocess.run(["git", "-C", str(other), "add", "unknown.txt"], check=True)
-        subprocess.run(["git", "-C", str(other), "commit", "-qm", "unknown remote commit"], check=True)
+        subprocess.run(["git", "-C", str(other), "add", "unknown.txt"], check=True, stdin=subprocess.DEVNULL)
+        subprocess.run(["git", "-C", str(other), "commit", "-qm", "unknown remote commit"], check=True, stdin=subprocess.DEVNULL)
         subprocess.run(["git", "-C", str(other), "push", "-q", "origin", "main"],
-                       check=True, capture_output=True)
+                       check=True, capture_output=True, stdin=subprocess.DEVNULL)
         before = self.ledger.read_bytes()
         self.assertEqual(self.append(
             "--kind", "push", "--push-base", zero, "--boundary", ".",
@@ -1002,18 +1002,18 @@ class GateRowTest(unittest.TestCase):
     def add_empty_remote(self) -> None:
         """An empty bare origin, for a first publication test."""
         bare = self.tmp / "origin.git"
-        subprocess.run(["git", "init", "-q", "--bare", str(bare)], check=True)
+        subprocess.run(["git", "init", "-q", "--bare", str(bare)], check=True, stdin=subprocess.DEVNULL)
         subprocess.run(["git", "-C", str(self.repo), "remote", "add", "origin", str(bare)],
-                       check=True)
+                       check=True, stdin=subprocess.DEVNULL)
 
     def add_remote(self, ref: str) -> None:
         """A bare origin holding `ref`, so ls-remote answers for real."""
         bare = self.tmp / "origin.git"
-        subprocess.run(["git", "init", "-q", "--bare", "-b", "main", str(bare)], check=True)
+        subprocess.run(["git", "init", "-q", "--bare", "-b", "main", str(bare)], check=True, stdin=subprocess.DEVNULL)
         subprocess.run(["git", "-C", str(self.repo), "remote", "add", "origin", str(bare)],
-                       check=True)
+                       check=True, stdin=subprocess.DEVNULL)
         subprocess.run(["git", "-C", str(self.repo), "push", "-q", "origin",
-                        f"{self.rev(ref)}:refs/heads/main"], check=True, capture_output=True)
+                        f"{self.rev(ref)}:refs/heads/main"], check=True, capture_output=True, stdin=subprocess.DEVNULL)
 
     def test_a_push_row_whose_push_has_not_landed_is_refused(self):
         """origin is a commit behind, so the row would claim a push that did not happen."""
@@ -1665,9 +1665,9 @@ class GateRowTest(unittest.TestCase):
         self.assertEqual(self.append_review_pass(), 0, self.err.getvalue())
         self.add_remote("HEAD")
         subprocess.run(["git", "-C", str(self.repo), "push", "-q", "origin",
-                        f"{self.rev('HEAD~1')}:refs/heads/aaa"], check=True, capture_output=True)
+                        f"{self.rev('HEAD~1')}:refs/heads/aaa"], check=True, capture_output=True, stdin=subprocess.DEVNULL)
         subprocess.run(["git", "--git-dir", str(self.tmp / "origin.git"), "symbolic-ref", "HEAD",
-                        "refs/heads/aaa"], check=True)
+                        "refs/heads/aaa"], check=True, stdin=subprocess.DEVNULL)
         self.assertEqual(self.append(
             "--kind", "push", "--push-base", self.rev("HEAD~2"), "--boundary", "."), 0, self.err.getvalue())
 
@@ -1989,10 +1989,10 @@ class GateRowTest(unittest.TestCase):
         worktree = self.tmp / "wt"
         self.git("worktree", "add", "-q", "-b", "side", str(worktree))
         (worktree / "s.txt").write_text("s\n")
-        subprocess.run(["git", "-C", str(worktree), "add", "s.txt"], check=True)
-        subprocess.run(["git", "-C", str(worktree), "commit", "-qm", "s1"], check=True)
+        subprocess.run(["git", "-C", str(worktree), "add", "s.txt"], check=True, stdin=subprocess.DEVNULL)
+        subprocess.run(["git", "-C", str(worktree), "commit", "-qm", "s1"], check=True, stdin=subprocess.DEVNULL)
         side = subprocess.run(["git", "-C", str(worktree), "rev-parse", "HEAD"],
-                              capture_output=True, text=True, check=True).stdout.strip()
+                              capture_output=True, text=True, check=True, stdin=subprocess.DEVNULL).stdout.strip()
         self.repo = worktree
         self.assertEqual(self.append_local_ops(), 0, self.err.getvalue())
         self.assertIn(f" | side@{side} | ", self.last_row())
@@ -2066,7 +2066,7 @@ class GateRowTest(unittest.TestCase):
         env = {k: v for k, v in os.environ.items() if k not in ("PYTHONUTF8", "PYTHONIOENCODING", "LANG")}
         return subprocess.run([sys.executable, "-c", "import sys; sys.path.insert(0, sys.argv[1]); import gate_row; "
                                "sys.exit(gate_row.main(sys.argv[2:]))", str(SCRIPTS), *argv],
-                              capture_output=True, env={**env, "LC_ALL": locale})
+                              capture_output=True, env={**env, "LC_ALL": locale}, stdin=subprocess.DEVNULL)
 
     def test_a_quote_file_is_read_as_utf8_whatever_the_locale(self):
         quote = self.tmp / "quote.txt"

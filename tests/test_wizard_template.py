@@ -33,7 +33,7 @@ class WizardTemplateTest(unittest.TestCase):
         )
 
     def test_library_parses(self) -> None:
-        self.assertEqual(subprocess.run(["bash", "-n", str(TEMPLATE)], capture_output=True).returncode, 0)
+        self.assertEqual(subprocess.run(["bash", "-n", str(TEMPLATE)], capture_output=True, stdin=subprocess.DEVNULL).returncode, 0)
 
     def test_write_env_upserts_without_duplicating(self) -> None:
         result = self.run_bash('write_env API_KEY first\nwrite_env OTHER x\nwrite_env API_KEY second')

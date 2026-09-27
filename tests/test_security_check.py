@@ -88,13 +88,13 @@ class SecurityCheckTest(unittest.TestCase):
         return code, stdout, stderr, payload
 
     def init_git(self) -> None:
-        subprocess.run(["git", "init", "-q", "-b", "main"], cwd=self.root, check=True)
+        subprocess.run(["git", "init", "-q", "-b", "main"], cwd=self.root, check=True, stdin=subprocess.DEVNULL)
 
     def stage(self, relative: str, content: str) -> None:
         path = self.root / relative
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(content, encoding="utf-8")
-        subprocess.run(["git", "add", relative], cwd=self.root, check=True)
+        subprocess.run(["git", "add", relative], cwd=self.root, check=True, stdin=subprocess.DEVNULL)
 
     def clean_fakes(self) -> None:
         self.write_fake(
