@@ -251,12 +251,14 @@ class CharterLintTest(unittest.TestCase):
         self.assertIn("REVIEWER seat missing fence=", error)
 
     def test_reviewer_bare_fence_none_is_refused(self):
-        staffing = self.staffing_record().replace(
-            self.fence_evidence(), "fence=none", 1
-        )
-        code, _, error = self.run_lint(self.reviewer_charter(), staffing)
-        self.assertEqual(code, 1)
-        self.assertIn("REVIEWER fence=none requires a reason in parentheses", error)
+        for token in ("fence=none", "fence=none:"):
+            with self.subTest(token=token):
+                staffing = self.staffing_record().replace(
+                    self.fence_evidence(), token, 1
+                )
+                code, _, error = self.run_lint(self.reviewer_charter(), staffing)
+                self.assertEqual(code, 1)
+                self.assertIn("REVIEWER fence=none requires a reason in parentheses", error)
 
     def test_reviewer_fence_none_when_required_is_refused(self):
         staffing = self.staffing_record().replace(

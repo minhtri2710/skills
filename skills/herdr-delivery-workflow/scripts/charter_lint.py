@@ -115,7 +115,7 @@ def _staffing_problems(text: str, disposition: str | None, staffing_path: Path) 
 
         if seat in {"REVIEWER", "ARCHITECT"}:
             fence_match = re.search(
-                r"(?:^|\s)fence=(sandbox-exec|none)(?=\(|(?:\s|$))",
+                r"(?:^|\s)fence=(sandbox-exec|none)",
                 line,
                 re.IGNORECASE,
             )
