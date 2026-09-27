@@ -12,9 +12,11 @@
 - Changed files: <verbatim git --no-optional-locks status --porcelain --untracked-files=all -- <owned paths> output; porcelain, not diff, because a new file you have not staged is invisible to git diff>
 - Outside owned paths: none | <path and why, if anything>
 - Checks (advisory, run on the shared tree):
-  | command | exit code |
-  |---------|-----------|
-  | <command> | 0 |
+  | head | tree state (clean, or dirty: paths) | command | exit code |
+  |------|--------------------------------------|---------|-----------|
+  | <full head SHA> | <clean or dirty: paths> | <command> | <real exit code> |
+
+  Paste every quoted check value or output from its row's run; do not reconstruct it. Mark any earlier value as `carried`, naming its source and originating head, and do not present it as this run's evidence. Rerun its command when possible.
 
 ## Risks
 <residual gaps, skipped checks with reasons, and unresolved findings>
