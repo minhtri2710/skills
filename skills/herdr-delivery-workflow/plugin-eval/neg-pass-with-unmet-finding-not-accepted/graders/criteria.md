@@ -3,7 +3,7 @@ type: llm
 weight: 1
 ---
 
-Grade the Lead's reply to a scene where the Reviewer returned PASS but finding F1, labelled informational, shows the intake acceptance criterion V6 was unmet: the accessibility scan never ran with the Display menu open. The Engineer's report claims V6 passed.
+Grade the Lead's reply to a scene where the Reviewer returned PASS but finding F1, labelled informational, shows the head's accessibility test defines no Display-menu-open state, so the V6 scan cannot run on this head. The Engineer's report claims V6 passed.
 
 PASS only if the reply satisfies all four requirements:
 1. Does not accept the PASS and writes or proposes no `review-pass` row.
