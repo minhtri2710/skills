@@ -36,6 +36,7 @@ def git(repo: Path, *args: str) -> str:
         capture_output=True,
         text=True,
         check=False,
+        stdin=subprocess.DEVNULL,
     )
     if proc.returncode:
         raise DeployError(f"git {' '.join(args)} failed: {proc.stderr.strip()}")
@@ -78,13 +79,6 @@ def tracked_files(repo: Path, head: str, skill_prefix: str) -> list[str]:
     return paths
 
 
-def _safe_install_dir(path: Path, *, allow_self_symlink: bool = False) -> Path:
-    path = Path(os.path.abspath(os.path.expanduser(path)))
-    if path.is_symlink() and (not allow_self_symlink or not path.is_dir()):
-        raise DeployError(f"install tree is a symlink: {path}")
-    return path
-
-
 def install_mode(git_mode: str, tracked_path: str) -> int:
     """Map a head-tree git file mode to its install mode, rejecting any other mode."""
     if git_mode not in {"100644", "100755"}:
@@ -103,6 +97,7 @@ def resolved_files(repo: Path, head: str, paths: list[str], skill_prefix: str) -
             capture_output=True,
             text=True,
             check=False,
+            stdin=subprocess.DEVNULL,
         )
         if tree.returncode:
             raise DeployError(f"git ls-tree failed for {tracked}: {tree.stderr.strip()}")
@@ -120,6 +115,7 @@ def resolved_files(repo: Path, head: str, paths: list[str], skill_prefix: str) -
             ["git", "-C", str(repo), "cat-file", "blob", f"{head}:{tracked}"],
             capture_output=True,
             check=False,
+            stdin=subprocess.DEVNULL,
         )
         if blob.returncode:
             detail = blob.stderr.decode(errors="replace").strip()
@@ -136,78 +132,6 @@ def _is_pycache(path: Path) -> bool:
     return "__pycache__" in path.parts
 
 
-def _is_current(install_dir: Path, resolved: list[tuple[Path, bytes, int]]) -> bool:
-    expected = {relative: (content, mode) for relative, content, mode in resolved}
-    seen: set[Path] = set()
-    for root, dirs, files in os.walk(install_dir, followlinks=False):
-        root_path = Path(root)
-        dirs[:] = [name for name in dirs if name != "__pycache__"]
-        if any((root_path / name).is_symlink() for name in dirs):
-            return False
-        for name in files:
-            path = root_path / name
-            relative = path.relative_to(install_dir)
-            if _is_pycache(relative):
-                continue
-            if path.is_symlink() or not path.is_file() or relative not in expected:
-                return False
-            content, mode = expected[relative]
-            if path.read_bytes() != content or stat.S_IMODE(path.stat().st_mode) != mode:
-                return False
-            seen.add(relative)
-    return seen == set(expected)
-
-
-def install_files(install_root: Path,
-                  skills: list[tuple[str, list[tuple[Path, bytes, int]]]]) -> None:
-    """Stage every changed skill beside the install root, then swap each into place.
-
-    Any failure restores every live skill directory. The staging directory sits in the
-    install root's real parent, so the swap renames stay on one filesystem and a leftover
-    is never a child of the skills root.
-    """
-    install_root.mkdir(parents=True, exist_ok=True)
-    changed = []
-    for skill, resolved in skills:
-        live = _safe_install_dir(install_root / skill)
-        if live.exists() and not live.is_dir():
-            raise DeployError(f"installed path is not a directory: {live}")
-        if not _is_current(live, resolved):
-            changed.append((live, resolved))
-    if not changed:
-        return
-    work = Path(tempfile.mkdtemp(prefix=f".{install_root.name}-deploy-",
-                                 dir=install_root.resolve().parent))
-    swapped: list[tuple[Path, Path, Path, bool]] = []
-    try:
-        (work / "old").mkdir()
-        for index, (_live, resolved) in enumerate(changed):
-            for relative, content, mode in resolved:
-                destination = work / "new" / str(index) / relative
-                destination.parent.mkdir(parents=True, exist_ok=True)
-                destination.write_bytes(content)
-                os.chmod(destination, mode)
-        for index, (live, _resolved) in enumerate(changed):
-            new, old = work / "new" / str(index), work / "old" / str(index)
-            had_live = live.exists()
-            if had_live:
-                os.rename(live, old)
-            swapped.append((live, new, old, had_live))
-            os.rename(new, live)
-    except BaseException:
-        try:
-            for live, new, old, had_live in reversed(swapped):
-                if not new.exists():
-                    os.rename(live, new)
-                if had_live:
-                    os.rename(old, live)
-        except OSError as exc:
-            raise DeployError(f"rollback failed; previous install kept under {work}: {exc}") from exc
-        shutil.rmtree(work, ignore_errors=True)
-        raise
-    shutil.rmtree(work)
-
-
 def tree_mode(repo: Path, head: str, tracked_path: str) -> int:
     """Return the install mode the head tree records for one tracked file."""
     metadata = git(repo, "ls-tree", head, "--", tracked_path).split("\t", 1)[0].split()
@@ -219,7 +143,9 @@ def tree_mode(repo: Path, head: str, tracked_path: str) -> int:
 def verify_install(repo: Path, head: str, install_dir: Path,
                    paths: list[str], skill_prefix: str) -> None:
     prefix = skill_prefix.rstrip("/") + "/"
-    install_dir = _safe_install_dir(install_dir)
+    install_dir = Path(os.path.abspath(os.path.expanduser(install_dir)))
+    if install_dir.is_symlink():
+        raise DeployError(f"install tree is a symlink: {install_dir}")
     tracked = _relative_paths(paths, prefix)
     for tracked_path in paths:
         installed = install_dir / Path(tracked_path[len(prefix):])
@@ -271,7 +197,9 @@ def append_deploy_row(
         command.extend(["--channel", args.channel])
     for gate_id in args.resolves:
         command.extend(["--resolves", gate_id])
-    result = subprocess.run(command, capture_output=True, text=True, check=False)
+    result = subprocess.run(
+        command, capture_output=True, text=True, check=False, stdin=subprocess.DEVNULL
+    )
     if result.returncode:
         raise DeployError(
             f"gate_row.py refused deploy row: {result.stderr.strip() or result.stdout.strip()}"
@@ -279,12 +207,27 @@ def append_deploy_row(
     sys.stdout.write(result.stdout)
 
 
+def _install_with_skills(cli: str, source: Path, skill: str) -> None:
+    command = [cli, "add", str(source), "-g", "-a", "cline", "-s", skill, "-y", "--copy"]
+    environment = os.environ.copy()
+    environment["DO_NOT_TRACK"] = "1"
+    result = subprocess.run(
+        command,
+        capture_output=True,
+        text=True,
+        check=False,
+        env=environment,
+        stdin=subprocess.DEVNULL,
+    )
+    if result.returncode:
+        detail = result.stderr.strip() or result.stdout.strip()
+        raise DeployError(f"skills add failed for {skill}: {detail}")
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--head", default="HEAD")
     parser.add_argument("--repo", type=Path, default=Path.cwd())
-    parser.add_argument("--install-dir", type=Path,
-                        default=Path.home() / ".agents/skills")
     parser.add_argument("--skill", action="append", default=[],
                         help="top-level skill to deploy; repeat to select multiple (default: all)")
     parser.add_argument("--ledger", required=True, type=Path)
@@ -299,15 +242,18 @@ def main(argv: list[str] | None = None) -> int:
     try:
         repo = args.repo.resolve()
         head = git(repo, "rev-parse", args.head)
-        current_head = git(repo, "rev-parse", "HEAD")
-        if head != current_head:
-            try:
-                git(repo, "merge-base", "--is-ancestor", head, current_head)
-            except DeployError:
-                raise DeployError(
-                    f"--head {head} is not the current repository HEAD {current_head} "
-                    "or an ancestor of it"
-                ) from None
+        try:
+            git(repo, "rev-parse", "--verify", "refs/remotes/origin/main^{commit}")
+        except DeployError:
+            raise DeployError("required admission ref refs/remotes/origin/main is missing") from None
+        try:
+            git(repo, "merge-base", "--is-ancestor", head, "refs/remotes/origin/main")
+        except DeployError:
+            raise DeployError(f"--head {head} is not contained in refs/remotes/origin/main") from None
+        cli = shutil.which("skills")
+        if cli is None:
+            raise DeployError("skills CLI was not found on PATH")
+
         branch = git(repo, "rev-parse", "--abbrev-ref", "HEAD")
         selected = selected_skills(repo, head, args.skill)
         deployments = []
@@ -316,10 +262,22 @@ def main(argv: list[str] | None = None) -> int:
             paths = runtime_paths(tracked_files(repo, head, skill_prefix), skill_prefix)
             resolved = resolved_files(repo, head, paths, skill_prefix)
             deployments.append((skill, paths, skill_prefix, resolved))
-        install_root = _safe_install_dir(args.install_dir, allow_self_symlink=True)
-        install_files(install_root, [(skill, resolved) for skill, _p, _s, resolved in deployments])
-        for skill, paths, skill_prefix, _resolved in deployments:
-            verify_install(repo, head, install_root / skill, paths, skill_prefix)
+
+        install_root = Path.home() / ".agents" / "skills"
+        with tempfile.TemporaryDirectory(prefix="deploy-skill-") as temporary:
+            staging_root = Path(temporary)
+            for skill, _paths, _prefix, resolved in deployments:
+                source = staging_root / skill
+                for relative, content, mode in resolved:
+                    destination = source / relative
+                    destination.parent.mkdir(parents=True, exist_ok=True)
+                    destination.write_bytes(content)
+                    os.chmod(destination, mode)
+            for skill, _paths, _prefix, _resolved in deployments:
+                _install_with_skills(cli, staging_root / skill, skill)
+            for skill, paths, skill_prefix, _resolved in deployments:
+                verify_install(repo, head, install_root / skill, paths, skill_prefix)
+
         append_deploy_row(
             args, repo, Path(__file__).resolve().with_name("gate_row.py"),
             f"{branch}@{head}",

@@ -18,7 +18,7 @@ import relaunch_entry_check  # noqa: E402
 
 def git(repo: Path, *args: str) -> None:
     subprocess.run(["git", "-C", str(repo), *args], check=True,
-                   capture_output=True, text=True)
+                   capture_output=True, text=True, stdin=subprocess.DEVNULL)
 
 
 class RelaunchEntryCheckTest(unittest.TestCase):

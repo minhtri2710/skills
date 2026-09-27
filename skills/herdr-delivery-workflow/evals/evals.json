@@ -744,12 +744,14 @@
     {
       "id": 59,
       "prompt": "I'm in Herdr as the Lead. The accepted head changes skills/herdr-delivery-workflow, and I need to deploy it to ~/.agents/skills/herdr-delivery-workflow/ and record the deploy. How do I prevent the install and ledger row from separating?",
-      "expected_output": "Runs `scripts/deploy_skill.py` once with the accepted head, source, install, ledger, and gate-row arguments. It enumerates the tracked tree with `git ls-tree -r --name-only`, copies the tracked files, compares every installed file using `git hash-object` against `git rev-parse \"${head}:<path>\"`, fails on any missing or mismatched file, and invokes `scripts/gate_row.py` for the deploy row only after the comparison passes, so installation and its row are inseparable.",
+      "expected_output": "Runs `scripts/deploy_skill.py` once with the accepted head, repo, ledger, and gate-row arguments. It resolves the selected skills and stages their tracked runtime files from that head into a temporary directory, then runs `skills add <staged-skill> -g -a cline -s <skill> -y --copy` with `DO_NOT_TRACK=1` and stdin disconnected. It compares every installed file's hash with `git rev-parse \"${head}:<path>\"` and checks its mode, refusing missing, mismatched, extra, or unsupported-mode files; it appends the deploy row only after all selected skills pass verification, keeping installation and its row inseparable.",
+
       "files": [],
       "assertions": [
         "Names deploy_skill.py as the one-invocation install, verify, and row mechanism",
-        "Enumerates tracked files instead of using a typed file list",
-        "Fails loudly on missing or tampered installed files before appending the deploy row",
+        "Stages the selected skill's tracked runtime files from the accepted head and installs them through the skills CLI",
+        "Fails on missing, tampered, extra, or mode-mismatched installed files before appending the deploy row",
+        "Uses the fixed local CLI invocation with DO_NOT_TRACK=1 and stdin disconnected",
         "Uses the braced head:path rev-parse construction",
         "Invokes gate_row.py for kind=deploy only after hash comparison succeeds"
       ]
