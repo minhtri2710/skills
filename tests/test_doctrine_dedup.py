@@ -26,7 +26,7 @@ BUDGET = {
     "references/lead.md": 101_309,
     "references/relaunch.md": 4_655,
     "references/herdr-cli.md": 21_312,
-    "references/project-config.md": 5_527,
+    "references/project-config.md": 5_922,
     "references/structural-misfit-policy.md": 9_485,
     "references/charters.md": 34_060,
     "references/closeout.md": 12_569,
