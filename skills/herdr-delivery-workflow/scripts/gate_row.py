@@ -676,7 +676,7 @@ def require_open_targets(rows: list[str], targets: list[str]) -> None:
                 raise RowError(f"resolves={target} refused: already-revoked")
             continue
         if target not in ever_open:
-            raise RowError(f"resolves={target} refused: never-open")
+            raise RowError(f"resolves={target} refused: never-open; supersede by citing its id in note=")
         if own is None or own[1] != "open" or resolved_at.get(target, -1) > own[0]:
             raise RowError(f"resolves={target} refused: already-closed")
 

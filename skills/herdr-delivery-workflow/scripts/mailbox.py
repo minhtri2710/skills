@@ -290,7 +290,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--to", dest="recipient", metavar="SEAT")
     parser.add_argument("--repo", metavar="PATH", help="checkout whose HEAD the header carries")
     parser.add_argument("--event", metavar="LINE", help="the header's one-line event or answer")
-    parser.add_argument("--attention", metavar="EVENT", help="make the header an ATTENTION event")
+    parser.add_argument("--attention", metavar="EVENT_KIND", help="make the header an ATTENTION event of this kind")
     parser.add_argument("--stdin", action="store_true", help="read the entry body from stdin")
     args = parser.parse_args(argv)
 

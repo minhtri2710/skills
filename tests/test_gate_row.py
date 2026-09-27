@@ -1771,7 +1771,10 @@ class GateRowTest(unittest.TestCase):
     def test_resolving_a_standing_delegation_still_checks_the_next_target(self):
         self.assertEqual(self.append_standing_delegation(), 0, self.err.getvalue())
         self.assertEqual(self.append("--resolves", "G1,G9"), 1)
-        self.assertIn("resolves=G9 refused: never-open", self.err.getvalue())
+        self.assertIn(
+            "resolves=G9 refused: never-open; supersede by citing its id in note=",
+            self.err.getvalue(),
+        )
 
     def test_a_gate_whose_latest_own_row_is_closed_cannot_be_resolved(self):
         rows = [self.fixture_row("G1", "open", "none", ""), self.fixture_row("G1", "resolved:done")]

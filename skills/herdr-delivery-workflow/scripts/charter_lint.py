@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import re
 import shutil
 import subprocess
@@ -47,10 +48,11 @@ REVIEW_ORDER_RE = re.compile(
 )
 
 
-def _read(path: Path, label: str) -> str:
+def _read(path: Path, label: str) -> tuple[str, bytes]:
     try:
-        return path.read_text(encoding="utf-8")
-    except OSError as exc:
+        content = path.read_bytes()
+        return content.decode("utf-8"), content
+    except (OSError, UnicodeError) as exc:
         raise ValueError(f"could not read {label} {path}: {exc}") from exc
 
 
@@ -113,14 +115,32 @@ def _staffing_problems(text: str, disposition: str | None, staffing_path: Path) 
 
         if seat in {"REVIEWER", "ARCHITECT"}:
             fence_match = re.search(
-                r"(?:^|\s)fence=(sandbox-exec|none)(?:\(([^)\r\n]*)\))?",
+                r"(?:^|\s)fence=(sandbox-exec|none)(?=\(|(?:\s|$))",
                 line,
                 re.IGNORECASE,
             )
             if fence_match is None:
                 problems.append(f"{seat} seat missing fence=")
                 continue
-            fence, evidence = fence_match.groups()
+            fence = fence_match.group(1)
+            evidence = None
+            fence_open = fence_match.end()
+            if fence_open < len(line) and line[fence_open] == "(":
+                depth = 0
+                first_close = None
+                for index in range(fence_open, len(line)):
+                    if line[index] == "(":
+                        depth += 1
+                    elif line[index] == ")":
+                        depth -= 1
+                        if first_close is None:
+                            first_close = index
+                        if depth == 0:
+                            evidence = line[fence_open + 1:index]
+                            break
+                else:
+                    if first_close is not None:
+                        evidence = line[fence_open + 1:first_close]
             if fence.lower() == "none":
                 if evidence is None or not evidence.strip():
                     problems.append(f"{seat} fence=none requires a reason in parentheses")
@@ -231,7 +251,9 @@ def _repair_range_problems(repo: Path, charter: str) -> list[str]:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Lint a Herdr charter before dispatch.")
+    parser = argparse.ArgumentParser(
+        description="Lint the charter and optional staffing record supplied for dispatch."
+    )
     parser.add_argument("--charter", required=True, type=Path, help="path to the charter")
     parser.add_argument("--lead", required=True, help="Lead agent name used by the report block")
     parser.add_argument("--staffing", type=Path, help="optional staffing record")
@@ -246,7 +268,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     try:
-        charter = _read(args.charter, "charter")
+        charter, charter_bytes = _read(args.charter, "charter")
         problems = _charter_problems(charter, args.lead)
         disposition_match = DISPOSITION_RE.search(charter)
         disposition = disposition_match.group(1).lower() if disposition_match else None
@@ -255,11 +277,12 @@ def main(argv: list[str] | None = None) -> int:
                 "staffing record is required for an Engineer/Reviewer/Architect disposition"
             )
         texts = {"charter": charter}
+        digests = {"charter": hashlib.sha256(charter_bytes).hexdigest()}
         if args.staffing is not None:
-            texts["staffing record"] = _read(args.staffing, "staffing record")
-            problems.extend(
-                _staffing_problems(texts["staffing record"], disposition, args.staffing)
-            )
+            staffing, staffing_bytes = _read(args.staffing, "staffing record")
+            texts["staffing record"] = staffing
+            digests["staffing record"] = hashlib.sha256(staffing_bytes).hexdigest()
+            problems.extend(_staffing_problems(staffing, disposition, args.staffing))
         problems.extend(_sha_problems(args.repo, texts))
         problems.extend(_repair_range_problems(args.repo, charter))
     except ValueError as exc:
@@ -283,7 +306,8 @@ def main(argv: list[str] | None = None) -> int:
             print(f"charter_lint: {problem}", file=sys.stderr)
         return 1
 
-    print("OK: charter and staffing record contain dispatch requirements")
+    digest_text = "; ".join(f"{label} sha256={digest}" for label, digest in digests.items())
+    print(f"OK: {digest_text}; dispatch requirements linted")
     return 0
 
 

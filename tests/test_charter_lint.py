@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import contextlib
+import hashlib
 import importlib.util
 import io
 import os
@@ -26,11 +27,12 @@ class CharterLintTest(unittest.TestCase):
         cls.repo = Path(cls._repo_tmp.name)
         cls.addClassCleanup(cls._repo_tmp.cleanup)
         git = ["git", "-C", str(cls.repo), "-c", "user.name=t", "-c", "user.email=t@example.com"]
-        subprocess.run([*git, "init", "-q"], check=True)
+        subprocess.run([*git, "init", "-q"], check=True, stdin=subprocess.DEVNULL)
         for message in ("base", "mid", "head"):
-            subprocess.run([*git, "commit", "-q", "--allow-empty", "-m", message], check=True)
+            subprocess.run([*git, "commit", "-q", "--allow-empty", "-m", message], check=True, stdin=subprocess.DEVNULL)
         cls.base, cls.mid, cls.head = subprocess.run(
-            [*git, "rev-parse", "HEAD~2", "HEAD~1", "HEAD"], check=True, capture_output=True, text=True
+            [*git, "rev-parse", "HEAD~2", "HEAD~1", "HEAD"], check=True, capture_output=True, text=True,
+            stdin=subprocess.DEVNULL,
         ).stdout.split()
 
     def setUp(self):
@@ -65,6 +67,20 @@ class CharterLintTest(unittest.TestCase):
         code, output, error = self.run_lint(self.engineer_charter(), self.staffing_record())
         self.assertEqual(code, 0)
         self.assertIn("OK:", output)
+        self.assertEqual(error, "")
+
+    def test_ok_line_contains_sha256_of_each_linted_file(self):
+        charter = self.engineer_charter()
+        staffing = self.staffing_record()
+        code, output, error = self.run_lint(charter, staffing)
+        self.assertEqual(code, 0)
+        self.assertEqual(
+            output,
+            "OK: charter sha256=" + hashlib.sha256(charter.encode("utf-8")).hexdigest()
+            + "; staffing record sha256="
+            + hashlib.sha256(staffing.encode("utf-8")).hexdigest()
+            + "; dispatch requirements linted\n",
+        )
         self.assertEqual(error, "")
 
     def test_missing_disposition_is_named(self):
@@ -261,6 +277,28 @@ class CharterLintTest(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn("must record an existing .sb file and a probe result", error)
 
+    def test_reviewer_balanced_parentheses_in_fence_evidence_are_accepted(self):
+        staffing = self.staffing_record().replace(
+            self.fence_evidence(),
+            "fence=sandbox-exec(fence.sb; probe touch (x2) -> Operation not permitted, no file) "
+            "posture=none(extra (parentheses))",
+            1,
+        )
+        code, output, error = self.run_lint(self.reviewer_charter(), staffing)
+        self.assertEqual(code, 0)
+        self.assertIn("OK:", output)
+        self.assertEqual(error, "")
+
+        base_accepted_unbalanced = self.staffing_record().replace(
+            self.fence_evidence(),
+            "fence=sandbox-exec(fence.sb; probe touch -> Operation not permitted (oops)",
+            1,
+        )
+        code, output, error = self.run_lint(self.reviewer_charter(), base_accepted_unbalanced)
+        self.assertEqual(code, 0)
+        self.assertIn("OK:", output)
+        self.assertEqual(error, "")
+
     def test_reviewer_missing_fence_probe_is_refused(self):
         cases = (
             "fence=sandbox-exec(fence.sb)",
@@ -441,6 +479,7 @@ class CharterLintTest(unittest.TestCase):
              "sys.exit(charter_lint.main(sys.argv[2:]))", str(SCRIPTS), "--charter", str(charter),
              "--lead", "lead-beo-skills", "--staffing", str(staffing), "--repo", str(self.repo)],
             capture_output=True, text=True, env={**env, "LC_ALL": "en_US.US-ASCII"},
+            stdin=subprocess.DEVNULL,
         )
         self.assertEqual(proc.returncode, 0, proc.stderr)
 
@@ -500,12 +539,12 @@ class CharterLintTest(unittest.TestCase):
         rewritten = subprocess.run(
             ["git", "-C", str(self.repo), "-c", "user.name=t", "-c", "user.email=t@example.com",
              "commit-tree", f"{head}^{{tree}}", "-p", mid, "-m", "rewritten"],
-            check=True, capture_output=True, text=True,
+            check=True, capture_output=True, text=True, stdin=subprocess.DEVNULL,
         ).stdout.strip()
         rewritten_child = subprocess.run(
             ["git", "-C", str(self.repo), "-c", "user.name=t", "-c", "user.email=t@example.com",
              "commit-tree", f"{head}^{{tree}}", "-p", rewritten, "-m", "rewritten child"],
-            check=True, capture_output=True, text=True,
+            check=True, capture_output=True, text=True, stdin=subprocess.DEVNULL,
         ).stdout.strip()
         keep_base = (
             "must keep the slice base: no commit named on the Prior review line lies inside it below its head, "
