@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -30,7 +31,7 @@ UNIT_RANGE_RE = re.compile(
 )
 SHORT_SHA_RE = re.compile(r"(?<![0-9a-f])[0-9a-f]{7,40}(?![0-9a-f])", re.IGNORECASE)
 REPORT_PATH_RE = re.compile(r"report-[^\s/]+\.md")
-SEAT_RE = re.compile(r"^\s*(ENGINEER|REVIEWER):.*$", re.IGNORECASE | re.MULTILINE)
+SEAT_RE = re.compile(r"^\s*(ENGINEER|REVIEWER|ARCHITECT):.*$", re.IGNORECASE | re.MULTILINE)
 PLACEHOLDER_RE = re.compile(r"<[^>\r\n]+>")
 WAKE_GUARD_RE = re.compile(
     r"never\s+run\s+`?mailbox\.py\s+--wake`?\s+against\s+a\s+real\s+seat",
@@ -89,14 +90,18 @@ def _charter_problems(text: str, lead: str) -> list[str]:
     return problems
 
 
-def _staffing_problems(text: str, disposition: str | None) -> list[str]:
+def _sandbox_exec_available() -> bool:
+    return shutil.which("sandbox-exec") is not None
+
+
+def _staffing_problems(text: str, disposition: str | None, staffing_path: Path) -> list[str]:
     seats = SEAT_RE.findall(text)
     if not seats:
-        return ["staffing record has no ENGINEER or REVIEWER seat lines"]
+        return ["staffing record has no ENGINEER, REVIEWER, or ARCHITECT seat lines"]
 
     problems: list[str] = []
     for line in text.splitlines():
-        match = re.match(r"^\s*(ENGINEER|REVIEWER):", line, re.IGNORECASE)
+        match = re.match(r"^\s*(ENGINEER|REVIEWER|ARCHITECT):", line, re.IGNORECASE)
         if match is None:
             continue
         seat = match.group(1).upper()
@@ -105,6 +110,51 @@ def _staffing_problems(text: str, disposition: str | None) -> list[str]:
                 problems.append(f"{seat} seat missing {key}")
         if disposition == seat.lower() and PLACEHOLDER_RE.search(line):
             problems.append(f"{seat} seat still contains a placeholder token")
+
+        if seat in {"REVIEWER", "ARCHITECT"}:
+            fence_match = re.search(
+                r"(?:^|\s)fence=(sandbox-exec|none)(?:\(([^)\r\n]*)\))?",
+                line,
+                re.IGNORECASE,
+            )
+            if fence_match is None:
+                problems.append(f"{seat} seat missing fence=")
+                continue
+            fence, evidence = fence_match.groups()
+            if fence.lower() == "none":
+                if evidence is None or not evidence.strip():
+                    problems.append(f"{seat} fence=none requires a reason in parentheses")
+                    continue
+                kind = re.search(r"(?:^|\s)kind=([^\s]+)", line, re.IGNORECASE)
+                posture = re.search(r"(?:^|\s)posture=([^\s]+)", line, re.IGNORECASE)
+                needs_fence = (
+                    (kind is not None and kind.group(1).lower() == "pi")
+                    or (posture is not None and posture.group(1).lower() in {"bypassed", "none"})
+                )
+                if needs_fence and _sandbox_exec_available():
+                    problems.append(
+                        f"{seat} fence=none is not allowed for a seat requiring a fence "
+                        "when sandbox-exec is available"
+                    )
+                continue
+
+            profile_text, separator, probe_text = (evidence or "").partition(";")
+            probe_match = re.search(r"\bprobe\s+(.+?)\s*->\s*(.+)", probe_text, re.IGNORECASE)
+            profile_name = profile_text.strip()
+            profile_path = Path(profile_name)
+            if not profile_path.is_absolute():
+                profile_path = staffing_path.parent / profile_path
+            if (
+                not separator
+                or not profile_name.endswith(".sb")
+                or probe_match is None
+                or "Operation not permitted" not in probe_match.group(2)
+                or not profile_path.is_file()
+            ):
+                problems.append(
+                    f"{seat} fence=sandbox-exec must record an existing .sb file and a probe "
+                    "result containing 'Operation not permitted'"
+                )
     return problems
 
 
@@ -200,14 +250,16 @@ def main(argv: list[str] | None = None) -> int:
         problems = _charter_problems(charter, args.lead)
         disposition_match = DISPOSITION_RE.search(charter)
         disposition = disposition_match.group(1).lower() if disposition_match else None
-        if disposition in ("engineer", "reviewer") and args.staffing is None:
+        if disposition in ("engineer", "reviewer", "architect") and args.staffing is None:
             problems.append(
-                "staffing record is required for an Engineer/Reviewer disposition"
+                "staffing record is required for an Engineer/Reviewer/Architect disposition"
             )
         texts = {"charter": charter}
         if args.staffing is not None:
             texts["staffing record"] = _read(args.staffing, "staffing record")
-            problems.extend(_staffing_problems(texts["staffing record"], disposition))
+            problems.extend(
+                _staffing_problems(texts["staffing record"], disposition, args.staffing)
+            )
         problems.extend(_sha_problems(args.repo, texts))
         problems.extend(_repair_range_problems(args.repo, charter))
     except ValueError as exc:

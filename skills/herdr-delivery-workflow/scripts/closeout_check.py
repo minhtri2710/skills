@@ -261,6 +261,9 @@ def check_closeout(
     ``read_processes`` returns ``{"foreground_processes": [...]}``.
     """
     findings: list[str] = []
+    herd_path = Path.home() / ".herd"
+    if herd_path.exists():
+        findings.append(f"unexpected {herd_path} exists; likely typo of ~/.herdr")
     try:
         record = _record_from_input(staffing_record)
         canonical, peers = _validate_record(record)

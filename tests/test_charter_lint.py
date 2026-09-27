@@ -56,7 +56,8 @@ class CharterLintTest(unittest.TestCase):
 
         stdout = io.StringIO()
         stderr = io.StringIO()
-        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+        with unittest.mock.patch.object(charter_lint, "_sandbox_exec_available", return_value=True), \
+                contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
             code = charter_lint.main(argv)
         return code, stdout.getvalue(), stderr.getvalue()
 
@@ -209,7 +210,7 @@ class CharterLintTest(unittest.TestCase):
 
     def test_reviewer_placeholder_is_named(self):
         staffing = self.staffing_record().replace(
-            "REVIEWER: rev kind=agy model=m", "REVIEWER: <name> kind=<kind> model=m"
+            "REVIEWER: rev kind=pi model=m", "REVIEWER: <name> kind=<kind> model=m"
         )
         code, _, error = self.run_lint(self.reviewer_charter(), staffing)
         self.assertEqual(code, 1)
@@ -218,19 +219,78 @@ class CharterLintTest(unittest.TestCase):
 
     def test_engineer_ignores_placeholder_in_other_seat(self):
         staffing = self.staffing_record().replace(
-            "REVIEWER: rev kind=agy model=m", "REVIEWER: <name> kind=<kind> model=m"
+            "REVIEWER: rev kind=pi model=m", "REVIEWER: <name> kind=<kind> model=m"
         )
         code, output, error = self.run_lint(self.engineer_charter(), staffing)
         self.assertEqual(code, 0)
         self.assertIn("OK:", output)
         self.assertEqual(error, "")
 
-    def test_architect_staffing_remains_optional(self):
+    def test_reviewer_without_fence_is_refused(self):
+        staffing = self.staffing_record().replace(
+            " " + self.fence_evidence(), "", 1
+        )
+        code, _, error = self.run_lint(self.reviewer_charter(), staffing)
+        self.assertEqual(code, 1)
+        self.assertIn("REVIEWER seat missing fence=", error)
+
+    def test_reviewer_bare_fence_none_is_refused(self):
+        staffing = self.staffing_record().replace(
+            self.fence_evidence(), "fence=none", 1
+        )
+        code, _, error = self.run_lint(self.reviewer_charter(), staffing)
+        self.assertEqual(code, 1)
+        self.assertIn("REVIEWER fence=none requires a reason in parentheses", error)
+
+    def test_reviewer_fence_none_when_required_is_refused(self):
+        staffing = self.staffing_record().replace(
+            self.fence_evidence(), "fence=none(no OS fence available)", 1
+        )
+        code, _, error = self.run_lint(self.reviewer_charter(), staffing)
+        self.assertEqual(code, 1)
+        self.assertIn("REVIEWER fence=none is not allowed", error)
+
+    def test_reviewer_missing_fence_profile_is_refused(self):
+        staffing = self.staffing_record().replace(
+            self.fence_evidence(),
+            "fence=sandbox-exec(missing.sb; probe touch /checkout/.fence-probe "
+            "-> Operation not permitted, no file)",
+            1,
+        )
+        code, _, error = self.run_lint(self.reviewer_charter(), staffing)
+        self.assertEqual(code, 1)
+        self.assertIn("must record an existing .sb file and a probe result", error)
+
+    def test_reviewer_missing_fence_probe_is_refused(self):
+        cases = (
+            "fence=sandbox-exec(fence.sb)",
+            "fence=sandbox-exec(fence.sb; probe touch /checkout/.fence-probe -> Permission denied)",
+        )
+        for evidence in cases:
+            with self.subTest(evidence=evidence):
+                staffing = self.staffing_record().replace(self.fence_evidence(), evidence, 1)
+                code, _, error = self.run_lint(self.reviewer_charter(), staffing)
+                self.assertEqual(code, 1)
+                self.assertIn("must record an existing .sb file and a probe result", error)
+
+    def test_architect_staffing_is_required_and_architect_seat_is_checked(self):
         charter = self.engineer_charter().replace("Disposition: Engineer", "Disposition: Architect")
-        code, output, error = self.run_lint(charter)
+        code, _, error = self.run_lint(charter)
+        self.assertEqual(code, 1)
+        self.assertIn(
+            "staffing record is required for an Engineer/Reviewer/Architect disposition", error
+        )
+
+        architect_record = self.staffing_record().replace("REVIEWER:", "ARCHITECT:", 1)
+        code, output, error = self.run_lint(charter, architect_record)
         self.assertEqual(code, 0)
         self.assertIn("OK:", output)
         self.assertEqual(error, "")
+
+        incomplete = architect_record.replace("dialog=residual ", "", 1)
+        code, _, error = self.run_lint(charter, incomplete)
+        self.assertEqual(code, 1)
+        self.assertIn("ARCHITECT seat missing dialog=", error)
 
     def test_default_lint_does_not_call_jev(self):
         with unittest.mock.patch.object(jev, "triage_charter") as triage:
@@ -549,11 +609,19 @@ class CharterLintTest(unittest.TestCase):
             "If the command exits non-zero: retry it ONCE with exactly the same form; if it still fails, append a line SEND-FAILED to the end of the report file and run herdr notification show \"eng-lint: report send failed\" --body \"report-eng-lint.md\" --sound request, then stop.\n"
         )
 
-    @staticmethod
-    def staffing_record() -> str:
+    def staffing_record(self) -> str:
+        profile = self.tmp / "fence.sb"
+        profile.write_text("(version 1)\n", encoding="utf-8")
+        fence = self.fence_evidence()
         return (
             "ENGINEER: eng kind=pi model=m posture=none dialog=denied skills=none extensions=none\n"
-            "REVIEWER: rev kind=agy model=m posture=prompting dialog=residual skills=none extensions=none\n"
+            f"REVIEWER: rev kind=pi model=m posture=prompting dialog=residual skills=none extensions=none {fence}\n"
+        )
+
+    def fence_evidence(self) -> str:
+        return (
+            f"fence=sandbox-exec(fence.sb; probe touch {self.tmp}/.fence-probe "
+            "-> Operation not permitted, no file)"
         )
 
 

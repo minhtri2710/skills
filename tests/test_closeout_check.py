@@ -53,6 +53,11 @@ class FakeHerdr:
 class CloseoutCheckTest(unittest.TestCase):
     def setUp(self) -> None:
         self.tmp = tempfile.TemporaryDirectory()
+        self.home = Path(self.tmp.name) / "home"
+        self.home.mkdir()
+        home_patch = mock.patch.object(Path, "home", return_value=self.home)
+        home_patch.start()
+        self.addCleanup(home_patch.stop)
         self.canonical = Path(self.tmp.name) / "checkout"
         self.canonical.mkdir()
         self.herdr = FakeHerdr(self.canonical)
@@ -85,6 +90,26 @@ class CloseoutCheckTest(unittest.TestCase):
         self.herdr.close("w1:p4")
         result = closeout_check.check_closeout(self.record, self.herdr)
         self.assertTrue(result.passed, result.findings)
+
+    def test_existing_herd_directory_fails_with_typo_finding(self):
+        (self.home / ".herd").mkdir()
+        self.herdr.close("w1:p3")
+        self.herdr.close("w1:p4")
+        result = closeout_check.check_closeout(self.record, self.herdr)
+        self.assertFalse(result.passed)
+        self.assertEqual(
+            result.findings,
+            (f"unexpected {self.home / '.herd'} exists; likely typo of ~/.herdr",),
+        )
+
+        self.herdr.add_peer("eng-teardown", "w1:p3", agent_status="agent_not_found")
+        self.herdr.add_peer("review-teardown", "w1:p4")
+        result = closeout_check.check_closeout(self.record, self.herdr)
+        self.assertFalse(result.passed)
+        self.assertEqual(result.findings[0], f"unexpected {self.home / '.herd'} exists; likely typo of ~/.herdr")
+        self.assertEqual(len(result.findings), 3)
+        self.assertTrue(any("w1:p3 remains open" in finding for finding in result.findings))
+        self.assertTrue(any("w1:p4 remains open" in finding for finding in result.findings))
 
     def test_live_server_in_peer_pane_names_squatting_server_anti_pattern(self):
         self.herdr.processes["w1:p3"] = {

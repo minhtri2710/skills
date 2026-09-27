@@ -35,7 +35,8 @@ def staffing(head: str) -> str:
         "LEAD: kind=claude model=claude-opus-5-5 workspace=w1\n"
         f"HEAD: {head}\n"
         "REVIEWER: review-aaaaaaaaaaaa kind=claude model=claude-opus-5-5 posture=allowlisted "
-        f"dialog=denied skills=none extensions=none pane=w1:p1 workspace=w1 head={head}\n"
+        f"dialog=denied skills=none extensions=none fence=none(no OS write fence is needed) "
+        f"pane=w1:p1 workspace=w1 head={head}\n"
     )
 
 
