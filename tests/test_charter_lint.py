@@ -264,6 +264,7 @@ class CharterLintTest(unittest.TestCase):
     def test_reviewer_missing_fence_probe_is_refused(self):
         cases = (
             "fence=sandbox-exec(fence.sb)",
+            "fence=sandbox-exec(fence.sb; probe not run)",
             "fence=sandbox-exec(fence.sb; probe touch /checkout/.fence-probe -> Permission denied)",
         )
         for evidence in cases:
