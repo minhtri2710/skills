@@ -868,6 +868,16 @@ class GateRowTest(unittest.TestCase):
         self.assertIn("record=reconstruction", self.last_row())
         self.assertEqual(self.check_last(), 0, self.err.getvalue())
 
+        self.add_remote(past)
+        push = ("--kind", "push", "--push-base", self.rev("HEAD~3"), "--boundary", ".")
+        self.assertEqual(self.append(*push, "--head", f"main@{past}"), 0, self.err.getvalue())
+        self.assertIn(f"main@{past}", self.last_row().split(" | ")[3])
+        self.assertIn("record=timely", self.last_row())
+        self.assertEqual(self.check_last(), 0, self.err.getvalue())
+        side = self.git("commit-tree", f"{past}^{{tree}}", "-p", past, "-m", "side")
+        self.assertEqual(self.append(*push, "--head", f"main@{side}"), 1)
+        self.assertIn("--record reconstruction", self.err.getvalue())
+
     def test_zero_base_review_includes_the_root_commit(self):
         zero = "0" * 40
         self.assertEqual(self.append_review_pass(zero), 0)

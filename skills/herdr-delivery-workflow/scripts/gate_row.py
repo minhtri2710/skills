@@ -767,11 +767,11 @@ def resolve_row_head(args: argparse.Namespace, repo: Path, record: str) -> tuple
     branch, head = match.group("branch"), match.group("head")
     git(repo, "rev-parse", "--verify", f"{head}^{{commit}}")
     if head != current_head:
-        timely_review_or_deploy = (
-            getattr(args, "kind", "") in {"review", "deploy"}
+        timely_at_ancestor = (
+            getattr(args, "kind", "") in {"review", "deploy", "push"}
             and is_ancestor(repo, head, current_head)
         )
-        if not timely_review_or_deploy and record != "reconstruction":
+        if not timely_at_ancestor and record != "reconstruction":
             raise RowError(
                 f"--head {requested} differs from repository HEAD {current_head}; "
                 "use --record reconstruction to record a past head"
@@ -1305,7 +1305,7 @@ def main(argv: list[str] | None = None) -> int:
                         help="the earlier review-pass or push-grant row a correction voids")
     parser.add_argument("--record", choices=RECORD_VALUES)
     parser.add_argument("--head", help="the row head as <branch>@<full 40-hex commit SHA>; "
-                        "a past review or deploy head is timely when it is an ancestor of HEAD, "
+                        "a past review, deploy or push head is timely when it is an ancestor of HEAD, "
                         "otherwise use --record reconstruction")
     parser.add_argument("--push-base", help="the push base — the remote tip the stack lands on "
                         "under batching, not the intake merge-base; the head is derived")
