@@ -257,12 +257,15 @@ def verify_install(repo: Path, head: str, install_dir: Path,
                 raise DeployError(f"installed file is not tracked: {path}")
 
 
-def append_deploy_row(args: argparse.Namespace, repo: Path, script: Path) -> None:
+def append_deploy_row(
+    args: argparse.Namespace, repo: Path, script: Path, row_head: str,
+) -> None:
     command = [
         sys.executable, str(script),
         "--repo", str(repo), "--ledger", str(args.ledger),
         "--kind", "deploy", "--status", args.status,
         "--words", args.words, "--note", args.note, "--quote", args.quote,
+        "--head", row_head,
     ]
     if args.channel:
         command.extend(["--channel", args.channel])
@@ -298,10 +301,14 @@ def main(argv: list[str] | None = None) -> int:
         head = git(repo, "rev-parse", args.head)
         current_head = git(repo, "rev-parse", "HEAD")
         if head != current_head:
-            raise DeployError(
-                f"--head {head} is not the current repository HEAD {current_head}; "
-                "gate_row.py records the current HEAD"
-            )
+            try:
+                git(repo, "merge-base", "--is-ancestor", head, current_head)
+            except DeployError:
+                raise DeployError(
+                    f"--head {head} is not the current repository HEAD {current_head} "
+                    "or an ancestor of it"
+                ) from None
+        branch = git(repo, "rev-parse", "--abbrev-ref", "HEAD")
         selected = selected_skills(repo, head, args.skill)
         deployments = []
         for skill in selected:
@@ -313,7 +320,10 @@ def main(argv: list[str] | None = None) -> int:
         install_files(install_root, [(skill, resolved) for skill, _p, _s, resolved in deployments])
         for skill, paths, skill_prefix, _resolved in deployments:
             verify_install(repo, head, install_root / skill, paths, skill_prefix)
-        append_deploy_row(args, repo, Path(__file__).resolve().with_name("gate_row.py"))
+        append_deploy_row(
+            args, repo, Path(__file__).resolve().with_name("gate_row.py"),
+            f"{branch}@{head}",
+        )
     except (DeployError, OSError) as exc:
         print(f"deploy_skill: {exc}", file=sys.stderr)
         return 1

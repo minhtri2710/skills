@@ -343,6 +343,47 @@ class DeploySkillTest(unittest.TestCase):
         self.assertEqual(result, 1)
         self.assertFalse(ledger.exists())
 
+    def test_deploy_at_ancestor_installs_and_records_that_head(self):
+        ancestor = deploy_skill.git(self.repo, "rev-parse", "HEAD")
+        (self.source / "SKILL.md").write_text("later skill\n")
+        self.git("add", "skills")
+        self.git("commit", "-qm", "later skill")
+        ledger = self.tmp / "gates.md"
+
+        result = deploy_skill.main(self.deploy_args(ledger) + ["--head", ancestor])
+
+        self.assertEqual(result, 0)
+        installed = self.install / "herdr-delivery-workflow" / "SKILL.md"
+        self.assertEqual(installed.read_text(), "tracked skill\n")
+        row = gate_row.ledger_rows(ledger.read_text(encoding="utf-8"))[-1]
+        self.assertIn(f" | main@{ancestor} | ", row)
+        self.assertIn("record=timely", row)
+        checked = subprocess.run(
+            [sys.executable, str(SCRIPTS / "gate_row.py"),
+             "--repo", str(self.repo), "--ledger", str(ledger), "--check"],
+            check=False, capture_output=True, text=True,
+        )
+        self.assertEqual(checked.returncode, 0, checked.stderr)
+
+        self.git("checkout", "-qb", "off-line", ancestor)
+        (self.source / "SKILL.md").write_text("off-line skill\n")
+        self.git("add", "skills")
+        self.git("commit", "-qm", "off-line skill")
+        off_line = deploy_skill.git(self.repo, "rev-parse", "HEAD")
+        self.git("checkout", "-q", "main")
+        before = self.snapshot()
+        stderr = io.StringIO()
+        with patch.object(sys, "stderr", stderr):
+            refused = deploy_skill.main(self.deploy_args(ledger) + ["--head", off_line])
+
+        self.assertEqual(refused, 1)
+        self.assertEqual(
+            stderr.getvalue().strip(),
+            f"deploy_skill: --head {off_line} is not the current repository HEAD "
+            f"{deploy_skill.git(self.repo, 'rev-parse', 'HEAD')} or an ancestor of it",
+        )
+        self.assertEqual(self.snapshot(), before)
+
     def test_deploy_resolves_open_gate_in_same_invocation(self):
         gate_row_script = SCRIPTS / "gate_row.py"
         append = [
