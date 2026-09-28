@@ -2,8 +2,8 @@
 """Observe and explicitly reprime one live Herdr seat after compaction.
 
 The Supervisor-side command resolves a live seat from Herdr's roster, counts
-only verified durable Claude/Pi markers, persists one per-seat threshold state,
-and sends a pointer-only reprime prompt when a new threshold is crossed.
+only verified durable Claude/Pi markers, persists one per-seat-session threshold
+state, and sends a pointer-only reprime prompt when a new threshold is crossed.
 """
 from __future__ import annotations
 
@@ -712,10 +712,10 @@ def _validated_state_root(home: Path, project_slug: str) -> Path | None:
     return resolved
 
 
-def _state_path(root: Path, seat: str) -> Path | None:
-    if not _valid_identifier(seat):
+def _state_path(root: Path, seat: str, session_id: str) -> Path | None:
+    if not _valid_identifier(seat) or not _valid_identifier(session_id, _SESSION_ID):
         return None
-    digest = hashlib.sha256(seat.encode("utf-8")).hexdigest()
+    digest = hashlib.sha256((seat + "\0" + session_id).encode("utf-8")).hexdigest()
     path = root / f"baseline-{digest}.json"
     if not _contained(root, path):
         return None
@@ -949,7 +949,7 @@ def track_live_seat(
     root = _validated_state_root(home, project_slug)
     if root is None:
         return None
-    path = _state_path(root, session.seat)
+    path = _state_path(root, session.seat, session.session_id)
     if path is None:
         return None
     existing = _read_state(path, session, project_slug)

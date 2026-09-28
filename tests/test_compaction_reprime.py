@@ -401,8 +401,10 @@ class CompactionReprimeBaselineTest(unittest.TestCase):
             home_dir=self.home,
         )
 
-    def state_path(self, seat: str = "lead-beo-skills") -> Path:
-        digest = __import__("hashlib").sha256(seat.encode("utf-8")).hexdigest()
+    def state_path(self, seat: str = "lead-beo-skills", session_id: str = "01abc123") -> Path:
+        import hashlib
+
+        digest = hashlib.sha256((seat + "\0" + session_id).encode("utf-8")).hexdigest()
         return self.home / ".herdr" / "projects" / "project" / "runs" / "coordination" / f"baseline-{digest}.json"
 
     def test_first_observation_initializes_without_eligibility_and_reloads(self) -> None:
@@ -472,9 +474,14 @@ class CompactionReprimeBaselineTest(unittest.TestCase):
         self.assertEqual(second.baseline_count, 8)
         self.assertIsNone(second.pending_threshold)
 
-        mismatch = self.track(second_path, seat="lead-beo-skills")
-        self.assertIsNone(mismatch)
-        self.assertEqual(json.loads(first.state_path.read_text(encoding="utf-8"))["session_id"], "01abc123")
+        first_session_state = first.state_path.read_bytes()
+        relaunched = self.track(second_path, seat="lead-beo-skills")
+        self.assertIsNotNone(relaunched)
+        assert relaunched is not None
+        self.assertEqual(relaunched.baseline_count, 8)
+        self.assertEqual(relaunched.observed_count, 8)
+        self.assertEqual(relaunched.state_path.resolve(), self.state_path(session_id="02def456").resolve())
+        self.assertEqual(first.state_path.read_bytes(), first_session_state)
 
     def test_malformed_unknown_version_and_symlink_state_fail_closed(self) -> None:
         path = self.pi_path()
