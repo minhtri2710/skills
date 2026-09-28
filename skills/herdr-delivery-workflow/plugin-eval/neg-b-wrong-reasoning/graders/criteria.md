@@ -5,7 +5,7 @@ weight: 1
 
 Grade the assistant's response to a structural-misfit review request (a DB adapter that retries, caches partial state, and translates errors because the database client does not expose the lifecycle information needed).
 
-A PASSING response does the structural-misfit reasoning the case's expected_output calls for:
+A PASSING response meets the following structural-misfit criteria:
 - Treats the structural-misfit lenses as conditional, not as a mandatory checklist.
 - When the patch-versus-foundation decision is expensive to reverse, runs the relevant design lenses (mechanism, ownership, lifecycle, information sufficiency, duplicate state, retry/failure semantics, proof laundering).
 - Compares the local patch against an owner-clean route.
