@@ -161,25 +161,37 @@ def check(
     return [tip for _, _, tip in pairs]
 
 
+def unpushed_commits(repo: Path, gate_tips: list[str]) -> list[str]:
+    """The current branch's commits absent from its upstream/remotes and open gate tips."""
+    head = git(repo, "rev-parse", "HEAD")
+    if any(gate_row.is_ancestor(repo, head, tip) for tip in gate_tips):
+        return []
+    try:
+        upstream = git(repo, "rev-parse", "--verify", "@{upstream}")
+    except GuardError:
+        exclude = ["--remotes"]
+    else:
+        exclude = [upstream]
+    return git(repo, "rev-list", head, "--not", *exclude, *gate_tips).splitlines()
+
+
 def ungated_lines(repo: Path, remote: str, gate_tips: list[str]) -> list[str]:
     """Flag the commits of a checkout that neither its upstream (or every tracking ref) nor an open push-gate tip holds."""
     head = git(repo, "rev-parse", "HEAD")
-    if any(gate_row.is_ancestor(repo, head, tip) for tip in gate_tips):
+    commits = unpushed_commits(repo, gate_tips)
+    if not commits:
         return []
     branch = git(repo, "rev-parse", "--abbrev-ref", "HEAD")
     try:
         upstream = git(repo, "rev-parse", "--verify", "@{upstream}")
     except GuardError:
-        exclude, rng = ["--remotes"], f"{head} (no upstream; outside every remote-tracking ref)"
+        rng = f"{head} (no upstream; outside every remote-tracking ref)"
     else:
-        exclude, rng = [upstream], f"{upstream}..{head}"
-    commits = git(repo, "rev-list", head, "--not", *exclude, *gate_tips).splitlines()
+        rng = f"{upstream}..{head}"
     if gate_tips and gate_row.is_ancestor(repo, gate_tips[-1], head):
         rng = f"{gate_tips[-1]}..{head}"
     elif gate_tips:
         rng += f", excluding open push-gate tips {' '.join(gate_tips)}"
-    if not commits:
-        return []
     return [f"UNGATED: branch {branch}, {len(commits)} commits, range {rng}",
             "no open push-gate: the Lead has not gated this work"]
 
@@ -211,14 +223,12 @@ def digest_project(ledger: Path, repo: Path, remote: str, now: datetime,
     """
     with gate_row.locked_ledger(ledger, exclusive=False) as handle:
         rows = gate_row.ledger_rows(gate_row.handle_text(handle))
-    open_ids = set(gate_row.open_gate_ids(rows))
-    gates = [row for row in rows if row.split(" | ")[0] in open_ids
-             and gate_row.row_evidence(row)[0] == "push-gate"]
-    heads = [gate_row.split_row(row)[0][3].split("@") for row in gates]
-    tips = [git(repo, "rev-parse", "--verify", f"{sha}^{{commit}}") for _, sha in heads]
+    tips = gate_row.open_push_gate_tips(rows, repo)
     ungated = ungated_lines(repo, remote, tips)
-    if not gates:
+    if not tips:
         return ungated, []
+    gates = gate_row.open_push_gate_rows(rows)
+    heads = [gate_row.split_row(row)[0][3].split("@") for row in gates]
     branch_gates: dict[str, list[str]] = {}
     branch_tip: dict[str, str] = {}
     for row, (branch, _), tip in zip(gates, heads, tips):

@@ -307,17 +307,8 @@ def review_field(base: str, head: str, count: str) -> str:
     return f"review={base}..{head} count={count}"
 
 
-def require_review_coverage(rows: list[str], repo: Path, base: str, head: str) -> None:
-    """Require every commit in the pushed range to be covered by a review PASS range.
-
-    A single review covers its whole range, so a delivery's intra-run intermediates
-    (one commit per scope, `lead.md` "Quiesce and commit") ride their reviewed head
-    without their own rows. Stacked deliveries tile the range with one row each; a
-    gap — an unreviewed delivery riding a reviewed tip's push — leaves its commits
-    uncovered and is refused. The tip is covered only if it is itself a reviewed
-    head, so a tip-unreviewed push is refused here too.
-    """
-    pushed = set(range_commits(repo, base, head))
+def review_covered_commits(rows: list[str], repo: Path, commits: set[str]) -> set[str]:
+    """Return commits covered by live review PASS rows, in gate-row coverage semantics."""
     covered: set[str] = set()
     _, _, _, voided_by = open_state(rows)
     for row in rows:
@@ -330,9 +321,25 @@ def require_review_coverage(rows: list[str], repo: Path, base: str, head: str) -
         if rng is None:
             continue
         rbase, rhead = rng
-        if rhead not in pushed:
+        if rhead not in commits:
             continue
         covered.update(range_commits(repo, rbase, rhead))
+    return covered
+
+
+def require_review_coverage(rows: list[str], repo: Path, base: str, head: str) -> None:
+    """Require every commit in the pushed range to be covered by a review PASS range.
+
+    A single review covers its whole range, so a delivery's intra-run intermediates
+    (one commit per scope, `lead.md` "Quiesce and commit") ride their reviewed head
+    without their own rows. Stacked deliveries tile the range with one row each; a
+    gap — an unreviewed delivery riding a reviewed tip's push — leaves its commits
+    uncovered and is refused. The tip is covered only if it is itself a reviewed
+    head, so a tip-unreviewed push is refused here too.
+    """
+    pushed = set(range_commits(repo, base, head))
+    covered = review_covered_commits(rows, repo, pushed)
+    _, _, _, voided_by = open_state(rows)
     missing = [sha for sha in pushed if sha not in covered]
     if missing:
         voided_reviews = []
@@ -660,6 +667,20 @@ def open_gate_ids(rows: list[str]) -> list[str]:
         if status == "open" and resolved_at.get(gid, -1) <= index
     ]
     return [gid for _, gid in sorted(open_rows)]
+
+
+def open_push_gate_rows(rows: list[str]) -> list[str]:
+    """Return currently open kind=push-gate rows, using the ledger's open-state rule."""
+    open_ids = set(open_gate_ids(rows))
+    return [row for row in rows if row.split(" | ", 1)[0] in open_ids
+            and row_evidence(row)[0] == "push-gate"]
+
+
+def open_push_gate_tips(rows: list[str], repo: Path) -> list[str]:
+    """Return the commit tips named by currently open kind=push-gate rows."""
+    heads = [split_row(row)[0][3].split("@") for row in open_push_gate_rows(rows)]
+    return [git(repo, "rev-parse", "--verify", f"{sha}^{{commit}}")
+            for _, sha in heads]
 
 
 def require_open_targets(rows: list[str], targets: list[str]) -> None:

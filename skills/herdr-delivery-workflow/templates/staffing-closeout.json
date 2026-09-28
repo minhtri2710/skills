@@ -1,6 +1,9 @@
 {
   "run_id": "run-id",
   "canonical_checkout": "/absolute/path/to/project",
+  "project_slug": "project-slug",
+  "supervisor_mailbox": "/absolute/path/to/project/supervisor-mailbox.md",
+  "gates_ledger": "/absolute/path/to/project/gates.md",
   "persistent": [
     {
       "role": "Lead",

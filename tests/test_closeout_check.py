@@ -5,6 +5,7 @@ from __future__ import annotations
 import contextlib
 import io
 import json
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -16,6 +17,7 @@ SCRIPTS = Path(__file__).resolve().parents[1] / "skills" / "herdr-delivery-workf
 sys.path.insert(0, str(SCRIPTS))
 
 import closeout_check  # noqa: E402
+import gate_row  # noqa: E402
 
 
 class FakeHerdr:
@@ -60,9 +62,40 @@ class CloseoutCheckTest(unittest.TestCase):
         self.addCleanup(home_patch.stop)
         self.canonical = Path(self.tmp.name) / "checkout"
         self.canonical.mkdir()
+        for args in (
+            ("init", "-q", "-b", "main"),
+            ("config", "user.email", "closeout@example.invalid"),
+            ("config", "user.name", "closeout-test"),
+        ):
+            subprocess.run(
+                ["git", "-C", str(self.canonical), *args],
+                check=True,
+                capture_output=True,
+                text=True,
+                stdin=subprocess.DEVNULL,
+            )
+        (self.canonical / "tracked.txt").write_text("base\n", encoding="utf-8")
+        subprocess.run(["git", "-C", str(self.canonical), "add", "tracked.txt"],
+                       check=True, capture_output=True, text=True, stdin=subprocess.DEVNULL)
+        subprocess.run(["git", "-C", str(self.canonical), "commit", "-qm", "base"],
+                       check=True, capture_output=True, text=True, stdin=subprocess.DEVNULL)
         self.herdr = FakeHerdr(self.canonical)
+        self.project_dir = Path(self.tmp.name) / "closeout-project"
+        self.project_dir.mkdir()
+        self.mailbox = self.project_dir / "supervisor-mailbox.md"
+        self.ledger = self.project_dir / "gates.md"
+        self.ledger.write_text("# Gate ledger — test\n\n", encoding="utf-8")
+        self.mailbox.write_text(
+            "## lead -> supervisor | 2026-09-28T00:00:00Z | ATTENTION closeout-project "
+            "peer-staffed: eng-teardown review-teardown were staffed | HEAD "
+            f"{subprocess.run(['git', '-C', str(self.canonical), 'rev-parse', 'HEAD'], check=True, capture_output=True, text=True, stdin=subprocess.DEVNULL).stdout.strip()}\n",
+            encoding="utf-8",
+        )
         self.record = {
             "canonical_checkout": str(self.canonical),
+            "project_slug": "closeout-project",
+            "supervisor_mailbox": str(self.mailbox),
+            "gates_ledger": str(self.ledger),
             "persistent": [
                 {"role": "Lead", "name": "lead-beo-skills", "pane": "w1:p1"},
                 {"role": "Human Supervisor", "name": "supervisor", "pane": "w1:p2"},
@@ -79,6 +112,126 @@ class CloseoutCheckTest(unittest.TestCase):
         self.herdr.add_peer("eng-teardown", "w1:p3", agent_status="agent_not_found")
         self.herdr.add_peer("review-teardown", "w1:p4")
         self.addCleanup(self.tmp.cleanup)
+
+    def test_supervisor_requires_a_peer_named_by_a_peer_staffed_header(self):
+        self.herdr.close("w1:p3")
+        self.herdr.close("w1:p4")
+        record = dict(self.record)
+        record["peers"] = [self.record["peers"][0]]
+        self.mailbox.write_text("", encoding="utf-8")
+
+        missing = closeout_check.check_closeout(record, self.herdr)
+        self.assertEqual(
+            missing.findings,
+            ("Engineer eng-teardown has no ATTENTION closeout-project peer-staffed mailbox header naming it",),
+        )
+
+        timestamp = "2026-09-28T00:00:00Z"
+        header = (
+            f"## lead -> supervisor | {timestamp} | ATTENTION closeout-project peer-staffed: "
+            f"eng-teardown was staffed | HEAD {'a' * 40}\n"
+        )
+        self.mailbox.write_text(header, encoding="utf-8")
+        named = closeout_check.check_closeout(record, self.herdr)
+        self.assertTrue(named.passed, named.findings)
+
+        self.mailbox.write_text(header.replace("eng-teardown was", "eng-teardown-extra was"), encoding="utf-8")
+        substring = closeout_check.check_closeout(record, self.herdr)
+        self.assertFalse(substring.passed)
+        self.assertEqual(substring.findings, missing.findings)
+
+        self.mailbox.unlink()
+        unreadable = closeout_check.check_closeout(record, self.herdr)
+        self.assertFalse(unreadable.passed)
+        self.assertEqual(len(unreadable.findings), 1)
+        self.assertIn(str(self.mailbox), unreadable.findings[0])
+        self.assertIn("could not be read", unreadable.findings[0])
+        self.assertNotIn("has no ATTENTION", unreadable.findings[0])
+
+        unsupervised = dict(record)
+        unsupervised["persistent"] = [record["persistent"][0]]
+        unsupervised.pop("project_slug")
+        unsupervised.pop("supervisor_mailbox")
+        no_supervisor = closeout_check.check_closeout(unsupervised, self.herdr)
+        self.assertTrue(no_supervisor.passed, no_supervisor.findings)
+
+    def test_reviewed_unpushed_commit_needs_an_open_push_gate(self):
+        temp = Path(self.tmp.name) / "d4"
+        repo = temp / "repo"
+        origin = temp / "origin.git"
+        temp.mkdir()
+        repo.mkdir()
+
+        def git(path: Path, *args: str) -> str:
+            return subprocess.run(
+                ["git", "-C", str(path), *args],
+                check=True,
+                capture_output=True,
+                text=True,
+                stdin=subprocess.DEVNULL,
+            ).stdout.strip()
+
+        subprocess.run(["git", "init", "-q", "--bare", str(origin)], check=True,
+                       stdin=subprocess.DEVNULL)
+        git(repo, "init", "-q", "-b", "main")
+        git(repo, "config", "user.email", "closeout@example.invalid")
+        git(repo, "config", "user.name", "closeout-test")
+        (repo / "tracked.txt").write_text("base\n", encoding="utf-8")
+        git(repo, "add", "tracked.txt")
+        git(repo, "commit", "-qm", "base")
+        base = git(repo, "rev-parse", "HEAD")
+        git(repo, "remote", "add", "origin", str(origin))
+        git(repo, "push", "-q", "-u", "origin", "main")
+
+        (repo / "tracked.txt").write_text("pushed\n", encoding="utf-8")
+        git(repo, "commit", "-qam", "pushed")
+        pushed_commit = git(repo, "rev-parse", "HEAD")
+        git(repo, "push", "-q", "origin", "main")
+
+        (repo / "tracked.txt").write_text("reviewed\n", encoding="utf-8")
+        git(repo, "commit", "-qam", "reviewed")
+        reviewed = git(repo, "rev-parse", "HEAD")
+        self.record["canonical_checkout"] = str(repo)
+        self.mailbox.write_text(
+            "## lead -> supervisor | 2026-09-28T00:00:00Z | ATTENTION closeout-project "
+            f"peer-staffed: eng-teardown review-teardown were staffed | HEAD {base[:7]}\n",
+            encoding="utf-8",
+        )
+        self.herdr.close("w1:p3")
+        self.herdr.close("w1:p4")
+        self.ledger.write_text(
+            f"G1 | 2026-09-28T00:00:00Z | kind=review | main@{reviewed} | "
+            f"status=recorded:review-pass | record=timely | review={base}..{reviewed} count=2 | "
+            "words=seat | note=review passed | quote=\"PASS\"\n",
+            encoding="utf-8",
+        )
+
+        missing_gate = closeout_check.check_closeout(self.record, self.herdr)
+        self.assertFalse(missing_gate.passed)
+        self.assertEqual(len(missing_gate.findings), 1)
+        self.assertIn("reviewed unpushed commit", missing_gate.findings[0])
+        self.assertIn("no open push-gate row", missing_gate.findings[0])
+        self.assertIn(reviewed, missing_gate.findings[0])
+        self.assertNotIn(pushed_commit, missing_gate.findings[0])
+
+        review_row = gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))[0]
+        push_gate = (
+            f"G2 | 2026-09-28T00:00:01Z | kind=push-gate | main@{reviewed} | status=open | "
+            f"record=timely | prev_hash={gate_row.row_hash(review_row)} | words=none | "
+            "note=push awaits the Human | quote=\"\"\n"
+        )
+        self.ledger.write_text(self.ledger.read_text(encoding="utf-8") + push_gate, encoding="utf-8")
+        gated = closeout_check.check_closeout(self.record, self.herdr)
+        self.assertTrue(gated.passed, gated.findings)
+
+        git(repo, "push", "-q", "origin", "main")
+        pushed = closeout_check.check_closeout(self.record, self.herdr)
+        self.assertTrue(pushed.passed, pushed.findings)
+
+        (repo / "tracked.txt").write_text("unreviewed\n", encoding="utf-8")
+        git(repo, "commit", "-qam", "unreviewed")
+        unreviewed = closeout_check.check_closeout(self.record, self.herdr)
+        self.assertTrue(unreviewed.passed, unreviewed.findings)
 
     def test_open_recorded_peer_fails_even_when_agent_is_not_found_then_passes_after_close(self):
         result = closeout_check.check_closeout(self.record, self.herdr)
@@ -260,8 +413,9 @@ class CloseoutCheckTest(unittest.TestCase):
         )
         with template.open(encoding="utf-8") as handle:
             record = json.load(handle)
-        canonical, peers = closeout_check._validate_record(record)
+        canonical, peers, _, _, ledger = closeout_check._validate_record(record)
         self.assertTrue(canonical.is_absolute())
+        self.assertTrue(ledger.is_absolute())
         self.assertEqual([peer["role"] for peer in peers], ["Engineer", "Reviewer"])
         self.assertEqual(
             record["persistent"],
@@ -273,8 +427,11 @@ class CloseoutCheckTest(unittest.TestCase):
 
         unsupervised = dict(record)
         unsupervised["persistent"] = [record["persistent"][0]]
-        canonical, peers = closeout_check._validate_record(unsupervised)
+        canonical, peers, slug, mailbox_path, ledger = closeout_check._validate_record(unsupervised)
         self.assertTrue(canonical.is_absolute())
+        self.assertIsNone(slug)
+        self.assertIsNone(mailbox_path)
+        self.assertTrue(ledger.is_absolute())
         self.assertEqual([peer["role"] for peer in peers], ["Engineer", "Reviewer"])
 
     def test_subprocess_herdr_unavailable_fails_closeout_closed(self):

@@ -12,6 +12,9 @@ from pathlib import Path
 from typing import Any, Mapping, Protocol
 
 import herdr_cli
+import gate_row
+import mailbox
+import pre_push_guard
 
 
 class HerdrReadBoundary(Protocol):
@@ -102,7 +105,9 @@ def _validate_handle(value: Any, label: str) -> str:
     return value
 
 
-def _validate_record(record: Mapping[str, Any]) -> tuple[Path, list[dict[str, str]]]:
+def _validate_record(
+    record: Mapping[str, Any],
+) -> tuple[Path, list[dict[str, str]], str | None, Path | None, Path]:
     canonical_value = record.get("canonical_checkout")
     if not isinstance(canonical_value, str) or not canonical_value or "\x00" in canonical_value:
         raise ValueError("canonical_checkout must be a non-empty path")
@@ -160,7 +165,41 @@ def _validate_record(record: Mapping[str, Any]) -> tuple[Path, list[dict[str, st
         seen_panes.add(pane)
         seen_names.add(name)
         validated.append({"issue": issue, "role": role, "pane": pane, "name": name})
-    return canonical.resolve(strict=False), validated
+    supervisor_recorded = any(seat.get("role") == "Human Supervisor" for seat in persistent)
+    slug_value = record.get("project_slug")
+    mailbox_value = record.get("supervisor_mailbox")
+    if supervisor_recorded:
+        slug = _validate_handle(slug_value, "project_slug")
+        if not isinstance(mailbox_value, str) or not mailbox_value or "\x00" in mailbox_value:
+            raise ValueError("supervisor_mailbox must be a non-empty path")
+        mailbox_path = Path(mailbox_value).expanduser()
+        if not mailbox_path.is_absolute():
+            raise ValueError("supervisor_mailbox must be absolute")
+        mailbox_path = mailbox_path.resolve(strict=False)
+    else:
+        slug = None
+        mailbox_path = None
+
+    ledger_value = record.get("gates_ledger")
+    if not isinstance(ledger_value, str) or not ledger_value or "\x00" in ledger_value:
+        raise ValueError("gates_ledger must be a non-empty path")
+    ledger_path = Path(ledger_value).expanduser()
+    if not ledger_path.is_absolute():
+        raise ValueError("gates_ledger must be absolute")
+    return canonical.resolve(strict=False), validated, slug, mailbox_path, ledger_path.resolve(strict=False)
+
+
+def _mailbox_names_peer(header: str, slug: str | None, peer_name: str) -> bool:
+    if slug is None or not mailbox.HEADER_RE.match(header):
+        return False
+    event = header.split(" | ", 2)[2]
+    prefix = f"ATTENTION {slug} peer-staffed:"
+    if not event.startswith(prefix):
+        return False
+    return re.search(
+        rf"(?<![A-Za-z0-9_.:-]){re.escape(peer_name)}(?![A-Za-z0-9_.:-])",
+        event[len(prefix):],
+    ) is not None
 
 
 def _pane_state(value: Any) -> tuple[str, str | None]:
@@ -252,8 +291,10 @@ def check_closeout(
 ) -> CloseoutResult:
     """Inspect exactly the recorded peer panes through a read-only Herdr boundary.
 
-    The closeout staffing record is JSON with ``canonical_checkout``, ``persistent`` and
-    ``peers`` fields.  Each peer has ``issue``, ``role`` (Engineer or Reviewer),
+    The closeout staffing record is JSON with ``canonical_checkout``, ``persistent``,
+    ``peers`` and ``gates_ledger`` fields. With a Human Supervisor it also carries
+    ``project_slug`` and ``supervisor_mailbox``. Each peer has ``issue``,
+    ``role`` (Engineer or Reviewer),
     ``name`` and opaque ``pane`` fields.  Boundary methods return normalized
     mappings: ``read_pane`` returns ``{"status": "open", "pane_id": ...,
     "cwd": ...}`` or ``{"status": "absent"}``; ``read_agent`` returns an
@@ -266,12 +307,43 @@ def check_closeout(
         findings.append(f"unexpected {herd_path} exists; likely typo of ~/.herdr")
     try:
         record = _record_from_input(staffing_record)
-        canonical, peers = _validate_record(record)
+        canonical, peers, slug, mailbox_path, ledger_path = _validate_record(record)
     except (OSError, UnicodeError, json.JSONDecodeError, TypeError, ValueError) as exc:
         return CloseoutResult(False, (f"malformed staffing record: {exc}",))
 
+    mailbox_entries = None
+    if mailbox_path is not None:
+        try:
+            mailbox_entries = mailbox._entries(mailbox_path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, ValueError) as exc:
+            mailbox_entries = None
+            findings.append(f"supervisor mailbox {mailbox_path} could not be read: {exc}")
+
+    try:
+        with gate_row.locked_ledger(ledger_path, exclusive=False) as handle:
+            rows = gate_row.ledger_rows(gate_row.handle_text(handle))
+        gate_tips = gate_row.open_push_gate_tips(rows, canonical)
+        unpushed = pre_push_guard.unpushed_commits(canonical, gate_tips)
+        reviewed = gate_row.review_covered_commits(rows, canonical, set(unpushed)) & set(unpushed)
+        if reviewed:
+            findings.append(
+                f"reviewed unpushed commit(s) {' '.join(sorted(reviewed))} have no open push-gate row"
+            )
+    except (OSError, UnicodeError, gate_row.RowError, pre_push_guard.GuardError) as exc:
+        findings.append(f"gate ledger could not be checked: {exc}")
+
     checked: list[str] = []
     for peer in peers:
+        if mailbox_entries is not None:
+            named = any(
+                _mailbox_names_peer(entry.header, slug, peer["name"])
+                for entry in mailbox_entries
+            )
+            if not named:
+                findings.append(
+                    f"{peer['role']} {peer['name']} has no ATTENTION {slug} peer-staffed "
+                    "mailbox header naming it"
+                )
         pane_id = peer["pane"]
         name = peer["name"]
         checked.append(pane_id)
