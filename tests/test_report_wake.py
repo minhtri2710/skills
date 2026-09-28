@@ -105,6 +105,8 @@ class ReportWakeTest(unittest.TestCase):
             f'herdr agent prompt "{LEAD}" "$(cat {SEND})"',
             f"env herdr agent prompt {LEAD} payload",
             f"NAME=value herdr agent prompt {LEAD} payload",
+            f"a=(1 2); herdr agent prompt {LEAD} payload",
+            f"format-report; herdr agent prompt {LEAD} payload",
             f"command herdr agent prompt {LEAD} payload",
             f"env NAME=value command herdr agent prompt {LEAD} payload",
             f"true; herdr agent prompt {LEAD} payload",
@@ -135,6 +137,18 @@ class ReportWakeTest(unittest.TestCase):
             ("backslash-continued command", "echo done " + chr(92) + "\n" + f"herdr agent prompt {LEAD} payload"),
             ("conditional command", f"if false; then\nherdr agent prompt {LEAD} payload\nfi"),
             ("loop command", f"while false; do\nherdr agent prompt {LEAD} payload\ndone"),
+            (
+                "delimiter line with CR under an LF opener",
+                f"cat <<EOF\nbody\nEOF\r\nherdr agent prompt {LEAD} payload\nEOF\n",
+            ),
+            (
+                "uncalled function definition",
+                f"send-report()\n{{\nherdr agent prompt {LEAD} payload\n}}",
+            ),
+            (
+                "uncalled function keyword definition",
+                f"function g {{\nherdr agent prompt {LEAD} payload\n}}",
+            ),
         ]
         expected_nudge = {
             "entries": [{"type": "custom_message", "customType": "report-wake", "display": True, "content": D4}],

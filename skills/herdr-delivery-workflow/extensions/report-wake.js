@@ -17,6 +17,7 @@ export default function (pi) {
     pi.appendEntry("report-wake", data);
   }
 
+  // Count sends only at recognized shell command starts; unsupported forms fail noisy.
   function promptTarget(command) {
     const invocation = /^[ \t]*(?:env[ \t]+)?(?:[A-Za-z_][A-Za-z0-9_]*=(?:"[^"]*"|'[^']*'|[^\s;&|]+)[ \t]+)*(?:command[ \t]+)?herdr[ \t]+agent[ \t]+prompt[ \t]+(?:"([^"]*)"|'([^']*)'|([^\s;&|]+))/;
     const heredocs = [];
@@ -55,7 +56,6 @@ export default function (pi) {
           const newline = command.indexOf("\n", cursor);
           const end = newline === -1 ? command.length : newline;
           let line = command.slice(cursor, end);
-          if (line.endsWith("\r")) line = line.slice(0, -1);
           if (heredoc.stripTabs) line = line.replace(/^\t+/, "");
           cursor = newline === -1 ? command.length : newline + 1;
           if (line === heredoc.delimiter) {
@@ -70,7 +70,7 @@ export default function (pi) {
 
     while (index < command.length) {
       if (commandStart) {
-        if (/^(?:if|while|until|for|select|case)[ \t]+/.test(command.slice(index))) return undefined;
+        if (/^(?:(?:if|while|until|for|select|case|function)[ \t]|[^\s;&|()<>\"'`$=\\]+[ \t]*\([ \t]*\))/.test(command.slice(index))) return undefined;
         const match = invocation.exec(command.slice(index));
         if (match && (match[1] ?? match[2] ?? match[3]) === lead) return lead;
         if (command[index] !== " " && command[index] !== "\t") commandStart = false;
