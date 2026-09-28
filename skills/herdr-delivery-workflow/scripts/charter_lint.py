@@ -243,7 +243,8 @@ def _staffing_problems(
 def _git(repo: Path, args: list[str], stdin: str = "") -> subprocess.CompletedProcess[str]:
     try:
         return subprocess.run(
-            ["git", "-C", str(repo), *args], input=stdin, capture_output=True, text=True
+            ["git", "-C", str(repo), *args], input=stdin, capture_output=True, text=True,
+            encoding="utf-8",
         )
     except OSError as exc:
         raise ValueError(f"could not run git: {exc}") from exc

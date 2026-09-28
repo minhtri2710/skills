@@ -182,7 +182,7 @@ def append_entry(
             raise ValueError("stdin body must not contain a line starting '## '")
     proc = subprocess.run(
         ["git", "-C", repo, "rev-parse", "HEAD"],
-        capture_output=True, text=True, check=False,
+        capture_output=True, text=True, encoding="utf-8", check=False,
     )
     head = proc.stdout.strip()
     if proc.returncode != 0 or SHA_RE.fullmatch(head) is None:

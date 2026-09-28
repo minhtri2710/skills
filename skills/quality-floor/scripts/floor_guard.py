@@ -72,6 +72,7 @@ def _git(repo: Path, *args: str) -> str:
             cwd=repo,
             capture_output=True,
             text=True,
+            encoding="utf-8",
         )
     except OSError as exc:
         raise GuardError(f"git unavailable: {exc}") from exc

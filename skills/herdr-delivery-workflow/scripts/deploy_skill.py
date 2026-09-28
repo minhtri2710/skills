@@ -35,6 +35,7 @@ def git(repo: Path, *args: str) -> str:
         ["git", "-C", str(repo), *args],
         capture_output=True,
         text=True,
+        encoding="utf-8",
         check=False,
         stdin=subprocess.DEVNULL,
     )
@@ -96,6 +97,7 @@ def resolved_files(repo: Path, head: str, paths: list[str], skill_prefix: str) -
             ["git", "-C", str(repo), "ls-tree", head, "--", tracked],
             capture_output=True,
             text=True,
+            encoding="utf-8",
             check=False,
             stdin=subprocess.DEVNULL,
         )
@@ -198,7 +200,8 @@ def append_deploy_row(
     for gate_id in args.resolves:
         command.extend(["--resolves", gate_id])
     result = subprocess.run(
-        command, capture_output=True, text=True, check=False, stdin=subprocess.DEVNULL
+        command, capture_output=True, text=True, encoding="utf-8", check=False,
+        stdin=subprocess.DEVNULL
     )
     if result.returncode:
         raise DeployError(
@@ -215,6 +218,7 @@ def _install_with_skills(cli: str, source: Path, skill: str) -> None:
         command,
         capture_output=True,
         text=True,
+        encoding="utf-8",
         check=False,
         env=environment,
         stdin=subprocess.DEVNULL,

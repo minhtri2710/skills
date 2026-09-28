@@ -141,7 +141,7 @@ def require_mailbox_attention(gid: str, head: str, mailbox: Path) -> None:
 def git(repo: Path, *args: str) -> str:
     proc = subprocess.run(
         ["git", "-C", str(repo), *args],
-        capture_output=True, text=True, check=False,
+        capture_output=True, text=True, encoding="utf-8", check=False,
     )
     if proc.returncode != 0:
         raise RowError(f"git {' '.join(args)} failed: {proc.stderr.strip()}")

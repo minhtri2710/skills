@@ -290,6 +290,7 @@ def _pi_process_start(pid: Any) -> datetime:
             ["ps", "-o", "lstart=", "-p", str(pid)],
             capture_output=True,
             text=True,
+            encoding="utf-8",
             check=False,
             timeout=10,
             env={**os.environ, "LC_ALL": "C"},

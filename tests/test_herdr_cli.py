@@ -26,6 +26,7 @@ class HerdrCliTest(unittest.TestCase):
             ["herdr", "agent", "list"],
             capture_output=True,
             text=True,
+            encoding="utf-8",
             check=False,
             timeout=4.5,
         )

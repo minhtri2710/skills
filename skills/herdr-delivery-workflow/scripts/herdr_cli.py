@@ -20,6 +20,7 @@ def run(args: list[str], *, timeout: float = 30.0) -> subprocess.CompletedProces
             command,
             capture_output=True,
             text=True,
+            encoding="utf-8",
             check=False,
             timeout=timeout,
         )

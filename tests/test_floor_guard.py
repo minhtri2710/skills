@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+import os
 import subprocess
 import sys
 import tempfile
@@ -100,6 +101,24 @@ class FloorGuardRepoTest(unittest.TestCase):
         code, err = self.run_guard()
         self.assertEqual(code, 1)
         self.assertIn("[unfinished-work] src/new.py:2", err)
+
+    def test_non_ascii_untracked_violation_is_reported_under_legacy_locale(self) -> None:
+        self.write("src/new_é.py", "def later():\n    pass  # TODO\n")
+        env = {
+            key: value for key, value in os.environ.items()
+            if key not in ("PYTHONUTF8", "PYTHONIOENCODING", "LANG")
+        }
+        proc = subprocess.run(
+            [sys.executable, str(SCRIPTS / "floor_guard.py"), "--base", "main",
+             "--repo", str(self.repo)],
+            capture_output=True,
+            env={**env, "LC_ALL": "en_US.ISO8859-1"},
+            stdin=subprocess.DEVNULL,
+        )
+        self.assertEqual(proc.returncode, 1, proc.stderr)
+        self.assertIn(
+            "[unfinished-work] src/new_é.py:2".encode("iso8859-1"), proc.stderr
+        )
 
     def test_deleted_test_file_is_flagged(self) -> None:
         (self.repo / "tests/test_old.py").unlink()
