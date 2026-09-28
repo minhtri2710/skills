@@ -18,9 +18,154 @@ export default function (pi) {
   }
 
   function promptTarget(command) {
-    const invocation = /(?:^|[;&|]+\s*|\n\s*)(?:env\s+)?(?:[A-Za-z_][A-Za-z0-9_]*=(?:"[^"]*"|'[^']*'|[^\s;&|]+)\s+)*(?:command\s+)?herdr\s+agent\s+prompt\s+(?:"([^"]*)"|'([^']*)'|([^\s;&|]+))/g;
-    for (const match of command.matchAll(invocation)) {
-      if ((match[1] ?? match[2] ?? match[3]) === lead) return lead;
+    const invocation = /^[ \t]*(?:env[ \t]+)?(?:[A-Za-z_][A-Za-z0-9_]*=(?:"[^"]*"|'[^']*'|[^\s;&|]+)[ \t]+)*(?:command[ \t]+)?herdr[ \t]+agent[ \t]+prompt[ \t]+(?:"([^"]*)"|'([^']*)'|([^\s;&|]+))/;
+    const heredocs = [];
+    let index = 0;
+    let commandStart = true;
+    let quote;
+    let escaped = false;
+    let comment = false;
+    let parentheses = 0;
+    let backtick = false;
+
+    const heredocAt = (start) => {
+      if (command[start + 2] === "<") return undefined;
+      let cursor = start + 2;
+      const stripTabs = command[cursor] === "-";
+      if (stripTabs) cursor += 1;
+      while (command[cursor] === " " || command[cursor] === "\t") cursor += 1;
+      const opener = command[cursor];
+      if (opener === "'" || opener === '"') {
+        const end = command.indexOf(opener, cursor + 1);
+        if (end === -1) return undefined;
+        return { delimiter: command.slice(cursor + 1, end), stripTabs, end: end + 1 };
+      }
+      const end = command.slice(cursor).search(/[\s;&|<>]/);
+      if (end === 0) return undefined;
+      const delimiterEnd = end === -1 ? command.length : cursor + end;
+      if (delimiterEnd === cursor) return undefined;
+      return { delimiter: command.slice(cursor, delimiterEnd), stripTabs, end: delimiterEnd };
+    };
+
+    const skipHeredocs = (start) => {
+      let cursor = start;
+      for (const heredoc of heredocs) {
+        let found = false;
+        while (cursor < command.length) {
+          const newline = command.indexOf("\n", cursor);
+          const end = newline === -1 ? command.length : newline;
+          let line = command.slice(cursor, end);
+          if (line.endsWith("\r")) line = line.slice(0, -1);
+          if (heredoc.stripTabs) line = line.replace(/^\t+/, "");
+          cursor = newline === -1 ? command.length : newline + 1;
+          if (line === heredoc.delimiter) {
+            found = true;
+            break;
+          }
+        }
+        if (!found) return command.length;
+      }
+      return cursor;
+    };
+
+    while (index < command.length) {
+      if (commandStart) {
+        if (/^(?:if|while|until|for|select|case)[ \t]+/.test(command.slice(index))) return undefined;
+        const match = invocation.exec(command.slice(index));
+        if (match && (match[1] ?? match[2] ?? match[3]) === lead) return lead;
+        if (command[index] !== " " && command[index] !== "\t") commandStart = false;
+      }
+
+      const char = command[index];
+      if (comment) {
+        if (char !== "\n") {
+          index += 1;
+          continue;
+        }
+        comment = false;
+      } else if (quote === "'") {
+        if (char === "'") quote = undefined;
+        index += 1;
+        continue;
+      } else if (quote === '"') {
+        if (escaped) escaped = false;
+        else if (char === "\\") escaped = true;
+        else if (char === '"') quote = undefined;
+        index += 1;
+        continue;
+      } else if (backtick) {
+        if (escaped) escaped = false;
+        else if (char === "\\") escaped = true;
+        else if (char === "`") backtick = false;
+        index += 1;
+        continue;
+      } else if (escaped) {
+        escaped = false;
+        index += 1;
+        continue;
+      } else if (char === "\\") {
+        escaped = true;
+        index += 1;
+        continue;
+      } else if (char === "'") {
+        quote = "'";
+        commandStart = false;
+        index += 1;
+        continue;
+      } else if (char === '"') {
+        quote = '"';
+        commandStart = false;
+        index += 1;
+        continue;
+      } else if (char === "`") {
+        backtick = true;
+        commandStart = false;
+        index += 1;
+        continue;
+      } else if (char === "(") {
+        parentheses += 1;
+        commandStart = false;
+        index += 1;
+        continue;
+      } else if (char === ")" && parentheses > 0) {
+        parentheses -= 1;
+        index += 1;
+        continue;
+      }
+
+      if (parentheses > 0) {
+        index += 1;
+        continue;
+      }
+      if (char === "#" && (index === 0 || /[\s;|&()>]/.test(command[index - 1]))) {
+        comment = true;
+        index += 1;
+        continue;
+      }
+      if (char === "<" && command[index + 1] === "<") {
+        const heredoc = heredocAt(index);
+        if (!heredoc) return undefined;
+        heredocs.push(heredoc);
+        index = heredoc.end;
+        continue;
+      }
+      if (char === "\n") {
+        if (heredocs.length) {
+          index = skipHeredocs(index + 1);
+          heredocs.length = 0;
+        } else {
+          index += 1;
+        }
+        commandStart = true;
+        continue;
+      }
+      if (char === ";" || char === "&" || char === "|") {
+        if (char === command[index + 1] || ((char === "|" || char === "&") && command[index + 1] === "&")) index += 2;
+        else index += 1;
+        commandStart = true;
+        continue;
+      }
+      index += 1;
     }
     return undefined;
   }

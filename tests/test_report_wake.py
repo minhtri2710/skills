@@ -101,9 +101,50 @@ class ReportWakeTest(unittest.TestCase):
         return json.loads(result.stdout)
 
     def test_sent_target_success_skips_nudge_and_wake(self):
-        command = f'herdr agent prompt "{LEAD}" "$(cat {SEND})"'
-        result = self.run_extension({"steps": [bash_result(command), before(), step("settled")]})
-        self.assertEqual((result["beforeResults"], result["exec"]), ([None], []))
+        commands = [
+            f'herdr agent prompt "{LEAD}" "$(cat {SEND})"',
+            f"env herdr agent prompt {LEAD} payload",
+            f"NAME=value herdr agent prompt {LEAD} payload",
+            f"command herdr agent prompt {LEAD} payload",
+            f"env NAME=value command herdr agent prompt {LEAD} payload",
+            f"true; herdr agent prompt {LEAD} payload",
+            f"true && herdr agent prompt {LEAD} payload",
+            f"false || herdr agent prompt {LEAD} payload",
+            f"true | herdr agent prompt {LEAD} payload",
+            f"true & herdr agent prompt {LEAD} payload",
+            f"true\nherdr agent prompt {LEAD} payload",
+        ]
+        for command in commands:
+            with self.subTest(command=command):
+                result = self.run_extension({"steps": [bash_result(command), before(), step("settled")]})
+                self.assertEqual((result["beforeResults"], result["exec"]), ([None], []))
+
+    def test_prompt_text_outside_command_positions_does_not_count_as_sent(self):
+        body = f'herdr agent prompt {LEAD} "$(cat {SEND})"'
+        cases = [
+            (
+                "quoted commit message",
+                f'git commit -m "docs: note; herdr agent prompt {LEAD} is the send"',
+            ),
+            ("single-quoted text", f"echo 'docs: note; herdr agent prompt {LEAD} payload'"),
+            ("comment text", f"echo done; # herdr agent prompt {LEAD} payload"),
+            ("unquoted heredoc", f"cat > {REPORT} <<END-{SEAT}\n{body}\nEND-{SEAT}"),
+            ("single-quoted heredoc", f"cat > {REPORT} <<'END-{SEAT}'\n{body}\nEND-{SEAT}"),
+            ("double-quoted heredoc", f'cat > {REPORT} <<\"END-{SEAT}\"\n{body}\nEND-{SEAT}'),
+            ("tab-stripping heredoc", f"cat > {REPORT} <<-END-{SEAT}\n\t{body}\n\tEND-{SEAT}"),
+            ("backslash-continued command", "echo done " + chr(92) + "\n" + f"herdr agent prompt {LEAD} payload"),
+            ("conditional command", f"if false; then\nherdr agent prompt {LEAD} payload\nfi"),
+            ("loop command", f"while false; do\nherdr agent prompt {LEAD} payload\ndone"),
+        ]
+        expected_nudge = {
+            "entries": [{"type": "custom_message", "customType": "report-wake", "display": True, "content": D4}],
+            "continue": True,
+        }
+        expected_wake = [["herdr", ["agent", "prompt", LEAD, D5]]]
+        for shape, command in cases:
+            with self.subTest(shape=shape):
+                result = self.run_extension({"steps": [bash_result(command), before(), step("settled")]})
+                self.assertEqual((result["beforeResults"][0], result["exec"]), (expected_nudge, expected_wake))
 
     def test_unsent_completed_nudges_once_then_wakes_once(self):
         unsent = before()
