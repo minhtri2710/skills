@@ -224,6 +224,81 @@ class CharterLintTest(unittest.TestCase):
         self.assertIn("OK:", output)
         self.assertEqual(error, "")
 
+    def test_fenced_seat_docker_residual_depends_on_charter_allowance(self):
+        charter = self.reviewer_charter() + "The charter allows containers, using docker compose up.\n"
+        missing = self.run_lint(charter, self.staffing_record())
+        self.assertEqual(missing[0], 1)
+        self.assertIn(
+            "charter_lint: REVIEWER fenced seat missing residual docker-daemon writes\n",
+            missing[2],
+        )
+
+        residual = self.staffing_record().replace(
+            self.fence_evidence(),
+            self.fence_evidence()
+            + " residual docker-daemon writes (the Docker daemon runs outside sandbox-exec), "
+            "bounded by: charter",
+        )
+        self.assertEqual(self.run_lint(charter, residual)[0], 0)
+
+        engineer_charter = (
+            self.engineer_charter() + "The charter allows containers, using docker compose up.\n"
+        )
+        self.assertEqual(self.run_lint(engineer_charter, self.staffing_record())[0], 0)
+
+        prohibited = self.reviewer_charter() + "No docker/psql/build/e2e.\n"
+        self.assertEqual(self.run_lint(prohibited, self.staffing_record())[0], 0)
+
+        doctrinal = (
+            "The fence does not bound the Docker daemon: a fenced charter that allows "
+            "containers pins the exact docker commands.\n"
+        )
+        self.assertEqual(self.run_lint(self.reviewer_charter() + doctrinal, self.staffing_record())[0], 1)
+
+    def test_pi_prompt_template_field_and_matching_launch_argv_are_required(self):
+        charter = self.reviewer_charter()
+        missing_field = self.staffing_record().replace(
+            "ENGINEER: eng kind=pi", "ENGINEER: eng kind=claude", 1
+        ).replace(
+            "prompt-templates=none(--no-prompt-templates) fence=",
+            "fence=",
+        )
+        code, _, error = self.run_lint(charter, missing_field)
+        self.assertEqual(code, 1)
+        self.assertIn("REVIEWER kind=pi seat missing prompt-templates=none", error)
+
+        wrong_field = self.staffing_record().replace(
+            "ENGINEER: eng kind=pi", "ENGINEER: eng kind=claude", 1
+        ).replace(
+            "REVIEWER: rev kind=pi model=m posture=prompting dialog=residual skills=none extensions=none "
+            "prompt-templates=none(--no-prompt-templates)",
+            "REVIEWER: rev kind=pi model=m posture=prompting dialog=residual skills=none extensions=none "
+            "prompt-templates=/better-harness",
+        )
+        code, _, error = self.run_lint(charter, wrong_field)
+        self.assertEqual(code, 1)
+        self.assertIn("REVIEWER kind=pi seat missing prompt-templates=none", error)
+
+        matching_argv = (
+            self.staffing_record()
+            + "# Started with: herdr agent start rev --kind pi -- --no-prompt-templates\n"
+        )
+        self.assertEqual(self.run_lint(charter, matching_argv)[0], 0)
+
+        missing_argv = (
+            self.staffing_record()
+            + "# Started with: herdr agent start rev --kind pi -- --no-skills --no-extensions\n"
+        )
+        code, _, error = self.run_lint(charter, missing_argv)
+        self.assertEqual(code, 1)
+        self.assertIn("REVIEWER kind=pi launch argv missing --no-prompt-templates", error)
+
+        unrelated_argv = (
+            self.staffing_record()
+            + "# Started with: herdr agent start another-seat --kind pi -- --no-skills\n"
+        )
+        self.assertEqual(self.run_lint(charter, unrelated_argv)[0], 0)
+
     def test_reviewer_placeholder_is_named(self):
         staffing = self.staffing_record().replace(
             "REVIEWER: rev kind=pi model=m", "REVIEWER: <name> kind=<kind> model=m"
@@ -656,8 +731,10 @@ class CharterLintTest(unittest.TestCase):
         profile.write_text("(version 1)\n", encoding="utf-8")
         fence = self.fence_evidence()
         return (
-            "ENGINEER: eng kind=pi model=m posture=none dialog=denied skills=none extensions=none\n"
-            f"REVIEWER: rev kind=pi model=m posture=prompting dialog=residual skills=none extensions=none {fence}\n"
+            "ENGINEER: eng kind=pi model=m posture=none dialog=denied skills=none extensions=none "
+            "prompt-templates=none(--no-prompt-templates)\n"
+            f"REVIEWER: rev kind=pi model=m posture=prompting dialog=residual skills=none extensions=none "
+            f"prompt-templates=none(--no-prompt-templates) {fence}\n"
         )
 
     def fence_evidence(self) -> str:

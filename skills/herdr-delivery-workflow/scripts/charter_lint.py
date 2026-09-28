@@ -96,7 +96,50 @@ def _sandbox_exec_available() -> bool:
     return shutil.which("sandbox-exec") is not None
 
 
-def _staffing_problems(text: str, disposition: str | None, staffing_path: Path) -> list[str]:
+def _charter_allows_docker(charter: str) -> bool:
+    for clause in re.split(r"[;.!?:\n]", charter):
+        if not re.search(r"\bdocker\b", clause, re.IGNORECASE):
+            continue
+        prohibited = re.search(
+            r"\b(?:no|never|not|without|prohibit\w*|forbid\w*)\b[^,]*\bdocker\b"
+            r"|\bdocker\b[^,]*\b(?:not allowed|prohibit\w*|forbid\w*)\b",
+            clause,
+            re.IGNORECASE,
+        )
+        if prohibited is not None:
+            continue
+        if re.search(
+            r"\bdocker\s+(?:run|compose|exec|build|ps|pull|push|image|container|volume|"
+            r"network|logs|inspect|start|stop|rm|create|version)\b"
+            r"|\ballows?\s+(?:containers|docker)\b"
+            r"|\bdocker\s+(?:is\s+)?allowed\b",
+            clause,
+            re.IGNORECASE,
+        ):
+            return True
+    return False
+
+
+def _pi_launch_argvs(text: str, seat_name: str) -> list[str]:
+    argvs = []
+    for line in text.splitlines():
+        start = re.search(r"\bherdr\s+agent\s+start\s+(\S+)(.*)$", line)
+        if start is None or start.group(1) != seat_name:
+            continue
+        before_args = start.group(2)
+        if re.search(r"(?:^|\s)--kind\s+pi(?:\s|$)", before_args) is None:
+            continue
+        separator = re.search(r"\s--\s", before_args)
+        if separator is None:
+            continue
+        argv = before_args[separator.end():].split(" -> ", 1)[0]
+        argvs.append(argv)
+    return argvs
+
+
+def _staffing_problems(
+    text: str, disposition: str | None, staffing_path: Path, charter: str
+) -> list[str]:
     seats = SEAT_RE.findall(text)
     if not seats:
         return ["staffing record has no ENGINEER, REVIEWER, or ARCHITECT seat lines"]
@@ -110,6 +153,25 @@ def _staffing_problems(text: str, disposition: str | None, staffing_path: Path) 
         for key in ("posture=", "dialog=", "skills=", "extensions="):
             if key not in line:
                 problems.append(f"{seat} seat missing {key}")
+        kind_match = re.search(r"(?:^|\s)kind=([^\s]+)", line, re.IGNORECASE)
+        if kind_match is not None and kind_match.group(1).lower() == "pi":
+            if not re.search(r"(?:^|\s)prompt-templates=none(?:\(|\s|$)", line, re.IGNORECASE):
+                problems.append(f"{seat} kind=pi seat missing prompt-templates=none")
+            name_match = re.match(r"^\s*(?:ENGINEER|REVIEWER|ARCHITECT):\s*(\S+)", line, re.IGNORECASE)
+            if name_match is not None:
+                for argv in _pi_launch_argvs(text, name_match.group(1)):
+                    if "--no-prompt-templates" not in argv.split():
+                        problems.append(
+                            f"{seat} kind=pi launch argv missing --no-prompt-templates"
+                        )
+        if (
+            disposition == seat.lower()
+            and seat in {"REVIEWER", "ARCHITECT"}
+            and re.search(r"(?:^|\s)fence=sandbox-exec(?:\s|\()", line, re.IGNORECASE)
+            and _charter_allows_docker(charter)
+            and re.search(r"\bresidual\s+docker-daemon\s+writes\b", line, re.IGNORECASE) is None
+        ):
+            problems.append(f"{seat} fenced seat missing residual docker-daemon writes")
         if disposition == seat.lower() and PLACEHOLDER_RE.search(line):
             problems.append(f"{seat} seat still contains a placeholder token")
 
@@ -282,7 +344,7 @@ def main(argv: list[str] | None = None) -> int:
             staffing, staffing_bytes = _read(args.staffing, "staffing record")
             texts["staffing record"] = staffing
             digests["staffing record"] = hashlib.sha256(staffing_bytes).hexdigest()
-            problems.extend(_staffing_problems(staffing, disposition, args.staffing))
+            problems.extend(_staffing_problems(staffing, disposition, args.staffing, charter))
         problems.extend(_sha_problems(args.repo, texts))
         problems.extend(_repair_range_problems(args.repo, charter))
     except ValueError as exc:
