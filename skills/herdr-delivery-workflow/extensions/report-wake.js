@@ -159,8 +159,9 @@ export default function (pi) {
         commandStart = true;
         continue;
       }
+      if ((char === "&" || char === "|") && command[index + 1] === char) return undefined;
       if (char === ";" || char === "&" || char === "|") {
-        if (char === command[index + 1] || ((char === "|" || char === "&") && command[index + 1] === "&")) index += 2;
+        if ((char === "|" || char === "&") && command[index + 1] === "&") index += 2;
         else index += 1;
         commandStart = true;
         continue;

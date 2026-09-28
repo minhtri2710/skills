@@ -110,8 +110,6 @@ class ReportWakeTest(unittest.TestCase):
             f"command herdr agent prompt {LEAD} payload",
             f"env NAME=value command herdr agent prompt {LEAD} payload",
             f"true; herdr agent prompt {LEAD} payload",
-            f"true && herdr agent prompt {LEAD} payload",
-            f"false || herdr agent prompt {LEAD} payload",
             f"true | herdr agent prompt {LEAD} payload",
             f"true & herdr agent prompt {LEAD} payload",
             f"true\nherdr agent prompt {LEAD} payload",
@@ -137,6 +135,8 @@ class ReportWakeTest(unittest.TestCase):
             ("backslash-continued command", "echo done " + chr(92) + "\n" + f"herdr agent prompt {LEAD} payload"),
             ("conditional command", f"if false; then\nherdr agent prompt {LEAD} payload\nfi"),
             ("loop command", f"while false; do\nherdr agent prompt {LEAD} payload\ndone"),
+            ("or-list whose left side succeeds", f"true || herdr agent prompt {LEAD} payload"),
+            ("and-list followed by a successful command", f"false && herdr agent prompt {LEAD} payload; true"),
             (
                 "delimiter line with CR under an LF opener",
                 f"cat <<EOF\nbody\nEOF\r\nherdr agent prompt {LEAD} payload\nEOF\n",
