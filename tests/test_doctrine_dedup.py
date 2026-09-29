@@ -28,7 +28,7 @@ BUDGET = {
     "references/project-config.md": 5_922,
     "references/structural-misfit-policy.md": 9_485,
     "references/charters.md": 35_784,
-    "references/closeout.md": 10_906,
+    "references/closeout.md": 12_688,
     "references/supervisor.md": 27_473,
 }
 
