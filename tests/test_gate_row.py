@@ -691,6 +691,11 @@ class GateRowTest(unittest.TestCase):
         ids = [l.split(" | ")[0] for l in self.ledger.read_text().splitlines()
                if gate_row.ID_RE.match(l)]
         self.assertEqual(ids, ["G1", "G2"])
+        for invalid in ("decision-abc", "G-1", "G1x"):
+            with self.subTest(invalid):
+                row = self.last_row().replace("G2 | ", f"{invalid} | ", 1)
+                with self.assertRaisesRegex(gate_row.RowError, "no G id"):
+                    gate_row.check(row, self.repo)
 
     def test_resolves_refuses_never_open_and_already_closed_ids_and_accepts_open_id(self):
         self.assertEqual(self.append("--resolves", "G404"), 1)
@@ -2283,6 +2288,8 @@ class GateRowTest(unittest.TestCase):
              "field 'status=bogus' is not a valid status="),
             ("invalid single prev_hash", [first, second.replace(" | words=", " | prev_hash=zz | words=")],
              "field 'prev_hash=zz' is not a 64-character lowercase hex prev_hash="),
+            ("non-G id row", self.chained([first, second.replace("G2 | ", "S3 | ", 1)]),
+             "row has no G id"),
         )
         for name, rows, message in cases:
             self.ledger.write_text("\n".join(rows) + "\n", encoding="utf-8")
