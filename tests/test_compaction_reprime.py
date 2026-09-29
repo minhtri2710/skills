@@ -43,6 +43,7 @@ class CompactionReprimeObserverTest(unittest.TestCase):
         self.project = self.root / "project"
         self.home.mkdir()
         self.project.mkdir()
+        _install_subprocess_guard(self)
         self.stdout = io.StringIO()
         self.stderr = io.StringIO()
         self._stdout_patch = patch.object(sys, "stdout", self.stdout)
@@ -309,20 +310,15 @@ class CompactionReprimeObserverTest(unittest.TestCase):
         path = self.pi_path()
         self.write_jsonl(path, [self.pi_header(), self.pi_compaction()])
         before = sorted(str(item.relative_to(self.home)) for item in self.home.rglob("*") if item.is_file())
-        with patch.object(
-            compaction_reprime.herdr_cli.subprocess,
-            "run",
-            side_effect=AssertionError("observer must not invoke commands"),
-        ):
-            self.assertEqual(
-                self.observe(
-                    self.roster(kind="pi", path=path),
-                    "lead-beo-skills",
-                    project_root=self.project,
-                    home_dir=self.home,
-                ),
-                1,
-            )
+        self.assertEqual(
+            self.observe(
+                self.roster(kind="pi", path=path),
+                "lead-beo-skills",
+                project_root=self.project,
+                home_dir=self.home,
+            ),
+            1,
+        )
         after = sorted(str(item.relative_to(self.home)) for item in self.home.rglob("*") if item.is_file())
         self.assertEqual(after, before)
 

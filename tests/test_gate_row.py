@@ -1427,6 +1427,16 @@ class GateRowTest(unittest.TestCase):
             at("2030-06-01T12:00:00Z")
 
 
+    def test_the_landed_check_reads_origins_copy_of_the_rows_branch(self):
+        self.assertEqual(self.append_review_pass(), 0, self.err.getvalue())
+        self.add_remote("HEAD")
+        subprocess.run(["git", "-C", str(self.repo), "push", "-q", "origin",
+                        f"{self.rev('HEAD~1')}:refs/heads/aaa"], check=True, capture_output=True, stdin=subprocess.DEVNULL)
+        subprocess.run(["git", "--git-dir", str(self.tmp / "origin.git"), "symbolic-ref", "HEAD",
+                        "refs/heads/aaa"], check=True, stdin=subprocess.DEVNULL)
+        self.assertEqual(self.append(
+            "--kind", "push", "--push-base", self.rev("HEAD~2"), "--boundary", "."), 0, self.err.getvalue())
+
     def test_a_head_that_is_not_under_the_remote_tip_has_not_landed(self):
         self.assertEqual(self.append_review_pass(), 0, self.err.getvalue())
         self.add_remote("HEAD~1")
@@ -1919,6 +1929,15 @@ class GateRowTest(unittest.TestCase):
                 self.assertEqual(self.run_main([
                     "--ledger", str(self.ledger), "--repo", str(self.repo), "--check",
                 ]), 0, self.err.getvalue())
+                self.assertEqual(self.run_main([
+                    "--ledger", str(self.ledger), "--repo", str(self.repo),
+                    "--kind", "push-gate", "--status", "open", "--words", "none",
+                    "--note", "carried open gate",
+                ]), 0, self.err.getvalue())
+                carried = self.last_row()
+                self.assertTrue(carried.startswith(f"G{int(gid[1:]) + 2} | "))
+                self.assertIn(f"prev_hash={gate_row.row_hash(second)}", carried)
+                self.assertEqual(self.open_gates(), [f"G{int(gid[1:]) + 2}"])
 
         gid, timestamp, branch, writer, archive = fixtures[0]
         genesis = (
