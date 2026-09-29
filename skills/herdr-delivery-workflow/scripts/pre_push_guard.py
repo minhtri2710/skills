@@ -165,8 +165,6 @@ def check(
 def unpushed_commits(repo: Path, gate_tips: list[str]) -> list[str]:
     """The current branch's commits absent from its upstream/remotes and open gate tips."""
     head = git(repo, "rev-parse", "HEAD")
-    if any(gate_row.is_ancestor(repo, head, tip) for tip in gate_tips):
-        return []
     try:
         upstream = git(repo, "rev-parse", "--verify", "@{upstream}")
     except GuardError:
@@ -176,7 +174,7 @@ def unpushed_commits(repo: Path, gate_tips: list[str]) -> list[str]:
     return git(repo, "rev-list", head, "--not", *exclude, *gate_tips).splitlines()
 
 
-def ungated_lines(repo: Path, remote: str, gate_tips: list[str]) -> list[str]:
+def ungated_lines(repo: Path, gate_tips: list[str]) -> list[str]:
     """Flag the commits of a checkout that neither its upstream (or every tracking ref) nor an open push-gate tip holds."""
     head = git(repo, "rev-parse", "HEAD")
     commits = unpushed_commits(repo, gate_tips)
@@ -225,7 +223,7 @@ def digest_project(ledger: Path, repo: Path, remote: str, now: datetime,
     with gate_row.locked_ledger(ledger, exclusive=False) as handle:
         rows = gate_row.ledger_rows(gate_row.handle_text(handle))
     tips = gate_row.open_push_gate_tips(rows, repo)
-    ungated = ungated_lines(repo, remote, tips)
+    ungated = ungated_lines(repo, tips)
     if not tips:
         return ungated, []
     gates = gate_row.open_push_gate_rows(rows)
