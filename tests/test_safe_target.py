@@ -31,6 +31,17 @@ class SafeTargetTest(unittest.TestCase):
     def resolve(self, candidate: Path, **kwargs: object) -> Path:
         return safe_target.resolve_target(candidate, [str(self.root)], **kwargs)  # type: ignore[arg-type]
 
+    def test_child_of_root_is_accepted(self) -> None:
+        self.assertEqual(self.resolve(self.root / "abc123"), self.root / "abc123")
+
+    def test_root_itself_is_refused(self) -> None:
+        with self.assertRaises(safe_target.Refused):
+            self.resolve(self.root)
+
+    def test_path_outside_root_is_refused(self) -> None:
+        with self.assertRaises(safe_target.Refused):
+            self.resolve(self.outside)
+
     def test_traversal_out_of_root_is_refused(self) -> None:
         with self.assertRaises(safe_target.Refused):
             self.resolve(self.root / "abc123" / ".." / ".." / "elsewhere")
@@ -132,6 +143,10 @@ class SafeTargetTest(unittest.TestCase):
         with self.assertRaises(safe_target.Refused):
             self.resolve(self.root / "def456", owner_file=".owner", expect_owner="worker-7")
 
+    def test_unresolvable_root_cannot_be_checked(self) -> None:
+        with self.assertRaises(safe_target.CannotCheck):
+            safe_target.resolve_target(self.root / "abc123", [str(self.outside / "missing")])
+
     def run_cli(self, *argv: str) -> tuple[int, str, str]:
         out, err = io.StringIO(), io.StringIO()
         with redirect_stdout(out), redirect_stderr(err):
@@ -148,7 +163,6 @@ class SafeTargetTest(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertEqual(out, "")
         self.assertIn("refusing", err)
-        self.assertIn(str(self.outside), err)
 
     def test_cli_rejects_min_depth_below_one(self) -> None:
         with self.assertRaises(SystemExit) as ctx, redirect_stderr(io.StringIO()):

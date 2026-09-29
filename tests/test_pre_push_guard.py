@@ -133,6 +133,15 @@ class PrePushGuardTest(unittest.TestCase):
                 )
         return code, out.getvalue(), err.getvalue()
 
+    def test_covered_range_via_manual_mode_is_allowed(self):
+        self.advance("c1")
+        self.assertEqual(self.review(self.base), 0)
+        self.standing()
+        code, out, err = self.invoke()  # empty stdin -> base derived from origin/main
+        self.assertEqual(code, 0)
+        self.assertIn("covered", out)
+        self.assertEqual(err, "")
+
     def test_empty_non_tty_stdin_uses_origin_fallback_without_isatty(self):
         self.advance("c1")
         self.assertEqual(self.review(self.base), 0)
@@ -193,9 +202,19 @@ class PrePushGuardTest(unittest.TestCase):
         self.ledger.write_text("# Gate ledger — test\n\n")
         self.assertEqual(self.review(self.base), 0)
         grant_id = self.grant(f"origin refs/heads/main push {self.base}..{c1}")
-        unrelated_grant = self.grant(f"origin refs/heads/other push {self.base}..{c1}")
-        correction = self.correction(unrelated_grant)
+        rows = gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))
+        for index, row in enumerate(rows):
+            with self.subTest(checked_row=row.split(" | ")[0]):
+                gate_row.check(row, self.repo, rows[:index])
+        legacy_id = f"G{gate_row.next_id_from_rows(rows)}"
+        legacy = (f"{legacy_id} | 2026-09-06T00:00:00Z | kind=correction | main@{self.base} | "
+                  "status=recorded:correction | record=timely | "
+                  f"prev_hash={gate_row.row_hash(rows[-1])} | words=seat | "
+                  "note=legacy prose correction | quote=\"legacy\"")
+        self.ledger.write_text("# Gate ledger — test\n\n" + "\n".join([*rows, legacy]) + "\n",
+                               encoding="utf-8")
         loaded_rows = gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))
+        self.assertEqual(loaded_rows[-1], legacy)
         self.assertEqual(gate_row.require_push_authority(
             loaded_rows, self.repo, "origin", "refs/heads/main", self.base, c1,
             datetime.now(timezone.utc),
@@ -203,7 +222,6 @@ class PrePushGuardTest(unittest.TestCase):
         code, out, err = self.invoke(self.ref_line(self.base, c1))
         self.assertEqual(code, 0, err)
         self.assertIn("covered", out)
-        self.assertIn(correction, [row.split(" | ")[0] for row in loaded_rows])
 
     def test_tiled_stack_of_two_reviewed_deliveries_is_allowed(self):
         c1 = self.advance("c1")
@@ -241,6 +259,13 @@ class PrePushGuardTest(unittest.TestCase):
         self.assertIn("pre_push_guard:", err)
         self.assertIn("prev_hash", err)
         self.assertNotIn("Traceback", err)
+
+    def test_range_with_no_review_row_is_refused(self):
+        c1 = self.advance("c1")
+        self.standing()
+        code, _, err = self.invoke(self.ref_line(self.base, c1))
+        self.assertEqual(code, 1)
+        self.assertIn("not covered", err)
 
     def test_new_tag_with_zero_remote_base_is_refused_on_populated_remote(self):
         c1 = self.advance("c1")
@@ -330,6 +355,14 @@ class PrePushGuardTest(unittest.TestCase):
         code, out, err = self.invoke(line)
         self.assertEqual(code, 0, err)
         self.assertIn("1 pushed ref", out)
+
+    def test_git_hook_argv_is_admitted_on_a_covered_range(self):
+        c1 = self.advance("c1")
+        self.assertEqual(self.review(self.base), 0)
+        self.standing()
+        code, out, err = self.invoke(self.ref_line(self.base, c1), ("origin", str(self.origin)))
+        self.assertEqual(code, 0, err)
+        self.assertIn("covered", out)
 
     def test_hook_remote_decides_first_publication_not_origin(self):
         other = self.tmp / "other.git"
@@ -452,6 +485,15 @@ class PrePushGuardTest(unittest.TestCase):
 
     # --- push authority -------------------------------------------------
 
+    def test_covered_push_without_a_grant_is_refused(self):
+        c1 = self.advance("c1")
+        self.assertEqual(self.review(self.base), 0)
+        code, out, err = self.invoke(self.ref_line(self.base, c1))
+        self.assertEqual(code, 1)
+        self.assertEqual(out, "")
+        self.assertIn("no push authority", err)
+        self.assertIn("no grant row in the ledger", err)
+
     def test_one_shot_grant_admits_exactly_its_range_remote_and_branch(self):
         c1 = self.advance("c1")
         self.assertEqual(self.review(self.base), 0)
@@ -507,6 +549,20 @@ class PrePushGuardTest(unittest.TestCase):
         self.assertIn(f"{gid} standing delegation expiry 2001-01-01T00:00:00Z has passed", err)
         self.standing(expiry="2999-01-01T00:00:00Z")
         self.assertEqual(self.invoke(self.ref_line(self.base, c1))[0], 0)
+
+    def test_expiry_is_compared_against_the_passed_clock(self):
+        c1 = self.advance("c1")
+        self.standing(expiry="2030-06-01T12:00:00Z")
+        rows = gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))
+
+        def at(instant: str) -> None:
+            gate_row.require_push_authority(
+                rows, self.repo, "origin", "refs/heads/main", self.base, c1,
+                datetime.strptime(instant, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc))
+
+        at("2030-06-01T11:59:59Z")
+        with self.assertRaisesRegex(gate_row.RowError, "has passed"):
+            at("2030-06-01T12:00:00Z")
 
     def test_revoked_standing_grant_refuses(self):
         c1 = self.advance("c1")
@@ -736,6 +792,10 @@ class PrePushGuardTest(unittest.TestCase):
         self.assertEqual(code, 0, err)
 
 
+if __name__ == "__main__":
+    unittest.main()
+
+
 class PushDigestTest(unittest.TestCase):
     """--digest: every project's open push gates as one range, read-only, one question."""
 
@@ -931,13 +991,14 @@ class PushDigestTest(unittest.TestCase):
         _, again = self.digest((ledger, repo))
         self.assertIn(f"authority: granted by {grant}", again)
 
-    def test_digest_prints_an_items_hash_as_its_final_line(self):
+    def test_digest_prints_an_items_hash_and_no_grant_command(self):
         ledger, repo, base = self.project("alpha")
         self.advance(repo, "a1")
         self.review(ledger, repo, base)
         self.push_gate(ledger, repo)
         _, out = self.digest((ledger, repo))
         self.assertRegex(out, r"\nitems: [0-9a-f]{64}\n$")
+        self.assertFalse([line for line in out.splitlines() if line.lstrip().startswith("grant:")])
         self.assertNotIn("<HUMAN-WORDS>", out)
 
     def two_branches(self) -> tuple[Path, Path, str, str, str]:
@@ -1051,6 +1112,19 @@ class PushDigestTest(unittest.TestCase):
         written = first[0].split(" | ")[0]
         self.assertIn(f"item 2: gate_row: boom; rows written before it: {written}", err)
         self.assertEqual(out, f"item 1: wrote {written} to {ledger}\n")
+
+    def test_grant_flags_require_digest_and_each_other(self):
+        ledger, repo, _ = self.project("alpha")
+        for argv, needle in (
+            (["--ledger", str(ledger), "--grant", "all"], "--grant, --items and --quote require --digest"),
+            (["--digest", str(ledger), str(repo), "--grant", "all", "--quote", "q"],
+             "--grant requires --items and --quote"),
+            (["--digest", str(ledger), str(repo), "--items", "x"], "--items and --quote require --grant"),
+        ):
+            err = io.StringIO()
+            with contextlib.redirect_stderr(err), self.assertRaises(SystemExit):
+                pre_push_guard.main(argv)
+            self.assertIn(needle, err.getvalue())
 
     def test_covered_new_branch_is_labeled_and_offered(self):
         ledger, repo, base = self.project("alpha")
@@ -1253,12 +1327,11 @@ class PushDigestTest(unittest.TestCase):
         standing = self.row(
             ledger, repo, "--kind", "standing-delegation", "--status", "recorded:standing-delegation",
             "--who", "lead", "--scope", "pushes", "--conditions", "review PASS",
-            "--expiry", "2000-01-01T00:00:00Z", "--push-scope", "origin:main",
-            "--words", "human", "--note", "expired standing push grant", "--quote", "push when green")
+            "--expiry", "2999-01-01T00:00:00Z", "--push-scope", "origin:main",
+            "--words", "human", "--note", "standing push grant", "--quote", "push when green")
         code, out = self.digest((ledger, repo))
         self.assertEqual(code, 0)
-        self.assertIn("authority: needs push-grant", out)
-        self.assertNotIn(f"authority: granted by {standing}", out)
+        self.assertIn(f"authority: granted by {standing}", out)
 
     def test_grant_of_a_number_list_writes_each_item(self):
         ledger, repo, base, one, two = self.two_branches()
@@ -1295,17 +1368,8 @@ class PushDigestTest(unittest.TestCase):
             (["--digest", str(ledger), str(repo), "--ledger", str(ledger)], "--digest takes no --ledger or url"),
             (["--ledger", str(ledger), "--items", "x"], "--grant, --items and --quote require --digest"),
             (["--ledger", str(ledger), "--quote", "q"], "--grant, --items and --quote require --digest"),
-            (["--digest", str(ledger), str(repo), "--grant", "all", "--quote", "q"],
-             "--grant requires --items and --quote"),
-            (["--digest", str(ledger), str(repo), "--items", "x"], "--items and --quote require --grant"),
-            (["--digest", str(ledger), str(repo), "--grant", "all", "--items", "x"],
-             "--grant requires --items and --quote"),
         ):
             err = io.StringIO()
             with contextlib.redirect_stderr(err), self.assertRaises(SystemExit):
                 pre_push_guard.main(argv)
             self.assertIn(needle, err.getvalue())
-
-
-if __name__ == "__main__":
-    unittest.main()
