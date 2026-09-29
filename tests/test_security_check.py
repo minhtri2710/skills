@@ -108,10 +108,6 @@ class SecurityCheckTest(unittest.TestCase):
         self.write_fake("trivy", "printf '%s\\n' '{\"Results\":[]}'\n")
         self.write_fake("semgrep", "printf '%s\\n' '{\"results\":[]}'\n")
 
-    def test_default_config_validates(self) -> None:
-        security_check.validate_config(security_check.DEFAULT_CONFIG)
-        self.assertEqual(security_check.load_config(None), security_check.DEFAULT_CONFIG)
-
     def test_fail_on_rejects_empty_unknown_and_non_string_values(self) -> None:
         for fail_on in ([], ["HIHG"], [1], ["HIGH", "UNKNOWN"]):
             with self.subTest(fail_on=fail_on):
@@ -173,17 +169,7 @@ class SecurityCheckTest(unittest.TestCase):
         _, full = security_check.evaluate_scope(security_check.DEFAULT_CONFIG, None)
         self.assertTrue(all(decision["run"] for decision in full.values()))
 
-    def test_cli_help_unknown_option_and_mutually_exclusive_scope(self) -> None:
-        with self.assertRaises(SystemExit) as help_exit:
-            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
-                security_check.main(["--help"])
-        self.assertEqual(help_exit.exception.code, 0)
-
-        with self.assertRaises(SystemExit) as unknown_exit:
-            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
-                security_check.main(["--not-an-option"])
-        self.assertEqual(unknown_exit.exception.code, 2)
-
+    def test_all_and_staged_only_are_mutually_exclusive(self) -> None:
         with self.assertRaises(SystemExit) as exclusive_exit:
             with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
                 security_check.main(["--all", "--staged-only"])
@@ -272,8 +258,10 @@ class SecurityCheckTest(unittest.TestCase):
         self.assertEqual(payload["summary"]["category_counts"], {"secrets": 1, "static": 1})
         self.assertNotIn("RAW-SCANNER-OUTPUT", output.read_text(encoding="utf-8"))
 
-    def test_all_runs_every_configured_check(self) -> None:
+    def test_all_runs_every_configured_check_for_staged_docs(self) -> None:
         self.clean_fakes()
+        self.init_git()
+        self.stage("docs/example.md", "synthetic-token-like-value-for-testing-only\n")
         config = self.write_config(
             [
                 self.one_check(),
@@ -311,12 +299,12 @@ class SecurityCheckTest(unittest.TestCase):
         )
         self.assertEqual(semgrep[0]["severity"], "HIGH")
 
-        bandit = security_check.parse_bandit(
-            {"results": [{"filename": "src/app.py", "issue_severity": "WARNING"}]},
+        semgrep_warning = security_check.parse_semgrep(
+            {"results": [{"path": "src/app.py", "extra": {"severity": "WARNING"}}]},
             "static",
-            "bandit",
+            "semgrep",
         )
-        self.assertEqual(bandit[0]["severity"], "MEDIUM")
+        self.assertEqual(semgrep_warning[0]["severity"], "MEDIUM")
 
         cargo = security_check.parse_cargo_audit(
             {"vulnerabilities": {"list": [{

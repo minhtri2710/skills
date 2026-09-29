@@ -6,7 +6,7 @@ Owner: <Lead seat, or the single Engineer and its owned paths>
 Guidance: <governing repository contract, or none found>
 Validation: <claim-shaped checks and expected outcomes>
 Checkpoint (a): skipped:human-specified-diff | run
-Prediction: <falsifiable forward claim naming an eval id or named anti-pattern; none if this run changes no doctrine>
+Prediction: <falsifiable forward claim naming a plugin-eval case or named anti-pattern; none if this run changes no doctrine>
 Prediction outcome: <confirmed | falsified | pending-next-run>
 HEAD: <exact reviewed SHA>
 CHECKS: <command=exit code, one per acceptance command on the reviewed head>

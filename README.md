@@ -25,7 +25,6 @@ skills/<name>/
   templates/        # optional: fill-in artifacts the skill emits
   scripts/          # optional: helper commands the skill runs
   agents/           # optional: per-agent interface metadata (e.g. openai.yaml)
-  evals/            # optional: prompt and expected-output cases for the skill
 ```
 
 `herdr-delivery-workflow` also carries `.claude-plugin/` and `plugin-eval/`, a repo-only `claude plugin eval` suite; its `deploy_skill.py` excludes both from the installed copy.
@@ -43,10 +42,10 @@ skills/<name>/
 | `decision-record-discipline` | Keep the glossary current and record only gated decisions and rejected concepts, once each. |
 | `deep-module-design` | Design or deepen a module interface and seam placement with the deep-module vocabulary. |
 | `dependency-intake-audit` | Decide whether a package may enter, install it without unreviewed scripts, and triage the audit. |
-| `devops-pipeline` | Route repository quality checks across pre-commit, pre-push, and lean CI lanes from evidence without duplicating adjacent delivery contracts. |
 | `design-grilling` | Interview the user until a plan or underspecified ask reaches confirmed shared understanding. |
-| `doc-manager` | Reconcile Markdown documentation with code, cite non-obvious claims to `path:line`, and validate runbook sections through a safe check-only path. |
+| `devops-pipeline` | Route repository quality checks across pre-commit, pre-push, and lean CI lanes from evidence without duplicating adjacent delivery contracts. |
 | `destructive-path-guard` | Prove a delete, move, or overwrite target is contained before the operation runs. |
+| `doc-manager` | Reconcile Markdown documentation with code, cite non-obvious claims to `path:line`, and validate runbook sections through a safe check-only path. |
 | `effort-charting` | Chart a foggy effort as decision tickets, then split the approved spec into tracer slices with blocking edges. |
 | `frontend-design` | Implement a UI change whose rendered hierarchy, flow, or responsive behavior is part of acceptance. |
 | `herdr-delivery-workflow` | Control Herdr and run bounded delivery with the Supervisor / Lead / Peer role model. |

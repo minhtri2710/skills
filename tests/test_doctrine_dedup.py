@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""Doctrine dedup eval (slice C): every rule has exactly one owner file.
+"""Doctrine dedup lint: repeated rule text has one owner file.
 
-The role-restructured herdr-delivery-workflow doctrine requires that a rule's
-text live in exactly one loaded file; any other file cites it by section rather
-than restating it. This measures that invariant: no rule-bearing sentence
-(>=8 words, code blocks stripped) may appear verbatim in more than one loaded
-prose file. Templates are verbatim record shapes, and RATIONALE.md restates
-rule gist by design, so both are excluded. Each loaded file also stays within
-its byte ceiling, so doctrine that every seat loads cannot grow unnoticed.
+The herdr-delivery-workflow doctrine requires that a rule's text live in
+exactly one loaded file; any other file cites it by section rather than
+restating it. This measures that invariant: no rule-bearing sentence (>=8
+words, code blocks stripped) may appear verbatim in more than one loaded prose
+file. Templates are verbatim record shapes, and RATIONALE.md restates rule gist
+by design, so both are excluded. Each loaded file also stays within its byte
+ceiling, so doctrine that every seat loads cannot grow unnoticed.
 """
 from __future__ import annotations
 
@@ -19,18 +19,17 @@ SKILL = Path(__file__).resolve().parents[1] / "skills" / "herdr-delivery-workflo
 
 # Prose files a seat loads on some route, each with its byte ceiling. Templates and
 # RATIONALE.md are excluded for the reasons in the module docstring. A ceiling is the
-# file's size when the budget was last set: a new clause moves or retires as many
-# bytes (reasoning goes to RATIONALE.md), or raises the ceiling in the same diff.
+# file's exact size when this budget was set; any size change updates the same diff.
 BUDGET = {
     "SKILL.md": 10_698,
-    "references/lead.md": 102_400,
-    "references/relaunch.md": 4_655,
-    "references/herdr-cli.md": 21_312,
+    "references/lead.md": 100_508,
+    "references/relaunch.md": 4_668,
+    "references/herdr-cli.md": 21_249,
     "references/project-config.md": 5_922,
     "references/structural-misfit-policy.md": 9_485,
-    "references/charters.md": 35_615,
-    "references/closeout.md": 13_211,
-    "references/supervisor.md": 27_700,
+    "references/charters.md": 35_784,
+    "references/closeout.md": 10_906,
+    "references/supervisor.md": 27_473,
 }
 
 

@@ -80,7 +80,7 @@ offline boundary.
    paths and workflow/Dockerfile changes can force all applicable checks. The
    scope decision is not proof that the external scanner inspected staged blobs:
    document the actual command and scan target.
-5. **Offline means no runtime fetch.** The retained runner never installs tools,
+5. **Offline means no runtime fetch.** The runner never installs tools,
    warms a database, calls a hosted service, or changes a lockfile. Use scanner
    flags and local rules that make the configured commands offline-capable. A
    database that has not been warmed by an authorized operator is `Not-Assessed`.

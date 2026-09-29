@@ -48,9 +48,11 @@ class WizardTemplateTest(unittest.TestCase):
         result = self.run_bash('ask TOKEN "Paste:"\nprintf "%s" "$TOKEN"', stdin="\n")
         self.assertEqual(result.stdout.strip().rsplit(" ", 1)[-1], "kept")
 
-    def test_ask_takes_new_input(self) -> None:
+    def test_ask_typed_input_overrides_saved_value(self) -> None:
+        (self.dir / ".env").write_text("TOKEN=old\n")
         result = self.run_bash('ask TOKEN "Paste:"\nprintf "|%s|" "$TOKEN"', stdin="fresh\n")
         self.assertIn("|fresh|", result.stdout)
+        self.assertNotIn("|old|", result.stdout)
 
     def test_ask_refuses_empty_required_input_and_reasks(self) -> None:
         result = self.run_bash('ask TOKEN "Paste:"\nprintf "|%s|" "$TOKEN"', stdin="\nfresh\n")

@@ -1,7 +1,4 @@
-# tool caches
-.cass/
-.bv/
-.gitnexus
+# Python caches
 __pycache__/
 *.pyc
 
@@ -11,11 +8,9 @@ __pycache__/
 # installed-skill lockfile
 skills-lock.json
 
-# br doctor per-run artifacts
-.doctor/
-
-# skill eval run outputs (skill-creator workspaces)
+# skill-creator workspaces
 skills/*-workspace/
+# /runs/ is the local Herdr run directory.
 /runs/
 
 # tasks-axi backlog archive artifact
