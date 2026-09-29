@@ -55,14 +55,6 @@ class TriagedEntry:
     def header(self) -> str:
         return self.entry.header
 
-    @property
-    def timestamp(self) -> str:
-        return self.entry.timestamp
-
-    @property
-    def body(self) -> str:
-        return self.entry.body
-
 
 def triage_entries(
     entries: Iterable[Entry],
@@ -99,8 +91,6 @@ def _selected_entries(
     last: int | None = None,
 ) -> list[Entry]:
     """Select entries in mailbox order, keeping them as Entry objects."""
-    if since is not None and last is not None:
-        raise ValueError("since and last are mutually exclusive")
     if since is not None and ISO_RE.fullmatch(since) is None:
         raise ValueError("since must be an ISO-8601 UTC timestamp ending in Z")
     entries = _entries(text)

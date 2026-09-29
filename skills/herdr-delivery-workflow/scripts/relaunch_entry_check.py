@@ -125,7 +125,6 @@ def verify_block(block_file: Path, source_file: Path) -> list[str]:
 def _require_count_args(args: argparse.Namespace) -> tuple[Path, str, str, Path]:
     missing = [
         name for name, value in (
-            ("--repo", args.repo),
             ("--head", args.head),
             ("--skill-path", args.skill_path),
             ("--installed-path", args.installed_path),

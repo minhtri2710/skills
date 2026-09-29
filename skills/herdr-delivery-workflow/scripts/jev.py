@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
-"""Optional TypeSafe/Jev advisory triage for findings and mailbox headers.
+"""Optional TypeSafe/Jev advisory triage for findings and bounded forks.
 
-The helper is advisory only. An unavailable Jev result remains fail-open so a
-caller can retain the original source data without waiting on Jev.
+The helper is advisory only. An unavailable Jev result remains fail-open.
 """
 from __future__ import annotations
 
@@ -21,7 +20,6 @@ from typing import Literal, Mapping, Sequence, TypeAlias
 API_URL = "https://api.typesafe.ai/v1/systemone"
 MODEL = "jev-latest"
 API_TIMEOUT_SECONDS = 10.0
-MAX_RAW_ANSWER_CHARS = 2_000
 MAX_CHARTER_BODY_CHARS = 8_000
 REQUIRED_FINDING_FIELDS = (
     "severity",
@@ -161,8 +159,6 @@ CHARTER_QUESTIONS = {
 }
 CHARTER_DISPOSITIONS = ("Engineer", "Reviewer", "Architect")
 
-Finding: TypeAlias = Mapping[str, object]
-HeaderState: TypeAlias = Mapping[str, object]
 ForkRoute = Literal["supervisor_decide", "human_gate"]
 FORK_ROUTES = ("supervisor_decide", "human_gate")
 
@@ -187,13 +183,10 @@ class ScoreJudgment:
 
 @dataclass(frozen=True)
 class HeaderAdvisoryResult:
-    """A valid Jev urgency advisory, retaining header state and raw answers."""
+    """A valid advisory urgency result without retaining test-only source data."""
 
     status: Literal["available"]
-    header: str
-    source_state: HeaderState
     urgency: ScoreJudgment
-    raw_answers: Mapping[str, object]
 
     @property
     def available(self) -> bool:
@@ -209,13 +202,11 @@ class ForkAdvisoryResult:
     """
 
     status: Literal["available"]
-    source_state: Mapping[str, object]
     route: ForkRoute
     choice: ForkRoute | None
     probabilities: Mapping[str, float]
     confidence: float
     deterministic: bool
-    raw_answers: Mapping[str, object]
 
     @property
     def available(self) -> bool:
@@ -224,12 +215,10 @@ class ForkAdvisoryResult:
 
 @dataclass(frozen=True)
 class CharterAdvisoryResult:
-    """A valid advisory coherence judgment for one charter body."""
+    """A valid charter coherence result without retaining test-only data."""
 
     status: Literal["available"]
-    source_state: Mapping[str, object]
     coherence: NoulJudgment
-    raw_answers: Mapping[str, object]
 
     @property
     def available(self) -> bool:
@@ -238,14 +227,12 @@ class CharterAdvisoryResult:
 
 @dataclass(frozen=True)
 class AdvisoryResult:
-    """A valid Jev finding result, retaining source and raw answer data."""
+    """A valid Jev finding result."""
 
     status: Literal["available"]
-    finding: Finding
     actionable_misfit: NoulJudgment
     cites_artifact: NoulJudgment
     severity: ScoreJudgment
-    raw_answers: Mapping[str, object]
 
     @property
     def available(self) -> bool:
@@ -257,10 +244,7 @@ class UnavailableResult:
     """Explicit sentinel for a Jev result that could not be obtained safely."""
 
     status: Literal["unavailable"]
-    finding: Finding
     reason: str
-    # Fail-open means the original finding remains actionable when Jev cannot
-    # advise. This is a fallback signal, not a Jev judgment or gate decision.
     fallback_actionable: bool = True
 
     @property
@@ -270,32 +254,11 @@ class UnavailableResult:
 
 JevResult: TypeAlias = AdvisoryResult | UnavailableResult
 HeaderJevResult: TypeAlias = HeaderAdvisoryResult | UnavailableResult
-ForkJevResult: TypeAlias = ForkAdvisoryResult | UnavailableResult
 CharterJevResult: TypeAlias = CharterAdvisoryResult | UnavailableResult
 
 
-def _retained_finding(finding: object) -> Finding:
-    if not isinstance(finding, Mapping):
-        return {}
-    try:
-        return copy.deepcopy(dict(finding))
-    except Exception:
-        return dict(finding)
-
-
-def _unavailable(
-    finding: object,
-    reason: str,
-    *,
-    fallback_actionable: bool = True,
-) -> UnavailableResult:
-    retained = _retained_finding(finding)
-    return UnavailableResult(
-        status="unavailable",
-        finding=retained,
-        reason=reason,
-        fallback_actionable=fallback_actionable,
-    )
+def _unavailable(reason: str) -> UnavailableResult:
+    return UnavailableResult(status="unavailable", reason=reason)
 
 
 def _unit(value: object) -> float | None:
@@ -349,7 +312,7 @@ def _score(answer: object, levels: Sequence[str]) -> ScoreJudgment | None:
     )
 
 
-def _header_state(header: object) -> HeaderState:
+def _header_state(header: object) -> Mapping[str, object]:
     state: dict[str, object] = {"header": header if isinstance(header, str) else ""}
     if not isinstance(header, str):
         return state
@@ -393,49 +356,6 @@ def _redact_secret(value: object, secret: str) -> object:
     if isinstance(value, tuple):
         return tuple(_redact_secret(child, secret) for child in value)
     return value
-
-
-def _bounded_untrusted_copy(value: object) -> object | None:
-    """Retain JSON-shaped answer data without retaining unbounded prose."""
-    try:
-        copied = copy.deepcopy(value)
-    except Exception:
-        return None
-
-    remaining = MAX_RAW_ANSWER_CHARS
-    max_items = 128
-
-    def bound(item: object) -> object | None:
-        nonlocal remaining
-        if isinstance(item, str):
-            if remaining <= 0:
-                return ""
-            clipped = item[:remaining]
-            remaining -= len(clipped)
-            return clipped
-        if isinstance(item, Mapping):
-            result: dict[str, object] = {}
-            for index, (key, child) in enumerate(item.items()):
-                if index >= max_items or not isinstance(key, str):
-                    break
-                result[key[:256]] = bound(child)
-            return result
-        if isinstance(item, list):
-            return [bound(child) for child in item[:max_items]]
-        if isinstance(item, tuple):
-            return tuple(bound(child) for child in item[:max_items])
-        if item is None or isinstance(item, (bool, int, float)):
-            return item
-        return None
-
-    return bound(copied)
-
-
-def _raw_answers(answers: Mapping[str, object]) -> Mapping[str, object] | None:
-    """Redact the key from untrusted answers and keep a bounded copy."""
-    safe = _redact_secret(answers, os.environ.get("TYPESAFE_API_KEY", ""))
-    raw = _bounded_untrusted_copy(safe)
-    return raw if isinstance(raw, Mapping) else None
 
 
 def _request_answers(
@@ -489,7 +409,7 @@ def _ask(
     return payload["answers"], None
 
 
-def triage_finding(finding: Finding) -> JevResult:
+def triage_finding(finding: object) -> JevResult:
     """Ask Jev to triage one finding, returning an advisory or sentinel.
 
     No exception from credential lookup, request construction, transport, HTTP,
@@ -497,55 +417,43 @@ def triage_finding(finding: Finding) -> JevResult:
     boundary is the TypeSafe HTTP request; model output is never executed or
     used to authorize, move, or resolve a gate.
     """
-    retained = _retained_finding(finding)
     if not isinstance(finding, Mapping) or any(
         field not in finding for field in REQUIRED_FINDING_FIELDS
     ):
-        return _unavailable(retained, "invalid_finding")
+        return _unavailable("invalid_finding")
 
-    answers, error = _ask(retained, QUESTIONS)
+    answers, error = _ask(finding, QUESTIONS)
     if answers is None:
-        return _unavailable(retained, error)
+        return _unavailable(error)
     actionable = _noul(answers.get("actionable_misfit"), "actionable", "noise")
     cites = _noul(answers.get("cites_artifact"), "cited", "uncited")
     severity = _score(answers.get("severity"), SEVERITY_LEVELS)
-    raw_answers = _raw_answers(answers)
-    if actionable is None or cites is None or severity is None or raw_answers is None:
-        return _unavailable(retained, "invalid_answers")
+    if actionable is None or cites is None or severity is None:
+        return _unavailable("invalid_answers")
     return AdvisoryResult(
         status="available",
-        finding=retained,
         actionable_misfit=actionable,
         cites_artifact=cites,
         severity=severity,
-        raw_answers=raw_answers,
     )
 
 
 def triage_header(header: str) -> HeaderJevResult:
     """Ask Jev for advisory urgency using only objective header facts."""
-    state = _header_state(header)
-    answers, error = _ask(state, HEADER_QUESTIONS)
+    answers, error = _ask(_header_state(header), HEADER_QUESTIONS)
     if answers is None:
-        return _unavailable(state, error)
+        return _unavailable(error)
     urgency = _score(answers.get("score"), URGENCY_LEVELS)
-    raw_answers = _raw_answers(answers)
-    if urgency is None or raw_answers is None:
-        return _unavailable(state, "invalid_answers")
-    return HeaderAdvisoryResult(
-        status="available",
-        header=header,
-        source_state=dict(state),
-        urgency=urgency,
-        raw_answers=raw_answers,
-    )
+    if urgency is None:
+        return _unavailable("invalid_answers")
+    return HeaderAdvisoryResult(status="available", urgency=urgency)
 
 
 def triage_charter(disposition: object, body: object) -> CharterJevResult:
     """Ask Jev whether a charter body matches its declared disposition."""
     try:
         if disposition not in CHARTER_DISPOSITIONS or not isinstance(body, str):
-            return _unavailable({}, "invalid_charter")
+            return _unavailable("invalid_charter")
         secret = os.environ.get("TYPESAFE_API_KEY", "")
         state = {
             "disposition": disposition,
@@ -553,19 +461,13 @@ def triage_charter(disposition: object, body: object) -> CharterJevResult:
         }
         answers, error = _ask(state, CHARTER_QUESTIONS)
         if answers is None:
-            return _unavailable(state, error)
+            return _unavailable(error)
         coherence = _noul(answers.get("noul"), "coherent", "incoherent")
-        raw_answers = _raw_answers(answers)
-        if coherence is None or raw_answers is None:
-            return _unavailable(state, "invalid_answers")
-        return CharterAdvisoryResult(
-            status="available",
-            source_state=dict(state),
-            coherence=coherence,
-            raw_answers=raw_answers,
-        )
+        if coherence is None:
+            return _unavailable("invalid_answers")
+        return CharterAdvisoryResult(status="available", coherence=coherence)
     except Exception:
-        return _unavailable({}, "api_error")
+        return _unavailable("api_error")
 
 
 def _parse_fork_answer(
@@ -609,30 +511,25 @@ def _json_safe(value: object) -> bool:
     return True
 
 
-def route_fork(fork: object, delegation: object = None) -> ForkJevResult:
+def route_fork(fork: object, delegation: object = None) -> ForkAdvisoryResult | UnavailableResult:
     """Advise on a bounded fork without changing its authority or custody."""
-    source_state: Mapping[str, object] = {}
     try:
         retained_fork = _retained_mapping(fork)
         retained_delegation = (
             None if delegation is None else _retained_mapping(delegation)
         )
-        source_state = {
-            "fork": {} if retained_fork is None else retained_fork,
-            "delegation": retained_delegation,
-        }
         if retained_fork is None or not isinstance(retained_fork.get("hard_gate"), bool):
-            return _unavailable(source_state, "invalid_fork")
+            return _unavailable("invalid_fork")
         if delegation is not None and retained_delegation is None:
-            return _unavailable(source_state, "invalid_delegation")
+            return _unavailable("invalid_delegation")
         if retained_delegation is not None and "in_force" in retained_delegation:
             if not isinstance(retained_delegation["in_force"], bool):
-                return _unavailable(source_state, "invalid_delegation")
+                return _unavailable("invalid_delegation")
 
         if not _json_safe(retained_fork):
-            return _unavailable(source_state, "invalid_fork")
+            return _unavailable("invalid_fork")
         if retained_delegation is not None and not _json_safe(retained_delegation):
-            return _unavailable(source_state, "invalid_delegation")
+            return _unavailable("invalid_delegation")
 
         # The deterministic rule runs before the key check: a hard gate or an
         # absent delegation keeps its human_gate route even when Jev and the
@@ -645,22 +542,22 @@ def route_fork(fork: object, delegation: object = None) -> ForkJevResult:
         if hard_gate or not delegation_in_force:
             return ForkAdvisoryResult(
                 status="available",
-                source_state=copy.deepcopy(dict(source_state)),
                 route="human_gate",
                 choice=None,
                 probabilities={"supervisor_decide": 0.0, "human_gate": 1.0},
                 confidence=1.0,
                 deterministic=True,
-                raw_answers={},
             )
 
-        answers, error = _ask(source_state, FORK_QUESTIONS)
+        answers, error = _ask(
+            {"fork": retained_fork, "delegation": retained_delegation},
+            FORK_QUESTIONS,
+        )
         if answers is None:
-            return _unavailable(source_state, error)
+            return _unavailable(error)
         parsed = _parse_fork_answer(answers.get("route"))
-        raw_answers = _raw_answers(answers)
-        if parsed is None or raw_answers is None:
-            return _unavailable(source_state, "invalid_answers")
+        if parsed is None:
+            return _unavailable("invalid_answers")
         choice, probabilities, confidence = parsed
         # Jev can only brake: anything short of a confident supervisor_decide
         # stays human_gate.
@@ -671,16 +568,14 @@ def route_fork(fork: object, delegation: object = None) -> ForkJevResult:
         )
         return ForkAdvisoryResult(
             status="available",
-            source_state=copy.deepcopy(dict(source_state)),
             route=route,
             choice=choice,
             probabilities=probabilities,
             confidence=confidence,
             deterministic=False,
-            raw_answers=raw_answers,
         )
     except Exception:
-        return _unavailable(source_state, "api_error")
+        return _unavailable("api_error")
 
 
 class _InputError(Exception):
@@ -730,7 +625,7 @@ def _score_json(judgment: ScoreJudgment) -> dict[str, object]:
 
 
 def _advisory_json(
-    result: JevResult | HeaderJevResult | ForkJevResult | CharterJevResult,
+    result: JevResult | ForkAdvisoryResult,
 ) -> dict[str, object]:
     """Project one advisory result to its CLI JSON shape.
 
@@ -750,46 +645,24 @@ def _advisory_json(
             "cites_artifact": _noul_json(result.cites_artifact),
             "severity": _score_json(result.severity),
         }
-    if isinstance(result, HeaderAdvisoryResult):
-        return {"status": "available", "urgency": _score_json(result.urgency)}
-    if isinstance(result, ForkAdvisoryResult):
-        return {
-            "status": "available",
-            "route": result.route,
-            "choice": result.choice,
-            "deterministic": result.deterministic,
-            "confidence": result.confidence,
-            "probabilities": dict(result.probabilities),
-        }
-    return {"status": "available", "coherence": _noul_json(result.coherence)}
+    return {
+        "status": "available",
+        "route": result.route,
+        "choice": result.choice,
+        "deterministic": result.deterministic,
+        "confidence": result.confidence,
+        "probabilities": dict(result.probabilities),
+    }
 
 
-def _mode_result(
-    args: argparse.Namespace,
-) -> JevResult | HeaderJevResult | ForkJevResult | CharterJevResult:
+def _mode_result(args: argparse.Namespace) -> JevResult | ForkAdvisoryResult:
     if args.mode == "finding":
         origin = _origin(args.file, args.stdin)
         finding = _json_object(_read_text(args.file, args.stdin, origin), origin)
         return triage_finding(finding)
-    if args.mode == "header":
-        if args.header is not None:
-            return triage_header(args.header)
-        origin = _origin(args.file, args.stdin)
-        return triage_header(_read_text(args.file, args.stdin, origin).rstrip("\r\n"))
-    if args.mode == "fork":
-        origin = _origin(args.file, args.stdin)
-        payload = _json_object(_read_text(args.file, args.stdin, origin), origin)
-        return route_fork(payload.get("fork"), payload.get("delegation"))
-    if args.charter is not None:
-        if not args.disposition:
-            raise _InputError("--charter requires --disposition")
-        body = _read_text(args.charter, False, f"--charter {_one_line(args.charter)}")
-        return triage_charter(args.disposition, body)
-    if args.disposition is not None:
-        raise _InputError("--disposition requires --charter")
     origin = _origin(args.file, args.stdin)
     payload = _json_object(_read_text(args.file, args.stdin, origin), origin)
-    return triage_charter(payload.get("disposition"), payload.get("body"))
+    return route_fork(payload.get("fork"), payload.get("delegation"))
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -801,7 +674,7 @@ def _build_parser() -> argparse.ArgumentParser:
         ),
     )
     modes = parser.add_subparsers(
-        dest="mode", metavar="{finding,header,fork,charter}", required=True
+        dest="mode", metavar="{finding,fork}", required=True
     )
 
     finding = modes.add_parser(
@@ -811,35 +684,12 @@ def _build_parser() -> argparse.ArgumentParser:
     source.add_argument("--file", metavar="PATH", help="read the finding JSON from PATH")
     source.add_argument("--stdin", action="store_true", help="read the finding JSON from stdin")
 
-    header = modes.add_parser(
-        "header", help="advisory urgency of one mailbox header line"
-    )
-    source = header.add_mutually_exclusive_group(required=True)
-    source.add_argument("--header", metavar="TEXT", help="the header line text")
-    source.add_argument("--file", metavar="PATH", help="read the header line from PATH")
-    source.add_argument("--stdin", action="store_true", help="read the header line from stdin")
-
     fork = modes.add_parser(
         "fork", help="advisory routing for one bounded Lead-facing fork"
     )
     source = fork.add_mutually_exclusive_group(required=True)
     source.add_argument("--file", metavar="PATH", help="read the fork JSON from PATH")
     source.add_argument("--stdin", action="store_true", help="read the fork JSON from stdin")
-
-    charter = modes.add_parser(
-        "charter", help="advisory coherence of one charter body"
-    )
-    source = charter.add_mutually_exclusive_group(required=True)
-    source.add_argument(
-        "--file", metavar="PATH", help='read the {"disposition","body"} JSON from PATH'
-    )
-    source.add_argument(
-        "--stdin", action="store_true", help='read the {"disposition","body"} JSON from stdin'
-    )
-    source.add_argument("--charter", metavar="PATH", help="read the charter body text from PATH")
-    charter.add_argument(
-        "--disposition", metavar="NAME", help="declared disposition, required with --charter"
-    )
     return parser
 
 

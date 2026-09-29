@@ -213,7 +213,9 @@ class ReportWakeTest(unittest.TestCase):
             equal = self.run_extension({"flags": flags, "steps": [step("call", {"toolName": "bash", "input": {"command": command}})]})
             os.utime(send, ns=(3_000_000_000, 3_000_000_000))
             newer = self.run_extension({"flags": flags, "steps": [step("call", {"toolName": "bash", "input": {"command": command}})]})
-            unrelated = self.run_extension({"flags": flags, "steps": [step("call", {"toolName": "bash", "input": {"command": f"herdr agent prompt {LEAD} payload"}})]})
+            os.utime(send, ns=(1_000_000_000, 1_000_000_000))
+            unrelated_command = f"herdr agent prompt {LEAD} payload"
+            unrelated = self.run_extension({"flags": flags, "steps": [step("call", {"toolName": "bash", "input": {"command": unrelated_command}})]})
             self.assertEqual((blocked["lastCall"], equal.get("lastCall"), newer.get("lastCall"), unrelated.get("lastCall")), (blocked_reason, None, None, None))
 
     def test_missing_flag_is_inert_and_notifies(self):

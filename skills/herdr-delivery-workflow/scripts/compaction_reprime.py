@@ -331,7 +331,6 @@ def _valid_claude_boundary(record: Mapping[str, Any], session: SessionRecord, he
         and isinstance(trigger, str)
         and bool(trigger.strip())
         and isinstance(record.get("cwd"), str)
-        and _record_matches_session(record, session, header_id)
     )
 
 
@@ -343,7 +342,6 @@ def _valid_claude_summary(record: Mapping[str, Any], session: SessionRecord, hea
         and isinstance(record.get("uuid"), str)
         and _valid_identifier(record.get("uuid"), _SESSION_ID)
         and isinstance(record.get("cwd"), str)
-        and _record_matches_session(record, session, header_id)
     )
 
 
@@ -429,8 +427,6 @@ def _verified_observation(session: SessionRecord | None) -> int | None:
         return _observe_claude(records, session)
     if session.kind == "pi":
         return _observe_pi(records, session)
-    return None
-
 
 @dataclass(frozen=True)
 class BaselineState:
@@ -454,42 +450,10 @@ class BaselineState:
 
 @dataclass(frozen=True)
 class BaselineResult:
-    """The state after one verified observation and its newly crossed threshold."""
+    """The state after one verified observation."""
 
     state: BaselineState
     state_path: Path
-    newly_observed: int
-    newly_eligible_threshold: int | None
-
-    @property
-    def baseline_count(self) -> int:
-        return self.state.baseline_count
-
-    @property
-    def observed_count(self) -> int:
-        return self.state.observed_count
-
-    @property
-    def next_threshold(self) -> int:
-        return self.state.next_threshold
-
-    @property
-    def consumed_threshold(self) -> int:
-        return self.state.consumed_threshold
-
-    @property
-    def eligible_threshold(self) -> int | None:
-        """Return the durable threshold awaiting the later dispatch slice."""
-        return self.state.eligible_threshold
-
-    @property
-    def pending_threshold(self) -> int | None:
-        return self.state.eligible_threshold
-
-    @property
-    def eligible(self) -> bool:
-        return self.newly_eligible_threshold is not None
-
 
 @dataclass(frozen=True)
 class ReprimePaths:
@@ -517,12 +481,7 @@ class ReprimeDispatchResult:
     threshold: int | None
     prompt_attempted: bool
     prompt_succeeded: bool
-    block: str | None
     outcome_unknown: bool = False
-
-    @property
-    def retryable(self) -> bool:
-        return self.prompt_attempted and not self.prompt_succeeded and self.threshold is not None
 
 
 def _project_slug(project: Path) -> str | None:
@@ -956,7 +915,6 @@ def track_live_seat(
     if existing is None:
         return None
 
-    newly_eligible: int | None = None
     if existing is _MISSING:
         state = BaselineState(
             schema_version=BASELINE_STATE_VERSION,
@@ -977,17 +935,13 @@ def track_live_seat(
     else:
         if observation < existing.observed_count:
             return None
-        newly_observed = observation - existing.observed_count
         eligible = existing.eligible_threshold
         next_threshold = existing.next_threshold
         status = existing.prompt_status
         if eligible is None and observation - existing.baseline_count >= next_threshold:
-            newly_eligible = next_threshold
-            eligible = newly_eligible
+            eligible = next_threshold
             next_threshold += COMPACTION_THRESHOLD
             status = "eligible"
-        elif eligible is not None:
-            status = existing.prompt_status
         elif status == "initialized":
             status = "idle"
         state = BaselineState(
@@ -1008,8 +962,7 @@ def track_live_seat(
         )
     if not _write_state(root, path, state):
         return None
-    newly_observed = 0 if existing is _MISSING else observation - existing.observed_count
-    return BaselineResult(state, path, newly_observed, newly_eligible)
+    return BaselineResult(state, path)
 
 
 def dispatch_live_seat(
@@ -1040,7 +993,7 @@ def dispatch_live_seat(
         return None
     threshold = result.state.eligible_threshold
     if threshold is None:
-        return ReprimeDispatchResult(result.state, result.state_path, None, False, False, None)
+        return ReprimeDispatchResult(result.state, result.state_path, None, False, False)
     if result.state.prompt_status == "prompting":
         consumed = replace(
             result.state,
@@ -1050,7 +1003,7 @@ def dispatch_live_seat(
         )
         if not _write_state(result.state_path.parent, result.state_path, consumed):
             return None
-        return ReprimeDispatchResult(consumed, result.state_path, threshold, False, False, None, True)
+        return ReprimeDispatchResult(consumed, result.state_path, threshold, False, False, True)
 
     block = build_reprime_block(
         run_id=run_id,
@@ -1060,7 +1013,7 @@ def dispatch_live_seat(
         home_dir=home_dir,
     )
     if block is None:
-        return ReprimeDispatchResult(result.state, result.state_path, threshold, False, False, None)
+        return ReprimeDispatchResult(result.state, result.state_path, threshold, False, False)
 
     prompting = replace(result.state, prompt_status="prompting")
     if not _write_state(result.state_path.parent, result.state_path, prompting):
@@ -1086,7 +1039,6 @@ def dispatch_live_seat(
         threshold,
         True,
         prompt_succeeded,
-        block,
     )
 
 

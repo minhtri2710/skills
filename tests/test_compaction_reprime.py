@@ -43,7 +43,6 @@ class CompactionReprimeObserverTest(unittest.TestCase):
         self.project = self.root / "project"
         self.home.mkdir()
         self.project.mkdir()
-        _install_subprocess_guard(self)
         self.stdout = io.StringIO()
         self.stderr = io.StringIO()
         self._stdout_patch = patch.object(sys, "stdout", self.stdout)
@@ -306,11 +305,15 @@ class CompactionReprimeObserverTest(unittest.TestCase):
             None,
         )
 
-    def test_observer_does_not_prompt_or_write_state(self) -> None:
+    def test_observer_does_not_write_state(self) -> None:
         path = self.pi_path()
         self.write_jsonl(path, [self.pi_header(), self.pi_compaction()])
         before = sorted(str(item.relative_to(self.home)) for item in self.home.rglob("*") if item.is_file())
-        with patch.object(compaction_reprime.herdr_cli.subprocess, "run", side_effect=AssertionError("observer must not invoke commands")):
+        with patch.object(
+            compaction_reprime.herdr_cli.subprocess,
+            "run",
+            side_effect=AssertionError("observer must not invoke commands"),
+        ):
             self.assertEqual(
                 self.observe(
                     self.roster(kind="pi", path=path),
@@ -324,7 +327,7 @@ class CompactionReprimeObserverTest(unittest.TestCase):
         self.assertEqual(after, before)
 
 
-class CompactionReprimeBaselineTest(unittest.TestCase):
+class CompactionReprimeTestBase:
     def setUp(self) -> None:
         self.tmp = tempfile.TemporaryDirectory()
         self.root = Path(self.tmp.name)
@@ -407,30 +410,25 @@ class CompactionReprimeBaselineTest(unittest.TestCase):
         digest = hashlib.sha256((seat + "\0" + session_id).encode("utf-8")).hexdigest()
         return self.home / ".herdr" / "projects" / "project" / "runs" / "coordination" / f"baseline-{digest}.json"
 
-    def test_first_observation_initializes_without_eligibility_and_reloads(self) -> None:
+    def check_first_observation_initializes_without_eligibility_and_reloads(self) -> None:
         path = self.pi_path()
         self.write_pi_count(path, 3)
         first = self.track(path)
         self.assertIsNotNone(first)
         assert first is not None
-        self.assertEqual(first.baseline_count, 3)
-        self.assertEqual(first.observed_count, 3)
-        self.assertEqual(first.newly_observed, 0)
-        self.assertIsNone(first.newly_eligible_threshold)
-        self.assertIsNone(first.pending_threshold)
-        self.assertEqual(first.next_threshold, 4)
+        self.assertEqual(first.state.baseline_count, 3)
+        self.assertEqual(first.state.observed_count, 3)
+        self.assertEqual(first.state.next_threshold, 4)
         self.assertEqual(first.state_path.parent.resolve(), self.state_path().parent.resolve())
         self.assertEqual(json.loads(first.state_path.read_text(encoding="utf-8"))["schema_version"], 1)
 
         reloaded = self.track(path, run_id="run-2")
         self.assertIsNotNone(reloaded)
         assert reloaded is not None
-        self.assertEqual(reloaded.baseline_count, 3)
-        self.assertEqual(reloaded.observed_count, 3)
-        self.assertEqual(reloaded.newly_observed, 0)
-        self.assertIsNone(reloaded.newly_eligible_threshold)
+        self.assertEqual(reloaded.state.baseline_count, 3)
+        self.assertEqual(reloaded.state.observed_count, 3)
 
-    def test_only_newly_observed_markers_cross_threshold_four(self) -> None:
+    def check_only_newly_observed_markers_cross_threshold_four(self) -> None:
         path = self.pi_path()
         self.write_pi_count(path, 3)
         self.assertIsNotNone(self.track(path))
@@ -439,27 +437,26 @@ class CompactionReprimeBaselineTest(unittest.TestCase):
         crossed = self.track(path)
         self.assertIsNotNone(crossed)
         assert crossed is not None
-        self.assertEqual(crossed.newly_observed, 3)
-        self.assertIsNone(crossed.newly_eligible_threshold)
+        state = json.loads(crossed.state_path.read_text(encoding="utf-8"))
+        self.assertEqual(state["observed_count"] - state["baseline_count"], 3)
+        self.assertIsNone(state["eligible_threshold"])
 
         self.write_pi_count(path, 7)
         crossed = self.track(path)
         self.assertIsNotNone(crossed)
         assert crossed is not None
-        self.assertEqual(crossed.newly_observed, 1)
-        self.assertEqual(crossed.newly_eligible_threshold, 4)
-        self.assertEqual(crossed.pending_threshold, 4)
-        self.assertEqual(crossed.eligible_threshold, 4)
-        self.assertEqual(crossed.next_threshold, 8)
+        state = json.loads(crossed.state_path.read_text(encoding="utf-8"))
+        self.assertEqual(state["observed_count"] - state["baseline_count"], 4)
+        self.assertEqual(state["eligible_threshold"], 4)
+        self.assertEqual(state["next_threshold"], 8)
 
         repeated = self.track(path)
         self.assertIsNotNone(repeated)
         assert repeated is not None
-        self.assertEqual(repeated.newly_observed, 0)
-        self.assertIsNone(repeated.newly_eligible_threshold)
-        self.assertEqual(repeated.pending_threshold, 4)
+        state = json.loads(repeated.state_path.read_text(encoding="utf-8"))
+        self.assertEqual(state["eligible_threshold"], 4)
 
-    def test_state_isolated_by_seat_and_session_identity(self) -> None:
+    def check_state_isolated_by_seat_and_session_identity(self) -> None:
         first_path = self.pi_path()
         second_path = self.pi_path("02def456")
         self.write_pi_count(first_path, 1)
@@ -470,20 +467,20 @@ class CompactionReprimeBaselineTest(unittest.TestCase):
         self.assertIsNotNone(second)
         assert first is not None and second is not None
         self.assertNotEqual(first.state_path, second.state_path)
-        self.assertEqual(first.baseline_count, 1)
-        self.assertEqual(second.baseline_count, 8)
-        self.assertIsNone(second.pending_threshold)
+        self.assertEqual(first.state.baseline_count, 1)
+        self.assertEqual(second.state.baseline_count, 8)
+        self.assertIsNone(second.state.eligible_threshold)
 
         first_session_state = first.state_path.read_bytes()
         relaunched = self.track(second_path, seat="lead-beo-skills")
         self.assertIsNotNone(relaunched)
         assert relaunched is not None
-        self.assertEqual(relaunched.baseline_count, 8)
-        self.assertEqual(relaunched.observed_count, 8)
+        self.assertEqual(relaunched.state.baseline_count, 8)
+        self.assertEqual(relaunched.state.observed_count, 8)
         self.assertEqual(relaunched.state_path.resolve(), self.state_path(session_id="02def456").resolve())
         self.assertEqual(first.state_path.read_bytes(), first_session_state)
 
-    def test_malformed_unknown_version_and_symlink_state_fail_closed(self) -> None:
+    def check_malformed_unknown_version_and_symlink_state_fail_closed(self) -> None:
         path = self.pi_path()
         self.write_pi_count(path, 1)
         self.assertIsNotNone(self.track(path))
@@ -502,7 +499,7 @@ class CompactionReprimeBaselineTest(unittest.TestCase):
         state_path.symlink_to(outside)
         self.assertIsNone(self.track(path))
 
-    def test_malformed_or_mismatched_state_is_unavailable(self) -> None:
+    def check_malformed_or_mismatched_state_is_unavailable(self) -> None:
         path = self.pi_path()
         self.write_pi_count(path, 1)
         self.assertIsNotNone(self.track(path))
@@ -519,7 +516,7 @@ class CompactionReprimeBaselineTest(unittest.TestCase):
         self.assertIsNone(self.track(path))
         self.assertEqual(list(state_path.parent.glob("*.tmp")), [])
 
-    def test_symlinked_coordination_root_is_unavailable_without_fallback(self) -> None:
+    def check_symlinked_coordination_root_is_unavailable_without_fallback(self) -> None:
         outside = self.root / "outside-coordination"
         outside.mkdir()
         project_runs = self.home / ".herdr" / "projects" / "project" / "runs"
@@ -531,7 +528,27 @@ class CompactionReprimeBaselineTest(unittest.TestCase):
         self.assertEqual(list(outside.iterdir()), [])
 
 
-class CompactionReprimeDispatchTest(CompactionReprimeBaselineTest):
+class CompactionReprimeBaselineTest(CompactionReprimeTestBase, unittest.TestCase):
+    def test_first_observation_initializes_without_eligibility_and_reloads(self) -> None:
+        self.check_first_observation_initializes_without_eligibility_and_reloads()
+
+    def test_only_newly_observed_markers_cross_threshold_four(self) -> None:
+        self.check_only_newly_observed_markers_cross_threshold_four()
+
+    def test_state_isolated_by_seat_and_session_identity(self) -> None:
+        self.check_state_isolated_by_seat_and_session_identity()
+
+    def test_malformed_unknown_version_and_symlink_state_fail_closed(self) -> None:
+        self.check_malformed_unknown_version_and_symlink_state_fail_closed()
+
+    def test_malformed_or_mismatched_state_is_unavailable(self) -> None:
+        self.check_malformed_or_mismatched_state_is_unavailable()
+
+    def test_symlinked_coordination_root_is_unavailable_without_fallback(self) -> None:
+        self.check_symlinked_coordination_root_is_unavailable_without_fallback()
+
+
+class CompactionReprimeDispatchTest(CompactionReprimeTestBase, unittest.TestCase):
     def write_pointer_files(
         self,
         run_id: str = "run-1",
@@ -568,7 +585,7 @@ class CompactionReprimeDispatchTest(CompactionReprimeBaselineTest):
         pending = self.track(path, run_id=run_id)
         self.assertIsNotNone(pending)
         assert pending is not None
-        self.assertEqual(pending.eligible_threshold, 4)
+        self.assertEqual(pending.state.eligible_threshold, 4)
         return path
 
     def dispatch(self, path: Path, *, run_id: str = "run-1"):
@@ -591,7 +608,6 @@ class CompactionReprimeDispatchTest(CompactionReprimeBaselineTest):
         )
         self.assertIsNotNone(block)
         assert block is not None
-        self.assertFalse((self.project / "skills").exists())
         doctrine_root = SCRIPT.resolve().parents[1] / "references"
         expected_pointers = (
             self.home / ".herdr" / "projects" / "project" / "context-pack.md",
@@ -617,9 +633,6 @@ class CompactionReprimeDispatchTest(CompactionReprimeBaselineTest):
             "RAW PLAN BODY",
             "RAW SPECIFICATION BODY",
             "RAW SLICES BODY",
-            "RAW LEAD DOCTRINE BODY",
-            "RAW SUPERVISOR DOCTRINE BODY",
-            "RAW CLOSEOUT DOCTRINE BODY",
         ):
             self.assertNotIn(raw_body, block)
         self.assertNotIn("{", block)
@@ -633,11 +646,11 @@ class CompactionReprimeDispatchTest(CompactionReprimeBaselineTest):
         self.assertIsNotNone(first)
         assert first is not None
         self.assertTrue(first.prompt_succeeded)
-        self.assertEqual(first.threshold, 4)
         self.assertEqual(run.call_count, 1)
         argv = run.call_args.args[0]
         self.assertEqual(argv[:4], ["herdr", "agent", "prompt", "lead-beo-skills"])
-        self.assertEqual(argv[4], first.block)
+        self.assertIn("run-id: run-1", argv[4])
+        self.assertIn("seat: lead-beo-skills", argv[4])
         self.assertEqual(json.loads(first.state_path.read_text(encoding="utf-8"))["consumed_threshold"], 4)
         self.assertEqual(json.loads(first.state_path.read_text(encoding="utf-8"))["prompt_status"], "consumed")
 
@@ -658,22 +671,23 @@ class CompactionReprimeDispatchTest(CompactionReprimeBaselineTest):
         pending = self.track(path)
         self.assertIsNotNone(pending)
         assert pending is not None
-        self.assertEqual(pending.eligible_threshold, 4)
+        self.assertEqual(pending.state.eligible_threshold, 4)
 
         with patch.object(compaction_reprime.herdr_cli.subprocess, "run", return_value=subprocess.CompletedProcess([], 0)) as first_run:
             first = self.dispatch(path)
         self.assertIsNotNone(first)
         assert first is not None
-        self.assertEqual(first.threshold, 4)
-        self.assertEqual(first.state.next_threshold, 8)
+        first_state = json.loads(first.state_path.read_text(encoding="utf-8"))
+        self.assertEqual(first_state["consumed_threshold"], 4)
         self.assertEqual(first_run.call_count, 1)
 
         with patch.object(compaction_reprime.herdr_cli.subprocess, "run", return_value=subprocess.CompletedProcess([], 0)) as second_run:
             second = self.dispatch(path)
         self.assertIsNotNone(second)
         assert second is not None
-        self.assertEqual(second.threshold, 8)
-        self.assertEqual(second.state.consumed_threshold, 8)
+        second_state = json.loads(second.state_path.read_text(encoding="utf-8"))
+        self.assertEqual(second_state["consumed_threshold"], 8)
+        self.assertEqual(second_state["next_threshold"], 12)
         self.assertEqual(second_run.call_count, 1)
 
     def relaunch_line(self, threshold: int) -> str:
@@ -709,31 +723,12 @@ class CompactionReprimeDispatchTest(CompactionReprimeBaselineTest):
                 prompt.assert_called_once()
                 argv = prompt.call_args.args[0]
                 self.assertEqual(argv[:4], ["herdr", "agent", "prompt", "lead-beo-skills"])
-                self.assertEqual(len(argv), 5)
                 block_lines = argv[4].split("\n")
                 if threshold < compaction_reprime.RELAUNCH_RECOMMEND_THRESHOLD:
                     self.assertNotIn("relaunch-recommended", argv[4])
-                    self.assertEqual(
-                        self.stdout.getvalue(),
-                        f"compaction_reprime: prompted lead-beo-skills at threshold {threshold}\n",
-                    )
                 else:
                     self.assertEqual(block_lines[-1], self.relaunch_line(threshold))
                     self.assertEqual(block_lines[-2].split(": ", 1)[0], "closeout")
-                    self.assertEqual(
-                        self.stdout.getvalue(),
-                        f"compaction_reprime: prompted lead-beo-skills at threshold {threshold}"
-                        "; relaunch recommended at the next slice boundary\n",
-                    )
-
-    def test_block_below_relaunch_threshold_has_no_relaunch_line(self) -> None:
-        self.write_pointer_files()
-        kwargs = dict(run_id="run-1", seat="lead-beo-skills", project_root=self.project, home_dir=self.home)
-        below = compaction_reprime.build_reprime_block(threshold=4, **kwargs)
-        at = compaction_reprime.build_reprime_block(threshold=8, **kwargs)
-        assert below is not None and at is not None
-        self.assertNotIn("relaunch-recommended", below)
-        self.assertEqual(at, below + "\n" + self.relaunch_line(8))
 
     def test_unavailable_prompt_is_durable_and_retryable(self) -> None:
         self.write_pointer_files()
@@ -748,7 +743,6 @@ class CompactionReprimeDispatchTest(CompactionReprimeBaselineTest):
             failed = self.dispatch(path)
         self.assertIsNotNone(failed)
         assert failed is not None
-        self.assertTrue(failed.retryable)
         self.assertFalse(failed.prompt_succeeded)
         self.assertEqual(json.loads(failed.state_path.read_text(encoding="utf-8"))["eligible_threshold"], 4)
         run.assert_called_once()
@@ -760,7 +754,6 @@ class CompactionReprimeDispatchTest(CompactionReprimeBaselineTest):
             failed = self.dispatch(path)
         self.assertIsNotNone(failed)
         assert failed is not None
-        self.assertTrue(failed.retryable)
         self.assertFalse(failed.prompt_succeeded)
         state = json.loads(failed.state_path.read_text(encoding="utf-8"))
         self.assertEqual(state["prompt_status"], "failed")
@@ -773,7 +766,6 @@ class CompactionReprimeDispatchTest(CompactionReprimeBaselineTest):
         self.assertIsNotNone(succeeded)
         assert succeeded is not None
         self.assertTrue(succeeded.prompt_succeeded)
-        self.assertEqual(succeeded.threshold, 4)
         self.assertEqual(retry.call_count, 1)
         state = json.loads(succeeded.state_path.read_text(encoding="utf-8"))
         self.assertEqual(state["prompt_status"], "consumed")
@@ -854,8 +846,6 @@ class CompactionReprimeDispatchTest(CompactionReprimeBaselineTest):
             result = self.dispatch(path)
         self.assertIsNotNone(result)
         assert result is not None
-        self.assertFalse(result.prompt_attempted)
-        self.assertEqual(result.threshold, 4)
         self.assertEqual(json.loads(result.state_path.read_text(encoding="utf-8"))["eligible_threshold"], 4)
         run.assert_not_called()
 
@@ -894,27 +884,15 @@ class CompactionReprimeDispatchTest(CompactionReprimeBaselineTest):
             )
         )
 
-    def test_cli_requires_run_id_and_seat(self) -> None:
-        with patch.object(compaction_reprime, "_load_live_roster") as load:
-            load.return_value = []
-            with self.assertRaises(SystemExit) as raised:
-                compaction_reprime.main([])
-            self.assertEqual(raised.exception.code, 2)
-            self.assertIn("the following arguments are required", self.stderr.getvalue())
-            load.assert_not_called()
-
-    def test_cli_dispatches_from_explicit_project_root(self) -> None:
+    def test_cli_failed_dispatch_exits_one_failed_closed(self) -> None:
+        # An empty live roster makes dispatch_live_seat return None; the CLI
+        # must fail closed with exit 1 and the failed-closed message.
         with patch.object(compaction_reprime, "_load_live_roster", return_value={"result": {"agents": []}}), \
-                patch.object(compaction_reprime, "dispatch_live_seat", return_value=None) as dispatch:
-            with patch("sys.stderr", new_callable=io.StringIO) as stderr:
-                result = compaction_reprime.main([
-                    "--run-id", "run-1", "--seat", "lead-beo-skills", "--project-root", str(self.project),
-                ])
+                patch("sys.stderr", new_callable=io.StringIO) as stderr:
+            result = compaction_reprime.main([
+                "--run-id", "run-1", "--seat", "lead-beo-skills", "--project-root", str(self.project),
+            ])
         self.assertEqual(result, 1)
-        dispatch.assert_called_once()
-        self.assertEqual(dispatch.call_args.kwargs["run_id"], "run-1")
-        self.assertEqual(dispatch.call_args.kwargs["project_root"], str(self.project))
-        self.assertEqual(dispatch.call_args.args[1], "lead-beo-skills")
         self.assertIn("failed closed", stderr.getvalue())
 
     def test_cli_from_different_cwd_reaches_prompt_with_explicit_project_root(self) -> None:

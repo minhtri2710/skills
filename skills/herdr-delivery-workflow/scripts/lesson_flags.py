@@ -9,7 +9,6 @@ import sys
 
 from recall import LESSON_STATUSES, LessonParseError, lesson_record_lines, project_root
 
-STATUSES = LESSON_STATUSES
 RATIONALE_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "references", "RATIONALE.md"
 )
@@ -100,11 +99,9 @@ def main(argv=None):
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument("--project", metavar="SLUG")
     mode.add_argument("--rationale", action="store_true")
-    parser.add_argument("--days", type=int, default=90, metavar="N")
     args = parser.parse_args(argv)
-    if args.days < 1:
-        parser.error("--days must be positive")
-    cutoff = datetime.datetime.now(datetime.timezone.utc).date() - datetime.timedelta(days=args.days)
+    # The stale window is fixed doctrine (90 days); there is no CLI override.
+    cutoff = datetime.datetime.now(datetime.timezone.utc).date() - datetime.timedelta(days=90)
     if args.rationale:
         return rationale_report(cutoff)
 
@@ -140,7 +137,7 @@ def main(argv=None):
         print("Nothing to flag: no superseded or stale lessons.")
         return 0
     print(f"Retire candidates — superseded, or stale (last_used before {cutoff.isoformat()}):")
-    for status in STATUSES:
+    for status in LESSON_STATUSES:
         status_records = [item for item in flagged if item[0] == status]
         if not status_records:
             continue

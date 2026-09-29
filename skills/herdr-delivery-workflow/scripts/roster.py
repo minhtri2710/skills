@@ -461,9 +461,7 @@ def format_drift_roster(
     return lines, unverifiable
 
 
-def _agent_list_json(use_stdin: bool) -> str:
-    if use_stdin:
-        return sys.stdin.read()
+def _agent_list_json() -> str:
     try:
         proc = herdr_cli.run(["agent", "list"])
     except herdr_cli.HerdrUnavailable as exc:
@@ -477,11 +475,6 @@ def _agent_list_json(use_stdin: bool) -> str:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="compact herdr agent roster")
     parser.add_argument("--workspace", metavar="ID", help="only show this workspace")
-    parser.add_argument(
-        "--stdin",
-        action="store_true",
-        help="read agent-list JSON from stdin instead of running `herdr agent list`",
-    )
     parser.add_argument(
         "--stalled",
         action="store_true",
@@ -526,7 +519,7 @@ def main(argv: list[str] | None = None) -> int:
 
     exit_code = 0
     try:
-        payload = json.loads(_agent_list_json(args.stdin))
+        payload = json.loads(_agent_list_json())
         if sum(map(bool, (args.stalled, args.never_started, args.drift))) > 1:
             raise ValueError("--stalled, --never-started and --drift are mutually exclusive")
         if args.drift:

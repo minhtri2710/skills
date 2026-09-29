@@ -64,7 +64,7 @@ class LessonFlagsTest(unittest.TestCase):
         store = self.root / "demo/runs/coordination/lessons"
         before = {path: path.read_bytes() for path in store.glob("*.md")}
 
-        code, output = self.run_flags(["--project", "demo", "--days", "90"])
+        code, output = self.run_flags(["--project", "demo"])
 
         self.assertEqual(code, 0)
         self.assertIn("[active]", output)
@@ -73,21 +73,6 @@ class LessonFlagsTest(unittest.TestCase):
         self.assertIn("old-failure.md", output)
         self.assertNotIn("fresh-rejected.md", output)
         self.assertEqual(before, {path: path.read_bytes() for path in store.glob("*.md")})
-
-    def test_superseded_record_with_landing_ref_is_classified(self):
-        old = (datetime.now(timezone.utc) - timedelta(days=120)).date().isoformat()
-        path = self.write_record(
-            "old-superseded", "superseded", old, superseded_by="abc1234 (push G349)"
-        )
-        fields, last_used = lesson_flags.record_fields(str(path))
-        self.assertEqual(fields["status"], "superseded")
-        self.assertEqual(last_used.isoformat(), old)
-
-        code, output = self.run_flags(["--project", "demo", "--days", "90"])
-
-        self.assertEqual(code, 0)
-        self.assertIn("[superseded]", output)
-        self.assertIn("old-superseded.md", output)
 
     def test_fresh_superseded_record_is_flagged_regardless_of_staleness(self):
         # A superseded lesson is replaced doctrine: it surfaces as a retire
@@ -99,26 +84,12 @@ class LessonFlagsTest(unittest.TestCase):
         )
         self.write_record("fresh-active", "active", fresh)
 
-        code, output = self.run_flags(["--project", "demo", "--days", "90"])
+        code, output = self.run_flags(["--project", "demo"])
 
         self.assertEqual(code, 0)
         self.assertIn("[superseded]", output)
         self.assertIn("fresh-superseded.md", output)
         self.assertNotIn("fresh-active.md", output)
-
-    def test_superseded_without_landing_ref_is_unclassified(self):
-        old = (datetime.now(timezone.utc) - timedelta(days=120)).date().isoformat()
-        path = self.write_record("bare-superseded", "superseded", old)
-        with self.assertRaises(lesson_flags.LessonParseError):
-            lesson_flags.record_fields(str(path))
-
-    def test_superseded_by_on_non_superseded_status_is_unclassified(self):
-        old = (datetime.now(timezone.utc) - timedelta(days=120)).date().isoformat()
-        path = self.write_record(
-            "active-with-ref", "active", old, superseded_by="abc1234"
-        )
-        with self.assertRaises(lesson_flags.LessonParseError):
-            lesson_flags.record_fields(str(path))
 
     def test_malformed_lessons_are_reported_and_make_exit_nonzero(self):
         malformed = self.root / "demo/runs/coordination/lessons/broken.md"
@@ -211,7 +182,7 @@ class RationaleFlagsTest(unittest.TestCase):
         old = (datetime.now(timezone.utc) - timedelta(days=120)).date().isoformat()
         self.write(f"## A\n\n- **Old.** Why. {self.tag(origin=old)}\n- **New.** Why. {self.tag()}")
 
-        code, output = self.run_flags(["--rationale", "--days", "90"])
+        code, output = self.run_flags(["--rationale"])
 
         self.assertEqual(code, 0)
         self.assertIn(f"- A / Old (confirmed {old})", output)

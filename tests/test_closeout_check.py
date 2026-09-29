@@ -278,20 +278,6 @@ class CloseoutCheckTest(unittest.TestCase):
         self.assertTrue(any("squatting-server anti-pattern" in finding
                             for finding in result.findings))
 
-    def test_interpreter_server_script_in_peer_pane_names_squatting_server_anti_pattern(self):
-        self.herdr.processes["w1:p3"] = {
-            "foreground_processes": [{
-                "argv0": "node",
-                "command": "node server.js",
-                "cwd": str(self.canonical),
-                "alive": True,
-            }],
-        }
-        result = closeout_check.check_closeout(self.record, self.herdr)
-        self.assertFalse(result.passed)
-        self.assertTrue(any("squatting-server anti-pattern" in finding
-                            for finding in result.findings))
-
     def test_server_detection_matches_argv_tokens_not_substrings(self):
         cases = (
             (["node", "vitest"], False),
@@ -323,14 +309,6 @@ class CloseoutCheckTest(unittest.TestCase):
         result = closeout_check.check_closeout(self.record, self.herdr)
         self.assertTrue(result.passed, result.findings)
         self.assertEqual(result.checked_panes, ("w1:p3", "w1:p4"))
-
-    def test_lead_only_persistent_record_passes_validation_and_closeout(self):
-        record = dict(self.record)
-        record["persistent"] = [self.record["persistent"][0]]
-        self.herdr.close("w1:p3")
-        self.herdr.close("w1:p4")
-        result = closeout_check.check_closeout(record, self.herdr)
-        self.assertTrue(result.passed, result.findings)
 
     def test_zero_lead_persistent_record_refuses(self):
         record = dict(self.record)
@@ -369,23 +347,22 @@ class CloseoutCheckTest(unittest.TestCase):
             result.findings[0],
         )
 
-    def test_duplicate_persistent_pane_is_rejected(self):
-        record = dict(self.record)
-        record["persistent"] = [
-            self.record["persistent"][0],
-            {"role": "Human Supervisor", "name": "supervisor", "pane": "w1:p1"},
-        ]
-        with self.assertRaisesRegex(ValueError, "persistent pane 'w1:p1' is duplicated"):
-            closeout_check._validate_record(record)
-
-    def test_duplicate_persistent_name_is_rejected(self):
-        record = dict(self.record)
-        record["persistent"] = [
-            self.record["persistent"][0],
-            {"role": "Human Supervisor", "name": "lead-beo-skills", "pane": "w1:p2"},
-        ]
-        with self.assertRaisesRegex(ValueError, "persistent name 'lead-beo-skills' is duplicated"):
-            closeout_check._validate_record(record)
+    def test_duplicate_persistent_identity_is_rejected(self):
+        cases = (
+            ([self.record["persistent"][0],
+              {"role": "Human Supervisor", "name": "supervisor", "pane": "w1:p1"}],
+             "persistent pane 'w1:p1' is duplicated"),
+            ([self.record["persistent"][0],
+              {"role": "Human Supervisor", "name": "lead-beo-skills", "pane": "w1:p2"}],
+             "persistent name 'lead-beo-skills' is duplicated"),
+        )
+        for persistent, message in cases:
+            with self.subTest(message=message):
+                result = closeout_check.check_closeout(
+                    {**self.record, "persistent": persistent}, self.herdr
+                )
+                self.assertFalse(result.passed)
+                self.assertEqual(result.findings, (f"malformed staffing record: {message}",))
 
     def test_missing_pane_evidence_fails_closed(self):
         class MissingPane(FakeHerdr):

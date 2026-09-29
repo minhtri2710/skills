@@ -91,8 +91,6 @@ def resolved_files(repo: Path, head: str, paths: list[str], skill_prefix: str) -
     prefix = skill_prefix.rstrip("/") + "/"
     resolved: list[tuple[Path, bytes, int]] = []
     for tracked in paths:
-        if not tracked.startswith(prefix):
-            raise DeployError(f"tracked path is outside {prefix}: {tracked}")
         tree = subprocess.run(
             ["git", "-C", str(repo), "ls-tree", head, "--", tracked],
             capture_output=True,

@@ -61,7 +61,7 @@ def build_index(index_root):
     return db
 
 
-def query_records(db, variants, count):
+def query_records(db, variants):
     scores = {}
     snippets = {}
     for variant in variants:
@@ -284,7 +284,7 @@ def main(argv=None):
         return 0
 
     db = build_index(root)
-    results, snippets = query_records(db, args.variants, args.n)
+    results, snippets = query_records(db, args.variants)
     if args.stamp:
         stamp_results(results[: args.n])
     for (path, line), _score in results[: args.n]:

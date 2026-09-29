@@ -60,13 +60,27 @@ class RosterTest(unittest.TestCase):
 
     _SAMPLE = '{"result":{"agents":[{"pane_id":"w1:p1","name":"lead","agent":"claude","agent_status":"working","workspace_id":"w1"}]}}'
 
+    def run_roster(self, payload, argv):
+        completed = subprocess.CompletedProcess(
+            args=["herdr", "agent", "list"],
+            returncode=0,
+            stdout=json.dumps(payload),
+            stderr="",
+        )
+        with mock.patch.object(roster.herdr_cli, "run", return_value=completed) as run:
+            output = io.StringIO()
+            error = io.StringIO()
+            with mock.patch("sys.stdout", output), mock.patch("sys.stderr", error):
+                rc = roster.main(argv)
+        return rc, output.getvalue(), error.getvalue(), run
+
     def test_default_runs_agent_list_even_with_empty_nontty_stdin(self):
         # The live path: an agent's Bash gives an empty non-tty stdin. Without
         # --stdin the script must ignore stdin and run `herdr agent list`.
         completed = subprocess.CompletedProcess(
             args=["herdr", "agent", "list"], returncode=0, stdout=self._SAMPLE, stderr=""
         )
-        with mock.patch.object(roster.herdr_cli.subprocess, "run", return_value=completed) as run, \
+        with mock.patch.object(roster.herdr_cli, "run", return_value=completed) as run, \
                 mock.patch.object(roster.sys, "stdin", io.StringIO("")):
             output = io.StringIO()
             error = io.StringIO()
@@ -75,27 +89,19 @@ class RosterTest(unittest.TestCase):
         self.assertEqual(rc, 0)
         self.assertEqual(output.getvalue(), "w1:p1 lead claude working\n")
         self.assertEqual(error.getvalue(), "")
-        run.assert_called_once()
+        run.assert_called_once_with(["agent", "list"])
 
     def test_herdr_unavailable_maps_to_the_existing_cli_error(self):
         with mock.patch.object(
             roster.herdr_cli,
             "run",
             side_effect=roster.herdr_cli.HerdrUnavailable("herdr agent list timed out"),
-        ), mock.patch.object(roster.sys, "stdin", io.StringIO("")):
+        ):
             error = io.StringIO()
             with mock.patch("sys.stdout", io.StringIO()), mock.patch("sys.stderr", error):
                 rc = roster.main([])
         self.assertEqual(rc, 1)
         self.assertIn("could not run herdr agent list", error.getvalue())
-
-    def test_stdin_flag_reads_stdin_and_skips_subprocess(self):
-        with mock.patch.object(roster.herdr_cli.subprocess, "run") as run, \
-                mock.patch.object(roster.sys, "stdin", io.StringIO(self._SAMPLE)), \
-                mock.patch("sys.stdout", io.StringIO()), mock.patch("sys.stderr", io.StringIO()):
-            rc = roster.main(["--stdin", "--workspace", "w1"])
-        self.assertEqual(rc, 0)
-        run.assert_not_called()
 
     def test_stalled_requires_report_absent_and_stale_progress_across_interval(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -115,16 +121,15 @@ class RosterTest(unittest.TestCase):
                 "pane_id": "w1:p1", "name": "peer-1", "agent": "claude",
                 "agent_status": "idle", "workspace_id": "w1",
             }]}}
-            with mock.patch.object(roster.sys, "stdin", io.StringIO(json.dumps(payload))):
-                output = io.StringIO()
-                with mock.patch("sys.stdout", output):
-                    rc = roster.main([
-                        "--stdin", "--stalled", "--workspace", "w1",
-                        "--peer", f"peer-1:{report}:{progress}",
-                        "--previous-sample", str(previous), "--stale-after", "60",
-                    ])
+            rc, output, error, run = self.run_roster(payload, [
+                "--stalled", "--workspace", "w1",
+                "--peer", f"peer-1:{report}:{progress}",
+                "--previous-sample", str(previous), "--stale-after", "60",
+            ])
             self.assertEqual(rc, 0)
-            self.assertEqual(output.getvalue(), "w1:p1 peer-1 claude STALLED\n")
+            self.assertEqual(error, "")
+            self.assertEqual(output, "w1:p1 peer-1 claude STALLED\n")
+            run.assert_called_once_with(["agent", "list"])
 
     def test_never_started_requires_explicit_evidence_and_missing_progress(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -136,15 +141,14 @@ class RosterTest(unittest.TestCase):
                 "agent_status": "idle", "workspace_id": "w1",
                 "tokens": {"sort_key": "000000000001"},
             }]}}
-            with mock.patch.object(roster.sys, "stdin", io.StringIO(json.dumps(payload))):
-                output = io.StringIO()
-                with mock.patch("sys.stdout", output):
-                    rc = roster.main([
-                        "--stdin", "--never-started", "peer-1", "--workspace", "w1",
-                        "--peer", f"peer-1:{report}:{progress}",
-                    ])
+            rc, output, error, run = self.run_roster(payload, [
+                "--never-started", "peer-1", "--workspace", "w1",
+                "--peer", f"peer-1:{report}:{progress}",
+            ])
             self.assertEqual(rc, 0)
-            self.assertEqual(output.getvalue(), "w1:p1 peer-1 claude NEVER-STARTED\n")
+            self.assertEqual(error, "")
+            self.assertEqual(output, "w1:p1 peer-1 claude NEVER-STARTED\n")
+            run.assert_called_once_with(["agent", "list"])
 
     def test_never_started_is_not_reported_when_progress_exists(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -156,15 +160,13 @@ class RosterTest(unittest.TestCase):
                 "pane_id": "w1:p1", "name": "peer-1", "agent": "claude",
                 "agent_status": "done", "workspace_id": "w1",
             }]}}
-            with mock.patch.object(roster.sys, "stdin", io.StringIO(json.dumps(payload))):
-                output = io.StringIO()
-                with mock.patch("sys.stdout", output):
-                    rc = roster.main([
-                        "--stdin", "--never-started", "peer-1",
-                        "--peer", f"peer-1:{report}:{progress}",
-                    ])
+            rc, output, error, run = self.run_roster(payload, [
+                "--never-started", "peer-1", "--peer", f"peer-1:{report}:{progress}",
+            ])
             self.assertEqual(rc, 0)
-            self.assertEqual(output.getvalue(), "")
+            self.assertEqual(output, "")
+            self.assertEqual(error, "")
+            run.assert_called_once_with(["agent", "list"])
 
     def test_never_started_is_not_reported_when_report_exists(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -176,15 +178,13 @@ class RosterTest(unittest.TestCase):
                 "pane_id": "w1:p1", "name": "peer-1", "agent": "claude",
                 "agent_status": "done", "workspace_id": "w1",
             }]}}
-            with mock.patch.object(roster.sys, "stdin", io.StringIO(json.dumps(payload))):
-                output = io.StringIO()
-                with mock.patch("sys.stdout", output):
-                    rc = roster.main([
-                        "--stdin", "--never-started", "peer-1",
-                        "--peer", f"peer-1:{report}:{progress}",
-                    ])
+            rc, output, error, run = self.run_roster(payload, [
+                "--never-started", "peer-1", "--peer", f"peer-1:{report}:{progress}",
+            ])
             self.assertEqual(rc, 0)
-            self.assertEqual(output.getvalue(), "")
+            self.assertEqual(output, "")
+            self.assertEqual(error, "")
+            run.assert_called_once_with(["agent", "list"])
 
     def test_stalled_missing_progress_remains_fail_closed(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -199,15 +199,14 @@ class RosterTest(unittest.TestCase):
                 "pane_id": "w1:p1", "name": "peer-1", "agent": "claude",
                 "agent_status": "idle", "workspace_id": "w1",
             }]}}
-            with mock.patch.object(roster.sys, "stdin", io.StringIO(json.dumps(payload))):
-                output = io.StringIO()
-                with mock.patch("sys.stdout", output):
-                    rc = roster.main([
-                        "--stdin", "--stalled", "--peer", f"peer-1:{report}:{progress}",
-                        "--previous-sample", str(previous), "--stale-after", "60",
-                    ])
+            rc, output, error, run = self.run_roster(payload, [
+                "--stalled", "--peer", f"peer-1:{report}:{progress}",
+                "--previous-sample", str(previous), "--stale-after", "60",
+            ])
             self.assertEqual(rc, 0)
-            self.assertEqual(output.getvalue(), "")
+            self.assertEqual(output, "")
+            self.assertEqual(error, "")
+            run.assert_called_once_with(["agent", "list"])
 
     def test_stalled_single_idle_sample_with_report_is_not_stalled(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -226,15 +225,14 @@ class RosterTest(unittest.TestCase):
                 "pane_id": "w1:p1", "name": "peer-1", "agent": "claude",
                 "agent_status": "idle", "workspace_id": "w1",
             }]}}
-            with mock.patch.object(roster.sys, "stdin", io.StringIO(json.dumps(payload))):
-                output = io.StringIO()
-                with mock.patch("sys.stdout", output):
-                    rc = roster.main([
-                        "--stdin", "--stalled", "--peer", f"peer-1:{report}:{progress}",
-                        "--previous-sample", str(previous), "--stale-after", "60",
-                    ])
+            rc, output, error, run = self.run_roster(payload, [
+                "--stalled", "--peer", f"peer-1:{report}:{progress}",
+                "--previous-sample", str(previous), "--stale-after", "60",
+            ])
             self.assertEqual(rc, 0)
-            self.assertEqual(output.getvalue(), "")
+            self.assertEqual(output, "")
+            self.assertEqual(error, "")
+            run.assert_called_once_with(["agent", "list"])
 
     def test_stalled_single_idle_sample_with_fresh_progress_is_not_stalled(self):
         with tempfile.TemporaryDirectory() as directory:

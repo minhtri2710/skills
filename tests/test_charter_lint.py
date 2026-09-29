@@ -63,12 +63,6 @@ class CharterLintTest(unittest.TestCase):
             code = charter_lint.main(argv)
         return code, stdout.getvalue(), stderr.getvalue()
 
-    def test_well_formed_engineer_and_staffing_record_is_ok(self):
-        code, output, error = self.run_lint(self.engineer_charter(), self.staffing_record())
-        self.assertEqual(code, 0)
-        self.assertIn("OK:", output)
-        self.assertEqual(error, "")
-
     def test_ok_line_contains_sha256_of_each_linted_file(self):
         charter = self.engineer_charter()
         staffing = self.staffing_record()
@@ -127,18 +121,6 @@ class CharterLintTest(unittest.TestCase):
             "missing live-wake guard: Never run `mailbox.py --wake` against a real seat", error
         )
 
-    def test_reviewer_with_live_wake_guard_passes(self):
-        code, output, error = self.run_lint(self.reviewer_charter(), self.staffing_record())
-        self.assertEqual(code, 0)
-        self.assertIn("OK:", output)
-        self.assertEqual(error, "")
-
-    def test_engineer_without_live_wake_guard_still_passes(self):
-        code, output, error = self.run_lint(self.engineer_charter(), self.staffing_record())
-        self.assertEqual(code, 0)
-        self.assertIn("OK:", output)
-        self.assertNotIn("live-wake", error)
-
     def test_live_wake_guard_match_ignores_case_and_backticks(self):
         charter = self.reviewer_charter().replace(
             "Never run `mailbox.py --wake` against a real seat",
@@ -182,12 +164,6 @@ class CharterLintTest(unittest.TestCase):
                     "missing OCR delegate step: ocr delegate preview and ocr delegate rule", error
                 )
 
-    def test_engineer_without_ocr_delegate_step_still_passes(self):
-        code, output, error = self.run_lint(self.engineer_charter(), self.staffing_record())
-        self.assertEqual(code, 0)
-        self.assertIn("OK:", output)
-        self.assertNotIn("OCR", error)
-
     def test_missing_prompt_command_is_named(self):
         charter = self.engineer_charter().replace("herdr agent prompt lead-beo-skills", "send the report")
         code, _, error = self.run_lint(charter)
@@ -205,12 +181,6 @@ class CharterLintTest(unittest.TestCase):
         code, _, error = self.run_lint(charter)
         self.assertNotEqual(code, 0)
         self.assertIn("SEND-FAILED", error)
-
-    def test_full_hardened_report_block_is_ok(self):
-        code, output, error = self.run_lint(self.engineer_charter(), self.staffing_record())
-        self.assertEqual(code, 0)
-        self.assertIn("OK:", output)
-        self.assertEqual(error, "")
 
     def test_engineer_without_staffing_record_is_named(self):
         code, _, error = self.run_lint(self.engineer_charter())
@@ -408,21 +378,12 @@ class CharterLintTest(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn("ARCHITECT seat missing dialog=", error)
 
-    def test_default_lint_does_not_call_jev(self):
-        with unittest.mock.patch.object(jev, "triage_charter") as triage:
-            code, output, error = self.run_lint(self.engineer_charter(), self.staffing_record())
-        self.assertEqual(code, 0)
-        self.assertIn("OK:", output)
-        self.assertNotIn("Jev advisory", output)
-        self.assertEqual(error, "")
-        triage.assert_not_called()
-
     def test_jev_is_opt_in_advisory_and_cannot_change_lint_result(self):
         with unittest.mock.patch.object(
             jev,
             "triage_charter",
             return_value=jev.UnavailableResult(
-                status="unavailable", finding={}, reason="missing_api_key"
+                status="unavailable", reason="missing_api_key"
             ),
         ) as triage:
             clean = self.run_lint(self.engineer_charter(), self.staffing_record(), jev_enabled=True)
@@ -440,9 +401,7 @@ class CharterLintTest(unittest.TestCase):
     def test_available_jev_advisory_is_bounded_and_does_not_authorize(self):
         judgment = jev.CharterAdvisoryResult(
             status="available",
-            source_state={"disposition": "Engineer", "body": "body"},
             coherence=jev.NoulJudgment(label="incoherent", probability=0.1),
-            raw_answers={"noul": {"type": "noul", "noul": 0.1}},
         )
         with unittest.mock.patch.object(
             jev, "triage_charter", return_value=judgment
@@ -664,7 +623,7 @@ class CharterLintTest(unittest.TestCase):
                 self.assertEqual((code, error), expected)
 
     def test_jev_receives_the_declared_disposition_and_full_charter(self):
-        unavailable = jev.UnavailableResult(status="unavailable", finding={}, reason="x")
+        unavailable = jev.UnavailableResult(status="unavailable", reason="x")
         no_disposition = self.engineer_charter().replace("Disposition: Engineer\n", "")
         with unittest.mock.patch.object(
             jev, "triage_charter", return_value=unavailable

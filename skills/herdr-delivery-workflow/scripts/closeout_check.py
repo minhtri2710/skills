@@ -35,14 +35,6 @@ class CloseoutResult:
     findings: tuple[str, ...]
     checked_panes: tuple[str, ...] = ()
 
-    @property
-    def ok(self) -> bool:
-        return self.passed
-
-    def __bool__(self) -> bool:
-        return self.passed
-
-
 _HANDLE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$")
 _ROLE_RE = {"Engineer", "Reviewer"}
 _PERSISTENT_ROLES = {"Lead", "Human Supervisor"}
