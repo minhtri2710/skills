@@ -701,7 +701,7 @@ class CompactionReprimeDispatchTest(CompactionReprimeTestBase, unittest.TestCase
         self.write_pi_count(path, 15)
         self.assertIsNotNone(self.track(path))
         roster = {"result": {"agents": self.roster(path)}}
-        for threshold in (4, 8, 12):
+        for threshold, want_relaunch in ((4, False), (8, True), (12, True)):
             with self.subTest(threshold=threshold):
                 self.stdout.seek(0)
                 self.stdout.truncate()
@@ -719,11 +719,21 @@ class CompactionReprimeDispatchTest(CompactionReprimeTestBase, unittest.TestCase
                 prompt.assert_called_once()
                 argv = prompt.call_args.args[0]
                 self.assertEqual(argv[:4], ["herdr", "agent", "prompt", "lead-beo-skills"])
+                self.assertEqual(len(argv), 5)
                 block_lines = argv[4].split("\n")
-                if threshold < compaction_reprime.RELAUNCH_RECOMMEND_THRESHOLD:
+                if not want_relaunch:
                     self.assertNotIn("relaunch-recommended", argv[4])
+                    self.assertEqual(
+                        self.stdout.getvalue(),
+                        f"compaction_reprime: prompted lead-beo-skills at threshold {threshold}\n",
+                    )
                 else:
                     self.assertEqual(block_lines[-1], self.relaunch_line(threshold))
+                    self.assertEqual(
+                        self.stdout.getvalue(),
+                        f"compaction_reprime: prompted lead-beo-skills at threshold {threshold}"
+                        "; relaunch recommended at the next slice boundary\n",
+                    )
                     self.assertEqual(block_lines[-2].split(": ", 1)[0], "closeout")
 
     def test_unavailable_prompt_is_durable_and_retryable(self) -> None:

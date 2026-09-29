@@ -1968,6 +1968,19 @@ class GateRowTest(unittest.TestCase):
         ]), 1)
         self.assertIn("kind=cutover is only valid as the first row", self.err.getvalue())
 
+        broken = genesis.replace(f"archive={archive}", f"archive={'A' * 64}")
+        re_chained = (
+            f'G{int(gid[1:]) + 1} | {timestamp} | kind=merge | {branch}@{head} | '
+            f'status=resolved:standing-waiver | writer={writer} | record=timely | '
+            f'prev_hash={gate_row.row_hash(broken)} | words=human | note=re-chained | quote="continue"'
+        )
+        rows = [broken, re_chained]
+        self.ledger.write_text("# Gate ledger — test\n\n" + "\n".join(rows) + "\n", encoding="utf-8")
+        self.assertEqual(self.run_main([
+            "--ledger", str(self.ledger), "--repo", str(self.repo), "--check",
+        ]), 1)
+        self.assertIn("is not a 64-character lowercase hex archive=", self.err.getvalue())
+
         self.ledger.write_text("# Gate ledger — test\n\n" + genesis + "\n", encoding="utf-8")
         before = self.ledger.read_bytes()
         self.assertEqual(self.run_main([
