@@ -90,6 +90,11 @@ SENT_COMMANDS = [
     f"true | herdr agent prompt {LEAD} payload",
     f"true & herdr agent prompt {LEAD} payload",
     f"true\nherdr agent prompt {LEAD} payload",
+    f"herdr agent prompt {LEAD} payload 2>&1",
+    f"herdr agent prompt {LEAD} payload </dev/null >/dev/null &>/dev/null",
+    f"herdr agent prompt {LEAD} payload;  \n# note\n\n",
+    f"herdr agent prompt {LEAD} payload # note",
+    f"herdr agent prompt {LEAD} payload; echo one; herdr agent prompt {LEAD} payload",
 ]
 BODY = f'herdr agent prompt {LEAD} "$(cat {SEND})"'
 UNSENT_CASES = [
@@ -120,6 +125,12 @@ UNSENT_CASES = [
         "uncalled function keyword definition",
         f"function g {{\nherdr agent prompt {LEAD} payload\n}}",
     ),
+    ("command after the send", f'herdr agent prompt {LEAD} "$(cat {SEND})" </dev/null; echo exit=$?'),
+    ("command on the next line", f"herdr agent prompt {LEAD} payload\necho done"),
+    ("send piped into a command", f"herdr agent prompt {LEAD} payload | cat"),
+    ("send piped with stderr into a command", f"herdr agent prompt {LEAD} payload |& cat"),
+    ("backgrounded send", f"herdr agent prompt {LEAD} payload &"),
+    ("backgrounded send then command", f"herdr agent prompt {LEAD} payload & echo done"),
 ]
 
 
@@ -218,8 +229,10 @@ class ReportWakeTest(unittest.TestCase):
             equal = self.run_extension({"flags": flags, "steps": [step("call", {"toolName": "bash", "input": {"command": command}})]})
             os.utime(send, ns=(3_000_000_000, 3_000_000_000))
             newer = self.run_extension({"flags": flags, "steps": [step("call", {"toolName": "bash", "input": {"command": command}})]})
+            os.utime(send, ns=(1_000_000_000, 1_000_000_000))
+            not_last = self.run_extension({"flags": flags, "steps": [step("call", {"toolName": "bash", "input": {"command": f"{command} | cat; echo exit=$?"}})]})
             unrelated = self.run_extension({"flags": flags, "steps": [step("call", {"toolName": "bash", "input": {"command": f"herdr agent prompt {LEAD} payload"}})]})
-            self.assertEqual((blocked["lastCall"], equal.get("lastCall"), newer.get("lastCall"), unrelated.get("lastCall")), (blocked_reason, None, None, None))
+            self.assertEqual((blocked["lastCall"], equal.get("lastCall"), newer.get("lastCall"), not_last.get("lastCall"), unrelated.get("lastCall")), (blocked_reason, None, None, blocked_reason, None))
 
     def test_missing_flag_is_inert_and_notifies(self):
         result = self.run_extension({"flags": {"report-lead": LEAD, "report-seat": SEAT}, "steps": [before(), step("settled")]})

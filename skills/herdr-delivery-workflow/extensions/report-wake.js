@@ -1,5 +1,7 @@
 // Count sends only at recognized shell command starts; unsupported forms fail noisy.
-export function promptTarget(command, lead) {
+// By default the send counts only as the call's last executed command, so the call's exit status is the send's.
+// { final: false } accepts a send at any command position (the pre-send stale check).
+export function promptTarget(command, lead, { final = true } = {}) {
   const invocation = /^[ \t]*(?:env[ \t]+)?(?:[A-Za-z_][A-Za-z0-9_]*=(?:"[^"]*"|'[^']*'|[^\s;&|]+)[ \t]+)*(?:command[ \t]+)?herdr[ \t]+agent[ \t]+prompt[ \t]+(?:"([^"]*)"|'([^']*)'|([^\s;&|]+))/;
   const heredocs = [];
   let index = 0;
@@ -9,6 +11,8 @@ export function promptTarget(command, lead) {
   let comment = false;
   let parentheses = 0;
   let backtick = false;
+  let pending = false;
+  let ended = false;
 
   const heredocAt = (start) => {
     if (command[start + 2] === "<") return undefined;
@@ -51,9 +55,14 @@ export function promptTarget(command, lead) {
 
   while (index < command.length) {
     if (commandStart) {
+      if (pending && ended && !/[ \t;\n#]/.test(command[index])) pending = false;
       if (/^(?:(?:if|while|until|for|select|case|function)[ \t]|[^\s;&|()<>\"'`$=\\]+[ \t]*\([ \t]*\))/.test(command.slice(index))) return undefined;
       const match = invocation.exec(command.slice(index));
-      if (match && (match[1] ?? match[2] ?? match[3]) === lead) return lead;
+      if (match && (match[1] ?? match[2] ?? match[3]) === lead) {
+        if (!final) return lead;
+        pending = true;
+        ended = false;
+      }
       if (command[index] !== " " && command[index] !== "\t") commandStart = false;
     }
 
@@ -138,10 +147,18 @@ export function promptTarget(command, lead) {
         index += 1;
       }
       commandStart = true;
+      if (pending) ended = true;
       continue;
     }
     if ((char === "&" || char === "|") && command[index + 1] === char) return undefined;
     if (char === ";" || char === "&" || char === "|") {
+      const redirect = final && ((char === "&" && (command[index - 1] === ">" || command[index - 1] === "<" || command[index + 1] === ">")) || (char === "|" && command[index - 1] === ">"));
+      if (redirect) {
+        index += 1;
+        continue;
+      }
+      if (char === ";") ended = true;
+      else pending = false;
       if ((char === "|" || char === "&") && command[index + 1] === "&") index += 2;
       else index += 1;
       commandStart = true;
@@ -149,7 +166,7 @@ export function promptTarget(command, lead) {
     }
     index += 1;
   }
-  return undefined;
+  return pending ? lead : undefined;
 }
 
 export default function (pi) {
@@ -237,7 +254,7 @@ export default function (pi) {
 
     pi.on("tool_call", (event) => {
       if (!active || event.toolName !== "bash" || typeof event.input?.command !== "string") return;
-      if (promptTarget(event.input.command, lead) !== lead || !event.input.command.includes(sendPath)) return;
+      if (promptTarget(event.input.command, lead, { final: false }) !== lead || !event.input.command.includes(sendPath)) return;
       const fs = process.getBuiltinModule("node:fs");
       let reportMtime;
       let sendMtime;
