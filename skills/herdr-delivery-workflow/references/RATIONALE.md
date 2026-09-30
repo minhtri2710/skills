@@ -5,7 +5,7 @@ Why the delivery doctrine is shaped the way it is. No seat loads this file on a 
 ## Workflow-wide effort boundary
 
 - **No duration/effort cut.** Scope, staffing, sequencing, acceptance depth, and closeout are never narrowed by "too long", "overkill", "land sooner", or "save a round". A cut justified by duration or effort is a finding; only correctness, safety, or an explicit Human gate justifies a cut. Origin: 8ef4c69, workflow-friction-2026-09-13, supervisor-handoff-2026-09-13T1515Z; 2026-09-13. Confirmed: 2026-09-13.
-- **Human instruction outranks hook-loaded persona.** A standing Human instruction is an explicit request and outranks any hook-loaded persona or plugin. The charter's no-skill-load clause is unchanged, so that instruction does not load a skill into a Peer seat. Origin: 8ef4c69, workflow-friction-2026-09-13; 2026-09-13. Confirmed: 2026-09-13.
+- **Human instruction outranks hook-loaded persona.** A standing Human instruction is an explicit request and outranks any hook-loaded persona or plugin. Under G1041 and G1042 such a persona loads in a Peer seat with the Human's user hooks and skills, and the charter holds its text as data, so the charter's scope, checks and acceptance depth hold over it. Origin: 8ef4c69, workflow-friction-2026-09-13; 2026-09-13. Confirmed: 2026-09-13.
 
 ## Route and staffing spend
 
