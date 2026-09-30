@@ -82,19 +82,10 @@ class CloseoutCheckTest(unittest.TestCase):
         self.herdr = FakeHerdr(self.canonical)
         self.project_dir = Path(self.tmp.name) / "closeout-project"
         self.project_dir.mkdir()
-        self.mailbox = self.project_dir / "supervisor-mailbox.md"
         self.ledger = self.project_dir / "gates.md"
         self.ledger.write_text("# Gate ledger — test\n\n", encoding="utf-8")
-        self.mailbox.write_text(
-            "## lead -> supervisor | 2026-09-28T00:00:00Z | ATTENTION closeout-project "
-            "peer-staffed: eng-teardown review-teardown were staffed | HEAD "
-            f"{subprocess.run(['git', '-C', str(self.canonical), 'rev-parse', 'HEAD'], check=True, capture_output=True, text=True, stdin=subprocess.DEVNULL).stdout.strip()}\n",
-            encoding="utf-8",
-        )
         self.record = {
             "canonical_checkout": str(self.canonical),
-            "project_slug": "closeout-project",
-            "supervisor_mailbox": str(self.mailbox),
             "gates_ledger": str(self.ledger),
             "persistent": [
                 {"role": "Lead", "name": "lead-beo-skills", "pane": "w1:p1"},
@@ -112,48 +103,6 @@ class CloseoutCheckTest(unittest.TestCase):
         self.herdr.add_peer("eng-teardown", "w1:p3", agent_status="agent_not_found")
         self.herdr.add_peer("review-teardown", "w1:p4")
         self.addCleanup(self.tmp.cleanup)
-
-    def test_supervisor_requires_a_peer_named_by_a_peer_staffed_header(self):
-        self.herdr.close("w1:p3")
-        self.herdr.close("w1:p4")
-        record = dict(self.record)
-        record["peers"] = [self.record["peers"][0]]
-        self.mailbox.write_text("", encoding="utf-8")
-
-        missing = closeout_check.check_closeout(record, self.herdr)
-        self.assertEqual(
-            missing.findings,
-            ("Engineer eng-teardown has no ATTENTION closeout-project peer-staffed mailbox header naming it",),
-        )
-
-        timestamp = "2026-09-28T00:00:00Z"
-        header = (
-            f"## lead -> supervisor | {timestamp} | ATTENTION closeout-project peer-staffed: "
-            f"eng-teardown was staffed | HEAD {'a' * 40}\n"
-        )
-        self.mailbox.write_text(header, encoding="utf-8")
-        named = closeout_check.check_closeout(record, self.herdr)
-        self.assertTrue(named.passed, named.findings)
-
-        self.mailbox.write_text(header.replace("eng-teardown was", "eng-teardown-extra was"), encoding="utf-8")
-        substring = closeout_check.check_closeout(record, self.herdr)
-        self.assertFalse(substring.passed)
-        self.assertEqual(substring.findings, missing.findings)
-
-        self.mailbox.unlink()
-        unreadable = closeout_check.check_closeout(record, self.herdr)
-        self.assertFalse(unreadable.passed)
-        self.assertEqual(len(unreadable.findings), 1)
-        self.assertIn(str(self.mailbox), unreadable.findings[0])
-        self.assertIn("could not be read", unreadable.findings[0])
-        self.assertNotIn("has no ATTENTION", unreadable.findings[0])
-
-        unsupervised = dict(record)
-        unsupervised["persistent"] = [record["persistent"][0]]
-        unsupervised.pop("project_slug")
-        unsupervised.pop("supervisor_mailbox")
-        no_supervisor = closeout_check.check_closeout(unsupervised, self.herdr)
-        self.assertTrue(no_supervisor.passed, no_supervisor.findings)
 
     def test_reviewed_unpushed_commit_needs_an_open_push_gate(self):
         temp = Path(self.tmp.name) / "d4"
@@ -192,11 +141,6 @@ class CloseoutCheckTest(unittest.TestCase):
         git(repo, "commit", "-qam", "reviewed")
         reviewed = git(repo, "rev-parse", "HEAD")
         self.record["canonical_checkout"] = str(repo)
-        self.mailbox.write_text(
-            "## lead -> supervisor | 2026-09-28T00:00:00Z | ATTENTION closeout-project "
-            f"peer-staffed: eng-teardown review-teardown were staffed | HEAD {base[:7]}\n",
-            encoding="utf-8",
-        )
         self.herdr.close("w1:p3")
         self.herdr.close("w1:p4")
         self.ledger.write_text(
@@ -413,7 +357,7 @@ class CloseoutCheckTest(unittest.TestCase):
         )
         with template.open(encoding="utf-8") as handle:
             record = json.load(handle)
-        canonical, peers, _, _, ledger = closeout_check._validate_record(record)
+        canonical, peers, ledger = closeout_check._validate_record(record)
         self.assertTrue(canonical.is_absolute())
         self.assertTrue(ledger.is_absolute())
         self.assertEqual([peer["role"] for peer in peers], ["Engineer", "Reviewer"])
@@ -424,15 +368,6 @@ class CloseoutCheckTest(unittest.TestCase):
                 {"role": "Human Supervisor", "name": "supervisor", "pane": "w0:pSupervisor"},
             ],
         )
-
-        unsupervised = dict(record)
-        unsupervised["persistent"] = [record["persistent"][0]]
-        canonical, peers, slug, mailbox_path, ledger = closeout_check._validate_record(unsupervised)
-        self.assertTrue(canonical.is_absolute())
-        self.assertIsNone(slug)
-        self.assertIsNone(mailbox_path)
-        self.assertTrue(ledger.is_absolute())
-        self.assertEqual([peer["role"] for peer in peers], ["Engineer", "Reviewer"])
 
     def test_subprocess_herdr_unavailable_fails_closeout_closed(self):
         with mock.patch.object(

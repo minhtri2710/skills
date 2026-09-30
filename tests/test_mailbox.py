@@ -724,10 +724,10 @@ class MailboxAppendTest(unittest.TestCase):
         self.assertFalse(marker.exists())
 
     def test_append_always_wakes_to_seat_with_the_appended_header(self):
-        self.assertEqual(self.append("x\n", "--attention", "compaction"), 0)
+        self.assertEqual(self.append("x\n", "--attention", "human-gate"), 0)
         self.assertEqual(len(self.wakes), 1)
         self.assertEqual(self.wakes[0][0], "supervisor")
-        self.assertIn(f"ATTENTION beo-skills compaction: gate opened | HEAD {self.head}", self.wakes[0][1])
+        self.assertIn(f"ATTENTION beo-skills human-gate: gate opened | HEAD {self.head}", self.wakes[0][1])
 
     def test_append_keeps_entry_and_returns_wake_code_when_wake_fails(self):
         self.wake_rc = 1
