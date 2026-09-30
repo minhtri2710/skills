@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -224,95 +225,102 @@ class ReportWakeTest(unittest.TestCase):
         result = self.run_extension({"flags": {"report-lead": LEAD, "report-seat": SEAT}, "steps": [before(), step("settled")]})
         self.assertEqual((result["registered"], result["notifications"], result["handlers"], result["exec"]), ([["report-lead", {"type": "string", "description": "Report wake report-lead"}], ["report-seat", {"type": "string", "description": "Report wake report-seat"}], ["report-dir", {"type": "string", "description": "Report wake report-dir"}]], [["report-wake: missing required flags: --report-dir", "error"]], ["session_start"], []))
 
+SESSION = "27a1e2ac-364b-4d0d-b21b-764f2049f18f"
 PROMPT_ID = "727c66f4-3b3e-4497-b48e-8eae1c2d7845"
 STUB = f"""#!/bin/sh
 {{ for a in "$@"; do printf '%s\\n' "$a"; done; echo ---; }} >> "$STUB_LOG"
 [ "$2" = prompt ] && exit "${{STUB_PROMPT_CODE:-0}}"
 exit 0
 """
+WAKE = [["agent", "prompt", LEAD, D5]]
 
 
-def tool_turn(command: str, prompt_id: str = PROMPT_ID, is_error: bool = False, tool_id: str = "toolu_1") -> list[dict]:
-    """A user prompt, a Bash tool_use and its tool_result in the shape claude 2.1.285 writes."""
-    use = {"type": "tool_use", "id": tool_id, "name": "Bash", "input": {"command": command}}
-    result = {"type": "tool_result", "tool_use_id": tool_id, "content": "", "is_error": is_error}
-    return [
-        {"type": "user", "promptId": prompt_id, "message": {"role": "user", "content": "work"}},
-        {"type": "assistant", "message": {"role": "assistant", "content": [use]}},
-        {"type": "user", "promptId": prompt_id, "message": {"role": "user", "content": [result]}},
-    ]
-
-
-def stop_payload(transcript: Path, **extra) -> dict:
+def post_payload(command: object, session: str = SESSION, prompt: str = PROMPT_ID) -> dict:
+    """PostToolUse payload in the shape claude 2.1.285 sends (probe/posttooluse)."""
     return {
-        "session_id": "s", "transcript_path": str(transcript), "cwd": "/run/example", "prompt_id": PROMPT_ID,
-        "hook_event_name": "Stop", "stop_hook_active": False, "last_assistant_message": "done",
-        "background_tasks": [], "session_crons": [], **extra,
+        "session_id": session, "prompt_id": prompt, "hook_event_name": "PostToolUse", "tool_name": "Bash",
+        "tool_input": {"command": command}, "tool_response": {"stdout": "", "stderr": ""}, "tool_use_id": "toolu_1",
+    }
+
+
+def stop_payload(session: str = SESSION, prompt: str = PROMPT_ID, **extra) -> dict:
+    """Stop payload in the shape claude 2.1.285 sends (probe/payload-*.json)."""
+    return {
+        "session_id": session, "prompt_id": prompt, "hook_event_name": "Stop", "stop_hook_active": False,
+        "last_assistant_message": "done", "background_tasks": [], "session_crons": [], **extra,
     }
 
 
 class ClaudeReportWakeHookTest(unittest.TestCase):
-    def run_hook(self, entries: list[dict], payload_extra: dict | None = None, stdin: str | None = None, prompt_code: int = 0):
-        """Runs the hook CLI with the payload on stdin and herdr stubbed on PATH; returns the herdr calls."""
+    def run_hooks(self, *events: tuple[bool, object], prompt_code: int = 0):
+        """Runs each (record, stdin) through the hook CLI with herdr stubbed on PATH and TMPDIR private to the run.
+
+        Returns the herdr calls and the marker files left behind."""
         if NODE is None:
             self.fail("node is required to test report-wake")
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             (root / "herdr").write_text(STUB)
             (root / "herdr").chmod(0o755)
-            transcript = root / "transcript.jsonl"
-            transcript.write_text("\n".join(json.dumps(entry) for entry in entries) + "\n")
-            payload = stdin if stdin is not None else json.dumps(stop_payload(transcript, **(payload_extra or {})))
-            env = {**os.environ, "PATH": f"{root}{os.pathsep}{os.environ['PATH']}", "STUB_LOG": str(root / "log"), "STUB_PROMPT_CODE": str(prompt_code)}
-            result = subprocess.run(
-                [NODE, str(HOOK), "--lead", LEAD, "--seat", SEAT, "--dir", RUN_DIR],
-                input=payload, env=env, capture_output=True, text=True,
-            )
+            tmp = root / "tmp"
+            tmp.mkdir()
+            env = {**os.environ, "PATH": f"{root}{os.pathsep}{os.environ['PATH']}", "TMPDIR": str(tmp), "STUB_LOG": str(root / "log"), "STUB_PROMPT_CODE": str(prompt_code)}
+            for record, stdin in events:
+                result = subprocess.run(
+                    [NODE, str(HOOK), *(["--record"] if record else []), "--lead", LEAD, "--seat", SEAT, "--dir", RUN_DIR],
+                    input=stdin if isinstance(stdin, str) else json.dumps(stdin), env=env, capture_output=True, text=True,
+                )
+                self.assertEqual((result.returncode, result.stdout), (0, ""), result.stderr)
             log = root / "log"
             calls = [c.strip().split("\n") for c in log.read_text().split("---\n") if c.strip()] if log.exists() else []
-        self.assertEqual((result.returncode, result.stdout), (0, ""), result.stderr)
-        return calls
+            markers = sorted(path.name for path in tmp.rglob("*") if path.is_file())
+        return calls, markers
 
-    def test_wakes_once_unless_a_successful_send_ends_this_turn(self):
+    def test_wakes_once_unless_a_successful_send_marks_this_turn(self):
         send = f'herdr agent prompt {LEAD} "$(cat {SEND})"'
-        wake = [["agent", "prompt", LEAD, D5]]
         running = [{"id": "b1", "type": "shell", "status": "running", "description": "d", "command": "sleep 25"}]
         cases = [
-            ("sent and ok", tool_turn(send), {}, []),
-            ("no send", tool_turn("ls"), {}, wake),
-            ("send with is_error", tool_turn(send, is_error=True), {}, wake),
-            ("send under another prompt_id", tool_turn(send, prompt_id="previous-turn"), {}, wake),
-            ("missing prompt_id", tool_turn(send), {"prompt_id": None}, wake),
-            ("unreadable transcript", tool_turn(send), {"transcript_path": "/nonexistent/transcript.jsonl"}, wake),
-            ("running background task", tool_turn("ls"), {"background_tasks": running}, []),
+            ("send then stop", [(True, post_payload(send)), (False, stop_payload())], [], 0),
+            ("stop without a marker", [(False, stop_payload())], WAKE, 0),
+            ("marker under another prompt_id", [(True, post_payload(send, prompt="previous-turn")), (False, stop_payload())], WAKE, 1),
+            ("marker under another session_id", [(True, post_payload(send, session="other")), (False, stop_payload())], WAKE, 1),
+            ("running background task", [(False, stop_payload(background_tasks=running))], [], 0),
         ]
-        for shape, entries, extra, expected in cases:
+        for shape, events, expected, left in cases:
             with self.subTest(shape=shape):
-                self.assertEqual(self.run_hook(entries, extra), expected)
+                calls, markers = self.run_hooks(*events)
+                self.assertEqual((calls, len(markers)), (expected, left))
+
+    def test_marker_name_is_a_hash_of_the_turn(self):
+        send = f"herdr agent prompt {LEAD} payload"
+        calls, markers = self.run_hooks((True, post_payload(send, session="../../x", prompt="a/b")))
+        self.assertEqual((calls, len(markers), all(re.fullmatch(r"[0-9a-f]{64}", m) for m in markers)), ([], 1, True))
 
     def test_stop_failure_unsent_wakes_with_the_error_outcome(self):
         extra = {"hook_event_name": "StopFailure", "error": "authentication_failed"}
-        self.assertEqual(self.run_hook(tool_turn("ls"), extra), [["agent", "prompt", LEAD, D5_AUTH]])
+        calls, _ = self.run_hooks((False, stop_payload(**extra)))
+        self.assertEqual(calls, [["agent", "prompt", LEAD, D5_AUTH]])
 
     def test_failed_wake_shows_the_notification(self):
-        self.assertEqual(
-            self.run_hook(tool_turn("ls"), prompt_code=7),
-            [["agent", "prompt", LEAD, D5], ["notification", "show", f"{SEAT}: report-wake failed", "--body", REPORT, "--sound", "request"]],
-        )
+        calls, _ = self.run_hooks((False, stop_payload()), prompt_code=7)
+        self.assertEqual(calls, WAKE + [["notification", "show", f"{SEAT}: report-wake failed", "--body", REPORT, "--sound", "request"]])
 
-    def test_malformed_stdin_wakes(self):
+    def test_malformed_stop_stdin_wakes_and_malformed_record_records_nothing(self):
         for stdin in ("", "not json", "[]"):
             with self.subTest(stdin=stdin):
-                self.assertEqual(self.run_hook([], stdin=stdin), [["agent", "prompt", LEAD, D5]])
+                self.assertEqual(self.run_hooks((False, stdin)), (WAKE, []))
+                self.assertEqual(self.run_hooks((True, stdin), (False, stop_payload())), (WAKE, []))
+        for payload in (post_payload(None), {**post_payload("x"), "tool_input": None}, {**post_payload("x"), "session_id": None}):
+            with self.subTest(payload=payload):
+                self.assertEqual(self.run_hooks((True, payload)), ([], []))
 
     def test_recognizer_corpus_holds_on_the_claude_path(self):
-        wake = [["agent", "prompt", LEAD, D5]]
         for command in SENT_COMMANDS:
             with self.subTest(sent=command):
-                self.assertEqual(self.run_hook(tool_turn(command)), [])
+                self.assertEqual(self.run_hooks((True, post_payload(command)), (False, stop_payload())), ([], []))
         for shape, command in UNSENT_CASES:
             with self.subTest(unsent=shape):
-                self.assertEqual(self.run_hook(tool_turn(command)), wake)
+                self.assertEqual(self.run_hooks((True, post_payload(command)), (False, stop_payload())), (WAKE, []))
 
 
 if __name__ == "__main__":

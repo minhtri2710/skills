@@ -1,6 +1,10 @@
-// claude Stop and StopFailure hook: wakes the Lead when the turn ended without a successful report prompt.
-// Never blocks, never writes a file, always exits 0. Usage: node report-wake-claude.js --lead <lead> --seat <seat> --dir <run dir>
-import { readFileSync } from "node:fs";
+// claude hooks. With --record (PostToolUse, matcher Bash) a successful report prompt to the Lead leaves a per-turn marker;
+// without it (Stop, StopFailure) the hook wakes the Lead unless the turn's marker exists. Never blocks, prints nothing,
+// writes only the marker, always exits 0. Usage: node report-wake-claude.js [--record] --lead <lead> --seat <seat> --dir <run dir>
+import { createHash } from "node:crypto";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
 import { spawnSync } from "node:child_process";
 import { promptTarget } from "./report-wake.js";
 
@@ -26,34 +30,29 @@ if (Array.isArray(payload.background_tasks) && payload.background_tasks.some((ta
   process.exit(0);
 }
 
-// Any unreadable or unrecognized turn counts as unsent: an extra wake, never a missed one.
-function sentThisTurn() {
-  if (typeof payload.prompt_id !== "string" || typeof payload.transcript_path !== "string") return false;
-  const commands = new Map();
-  let sent = false;
-  for (const line of readFileSync(payload.transcript_path, "utf8").split("\n")) {
-    let entry;
+// One marker per turn, named by a hash so no session_id or prompt_id value can escape the directory.
+const marker = () => {
+  if (typeof payload.session_id !== "string" || typeof payload.prompt_id !== "string") return undefined;
+  return join(tmpdir(), "report-wake", createHash("sha256").update(`${payload.session_id}\0${payload.prompt_id}`).digest("hex"));
+};
+
+if (args.includes("--record")) {
+  const file = marker();
+  if (file && payload.tool_name === "Bash" && typeof payload.tool_input?.command === "string" && promptTarget(payload.tool_input.command, lead) === lead) {
     try {
-      entry = JSON.parse(line);
-    } catch {
-      continue;
-    }
-    const content = entry?.message?.content;
-    if (!Array.isArray(content)) continue;
-    for (const item of content) {
-      if (item?.type === "tool_use" && item.name === "Bash" && typeof item.input?.command === "string") {
-        commands.set(item.id, item.input.command);
-      } else if (item?.type === "tool_result" && entry.promptId === payload.prompt_id && item.is_error !== true) {
-        if (promptTarget(commands.get(item.tool_use_id) ?? "", lead) === lead) sent = true;
-      }
-    }
+      mkdirSync(dirname(file), { recursive: true });
+      writeFileSync(file, "");
+    } catch {}
   }
-  return sent;
+  process.exit(0);
 }
 
+// A missing or unmatched marker counts as unsent: an extra wake, never a missed one.
 let sent = false;
 try {
-  sent = sentThisTurn();
+  const file = marker();
+  sent = file !== undefined && existsSync(file);
+  if (sent) rmSync(file);
 } catch {}
 if (!sent) {
   const outcome = payload.hook_event_name === "StopFailure" ? String(payload.error ?? "error") : "completed";
