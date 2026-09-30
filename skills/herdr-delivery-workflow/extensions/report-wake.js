@@ -13,6 +13,7 @@ export function promptTarget(command, lead, { final = true } = {}) {
   let backtick = false;
   let pending = false;
   let ended = false;
+  let redirectAt = -1;
 
   const heredocAt = (start) => {
     if (command[start + 2] === "<") return undefined;
@@ -152,7 +153,7 @@ export function promptTarget(command, lead, { final = true } = {}) {
     }
     if ((char === "&" || char === "|") && command[index + 1] === char) return undefined;
     if (char === ";" || char === "&" || char === "|") {
-      const redirect = final && ((char === "&" && (command[index - 1] === ">" || command[index - 1] === "<" || command[index + 1] === ">")) || (char === "|" && command[index - 1] === ">"));
+      const redirect = final && ((char === "&" && (redirectAt === index - 1 || command[index + 1] === ">")) || (char === "|" && redirectAt === index - 1 && command[index - 1] === ">"));
       if (redirect) {
         index += 1;
         continue;
@@ -164,6 +165,7 @@ export function promptTarget(command, lead, { final = true } = {}) {
       commandStart = true;
       continue;
     }
+    if (char === ">" || char === "<") redirectAt = index;
     index += 1;
   }
   return pending ? lead : undefined;

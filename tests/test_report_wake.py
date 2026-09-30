@@ -130,6 +130,9 @@ UNSENT_CASES = [
     ("send piped into a command", f"herdr agent prompt {LEAD} payload | cat"),
     ("send piped with stderr into a command", f"herdr agent prompt {LEAD} payload |& cat"),
     ("backgrounded send", f"herdr agent prompt {LEAD} payload &"),
+    ("escaped > before a background &", f"herdr agent prompt {LEAD} payload \\>& echo hi"),
+    ("escaped < before a background &", f"herdr agent prompt {LEAD} payload \\<& echo hi"),
+    ("escaped > before a pipe", f"herdr agent prompt {LEAD} payload \\>| cat"),
     ("backgrounded send then command", f"herdr agent prompt {LEAD} payload & echo done"),
 ]
 
