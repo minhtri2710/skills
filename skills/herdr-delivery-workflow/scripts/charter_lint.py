@@ -120,23 +120,6 @@ def _charter_allows_docker(charter: str) -> bool:
     return False
 
 
-def _pi_launch_argvs(text: str, seat_name: str) -> list[str]:
-    argvs = []
-    for line in text.splitlines():
-        start = re.search(r"\bherdr\s+agent\s+start\s+(\S+)(.*)$", line)
-        if start is None or start.group(1) != seat_name:
-            continue
-        before_args = start.group(2)
-        if re.search(r"(?:^|\s)--kind\s+pi(?:\s|$)", before_args) is None:
-            continue
-        separator = re.search(r"\s--\s", before_args)
-        if separator is None:
-            continue
-        argv = before_args[separator.end():].split(" -> ", 1)[0]
-        argvs.append(argv)
-    return argvs
-
-
 def _staffing_problems(
     text: str, disposition: str | None, staffing_path: Path, charter: str
 ) -> list[str]:
@@ -153,17 +136,6 @@ def _staffing_problems(
         for key in ("posture=", "dialog=", "skills=", "extensions="):
             if key not in line:
                 problems.append(f"{seat} seat missing {key}")
-        kind_match = re.search(r"(?:^|\s)kind=([^\s]+)", line, re.IGNORECASE)
-        if kind_match is not None and kind_match.group(1).lower() == "pi":
-            if not re.search(r"(?:^|\s)prompt-templates=none(?:\(|\s|$)", line, re.IGNORECASE):
-                problems.append(f"{seat} kind=pi seat missing prompt-templates=none")
-            name_match = re.match(r"^\s*(?:ENGINEER|REVIEWER|ARCHITECT):\s*(\S+)", line, re.IGNORECASE)
-            if name_match is not None:
-                for argv in _pi_launch_argvs(text, name_match.group(1)):
-                    if "--no-prompt-templates" not in argv.split():
-                        problems.append(
-                            f"{seat} kind=pi launch argv missing --no-prompt-templates"
-                        )
         if (
             disposition == seat.lower()
             and seat in {"REVIEWER", "ARCHITECT"}

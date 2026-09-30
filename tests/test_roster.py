@@ -384,7 +384,7 @@ class RosterTest(unittest.TestCase):
             agent("w1:p21", "eng-malformed-files", "pi"),
         ]
         argv = {
-            "w1:p1": ["node", "/opt/bin/pi", "--approve", "--model", "prov/luna", "--no-skills"],
+            "w1:p1": ["node", "/opt/bin/pi", "--approve", "--model", "prov/luna"],
             "w1:p2": ["pi", "--model", "prov/flash"],
             "w1:p3": ["pi", "--model", "prov/old"],
             "w1:p4": {
