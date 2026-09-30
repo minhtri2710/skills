@@ -187,7 +187,7 @@ Every channel is named and every message has one direction. On all of them, no s
 
 ### Directional channels
 
-- **Lead to Peer** — the charter and every later bounded instruction go by `herdr agent prompt <peer-name>`.
+- **Lead to Peer** — the charter and every later bounded instruction go by `herdr agent prompt <peer-name>`, each followed by the pane read `herdr-cli.md`, "Start and drive an agent", sets.
 - **Peer to Lead** — every report, verdict, `Assessment`, or protocol message is printed in the Peer's pane and sent with `herdr agent prompt lead-<project-slug>`; see `herdr-cli.md`, "Start and drive an agent". A report prompt carries only its verdict/outcome line, bounded summary, and report-file path; see `charters.md`, "Report by prompt". Peers never message each other, the Supervisor, or the Human.
 - **Lead to Supervisor** — attention events and answers, per "Seats"; the append is delivery and wakes the Supervisor itself; the prompt is a best-effort wake the Lead never retries.
 - **Supervisor to Lead** — questions, observations, relayed Human decisions by prompt; nothing to a Peer.
