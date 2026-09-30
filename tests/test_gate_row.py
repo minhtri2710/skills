@@ -39,7 +39,7 @@ def make_repo(tmp: Path) -> Path:
 
 class GateRowTest(unittest.TestCase):
     def setUp(self):
-        self._tmp = tempfile.TemporaryDirectory(dir="/private/tmp")
+        self._tmp = tempfile.TemporaryDirectory(dir=os.path.realpath("/tmp"))
         self.tmp = Path(self._tmp.name)
         self.repo = make_repo(self.tmp)
         self.ledger = self.tmp / "gates.md"

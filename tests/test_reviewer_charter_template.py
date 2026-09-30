@@ -5,6 +5,7 @@ import ast
 import contextlib
 import inspect
 import io
+import os
 import re
 import shutil
 import subprocess
@@ -76,7 +77,7 @@ def lint_literals() -> list[str]:
 class ReviewerCharterTemplateTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls._repo_tmp = tempfile.TemporaryDirectory(dir="/private/tmp")
+        cls._repo_tmp = tempfile.TemporaryDirectory(dir=os.path.realpath("/tmp"))
         cls.repo = Path(cls._repo_tmp.name)
         cls.addClassCleanup(cls._repo_tmp.cleanup)
         git = ["git", "-C", str(cls.repo), "-c", "user.name=t", "-c", "user.email=t@example.com"]
@@ -88,7 +89,7 @@ class ReviewerCharterTemplateTest(unittest.TestCase):
         ).stdout.split()
 
     def setUp(self):
-        self._tmp = tempfile.TemporaryDirectory(dir="/private/tmp")
+        self._tmp = tempfile.TemporaryDirectory(dir=os.path.realpath("/tmp"))
         self.tmp = Path(self._tmp.name)
         self.addCleanup(self._tmp.cleanup)
         self.filled = fill(TEMPLATE.read_text(encoding="utf-8"), self.base, self.head)

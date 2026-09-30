@@ -5,6 +5,7 @@ from __future__ import annotations
 import contextlib
 import importlib.util
 import io
+import os
 import sys
 import subprocess
 import tempfile
@@ -34,7 +35,7 @@ three
 
 class MailboxTest(unittest.TestCase):
     def setUp(self):
-        self.tmp = tempfile.TemporaryDirectory(dir="/private/tmp")
+        self.tmp = tempfile.TemporaryDirectory(dir=os.path.realpath("/tmp"))
         # A live wake is only allowed from a real project mailbox, so the
         # fixture lives under a fake herdr projects root and the module
         # constant is pointed at it for the duration of the test.
@@ -617,7 +618,7 @@ class MailboxTest(unittest.TestCase):
 
 class MailboxAppendTest(unittest.TestCase):
     def setUp(self):
-        self.tmp = tempfile.TemporaryDirectory(dir="/private/tmp")
+        self.tmp = tempfile.TemporaryDirectory(dir=os.path.realpath("/tmp"))
         self.addCleanup(self.tmp.cleanup)
         root = Path(self.tmp.name) / ".herdr" / "projects"
         (root / "beo-skills").mkdir(parents=True)

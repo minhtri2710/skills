@@ -39,7 +39,7 @@ def rechained(text: str) -> str:
 
 class PrePushGuardTest(unittest.TestCase):
     def setUp(self):
-        self._tmp = tempfile.TemporaryDirectory(dir="/private/tmp")
+        self._tmp = tempfile.TemporaryDirectory(dir=os.path.realpath("/tmp"))
         self.tmp = Path(self._tmp.name)
         self.repo = self.tmp / "repo"
         self.repo.mkdir()
@@ -800,7 +800,7 @@ class PushDigestTest(unittest.TestCase):
     """--digest: every project's open push gates as one range, read-only, one question."""
 
     def setUp(self):
-        self._tmp = tempfile.TemporaryDirectory(dir="/private/tmp")
+        self._tmp = tempfile.TemporaryDirectory(dir=os.path.realpath("/tmp"))
         self.tmp = Path(self._tmp.name)
         self.addCleanup(self._tmp.cleanup)
 

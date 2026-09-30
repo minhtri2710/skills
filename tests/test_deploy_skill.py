@@ -51,7 +51,7 @@ if os.environ.get("SKILLS_TAMPER"):
 
 class DeploySkillTest(unittest.TestCase):
     def setUp(self):
-        self._tmp = tempfile.TemporaryDirectory(dir="/private/tmp")
+        self._tmp = tempfile.TemporaryDirectory(dir=os.path.realpath("/tmp"))
         self.tmp = Path(self._tmp.name)
         self.repo = self.tmp / "repo"
         self.repo.mkdir()

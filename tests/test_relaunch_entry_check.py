@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import contextlib
 import io
+import os
 import subprocess
 import sys
 import tempfile
@@ -23,7 +24,7 @@ def git(repo: Path, *args: str) -> None:
 
 class RelaunchEntryCheckTest(unittest.TestCase):
     def setUp(self):
-        self._tmp = tempfile.TemporaryDirectory(dir="/private/tmp")
+        self._tmp = tempfile.TemporaryDirectory(dir=os.path.realpath("/tmp"))
         self.tmp = Path(self._tmp.name)
         self.repo = self.tmp / "repo"
         self.repo.mkdir()
