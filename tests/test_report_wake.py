@@ -120,6 +120,8 @@ UNSENT_CASES = [
     ("command prefix", f"command {BODY}"),
     ("command before the send", f"true; {BODY}"),
     ("command before the send on its own line", f"true\n{BODY}"),
+    ("pipe prefix", f"true | {BODY}"),
+    ("background prefix", f"true & {BODY}"),
     ("stderr redirection", f"{BODY} 2>&1"),
     ("output redirection", f"{BODY} >/dev/null"),
     ("here-string", f'{BODY} <<<"text"'),
