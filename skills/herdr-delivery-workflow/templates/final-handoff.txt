@@ -5,8 +5,9 @@ PREDICTION OUTCOME: <confirmed | falsified | pending-next-run>
 HEAD: <exact reviewed SHA or none>
 INTEGRATED: <exact integrated SHA or none>
 REVIEW: <PASS/FAIL/BLOCKED, exact head, Reviewer agent kind>
-CHECKS: <command=exit code list on the reviewed head>
-INTEGRATED CHECKS: <command=exit code list on the integrated head, or none>
+CHECKS: <light command=exit code list on the reviewed head>
+HEAVY CHECKS: <CI run ID and state (OWED, GREEN, RED), or the Lead's local heavy run as command=exit code, or not yet run with the reason>
+INTEGRATED CHECKS: <light command=exit code list on the integrated head, or none>
 CHANGED: <verbatim or concise changed-file list, grouped by scope when the partition had more than one>
 DEPLOYED: <artifact=installed path, files compared, differences, deploy row id; or "none installed"; or "gate <id> pending">
 HANDOFF: <kind=handoff ledger row id naming the accepted head, e.g. G352>

@@ -120,6 +120,12 @@ class ReviewerCharterTemplateTest(unittest.TestCase):
         block = block.replace("<lead-name>", "<lead_name>")
         self.assertIn(block, TEMPLATE.read_text(encoding="utf-8"))
 
+    def test_check_depth_sentence_matches_lead_doctrine(self):
+        lead = (SKILL / "references" / "lead.md").read_text(encoding="utf-8")
+        section = lead.split("\n### Light and heavy checks\n", 1)[1].split("\n### ", 1)[0]
+        sentence = section.split("carries, by value: ", 1)[1].strip()
+        self.assertIn(sentence, TEMPLATE.read_text(encoding="utf-8"))
+
     def test_report_block_no_write_form_writes_hostile_body_verbatim(self):
         form = re.search(
             r"`(cat > <run-dir>/report-<peer-name>\.md <<(\S+))`",

@@ -9,7 +9,8 @@ Checkpoint (a): skipped:human-specified-diff | run
 Prediction: <falsifiable forward claim naming a plugin-eval case or named anti-pattern; none if this run changes no doctrine>
 Prediction outcome: <confirmed | falsified | pending-next-run>
 HEAD: <exact reviewed SHA>
-CHECKS: <command=exit code, one per acceptance command on the reviewed head>
+CHECKS: <command=exit code, one per light acceptance command on the reviewed head>
+HEAVY CHECKS: <CI run ID and state (OWED, GREEN, RED), or the Lead's local heavy run as command=exit code, or not yet run with the reason>
 REVIEW: <PASS/FAIL/BLOCKED, exact head, Reviewer name kind=<kind> model=<model>>
 INTEGRATED: <exact integrated SHA or none>
 CHANGED: <changed-file list>
