@@ -9,7 +9,9 @@ import unittest
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
-EXTENSION = Path(os.environ.get("REPORT_WAKE_EXTENSION", REPO / "skills" / "herdr-delivery-workflow" / "extensions" / "report-wake.js"))
+EXTENSIONS = REPO / "skills" / "herdr-delivery-workflow" / "extensions"
+EXTENSION = Path(os.environ.get("REPORT_WAKE_EXTENSION", EXTENSIONS / "report-wake.js"))
+HOOK = Path(os.environ.get("REPORT_WAKE_HOOK", EXTENSIONS / "report-wake-claude.js"))
 NODE = shutil.which("node")
 LEAD = "lead-example"
 SEAT = "eng-example"
@@ -23,6 +25,7 @@ D5 = (
     f"report-wake: {SEAT} settled (outcome completed) without a successful report prompt to {LEAD} this turn. Read {REPORT} if it is newer than your last processed report from {SEAT}, then the pane: herdr agent read {SEAT}."
 )
 D5_ERROR = D5.replace("outcome completed", "outcome error")
+D5_AUTH = D5.replace("outcome completed", "outcome authentication_failed")
 D6 = f"report-wake: {SEND} is older than {REPORT}; rewrite the send file from the current report, then send."
 
 NODE_DRIVER = r'''const extensionPath = process.argv[1];
@@ -74,6 +77,50 @@ for (const step of scenario.steps ?? []) {
 console.log(JSON.stringify(calls));
 '''
 
+SENT_COMMANDS = [
+    f'herdr agent prompt "{LEAD}" "$(cat {SEND})"',
+    f"env herdr agent prompt {LEAD} payload",
+    f"NAME=value herdr agent prompt {LEAD} payload",
+    f"a=(1 2); herdr agent prompt {LEAD} payload",
+    f"format-report; herdr agent prompt {LEAD} payload",
+    f"command herdr agent prompt {LEAD} payload",
+    f"env NAME=value command herdr agent prompt {LEAD} payload",
+    f"true; herdr agent prompt {LEAD} payload",
+    f"true | herdr agent prompt {LEAD} payload",
+    f"true & herdr agent prompt {LEAD} payload",
+    f"true\nherdr agent prompt {LEAD} payload",
+]
+BODY = f'herdr agent prompt {LEAD} "$(cat {SEND})"'
+UNSENT_CASES = [
+    (
+        "quoted commit message",
+        f'git commit -m "docs: note; herdr agent prompt {LEAD} is the send"',
+    ),
+    ("single-quoted text", f"echo 'docs: note; herdr agent prompt {LEAD} payload'"),
+    ("comment text", f"echo done; # herdr agent prompt {LEAD} payload"),
+    ("unquoted heredoc", f"cat > {REPORT} <<END-{SEAT}\n{BODY}\nEND-{SEAT}"),
+    ("single-quoted heredoc", f"cat > {REPORT} <<'END-{SEAT}'\n{BODY}\nEND-{SEAT}"),
+    ("double-quoted heredoc", f'cat > {REPORT} <<\"END-{SEAT}\"\n{BODY}\nEND-{SEAT}'),
+    ("tab-stripping heredoc", f"cat > {REPORT} <<-END-{SEAT}\n\t{BODY}\n\tEND-{SEAT}"),
+    ("backslash-continued command", "echo done " + chr(92) + "\n" + f"herdr agent prompt {LEAD} payload"),
+    ("conditional command", f"if false; then\nherdr agent prompt {LEAD} payload\nfi"),
+    ("loop command", f"while false; do\nherdr agent prompt {LEAD} payload\ndone"),
+    ("or-list whose left side succeeds", f"true || herdr agent prompt {LEAD} payload"),
+    ("and-list followed by a successful command", f"false && herdr agent prompt {LEAD} payload; true"),
+    (
+        "delimiter line with CR under an LF opener",
+        f"cat <<EOF\nbody\nEOF\r\nherdr agent prompt {LEAD} payload\nEOF\n",
+    ),
+    (
+        "uncalled function definition",
+        f"send-report()\n{{\nherdr agent prompt {LEAD} payload\n}}",
+    ),
+    (
+        "uncalled function keyword definition",
+        f"function g {{\nherdr agent prompt {LEAD} payload\n}}",
+    ),
+]
+
 
 def step(kind: str, event: dict | None = None) -> dict:
     return {"type": kind, "event": event or {}}
@@ -101,61 +148,18 @@ class ReportWakeTest(unittest.TestCase):
         return json.loads(result.stdout)
 
     def test_sent_target_success_skips_nudge_and_wake(self):
-        commands = [
-            f'herdr agent prompt "{LEAD}" "$(cat {SEND})"',
-            f"env herdr agent prompt {LEAD} payload",
-            f"NAME=value herdr agent prompt {LEAD} payload",
-            f"a=(1 2); herdr agent prompt {LEAD} payload",
-            f"format-report; herdr agent prompt {LEAD} payload",
-            f"command herdr agent prompt {LEAD} payload",
-            f"env NAME=value command herdr agent prompt {LEAD} payload",
-            f"true; herdr agent prompt {LEAD} payload",
-            f"true | herdr agent prompt {LEAD} payload",
-            f"true & herdr agent prompt {LEAD} payload",
-            f"true\nherdr agent prompt {LEAD} payload",
-        ]
-        for command in commands:
+        for command in SENT_COMMANDS:
             with self.subTest(command=command):
                 result = self.run_extension({"steps": [bash_result(command), before(), step("settled")]})
                 self.assertEqual((result["beforeResults"], result["exec"]), ([None], []))
 
     def test_prompt_text_outside_command_positions_does_not_count_as_sent(self):
-        body = f'herdr agent prompt {LEAD} "$(cat {SEND})"'
-        cases = [
-            (
-                "quoted commit message",
-                f'git commit -m "docs: note; herdr agent prompt {LEAD} is the send"',
-            ),
-            ("single-quoted text", f"echo 'docs: note; herdr agent prompt {LEAD} payload'"),
-            ("comment text", f"echo done; # herdr agent prompt {LEAD} payload"),
-            ("unquoted heredoc", f"cat > {REPORT} <<END-{SEAT}\n{body}\nEND-{SEAT}"),
-            ("single-quoted heredoc", f"cat > {REPORT} <<'END-{SEAT}'\n{body}\nEND-{SEAT}"),
-            ("double-quoted heredoc", f'cat > {REPORT} <<\"END-{SEAT}\"\n{body}\nEND-{SEAT}'),
-            ("tab-stripping heredoc", f"cat > {REPORT} <<-END-{SEAT}\n\t{body}\n\tEND-{SEAT}"),
-            ("backslash-continued command", "echo done " + chr(92) + "\n" + f"herdr agent prompt {LEAD} payload"),
-            ("conditional command", f"if false; then\nherdr agent prompt {LEAD} payload\nfi"),
-            ("loop command", f"while false; do\nherdr agent prompt {LEAD} payload\ndone"),
-            ("or-list whose left side succeeds", f"true || herdr agent prompt {LEAD} payload"),
-            ("and-list followed by a successful command", f"false && herdr agent prompt {LEAD} payload; true"),
-            (
-                "delimiter line with CR under an LF opener",
-                f"cat <<EOF\nbody\nEOF\r\nherdr agent prompt {LEAD} payload\nEOF\n",
-            ),
-            (
-                "uncalled function definition",
-                f"send-report()\n{{\nherdr agent prompt {LEAD} payload\n}}",
-            ),
-            (
-                "uncalled function keyword definition",
-                f"function g {{\nherdr agent prompt {LEAD} payload\n}}",
-            ),
-        ]
         expected_nudge = {
             "entries": [{"type": "custom_message", "customType": "report-wake", "display": True, "content": D4}],
             "continue": True,
         }
         expected_wake = [["herdr", ["agent", "prompt", LEAD, D5]]]
-        for shape, command in cases:
+        for shape, command in UNSENT_CASES:
             with self.subTest(shape=shape):
                 result = self.run_extension({"steps": [bash_result(command), before(), step("settled")]})
                 self.assertEqual((result["beforeResults"][0], result["exec"]), (expected_nudge, expected_wake))
@@ -219,6 +223,96 @@ class ReportWakeTest(unittest.TestCase):
     def test_missing_flag_is_inert_and_notifies(self):
         result = self.run_extension({"flags": {"report-lead": LEAD, "report-seat": SEAT}, "steps": [before(), step("settled")]})
         self.assertEqual((result["registered"], result["notifications"], result["handlers"], result["exec"]), ([["report-lead", {"type": "string", "description": "Report wake report-lead"}], ["report-seat", {"type": "string", "description": "Report wake report-seat"}], ["report-dir", {"type": "string", "description": "Report wake report-dir"}]], [["report-wake: missing required flags: --report-dir", "error"]], ["session_start"], []))
+
+PROMPT_ID = "727c66f4-3b3e-4497-b48e-8eae1c2d7845"
+STUB = f"""#!/bin/sh
+{{ for a in "$@"; do printf '%s\\n' "$a"; done; echo ---; }} >> "$STUB_LOG"
+[ "$2" = prompt ] && exit "${{STUB_PROMPT_CODE:-0}}"
+exit 0
+"""
+
+
+def tool_turn(command: str, prompt_id: str = PROMPT_ID, is_error: bool = False, tool_id: str = "toolu_1") -> list[dict]:
+    """A user prompt, a Bash tool_use and its tool_result in the shape claude 2.1.285 writes."""
+    use = {"type": "tool_use", "id": tool_id, "name": "Bash", "input": {"command": command}}
+    result = {"type": "tool_result", "tool_use_id": tool_id, "content": "", "is_error": is_error}
+    return [
+        {"type": "user", "promptId": prompt_id, "message": {"role": "user", "content": "work"}},
+        {"type": "assistant", "message": {"role": "assistant", "content": [use]}},
+        {"type": "user", "promptId": prompt_id, "message": {"role": "user", "content": [result]}},
+    ]
+
+
+def stop_payload(transcript: Path, **extra) -> dict:
+    return {
+        "session_id": "s", "transcript_path": str(transcript), "cwd": "/run/example", "prompt_id": PROMPT_ID,
+        "hook_event_name": "Stop", "stop_hook_active": False, "last_assistant_message": "done",
+        "background_tasks": [], "session_crons": [], **extra,
+    }
+
+
+class ClaudeReportWakeHookTest(unittest.TestCase):
+    def run_hook(self, entries: list[dict], payload_extra: dict | None = None, stdin: str | None = None, prompt_code: int = 0):
+        """Runs the hook CLI with the payload on stdin and herdr stubbed on PATH; returns the herdr calls."""
+        if NODE is None:
+            self.fail("node is required to test report-wake")
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "herdr").write_text(STUB)
+            (root / "herdr").chmod(0o755)
+            transcript = root / "transcript.jsonl"
+            transcript.write_text("\n".join(json.dumps(entry) for entry in entries) + "\n")
+            payload = stdin if stdin is not None else json.dumps(stop_payload(transcript, **(payload_extra or {})))
+            env = {**os.environ, "PATH": f"{root}{os.pathsep}{os.environ['PATH']}", "STUB_LOG": str(root / "log"), "STUB_PROMPT_CODE": str(prompt_code)}
+            result = subprocess.run(
+                [NODE, str(HOOK), "--lead", LEAD, "--seat", SEAT, "--dir", RUN_DIR],
+                input=payload, env=env, capture_output=True, text=True,
+            )
+            log = root / "log"
+            calls = [c.strip().split("\n") for c in log.read_text().split("---\n") if c.strip()] if log.exists() else []
+        self.assertEqual((result.returncode, result.stdout), (0, ""), result.stderr)
+        return calls
+
+    def test_wakes_once_unless_a_successful_send_ends_this_turn(self):
+        send = f'herdr agent prompt {LEAD} "$(cat {SEND})"'
+        wake = [["agent", "prompt", LEAD, D5]]
+        running = [{"id": "b1", "type": "shell", "status": "running", "description": "d", "command": "sleep 25"}]
+        cases = [
+            ("sent and ok", tool_turn(send), {}, []),
+            ("no send", tool_turn("ls"), {}, wake),
+            ("send with is_error", tool_turn(send, is_error=True), {}, wake),
+            ("send under another prompt_id", tool_turn(send, prompt_id="previous-turn"), {}, wake),
+            ("missing prompt_id", tool_turn(send), {"prompt_id": None}, wake),
+            ("unreadable transcript", tool_turn(send), {"transcript_path": "/nonexistent/transcript.jsonl"}, wake),
+            ("running background task", tool_turn("ls"), {"background_tasks": running}, []),
+        ]
+        for shape, entries, extra, expected in cases:
+            with self.subTest(shape=shape):
+                self.assertEqual(self.run_hook(entries, extra), expected)
+
+    def test_stop_failure_unsent_wakes_with_the_error_outcome(self):
+        extra = {"hook_event_name": "StopFailure", "error": "authentication_failed"}
+        self.assertEqual(self.run_hook(tool_turn("ls"), extra), [["agent", "prompt", LEAD, D5_AUTH]])
+
+    def test_failed_wake_shows_the_notification(self):
+        self.assertEqual(
+            self.run_hook(tool_turn("ls"), prompt_code=7),
+            [["agent", "prompt", LEAD, D5], ["notification", "show", f"{SEAT}: report-wake failed", "--body", REPORT, "--sound", "request"]],
+        )
+
+    def test_malformed_stdin_wakes(self):
+        for stdin in ("", "not json", "[]"):
+            with self.subTest(stdin=stdin):
+                self.assertEqual(self.run_hook([], stdin=stdin), [["agent", "prompt", LEAD, D5]])
+
+    def test_recognizer_corpus_holds_on_the_claude_path(self):
+        wake = [["agent", "prompt", LEAD, D5]]
+        for command in SENT_COMMANDS:
+            with self.subTest(sent=command):
+                self.assertEqual(self.run_hook(tool_turn(command)), [])
+        for shape, command in UNSENT_CASES:
+            with self.subTest(unsent=shape):
+                self.assertEqual(self.run_hook(tool_turn(command)), wake)
 
 
 if __name__ == "__main__":
