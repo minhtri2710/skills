@@ -29,7 +29,7 @@ BUDGET = {
     "references/structural-misfit-policy.md": 9_485,
     "references/charters.md": 37_708,
     "references/closeout.md": 12_769,
-    "references/supervisor.md": 26_216,
+    "references/supervisor.md": 26_285,
 }
 
 

@@ -375,7 +375,7 @@ def grant(pairs: list[list[str]], remote: str, selection: str, expected: str,
                 "--kind", "push-grant", "--status", "open",
                 "--writer", "supervisor", "--channel", channel,
                 "--grant", f"{remote} refs/heads/{item.branch} push {item.base}..{item.tip}",
-                "--words", "human",
+                "--words", "selected" if channel.endswith(":dialog") else "human",
                 "--note", f"Human grants push of {item.branch} {item.base[:7]}..{item.tip[:7]}",
                 "--quote", quote,
             ])

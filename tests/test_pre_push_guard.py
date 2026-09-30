@@ -1024,6 +1024,20 @@ class PushDigestTest(unittest.TestCase):
         self.assertEqual(out.splitlines(), [f"item {n}: wrote {row.split(' | ')[0]} to {ledger}"
                                             for n, row in zip((1, 2), rows)])
 
+    def test_grant_on_the_dialog_channel_writes_words_selected_the_ledger_accepts(self):
+        ledger, repo, base = self.project("alpha")
+        self.advance(repo, "a1")
+        self.review(ledger, repo, base)
+        self.push_gate(ledger, repo)
+        items = self.items(self.digest((ledger, repo))[1])
+        code, _, err = self.run_guard((ledger, repo), extra=(
+            "--grant", "1", "--items", items, "--quote", "push it", "--channel", "supervisor-relay:dialog"))
+        self.assertEqual(code, 0, err)
+        (row,) = self.grant_rows(ledger)
+        self.assertIn("| channel=supervisor-relay:dialog |", row)
+        self.assertIn("| words=selected |", row)
+        self.assertEqual(self.row(ledger, repo, "--check"), row.split(" | ")[0])
+
     def test_grant_of_one_number_writes_only_that_item(self):
         ledger, repo, base, _, two = self.two_branches()
         code, _, _ = self.grant((ledger, repo), selection="2")
