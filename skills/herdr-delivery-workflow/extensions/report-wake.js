@@ -57,7 +57,7 @@ export function promptTarget(command, lead, { final = true } = {}) {
   while (index < command.length) {
     if (commandStart) {
       if (pending && ended && !/[ \t;\n#]/.test(command[index])) pending = false;
-      if (/^(?:(?:if|while|until|for|select|case|function)[ \t]|[^\s;&|()<>\"'`$=\\]+[ \t]*\([ \t]*\))/.test(command.slice(index))) return undefined;
+      if (!(pending && command[index] === "#") && /^(?:(?:if|while|until|for|select|case|function)[ \t]|[^\s;&|()<>\"'`$=\\]+[ \t]*\([ \t]*\))/.test(command.slice(index))) return undefined;
       const match = invocation.exec(command.slice(index));
       if (match && (match[1] ?? match[2] ?? match[3]) === lead) {
         if (!final) return lead;
@@ -134,6 +134,10 @@ export function promptTarget(command, lead, { final = true } = {}) {
       continue;
     }
     if (char === "<" && command[index + 1] === "<") {
+      if (final && pending && command[index + 2] === "<") {
+        index += 3;
+        continue;
+      }
       const heredoc = heredocAt(index);
       if (!heredoc) return undefined;
       heredocs.push(heredoc);
