@@ -78,28 +78,12 @@ for (const step of scenario.steps ?? []) {
 console.log(JSON.stringify(calls));
 '''
 
-SENT_COMMANDS = [
-    f'herdr agent prompt "{LEAD}" "$(cat {SEND})"',
-    f"env herdr agent prompt {LEAD} payload",
-    f"NAME=value herdr agent prompt {LEAD} payload",
-    f"a=(1 2); herdr agent prompt {LEAD} payload",
-    f"format-report; herdr agent prompt {LEAD} payload",
-    f"command herdr agent prompt {LEAD} payload",
-    f"env NAME=value command herdr agent prompt {LEAD} payload",
-    f"true; herdr agent prompt {LEAD} payload",
-    f"true | herdr agent prompt {LEAD} payload",
-    f"true & herdr agent prompt {LEAD} payload",
-    f"true\nherdr agent prompt {LEAD} payload",
-    f"herdr agent prompt {LEAD} payload 2>&1",
-    f'herdr agent prompt {LEAD} payload <<<"text"',
-    f"herdr agent prompt {LEAD} payload <<< text",
-    f"herdr agent prompt {LEAD} payload;\n#note()",
-    f"herdr agent prompt {LEAD} payload </dev/null >/dev/null &>/dev/null",
-    f"herdr agent prompt {LEAD} payload;  \n# note\n\n",
-    f"herdr agent prompt {LEAD} payload # note",
-    f"herdr agent prompt {LEAD} payload; echo one; herdr agent prompt {LEAD} payload",
-]
 BODY = f'herdr agent prompt {LEAD} "$(cat {SEND})"'
+SENT_COMMANDS = [
+    BODY,
+    f"{BODY} </dev/null",
+    f"  \n{BODY} </dev/null \n\n",
+]
 UNSENT_CASES = [
     (
         "quoted commit message",
@@ -128,16 +112,25 @@ UNSENT_CASES = [
         "uncalled function keyword definition",
         f"function g {{\nherdr agent prompt {LEAD} payload\n}}",
     ),
-    ("command after the send", f'herdr agent prompt {LEAD} "$(cat {SEND})" </dev/null; echo exit=$?'),
-    ("command on the next line", f"herdr agent prompt {LEAD} payload\necho done"),
-    ("command after a here-string send", f'herdr agent prompt {LEAD} payload <<<"t"; echo hi'),
-    ("send piped into a command", f"herdr agent prompt {LEAD} payload | cat"),
-    ("send piped with stderr into a command", f"herdr agent prompt {LEAD} payload |& cat"),
-    ("backgrounded send", f"herdr agent prompt {LEAD} payload &"),
-    ("escaped > before a background &", f"herdr agent prompt {LEAD} payload \\>& echo hi"),
-    ("escaped < before a background &", f"herdr agent prompt {LEAD} payload \\<& echo hi"),
-    ("escaped > before a pipe", f"herdr agent prompt {LEAD} payload \\>| cat"),
-    ("backgrounded send then command", f"herdr agent prompt {LEAD} payload & echo done"),
+    ("plain prompt text", f"herdr agent prompt {LEAD} payload"),
+    ("quoted lead", f'herdr agent prompt "{LEAD}" "$(cat {SEND})"'),
+    ("path with a variable", f'herdr agent prompt {LEAD} "$(cat $SEND)"'),
+    ("env prefix", f"env {BODY}"),
+    ("assignment prefix", f"NAME=value {BODY}"),
+    ("command prefix", f"command {BODY}"),
+    ("command before the send", f"true; {BODY}"),
+    ("command before the send on its own line", f"true\n{BODY}"),
+    ("stderr redirection", f"{BODY} 2>&1"),
+    ("output redirection", f"{BODY} >/dev/null"),
+    ("here-string", f'{BODY} <<<"text"'),
+    ("trailing comment", f"{BODY} # note"),
+    ("second send after the first", f"{BODY}; {BODY}"),
+    ("command after the send", f"{BODY} </dev/null; echo exit=$?"),
+    ("command on the next line", f"{BODY}\necho done"),
+    ("command after a here-string send", f'{BODY} <<<"t"; echo hi'),
+    ("send piped into a command", f"{BODY} | cat"),
+    ("escaped > before a background &", f"{BODY} \\>& echo hi"),
+    ("ANSI-C quoted argument", f"herdr agent prompt {LEAD} $'\\'' ; echo 'x'"),
 ]
 
 
@@ -205,7 +198,7 @@ class ReportWakeTest(unittest.TestCase):
         self.assertEqual((result["beforeResults"][0]["continue"], result["exec"]), (True, []))
 
     def test_new_external_input_resets_run_state(self):
-        command = f"herdr agent prompt {LEAD} payload"
+        command = BODY
         result = self.run_extension({"steps": [before(), step("input", {"source": "extension"}), before(), bash_result(command), step("settled"), step("input", {"source": "rpc"}), before(), step("settled"), step("settled")]})
         self.assertEqual((result["beforeResults"], result["exec"]), ([{"entries": [{"type": "custom_message", "customType": "report-wake", "display": True, "content": D4}], "continue": True}, None, {"entries": [{"type": "custom_message", "customType": "report-wake", "display": True, "content": D4}], "continue": True}], [["herdr", ["agent", "prompt", LEAD, D5]]]) )
 
@@ -312,7 +305,7 @@ class ClaudeReportWakeHookTest(unittest.TestCase):
                 self.assertEqual((calls, len(markers)), (expected, left))
 
     def test_marker_name_is_a_hash_of_the_turn(self):
-        send = f"herdr agent prompt {LEAD} payload"
+        send = BODY
         calls, markers = self.run_hooks((True, post_payload(send, session="../../x", prompt="a/b")))
         self.assertEqual((calls, len(markers), all(re.fullmatch(r"[0-9a-f]{64}", m) for m in markers)), ([], 1, True))
 

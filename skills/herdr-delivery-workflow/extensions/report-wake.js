@@ -1,7 +1,12 @@
+// Sent-counting: a call counts only when its whole command is the report-by-prompt send, so the call's exit status is the send's.
+// Every other form counts as not sent (an extra wake, never a missed one).
+const SEND = /^[ \t\n]*herdr[ \t]+agent[ \t]+prompt[ \t]+([^\s"'$`\\()]+)[ \t]+"\$\(cat[ \t]+[^\s"'$`\\()]+\)"(?:[ \t]*<\/dev\/null)?[ \t\n]*$/;
+export function promptTarget(command, lead) {
+  return SEND.exec(command)?.[1] === lead ? lead : undefined;
+}
+
 // Count sends only at recognized shell command starts; unsupported forms fail noisy.
-// By default the send counts only as the call's last executed command, so the call's exit status is the send's.
-// { final: false } accepts a send at any command position (the pre-send stale check).
-export function promptTarget(command, lead, { final = true } = {}) {
+function promptAnywhere(command, lead) {
   const invocation = /^[ \t]*(?:env[ \t]+)?(?:[A-Za-z_][A-Za-z0-9_]*=(?:"[^"]*"|'[^']*'|[^\s;&|]+)[ \t]+)*(?:command[ \t]+)?herdr[ \t]+agent[ \t]+prompt[ \t]+(?:"([^"]*)"|'([^']*)'|([^\s;&|]+))/;
   const heredocs = [];
   let index = 0;
@@ -11,9 +16,6 @@ export function promptTarget(command, lead, { final = true } = {}) {
   let comment = false;
   let parentheses = 0;
   let backtick = false;
-  let pending = false;
-  let ended = false;
-  let redirectAt = -1;
 
   const heredocAt = (start) => {
     if (command[start + 2] === "<") return undefined;
@@ -56,14 +58,9 @@ export function promptTarget(command, lead, { final = true } = {}) {
 
   while (index < command.length) {
     if (commandStart) {
-      if (pending && ended && !/[ \t;\n#]/.test(command[index])) pending = false;
-      if (!(pending && command[index] === "#") && /^(?:(?:if|while|until|for|select|case|function)[ \t]|[^\s;&|()<>\"'`$=\\]+[ \t]*\([ \t]*\))/.test(command.slice(index))) return undefined;
+      if (/^(?:(?:if|while|until|for|select|case|function)[ \t]|[^\s;&|()<>\"'`$=\\]+[ \t]*\([ \t]*\))/.test(command.slice(index))) return undefined;
       const match = invocation.exec(command.slice(index));
-      if (match && (match[1] ?? match[2] ?? match[3]) === lead) {
-        if (!final) return lead;
-        pending = true;
-        ended = false;
-      }
+      if (match && (match[1] ?? match[2] ?? match[3]) === lead) return lead;
       if (command[index] !== " " && command[index] !== "\t") commandStart = false;
     }
 
@@ -134,10 +131,6 @@ export function promptTarget(command, lead, { final = true } = {}) {
       continue;
     }
     if (char === "<" && command[index + 1] === "<") {
-      if (final && pending && command[index + 2] === "<") {
-        index += 3;
-        continue;
-      }
       const heredoc = heredocAt(index);
       if (!heredoc) return undefined;
       heredocs.push(heredoc);
@@ -152,27 +145,18 @@ export function promptTarget(command, lead, { final = true } = {}) {
         index += 1;
       }
       commandStart = true;
-      if (pending) ended = true;
       continue;
     }
     if ((char === "&" || char === "|") && command[index + 1] === char) return undefined;
     if (char === ";" || char === "&" || char === "|") {
-      const redirect = final && ((char === "&" && (redirectAt === index - 1 || command[index + 1] === ">")) || (char === "|" && redirectAt === index - 1 && command[index - 1] === ">"));
-      if (redirect) {
-        index += 1;
-        continue;
-      }
-      if (char === ";") ended = true;
-      else pending = false;
       if ((char === "|" || char === "&") && command[index + 1] === "&") index += 2;
       else index += 1;
       commandStart = true;
       continue;
     }
-    if (char === ">" || char === "<") redirectAt = index;
     index += 1;
   }
-  return pending ? lead : undefined;
+  return undefined;
 }
 
 export default function (pi) {
@@ -260,7 +244,7 @@ export default function (pi) {
 
     pi.on("tool_call", (event) => {
       if (!active || event.toolName !== "bash" || typeof event.input?.command !== "string") return;
-      if (promptTarget(event.input.command, lead, { final: false }) !== lead || !event.input.command.includes(sendPath)) return;
+      if (promptAnywhere(event.input.command, lead) !== lead || !event.input.command.includes(sendPath)) return;
       const fs = process.getBuiltinModule("node:fs");
       let reportMtime;
       let sendMtime;
