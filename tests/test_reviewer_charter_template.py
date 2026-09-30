@@ -183,6 +183,21 @@ class ReviewerCharterTemplateTest(unittest.TestCase):
                     if path in denied:
                         self.assertIn("Operation not permitted", run.stderr)
 
+    def test_no_mutation_contract_bounds_the_awaited_background_check(self):
+        text = TEMPLATE.read_text(encoding="utf-8")
+        contract = text.split("No-mutation contract:", 1)[1].split("change no external state", 1)[0]
+        for bound in (
+            "one charter-named check at a time",
+            "runtime task id",
+            "is never detached (no `nohup`, `setsid`, `disown`, trailing `&`,",
+            "awaited through the runtime's completion notice, not a sleep or poll loop",
+            "stopped only by its own task id",
+            "reported only after it ends",
+            "task id, command, how it started, end state and exit code",
+        ):
+            with self.subTest(bound=bound):
+                self.assertIn(bound, contract)
+
     def test_filled_template_lints_ok(self):
         self.assertEqual(self.run_lint(self.filled), (0, ""))
 
