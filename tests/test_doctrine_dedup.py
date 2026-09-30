@@ -27,7 +27,7 @@ BUDGET = {
     "references/herdr-cli.md": 22_789,
     "references/project-config.md": 6_211,
     "references/structural-misfit-policy.md": 9_485,
-    "references/charters.md": 37_708,
+    "references/charters.md": 38_037,
     "references/closeout.md": 12_769,
     "references/supervisor.md": 26_285,
 }
