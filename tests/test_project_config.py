@@ -63,6 +63,7 @@ class ProjectConfigTests(unittest.TestCase):
             ('{"ci": {"trigger": "pr", "trigger": "pr"}}', "duplicate key 'trigger'"),
             ("[]", "top level must be an object"),
             ("{", "Expecting property name"),
+            ("[" * 1000000 + "]" * 1000000, "nested too deeply"),
         ]
         for content, message in cases:
             with self.subTest(message=message):

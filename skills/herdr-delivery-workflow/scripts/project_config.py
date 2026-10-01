@@ -95,6 +95,8 @@ def load(path: str | Path) -> dict[str, Any]:
         _validate(config)
     except (OSError, ValueError) as exc:
         raise ValueError(f"{path}: {exc}") from exc
+    except RecursionError as exc:
+        raise ValueError(f"{path}: nested too deeply") from exc
     return config
 
 
