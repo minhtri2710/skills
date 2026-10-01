@@ -5,7 +5,6 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import re
 import shlex
 import subprocess
 import sys
@@ -15,12 +14,11 @@ from pathlib import Path
 from typing import Any
 
 import herdr_cli
+import project_config
 
 
 _SETTLED_STATES = frozenset({"idle", "done"})
 _ROLES = ("engineer", "reviewer")
-_COMMENT_RE = re.compile(r"<!--.*?-->", re.DOTALL)
-_KEY_RE = re.compile(r"^\s*-\s*([a-z][a-z-]*):[ \t]*(.*?)\s*$", re.MULTILINE)
 
 
 def _agents(payload: dict[str, Any]) -> list[Any]:
@@ -216,15 +214,6 @@ def format_stalled_roster(
     return lines
 
 
-def _config_keys(path: str) -> dict[str, str]:
-    """Read `- key: value` lines; comments are provenance and never read."""
-    try:
-        text = Path(path).read_text(encoding="utf-8")
-    except OSError as exc:
-        raise RuntimeError(f"could not read config: {exc}") from exc
-    return dict(_KEY_RE.findall(_COMMENT_RE.sub("", text)))
-
-
 def _model(args: list[str]) -> str | None:
     for i, arg in enumerate(args):
         if arg == "--model" and i + 1 < len(args):
@@ -234,15 +223,15 @@ def _model(args: list[str]) -> str | None:
     return None
 
 
-def _expected(keys: dict[str, str], role: str) -> list[tuple[str, str | None, list[str]]]:
+def _expected(keys: dict[str, Any], role: str) -> list[tuple[str, str | None, list[str]]]:
     kind = keys.get(f"{role}-kind")
     if not kind:
         raise ValueError(f"config lacks {role}-kind")
-    block = shlex.split(keys.get(f"{role}-args", ""))
+    block = keys.get(f"{role}-args", [])
     expected = [(kind, _model(block), block)]
     fallback = keys.get(f"{role}-fallback")
     if fallback:
-        block = shlex.split(keys.get(f"{role}-fallback-args", ""))
+        block = keys.get(f"{role}-fallback-args", [])
         expected.append((fallback, _model(block), block))
     return expected
 
@@ -400,7 +389,7 @@ def _route_matches_model(route_model: str | None, running_model: str) -> bool:
 
 def format_drift_roster(
     payload: dict[str, Any],
-    keys: dict[str, str],
+    keys: dict[str, Any],
     seats: dict[str, str],
     workspace: str | None = None,
 ) -> tuple[list[str], bool]:
@@ -510,7 +499,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--drift",
         metavar="CONFIG",
-        help="report named seats whose kind or --model differs from this config.md's keys, or whose launch argv lacks the matched route's *-args as one contiguous block",
+        help="report named seats whose kind or --model differs from this config.json's keys, or whose launch argv lacks the matched route's *-args as one contiguous block",
     )
     parser.add_argument(
         "--seat",
@@ -547,7 +536,7 @@ def main(argv: list[str] | None = None) -> int:
             if not args.seat:
                 raise ValueError("--drift requires at least one --seat")
             lines, unverifiable = format_drift_roster(
-                payload, _config_keys(args.drift), _seat_specs(args.seat), args.workspace
+                payload, project_config.load(args.drift), _seat_specs(args.seat), args.workspace
             )
             exit_code = int(unverifiable)
         elif args.never_started:

@@ -278,18 +278,13 @@ class RosterTest(unittest.TestCase):
             )
             self.assertEqual(lines, [])
 
-    _DRIFT_CONFIG = (
-        "# Delivery config\n"
-        "- engineer-kind: pi\n"
-        "- engineer-args: --approve --model prov/luna\n"
-        "- engineer-fallback: pi\n"
-        "- engineer-fallback-args: --approve --model=prov/flash\n"
-        "- reviewer-kind: agy\n"
-        "<!-- restore after the override:\n"
-        "- engineer-kind: claude\n"
-        "- engineer-args: --model claude-opus-5-5\n"
-        "-->\n"
-    )
+    _DRIFT_CONFIG = {
+        "engineer-kind": "pi",
+        "engineer-args": ["--approve", "--model", "prov/luna"],
+        "engineer-fallback": "pi",
+        "engineer-fallback-args": ["--approve", "--model=prov/flash"],
+        "reviewer-kind": "agy",
+    }
 
     def _drift(
         self, agents, argv_by_pane, seats, config=_DRIFT_CONFIG, extra_argv=(),
@@ -318,8 +313,8 @@ class RosterTest(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            config_path = root / "config.md"
-            config_path.write_text(config, encoding="utf-8")
+            config_path = root / "config.json"
+            config_path.write_text(json.dumps(config), encoding="utf-8")
             agent_dir = root / "pi-agent"
             for pane, files in (pi_sessions or {}).items():
                 process = argv_by_pane[pane]
@@ -478,10 +473,7 @@ class RosterTest(unittest.TestCase):
             "expected=pi --model prov/luna or pi --model prov/flash",
         ]
         self.assertEqual(lines, expected_lines)
-        bare_config = self._DRIFT_CONFIG.replace(
-            "- engineer-fallback-args: --approve --model=prov/flash",
-            "- engineer-fallback-args: --approve --model=luna",
-        )
+        bare_config = {**self._DRIFT_CONFIG, "engineer-fallback-args": ["--approve", "--model=luna"]}
         rc, lines, error = self._drift(
             [next(item for item in agents if item["name"] == "eng-bare-route")],
             argv, ["eng-bare-route:engineer"], config=bare_config,
@@ -493,7 +485,7 @@ class RosterTest(unittest.TestCase):
         self.assertEqual((rc, error, lines), (0, "", expected_lines[:2]))
         reviewer_agent = agent("w1:p18", "review-unavailable", "agy")
         reviewer_process = {"w1:p18": {"argv0": "agy", "cwd": "/workspace", "pid": 812}}
-        reviewer_config = self._DRIFT_CONFIG + "- reviewer-args: --model review/model\n"
+        reviewer_config = {**self._DRIFT_CONFIG, "reviewer-args": ["--model", "review/model"]}
         rc, lines, error = self._drift(
             [reviewer_agent], reviewer_process, ["review-unavailable:reviewer"],
             config=reviewer_config,
@@ -504,12 +496,12 @@ class RosterTest(unittest.TestCase):
         ]))
 
     def test_drift_requires_the_matched_routes_args_as_one_contiguous_block(self):
-        config = (
-            "- engineer-kind: claude\n"
-            "- engineer-args: --model m1 --permission-mode auto\n"
-            "- engineer-fallback: pi\n"
-            "- engineer-fallback-args: --approve --model p1\n"
-        )
+        config = {
+            "engineer-kind": "claude",
+            "engineer-args": ["--model", "m1", "--permission-mode", "auto"],
+            "engineer-fallback": "pi",
+            "engineer-fallback-args": ["--approve", "--model", "p1"],
+        }
         launches = {
             "ok": ["claude", "--settings", "s", "--model", "m1", "--permission-mode", "auto", "--add-dir", "d"],
             "split": ["claude", "--model", "m1", "--settings", "s", "--permission-mode", "auto"],
@@ -540,7 +532,7 @@ class RosterTest(unittest.TestCase):
         seat = [{"pane_id": "w1:p1", "name": "eng", "agent": "pi", "agent_status": "idle"}]
         pi, claude = {"w1:p1": ["pi"]}, {"w1:p1": ["claude", "--model", "x"]}
         cases = [
-            ("- reviewer-kind: agy\n", pi, "eng:engineer", (), "config lacks engineer-kind"),
+            ({"reviewer-kind": "agy"}, pi, "eng:engineer", (), "config lacks engineer-kind"),
             (self._DRIFT_CONFIG, claude, "eng:engineer", (), "no pi process in pane w1:p1"),
             (self._DRIFT_CONFIG, pi, "gone:engineer", (), "no live seat named gone"),
             (self._DRIFT_CONFIG, pi, "eng:engineer", ("--workspace", "w2"), "no live seat named eng"),
