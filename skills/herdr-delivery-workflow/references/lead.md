@@ -6,7 +6,7 @@ The single entry file for the Lead seat: intake, the delivery sequence, ownershi
 
 ### Durable coordination records
 
-The durable files this workflow touches live under `~/.herdr/projects/<project-slug>/` (slug per `project-config.md`): the append-only gate ledger `gates.md` ("Gates and ledger"), the append-only Supervisor notebook `supervisor-notebook.md` (`supervisor.md`), the context pack `context-pack.md` an outgoing seat writes ("Seat identity and continuity"), the Human-owned `config.md`, and the Lead-created `supervisor-mailbox.md`. Those, plus `gates.legacy.md` where a Human-decided ledger cutover produced it, and a `runs/` directory, are the only entries permitted at the project root. Every other run artifact belongs under `runs/<issue-id>/`; a durable artifact belonging to no single issue belongs under `runs/coordination/`. Keep the coordination record in the current run context; do not create shadow state or a second control plane. The intake record and handoff block stay the Lead's run context; a durable copy that must survive the run goes to the run's workspace record, not the root.
+The durable files this workflow touches live under `~/.herdr/projects/<project-slug>/` (slug per `project-config.md`): the append-only gate ledger `gates.md` ("Gates and ledger"), the append-only Supervisor notebook `supervisor-notebook.md` (`supervisor.md`), the context pack `context-pack.md` an outgoing seat writes ("Seat identity and continuity"), the Human-owned `config.json`, and the Lead-created `supervisor-mailbox.md`. Those, plus `gates.legacy.md` where a Human-decided ledger cutover produced it, and a `runs/` directory, are the only entries permitted at the project root. Every other run artifact belongs under `runs/<issue-id>/`; a durable artifact belonging to no single issue belongs under `runs/coordination/`. Keep the coordination record in the current run context; do not create shadow state or a second control plane. The intake record and handoff block stay the Lead's run context; a durable copy that must survive the run goes to the run's workspace record, not the root.
 
 ### Recall and citation
 
@@ -52,7 +52,7 @@ When a visual-parity acceptance names a reference that cannot be rendered, the L
 
 ### Project config
 
-**Project config.** Read `~/.herdr/projects/<project-slug>/config.md` before classifying or staffing (`project-config.md` owns format, precedence, guards). When absent, do not assume defaults: ask the Human whether to create one and act only on their answer, recording `Config: none` only after they decline. Record the applied keys, or `Config: none`, in the intake record. A `lane-defaults` entry raises a lane floor only; hard-gate classes and Human gates are not configurable.
+**Project config.** Read `~/.herdr/projects/<project-slug>/config.json` through `scripts/project_config.py --check` before classifying or staffing (`project-config.md` owns format, refusals, precedence, guards). When absent, do not assume defaults: ask the Human whether to create one and act only on their answer, recording `Config: none` only after they decline. Record the applied keys, or `Config: none`, in the intake record. A `lane-defaults` entry raises a lane floor only; hard-gate classes and Human gates are not configurable.
 
 ### Lanes
 
