@@ -67,7 +67,7 @@ Every `--timeout` value is sized to the command's real worst case; always pass `
 herdr agent start <name> --kind <kind> --pane <pane-id> -- <agent-args...>
 ```
 
-Use the kind the user requested (`herdr agent` lists installed kinds). Native agent arguments go only after `--`; the permission arguments among them set the Peer's posture (`charters.md`, "Writing charters") — learn a kind's flags from its own `--help` at staffing, since they differ by kind and release. A successful `agent start` returns only after Herdr detects the expected agent and considers it ready; startup defaults to a 30-second timeout. If the agent is blocked during startup the command returns `agent_not_ready` immediately but keeps the name usable for `agent read` and `agent send-keys`; wait for it to settle before prompting.
+Use the kind the user requested (`herdr agent` lists installed kinds). Native agent arguments go only after `--`; the project config's `*-args` set the Peer's posture, passed verbatim (`charters.md`, "Permission posture"); the kind's own `--help` classifies them at staffing, since flags differ by kind and release, and never chooses them. A successful `agent start` returns only after Herdr detects the expected agent and considers it ready; startup defaults to a 30-second timeout. If the agent is blocked during startup the command returns `agent_not_ready` immediately but keeps the name usable for `agent read` and `agent send-keys`; wait for it to settle before prompting.
 
 ```bash
 herdr agent prompt <name> "<bounded task>"
