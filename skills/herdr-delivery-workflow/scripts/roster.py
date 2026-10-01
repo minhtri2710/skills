@@ -234,15 +234,22 @@ def _model(args: list[str]) -> str | None:
     return None
 
 
-def _expected(keys: dict[str, str], role: str) -> list[tuple[str, str | None]]:
+def _expected(keys: dict[str, str], role: str) -> list[tuple[str, str | None, list[str]]]:
     kind = keys.get(f"{role}-kind")
     if not kind:
         raise ValueError(f"config lacks {role}-kind")
-    expected = [(kind, _model(shlex.split(keys.get(f"{role}-args", ""))))]
+    block = shlex.split(keys.get(f"{role}-args", ""))
+    expected = [(kind, _model(block), block)]
     fallback = keys.get(f"{role}-fallback")
     if fallback:
-        expected.append((fallback, _model(shlex.split(keys.get(f"{role}-fallback-args", "")))))
+        block = shlex.split(keys.get(f"{role}-fallback-args", ""))
+        expected.append((fallback, _model(block), block))
     return expected
+
+
+def _has_block(argv: list[str], block: list[str]) -> bool:
+    n = len(block)
+    return any(argv[i:i + n] == block for i in range(len(argv) - n + 1))
 
 
 def _seat_specs(raw_seats: list[str] | None) -> dict[str, str]:
@@ -399,8 +406,11 @@ def format_drift_roster(
 ) -> tuple[list[str], bool]:
     """Return DRIFT lines, an UNVERIFIABLE line for a matching kind with an unbound model, and whether any UNVERIFIABLE line was produced.
 
-    Only the kind and the model are compared: a charter may add tightenings
-    (an allowlist, a disallowed tool) that are not drift.
+    A seat drifts when its kind and model match no route, or, with its launch
+    argv visible, when the matching route's config ``*-args`` do not appear in
+    it as one contiguous run of the same elements (``--model=x`` is not
+    ``--model x``). Other arguments a charter or the launch adds are not
+    drift. A seat showing only argv0 (pi) is not checked for the block.
     """
     lines = []
     unverifiable = False
@@ -423,14 +433,14 @@ def format_drift_roster(
         expected = _expected(keys, role)
         launch_args, argv0_process = _launch_args(pane_id, kind)
         model = _model(launch_args) if launch_args is not None else None
-        matching_kinds = [(k, m) for k, m in expected if kind == k]
+        matching_kinds = [(k, m) for k, m, _ in expected if kind == k]
         pi_session_model = bool(matching_kinds and argv0_process is not None and kind == "pi")
         if pi_session_model:
             if any(m is None for _, m in matching_kinds):
                 continue
             model, reason = _pi_running_model(name, argv0_process)
             if reason is not None:
-                want = " or ".join(f"{k} --model {m or '-'}" for k, m in expected)
+                want = " or ".join(f"{k} --model {m or '-'}" for k, m, _ in expected)
                 lines.append(
                     f"{pane_id} {name} {kind} UNVERIFIABLE role={role} "
                     f"reason={reason} expected={want}"
@@ -440,7 +450,7 @@ def format_drift_roster(
         elif matching_kinds and launch_args is None:
             if any(m is None for _, m in matching_kinds):
                 continue
-            want = " or ".join(f"{k} --model {m or '-'}" for k, m in expected)
+            want = " or ".join(f"{k} --model {m or '-'}" for k, m, _ in expected)
             lines.append(
                 f"{pane_id} {name} {kind} UNVERIFIABLE role={role} "
                 f"reason=model-unavailable expected={want}"
@@ -451,8 +461,19 @@ def format_drift_roster(
             m is None or (_route_matches_model(m, model) if pi_session_model else model == m)
             for _, m in matching_kinds
         ):
+            if launch_args is None:
+                continue
+            blocks = [b for k, m, b in expected if k == kind and (m is None or m == model)]
+            if any(_has_block(launch_args, b) for b in blocks):
+                continue
+            missing = " or ".join(shlex.join(b) for b in blocks)
+            want = " or ".join(f"{k} --model {m or '-'}" for k, m, _ in expected)
+            lines.append(
+                f"{pane_id} {name} {kind} DRIFT role={role} running={kind} --model {model or '-'} "
+                f"expected={want} missing={missing}"
+            )
             continue
-        want = " or ".join(f"{k} --model {m or '-'}" for k, m in expected)
+        want = " or ".join(f"{k} --model {m or '-'}" for k, m, _ in expected)
         lines.append(
             f"{pane_id} {name} {kind} DRIFT role={role} running={kind} --model {model or '-'} expected={want}"
         )
@@ -489,7 +510,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--drift",
         metavar="CONFIG",
-        help="report named seats whose kind or --model differs from this config.md's keys",
+        help="report named seats whose kind or --model differs from this config.md's keys, or whose launch argv lacks the matched route's *-args as one contiguous block",
     )
     parser.add_argument(
         "--seat",

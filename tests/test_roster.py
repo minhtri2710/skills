@@ -385,7 +385,7 @@ class RosterTest(unittest.TestCase):
         ]
         argv = {
             "w1:p1": ["node", "/opt/bin/pi", "--approve", "--model", "prov/luna"],
-            "w1:p2": ["pi", "--model", "prov/flash"],
+            "w1:p2": ["pi", "--approve", "--model=prov/flash"],
             "w1:p3": ["pi", "--model", "prov/old"],
             "w1:p4": {
                 "argv0": "claude",
@@ -502,6 +502,39 @@ class RosterTest(unittest.TestCase):
             "w1:p18 review-unavailable agy UNVERIFIABLE role=reviewer reason=model-unavailable "
             "expected=agy --model review/model",
         ]))
+
+    def test_drift_requires_the_matched_routes_args_as_one_contiguous_block(self):
+        config = (
+            "- engineer-kind: claude\n"
+            "- engineer-args: --model m1 --permission-mode auto\n"
+            "- engineer-fallback: pi\n"
+            "- engineer-fallback-args: --approve --model p1\n"
+        )
+        launches = {
+            "ok": ["claude", "--settings", "s", "--model", "m1", "--permission-mode", "auto", "--add-dir", "d"],
+            "split": ["claude", "--model", "m1", "--settings", "s", "--permission-mode", "auto"],
+            "absent": ["claude", "--model", "m1"],
+            "fallback-ok": ["pi", "--name", "x", "--approve", "--model", "p1"],
+            "fallback-missing": ["pi", "--model", "p1"],
+        }
+        agents = [
+            {"pane_id": f"w1:p{i}", "name": name, "agent": argv[0], "agent_status": "idle"}
+            for i, (name, argv) in enumerate(launches.items())
+        ]
+        argv_by_pane = {f"w1:p{i}": argv for i, argv in enumerate(launches.values())}
+        rc, lines, error = self._drift(
+            agents, argv_by_pane, [f"{name}:engineer" for name in launches], config
+        )
+        self.assertEqual((rc, error), (0, ""))
+        want = "expected=claude --model m1 or pi --model p1 missing="
+        self.assertEqual(lines, [
+            "w1:p1 split claude DRIFT role=engineer running=claude --model m1 "
+            f"{want}--model m1 --permission-mode auto",
+            "w1:p2 absent claude DRIFT role=engineer running=claude --model m1 "
+            f"{want}--model m1 --permission-mode auto",
+            "w1:p4 fallback-missing pi DRIFT role=engineer running=pi --model p1 "
+            f"{want}--approve --model p1",
+        ])
 
     def test_drift_fails_closed_without_the_role_key_the_seat_process_or_the_seat(self):
         seat = [{"pane_id": "w1:p1", "name": "eng", "agent": "pi", "agent_status": "idle"}]
