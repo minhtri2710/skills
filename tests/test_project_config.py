@@ -63,6 +63,8 @@ class ProjectConfigTests(unittest.TestCase):
             ({**_FULL, "ci": ["trigger", "workflows"]},"ci: must be an object with exactly"),
             ({**_FULL, "ci": {**_FULL["ci"], "extra": 1}}, "ci: must be an object with exactly"),
             ({**_FULL, "ci": {"trigger": "always", "workflows": ["ci.yml"]}}, "ci.trigger: must be one of"),
+            ({**_FULL, "ci": {"trigger": "pr"}}, "ci: must be an object with exactly"),
+            ({**_FULL, "ci": {"trigger": "pr", "workflows": []}}, "ci: workflows must be empty exactly when trigger is none"),
             ({**_FULL, "ci": {"trigger": "pr", "workflows": [""]}}, "ci.workflows: must be an array of non-empty strings"),
             ({**_FULL, "lane-defaults": []}, "lane-defaults: must be an object"),
             ({**_FULL, "lane-defaults": {"": "tiny"}}, "lane-defaults.: must map to one of"),
@@ -73,6 +75,7 @@ class ProjectConfigTests(unittest.TestCase):
             ({**_FULL, "worker-cap": 0}, "worker-cap: must be an integer >= 1"),
             ({**_FULL, "ci": {"trigger": "none", "workflows": ["ci.yml"]}}, "ci: workflows must be empty"),
             ({**_FULL, "provenance": {"engineer-arg": ["x"]}}, "provenance.engineer-arg: unknown key"),
+            ({**_FULL, "provenance": {"provenance": ["x"]}}, "provenance.provenance: unknown key"),
             ('{"worker-cap": 1, "worker-cap": 2}', "duplicate key 'worker-cap'"),
             ('{"ci": {"trigger": "pr", "trigger": "pr"}}', "duplicate key 'trigger'"),
             ("[]", "top level must be an object"),
@@ -100,10 +103,10 @@ class ProjectConfigTests(unittest.TestCase):
     def test_check_prints_ok_or_one_refusal_line(self):
         ok = self._check(self._write(_FULL))
         self.assertEqual((ok.returncode, ok.stdout, ok.stderr), (0, f"ok: {self.path}\n", ""))
-        refused = self._check(self._write({"nope": 1}))
+        refused = self._check(self._write({"no\npe": 1}))
         self.assertEqual(
             (refused.returncode, refused.stdout, refused.stderr),
-            (1, "", f"{self.path}: nope: unknown key\n"),
+            (1, "", f"{self.path}: no pe: unknown key\n"),
         )
 
     def test_the_shipped_template_loads(self):
