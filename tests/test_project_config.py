@@ -55,6 +55,8 @@ class ProjectConfigTests(unittest.TestCase):
         cases = [
             ({**_FULL, "engineer-arg": []}, "engineer-arg: unknown key"),
             ({**_FULL, "engineer-args": "--model m1"}, "engineer-args: must be an array of strings"),
+            ({**_FULL, "engineer-kind": ""}, "engineer-kind: must be a non-empty string"),
+            ({**_FULL, "lane-defaults": {"docs/": "urgent"}}, "lane-defaults.docs/: must map to one of"),
             ({**_FULL, "worker-cap": True}, "worker-cap: must be an integer >= 1"),
             ({**_FULL, "worker-cap": 0}, "worker-cap: must be an integer >= 1"),
             ({**_FULL, "ci": {"trigger": "none", "workflows": ["ci.yml"]}}, "ci: workflows must be empty"),
