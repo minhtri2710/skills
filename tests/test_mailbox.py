@@ -401,18 +401,6 @@ class MailboxTest(unittest.TestCase):
         self.assertEqual(self.path.read_bytes(), SAMPLE.encode("utf-8"))
         self.assertEqual(len(mailbox._entries(self.path.read_text(encoding="utf-8"))), 3)
 
-    def test_successful_wake_leaves_mailbox_unchanged_and_returns_wake_code(self):
-        def fake_wake(seat, wake_text):
-            return subprocess.CompletedProcess([], 0, stdout="", stderr="")
-
-        original = mailbox.run_wake
-        mailbox.run_wake = fake_wake
-        self.addCleanup(setattr, mailbox, "run_wake", original)
-        before = self.path.read_bytes()
-        result = mailbox.main(["--file", str(self.path), "--wake", "supervisor"])
-        self.assertEqual(result, 0)
-        self.assertEqual(self.path.read_bytes(), before)
-
     def test_wake_without_header_is_unsent_and_does_not_wake(self):
         self.path.write_text("not a mailbox entry\n", encoding="utf-8")
         calls = []

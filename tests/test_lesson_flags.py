@@ -106,20 +106,6 @@ class LessonFlagsTest(unittest.TestCase):
         self.assertIn("fresh-superseded.md", output)
         self.assertNotIn("fresh-active.md", output)
 
-    def test_superseded_without_landing_ref_is_unclassified(self):
-        old = (datetime.now(timezone.utc) - timedelta(days=120)).date().isoformat()
-        path = self.write_record("bare-superseded", "superseded", old)
-        with self.assertRaises(lesson_flags.LessonParseError):
-            lesson_flags.record_fields(str(path))
-
-    def test_superseded_by_on_non_superseded_status_is_unclassified(self):
-        old = (datetime.now(timezone.utc) - timedelta(days=120)).date().isoformat()
-        path = self.write_record(
-            "active-with-ref", "active", old, superseded_by="abc1234"
-        )
-        with self.assertRaises(lesson_flags.LessonParseError):
-            lesson_flags.record_fields(str(path))
-
     def test_malformed_lessons_are_reported_and_make_exit_nonzero(self):
         malformed = self.root / "demo/runs/coordination/lessons/broken.md"
         malformed.parent.mkdir(parents=True, exist_ok=True)

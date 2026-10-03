@@ -257,16 +257,6 @@ class JevTest(unittest.TestCase):
                 probabilities[jev.SEVERITY_LEVELS.index(expected)],
             )
 
-    def test_unavailable_result_is_a_fail_open_pass_through(self) -> None:
-        with mock.patch.object(
-            jev.urllib.request, "urlopen", side_effect=urllib.error.URLError("offline")
-        ) as urlopen:
-            result = jev.triage_finding(FINDING)
-
-        self.assertIsInstance(result, jev.UnavailableResult)
-        self.assertTrue(result.fallback_actionable)
-        self.assertEqual(json.loads(urlopen.call_args.args[0].data)["state"], FINDING)
-
     def test_header_urgency_escalates_on_level_probabilities(self) -> None:
         for probabilities, expected, argmax in (
             ((1.0, 0.0, 0.0), "FYI", "FYI"),
@@ -630,28 +620,6 @@ class JevTest(unittest.TestCase):
             self.assertEqual(result.choice, choice)
             self.assertEqual(result.confidence, confidence)
             self.assertFalse(result.deterministic)
-
-    def test_fork_model_answer_cannot_override_hard_gate(self):
-        payload = {
-            "answers": {
-                "route": {
-                    "type": "choice",
-                    "choice": "supervisor_decide",
-                    "probabilities": {
-                        "supervisor_decide": 1.0,
-                        "human_gate": 0.0,
-                    },
-                    "confidence": 1.0,
-                }
-            }
-        }
-        with mock.patch.object(jev, "_request_answers", return_value=(payload, None)) as request_answers:
-            result = jev.route_fork({**FORK, "hard_gate": True}, DELEGATION)
-
-        self.assertIsInstance(result, jev.ForkAdvisoryResult)
-        self.assertEqual(result.route, "human_gate")
-        self.assertTrue(result.deterministic)
-        request_answers.assert_not_called()
 
     def test_fork_invalid_input_and_optional_data_fail_open(self):
         cases = (

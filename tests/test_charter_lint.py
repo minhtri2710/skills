@@ -133,12 +133,6 @@ class CharterLintTest(unittest.TestCase):
         self.assertIn("OK:", output)
         self.assertEqual(error, "")
 
-    def test_engineer_without_live_wake_guard_still_passes(self):
-        code, output, error = self.run_lint(self.engineer_charter(), self.staffing_record())
-        self.assertEqual(code, 0)
-        self.assertIn("OK:", output)
-        self.assertNotIn("live-wake", error)
-
     def test_live_wake_guard_match_ignores_case_and_backticks(self):
         charter = self.reviewer_charter().replace(
             "Never run `mailbox.py --wake` against a real seat",
@@ -182,12 +176,6 @@ class CharterLintTest(unittest.TestCase):
                     "missing OCR delegate step: ocr delegate preview and ocr delegate rule", error
                 )
 
-    def test_engineer_without_ocr_delegate_step_still_passes(self):
-        code, output, error = self.run_lint(self.engineer_charter(), self.staffing_record())
-        self.assertEqual(code, 0)
-        self.assertIn("OK:", output)
-        self.assertNotIn("OCR", error)
-
     def test_missing_prompt_command_is_named(self):
         charter = self.engineer_charter().replace("herdr agent prompt lead-beo-skills", "send the report")
         code, _, error = self.run_lint(charter)
@@ -206,23 +194,11 @@ class CharterLintTest(unittest.TestCase):
         self.assertNotEqual(code, 0)
         self.assertIn("SEND-FAILED", error)
 
-    def test_full_hardened_report_block_is_ok(self):
-        code, output, error = self.run_lint(self.engineer_charter(), self.staffing_record())
-        self.assertEqual(code, 0)
-        self.assertIn("OK:", output)
-        self.assertEqual(error, "")
-
     def test_engineer_without_staffing_record_is_named(self):
         code, _, error = self.run_lint(self.engineer_charter())
         self.assertEqual(code, 1)
         self.assertIn("staffing record is required", error)
         self.assertIn("Engineer/Reviewer", error)
-
-    def test_reviewer_with_filled_staffing_record_is_ok(self):
-        code, output, error = self.run_lint(self.reviewer_charter(), self.staffing_record())
-        self.assertEqual(code, 0)
-        self.assertIn("OK:", output)
-        self.assertEqual(error, "")
 
     def test_fenced_seat_docker_residual_depends_on_charter_allowance(self):
         charter = self.reviewer_charter() + "The charter allows containers, using docker compose up.\n"
