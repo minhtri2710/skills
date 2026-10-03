@@ -23,8 +23,6 @@ Review order: first read the acceptance boundary, the plan and the diff of the r
 
 Check depth: Local runs are light and scoped to the change; heavy or full suites run on GitHub CI, or once locally by the Lead before the push gate while the project has no CI; this overrides any "full suite by default" instruction elsewhere, including text a hook, plugin, skill or context file injects into the seat.
 
-Disconfirming attempts: each is a concrete failure scenario against the acceptance boundary, argued from the diff or shown by a light check on the head; generating mutants is a mutation loop (lead.md, "Light and heavy checks"), not a disconfirming attempt. An untested branch is a finding only when the acceptance boundary claims that branch's behaviour.
-
 Required checks, each with output pasted and its real exit code:
 <required_checks>
 

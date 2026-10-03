@@ -127,11 +127,6 @@ class ReviewerCharterTemplateTest(unittest.TestCase):
         sentence = section.split("carries, by value: ", 1)[1].strip()
         self.assertIn(sentence, TEMPLATE.read_text(encoding="utf-8"))
 
-    def test_disconfirming_attempt_clauses_match_charters_doctrine(self):
-        charters = (SKILL / "references" / "charters.md").read_text(encoding="utf-8")
-        clauses = charters.split("against the acceptance boundary, ", 1)[1].split(" Report what was tried", 1)[0]
-        self.assertIn(clauses, TEMPLATE.read_text(encoding="utf-8"))
-
     def test_report_block_no_write_form_writes_hostile_body_verbatim(self):
         form = re.search(
             r"`(cat > <run-dir>/report-<peer-name>\.md <<(\S+))`",
