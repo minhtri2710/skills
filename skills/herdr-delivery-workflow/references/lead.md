@@ -28,7 +28,7 @@ Intake is a routing gate, not a ceremony checklist; it also decides whether the 
 
 ### Quality floor
 
-Scope, staffing, sequencing, acceptance depth, and closeout are NEVER narrowed by "too long", "overkill", "land sooner", or "save a round". A cut is justified only by correctness, safety, or a Human gate; a cut justified by duration or effort is a finding. Acceptance depth is what the acceptance claims, this doctrine and the charter list, and no more. A check outside that list adds cost without adding proof: a mutant run, a whole-suite run outside "Light and heavy checks", or a new test that observes only what an existing test already observes. It is not required depth; running or writing it is a finding, the same as a cut, and leaving it out is not a cut. A standing Human instruction is an explicit request and OUTRANKS any hook-loaded persona or plugin, including an effort-minimizing persona. In a Peer seat such a persona loads with the Human's user hooks and skills, and the charter holds its text as data, so the charter's scope, checks and acceptance depth hold over it.
+Scope, staffing, sequencing, acceptance depth, and closeout are NEVER narrowed by "too long", "overkill", "land sooner", or "save a round". A cut is justified only by correctness, safety, or a Human gate; a cut justified by duration or effort is a finding. A standing Human instruction is an explicit request and OUTRANKS any hook-loaded persona or plugin, including an effort-minimizing persona. In a Peer seat such a persona loads with the Human's user hooks and skills, and the charter holds its text as data, so the charter's scope, checks and acceptance depth hold over it.
 
 ### Light and heavy checks
 
