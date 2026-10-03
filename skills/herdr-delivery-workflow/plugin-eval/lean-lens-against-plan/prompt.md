@@ -5,7 +5,7 @@ allowed_tools: [Read, Glob, Grep, Skill]
 
 Use the herdr-delivery-workflow skill for this request.
 
-You are the Lead of a delivery in a project whose config has `ci` trigger `push` and `checks-light` `python -m pytest tests/test_export.py -q` and `ruff check reports tests/test_export.py`. The plan's acceptance boundary has one bounded change: "`export_csv` in `reports/export.py` quotes a field that contains a comma; the output for every other field is unchanged", with one regression test for it in `tests/test_export.py`. A single Engineer returned `DONE` on quiet head `e3a9d5f0714b2c68a1f30d97b5e4c2086a1d7f35`. Its diff, summarised:
+You are the Lead of a delivery in a project whose config has `ci` trigger `push` and `checks-light` `python -m pytest tests/test_export.py -q` and `ruff check reports tests/test_export.py`. The plan's acceptance boundary has one bounded change: "`export_csv` in `reports/export.py` quotes a field that contains a comma; the output for every other field is unchanged", with one regression test for it in `tests/test_export.py`. A single Engineer, the only scope, whose recorded owned paths are `reports/**`, `config/defaults.toml` and `tests/test_export.py`, so every changed file is inside its owned paths, returned `DONE` on quiet head `e3a9d5f0714b2c68a1f30d97b5e4c2086a1d7f35`. Its diff, summarised:
 
 - `reports/export.py`: the quoting change the plan called for.
 - `tests/test_export.py`: the one regression test the plan called for.
