@@ -7,7 +7,7 @@ restating it. This measures that invariant: no rule-bearing sentence (>=8
 words, code blocks stripped) may appear verbatim in more than one loaded prose
 file. Templates are verbatim record shapes, and RATIONALE.md restates rule gist
 by design, so both are excluded. Each loaded file also stays within its byte
-ceiling, so doctrine that every seat loads cannot grow unnoticed.
+ceiling, so doctrine that every seat loads cannot grow without the Human's word.
 """
 from __future__ import annotations
 
@@ -18,11 +18,13 @@ from pathlib import Path
 SKILL = Path(__file__).resolve().parents[1] / "skills" / "herdr-delivery-workflow"
 
 # Prose files a seat loads on some route, each with its byte ceiling. Templates and
-# RATIONALE.md are excluded for the reasons in the module docstring. A ceiling is the
-# file's exact size when this budget was set; any size change updates the same diff.
+# RATIONALE.md are excluded for the reasons in the module docstring. Ceilings only
+# fall. A diff that adds bytes to a file cuts as many bytes from that same file. A
+# diff that shrinks a file lowers that file's ceiling to its new size. Raising a
+# ceiling needs the Human's own words, cited by ledger row id in the commit message.
 BUDGET = {
     "SKILL.md": 10_698,
-    "references/lead.md": 105_333,
+    "references/lead.md": 105_279,
     "references/relaunch.md": 4_116,
     "references/herdr-cli.md": 23_135,
     "references/project-config.md": 7_576,
@@ -68,7 +70,12 @@ class DoctrineDedupTest(unittest.TestCase):
             for name, cap in BUDGET.items()
             if (size := len((SKILL / name).read_bytes())) > cap
         }
-        self.assertEqual(over, {}, "loaded doctrine over its byte ceiling (size, ceiling)")
+        self.assertEqual(
+            over,
+            {},
+            "loaded doctrine over its byte ceiling (size, ceiling); cut as many bytes "
+            "from the same file, or cite the Human's words for a raise",
+        )
 
 
 if __name__ == "__main__":
