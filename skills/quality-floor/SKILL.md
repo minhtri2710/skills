@@ -26,7 +26,13 @@ default, so "not sure" is a complete answer:
    security scanning, performance budgets, accessibility, architecture boundaries.
    Default: the ones with a tool already installed, plus secrets and dependency
    scanning. Say that performance and accessibility need a running URL and
-   boundaries need a rules file.
+   boundaries need a rules file. Offer two more dimensions, never as a default,
+   because each needs a baseline file and runs only in CI: dead code (functions the
+   shipped entry point cannot reach with tests excluded, compared both ways against
+   an allow file whose every row carries a reason) and uncovered guards (refusal
+   branches no test enters, read from the coverage of every test lane merged,
+   compared both ways against a baseline). Either enters the project only when the
+   user selects it.
 2. Block or report when a check fails mid-task. Default: block on the floor, report
    the rest until each dimension has passed once on the current tree.
 3. Target numbers, or measure today and hold. Default: measure and hold.

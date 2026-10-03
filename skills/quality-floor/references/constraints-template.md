@@ -62,3 +62,7 @@ a reason to lower it.
 | Accessibility | axe-core CLI | `axe $URL --tags wcag2a,wcag2aa,wcag21aa` | critical or serious |
 | Architecture | dependency-cruiser | `depcruise --validate src` | any violation |
 | Assertion quality | Stryker | `stryker run --mutate <changed files>` | mutation score |
+| Dead code (Go) | deadcode | `deadcode ./cmd/<binary>` without `-test` | an unreachable function missing from the allow file, or an allow row now reachable |
+| Dead code (JS/TS) | knip | `knip` | same |
+| Dead code (Python) | vulture | `vulture <src>` | same |
+| Uncovered guards | the coverage tool in branch mode, every lane merged | `go test -coverprofile` or `pytest --cov --cov-branch` per lane | a refusal branch with no hits missing from the baseline, or a baseline row now covered |
