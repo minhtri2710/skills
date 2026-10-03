@@ -127,6 +127,11 @@ class ReviewerCharterTemplateTest(unittest.TestCase):
         sentence = section.split("carries, by value: ", 1)[1].strip()
         self.assertIn(sentence, TEMPLATE.read_text(encoding="utf-8"))
 
+    def test_disconfirming_attempt_clauses_match_charters_doctrine(self):
+        charters = (SKILL / "references" / "charters.md").read_text(encoding="utf-8")
+        clauses = charters.split("against the acceptance boundary, ", 1)[1].split(" Report what was tried", 1)[0]
+        self.assertIn(clauses, TEMPLATE.read_text(encoding="utf-8"))
+
     def test_report_block_no_write_form_writes_hostile_body_verbatim(self):
         form = re.search(
             r"`(cat > <run-dir>/report-<peer-name>\.md <<(\S+))`",
@@ -175,9 +180,9 @@ class ReviewerCharterTemplateTest(unittest.TestCase):
                 d.mkdir(parents=True)
             report, send = run_dir / f"report-{name}.md", run_dir / f"send-{name}.txt"
             allowed = [report, send, Path(f"{report}.tmp.17614.7a0e172e9fe4"), Path(f"{send}.tmp.1.0"),
-                       root / ".herdr/heavy-slots/1", root / "state/session", self.tmp / "scratch"]
+                       root / "state/session", self.tmp / "scratch"]
             denied = [run_dir / "other.md", run_dir / "report-review-other.md", run_dir / f"send-{name}.md",
-                      root / ".herdr/gates.md", root / "checkout-file",
+                      root / ".herdr/gates.md", root / ".herdr/heavy-slots/1", root / "checkout-file",
                       root / f"Xherdr/projects/p/runs/2026-09-30/report-{name}.md",
                       Path(str(report).replace("45fa5929e7c1.md", "45fa5929e7c1Xmd")),
                       *(Path(f"{report}{s}") for s in (".tmp", ".bak", "x", ".tmp.1.0.x", ".tmp.1.g", ".tmp..a", ".tmp.1.", ".tmpX1.0", ".tmp.1X0", ".tmp.1.d/x"))]

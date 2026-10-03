@@ -10,7 +10,6 @@
     (require-not (subpath "/private/tmp"))
     (require-not (subpath "/private/var/folders"))
     (require-not (subpath "/dev"))
-    (require-not (subpath "<herdr_home>/heavy-slots"))
     (require-not (subpath "<kind_state_dir>"))
     (require-not (regex #"^<run_dir>/report-<peer_name>\.md(\.tmp\.[0-9]+\.[0-9a-f]+)?$"))
     (require-not (regex #"^<run_dir>/send-<peer_name>\.txt(\.tmp\.[0-9]+\.[0-9a-f]+)?$"))))
