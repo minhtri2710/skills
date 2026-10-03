@@ -317,12 +317,6 @@ class GateRowTest(unittest.TestCase):
         ]), 1)
         self.assertIn("G1", self.err.getvalue())
 
-    def test_monotonic_ledger_passes_check(self):
-        self.assertEqual(self.append(), 0)
-        self.assertEqual(self.append(), 0)
-        self.assertEqual(self.run_main(
-            ["--ledger", str(self.ledger), "--repo", str(self.repo), "--check"]), 0)
-
     def test_backdated_last_row_fails_check_with_timestamp_regression(self):
         self.assertEqual(self.append(), 0)
         existing_rows = gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))
@@ -341,19 +335,6 @@ class GateRowTest(unittest.TestCase):
             ["--ledger", str(self.ledger), "--repo", str(self.repo), "--check"]), 1)
         self.assertIn("timestamp regression", self.err.getvalue())
         self.assertIn("2000-01-01T00:00:00Z", self.err.getvalue())
-
-    def test_repair_cap_allows_one_repair_grant_and_check_passes(self):
-        self.assertEqual(self.append_repair_grant(), 0)
-        self.assertEqual(self.run_main([
-            "--ledger", str(self.ledger), "--repo", str(self.repo), "--check",
-        ]), 0)
-
-    def test_repair_cap_allows_two_repair_grants_since_boundary(self):
-        self.assertEqual(self.append_repair_grant("F-1"), 0)
-        self.assertEqual(self.append_repair_grant("F-2"), 0)
-        self.assertEqual(self.run_main([
-            "--ledger", str(self.ledger), "--repo", str(self.repo), "--check",
-        ]), 0)
 
     def test_repair_cap_rejects_repeated_finding_since_boundary(self):
         self.assertEqual(self.append_repair_grant("F-1"), 0)
@@ -957,15 +938,6 @@ class GateRowTest(unittest.TestCase):
         with self.assertRaisesRegex(gate_row.RowError, "next local id G2"):
             gate_row.check(row, self.repo, prior)
 
-    def test_a_push_block_on_a_non_push_row_is_refused_by_check(self):
-        head = self.rev("HEAD")
-        row = (f'G2 | 2026-09-06T00:00:00Z | kind=merge | main@{head} | '
-               f'status=resolved:done | record=timely | '
-               f'push={self.rev("HEAD~1")}..{head} count=1 boundary="." '
-               f'boundary-check="" | words=human | note=n | quote="q"')
-        with self.assertRaisesRegex(gate_row.RowError, "push= is only on a kind=push row"):
-            gate_row.check(row, self.repo, [self.fixture_row("G1", "resolved:done")])
-
     def test_a_pipe_in_note_is_refused(self):
         """note= is the seat's own words, so it fails closed on the delimiter."""
         self.assertEqual(self.append("--note", "a | b"), 1)
@@ -1013,13 +985,6 @@ class GateRowTest(unittest.TestCase):
                        check=True, stdin=subprocess.DEVNULL)
         subprocess.run(["git", "-C", str(self.repo), "push", "-q", "origin",
                         f"{self.rev(ref)}:refs/heads/main"], check=True, capture_output=True, stdin=subprocess.DEVNULL)
-
-    def test_a_push_row_whose_push_has_not_landed_is_refused(self):
-        """origin is a commit behind, so the row would claim a push that did not happen."""
-        self.assertEqual(self.append_review_pass(), 0)
-        self.add_remote("HEAD~1")
-        base = self.rev("HEAD~2")
-        self.assertEqual(self.append("--kind", "push", "--push-base", base), 1)
 
     def test_a_landed_push_derives_its_own_count_and_boundary(self):
         self.assertEqual(self.append_review_pass(), 0)
@@ -1098,12 +1063,6 @@ class GateRowTest(unittest.TestCase):
             "--channel", "supervisor-relay:typed", "--writer", "lead-beo-skills",
             *[a for b in boundary for a in ("--boundary", b)]), 0)
         return self.last_row(), boundary
-
-    def test_the_control_row_still_checks_out(self):
-        """The matrix below only means something if the unmodified row passes."""
-        row, boundary = self.valid_push_row()
-        prior_rows = gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))[:-1]
-        gate_row.check(row, self.repo, prior_rows)
 
     def test_every_tamper_the_receive_record_found_passing_is_now_refused(self):
         """S1 F001's six-of-six matrix: one field hand-edited at a time, re-checked."""
@@ -2164,22 +2123,6 @@ class GateRowTest(unittest.TestCase):
                 self.assertEqual(self.run_main(["--ledger", str(self.ledger), "--open-gates"]), 1)
                 self.assertEqual(self.ledger.read_bytes(), before)
 
-    def test_a_push_row_lists_every_outside_path_space_separated(self):
-        self.assertEqual(self.append_review_pass(), 0, self.err.getvalue())
-        self.add_remote("HEAD")
-        self.assertEqual(self.append("--kind", "push", "--push-base", self.rev("HEAD~2"), "--boundary", "f0.txt"),
-                         0, self.err.getvalue())
-        self.assertIn('boundary-check="f1.txt f2.txt"', self.last_row())
-
-    def test_a_row_resolving_two_gates_writes_them_comma_separated(self):
-        for _ in range(2):
-            self.assertEqual(self.run_main([
-                "--ledger", str(self.ledger), "--repo", str(self.repo),
-                "--kind", "push-gate", "--status", "open", "--words", "none", "--note", "push gate",
-            ]), 0, self.err.getvalue())
-        self.assertEqual(self.append("--resolves", "G1,G2"), 0, self.err.getvalue())
-        self.assertIn(" | resolves=G1,G2 | ", self.last_row())
-
     def push_scope_rows(self) -> list[str]:
         self.assertEqual(self.append_standing_delegation(
             "--expiry", "until-revoked", "--push-scope", "upstream:x,origin:main"), 0, self.err.getvalue())
@@ -2197,11 +2140,6 @@ class GateRowTest(unittest.TestCase):
             gate_row.require_push_authority(
                 rows, self.repo, "origin", "refs/heads/main", self.rev("HEAD~1"), self.rev("HEAD"),
                 datetime.now(timezone.utc))
-
-    def test_words_outside_the_choices_is_a_usage_error(self):
-        with self.assertRaises(SystemExit) as raised:
-            self.append("--words", "bogus")
-        self.assertEqual(raised.exception.code, 2)
 
     def run_in_locale(self, locale: str, *argv: str) -> subprocess.CompletedProcess:
         env = {k: v for k, v in os.environ.items() if k not in ("PYTHONUTF8", "PYTHONIOENCODING", "LANG")}

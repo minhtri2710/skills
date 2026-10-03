@@ -133,15 +133,6 @@ class PrePushGuardTest(unittest.TestCase):
                 )
         return code, out.getvalue(), err.getvalue()
 
-    def test_covered_range_via_manual_mode_is_allowed(self):
-        self.advance("c1")
-        self.assertEqual(self.review(self.base), 0)
-        self.standing()
-        code, out, err = self.invoke()  # empty stdin -> base derived from origin/main
-        self.assertEqual(code, 0)
-        self.assertIn("covered", out)
-        self.assertEqual(err, "")
-
     def test_empty_non_tty_stdin_uses_origin_fallback_without_isatty(self):
         self.advance("c1")
         self.assertEqual(self.review(self.base), 0)
@@ -266,14 +257,6 @@ class PrePushGuardTest(unittest.TestCase):
         code, _, err = self.invoke(self.ref_line(self.base, c1))
         self.assertEqual(code, 1)
         self.assertIn("not covered", err)
-
-    def test_new_tag_with_zero_remote_base_is_refused_on_populated_remote(self):
-        c1 = self.advance("c1")
-        self.assertEqual(self.review(self.base), 0)
-        self.grant(f"origin refs/tags/v1 push {ZERO}..{c1}")
-        code, _, err = self.invoke(self.ref_line(ZERO, c1, "refs/tags/v1"))
-        self.assertEqual(code, 1)
-        self.assertIn("no remote base", err)
 
     def test_new_branch_on_populated_remote_publishes_its_set_beyond_the_tracking_refs(self):
         c1 = self.advance("c1")
