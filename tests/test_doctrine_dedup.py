@@ -22,7 +22,7 @@ SKILL = Path(__file__).resolve().parents[1] / "skills" / "herdr-delivery-workflo
 # file's exact size when this budget was set; any size change updates the same diff.
 BUDGET = {
     "SKILL.md": 10_698,
-    "references/lead.md": 105_856,
+    "references/lead.md": 105_945,
     "references/relaunch.md": 4_116,
     "references/herdr-cli.md": 23_135,
     "references/project-config.md": 7_576,
