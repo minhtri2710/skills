@@ -4,7 +4,7 @@ PREDICTION: <falsifiable forward claim naming a plugin-eval case or named anti-p
 PREDICTION OUTCOME: <confirmed | falsified | pending-next-run>
 HEAD: <exact reviewed SHA or none>
 INTEGRATED: <exact integrated SHA or none>
-REVIEW: <PASS/FAIL/BLOCKED, exact head, Reviewer agent kind>
+REVIEW: <PASS/FAIL/BLOCKED, exact head, reviewing seat kind>
 CHECKS: <light command=exit code list on the reviewed head>
 HEAVY CHECKS: <CI run ID and state (OWED, GREEN, RED), or the Lead's local heavy run as command=exit code, or not yet run with the reason>
 INTEGRATED CHECKS: <light command=exit code list on the integrated head, or none>

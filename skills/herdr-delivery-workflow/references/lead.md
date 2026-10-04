@@ -108,7 +108,7 @@ A Delivery run MAY use the light-coordination path — a trim of coordination bo
 
 On this path, and ONLY the coordination overhead is trimmed:
 
-- The intake record, the quiet-head evidence, and the final handoff are kept as ONE combined record in the shape of `templates/light-coordination-record.txt`, instead of separate per-step artifacts; every acceptance fact still appears in it — lane, mode, owner, the exact SHA, each acceptance command and its real exit code, the Reviewer verdict, one line per ledger row, and the handoff prediction. No evidence is lost, only fewer files.
+- The intake record, the quiet-head evidence, and the final handoff are kept as ONE combined record in the shape of `templates/light-coordination-record.txt`, instead of separate per-step artifacts; every acceptance fact still appears in it — lane, mode, owner, the exact SHA, each acceptance command and its real exit code, the review verdict, one line per ledger row, and the handoff prediction. No evidence is lost, only fewer files.
 - The attention-event set collapses to the mandatory floor — any Human gate opening — so no separate per-step relay is sent.
 - Checkpoint (a) design-approval MAY be skipped ONLY when condition 3 is met by a Human-specified diff, because there is no design to approve; when correctness rests on the trivially-verifiable branch WITHOUT a Human-specified diff, the design is the Lead's and checkpoint (a) stands.
 

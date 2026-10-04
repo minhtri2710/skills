@@ -13,5 +13,5 @@ HEAD <full SHA> | <candidate | repair-<n> | reviewed | integrated>
   Kind: <agent kind behind each scope at this head>
   Baseline results: <command: real exit code, one line per command>
   Integrated results: <command: real exit code, one line per command; or n/a>
-  Verdict: <PASS | FAIL | BLOCKED> by <reviewer seat, kind> on this exact SHA
+  Verdict: <PASS | FAIL | BLOCKED> by <reviewing seat, kind> on this exact SHA
   Failures: <causal classification of every failure at this head, or none>
