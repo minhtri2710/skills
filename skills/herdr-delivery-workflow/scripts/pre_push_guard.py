@@ -9,7 +9,8 @@ with one numbered item per ready branch and an `items:` hash of those items.
 `--digest ... --grant <all|N[,N...]> --items <hash> --quote "<Human words>"` is the
 Supervisor's recording tool for a Human's answer: it recomputes the digest, refuses unless
 the items hash still matches, and writes one open push-grant row per selected item through
-gate_row in-process. It authorizes nothing by itself.
+gate_row in-process. It runs only in the pane ~/.herdr/supervisor-pane records, since each row
+says writer=supervisor. It authorizes nothing by itself.
 """
 from __future__ import annotations
 
@@ -17,6 +18,7 @@ import argparse
 import contextlib
 import hashlib
 import io
+import os
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -24,6 +26,7 @@ from pathlib import Path
 from typing import NamedTuple
 
 import gate_row
+import mailbox
 
 
 class GuardError(Exception):
@@ -344,9 +347,24 @@ def digest(pairs: list[list[str]], remote: str) -> int:
     return 1 if errors else 0
 
 
+def require_supervisor_pane() -> None:
+    """A grant row says writer=supervisor, so only the pane the Supervisor recorded may write one."""
+    record = mailbox.SUPERVISOR_PANE_RECORD
+    try:
+        recorded = record.read_text(encoding="utf-8").strip()
+    except OSError:
+        recorded = ""
+    here = os.environ.get("HERDR_PANE_ID", "")
+    if not recorded or here != recorded:
+        raise GuardError(f"--grant runs only in the Supervisor's pane: {record} records "
+                         f"{recorded or 'no pane'}, this pane is {here or 'unset'}; a Lead records "
+                         "grant words typed in its own pane with gate_row.py")
+
+
 def grant(pairs: list[list[str]], remote: str, selection: str, expected: str,
           quote: str, channel: str) -> int:
     """Write one open push-grant row per selected item; nothing unless every input holds."""
+    require_supervisor_pane()
     _, ready, _ = collect(pairs, remote)
     if not quote.strip() or "\n" in quote:
         raise GuardError("--quote must be the Human's verbatim words on one non-empty line")

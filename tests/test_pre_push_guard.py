@@ -786,6 +786,12 @@ class PushDigestTest(unittest.TestCase):
         self._tmp = tempfile.TemporaryDirectory(dir=os.path.realpath("/tmp"))
         self.tmp = Path(self._tmp.name)
         self.addCleanup(self._tmp.cleanup)
+        self.pane_record = self.tmp / "supervisor-pane"
+        self.pane_record.write_text("w1:p1\n", encoding="utf-8")
+        for patcher in (patch.object(pre_push_guard.mailbox, "SUPERVISOR_PANE_RECORD", self.pane_record),
+                        patch.dict(os.environ, {"HERDR_PANE_ID": "w1:p1"})):
+            patcher.start()
+            self.addCleanup(patcher.stop)
 
     def project(self, name: str, pushed: bool = True) -> tuple[Path, Path, str]:
         """A repo with a bare origin (pushed to unless pushed=False), with an empty ledger at <name>/gates.md."""
@@ -1054,6 +1060,21 @@ class PushDigestTest(unittest.TestCase):
         self.assertEqual(out, "")
         self.assertIn(needle, err)
         self.assertEqual([ledger.read_bytes() for ledger, _ in pairs], before)
+
+    def test_grant_refuses_outside_the_recorded_supervisor_pane(self):
+        ledger, repo, base = self.project("alpha")
+        self.advance(repo, "a1")
+        self.review(ledger, repo, base)
+        self.push_gate(ledger, repo)
+        for case in ("another pane", "pane unset", "no record"):
+            with self.subTest(case=case), patch.dict(os.environ):
+                if case == "another pane":
+                    os.environ["HERDR_PANE_ID"] = "w1:p2"
+                elif case == "pane unset":
+                    del os.environ["HERDR_PANE_ID"]
+                else:
+                    self.pane_record.unlink()
+                self.assert_refused_without_write([(ledger, repo)], "--grant runs only in the Supervisor's pane")
 
     def test_grant_refuses_a_stale_items_hash_after_a_new_commit(self):
         ledger, repo, base = self.project("alpha")
