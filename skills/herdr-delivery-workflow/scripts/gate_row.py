@@ -494,7 +494,8 @@ def require_push_authority(
             if special:
                 reasons.append(f"{gid} standing delegation never covers a {special}")
                 continue
-            if not push_scope_covers(scope, remote, ref.removeprefix("refs/heads/")):
+            branch = ref.removeprefix("refs/heads/")
+            if branch == ref or not push_scope_covers(scope, remote, branch):
                 reasons.append(f"{gid} standing delegation scope is push-scope={scope}")
                 continue
             if closed:

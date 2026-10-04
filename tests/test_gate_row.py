@@ -2156,7 +2156,7 @@ class GateRowTest(unittest.TestCase):
         return gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))
 
     def test_push_authority_matches_any_push_scope_entry(self):
-        rows = self.push_scope_rows("upstream:x,origin:release,origin:apex/*")
+        rows = self.push_scope_rows("upstream:x,origin:release,origin:apex/*,origin:refs/*")
         prev, head, now = self.rev("HEAD~1"), self.rev("HEAD"), datetime.now(timezone.utc)
         for ref, base in (("refs/heads/release", prev), ("refs/heads/apex/t1", prev),
                           ("refs/heads/apex/t1", gate_row.ZERO)):
@@ -2168,6 +2168,7 @@ class GateRowTest(unittest.TestCase):
             ("origin", "refs/heads/apex", prev, head, "G1 standing delegation scope is push-scope="),
             ("origin", "refs/heads/apexx/t1", prev, head, "G1 standing delegation scope is push-scope="),
             ("upstream", "refs/heads/apex/t1", prev, head, "G1 standing delegation scope is push-scope="),
+            ("origin", "refs/notes/x", prev, head, "G1 standing delegation scope is push-scope="),
             ("origin", "refs/heads/apex/t1", head, prev, "G1 standing delegation never covers a force push"),
         ):
             with self.subTest(remote=remote, ref=ref, base=base):
