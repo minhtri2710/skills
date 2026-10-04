@@ -177,9 +177,10 @@ class CharterLintTest(unittest.TestCase):
                 )
 
     def test_reviewer_without_time_limit_clause_is_named(self):
-        # A mention outside a "Time limit:" clause does not carry the clause.
+        # A mention outside a line-leading "Time limit:" clause does not carry the clause.
         charter = self.reviewer_charter().replace(
-            self.time_limit_sentence(), "Acceptance: a stalled review ends as `BLOCKED (time limit)`.\n"
+            self.time_limit_sentence(),
+            "Acceptance: past the time limit: a stalled review ends as `BLOCKED (time limit)`.\n",
         )
         code, _, error = self.run_lint(charter, self.staffing_record())
         self.assertEqual(code, 1)
