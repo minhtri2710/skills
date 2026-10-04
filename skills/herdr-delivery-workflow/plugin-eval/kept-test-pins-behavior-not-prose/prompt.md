@@ -12,8 +12,8 @@ You are the Lead of a delivery in a project whose config has `ci` trigger `push`
         assert lint_brief(brief) == ["missing retry limit"]
 
     def test_brief_retry_clause():
-        assert ("Retry a failed upload at most 2 times, then stop and report "
-                "BLOCKED to the Lead.") in render_brief(Config(max_retries=2))
+        assert ("Retry a failed upload at most 2 times, then show the "
+                "upload error.") in render_brief(Config(max_retries=2))
 
 The retry sentence is a by-value clause: `render_brief` copies it into every brief. No code or reader matches that sentence's exact wording; `lint_brief` looks only for "at most <n> times". The report's Evidence has, on the quiet head `5e8a1c40b2d97f36e0a4c1d8b7f2e9a60c3b5d17` with a clean tree, `python -m pytest tests/test_brief.py -q` exit 0, `18 passed in 0.9s`, ran 18, skipped 0, and a red-proof row for each added test on the pre-change code. Outside owned paths is `none`. No Reviewer is staffed yet and you have not written the Reviewer charter.
 
