@@ -317,6 +317,20 @@ class GateRowTest(unittest.TestCase):
         ]), 1)
         self.assertIn("G1", self.err.getvalue())
 
+        for shape, entry in (
+            ("answer header", f"## lead-beo-skills -> supervisor | 2026-09-13T00:00:00Z | human gate G1 | HEAD {head}"),
+            ("minute timestamp", f"## lead-beo-skills -> supervisor | 2026-09-13T00:00Z | ATTENTION project human gate G1 | HEAD {head}"),
+            ("another seat", f"## lead-beo-skills -> lead-other | 2026-09-13T00:00:00Z | ATTENTION project human gate G1 | HEAD {head}"),
+            ("body line", f"ATTENTION project human gate G1 | HEAD {head}"),
+        ):
+            with self.subTest(shape):
+                mailbox.write_text(entry + "\n", encoding="utf-8")
+                self.assertEqual(self.run_main([
+                    "--ledger", str(self.ledger), "--repo", str(self.repo), "--check",
+                    "--mailbox", str(mailbox),
+                ]), 1)
+                self.assertIn("no matching ATTENTION entry", self.err.getvalue())
+
     def test_backdated_last_row_fails_check_with_timestamp_regression(self):
         self.assertEqual(self.append(), 0)
         existing_rows = gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))
@@ -944,6 +958,13 @@ class GateRowTest(unittest.TestCase):
             with self.subTest(note=note):
                 self.assertEqual(self.append("--note", note), 1)
                 self.assertIn("note= refuses", self.err.getvalue())
+        self.assertEqual(self.append("--note", "a b"), 0, self.err.getvalue())
+        text = self.ledger.read_text(encoding="utf-8")
+        self.ledger.write_text(text.replace(" | note=a b | ", ' | note=a " b | '), encoding="utf-8")
+        self.assertEqual(self.run_main([
+            "--ledger", str(self.ledger), "--repo", str(self.repo), "--check",
+        ]), 1)
+        self.assertIn("note= refuses", self.err.getvalue())
 
     def test_a_pipe_in_quote_is_kept_verbatim(self):
         """G33: the Human typed a literal | inside their own words (G52)."""

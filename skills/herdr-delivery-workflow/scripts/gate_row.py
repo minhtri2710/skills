@@ -94,7 +94,20 @@ class RowError(Exception):
 def validate_row_encodings(
     *, kind: str, status: str, channel: str, words: str, quote: str, note: str,
 ) -> None:
-    """Enforce the author encoding carried by channel and denial rows."""
+    """Enforce the note, words, quote, channel and denial encodings on both append and check."""
+    if not note.strip():
+        raise RowError("note= is required and is the row's one-line finding")
+    if len(note) > NOTE_MAX:
+        raise RowError(
+            f"note= is {len(note)} chars, over the {NOTE_MAX} cap — "
+            "narrative belongs in the workspace record, not the ledger"
+        )
+    if "|" in note or '"' in note:
+        raise RowError('note= refuses | and " — they are the row\'s delimiters')
+    if (words == "none") != (quote == ""):
+        raise RowError("words=none iff quote= is empty")
+    if not quote and status != "open":
+        raise RowError("quote= is required unless status=open")
     if channel.endswith(":dialog") and words != "selected":
         raise RowError(
             f"channel={channel} requires words=selected, not words={words}"
@@ -780,15 +793,6 @@ def resolve_row_head(args: argparse.Namespace, repo: Path, record: str) -> tuple
 def build(args: argparse.Namespace, repo: Path,
           existing_rows: list[str]) -> str:
     note = args.note.strip()
-    if not note:
-        raise RowError("note= is required and is the row's one-line finding")
-    if len(note) > NOTE_MAX:
-        raise RowError(
-            f"note= is {len(note)} chars, over the {NOTE_MAX} cap — "
-            "narrative belongs in the workspace record, not the ledger"
-        )
-    if "|" in note or '"' in note:
-        raise RowError('note= refuses | and " — they are the row\'s delimiters')
     if args.quote and args.quote_file:
         raise RowError("--quote and --quote-file are mutually exclusive")
     if args.quote_file:
@@ -803,10 +807,6 @@ def build(args: argparse.Namespace, repo: Path,
             quote = quote[:-1]
     else:
         quote = args.quote
-    if (args.words == "none") != (quote == ""):
-        raise RowError("words=none iff quote= is empty")
-    if not quote and args.status != "open":
-        raise RowError("quote= is required unless status=open")
     validate_row_encodings(
         kind=args.kind, status=args.status, channel=args.channel or "",
         words=args.words, quote=quote, note=note,
@@ -1136,17 +1136,7 @@ def check(row: str, repo: Path, prior_rows: list[str] | None = None) -> None:
     index += 1
     if index != len(rest):
         raise RowError(f"field {rest[index].split('=')[0]!r} is out of order or duplicated")
-    if not note.strip():
-        raise RowError("note= is missing or empty")
-    if len(note) > NOTE_MAX:
-        raise RowError(f"note= is {len(note)} chars, over the {NOTE_MAX} cap")
-    if '"' in note:
-        raise RowError('note= refuses " — it is a row delimiter')
-    if (words == "none") != (quote == ""):
-        raise RowError("words=none iff quote= is empty")
     status_value = status.split("=", 1)[1]
-    if not quote and status_value != "open":
-        raise RowError("quote= is required unless status=open")
     validate_row_encodings(
         kind=row_kind, status=status_value, channel=channel,
         words=words, quote=quote, note=note,
