@@ -23,14 +23,14 @@ SKILL = Path(__file__).resolve().parents[1] / "skills" / "herdr-delivery-workflo
 # diff that shrinks a file lowers that file's ceiling to its new size. Raising a
 # ceiling needs the Human's own words, cited by ledger row id in the commit message.
 BUDGET = {
-    "SKILL.md": 10_698,
-    "references/lead.md": 103_048,
+    "SKILL.md": 10_674,
+    "references/lead.md": 102_935,
     "references/relaunch.md": 4_116,
     "references/herdr-cli.md": 23_135,
     "references/project-config.md": 7_576,
     "references/structural-misfit-policy.md": 9_485,
     "references/charters.md": 41_131,
-    "references/closeout.md": 12_771,
+    "references/closeout.md": 12_764,
     "references/supervisor.md": 26_285,
 }
 
