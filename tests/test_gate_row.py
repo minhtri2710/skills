@@ -938,9 +938,12 @@ class GateRowTest(unittest.TestCase):
         with self.assertRaisesRegex(gate_row.RowError, "next local id G2"):
             gate_row.check(row, self.repo, prior)
 
-    def test_a_pipe_in_note_is_refused(self):
-        """note= is the seat's own words, so it fails closed on the delimiter."""
-        self.assertEqual(self.append("--note", "a | b"), 1)
+    def test_a_delimiter_in_note_is_refused(self):
+        """note= is the seat's own words, so it fails closed on either delimiter."""
+        for note in ("a | b", 'a " b'):
+            with self.subTest(note=note):
+                self.assertEqual(self.append("--note", note), 1)
+                self.assertIn("note= refuses", self.err.getvalue())
 
     def test_a_pipe_in_quote_is_kept_verbatim(self):
         """G33: the Human typed a literal | inside their own words (G52)."""
