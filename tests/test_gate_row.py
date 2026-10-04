@@ -864,6 +864,13 @@ class GateRowTest(unittest.TestCase):
         ), 0, self.err.getvalue())
         self.assertIn("record=reconstruction", self.last_row())
         self.assertEqual(self.check_last(), 0, self.err.getvalue())
+        for row in (("--kind", "deploy-gate", "--status", "open", "--words", "none", "--quote", ""),
+                    ("--kind", "handoff", "--status", "recorded:handoff", "--words", "seat",
+                     "--quote", "STATUS: accepted")):
+            self.assertEqual(self.append(*row, "--head", f"main@{past}"), 0, self.err.getvalue())
+            self.assertIn(f"main@{past}", self.last_row().split(" | ")[3])
+            self.assertIn("record=timely", self.last_row())
+            self.assertEqual(self.check_last(), 0, self.err.getvalue())
 
         self.add_remote(past)
         push = ("--kind", "push", "--push-base", self.rev("HEAD~3"), "--boundary", ".")
