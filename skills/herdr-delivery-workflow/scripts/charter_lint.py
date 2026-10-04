@@ -46,6 +46,7 @@ KILL_GUARD_RE = re.compile(r"never\s+kill\s+a\s+process\s+by\s+pattern", re.IGNO
 REVIEW_ORDER_RE = re.compile(
     r"only\s+then\s+read\s+the\s+implementation\s+reports", re.IGNORECASE
 )
+TIME_LIMIT_RE = re.compile(r"BLOCKED\s+\(time\s+limit\)", re.IGNORECASE)
 
 
 def _read(path: Path, label: str) -> tuple[str, bytes]:
@@ -80,6 +81,8 @@ def _charter_problems(text: str, lead: str) -> list[str]:
         problems.append(
             "missing review order: only then read the implementation reports"
         )
+    if disposition == "reviewer" and TIME_LIMIT_RE.search(text) is None:
+        problems.append("missing time limit: BLOCKED (time limit)")
     if KILL_GUARD_RE.search(text) is None:
         problems.append("missing pattern-kill guard: Never kill a process by pattern")
 
