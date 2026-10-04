@@ -24,7 +24,7 @@ SKILL = Path(__file__).resolve().parents[1] / "skills" / "herdr-delivery-workflo
 # ceiling needs the Human's own words, cited by ledger row id in the commit message.
 BUDGET = {
     "SKILL.md": 10_674,
-    "references/lead.md": 102_849,
+    "references/lead.md": 102_810,
     "references/relaunch.md": 4_113,
     "references/herdr-cli.md": 23_135,
     "references/project-config.md": 7_576,
