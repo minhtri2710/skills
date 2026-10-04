@@ -485,18 +485,21 @@ class GateRowTest(unittest.TestCase):
     def test_push_scope_delegation_round_trips_with_a_machine_expiry(self):
         for expiry in ("until-revoked", "2030-01-01T00:00:00Z"):
             self.assertEqual(self.append_standing_delegation(
-                "--expiry", expiry, "--push-scope", "origin:main,upstream:release/1"), 0, self.err.getvalue())
+                "--expiry", expiry, "--push-scope", "origin:main,upstream:release/1,origin:apex/*"), 0,
+                self.err.getvalue())
             row = self.last_row()
-            self.assertIn(f"expiry={expiry} | push-scope=origin:main,upstream:release/1 | ", row)
+            self.assertIn(f"expiry={expiry} | push-scope=origin:main,upstream:release/1,origin:apex/* | ", row)
             self.assertEqual(self.check_last(), 0, self.err.getvalue())
 
     def test_push_scope_refuses_a_free_text_expiry_and_a_malformed_scope(self):
         before = self.ledger.read_bytes()
         self.assertEqual(self.append_standing_delegation("--push-scope", "origin:main"), 1)
         self.assertIn("not an ISO-8601 UTC timestamp or until-revoked", self.err.getvalue())
-        self.assertEqual(self.append_standing_delegation(
-            "--expiry", "until-revoked", "--push-scope", "main"), 1)
-        self.assertIn("is not <remote>:<branch>", self.err.getvalue())
+        for scope in ("main", "origin:*", "origin:/*", "origin:apex*", "origin:apex/*/x", "origin:apex/**"):
+            with self.subTest(scope):
+                self.assertEqual(self.append_standing_delegation(
+                    "--expiry", "until-revoked", "--push-scope", scope), 1)
+                self.assertIn("is not <remote>:<branch>", self.err.getvalue())
         self.assertEqual(self.ledger.read_bytes(), before)
         self.assertEqual(self.append("--push-scope", "origin:main"), 1)
         self.assertIn("--push-scope is only meaningful", self.err.getvalue())
@@ -2147,16 +2150,29 @@ class GateRowTest(unittest.TestCase):
                 self.assertEqual(self.run_main(["--ledger", str(self.ledger), "--open-gates"]), 1)
                 self.assertEqual(self.ledger.read_bytes(), before)
 
-    def push_scope_rows(self) -> list[str]:
+    def push_scope_rows(self, scope: str = "upstream:x,origin:main") -> list[str]:
         self.assertEqual(self.append_standing_delegation(
-            "--expiry", "until-revoked", "--push-scope", "upstream:x,origin:main"), 0, self.err.getvalue())
+            "--expiry", "until-revoked", "--push-scope", scope), 0, self.err.getvalue())
         return gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))
 
     def test_push_authority_matches_any_push_scope_entry(self):
-        rows = self.push_scope_rows()
-        self.assertEqual(gate_row.require_push_authority(
-            rows, self.repo, "origin", "refs/heads/main", self.rev("HEAD~1"), self.rev("HEAD"),
-            datetime.now(timezone.utc)), "G1")
+        rows = self.push_scope_rows("upstream:x,origin:release,origin:apex/*")
+        prev, head, now = self.rev("HEAD~1"), self.rev("HEAD"), datetime.now(timezone.utc)
+        for ref, base in (("refs/heads/release", prev), ("refs/heads/apex/t1", prev),
+                          ("refs/heads/apex/t1", gate_row.ZERO)):
+            with self.subTest(ref=ref, base=base):
+                self.assertEqual(gate_row.require_push_authority(
+                    rows, self.repo, "origin", ref, base, head, now), "G1")
+        for remote, ref, base, tip, refusal in (
+            ("origin", "refs/heads/main", prev, head, "G1 standing delegation scope is push-scope="),
+            ("origin", "refs/heads/apex", prev, head, "G1 standing delegation scope is push-scope="),
+            ("origin", "refs/heads/apexx/t1", prev, head, "G1 standing delegation scope is push-scope="),
+            ("upstream", "refs/heads/apex/t1", prev, head, "G1 standing delegation scope is push-scope="),
+            ("origin", "refs/heads/apex/t1", head, prev, "G1 standing delegation never covers a force push"),
+        ):
+            with self.subTest(remote=remote, ref=ref, base=base):
+                with self.assertRaisesRegex(gate_row.RowError, re.escape(refusal)):
+                    gate_row.require_push_authority(rows, self.repo, remote, ref, base, tip, now)
 
     def test_push_authority_names_a_push_scope_row_without_expiry(self):
         rows = [self.push_scope_rows()[0].replace(" | expiry=until-revoked", "")]

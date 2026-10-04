@@ -5,7 +5,8 @@ scripts/gate_row.py --ledger ~/.herdr/projects/<project-slug>/gates.md --kind lo
 
 standing-delegation:
 scripts/gate_row.py --ledger ~/.herdr/projects/<project-slug>/gates.md --kind standing-delegation --status recorded:standing-delegation --record timely --who <delegate-seat> --scope "<delegated scope>" --conditions "<conditions>" --expiry "<the Human's verbatim expiry text>" --words human --note "<note>" --quote "<the Human's verbatim grant>"
-# A delegation covering pushes adds --push-scope <remote>:<branch>[,...], and its --expiry is
+# A delegation covering pushes adds --push-scope <remote>:<branch>[,...], where a <branch> ending in /*
+# covers every branch under that prefix (fast-forward or new branch only), and its --expiry is
 # an ISO-8601 UTC timestamp or until-revoked; without --push-scope it authorizes no push.
 
 correction (void one earlier review-pass or push-grant row):

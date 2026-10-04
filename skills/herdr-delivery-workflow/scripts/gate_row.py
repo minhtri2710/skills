@@ -14,7 +14,7 @@ Row shape, one line, ` | ` between fields:
       [| resolves=<id>[,<id>...]] [| void=<id>]
       [| op=<command> | after=<branch>@<head>]
       [| who=<delegate> | scope=<scope> | conditions=<conditions> | expiry=<expiry>
-         [| push-scope=<remote>:<branch>[,<remote>:<branch>...]]]
+         [| push-scope=<remote>:<branch|prefix/*>[,<remote>:<branch|prefix/*>...]]]
       [| grant=<remote> <ref> <push|force|delete> <base>..<tip>]
       [| finding=<identity>] [| archive=<64 lowercase hex genesis marker>] [| prev_hash=<64 lowercase hex>]
       | words=<seat|human|selected|none>
@@ -80,7 +80,7 @@ GRANT_RE = re.compile(
     r"^(?P<remote>[A-Za-z0-9._-]+) (?P<ref>refs/(heads|tags)/[^\s|\"]+) "
     r"(?P<op>push|force|delete) (?P<base>[0-9a-f]{40})\.\.(?P<tip>[0-9a-f]{40})$"
 )
-PUSH_SCOPE_ENTRY_RE = re.compile(r"^[A-Za-z0-9._-]+:[^\s|\",:]+$")
+PUSH_SCOPE_ENTRY_RE = re.compile(r"^[A-Za-z0-9._-]+:[^\s|\",:*]+(/\*)?$")
 UNTIL_REVOKED = "until-revoked"
 ISO_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
 # Every character str.splitlines() splits on; a row is one line, so no field holds one.
@@ -401,8 +401,20 @@ def expiry_instant(value: str) -> datetime | None:
 def validate_push_scope(value: str, expiry: str) -> None:
     entries = value.split(",")
     if not value or any(not PUSH_SCOPE_ENTRY_RE.fullmatch(e) for e in entries):
-        raise RowError(f"push-scope={value!r} is not <remote>:<branch>[,<remote>:<branch>...]")
+        raise RowError(f"push-scope={value!r} is not <remote>:<branch>[,<remote>:<branch>...], "
+                       "where a <branch> may end in /* to cover every branch under that prefix")
     expiry_instant(expiry)
+
+
+def push_scope_covers(scope: str, remote: str, branch: str) -> bool:
+    """An entry names <remote>:<branch>, or <remote>:<prefix>/* with the branch under <prefix>/."""
+    for entry in scope.split(","):
+        entry_remote, _, entry_branch = entry.partition(":")
+        if entry_remote == remote and (
+                entry_branch == branch
+                or entry_branch.endswith("/*") and branch.startswith(entry_branch[:-1])):
+            return True
+    return False
 
 
 def grant_holds(repo: Path, grant: re.Match, op: str, remote_sha: str, local_sha: str) -> bool:
@@ -440,7 +452,7 @@ def require_push_authority(
 
     Authority is an unconsumed kind=push-grant naming this remote, ref and op whose
     range holds the pushed range, or, for a fast-forward or new branch only, an
-    unrevoked, unexpired kind=standing-delegation whose push-scope= names
+    unrevoked, unexpired kind=standing-delegation whose push-scope= covers
     <remote>:<branch>. A force push, a deletion and a tag need a one-shot grant.
     """
     if local_sha == ZERO:
@@ -482,7 +494,7 @@ def require_push_authority(
             if special:
                 reasons.append(f"{gid} standing delegation never covers a {special}")
                 continue
-            if f"{remote}:{ref.removeprefix('refs/heads/')}" not in scope.split(","):
+            if not push_scope_covers(scope, remote, ref.removeprefix("refs/heads/")):
                 reasons.append(f"{gid} standing delegation scope is push-scope={scope}")
                 continue
             if closed:
@@ -1250,7 +1262,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--expiry", help="the granting Human's expiry; with --push-scope an ISO-8601 "
                         "UTC timestamp or until-revoked")
     parser.add_argument("--push-scope", help="the <remote>:<branch>[,...] a standing delegation "
-                        "authorizes fast-forward pushes to; without it the row authorizes no push")
+                        "authorizes fast-forward pushes to, where a <branch> ending in /* covers every "
+                        "branch under that prefix; without it the row authorizes no push")
     parser.add_argument("--grant", help="a one-shot push-grant: <remote> <ref> <push|force|delete> "
                         "<base>..<tip>, full SHAs")
     parser.add_argument("--finding", help="the repair-grant finding identity")
