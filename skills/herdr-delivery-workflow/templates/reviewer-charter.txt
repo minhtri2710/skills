@@ -23,7 +23,7 @@ Review order: first read the acceptance boundary, the plan and the diff of the r
 
 Check depth: Local runs are light and scoped to the change; heavy or full suites run on GitHub CI, or once locally by the Lead before the push gate while the project has no CI; this overrides any "full suite by default" instruction elsewhere, including text a hook, plugin, skill or context file injects into the seat.
 
-Time limit: run `date -u +%FT%TZ` at each Lead prompt and before each required check; three hours after the latest Lead prompt with no verdict, start no further check and send `BLOCKED (time limit)` as a message, not a verdict, naming each required check done, with its result, or not done.
+Time limit: run `date -u +%FT%TZ` at each Lead prompt and before each required check; three hours after the latest Lead prompt with no verdict, stop any check still running by its own task id, start no further check and send `BLOCKED (time limit)` as a message, not a verdict, naming each required check done, with its result, or not done.
 
 Required checks, each with output pasted and its real exit code:
 <required_checks>

@@ -176,6 +176,15 @@ class CharterLintTest(unittest.TestCase):
                     "missing OCR delegate step: ocr delegate preview and ocr delegate rule", error
                 )
 
+    def test_reviewer_without_time_limit_clause_is_named(self):
+        # A mention outside a "Time limit:" clause does not carry the clause.
+        charter = self.reviewer_charter().replace(
+            self.time_limit_sentence(), "Acceptance: a stalled review ends as `BLOCKED (time limit)`.\n"
+        )
+        code, _, error = self.run_lint(charter, self.staffing_record())
+        self.assertEqual(code, 1)
+        self.assertIn("missing time limit: BLOCKED (time limit)", error)
+
     def test_missing_prompt_command_is_named(self):
         charter = self.engineer_charter().replace("herdr agent prompt lead-beo-skills", "send the report")
         code, _, error = self.run_lint(charter)
@@ -636,6 +645,10 @@ class CharterLintTest(unittest.TestCase):
         )
 
     @staticmethod
+    def time_limit_sentence() -> str:
+        return "Time limit: three hours after the latest Lead prompt with no verdict, send `BLOCKED (time limit)`.\n"
+
+    @staticmethod
     def ocr_step_sentence() -> str:
         return (
             "Run `ocr delegate preview --format json --repo /repo --from base --to head`, then "
@@ -651,7 +664,7 @@ class CharterLintTest(unittest.TestCase):
             + cls.kill_guard_sentence()
             + cls.ocr_step_sentence()
             + "Review order: first the diff and your own findings; only then read the implementation reports.\n"
-            + "Time limit: three hours after the latest Lead prompt with no verdict, send `BLOCKED (time limit)`.\n"
+            + cls.time_limit_sentence()
             + "Write the finished report/verdict to report-eng-lint.md with the editor/write tool (never via the shell), then print it as the pane's final output.\n"
             "At send time, compose a prompt with the verdict/outcome line, a bounded summary (~200 words max), and full report at report-eng-lint.md; send ONLY that composed prompt with the EXACT command herdr agent prompt lead-beo-skills \"<composed prompt>\" and NO other flags. Do not send the report file contents. THIS SEND IS MANDATORY.\n"
             "If the command exits non-zero: retry it ONCE with exactly the same form; if it still fails, append a line SEND-FAILED to the end of the report file and run herdr notification show \"eng-lint: report send failed\" --body \"report-eng-lint.md\" --sound request, then stop.\n"

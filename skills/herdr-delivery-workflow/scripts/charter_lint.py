@@ -46,7 +46,7 @@ KILL_GUARD_RE = re.compile(r"never\s+kill\s+a\s+process\s+by\s+pattern", re.IGNO
 REVIEW_ORDER_RE = re.compile(
     r"only\s+then\s+read\s+the\s+implementation\s+reports", re.IGNORECASE
 )
-TIME_LIMIT_RE = re.compile(r"BLOCKED\s+\(time\s+limit\)", re.IGNORECASE)
+TIME_LIMIT_RE = re.compile(r"time\s+limit:[^\n]*BLOCKED\s+\(time\s+limit\)", re.IGNORECASE)
 
 
 def _read(path: Path, label: str) -> tuple[str, bytes]:
