@@ -47,6 +47,11 @@ class GateRowTest(unittest.TestCase):
         self.addCleanup(self._tmp.cleanup)
 
     def run_main(self, argv: list[str]) -> int:
+        """Run the CLI with its stdout and stderr captured, so a test run stays readable.
+
+        stderr is kept on `self.err`: a refusal that exits 1 for the wrong reason
+        is still a passing exit code, so the message is part of the assertion.
+        """
         self.err = io.StringIO()
         self.out = io.StringIO()
         with contextlib.redirect_stdout(self.out), contextlib.redirect_stderr(self.err):
