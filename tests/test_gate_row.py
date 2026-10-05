@@ -1173,6 +1173,9 @@ class GateRowTest(unittest.TestCase):
         self.git("branch", "-D", "topic")
         gate_row.check(row, self.repo)
         gate_row.check(row.replace("topic@", "nonexistent-branch@"), self.repo)
+        push_row, _ = self.valid_push_row()
+        prior_rows = gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))[:-1]
+        gate_row.check(push_row.replace("main@", "nonexistent-branch@"), self.repo, prior_rows)
 
     def test_a_push_row_without_push_base_never_reaches_the_ledger(self):
         self.assertEqual(self.append_review_pass(), 0)
