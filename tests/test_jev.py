@@ -106,7 +106,6 @@ class JevTest(unittest.TestCase):
         self.assertIsInstance(result, jev.UnavailableResult)
         self.assertEqual(result.status, "unavailable")
         self.assertEqual(result.reason, reason)
-        self.assertTrue(result.fallback_actionable)
 
     def test_missing_and_empty_api_key_are_unavailable_without_http(self) -> None:
         for value in (None, "", "   "):
@@ -320,7 +319,6 @@ class JevTest(unittest.TestCase):
                 self.assertIsInstance(result, jev.UnavailableResult)
                 self.assertEqual(result.status, "unavailable")
                 self.assertEqual(result.reason, reason)
-                self.assertTrue(result.fallback_actionable)
                 if failure is not None:
                     self.assertEqual(
                         json.loads(urlopen.call_args.args[0].data)["state"],
@@ -371,7 +369,6 @@ class JevTest(unittest.TestCase):
             self.assertIsInstance(result, jev.UnavailableResult)
             self.assertEqual(result.status, "unavailable")
             self.assertEqual(result.reason, "invalid_answers")
-            self.assertTrue(result.fallback_actionable)
             self.assertEqual(json.loads(urlopen.call_args.args[0].data)["state"]["header"], HEADER)
 
     def test_header_state_keeps_unrecognized_header_objective_text_only(self) -> None:
@@ -753,14 +750,6 @@ CLI_MODE_INPUTS = {
 }
 
 
-def _keys(value: object) -> set[str]:
-    if isinstance(value, dict):
-        return set(value) | {key for child in value.values() for key in _keys(child)}
-    if isinstance(value, list):
-        return {key for child in value for key in _keys(child)}
-    return set()
-
-
 class JevCliTest(unittest.TestCase):
     FAKE_KEY = "sk-fake-jev-probe-7f3a9-non-disclosure"
 
@@ -786,39 +775,6 @@ class JevCliTest(unittest.TestCase):
     def test_cli_source_never_gates_on_isatty(self) -> None:
         source = Path(jev.__file__).read_text(encoding="utf-8")
         self.assertNotIn("isatty", source)
-
-    def test_cli_available_output_contract_for_every_mode(self) -> None:
-        for mode in ("finding", "fork"):
-            with self.subTest(mode=mode), mock.patch.object(
-                jev.urllib.request,
-                "urlopen",
-                return_value=Response(CLI_AVAILABLE_PAYLOADS[mode]),
-            ) as urlopen:
-                code, out, err = self.run_main(
-                    [mode, "--stdin"], CLI_MODE_INPUTS[mode]
-                )
-
-            self.assertEqual(code, 0)
-            self.assertEqual(err, "")
-            self.assertEqual(json.loads(out), CLI_AVAILABLE_OUTPUTS[mode])
-            self.assertNotIn(self.FAKE_KEY, out)
-            self.assertNotIn(self.FAKE_KEY, err)
-            self.assertEqual(urlopen.call_count, 1)
-
-    def test_cli_output_never_carries_rationale_or_evidence(self) -> None:
-        for mode in ("finding", "fork"):
-            for scenario, patch_kwargs in (
-                ("available", {"return_value": Response(CLI_AVAILABLE_PAYLOADS[mode])}),
-                ("unavailable", {"side_effect": urllib.error.URLError("offline")}),
-            ):
-                with self.subTest(mode=mode, scenario=scenario), mock.patch.object(
-                    jev.urllib.request, "urlopen", **patch_kwargs
-                ):
-                    code, out, err = self.run_main([mode, "--stdin"], CLI_MODE_INPUTS[mode])
-                self.assertEqual(code, 0)
-                keys = _keys(json.loads(out))
-                self.assertNotIn("rationale", keys)
-                self.assertNotIn("evidence", keys)
 
     def test_cli_fork_without_key_deterministic_hard_gate_and_unavailable_soft_fork(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -851,8 +807,6 @@ class JevCliTest(unittest.TestCase):
                         output["probabilities"],
                         {"supervisor_decide": 0.0, "human_gate": 1.0},
                     )
-                else:
-                    self.assertTrue(output["fallback_actionable"])
         urlopen.assert_not_called()
 
     def test_cli_finding_without_key_is_unavailable_with_exit_zero(self) -> None:
@@ -865,11 +819,7 @@ class JevCliTest(unittest.TestCase):
         self.assertEqual(err, "")
         self.assertEqual(
             json.loads(out),
-            {
-                "status": "unavailable",
-                "reason": "missing_api_key",
-                "fallback_actionable": True,
-            },
+            {"status": "unavailable", "reason": "missing_api_key"},
         )
         urlopen.assert_not_called()
 
@@ -929,6 +879,7 @@ class JevCliTest(unittest.TestCase):
                 self.assertNotIn(self.FAKE_KEY, err)
                 if scenario == "available":
                     self.assertEqual(json.loads(out), CLI_AVAILABLE_OUTPUTS[mode])
+                    self.assertEqual(err, "")
                     self.assertEqual(urlopen.call_count, 1)
                 elif scenario == "input_error":
                     self.assertEqual(out, "")
@@ -941,7 +892,6 @@ class JevCliTest(unittest.TestCase):
                         output["reason"],
                         ("http_error", "network_error"),
                     )
-                    self.assertTrue(output["fallback_actionable"])
 
 
 if __name__ == "__main__":

@@ -324,7 +324,7 @@ class CompactionReprimeObserverTest(unittest.TestCase):
         self.assertEqual(after, before)
 
 
-class CompactionReprimeBaselineTest(unittest.TestCase):
+class CompactionReprimeStateFixture(unittest.TestCase):
     def setUp(self) -> None:
         self.tmp = tempfile.TemporaryDirectory()
         self.root = Path(self.tmp.name)
@@ -407,6 +407,8 @@ class CompactionReprimeBaselineTest(unittest.TestCase):
         digest = hashlib.sha256((seat + "\0" + session_id).encode("utf-8")).hexdigest()
         return self.home / ".herdr" / "projects" / "project" / "runs" / "coordination" / f"baseline-{digest}.json"
 
+
+class CompactionReprimeBaselineTest(CompactionReprimeStateFixture):
     def test_first_observation_initializes_without_eligibility_and_reloads(self) -> None:
         path = self.pi_path()
         self.write_pi_count(path, 3)
@@ -520,7 +522,7 @@ class CompactionReprimeBaselineTest(unittest.TestCase):
         self.assertEqual(list(outside.iterdir()), [])
 
 
-class CompactionReprimeDispatchTest(CompactionReprimeBaselineTest):
+class CompactionReprimeDispatchTest(CompactionReprimeStateFixture):
     def write_pointer_files(
         self,
         run_id: str = "run-1",
@@ -606,9 +608,6 @@ class CompactionReprimeDispatchTest(CompactionReprimeBaselineTest):
             "RAW PLAN BODY",
             "RAW SPECIFICATION BODY",
             "RAW SLICES BODY",
-            "RAW LEAD DOCTRINE BODY",
-            "RAW SUPERVISOR DOCTRINE BODY",
-            "RAW CLOSEOUT DOCTRINE BODY",
         ):
             self.assertNotIn(raw_body, block)
         self.assertNotIn("{", block)

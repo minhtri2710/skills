@@ -162,6 +162,7 @@ class SafeTargetTest(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertEqual(out, "")
         self.assertIn("refusing", err)
+        self.assertIn(str(self.outside), err)
 
     def test_cli_rejects_min_depth_below_one(self) -> None:
         with self.assertRaises(SystemExit) as ctx, redirect_stderr(io.StringIO()):

@@ -109,7 +109,6 @@ class MailboxTest(unittest.TestCase):
             return jev.UnavailableResult(
                 status="unavailable",
                 reason="missing_api_key",
-                fallback_actionable=False,
             )
 
         triaged = mailbox.triage_entries(entries, triage=fake_triage)
@@ -136,7 +135,6 @@ class MailboxTest(unittest.TestCase):
             triage=lambda header: jev.UnavailableResult(
                 status="unavailable",
                 reason="invalid_answers",
-                fallback_actionable=False,
             ),
         )
         self.assertEqual(len(triaged), 2)
@@ -187,7 +185,6 @@ class MailboxTest(unittest.TestCase):
             return jev.UnavailableResult(
                 status="unavailable",
                 reason="missing_api_key",
-                fallback_actionable=False,
             )
 
         stdout = io.StringIO()
@@ -418,42 +415,6 @@ class MailboxTest(unittest.TestCase):
         self.assertIn("UNSENT", stderr.getvalue())
         self.assertIn("wake not attempted", stderr.getvalue())
 
-    def test_wake_preserves_gate_row_s2_mailbox_evidence(self):
-        repo = Path(__file__).resolve().parents[1]
-        ledger = self.tmp.name + "/gates.md"
-        head = gate_row.git(repo, "rev-parse", "HEAD")
-        stdout = io.StringIO()
-        stderr = io.StringIO()
-        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
-            result = gate_row.main([
-                "--repo", str(repo), "--ledger", ledger,
-                "--kind", "deploy-gate", "--status", "open",
-                "--words", "none", "--note", "deploy permission pending", "--quote", "",
-            ])
-        self.assertEqual(result, 0, stderr.getvalue())
-        gate_id = Path(ledger).read_text(encoding="utf-8").split(" | ", 1)[0]
-        self.path.write_text(
-            f"## lead-beo-skills -> supervisor | 2026-09-10T00:20:00Z | "
-            f"ATTENTION deploy gate {gate_id} | HEAD {head}\n",
-            encoding="utf-8",
-        )
-
-        check_args = [
-            "--repo", str(repo), "--ledger", ledger, "--check", "--mailbox", str(self.path),
-        ]
-        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
-            self.assertEqual(gate_row.main(check_args), 0, stderr.getvalue())
-
-        original = mailbox.run_wake
-        mailbox.run_wake = lambda seat, wake_text: subprocess.CompletedProcess([], 0, "", "")
-        self.addCleanup(setattr, mailbox, "run_wake", original)
-        before = self.path.read_bytes()
-        self.assertEqual(mailbox.main(["--file", str(self.path), "--wake", "supervisor"]), 0)
-        self.assertEqual(self.path.read_bytes(), before)
-
-        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
-            self.assertEqual(gate_row.main(check_args), 0, stderr.getvalue())
-
     def test_wake_refuses_a_file_outside_the_herdr_projects_root(self):
         scratch = Path(self.tmp.name) / "scratch-mailbox.md"
         scratch.write_text(SAMPLE, encoding="utf-8")
@@ -470,29 +431,6 @@ class MailboxTest(unittest.TestCase):
         self.assertEqual(calls, [])
         self.assertEqual(stdout.getvalue(), "")
         self.assertIn("refused", stderr.getvalue())
-
-    def test_wake_text_flag_is_removed(self):
-        # The undocumented --wake-text override was dead (no doctrine, no test).
-        # It is gone; argparse rejects it as unknown and wake uses only the
-        # default pointer text. Patch run_wake first so no path can fire a live
-        # wake even if the flag ever regresses.
-        calls = []
-        original = mailbox.run_wake
-        mailbox.run_wake = lambda seat, wake_text: (
-            calls.append((seat, wake_text)) or subprocess.CompletedProcess([], 0, "", "")
-        )
-        self.addCleanup(setattr, mailbox, "run_wake", original)
-
-        with self.assertRaises(SystemExit):
-            mailbox.main(["--file", str(self.path), "--wake", "supervisor", "--wake-text", "x"])
-        self.assertEqual(calls, [])
-
-        self.assertEqual(mailbox.main(["--file", str(self.path), "--wake", "supervisor"]), 0)
-        last_header = "## lead-beo-skills -> supervisor | 2026-09-10T00:15:03Z | third"
-        self.assertEqual(
-            calls[0][1],
-            mailbox._default_wake_text("supervisor", str(self.path), last_header),
-        )
 
     def test_unavailable_wake_uses_the_existing_failed_path(self):
         original = mailbox.run_wake

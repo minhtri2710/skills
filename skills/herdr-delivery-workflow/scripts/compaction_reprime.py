@@ -316,7 +316,7 @@ def _record_matches_session(record: Mapping[str, Any], session: SessionRecord, h
     return True
 
 
-def _valid_claude_boundary(record: Mapping[str, Any], session: SessionRecord, header_id: str) -> bool:
+def _valid_claude_boundary(record: Mapping[str, Any], header_id: str) -> bool:
     metadata = record.get("compactMetadata")
     trigger = metadata.get("trigger") if isinstance(metadata, Mapping) else None
     return (
@@ -332,7 +332,7 @@ def _valid_claude_boundary(record: Mapping[str, Any], session: SessionRecord, he
     )
 
 
-def _valid_claude_summary(record: Mapping[str, Any], session: SessionRecord, header_id: str) -> bool:
+def _valid_claude_summary(record: Mapping[str, Any], header_id: str) -> bool:
     return (
         record.get("isCompactSummary") is True
         and isinstance(record.get("sessionId"), str)
@@ -344,10 +344,9 @@ def _valid_claude_summary(record: Mapping[str, Any], session: SessionRecord, hea
 
 
 def _observe_claude(records: list[Mapping[str, Any]], session: SessionRecord) -> int | None:
-    header = _session_header(records, session)
-    if header is None:
+    header_id = _session_header(records, session)
+    if header_id is None:
         return None
-    header_id = header
     pending = False
     count = 0
     seen_marker_ids: set[str] = set()
@@ -355,7 +354,7 @@ def _observe_claude(records: list[Mapping[str, Any]], session: SessionRecord) ->
         is_boundary = record.get("type") == "system" and record.get("subtype") == "compact_boundary"
         is_summary = record.get("isCompactSummary") is True
         if is_boundary:
-            if not _valid_claude_boundary(record, session, header_id) or pending:
+            if not _valid_claude_boundary(record, header_id) or pending:
                 return None
             marker_id = record["uuid"]
             if marker_id in seen_marker_ids:
@@ -363,7 +362,7 @@ def _observe_claude(records: list[Mapping[str, Any]], session: SessionRecord) ->
             seen_marker_ids.add(marker_id)
             pending = True
         elif is_summary:
-            if not _valid_claude_summary(record, session, header_id):
+            if not _valid_claude_summary(record, header_id):
                 return None
             marker_id = record["uuid"]
             if marker_id in seen_marker_ids or not pending:
@@ -393,10 +392,9 @@ def _valid_pi_compaction(record: Mapping[str, Any], session: SessionRecord, head
 
 
 def _observe_pi(records: list[Mapping[str, Any]], session: SessionRecord) -> int | None:
-    header = _session_header(records, session)
-    if header is None:
+    header_id = _session_header(records, session)
+    if header_id is None:
         return None
-    header_id = header
     seen_ids: set[str] = set()
     count = 0
     for record in records[1:]:

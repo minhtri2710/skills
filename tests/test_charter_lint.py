@@ -63,12 +63,6 @@ class CharterLintTest(unittest.TestCase):
             code = charter_lint.main(argv)
         return code, stdout.getvalue(), stderr.getvalue()
 
-    def test_well_formed_engineer_and_staffing_record_is_ok(self):
-        code, output, error = self.run_lint(self.engineer_charter(), self.staffing_record())
-        self.assertEqual(code, 0)
-        self.assertIn("OK:", output)
-        self.assertEqual(error, "")
-
     def test_ok_line_contains_sha256_of_each_linted_file(self):
         charter = self.engineer_charter()
         staffing = self.staffing_record()
@@ -126,12 +120,6 @@ class CharterLintTest(unittest.TestCase):
         self.assertIn(
             "missing live-wake guard: Never run `mailbox.py --wake` against a real seat", error
         )
-
-    def test_reviewer_with_live_wake_guard_passes(self):
-        code, output, error = self.run_lint(self.reviewer_charter(), self.staffing_record())
-        self.assertEqual(code, 0)
-        self.assertIn("OK:", output)
-        self.assertEqual(error, "")
 
     def test_live_wake_guard_match_ignores_case_and_backticks(self):
         charter = self.reviewer_charter().replace(

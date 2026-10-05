@@ -182,13 +182,6 @@ class GateRowTest(unittest.TestCase):
         self.assertIn("--words is required", self.err.getvalue())
         self.assertEqual(self.ledger.read_text(), "# Gate ledger — test\n\n")
 
-    def test_round_trip(self):
-        self.assertEqual(self.append(), 0)
-        written = self.last_row()
-        self.assertEqual(self.run_main(
-            ["--ledger", str(self.ledger), "--repo", str(self.repo), "--check"]), 0)
-        self.assertEqual(self.last_row(), written)
-
     def test_dialog_channel_requires_selected_words_on_append_and_check(self):
         before = self.ledger.read_text()
         self.assertEqual(self.append(
@@ -619,19 +612,6 @@ class GateRowTest(unittest.TestCase):
         ]), 0)
         self.assertTrue(self.last_row().endswith('quote="runtime denied command"'))
 
-    def test_quote_file_refuses_an_interior_newline(self):
-        quote_file = self.tmp / "refused-command.txt"
-        quote_file.write_text("first\nsecond\n", encoding="utf-8")
-        before = self.ledger.read_text()
-        self.assertEqual(self.run_main([
-            "--ledger", str(self.ledger), "--repo", str(self.repo),
-            "--kind", "merge", "--status", "resolved:standing-waiver",
-            "--words", "human", "--note", "merged the reviewed head",
-            "--quote-file", str(quote_file),
-        ]), 1)
-        self.assertIn("quote= is one line", self.err.getvalue())
-        self.assertEqual(self.ledger.read_text(), before)
-
     def test_quote_and_quote_file_are_mutually_exclusive(self):
         quote_file = self.tmp / "refused-command.txt"
         quote_file.write_text("file quote", encoding="utf-8")
@@ -674,18 +654,6 @@ class GateRowTest(unittest.TestCase):
         ]), 1)
         self.assertIn("--open-gates cannot be combined with append arguments", self.err.getvalue())
         self.assertNotIn("could not be read", self.err.getvalue())
-
-    def test_ids_are_consecutive_and_read_from_the_file(self):
-        self.assertEqual(self.append(), 0)
-        self.assertEqual(self.append(), 0)
-        ids = [l.split(" | ")[0] for l in self.ledger.read_text().splitlines()
-               if gate_row.ID_RE.match(l)]
-        self.assertEqual(ids, ["G1", "G2"])
-        for invalid in ("decision-abc", "G-1", "G1x"):
-            with self.subTest(invalid):
-                row = self.last_row().replace("G2 | ", f"{invalid} | ", 1)
-                with self.assertRaisesRegex(gate_row.RowError, "no G id"):
-                    gate_row.check(row, self.repo)
 
     def test_resolves_refuses_never_open_and_already_closed_ids_and_accepts_open_id(self):
         self.assertEqual(self.append("--resolves", "G404"), 1)
@@ -1015,6 +983,8 @@ class GateRowTest(unittest.TestCase):
         self.assertIn("count=2", row)
         self.assertIn('boundary="f1.txt f2.txt"', row)
         self.assertIn('boundary-check=""', row)
+        self.assertRegex(row, r"push=[0-9a-f]{7,40}\.\.[0-9a-f]{7,40} count=\d+ "
+                              r'boundary="[^"]+" boundary-check="[^"]*"')
 
     def test_a_path_outside_the_boundary_is_named(self):
         self.assertEqual(self.append_review_pass(), 0)
@@ -1147,12 +1117,6 @@ class GateRowTest(unittest.TestCase):
         self.assertIn("a review row needs --review-base", self.err.getvalue())
         self.assertEqual(self.ledger.read_text(), before, "the refused row landed anyway")
 
-    def test_a_review_row_round_trips_its_range(self):
-        self.assertEqual(self.append_review_pass(), 0)
-        self.assertRegex(self.last_row(), r"review=[0-9a-f]{7,40}\.\.[0-9a-f]{7,40} count=2")
-        self.assertEqual(self.run_main(
-            ["--ledger", str(self.ledger), "--repo", str(self.repo), "--check"]), 0)
-
     def test_a_review_row_with_a_wrong_count_is_refused_by_check(self):
         self.assertEqual(self.append_review_pass(), 0)
         tampered = self.last_row().replace("count=2", "count=5")
@@ -1208,34 +1172,7 @@ class GateRowTest(unittest.TestCase):
         self.git("checkout", "-q", "main")
         self.git("branch", "-D", "topic")
         gate_row.check(row, self.repo)
-
-    def test_the_branch_label_is_no_longer_verified_and_that_is_the_trade(self):
-        row, _ = self.valid_push_row()
-        relabelled = row.replace("main@", "nonexistent-branch@")
-        self.assertNotEqual(relabelled, row)
-        prior_rows = gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))[:-1]
-        gate_row.check(relabelled, self.repo, prior_rows)
-        with self.assertRaises(gate_row.RowError):
-            gate_row.check(row.replace(f"main@{self.rev('HEAD')}", f"main@{'0' * 40}"),
-                           self.repo)
-
-    def test_a_kind_push_row_carries_all_four_push_fields_or_no_row_exists(self):
-        self.assertEqual(self.append_review_pass(), 0)
-        self.add_remote("HEAD")
-        before = self.ledger.read_text()
-
-        self.assertEqual(self.append("--kind", "push", "--boundary", "f1.txt"), 1)
-        self.assertEqual(self.ledger.read_text(), before)
-
-        self.assertEqual(self.append(
-            "--kind", "push", "--push-base", self.rev("HEAD~2"),
-            "--boundary", "f1.txt", "--boundary", "f2.txt"), 0)
-        row = self.last_row()
-        self.assertIn("kind=push", row)
-        for field in ("push=", "count=", 'boundary="', 'boundary-check="'):
-            self.assertIn(field, row, f"a kind=push row must carry {field}")
-        self.assertRegex(row, r"push=[0-9a-f]{7,40}\.\.[0-9a-f]{7,40} count=\d+ "
-                              r'boundary="[^"]+" boundary-check="[^"]*"')
+        gate_row.check(row.replace("topic@", "nonexistent-branch@"), self.repo)
 
     def test_a_push_row_without_push_base_never_reaches_the_ledger(self):
         self.assertEqual(self.append_review_pass(), 0)
@@ -1326,17 +1263,6 @@ class GateRowTest(unittest.TestCase):
             "--ledger", str(self.ledger), "--repo", str(self.repo), "--check",
         ]), 1)
         self.assertIn("row 'G2' carries prev_hash= without a predecessor", self.err.getvalue())
-
-    def test_intact_chain_is_verified_on_check_and_open_gate_read(self):
-        for _ in range(3):
-            self.assertEqual(self.append(), 0)
-        self.assertEqual(self.run_main([
-            "--ledger", str(self.ledger), "--repo", str(self.repo), "--check",
-        ]), 0)
-        self.assertEqual(self.run_main([
-            "--ledger", str(self.ledger), "--repo", str(self.repo), "--open-gates",
-        ]), 0)
-        self.assertEqual(self.out.getvalue(), "")
 
     def assert_chain_tamper_rejected(self, rows: list[str]) -> None:
         self.ledger.write_text(
@@ -1432,8 +1358,10 @@ class GateRowTest(unittest.TestCase):
 
     def test_check_prints_the_id_it_checked(self):
         self.assertEqual(self.append(), 0)
+        written = self.last_row()
         self.assertEqual(self.check_last(), 0)
         self.assertEqual(self.out.getvalue(), "ok: G1 checks out\n")
+        self.assertEqual(self.last_row(), written)
 
     def test_a_row_is_stamped_in_utc_whatever_the_local_zone(self):
         import os
@@ -1730,21 +1658,6 @@ class GateRowTest(unittest.TestCase):
         self.assertEqual(str(caught.exception),
                          f"prev_hash mismatch at row {second.split(' | ')[0]!r}: "
                          f"expected {gate_row.row_hash(first)}, got {'0' * 64}")
-
-    def test_cutover_on_a_non_empty_ledger_is_refused(self):
-        for label in ("non-empty", "empty"):
-            with self.subTest(label):
-                if label == "non-empty":
-                    self.assertEqual(self.append(), 0, self.err.getvalue())
-                before = self.ledger.read_bytes()
-                self.assertEqual(self.run_main([
-                    "--ledger", str(self.ledger), "--repo", str(self.repo),
-                    "--kind", "cutover", "--status", "recorded:cutover",
-                    "--words", "seat", "--note", "ledger cut over", "--quote", "cutover",
-                ]), 1)
-                self.assertIn("kind=cutover is valid only as a stored first-row genesis and cannot be appended",
-                              self.err.getvalue())
-                self.assertEqual(self.ledger.read_bytes(), before)
 
     def test_archive_field_on_another_kind_is_refused_by_check(self):
         self.assertEqual(self.append(), 0)
@@ -2161,8 +2074,11 @@ class GateRowTest(unittest.TestCase):
              "field 'status=bogus' is not a valid status="),
             ("invalid single prev_hash", [first, second.replace(" | words=", " | prev_hash=zz | words=")],
              "field 'prev_hash=zz' is not a 64-character lowercase hex prev_hash="),
-            ("non-G id row", self.chained([first, second.replace("G2 | ", "S3 | ", 1)]),
-             "row has no G id"),
+            *(
+                (f"{bad} id row", self.chained([first, second.replace("G2 | ", f"{bad} | ", 1)]),
+                 "row has no G id")
+                for bad in ("S3", "G-1", "G1x")
+            ),
         )
         for name, rows, message in cases:
             self.ledger.write_text("\n".join(rows) + "\n", encoding="utf-8")

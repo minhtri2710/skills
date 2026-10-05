@@ -237,7 +237,6 @@ class AdvisoryResult:
 class UnavailableResult:
     status: Literal["unavailable"]
     reason: str
-    fallback_actionable: bool = True
 
     @property
     def available(self) -> bool:
@@ -616,13 +615,12 @@ def _advisory_json(
     """Project one advisory result to its CLI JSON shape.
 
     Raw answers and source state are never printed; unavailable keeps the
-    fixed reason and fail-open flag.
+    fixed reason.
     """
     if isinstance(result, UnavailableResult):
         return {
             "status": "unavailable",
             "reason": result.reason,
-            "fallback_actionable": result.fallback_actionable,
         }
     if isinstance(result, AdvisoryResult):
         return {

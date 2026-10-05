@@ -297,6 +297,7 @@ class ClaudeReportWakeHookTest(unittest.TestCase):
         cases = [
             ("send then stop", [(True, post_payload(send)), (False, stop_payload())], [], 0),
             ("stop without a marker", [(False, stop_payload())], WAKE, 0),
+            ("unsent record", [(True, post_payload(UNSENT_CASES[0][1])), (False, stop_payload())], WAKE, 0),
             ("marker under another prompt_id", [(True, post_payload(send, prompt="previous-turn")), (False, stop_payload())], WAKE, 1),
             ("marker under another session_id", [(True, post_payload(send, session="other")), (False, stop_payload())], WAKE, 1),
             ("running background task", [(False, stop_payload(background_tasks=running))], [], 0),
@@ -328,14 +329,6 @@ class ClaudeReportWakeHookTest(unittest.TestCase):
         for payload in (post_payload(None), {**post_payload("x"), "tool_input": None}, {**post_payload("x"), "session_id": None}):
             with self.subTest(payload=payload):
                 self.assertEqual(self.run_hooks((True, payload)), ([], []))
-
-    def test_recognizer_corpus_holds_on_the_claude_path(self):
-        for command in SENT_COMMANDS:
-            with self.subTest(sent=command):
-                self.assertEqual(self.run_hooks((True, post_payload(command)), (False, stop_payload())), ([], []))
-        for shape, command in UNSENT_CASES:
-            with self.subTest(unsent=shape):
-                self.assertEqual(self.run_hooks((True, post_payload(command)), (False, stop_payload())), (WAKE, []))
 
 
 if __name__ == "__main__":

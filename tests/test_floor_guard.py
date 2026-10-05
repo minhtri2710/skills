@@ -172,10 +172,15 @@ class FloorGuardRepoTest(unittest.TestCase):
     def test_exception_row_is_scoped_by_rule_and_path(self) -> None:
         self.write("src/new.py", "def later():\n    raise NotImplementedError\n")
         self.write("lib/x.py", "def later():\n    raise NotImplementedError\n")
-        self.write("CONSTRAINTS.md", CONSTRAINTS + "| E1 | silenced-checker | src/*.py | vendor types | upstream ships types |\n")
+        self.write(
+            "CONSTRAINTS.md",
+            CONSTRAINTS
+            + "| E1 | unfinished-work | src/*.py | port in progress | port lands |\n"
+            + "| E2 | silenced-checker | lib/*.py | vendor types | upstream ships types |\n",
+        )
         code, err = self.run_guard()
         self.assertEqual(code, 1)
-        self.assertIn("[unfinished-work] src/new.py:2", err)
+        self.assertNotIn("[unfinished-work] src/new.py:2", err)
         self.assertIn("[unfinished-work] lib/x.py:2", err)
 
     def test_incomplete_exception_row_is_flagged_and_suppresses_nothing(self) -> None:

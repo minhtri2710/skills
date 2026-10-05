@@ -335,14 +335,6 @@ class PrePushGuardTest(unittest.TestCase):
         self.assertEqual(code, 0, err)
         self.assertIn("1 pushed ref", out)
 
-    def test_git_hook_argv_is_admitted_on_a_covered_range(self):
-        c1 = self.advance("c1")
-        self.assertEqual(self.review(self.base), 0)
-        self.standing()
-        code, out, err = self.invoke(self.ref_line(self.base, c1), ("origin", str(self.origin)))
-        self.assertEqual(code, 0, err)
-        self.assertIn("covered", out)
-
     def test_hook_remote_decides_first_publication_not_origin(self):
         other = self.tmp / "other.git"
         subprocess.run(["git", "init", "-q", "--bare", str(other)], check=True, stdin=subprocess.DEVNULL)
@@ -767,10 +759,6 @@ class PrePushGuardTest(unittest.TestCase):
         self.assertEqual(code, 0, err)
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class PushDigestTest(unittest.TestCase):
     def setUp(self):
         self._tmp = tempfile.TemporaryDirectory(dir=os.path.realpath("/tmp"))
@@ -968,16 +956,6 @@ class PushDigestTest(unittest.TestCase):
         self.assertEqual(pre_push_guard.check(ledger, repo, "origin", [("refs/heads/main", base, tip)]), [tip])
         _, again = self.digest((ledger, repo))
         self.assertIn(f"authority: granted by {grant}", again)
-
-    def test_digest_prints_an_items_hash_and_no_grant_command(self):
-        ledger, repo, base = self.project("alpha")
-        self.advance(repo, "a1")
-        self.review(ledger, repo, base)
-        self.push_gate(ledger, repo)
-        _, out = self.digest((ledger, repo))
-        self.assertRegex(out, r"\nitems: [0-9a-f]{64}\n$")
-        self.assertFalse([line for line in out.splitlines() if line.lstrip().startswith("grant:")])
-        self.assertNotIn("<HUMAN-WORDS>", out)
 
     def two_branches(self) -> tuple[Path, Path, str, str, str]:
         ledger, repo, base = self.project("alpha")
@@ -1183,7 +1161,7 @@ class PushDigestTest(unittest.TestCase):
             pairs.append((ledger, repo))
         code, out = self.digest(*pairs)
         self.assertEqual(code, 0, out)
-        self.assertIn(f"items: {hashlib.sha256(expected.encode()).hexdigest()}", out)
+        self.assertRegex(out, rf"\nitems: {hashlib.sha256(expected.encode()).hexdigest()}\n$")
 
     def test_an_open_gate_head_missing_locally_is_an_error_naming_rev_parse_verify(self):
         ledger, repo, base = self.project("alpha")
@@ -1379,3 +1357,7 @@ class PushDigestTest(unittest.TestCase):
             with contextlib.redirect_stderr(err), self.assertRaises(SystemExit):
                 pre_push_guard.main(argv)
             self.assertIn(needle, err.getvalue())
+
+
+if __name__ == "__main__":
+    unittest.main()

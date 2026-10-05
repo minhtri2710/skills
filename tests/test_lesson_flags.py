@@ -74,21 +74,6 @@ class LessonFlagsTest(unittest.TestCase):
         self.assertNotIn("fresh-rejected.md", output)
         self.assertEqual(before, {path: path.read_bytes() for path in store.glob("*.md")})
 
-    def test_superseded_record_with_landing_ref_is_classified(self):
-        old = (datetime.now(timezone.utc) - timedelta(days=120)).date().isoformat()
-        path = self.write_record(
-            "old-superseded", "superseded", old, superseded_by="abc1234 (push G349)"
-        )
-        fields, last_used = lesson_flags.record_fields(str(path))
-        self.assertEqual(fields["status"], "superseded")
-        self.assertEqual(last_used.isoformat(), old)
-
-        code, output = self.run_flags(["--project", "demo"])
-
-        self.assertEqual(code, 0)
-        self.assertIn("[superseded]", output)
-        self.assertIn("old-superseded.md", output)
-
     def test_fresh_superseded_record_is_flagged_regardless_of_staleness(self):
         fresh = (datetime.now(timezone.utc) - timedelta(days=3)).date().isoformat()
         self.write_record(

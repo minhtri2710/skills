@@ -213,7 +213,6 @@ class DeploySkillTest(unittest.TestCase):
         self.assertFalse((self.tmp / "gates.md").exists())
 
     def test_verify_rejects_tampering_and_appends_no_row(self):
-        head = self.head()
         ledger = self.tmp / "gates.md"
 
         result = self.run_deploy(self.deploy_args(ledger), SKILLS_TAMPER="1")
@@ -339,6 +338,7 @@ class DeploySkillTest(unittest.TestCase):
 
     def test_head_equal_to_or_ancestor_of_origin_main_is_admitted(self):
         ancestor = self.head()
+        ancestor_content = (self.source / "SKILL.md").read_bytes()
         (self.source / "SKILL.md").write_text(
             "---\nname: herdr-delivery-workflow\ndescription: test skill\n---\nnew tracked skill\n",
             encoding="utf-8",
@@ -348,13 +348,13 @@ class DeploySkillTest(unittest.TestCase):
         descendant = self.head()
         self.origin(descendant)
 
+        installed = self.home / ".agents/skills/herdr-delivery-workflow/SKILL.md"
         below = self.run_deploy(self.deploy_args(self.tmp / "below-gates.md", ancestor))
-        equal = self.run_deploy(self.deploy_args(self.tmp / "equal-gates.md", descendant))
-
         self.assertEqual(below, 0)
+        self.assertEqual(installed.read_bytes(), ancestor_content)
+        equal = self.run_deploy(self.deploy_args(self.tmp / "equal-gates.md", descendant))
         self.assertEqual(equal, 0)
-        self.assertIn("tracked skill", (self.home / ".agents/skills/herdr-delivery-workflow/SKILL.md").read_text())
-        self.assertIn("new tracked skill", (self.home / ".agents/skills/herdr-delivery-workflow/SKILL.md").read_text())
+        self.assertIn("new tracked skill", installed.read_text())
 
     def test_head_outside_origin_main_and_missing_origin_ref_are_refused(self):
         accepted = self.head()

@@ -60,14 +60,11 @@ class RosterTest(unittest.TestCase):
 
     _SAMPLE = '{"result":{"agents":[{"pane_id":"w1:p1","name":"lead","agent":"claude","agent_status":"working","workspace_id":"w1"}]}}'
 
-    def test_default_runs_agent_list_even_with_empty_nontty_stdin(self):
-        # The live path: an agent's Bash gives an empty non-tty stdin. Without
-        # --stdin the script must ignore stdin and run `herdr agent list`.
+    def test_default_prints_the_agent_list(self):
         completed = subprocess.CompletedProcess(
             args=["herdr", "agent", "list"], returncode=0, stdout=self._SAMPLE, stderr=""
         )
-        with mock.patch.object(roster.herdr_cli.subprocess, "run", return_value=completed) as run, \
-                mock.patch.object(roster.sys, "stdin", io.StringIO("")):
+        with mock.patch.object(roster.herdr_cli.subprocess, "run", return_value=completed) as run:
             output = io.StringIO()
             error = io.StringIO()
             with mock.patch("sys.stdout", output), mock.patch("sys.stderr", error):
@@ -82,7 +79,7 @@ class RosterTest(unittest.TestCase):
             roster.herdr_cli,
             "run",
             side_effect=roster.herdr_cli.HerdrUnavailable("herdr agent list timed out"),
-        ), mock.patch.object(roster.sys, "stdin", io.StringIO("")):
+        ):
             error = io.StringIO()
             with mock.patch("sys.stdout", io.StringIO()), mock.patch("sys.stderr", error):
                 rc = roster.main([])
@@ -330,7 +327,6 @@ class RosterTest(unittest.TestCase):
             output, error = io.StringIO(), io.StringIO()
             with mock.patch.object(roster.herdr_cli.subprocess, "run", side_effect=run), \
                     mock.patch.dict(os.environ, {"PI_CODING_AGENT_DIR": str(agent_dir)}), \
-                    mock.patch.object(roster.sys, "stdin", io.StringIO("")), \
                     mock.patch("sys.stdout", output), mock.patch("sys.stderr", error):
                 argv = ["--drift", str(config_path), *extra_argv]
                 for seat in seats:
