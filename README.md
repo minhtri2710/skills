@@ -1,6 +1,6 @@
 # Agent Skills
 
-Standalone [Agent Skills](https://docs.claude.com/en/docs/claude-code/skills) — reusable instruction sets a coding agent loads on demand to handle a specific kind of task (diagnosing a bug, auditing an architecture, running a bounded delivery). Each retained skill lives under `skills/<name>/` with a `SKILL.md` contract plus any supporting references, templates, and scripts.
+Standalone [Agent Skills](https://docs.claude.com/en/docs/claude-code/skills) — reusable instruction sets a coding agent loads on demand to handle a specific kind of task (diagnosing a bug, auditing an architecture, running a bounded delivery). Each skill lives under `skills/<name>/` with a `SKILL.md` contract plus any supporting references, templates, and scripts.
 
 ## Quick start
 
@@ -43,8 +43,8 @@ skills/<name>/
 | `deep-module-design` | Design or deepen a module interface and seam placement with the deep-module vocabulary. |
 | `dependency-intake-audit` | Decide whether a package may enter, install it without unreviewed scripts, and triage the audit. |
 | `design-grilling` | Interview the user until a plan or underspecified ask reaches confirmed shared understanding. |
-| `devops-pipeline` | Route repository quality checks across pre-commit, pre-push, and lean CI lanes from evidence without duplicating adjacent delivery contracts. |
 | `destructive-path-guard` | Prove a delete, move, or overwrite target is contained before the operation runs. |
+| `devops-pipeline` | Route repository quality checks across pre-commit, pre-push, and lean CI lanes from evidence without duplicating adjacent delivery contracts. |
 | `doc-manager` | Reconcile Markdown documentation with code, cite non-obvious claims to `path:line`, and validate runbook sections through a safe check-only path. |
 | `effort-charting` | Chart a foggy effort as decision tickets, then split the approved spec into tracer slices with blocking edges. |
 | `frontend-design` | Implement a UI change whose rendered hierarchy, flow, or responsive behavior is part of acceptance. |

@@ -53,7 +53,7 @@ Look for transport send, acknowledgment, queue drain, connection state, timestam
 
 ## Second opinion
 
-A `COUNCIL_REQUEST` is an optional bounded gate, not a stage of delivery. Open it whenever ordinary local analysis leaves a patch-versus-foundation choice materially undecided; cost is NEVER the deciding factor. Match `lead.md`, "Escalation routing". Staff one Architect Peer (`charters.md`, "Writing charters"): a kind differing from every Engineer's when available, read-only access to the shared checkout at the exact head when one exists or the recorded quiesce state otherwise, no mutation, no write-capable or undisclosed subagent, no background work, a sealed seat, and one evidence-bound `Assessment` sent to the Lead by prompt as its final report. A disclosed, verifiably read-only subagent with no write tools is the sole subagent exception, and the writer ban is absolute. Name the exact head or quiesce state, the competing routes, and the specific question. The Lead retains the ruling and routes the outcome; the Architect's authority is fixed in `charters.md`, "Writing charters" (Disposition: Architect). Multiple Architects are allowed only for genuinely independent assessments, never to manufacture a tiebreak or dissent when the evidence supports agreement.
+A `COUNCIL_REQUEST` is an optional bounded gate, not a stage of delivery. `lead.md`, "Escalation routing", owns when to open one, and `charters.md`, "Disposition: Architect", owns the seat.
 
 ## Assessment result
 

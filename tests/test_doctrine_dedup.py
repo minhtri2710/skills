@@ -23,15 +23,15 @@ SKILL = Path(__file__).resolve().parents[1] / "skills" / "herdr-delivery-workflo
 # file lowers that file's ceiling to its new size. Raising a ceiling needs the
 # Human's own words, cited by ledger row id in the commit message.
 BUDGET = {
-    "SKILL.md": 10_465,
-    "references/lead.md": 102_741,
-    "references/relaunch.md": 4_113,
-    "references/herdr-cli.md": 23_135,
-    "references/project-config.md": 7_576,
-    "references/structural-misfit-policy.md": 9_485,
-    "references/charters.md": 41_071,
-    "references/closeout.md": 12_331,
-    "references/supervisor.md": 26_282,
+    "SKILL.md": 10_308,
+    "references/lead.md": 99_016,
+    "references/relaunch.md": 3_779,
+    "references/herdr-cli.md": 21_588,
+    "references/project-config.md": 6_196,
+    "references/structural-misfit-policy.md": 8_497,
+    "references/charters.md": 40_134,
+    "references/closeout.md": 12_263,
+    "references/supervisor.md": 24_303,
 }
 
 

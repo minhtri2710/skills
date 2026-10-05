@@ -94,7 +94,7 @@ summary without explicit approval and a reviewable diff.
 
 ## Bypass and failure policy
 
-The retained runner in `scripts/security_check.py` has one explicit interactive
+The runner in `scripts/security_check.py` has one explicit interactive
 bypass. `--force` never performs a Git operation and never means force-push: when
 a blocking finding exists, it asks for the literal `YES` in an interactive
 terminal. It never bypasses a missing required tool, malformed report, timeout,

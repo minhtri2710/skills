@@ -2,7 +2,7 @@
 
 A Lead or Supervisor seat recovering from compaction or relaunch reads this before acting.
 
-For a relaunch that retires a predecessor, follow `supervisor.md ## Handoff`: read the exit/handoff outcome from `herdr pane read`, not `herdr agent list`; `agent_prompt_stalled` or a non-zero prompt return is not itself failure; never PID-kill.
+For a relaunch that retires a predecessor, follow `supervisor.md`, "Handoff".
 On `/exit`, expect the Claude Code prompt `You have N unsent feedback drafts`. Whether to send or discard those drafts is a Human decision. After the Human answers, the Human or the Supervisor as the Human's hands sends `herdr agent send-keys <seat> esc` to discard or the send key (Enter) to send; the outgoing seat never chooses or performs this feedback action on its own initiative.
 
 Run this checklist in order:
@@ -14,6 +14,6 @@ Run this checklist in order:
 5. Reconcile past pushes, merges, and PR mutations since the ledger's last line through `scripts/gate_row.py`; record past events as `--record reconstruction --head <branch>@<exact full 40-hex SHA>` with their source, for first-publication range handling, follow `lead.md`, "Review and push coverage". Run `scripts/gate_row.py --check --ledger <path>` after each row.
 6. Unconditionally, in the Lead's pane and the run's workspace record, record both the resolved path of `scripts/gate_row.py` and a real `gate_row.py --check` result naming the row it checked, even when zero ledger rows were reconstructed. A failed check means the row is absent or invalid and must be redone through `scripts/gate_row.py`, not hand-written.
 7. Re-establish current branch, full `HEAD`, porcelain, and stash list.
-8. For a Supervisor seat, first read the newly appended mailbox header index with `scripts/mailbox.py --file <path> --headers --since <last-read ISO>`, then pull full bodies only for `ATTENTION` or open-question answer headers with `--since` without `--headers`, or a bounded `--last`/targeted read, never the whole file.
+8. For a Supervisor seat, read the newly appended mailbox entries as `supervisor.md`, "What the Supervisor sees", sets, from the recorded `last-read` mark.
 9. Reconcile live Peers and owed reports with `scripts/roster.py`, then run its `--drift` check against the project config for every staffed Peer (`herdr-cli.md`, "Start and drive an agent"); carry each `DRIFT` or `UNVERIFIABLE` line, or refusal, into the step-10 record.
 10. Last, print the reconciled `HEAD`, branch, open gates, and owed reports, with the facts steps 2, 6, and 9 produced, in the Lead's pane and write them to the run's workspace record. Append no mailbox entry. For the cause or content of an older decision, beyond the state reconciled above, follow `herdr-cli.md`, “Recall past records”, not run directories. If the seat cannot continue safely, report `BLOCKED` to the Human with preserved custody evidence, not a fresh delivery. Otherwise a Lead does not stop here: the NEXT step 2 confirmed opens in this turn, or the turn ends as `lead.md`, “Awaited work” says.
