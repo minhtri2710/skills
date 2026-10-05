@@ -18,7 +18,7 @@ from pathlib import Path
 
 
 class Refused(Exception):
-    """The target is not provably safe to destroy."""
+    pass
 
 
 class CannotCheck(Exception):
@@ -26,7 +26,6 @@ class CannotCheck(Exception):
 
 
 def _resolve(candidate: Path) -> Path:
-    """Resolve a target, keeping a symlink leaf as the link itself."""
     try:
         if candidate.is_symlink():
             return candidate.parent.resolve(strict=True) / candidate.name
@@ -45,7 +44,6 @@ def resolve_target(
     owner_file: str | None = None,
     expect_owner: str | None = None,
 ) -> Path:
-    """Return the resolved target, or raise ``Refused``."""
     if not roots:
         raise CannotCheck("no allowlisted root given")
     if min_depth < 1:

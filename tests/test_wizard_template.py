@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-"""Tests for the human-step-wizard bash library (the part above the STAGES marker)."""
 from __future__ import annotations
 
 import subprocess

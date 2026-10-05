@@ -109,11 +109,11 @@ EXPECTED_RETURNCODES = {
 
 
 class ConfigurationError(Exception):
-    """Raised when the selected runner configuration cannot be used."""
+    pass
 
 
 class JsonOutputError(Exception):
-    """Raised when a selected check does not produce usable JSON."""
+    pass
 
 
 def normalize_severity(value: Any) -> str:

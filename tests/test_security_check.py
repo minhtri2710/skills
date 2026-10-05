@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-"""Tests for the local security-check runner."""
 from __future__ import annotations
 
 import contextlib

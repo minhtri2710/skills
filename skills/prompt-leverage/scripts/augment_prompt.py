@@ -64,7 +64,6 @@ def _system_one(state: str, questions: dict) -> dict:
 
 
 def classify(prompt: str, task: str | None) -> tuple[str, str]:
-    """Return (task type, effort level) judged by the model over the prompt."""
     questions: dict = {
         "intensity": {
             "type": "score",

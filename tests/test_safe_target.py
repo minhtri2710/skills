@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-"""Tests for the destructive-path guard."""
 from __future__ import annotations
 
 import io

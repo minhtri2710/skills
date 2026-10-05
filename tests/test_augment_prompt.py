@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-"""Tests for the TypeSafe-backed prompt upgrader."""
 from __future__ import annotations
 
 import sys

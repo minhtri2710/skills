@@ -122,7 +122,6 @@ def _header_path(raw: str, prefix: str) -> str:
 
 
 def parse_diff(diff: str) -> tuple[list[Line], list[Line]]:
-    """Split a ``--unified=0`` diff into added and removed lines."""
     added: list[Line] = []
     removed: list[Line] = []
     old_path = new_path = ""

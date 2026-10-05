@@ -10,7 +10,6 @@ SKILLS = Path(__file__).resolve().parents[1] / "skills"
 
 
 def text_opens_without_encoding(path: Path) -> list[str]:
-    """file:line of each open()/Path.open()/os.fdopen() in text mode and each read_text()/write_text() lacking encoding=."""
     found = []
     for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"), str(path))):
         if not isinstance(node, ast.Call):
@@ -41,7 +40,6 @@ def text_opens_without_encoding(path: Path) -> list[str]:
 
 
 def text_subprocesses_without_encoding(path: Path) -> list[str]:
-    """file:line of text-mode subprocess.run/check_output/Popen calls without encoding=."""
     found = []
     for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"), str(path))):
         if not isinstance(node, ast.Call):
