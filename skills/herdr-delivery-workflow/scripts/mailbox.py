@@ -46,8 +46,6 @@ class Entry:
 
 @dataclass(frozen=True)
 class TriagedEntry:
-    """One unchanged mailbox entry plus an optional Jev read-priority advisory."""
-
     entry: Entry
     advisory: jev.HeaderJevResult
 
@@ -61,7 +59,6 @@ def triage_entries(
     *,
     triage: Callable[[str], jev.HeaderJevResult],
 ) -> list[TriagedEntry]:
-    """Annotate entries in input order without selecting, sorting, or dropping."""
     return [TriagedEntry(entry=entry, advisory=triage(entry.header)) for entry in entries]
 
 
@@ -90,7 +87,6 @@ def _selected_entries(
     since: str | None = None,
     last: int | None = None,
 ) -> list[Entry]:
-    """Select entries in mailbox order, keeping them as Entry objects."""
     if since is not None and ISO_RE.fullmatch(since) is None:
         raise ValueError("since must be an ISO-8601 UTC timestamp ending in Z")
     entries = _entries(text)
@@ -111,7 +107,6 @@ def select_entries(
     last: int | None = None,
     headers: bool = False,
 ) -> list[str]:
-    """Select mailbox entries, optionally returning only their headers."""
     entries = _selected_entries(text, since=since, last=last)
     if headers:
         return [entry.header for entry in entries]
@@ -119,7 +114,6 @@ def select_entries(
 
 
 def _triage_label(advisory: jev.HeaderJevResult) -> str:
-    """Render one advisory as the bounded ``jev=`` label value."""
     if advisory.available:
         return advisory.urgency.label
     return f"unavailable:{advisory.reason}"
@@ -154,7 +148,6 @@ def append_entry(
     attention: str | None,
     body: str,
 ) -> str:
-    """Append one header-plus-body entry in a single O_APPEND write."""
     _require_project_mailbox(path, "--append")
     for name, seat in (("--from", sender), ("--to", recipient)):
         if SEAT_RE.fullmatch(seat) is None:
@@ -199,7 +192,6 @@ def append_entry(
 
 
 def run_wake(seat: str, wake_text: str) -> subprocess.CompletedProcess[str]:
-    """Issue one best-effort Herdr wake for a delivered mailbox entry."""
     return herdr_cli.run(["agent", "prompt", seat, wake_text])
 
 
@@ -208,7 +200,6 @@ def _default_wake_text(seat: str, mailbox_path: str, header: str) -> str:
 
 
 def _supervisor_pane() -> str:
-    """Return the recorded Supervisor pane if Herdr shows an agent in it."""
     try:
         pane = SUPERVISOR_PANE_RECORD.read_text(encoding="utf-8").strip()
     except OSError as exc:

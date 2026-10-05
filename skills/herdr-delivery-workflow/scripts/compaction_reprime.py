@@ -36,8 +36,6 @@ _MISSING = object()
 
 @dataclass(frozen=True)
 class SessionRecord:
-    """A session path authenticated from one live roster record."""
-
     seat: str
     agent_name: str | None
     kind: str
@@ -430,8 +428,6 @@ def _verified_observation(session: SessionRecord | None) -> int | None:
 
 @dataclass(frozen=True)
 class BaselineState:
-    """The one validated durable baseline record for a live seat."""
-
     schema_version: int
     project_slug: str
     run_id: str
@@ -450,15 +446,11 @@ class BaselineState:
 
 @dataclass(frozen=True)
 class BaselineResult:
-    """The state after one verified observation."""
-
     state: BaselineState
     state_path: Path
 
 @dataclass(frozen=True)
 class ReprimePaths:
-    """Canonical durable pointers allowed in a reprime prompt."""
-
     context_pack: Path
     gates: Path
     notebook: Path
@@ -474,8 +466,6 @@ class ReprimePaths:
 
 @dataclass(frozen=True)
 class ReprimeDispatchResult:
-    """The durable state and outcome of one threshold dispatch attempt."""
-
     state: BaselineState
     state_path: Path
     threshold: int | None
@@ -591,7 +581,6 @@ def build_reprime_block(
     project_root: str | os.PathLike[str],
     home_dir: str | os.PathLike[str] | None = None,
 ) -> str | None:
-    """Build a prompt block containing only validated durable pointers."""
     if not _valid_identifier(run_id, _SESSION_ID) or not _valid_identifier(seat):
         return None
     project = _canonical_directory(Path(project_root))
@@ -642,7 +631,6 @@ def _validated_home(home_dir: str | os.PathLike[str] | None) -> Path | None:
 
 
 def _validated_state_root(home: Path, project_slug: str) -> Path | None:
-    """Create and validate the only directory in which baseline state may live."""
     if _PROJECT_SLUG.fullmatch(project_slug) is None:
         return None
     current = home
@@ -1056,7 +1044,6 @@ def _load_live_roster() -> Any | None:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    """Run one explicit Supervisor-side observation and optional reprime."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--run-id", required=True, help="canonical current run id")
     parser.add_argument("--seat", required=True, help="live Herdr seat name or pane id")

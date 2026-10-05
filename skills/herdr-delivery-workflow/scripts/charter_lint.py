@@ -235,7 +235,6 @@ def _missing_objects(repo: Path, shas: list[str]) -> set[str]:
 
 
 def _sha_problems(repo: Path, texts: dict[str, str]) -> list[str]:
-    """Range endpoints and staffed heads must resolve; so must any SHA spliced from one."""
     found: dict[str, str] = {}
     critical: set[str] = set()
     for label, text in texts.items():

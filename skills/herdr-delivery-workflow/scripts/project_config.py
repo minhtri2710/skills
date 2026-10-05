@@ -40,7 +40,6 @@ def _strings(value: Any, *, nonempty: bool) -> bool:
 
 
 def _validate(config: dict[str, Any]) -> None:
-    """Raise ValueError('<key>: <reason>') for the first refusal."""
     for key in config:
         if key not in _KEYS:
             raise ValueError(f"{key}: unknown key")
@@ -86,7 +85,6 @@ def _validate(config: dict[str, Any]) -> None:
 
 
 def load(path: str | Path) -> dict[str, Any]:
-    """Return the validated config object; refuse with ValueError naming path and key."""
     try:
         text = Path(path).read_text(encoding="utf-8")
         config = json.loads(text, object_pairs_hook=_object)

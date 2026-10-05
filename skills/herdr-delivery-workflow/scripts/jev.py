@@ -183,8 +183,6 @@ class ScoreJudgment:
 
 @dataclass(frozen=True)
 class HeaderAdvisoryResult:
-    """A valid advisory urgency result without retaining test-only source data."""
-
     status: Literal["available"]
     urgency: ScoreJudgment
 
@@ -215,8 +213,6 @@ class ForkAdvisoryResult:
 
 @dataclass(frozen=True)
 class CharterAdvisoryResult:
-    """A valid charter coherence result without retaining test-only data."""
-
     status: Literal["available"]
     coherence: NoulJudgment
 
@@ -227,8 +223,6 @@ class CharterAdvisoryResult:
 
 @dataclass(frozen=True)
 class AdvisoryResult:
-    """A valid Jev finding result."""
-
     status: Literal["available"]
     actionable_misfit: NoulJudgment
     cites_artifact: NoulJudgment
@@ -241,8 +235,6 @@ class AdvisoryResult:
 
 @dataclass(frozen=True)
 class UnavailableResult:
-    """Explicit sentinel for a Jev result that could not be obtained safely."""
-
     status: Literal["unavailable"]
     reason: str
     fallback_actionable: bool = True
@@ -262,7 +254,6 @@ def _unavailable(reason: str) -> UnavailableResult:
 
 
 def _unit(value: object) -> float | None:
-    """Return a finite number in [0, 1], or None for anything else."""
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         return None
     try:
@@ -400,7 +391,6 @@ def _request_answers(
 def _ask(
     state: Mapping[str, object], questions: Mapping[str, object]
 ) -> tuple[Mapping[str, object] | None, str | None]:
-    """Return the answers mapping, or the fail-open reason it is missing."""
     payload, error = _request_answers(state, questions)
     if error is not None:
         return None, error
@@ -439,7 +429,6 @@ def triage_finding(finding: object) -> JevResult:
 
 
 def triage_header(header: str) -> HeaderJevResult:
-    """Ask Jev for advisory urgency using only objective header facts."""
     answers, error = _ask(_header_state(header), HEADER_QUESTIONS)
     if answers is None:
         return _unavailable(error)
@@ -450,7 +439,6 @@ def triage_header(header: str) -> HeaderJevResult:
 
 
 def triage_charter(disposition: object, body: object) -> CharterJevResult:
-    """Ask Jev whether a charter body matches its declared disposition."""
     try:
         if disposition not in CHARTER_DISPOSITIONS or not isinstance(body, str):
             return _unavailable("invalid_charter")
@@ -512,7 +500,6 @@ def _json_safe(value: object) -> bool:
 
 
 def route_fork(fork: object, delegation: object = None) -> ForkAdvisoryResult | UnavailableResult:
-    """Advise on a bounded fork without changing its authority or custody."""
     try:
         retained_fork = _retained_mapping(fork)
         retained_delegation = (
@@ -579,11 +566,10 @@ def route_fork(fork: object, delegation: object = None) -> ForkAdvisoryResult | 
 
 
 class _InputError(Exception):
-    """CLI usage or input failure, reported as one stderr line with exit 2."""
+    pass
 
 
 def _one_line(value: object) -> str:
-    """Collapse a message to one bounded, single-line stderr-safe string."""
     return " ".join(str(value).split())[:500]
 
 
@@ -694,11 +680,10 @@ def _build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Run one advisory mode; exit 0 on available/unavailable, 2 on usage errors."""
     parser = _build_parser()
     try:
         args = parser.parse_args(argv)
-    except SystemExit as exc:  # argparse usage errors and --help
+    except SystemExit as exc:
         return exc.code if isinstance(exc.code, int) else 2
     try:
         output = _advisory_json(_mode_result(args))

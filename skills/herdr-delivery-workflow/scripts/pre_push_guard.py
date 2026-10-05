@@ -30,7 +30,7 @@ import mailbox
 
 
 class GuardError(Exception):
-    """The ledger cannot prove that this HEAD is eligible for push."""
+    pass
 
 
 def git(repo: Path, *args: str) -> str:
@@ -55,7 +55,6 @@ def remote_refs(repo: Path, remote: str) -> dict[str, str]:
 
 
 def require_first_publication(ref: str, held: dict[str, str]) -> None:
-    """Admit a zero-based tag range only when the remote has no refs at all."""
     if not held:
         return
     raise GuardError(
@@ -65,7 +64,6 @@ def require_first_publication(ref: str, held: dict[str, str]) -> None:
 
 
 def remote_held_tips(repo: Path, remote: str, held: dict[str, str]) -> list[str]:
-    """The remote's ref tips as local objects, refusing any tip this repository lacks."""
     tips = sorted(set(held.values()))
     for sha in tips:
         try:
@@ -166,7 +164,6 @@ def check(
 
 
 def unpushed_commits(repo: Path, gate_tips: list[str]) -> list[str]:
-    """The current branch's commits absent from its upstream/remotes and open gate tips."""
     head = git(repo, "rev-parse", "HEAD")
     try:
         upstream = git(repo, "rev-parse", "--verify", "@{upstream}")
@@ -178,7 +175,6 @@ def unpushed_commits(repo: Path, gate_tips: list[str]) -> list[str]:
 
 
 def ungated_lines(repo: Path, gate_tips: list[str]) -> list[str]:
-    """Flag the commits of a checkout that neither its upstream (or every tracking ref) nor an open push-gate tip holds."""
     head = git(repo, "rev-parse", "HEAD")
     commits = unpushed_commits(repo, gate_tips)
     if not commits:
@@ -199,7 +195,6 @@ def ungated_lines(repo: Path, gate_tips: list[str]) -> list[str]:
 
 
 def tracking_tip(repo: Path, remote: str, branch: str) -> str | None:
-    """The local remote-tracking tip of a branch, or None for a new branch."""
     try:
         return git(repo, "rev-parse", "--verify", f"refs/remotes/{remote}/{branch}^{{commit}}")
     except GuardError:
@@ -309,7 +304,6 @@ def gated_lines(rows: list[str], gates: list[str], branch: str, tip: str, stacke
 
 
 def items_hash(items: list[Item]) -> str:
-    """The hash of the numbered question items: number, project, branch and full range."""
     text = "".join(f"{n} {item.ledger.parent.name} {item.branch} {item.base}..{item.tip}\n"
                    for n, item in enumerate(items, 1))
     return hashlib.sha256(text.encode()).hexdigest()
@@ -363,7 +357,6 @@ def require_supervisor_pane() -> None:
 
 def grant(pairs: list[list[str]], remote: str, selection: str, expected: str,
           quote: str, channel: str) -> int:
-    """Write one open push-grant row per selected item; nothing unless every input holds."""
     require_supervisor_pane()
     _, ready, _ = collect(pairs, remote)
     if not quote.strip() or "\n" in quote:

@@ -290,7 +290,6 @@ class RosterTest(unittest.TestCase):
         self, agents, argv_by_pane, seats, config=_DRIFT_CONFIG, extra_argv=(),
         pi_sessions=None, process_start=None, ps_result=(0, None),
     ):
-        """Drive main() with isolated pi sessions and mocked process commands."""
         listing = json.dumps({"result": {"agents": agents}})
 
         def run(command, **_):

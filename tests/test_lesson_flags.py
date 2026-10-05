@@ -90,9 +90,6 @@ class LessonFlagsTest(unittest.TestCase):
         self.assertIn("old-superseded.md", output)
 
     def test_fresh_superseded_record_is_flagged_regardless_of_staleness(self):
-        # A superseded lesson is replaced doctrine: it surfaces as a retire
-        # candidate even when last_used is recent, while a fresh non-superseded
-        # record does not.
         fresh = (datetime.now(timezone.utc) - timedelta(days=3)).date().isoformat()
         self.write_record(
             "fresh-superseded", "superseded", fresh, superseded_by="abc1234 (push G349)"

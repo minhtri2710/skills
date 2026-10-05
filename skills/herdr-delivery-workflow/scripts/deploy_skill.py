@@ -13,7 +13,7 @@ from pathlib import Path
 
 
 class DeployError(Exception):
-    """The tracked skill could not be installed or accepted."""
+    pass
 
 
 # Repo-only directories: the plugin manifest and the `claude plugin eval` suite exist for the
@@ -81,7 +81,6 @@ def tracked_files(repo: Path, head: str, skill_prefix: str) -> list[str]:
 
 
 def install_mode(git_mode: str, tracked_path: str) -> int:
-    """Map a head-tree git file mode to its install mode, rejecting any other mode."""
     if git_mode not in {"100644", "100755"}:
         raise DeployError(f"tracked path has unsupported mode for {tracked_path}: {git_mode}")
     return 0o755 if git_mode == "100755" else 0o644
@@ -133,7 +132,6 @@ def _is_pycache(path: Path) -> bool:
 
 
 def tree_mode(repo: Path, head: str, tracked_path: str) -> int:
-    """Return the install mode the head tree records for one tracked file."""
     metadata = git(repo, "ls-tree", head, "--", tracked_path).split("\t", 1)[0].split()
     if len(metadata) != 3:
         raise DeployError(f"git ls-tree returned malformed metadata for {tracked_path}")

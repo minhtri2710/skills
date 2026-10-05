@@ -5,7 +5,7 @@ import subprocess
 
 
 class HerdrUnavailable(RuntimeError):
-    """Herdr could not be invoked or did not finish before the deadline."""
+    pass
 
 
 def _subcommand(args: list[str]) -> str:
@@ -13,7 +13,6 @@ def _subcommand(args: list[str]) -> str:
 
 
 def run(args: list[str], *, timeout: float = 30.0) -> subprocess.CompletedProcess[str]:
-    """Run one Herdr subcommand with bounded, captured execution."""
     command = ["herdr", *args]
     try:
         return subprocess.run(

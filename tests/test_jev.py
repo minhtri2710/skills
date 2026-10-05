@@ -46,7 +46,6 @@ DELEGATION = {
 
 
 def score_answer(probabilities: tuple[float, ...], confidence: float) -> dict[str, object]:
-    """A documented Score answer: mean score, legend, level probabilities, confidence."""
     return {
         "type": "score",
         "score": sum(index * p for index, p in enumerate(probabilities)),
@@ -522,8 +521,6 @@ class JevTest(unittest.TestCase):
             request_answers.assert_not_called()
 
     def test_fork_missing_key_stays_unavailable_when_jev_is_needed(self):
-        # Only a delegated non-hard-gate fork needs Jev; without a key it
-        # fails open with missing_api_key and never reaches the network.
         with mock.patch.dict(jev.os.environ, {}, clear=True), mock.patch.object(
             jev.urllib.request, "urlopen"
         ) as urlopen:
@@ -534,8 +531,6 @@ class JevTest(unittest.TestCase):
         urlopen.assert_not_called()
 
     def test_fork_deterministic_human_gate_without_api_key(self):
-        # The deterministic rule precedes the key check: a hard gate or a
-        # missing/not-in-force delegation routes to human_gate without a key.
         with mock.patch.dict(jev.os.environ, {}, clear=True), mock.patch.object(
             jev.urllib.request, "urlopen"
         ) as urlopen:
@@ -767,8 +762,6 @@ def _keys(value: object) -> set[str]:
 
 
 class JevCliTest(unittest.TestCase):
-    """The four-mode CLI contract, driven through main() via argv and stdin."""
-
     FAKE_KEY = "sk-fake-jev-probe-7f3a9-non-disclosure"
 
     def setUp(self) -> None:

@@ -59,7 +59,6 @@ def lint_patterns() -> dict[str, re.Pattern[str]]:
 
 
 def lint_literals() -> list[str]:
-    """String clauses _charter_problems tests with `"..." not in text`."""
     tree = ast.parse(inspect.getsource(charter_lint._charter_problems))
     literals = []
     for node in ast.walk(tree):

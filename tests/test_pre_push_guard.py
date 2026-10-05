@@ -26,7 +26,6 @@ ZERO = "0" * 40
 
 
 def rechained(text: str) -> str:
-    """Re-chain hand-edited rows: each row's prev_hash= hashes its edited predecessor."""
     out, prev = [], None
     for line in text.splitlines():
         if gate_row.ID_RE.match(line):
@@ -49,7 +48,6 @@ class PrePushGuardTest(unittest.TestCase):
         (self.repo / "file.txt").write_text("content\n")
         self.git("add", "file.txt")
         self.git("commit", "-qm", "base")
-        # A bare origin the guard's manual mode and the pushed range resolve against.
         self.origin = self.tmp / "origin.git"
         subprocess.run(["git", "init", "-q", "--bare", str(self.origin)], check=True, stdin=subprocess.DEVNULL)
         self.git("remote", "add", "origin", str(self.origin))
@@ -93,7 +91,6 @@ class PrePushGuardTest(unittest.TestCase):
             return gate_row.main(["--ledger", str(self.ledger), "--repo", str(self.repo), *args])
 
     def standing(self, scope: str = "origin:main", expiry: str = "until-revoked") -> str:
-        """Record a push-scoped standing delegation and return its id."""
         self.assertEqual(self.row(
             "--kind", "standing-delegation", "--status", "recorded:standing-delegation",
             "--who", "lead", "--scope", "pushes", "--conditions", "review PASS",
@@ -103,7 +100,6 @@ class PrePushGuardTest(unittest.TestCase):
         return self.last_id()
 
     def grant(self, spec: str) -> str:
-        """Record a one-shot push-grant and return its id."""
         self.assertEqual(self.row(
             "--kind", "push-grant", "--status", "open", "--writer", "supervisor",
             "--channel", "supervisor-relay:typed", "--grant", spec,
@@ -216,9 +212,9 @@ class PrePushGuardTest(unittest.TestCase):
 
     def test_tiled_stack_of_two_reviewed_deliveries_is_allowed(self):
         c1 = self.advance("c1")
-        self.assertEqual(self.review(self.base), 0)   # F-F: base..c1
+        self.assertEqual(self.review(self.base), 0)
         c2 = self.advance("c2")
-        self.assertEqual(self.review(c1), 0)          # F-G: c1..c2
+        self.assertEqual(self.review(c1), 0)
         self.standing()
         code, out, err = self.invoke(self.ref_line(self.base, c2))
         self.assertEqual(code, 0, err)
@@ -226,8 +222,8 @@ class PrePushGuardTest(unittest.TestCase):
 
     def test_uncovered_intermediate_in_the_stack_is_refused(self):
         c1 = self.advance("c1")
-        self.assertEqual(self.review(self.base), 0)   # only base..c1 reviewed
-        c2 = self.advance("c2")                        # c2 rides unreviewed
+        self.assertEqual(self.review(self.base), 0)
+        c2 = self.advance("c2")
         self.standing()
         code, _, err = self.invoke(self.ref_line(self.base, c2))
         self.assertEqual(code, 1)
@@ -436,7 +432,7 @@ class PrePushGuardTest(unittest.TestCase):
         self.git("push", "-q", "origin", "old")
         subprocess.run(["git", "-C", str(self.origin), "branch", "-D", "old"],
                        check=True, capture_output=True, stdin=subprocess.DEVNULL)
-        self.assertEqual(self.rev("refs/remotes/origin/old"), x)  # unpruned, stale
+        self.assertEqual(self.rev("refs/remotes/origin/old"), x)
         self.git("checkout", "-qb", "feature")
         f = self.advance("f")
         self.assertEqual(self.review(x), 0)
@@ -466,7 +462,6 @@ class PrePushGuardTest(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn(f"origin holds {unseen} (refs/heads/side), which is not a local object", err)
 
-    # --- push authority -------------------------------------------------
 
     def test_covered_push_without_a_grant_is_refused(self):
         c1 = self.advance("c1")
@@ -678,7 +673,6 @@ class PrePushGuardTest(unittest.TestCase):
         self.assertIn("carries no commit", err)
 
     def edit(self, gid: str, old: str, new: str) -> None:
-        """Hand-edit one row of the ledger and re-chain every row after it."""
         lines = self.ledger.read_text(encoding="utf-8").splitlines()
         i = next(i for i, line in enumerate(lines) if line.startswith(f"{gid} | "))
         self.assertIn(old, lines[i])
@@ -686,13 +680,11 @@ class PrePushGuardTest(unittest.TestCase):
         self.ledger.write_text(rechained("\n".join(lines)), encoding="utf-8")
 
     def hand_row(self, fields: str) -> None:
-        """Append a hand-written row carrying `fields`, chained to the last row."""
         row = (f"G9 | 2026-09-06T00:00:00Z | kind=merge | main@{self.base} | status=open | "
                f"{fields} | prev_hash={'0' * 64} | words=none | note=hand | quote=\"\"")
         self.ledger.write_text(rechained(self.ledger.read_text(encoding="utf-8") + row), encoding="utf-8")
 
     def granted(self) -> tuple[str, str]:
-        """A reviewed c1 under a one-shot grant G2; return c1 and the grant spec."""
         c1 = self.advance("c1")
         self.assertEqual(self.review(self.base), 0)
         spec = f"origin refs/heads/main push {self.base}..{c1}"
@@ -780,8 +772,6 @@ if __name__ == "__main__":
 
 
 class PushDigestTest(unittest.TestCase):
-    """--digest: every project's open push gates as one range, read-only, one question."""
-
     def setUp(self):
         self._tmp = tempfile.TemporaryDirectory(dir=os.path.realpath("/tmp"))
         self.tmp = Path(self._tmp.name)
@@ -794,7 +784,6 @@ class PushDigestTest(unittest.TestCase):
             self.addCleanup(patcher.stop)
 
     def project(self, name: str, pushed: bool = True) -> tuple[Path, Path, str]:
-        """A repo with a bare origin (pushed to unless pushed=False), with an empty ledger at <name>/gates.md."""
         root = self.tmp / name
         repo = root / "repo"
         repo.mkdir(parents=True)
@@ -1210,7 +1199,6 @@ class PushDigestTest(unittest.TestCase):
         self.assertIn(f"ERROR: git rev-parse --verify {bad}^{{commit}} failed", out)
 
     def branch(self, ledger: Path, repo: Path, name: str, start: str, review: bool = True) -> str:
-        """A new branch from start with one commit, optionally reviewed, under an open push gate."""
         self.git(repo, "checkout", "-qb", name, start)
         tip = self.advance(repo, name)
         if review:

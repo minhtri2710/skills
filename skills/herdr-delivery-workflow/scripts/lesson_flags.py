@@ -24,7 +24,6 @@ def record_fields(path):
 
 
 def rationale_entries(text):
-    """Yield (section, title, text) per top-level bullet, or per bullet-less section."""
     section = None
     body = []
 

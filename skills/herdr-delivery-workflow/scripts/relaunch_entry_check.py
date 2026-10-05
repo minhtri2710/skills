@@ -14,7 +14,7 @@ import deploy_skill
 
 
 class CheckError(Exception):
-    """The requested relaunch evidence could not be derived or verified."""
+    pass
 
 
 GATE_ID_RE = re.compile(r"\bG\d+\b")
@@ -34,7 +34,6 @@ def git(repo: Path, *args: str) -> str:
 
 
 def skill_prefix(value: str) -> str:
-    """Return a safe repository-relative prefix for git ls-tree."""
     path = Path(value)
     if not value or path.is_absolute() or any(part in {"", ".", ".."} for part in path.parts):
         raise CheckError("--skill-path must be a non-empty repository-relative path")
@@ -42,7 +41,6 @@ def skill_prefix(value: str) -> str:
 
 
 def installed_files(install_dir: Path) -> list[Path]:
-    """List installed file entries, excluding every __pycache__ subtree."""
     if not install_dir.exists():
         return []
     if not install_dir.is_dir():
@@ -107,7 +105,6 @@ def read_exact(path: Path) -> str:
 
 
 def verify_block(block_file: Path, source_file: Path) -> list[str]:
-    """Require the block as an exact contiguous substring of its source."""
     block = read_exact(block_file)
     if not block:
         raise CheckError("--block-file must contain a non-empty block")

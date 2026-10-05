@@ -17,8 +17,6 @@ import pre_push_guard
 
 
 class HerdrReadBoundary(Protocol):
-    """Read-only Herdr seam used by :func:`check_closeout` and its tests."""
-
     def read_pane(self, pane_id: str) -> Mapping[str, Any]: ...
 
     def read_agent(self, agent_name: str) -> Mapping[str, Any]: ...
@@ -28,8 +26,6 @@ class HerdrReadBoundary(Protocol):
 
 @dataclass(frozen=True)
 class CloseoutResult:
-    """The fail-closed result of one closeout inspection."""
-
     passed: bool
     findings: tuple[str, ...]
     checked_panes: tuple[str, ...] = ()
@@ -353,8 +349,6 @@ def check_closeout(
 
 
 class _SubprocessHerdr:
-    """The production adapter; record fields are passed only as argv values."""
-
     def _run(self, args: list[str]) -> Mapping[str, Any]:
         completed = herdr_cli.run(args)
         text = completed.stdout.strip() or completed.stderr.strip()

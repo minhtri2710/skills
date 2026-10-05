@@ -88,7 +88,7 @@ LINE_BREAKS = "\n\r\x0b\x0c\x1c\x1d\x1e\x85\u2028\u2029"
 
 
 class RowError(Exception):
-    """A row is malformed, or a derived field disagrees with git."""
+    pass
 
 
 def validate_row_encodings(
@@ -126,14 +126,12 @@ def validate_row_encodings(
 
 
 def mailbox_token(text: str, token: str) -> bool:
-    """Match a gate id or SHA as a complete mailbox token, not a substring."""
     return re.search(
         rf"(?<![A-Za-z0-9_-]){re.escape(token)}(?![A-Za-z0-9_-])", text
     ) is not None
 
 
 def require_mailbox_attention(gid: str, head: str, mailbox: Path) -> None:
-    """Require one exact-shape ATTENTION header naming this gate id or SHA."""
     try:
         text = mailbox.read_text(encoding="utf-8")
     except (OSError, UnicodeError) as exc:
@@ -167,12 +165,10 @@ PREV_HASH_RE = re.compile(r"^[0-9a-f]{64}$")
 
 
 def row_hash(row: str) -> str:
-    """Hash the exact row text returned by ``ledger_rows``."""
     return hashlib.sha256(row.encode("utf-8")).hexdigest()
 
 
 def verify_chain(rows: list[str]) -> None:
-    """Verify the hash chain: the first row is unhashed, every later row chains to its predecessor."""
     for index, row in enumerate(rows):
         fields, _ = split_row(row)
         hashes = [field for field in fields if field.startswith("prev_hash=")]
@@ -205,14 +201,12 @@ def text_rows(text: str) -> list[str]:
 
 
 def ledger_rows(text: str) -> list[str]:
-    """Return rows and fail closed when the hash chain is broken."""
     rows = text_rows(text)
     verify_chain(rows)
     return rows
 
 
 def next_id_from_rows(rows: list[str]) -> int:
-    """One more than the highest local G<n> id in the file."""
     ids = []
     for line in rows:
         match = ID_RE.match(line)
@@ -266,7 +260,6 @@ def resolve_ids(values: list[str]) -> list[str]:
 
 
 def row_evidence(row: str) -> tuple[str, str, str]:
-    """Read the kind, SHA, and status used by review and push gates."""
     fields, _ = split_row(row)
     kind = fields[2]
     head = fields[3]
@@ -281,7 +274,6 @@ def row_evidence(row: str) -> tuple[str, str, str]:
 
 
 def review_range(row: str) -> tuple[str, str] | None:
-    """The (base, head) a review row records, or None when the row carries no review block."""
     fields, _ = split_row(row)
     for field in fields:
         if field.startswith("review="):
@@ -293,12 +285,10 @@ def review_range(row: str) -> tuple[str, str] | None:
 
 
 def review_field(base: str, head: str, count: str) -> str:
-    """The review block: the exact commit range one review PASS covers."""
     return f"review={base}..{head} count={count}"
 
 
 def review_covered_commits(rows: list[str], repo: Path, commits: set[str]) -> set[str]:
-    """Return commits covered by live review PASS rows, in gate-row coverage semantics."""
     covered: set[str] = set()
     _, _, _, voided_by = open_state(rows)
     for row in rows:
@@ -575,7 +565,6 @@ def validate_after(value: str, repo: Path) -> None:
 
 
 def repair_findings_since_boundary(rows: list[str]) -> set[str]:
-    """Return repair findings after the latest progress boundary, rejecting repeats."""
     findings: set[str] = set()
     for previous_row in reversed(rows):
         previous_kind, _, previous_status = row_evidence(previous_row)
@@ -616,7 +605,6 @@ def require_repair_progress(rows: list[str], finding: str) -> None:
 
 
 def structured_row(row: str) -> tuple[str, str, list[str], str, str | None]:
-    """Read the structured fields needed for gate state and correction derivation."""
     fields, _ = split_row(row)
     status_fields = [field for field in fields if field.startswith("status=")]
     if len(status_fields) != 1:
@@ -643,7 +631,6 @@ def structured_row(row: str) -> tuple[str, str, list[str], str, str | None]:
 def open_state(
     rows: list[str],
 ) -> tuple[dict[str, tuple[int, str]], set[str], dict[str, int], dict[str, str]]:
-    """Return latest rows, opened ids, closure positions, and the correction for each void."""
     latest: dict[str, tuple[int, str]] = {}
     ever_open: set[str] = set()
     resolved_at: dict[str, int] = {}
@@ -673,21 +660,18 @@ def open_gate_ids(rows: list[str]) -> list[str]:
 
 
 def open_push_gate_rows(rows: list[str]) -> list[str]:
-    """Return currently open kind=push-gate rows, using the ledger's open-state rule."""
     open_ids = set(open_gate_ids(rows))
     return [row for row in rows if row.split(" | ", 1)[0] in open_ids
             and row_evidence(row)[0] == "push-gate"]
 
 
 def open_push_gate_tips(rows: list[str], repo: Path) -> list[str]:
-    """Return the commit tips named by currently open kind=push-gate rows."""
     heads = [split_row(row)[0][3].split("@") for row in open_push_gate_rows(rows)]
     return [git(repo, "rev-parse", "--verify", f"{sha}^{{commit}}")
             for _, sha in heads]
 
 
 def require_open_targets(rows: list[str], targets: list[str]) -> None:
-    """Resolve only an open gate, or revoke only an unrevoked standing delegation."""
     latest, ever_open, resolved_at, _ = open_state(rows)
     standing = {
         split_row(row)[0][0]: index for index, row in enumerate(rows)
@@ -706,7 +690,6 @@ def require_open_targets(rows: list[str], targets: list[str]) -> None:
 
 
 def validate_void_target(target: str, prior_rows: list[str], voided_by: dict[str, str]) -> None:
-    """Require one earlier, eligible ledger row that no correction already voided."""
     if not target or not RESOLVE_ID_RE.fullmatch(target):
         raise RowError(f"void={target!r} is an empty or malformed id")
     row = next((row for row in prior_rows if split_row(row)[0][0] == target), None)
@@ -772,7 +755,6 @@ def derive_push(repo: Path, base: str, head: str, boundary: list[str]) -> tuple[
 
 def push_field(base: str, head: str, count: str,
                boundary: list[str], outside: list[str]) -> str:
-    """The push block, carrying the derivation's input beside its output."""
     return (f'push={base}..{head} count={count} '
             f'boundary="{" ".join(boundary)}" boundary-check="{" ".join(outside)}"')
 
@@ -983,7 +965,6 @@ def build(args: argparse.Namespace, repo: Path,
 
 
 def check(row: str, repo: Path, prior_rows: list[str] | None = None) -> None:
-    """Re-derive every derived field in an existing row and compare."""
     fields, quote = split_row(row)
     gid, when, kind, head_field, status, *rest = fields
     for name, value, pattern in (
@@ -1205,7 +1186,6 @@ def check(row: str, repo: Path, prior_rows: list[str] | None = None) -> None:
 
 
 def check_mailbox_for_open_gate(row: str, mailbox: Path | None) -> None:
-    """Apply opt-in S2 mailbox enforcement to an open human-gate row."""
     if mailbox is None:
         return
     kind, head, status = row_evidence(row)

@@ -32,7 +32,6 @@ def _agents(payload: dict[str, Any]) -> list[Any]:
 
 
 def format_roster(payload: dict[str, Any], workspace: str | None = None) -> list[str]:
-    """Return one compact roster line for each matching agent."""
     agents = _agents(payload)
 
     lines = []
@@ -254,7 +253,6 @@ def _seat_specs(raw_seats: list[str] | None) -> dict[str, str]:
 
 
 def _launch_args(pane_id: str, kind: str) -> tuple[list[str] | None, dict[str, Any] | None]:
-    """Return exposed arguments, or the argv0-only matching process record."""
     try:
         proc = herdr_cli.run(["pane", "process-info", "--pane", pane_id])
     except herdr_cli.HerdrUnavailable as exc:

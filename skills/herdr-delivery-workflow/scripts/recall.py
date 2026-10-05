@@ -95,7 +95,7 @@ LESSON_STATUSES = ("active", "failure-mode", "rejected", "superseded")
 
 
 class LessonParseError(ValueError):
-    """A lesson file does not contain valid frontmatter."""
+    pass
 
 
 @dataclass
@@ -106,7 +106,6 @@ class LessonRecord:
 
 
 def lesson_record_lines(text):
-    """Parse one lesson and raise LessonParseError with a reportable reason."""
     lines = text.splitlines(keepends=True)
     if not lines:
         raise LessonParseError("file is empty")

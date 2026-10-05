@@ -455,9 +455,6 @@ class MailboxTest(unittest.TestCase):
             self.assertEqual(gate_row.main(check_args), 0, stderr.getvalue())
 
     def test_wake_refuses_a_file_outside_the_herdr_projects_root(self):
-        # A11 lesson: a scratch or test context must never drive a live seat.
-        # A mailbox that resolves outside the herdr projects root is refused
-        # before run_wake is ever called.
         scratch = Path(self.tmp.name) / "scratch-mailbox.md"
         scratch.write_text(SAMPLE, encoding="utf-8")
         calls = []

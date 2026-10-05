@@ -21,8 +21,6 @@ import gate_row  # noqa: E402
 
 
 class FakeHerdr:
-    """Small read boundary with a pane-close operation for the red/green path."""
-
     def __init__(self, canonical: Path) -> None:
         self.canonical = canonical
         self.panes: dict[str, dict[str, Any]] = {}
