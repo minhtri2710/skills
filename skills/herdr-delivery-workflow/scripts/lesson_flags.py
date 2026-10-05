@@ -1,19 +1,12 @@
 #!/usr/bin/env python3
-"""Report superseded and stale Herdr lesson records, or unprovenanced and stale RATIONALE.md entries, for Human review."""
+"""Report superseded and stale Herdr lesson records for Human review."""
 
 import argparse
 import datetime
 import os
-import re
 import sys
 
 from recall import LESSON_STATUSES, LessonParseError, lesson_record_lines, project_root
-
-RATIONALE_PATH = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "references", "RATIONALE.md"
-)
-TAG = re.compile(r"Origin: (?P<ref>[^;]+); (?P<origin>\S+)\. Confirmed: (?P<confirmed>\S+)\.$")
-DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
 
 
 def record_fields(path):
@@ -23,86 +16,12 @@ def record_fields(path):
     return fields, datetime.date.fromisoformat(fields["last_used"])
 
 
-def rationale_entries(text):
-    section = None
-    body = []
-
-    def close():
-        if section is None:
-            return []
-        bullets = [line for line in body if line.startswith("- **")]
-        if bullets:
-            return [(section, line[4:].split("**", 1)[0].rstrip("."), line) for line in bullets]
-        paragraphs = [line for line in body if line.strip()]
-        return [(section, section, paragraphs[-1] if paragraphs else "")]
-
-    entries = []
-    for line in text.splitlines():
-        if line.startswith("## "):
-            entries += close()
-            section, body = line[3:].strip(), []
-        elif section is not None:
-            body.append(line)
-    return entries + close()
-
-
-def tag_problem(text, cutoff):
-    """Return (malformed_reason, review_reason); at most one is set."""
-    if "Origin:" not in text:
-        return "missing provenance tag", None
-    match = TAG.search(text)
-    if not match:
-        return "malformed provenance tag", None
-    dates = {}
-    for name in ("origin", "confirmed"):
-        value = match.group(name)
-        try:
-            if not DATE.fullmatch(value):
-                raise ValueError
-            dates[name] = datetime.date.fromisoformat(value)
-        except ValueError:
-            return f"bad {name} date: {value}", None
-    if match.group("ref").strip() == "unknown":
-        return None, "origin unknown"
-    if dates["confirmed"] < cutoff:
-        return None, f"confirmed {dates['confirmed'].isoformat()}"
-    return None, None
-
-
-def rationale_report(cutoff):
-    with open(RATIONALE_PATH, encoding="utf-8") as handle:
-        entries = rationale_entries(handle.read())
-    flagged = []
-    malformed = []
-    for section, title, text in entries:
-        bad, review = tag_problem(text, cutoff)
-        if bad:
-            malformed.append(f"malformed: {section} / {title}: {bad}")
-        elif review:
-            flagged.append(f"- {section} / {title} ({review}) — review candidate for Human review")
-    for line in malformed:
-        print(line)
-    if not flagged:
-        if malformed:
-            return 1
-        print("Nothing to flag: every rationale entry has a known, recently confirmed origin.")
-        return 0
-    print(f"Review candidates — origin unknown, or confirmed before {cutoff.isoformat()}:")
-    for line in flagged:
-        print(line)
-    return 1 if malformed else 0
-
-
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    mode = parser.add_mutually_exclusive_group(required=True)
-    mode.add_argument("--project", metavar="SLUG")
-    mode.add_argument("--rationale", action="store_true")
+    parser.add_argument("--project", metavar="SLUG", required=True)
     args = parser.parse_args(argv)
     # The stale window is fixed doctrine (90 days); there is no CLI override.
     cutoff = datetime.datetime.now(datetime.timezone.utc).date() - datetime.timedelta(days=90)
-    if args.rationale:
-        return rationale_report(cutoff)
 
     lessons = os.path.join(project_root(parser, args.project), "runs", "coordination", "lessons")
     if not os.path.isdir(lessons):

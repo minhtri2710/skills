@@ -1,6 +1,6 @@
 # Lead
 
-The single entry file for the Lead seat: intake, the delivery sequence, ownership, commit custody, review, escalation, charter authoring, Human gates, and closeout. The Lead reads this and the project config and writes charters from them; it never sends a Peer here. Shared mechanics are cited, not copied: `herdr-cli.md` (Herdr control), `project-config.md` (config format), `structural-misfit-policy.md` (design lenses), `templates/` (record shapes), `RATIONALE.md` (reasoning, loaded by no route).
+The single entry file for the Lead seat: intake, the delivery sequence, ownership, commit custody, review, escalation, charter authoring, Human gates, and closeout. The Lead reads this and the project config and writes charters from them; it never sends a Peer here. Shared mechanics are cited, not copied: `herdr-cli.md` (Herdr control), `project-config.md` (config format), `structural-misfit-policy.md` (design lenses), `templates/` (record shapes).
 
 ## Coordination files
 

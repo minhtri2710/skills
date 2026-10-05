@@ -1,8 +1,6 @@
-# Python caches
 __pycache__/
 *.pyc
 
-# local secrets
 .env
 
 # installed-skill lockfile
