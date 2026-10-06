@@ -16,7 +16,7 @@ import os
 import re
 import subprocess
 import sys
-from collections import Counter
+from collections import Counter, defaultdict
 from fnmatch import fnmatch
 from dataclasses import dataclass
 from pathlib import Path
@@ -37,10 +37,32 @@ STUB = re.compile(
 TODO_MARK = re.compile(r"(?:#|//|/\*|<!--|\*|--|;)\s*(?:TODO|FIXME)\b")
 SKIP = re.compile(
     r"\b(it|test|describe|context)\.(skip|todo|only)\(|\bxit\(|\bxdescribe\(|@pytest\.mark\.(skip|xfail)|"
-    r"@unittest\.skip|\bt\.Skip\(|#\[ignore\]"
+    r"@unittest\.skip|\bt\.Skip\(|#\[ignore\]|"
+    r"\bself\.skipTest\(|\bpytest\.skip\(|\bt\.SkipNow\(|"
+    r"^\s*pytestmark\s*=.*mark\.(skip|xfail)|^\s*(fit|fdescribe)\("
 )
 ASSERTION = re.compile(r"\b(expect|assert\w*|should)\b")
 TEST_PATH = re.compile(r"(^|/)(tests?|__tests__|spec)/|(^|/)test_[^/]*$|_test\.|\.(test|spec)\.")
+# Tool configs the guard reads, matched by file name. Coverage thresholds pair a removed
+# value with an added one per (path, key); lint rules are read per added line.
+COVERAGE_CONFIGS = (
+    (
+        re.compile(r"(^|/)(pyproject\.toml|setup\.cfg|\.coveragerc|tox\.ini|pytest\.ini)$"),
+        re.compile(r"(?P<key>fail_under|--cov-fail-under)(?:\s*[=:]\s*|=|\s+)(?P<value>\d+(?:\.\d+)?)"),
+    ),
+    (
+        re.compile(r"(^|/)(jest\.config\.\w+|package\.json)$"),
+        re.compile(r"(?P<key>branches|functions|lines|statements)[\"']?\s*:\s*(?P<value>\d+(?:\.\d+)?)"),
+    ),
+)
+ESLINT_CONFIG = re.compile(r"(^|/)(\.eslintrc(\.\w+)?|eslint\.config\.\w+)$")
+ESLINT_OFF = re.compile(r"[\"']?(?P<rule>[@\w/.-]+)[\"']?\s*:\s*\[?\s*[\"']?(?:off|0)[\"']?\s*(?=[,\]}]|$)")
+RUFF_CONFIG = re.compile(r"(^|/)(pyproject\.toml|\.?ruff\.toml)$")
+RUFF_IGNORE_KEY = re.compile(r"^\s*(?:extend-)?ignore\s*=")
+RUFF_BARE_ENTRY = re.compile(r"^\s*[\"'][^\"']+[\"']\s*,?\s*(?:#.*)?$")
+TOML_KEY = re.compile(r"^\s*([\w.-]+)\s*=")
+TOML_TABLE = re.compile(r"^\s*\[\[?[\w. -]+\]\]?\s*(?:#.*)?$")
+QUOTED = re.compile(r"[\"']([^\"']+)[\"']")
 HUNK = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@")
 CONSTRAINTS = "CONSTRAINTS.md"
 
@@ -194,6 +216,65 @@ def check_constraints(added: list[Line], removed: list[Line]) -> list[Finding]:
     return findings
 
 
+def check_thresholds(added: list[Line], removed: list[Line]) -> list[Finding]:
+    """A coverage threshold lowered or removed in a tool config (a tightened one is silent)."""
+    found: set[tuple[str, int]] = set()
+    for files, pattern in COVERAGE_CONFIGS:
+        old: dict[tuple[str, str], list[tuple[float, Line]]] = defaultdict(list)
+        new: dict[tuple[str, str], list[tuple[float, Line]]] = defaultdict(list)
+        for lines, into in ((removed, old), (added, new)):
+            for line in lines:
+                if files.search(line.path):
+                    for match in pattern.finditer(line.text):
+                        into[(line.path, match["key"])].append((float(match["value"]), line))
+        for key, before in old.items():
+            before.sort(key=lambda item: item[0])
+            after = sorted(new.get(key, []), key=lambda item: item[0])
+            if len(after) < len(before) or any(a[0] < b[0] for a, b in zip(after, before)):
+                where = after[0][1] if after else before[0][1]
+                found.add((where.path, where.number))
+    return [Finding("threshold-loosened", path, number) for path, number in sorted(found)]
+
+
+def _toml_key(lines: list[str], number: int) -> str | None:
+    for text in reversed(lines[:number]):
+        if TOML_TABLE.match(text):
+            return None
+        match = TOML_KEY.match(text)
+        if match:
+            return match.group(1)
+    return None
+
+
+def check_lint(added: list[Line], removed: list[Line], toml: dict[str, list[str]]) -> list[Finding]:
+    """An eslint rule set off, or an entry added to a ruff ignore list."""
+    off: dict[str, set[str]] = defaultdict(set)
+    ignored: dict[str, set[str]] = defaultdict(set)
+    for line in removed:
+        if ESLINT_CONFIG.search(line.path):
+            off[line.path].update(m["rule"] for m in ESLINT_OFF.finditer(line.text))
+        if RUFF_CONFIG.search(line.path):
+            ignored[line.path].update(QUOTED.findall(line.text))
+    findings: list[Finding] = []
+    for line in added:
+        if ESLINT_CONFIG.search(line.path):
+            hit = any(m["rule"] not in off[line.path] for m in ESLINT_OFF.finditer(line.text))
+        elif RUFF_CONFIG.search(line.path):
+            fresh = [e for e in QUOTED.findall(line.text) if e not in ignored[line.path]]
+            hit = bool(fresh) and (
+                bool(RUFF_IGNORE_KEY.match(line.text))
+                or (
+                    bool(RUFF_BARE_ENTRY.match(line.text))
+                    and _toml_key(toml[line.path], line.number) in ("ignore", "extend-ignore")
+                )
+            )
+        else:
+            continue
+        if hit:
+            findings.append(Finding("lint-rule-disabled", line.path, line.number))
+    return findings
+
+
 @dataclass(frozen=True)
 class Exception_:
     rule: str
@@ -228,7 +309,11 @@ def _excepted(finding: Finding, exceptions: list[Exception_]) -> bool:
 
 
 def check(
-    added: list[Line], removed: list[Line], deleted: list[str], constraints: str = ""
+    added: list[Line],
+    removed: list[Line],
+    deleted: list[str],
+    constraints: str = "",
+    toml: dict[str, list[str]] | None = None,
 ) -> list[Finding]:
     exceptions, incomplete = parse_exceptions(constraints)
     findings: list[Finding] = []
@@ -253,15 +338,35 @@ def check(
             first = next(l for l in removed if l.path == path and ASSERTION.search(l.text))
             findings.append(Finding("assertion-removed", path, first.number))
 
+    findings += check_thresholds(added, removed) + check_lint(added, removed, toml or {})
     findings = [f for f in findings if not _excepted(f, exceptions)]
     findings += [Finding("exception-incomplete", CONSTRAINTS, n) for n in incomplete]
     return findings + check_constraints(added, removed)
 
 
-def collect(repo: Path, base: str) -> tuple[list[Line], list[Line], list[str], str]:
+def _deleted_tests(status: str) -> list[str]:
+    """Paths deleted, plus test paths renamed to a non-test path, from ``--name-status -z``."""
+    tokens = status.split("\0")
+    gone: list[str] = []
+    index = 0
+    while index < len(tokens) and tokens[index]:
+        kind = tokens[index][0]
+        if kind in "RC":
+            old, new = tokens[index + 1], tokens[index + 2]
+            if kind == "R" and TEST_PATH.search(old) and not TEST_PATH.search(new):
+                gone.append(old)
+            index += 3
+        else:
+            if kind == "D":
+                gone.append(tokens[index + 1])
+            index += 2
+    return gone
+
+
+def collect(repo: Path, base: str) -> tuple[list[Line], list[Line], list[str], str, dict[str, list[str]]]:
     merge_base = _git(repo, "merge-base", base, "HEAD").strip()
     added, removed = parse_diff(_git(repo, "diff", "--no-color", "--unified=0", merge_base, "--"))
-    deleted = [p for p in _git(repo, "diff", "--name-only", "-z", "--diff-filter=D", merge_base, "--").split("\0") if p]
+    deleted = _deleted_tests(_git(repo, "diff", "--name-status", "-z", "-M", merge_base, "--"))
     for name in _git(repo, "ls-files", "--others", "--exclude-standard", "-z").split("\0"):
         if not name:
             continue
@@ -274,7 +379,13 @@ def collect(repo: Path, base: str) -> tuple[list[Line], list[Line], list[str], s
         constraints = (repo / CONSTRAINTS).read_text(encoding="utf-8")
     except OSError:
         constraints = ""
-    return added, removed, deleted, constraints
+    toml: dict[str, list[str]] = {}
+    for path in {l.path for l in added if RUFF_CONFIG.search(l.path)}:
+        try:
+            toml[path] = (repo / path).read_text(encoding="utf-8").splitlines()
+        except (UnicodeDecodeError, OSError) as exc:
+            raise GuardError(f"cannot read {path}: {exc}") from exc
+    return added, removed, deleted, constraints, toml
 
 
 def main(argv: list[str] | None = None) -> int:

@@ -26,6 +26,8 @@ exception ids as `E<n>`.
 | Coverage | changed lines >= 80% | lcov report intersected with `git diff` | task end | forces a test, allows a config line |
 | Dependencies | high findings <= 0 | `osv-scanner scan source -r .` | CI | below high is mostly noise |
 | Accessibility | critical+serious <= 0 | `axe $URL --tags wcag2a,wcag2aa,wcag21aa` | preview | moderate and minor are often debatable |
+| Change lines | added + removed <= 400 | `git diff --numstat origin/main...HEAD`, first two columns summed | task end | a diff a reviewer cannot hold in one pass hides defects; split it |
+| Change files | files changed <= 20 | `git diff --name-only origin/main...HEAD`, lines counted | task end | same |
 | LCP | <= 2500 ms | `lighthouse $URL --output=json` | preview | Core Web Vitals good threshold |
 | CLS | <= 0.1 | `lighthouse $URL --output=json` | preview | same |
 
