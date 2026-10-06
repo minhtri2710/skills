@@ -37,8 +37,8 @@ turns it green, then the next test informed by what that cycle taught you.
 
 1. Red: write one test and watch it fail for the expected reason.
 2. Green: write only enough code to pass it, with no speculative features.
-3. Run the test file after each change, the typecheck regularly, and the full
-   suite once at the end.
+3. Run each new test more than once before calling it green; run the test file
+   after each change, the typecheck regularly, and the full suite once at the end.
 
 Writing all tests first and all implementation after tests imagined behavior and
 locks in test structure before the design is understood.
@@ -55,6 +55,11 @@ Refactoring belongs to review, after the slice is green.
 ## What a kept test looks like
 
 - It exercises the public interface and survives an internal refactor.
+- It is deterministic: pin the seed and time, compare ordered collections in
+  order, and wait on a condition instead of using fixed sleeps.
+- It asserts the specific error or outcome, not merely that nothing was thrown;
+  no error is swallowed inside the test.
+- It covers one behaviour.
 - Its name states the capability ("user can check out with a valid cart"), not the
   mechanism.
 - It verifies through the interface: create a user, then fetch the user, rather
