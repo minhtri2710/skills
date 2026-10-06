@@ -64,6 +64,25 @@ class DoctrineDedupTest(unittest.TestCase):
             ),
         )
 
+    def test_lead_commit_message_contract_preserves_custody(self):
+        lead = (SKILL / "references/lead.md").read_text()
+        commit_step = next(
+            line for line in lead.splitlines()
+            if line.startswith("3. In partitioned mode")
+        )
+        for requirement in (
+            "subject `type(scope): what changed`",
+            "at most 72 characters",
+            "gate IDs, Human quotes, task names, and test counts",
+            "optional short body for why",
+            "`Seat: <seat name>` and `Model: <kind> <model>` trailers",
+            "provenance belongs in the ledger and `runs/`",
+            "`git add -- <owned paths>`; never `git add -A` or `git commit -a`",
+            "Let every hook finish uninterrupted",
+        ):
+            with self.subTest(requirement=requirement):
+                self.assertIn(requirement, commit_step)
+
     def test_loaded_files_stay_within_byte_budget(self):
         over = {
             name: (size, cap)
