@@ -16,7 +16,8 @@ Row shape, one line, ` | ` between fields:
       [| who=<delegate> | scope=<scope> | conditions=<conditions> | expiry=<expiry>
          [| push-scope=<remote>:<branch|prefix/*>[,<remote>:<branch|prefix/*>...]]]
       [| grant=<remote> <ref> <push|force|delete> <base>..<tip>]
-      [| finding=<identity>] [| archive=<64 lowercase hex genesis marker>] [| prev_hash=<64 lowercase hex>]
+      [| finding=<identity>] [| archive=<64 lowercase hex genesis marker>]
+      [| skills=<sorted, unique top-level deploy targets>] [| prev_hash=<64 lowercase hex>]
       | words=<seat|human|selected|none>
       | note=<one line> | quote="<verbatim>"
 
@@ -204,6 +205,39 @@ def ledger_rows(text: str) -> list[str]:
     rows = text_rows(text)
     verify_chain(rows)
     return rows
+
+
+def deployed_head(rows: list[str], skill: str, repo: Path) -> tuple[str, str, str]:
+    """Select the newest completed target-bearing deploy row after validating the ledger."""
+    candidates = []
+    for row in rows:
+        fields, _ = split_row(row)
+        kind, head, status = row_evidence(row)
+        if kind != "deploy" or status not in {"recorded:deploy", "resolved:deploy", "resolved:human"}:
+            continue
+        targets = [field.split("=", 1)[1] for field in fields if field.startswith("skills=")]
+        if not targets or skill not in targets[0].split():
+            continue
+        branch = fields[3].split("@", 1)[0]
+        candidates.append((branch, head, row))
+    if not candidates:
+        raise RowError(f"no completed target-bearing deploy row for skill {skill!r}")
+    branch, head, row = candidates[-1]
+    full_head = git(repo, "rev-parse", "--verify", f"{head}^{{commit}}")
+    return branch, full_head, row
+
+
+def select_deployed_head(ledger: Path, skill: str, repo: Path) -> tuple[str, str, str]:
+    """Read and validate the entire hash-chained ledger before selecting a deployed head."""
+    if not ledger.is_absolute():
+        raise RowError(f"ledger path must be absolute: {ledger}")
+    with locked_ledger(ledger, exclusive=False) as handle:
+        rows = ledger_rows(handle_text(handle))
+        if not rows:
+            raise RowError(f"no completed target-bearing deploy row for skill {skill!r}")
+        for index, row in enumerate(rows):
+            check(row, repo, rows[:index])
+        return deployed_head(rows, skill, repo)
 
 
 def next_id_from_rows(rows: list[str]) -> int:
@@ -539,6 +573,7 @@ def reject_special_fields(args: argparse.Namespace, kind: str) -> None:
         "standing-delegation": {"--who", "--scope", "--conditions", "--expiry", "--push-scope"},
         "repair-grant": {"--finding"},
         "push-grant": {"--grant"},
+        "deploy": {"--skill"},
     }.get(kind, set())
     supplied = (
         ("--op", getattr(args, "op", "")), ("--after", getattr(args, "after", "")),
@@ -549,10 +584,12 @@ def reject_special_fields(args: argparse.Namespace, kind: str) -> None:
         ("--push-scope", getattr(args, "push_scope", "")),
         ("--grant", getattr(args, "grant", "")),
         ("--void", getattr(args, "void", [])),
+        ("--skill", getattr(args, "skill", [])),
     )
     for flag, value in supplied:
-        if flag == "--void" and value and flag not in allowed:
-            raise RowError(f"--void is only meaningful on kind=correction, not kind={kind}")
+        if flag in {"--void", "--skill"} and value and flag not in allowed:
+            use = "kind=correction" if flag == "--void" else "kind=deploy"
+            raise RowError(f"{flag} is only meaningful on {use}, not kind={kind}")
         if value and flag not in allowed:
             raise RowError(f"{flag} is only meaningful on its corresponding special row, not kind={kind}")
 
@@ -814,6 +851,16 @@ def build(args: argparse.Namespace, repo: Path,
         raise RowError("kind=cutover is valid only as a stored first-row genesis and cannot be appended")
     reject_special_fields(args, kind)
     special_fields: list[str] = []
+    if kind == "deploy":
+        if args.status not in {"recorded:deploy", "resolved:deploy", "resolved:human"}:
+            raise RowError("kind=deploy requires a completed deploy status")
+        skills = getattr(args, "skill", None) or []
+        if not skills:
+            raise RowError("kind=deploy requires at least one --skill <top-level-skill>")
+        if len(skills) != len(set(skills)):
+            raise RowError("kind=deploy --skill names a skill more than once")
+        if any(not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", skill) for skill in skills):
+            raise RowError("kind=deploy --skill names a malformed top-level skill")
     if kind == "correction":
         if args.status != "recorded:correction":
             raise RowError("kind=correction requires status=recorded:correction")
@@ -950,6 +997,8 @@ def build(args: argparse.Namespace, repo: Path,
             "— an argument accepted and silently dropped is how a row loses the evidence "
             "it claims to carry"
         )
+    if args.kind == "deploy":
+        fields.append(f"skills={' '.join(sorted(args.skill))}")
     if targets:
         fields.append(f"resolves={','.join(targets)}")
     if special_fields:
@@ -989,7 +1038,7 @@ def check(row: str, repo: Path, prior_rows: list[str] | None = None) -> None:
     git(repo, "rev-parse", "--verify", f"{m.group('head')}^{{commit}}")
 
     known = (
-        "channel=", "writer=", "record=", "push=", "review=", "resolves=", "void=", "op=", "after=",
+        "channel=", "writer=", "record=", "push=", "review=", "resolves=", "void=", "op=", "after=", "skills=",
         "who=", "scope=", "conditions=", "expiry=", "push-scope=", "grant=", "finding=", "archive=", "prev_hash=", "words=", "note=",
     )
     for field in rest:
@@ -1014,6 +1063,23 @@ def check(row: str, repo: Path, prior_rows: list[str] | None = None) -> None:
         raise RowError(f"field {rest[index]!r} is not one of {RECORD_VALUES}")
     index += 1
 
+    row_kind = kind.split("=", 1)[1]
+    target_fields = [field for field in rest if field.startswith("skills=")]
+    if len(target_fields) > 1:
+        raise RowError(f"row {gid!r} carries more than one skills=")
+    if target_fields and row_kind != "deploy":
+        raise RowError(f"skills= is only on a kind=deploy row, not kind={row_kind}")
+    if row_kind == "deploy" and status.split("=", 1)[1] not in {"recorded:deploy", "resolved:deploy", "resolved:human"}:
+        raise RowError("kind=deploy requires a completed deploy status")
+    if row_kind == "deploy" and index < len(rest) and rest[index].startswith("skills="):
+        targets = rest[index].split("=", 1)[1].split()
+        if (not targets or targets != sorted(set(targets))
+                or any(not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", item) for item in targets)):
+            raise RowError("skills= must contain sorted, unique top-level skill names")
+        deployed_skills = git(repo, "ls-tree", "-d", "--name-only", f"{m.group('head')}:skills").splitlines()
+        if not set(targets) <= set(deployed_skills):
+            raise RowError("skills= contains a target absent from the deploy row head")
+        index += 1
     push = None
     if index < len(rest) and rest[index].startswith("push="):
         push = rest[index]
@@ -1022,7 +1088,6 @@ def check(row: str, repo: Path, prior_rows: list[str] | None = None) -> None:
     if index < len(rest) and rest[index].startswith("review="):
         review = rest[index]
         index += 1
-    row_kind = kind.split("=", 1)[1]
     if row_kind == "push" and push is None:
         raise RowError(
             "this row is kind=push and carries no push block — the range, count and "
@@ -1075,6 +1140,9 @@ def check(row: str, repo: Path, prior_rows: list[str] | None = None) -> None:
         if index < len(rest) and rest[index].startswith("push-scope="):
             validate_push_scope(rest[index].split("=", 1)[1], values["expiry"])
             index += 1
+    elif row_kind == "deploy":
+        if index < len(rest) and rest[index].startswith("skills="):
+            raise RowError("skills= is missing or out of order")
     elif row_kind == "push-grant":
         if status != "status=open":
             raise RowError("kind=push-grant requires status=open")
@@ -1199,6 +1267,8 @@ def check_mailbox_for_open_gate(row: str, mailbox: Path | None) -> None:
 @contextmanager
 def locked_ledger(ledger: Path, exclusive: bool):
     if not exclusive and not ledger.exists():
+        if getattr(ledger, "name", "") == "gates.md":
+            raise RowError(f"no completed target-bearing deploy row for skill; ledger {ledger} is absent")
         raise RowError(f"{ledger} holds no gate ledger")
     mode = "a+" if exclusive else "r"
     try:
@@ -1231,6 +1301,8 @@ def main(argv: list[str] | None = None) -> int:
                         help="with --check, require a matching open-gate ATTENTION header")
     parser.add_argument("--open-gates", action="store_true",
                         help="print the structured open-gate id set, one id per line")
+    parser.add_argument("--deployed-head", metavar="SKILL",
+                        help="select the latest applicable completed deploy row for SKILL after full ledger verification")
     parser.add_argument("--kind")
     parser.add_argument("--status")
     parser.add_argument("--channel")
@@ -1248,6 +1320,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--grant", help="a one-shot push-grant: <remote> <ref> <push|force|delete> "
                         "<base>..<tip>, full SHAs")
     parser.add_argument("--finding", help="the repair-grant finding identity")
+    parser.add_argument("--skill", action="append", default=[],
+                        help="top-level skill deployed; repeat for each exact target")
     parser.add_argument("--void", action="append", default=[],
                         help="the earlier review-pass or push-grant row a correction voids")
     parser.add_argument("--record", choices=RECORD_VALUES)
@@ -1281,10 +1355,26 @@ def main(argv: list[str] | None = None) -> int:
             )
         if args.check and args.open_gates:
             raise RowError("--check and --open-gates are mutually exclusive")
+        if args.deployed_head:
+            if any((args.check, args.open_gates, args.kind, args.status, args.channel, args.writer,
+                    args.op, args.after, args.who, args.scope, args.conditions, args.expiry,
+                    args.push_scope, args.grant, args.finding, args.void, args.skill, args.record,
+                    args.head, args.push_base, args.review_base, args.boundary, args.resolves,
+                    args.words, args.note, args.quote, args.quote_file, args.mailbox)):
+                raise RowError("--deployed-head cannot be combined with check or append arguments")
+            with locked_ledger(args.ledger, exclusive=False) as handle:
+                rows = ledger_rows(handle_text(handle))
+                if not rows:
+                    raise RowError(f"no completed target-bearing deploy row for skill {args.deployed_head!r}")
+                for index, row in enumerate(rows):
+                    check(row, args.repo, rows[:index])
+                branch, head, source_row = deployed_head(rows, args.deployed_head, args.repo)
+            print(f"{branch}@{head}\n{source_row}")
+            return 0
         if args.open_gates:
             ignored = (
                 args.kind, args.status, args.channel, args.writer, args.op, args.after,
-                args.who, args.scope, args.conditions, args.expiry, args.push_scope, args.grant, args.finding, args.void,
+                args.who, args.scope, args.conditions, args.expiry, args.push_scope, args.grant, args.finding, args.void, args.skill,
                 args.record, args.head, args.push_base, args.review_base, args.boundary, args.resolves, args.words,
                 args.note, args.quote, args.quote_file, args.mailbox,
             )

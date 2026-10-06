@@ -332,7 +332,10 @@ class CharterLintTest(unittest.TestCase):
         self.assertIn("OK:", output)
         self.assertEqual(error, "")
 
-        incomplete = architect_record.replace("dialog=residual ", "", 1)
+        incomplete = architect_record.replace(
+            "ARCHITECT: rev kind=pi model=m posture=prompting dialog=denied ",
+            "ARCHITECT: rev kind=pi model=m posture=prompting ",
+        )
         code, _, error = self.run_lint(charter, incomplete)
         self.assertEqual(code, 1)
         self.assertIn("ARCHITECT seat missing dialog=", error)
@@ -418,7 +421,10 @@ class CharterLintTest(unittest.TestCase):
 
     def test_staffing_missing_each_required_key_is_named(self):
         complete = self.staffing_record()
-        for key in ("posture=", "dialog=", "skills=", "extensions="):
+        for key in (
+            "posture=", "dialog=", "dialog-tools=", "dialog-deny=", "dialog-source=",
+            "skills=", "extensions=",
+        ):
             with self.subTest(key=key):
                 engineer_line = next(
                     line for line in complete.splitlines() if line.startswith("ENGINEER:")
@@ -429,6 +435,32 @@ class CharterLintTest(unittest.TestCase):
                 self.assertNotEqual(code, 0)
                 self.assertIn(key, error)
                 self.assertIn("ENGINEER", error)
+
+    def test_staffing_rejects_dialog_deny_that_does_not_match_recorded_tools(self):
+        staffing = self.staffing_record().replace("dialog-deny=*question*", "dialog-deny=ask_question", 1)
+        code, _, error = self.run_lint(self.engineer_charter(), staffing)
+        self.assertEqual(code, 1)
+        self.assertIn("ENGINEER dialog-deny does not cover ask_user_question", error)
+
+    def test_dialog_absent_requires_no_tools_and_no_deny(self):
+        staffing = self.staffing_record().replace(
+            "dialog=denied dialog-tools=ask_user_question,ask_question dialog-deny=*question*",
+            "dialog=absent dialog-tools=none dialog-deny=none",
+            1,
+        )
+        self.assertEqual(self.run_lint(self.engineer_charter(), staffing)[0], 0)
+        invalid = staffing.replace("dialog-tools=none", "dialog-tools=ask_user_question", 1)
+        code, _, error = self.run_lint(self.engineer_charter(), invalid)
+        self.assertEqual(code, 1)
+        self.assertIn("dialog=absent requires dialog-tools=none and dialog-deny=none", error)
+
+    def test_staffing_rejects_unknown_dialog_values(self):
+        for dialog in ("ask_user_question", "ask_question"):
+            with self.subTest(dialog=dialog):
+                staffing = self.staffing_record().replace("dialog=denied", f"dialog={dialog}", 1)
+                code, _, error = self.run_lint(self.engineer_charter(), staffing)
+                self.assertEqual(code, 1)
+                self.assertIn(f"ENGINEER seat cannot have dialog={dialog}", error)
 
     def test_lowercase_seat_line_after_prose_is_still_checked(self):
         staffing = "Staffed 2026-09-24.\nengineer: eng kind=pi model=m posture=none\n"
@@ -663,8 +695,8 @@ class CharterLintTest(unittest.TestCase):
         profile.write_text("(version 1)\n", encoding="utf-8")
         fence = self.fence_evidence()
         return (
-            "ENGINEER: eng kind=pi model=m posture=none dialog=denied skills=none extensions=none\n"
-            f"REVIEWER: rev kind=pi model=m posture=prompting dialog=residual skills=none extensions=none "
+            "ENGINEER: eng kind=pi model=m posture=none dialog=denied dialog-tools=ask_user_question,ask_question dialog-deny=*question* dialog-source=pi-1.0.4-active-tool-inventory skills=none extensions=none\n"
+            f"REVIEWER: rev kind=pi model=m posture=prompting dialog=denied dialog-tools=ask_user_question,ask_question dialog-deny=*question* dialog-source=pi-1.0.4-active-tool-inventory skills=none extensions=none "
             f"{fence}\n"
         )
 

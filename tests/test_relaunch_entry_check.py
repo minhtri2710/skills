@@ -37,6 +37,7 @@ class RelaunchEntryCheckTest(unittest.TestCase):
         (self.skill / "script.py").write_text("print('ok')\n", encoding="utf-8")
         git(self.repo, "add", "skills/example")
         git(self.repo, "commit", "-qm", "skill")
+        self.ledger = self.tmp / "gates.md"
         self.install = self.tmp / "installed"
         self.install.mkdir()
         for name in ("SKILL.md", "script.py"):
@@ -44,6 +45,16 @@ class RelaunchEntryCheckTest(unittest.TestCase):
         (self.install / "__pycache__").mkdir()
         (self.install / "__pycache__" / "ignored.pyc").write_bytes(b"runtime")
         self.addCleanup(self._tmp.cleanup)
+
+    def deploy_row(self, *skills: str) -> None:
+        args = [
+            sys.executable, str(SCRIPTS / "gate_row.py"), "--repo", str(self.repo),
+            "--ledger", str(self.ledger), "--kind", "deploy", "--status", "resolved:deploy",
+            "--words", "seat", "--note", "deployed", "--quote", "ok",
+        ]
+        for skill in skills:
+            args.extend(["--skill", skill])
+        subprocess.run(args, check=True, capture_output=True, text=True, stdin=subprocess.DEVNULL)
 
     def run_main(self, argv: list[str]) -> tuple[int, str, str]:
         stdout = io.StringIO()
@@ -65,11 +76,9 @@ class RelaunchEntryCheckTest(unittest.TestCase):
             "## R4 — Shared contact form + minor items (NEXT; scope ratified G167, G168)",
             encoding="utf-8",
         )
-
         code, stdout, stderr = self.run_main([
             "--verify", "--block-file", str(block), "--source-file", str(source),
         ])
-
         self.assertEqual(code, 0)
         self.assertEqual(stdout, "G167 G168\n")
         self.assertEqual(stderr, "")
@@ -82,73 +91,64 @@ class RelaunchEntryCheckTest(unittest.TestCase):
             encoding="utf-8",
         )
         altered = self.tmp / "next-item.txt"
-        altered.write_text(
-            "## R4 — BĐS services page [G164]",
-            encoding="utf-8",
-        )
-
+        altered.write_text("## R4 — BĐS services page [G164]", encoding="utf-8")
         code, stdout, stderr = self.run_main([
             "--verify", "--block-file", str(altered), "--source-file", str(source),
         ])
-
         self.assertNotEqual(code, 0)
         self.assertEqual(stdout, "")
         self.assertIn("not a verbatim contiguous block", stderr)
 
-    def test_count_excludes_repo_only_files_and_detects_tampering(self):
-        plugin = self.skill / ".claude-plugin"
-        plugin.mkdir()
-        (plugin / "x").write_text("plugin\n", encoding="utf-8")
-        evaluation = self.skill / "plugin-eval" / "case"
-        evaluation.mkdir(parents=True)
-        (evaluation / "y").write_text("eval\n", encoding="utf-8")
-        git(self.repo, "add", "skills/example")
-        git(self.repo, "commit", "-qm", "add repo-only files")
-
-        code, stdout, stderr = self.run_main([
-            "--count", "--repo", str(self.repo), "--head", "HEAD",
-            "--skill-path", "skills/example", "--installed-path", str(self.install),
-        ])
-
-        self.assertEqual(code, 0)
-        self.assertEqual(stdout, "tracked=2 installed=2 drifted=0\n")
-        self.assertEqual(stderr, "")
-
-        (self.install / "SKILL.md").write_text("tampered\n", encoding="utf-8")
-        code, stdout, stderr = self.run_main([
-            "--count", "--repo", str(self.repo), "--head", "HEAD",
-            "--skill-path", "skills/example", "--installed-path", str(self.install),
-        ])
-
-        self.assertEqual(code, 0)
-        self.assertEqual(stdout, "tracked=2 installed=2 drifted=1\n")
-        self.assertEqual(stderr, "")
-
     def count(self) -> tuple[int, str, str]:
         return self.run_main([
-            "--count", "--repo", str(self.repo), "--head", "HEAD",
-            "--skill-path", "skills/example", "--installed-path", str(self.install),
+            "--count", "--repo", str(self.repo), "--ledger", str(self.ledger),
+            "--skill", "example", "--skill-path", "skills/example",
+            "--installed-path", str(self.install),
         ])
 
-    def test_count_flags_executable_bit_removed_from_installed_file(self):
+    def test_count_requires_latest_target_row_and_checks_file_parity(self):
+        no_row = self.count()
+        self.assertEqual(no_row[0], 1)
+        self.assertIn("no completed target-bearing deploy row", no_row[2])
+        self.deploy_row("example")
+        rows = self.ledger.read_text(encoding="utf-8").splitlines()
+        self.ledger.write_text(rows[0] + "\n", encoding="utf-8")
+        self.deploy_row("example")
+        rows = self.ledger.read_text(encoding="utf-8").splitlines()
+        self.ledger.write_text(rows[0] + "\n" + rows[1].replace("skills=example", "skills=missing") + "\n", encoding="utf-8")
+        self.assertIn("absent from the deploy row head", self.count()[2])
+        self.ledger.write_text("\n".join(rows) + "\n", encoding="utf-8")
+        self.assertEqual(self.count(), (0, "tracked=2 installed=2 drifted=0\n", ""))
+        (self.install / "SKILL.md").write_text("tampered\n", encoding="utf-8")
+        mismatch = self.count()
+        self.assertEqual(mismatch[0], 1)
+        self.assertEqual(mismatch[1], "tracked=2 installed=2 drifted=1\n")
+
+    def test_count_uses_selected_deploy_head_instead_of_checkout_head(self):
+        self.deploy_row("example")
+        deployed = git_output(self.repo, "rev-parse", "HEAD")
+        (self.skill / "script.py").write_text("new checkout\n", encoding="utf-8")
+        git(self.repo, "add", "skills/example/script.py")
+        git(self.repo, "commit", "-qm", "new checkout head")
+        self.assertEqual(self.count(), (0, "tracked=2 installed=2 drifted=0\n", ""))
+        self.assertNotEqual(deployed, git_output(self.repo, "rev-parse", "HEAD"))
+
+    def test_count_flags_installed_mode_drift(self):
         (self.skill / "script.py").chmod(0o755)
         git(self.repo, "add", "skills/example")
         git(self.repo, "commit", "-qm", "executable script")
         (self.install / "script.py").chmod(0o755)
+        self.deploy_row("example")
         self.assertEqual(self.count(), (0, "tracked=2 installed=2 drifted=0\n", ""))
-
         (self.install / "script.py").chmod(0o644)
-        self.assertEqual(self.count(), (0, "tracked=2 installed=2 drifted=1\n", ""))
+        result = self.count()
+        self.assertEqual(result[0], 1)
+        self.assertEqual(result[1], "tracked=2 installed=2 drifted=1\n")
 
-    def test_count_flags_executable_bit_added_to_installed_file(self):
-        self.assertEqual(self.count(), (0, "tracked=2 installed=2 drifted=0\n", ""))
 
-        (self.install / "SKILL.md").chmod(0o755)
-        self.assertEqual(self.count(), (0, "tracked=2 installed=2 drifted=1\n", ""))
-
-    def test_count_reads_mode_from_head_tree_not_working_tree(self):
-        (self.skill / "script.py").chmod(0o755)
-        self.assertEqual(self.count(), (0, "tracked=2 installed=2 drifted=0\n", ""))
+def git_output(repo: Path, *args: str) -> str:
+    return subprocess.run(["git", "-C", str(repo), *args], check=True,
+                          capture_output=True, text=True, stdin=subprocess.DEVNULL).stdout.strip()
 
 
 if __name__ == "__main__":

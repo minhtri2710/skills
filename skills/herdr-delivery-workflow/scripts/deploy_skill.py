@@ -191,6 +191,8 @@ def append_deploy_row(
         "--words", args.words, "--note", args.note, "--quote", args.quote,
         "--head", row_head,
     ]
+    for skill in args.skill:
+        command.extend(["--skill", skill])
     if args.channel:
         command.extend(["--channel", args.channel])
     for gate_id in args.resolves:
@@ -240,6 +242,8 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     try:
+        if not args.ledger.is_absolute():
+            raise DeployError(f"--ledger must be absolute: {args.ledger}")
         repo = args.repo.resolve()
         head = git(repo, "rev-parse", args.head)
         try:
@@ -278,6 +282,7 @@ def main(argv: list[str] | None = None) -> int:
             for skill, paths, skill_prefix, _resolved in deployments:
                 verify_install(repo, head, install_root / skill, paths, skill_prefix)
 
+        args.skill = selected
         append_deploy_row(
             args, repo, Path(__file__).resolve().with_name("gate_row.py"),
             f"{branch}@{head}",

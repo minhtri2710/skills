@@ -18,7 +18,7 @@ import project_config
 
 
 _SETTLED_STATES = frozenset({"idle", "done"})
-_ROLES = ("engineer", "reviewer")
+_ROLES = ("engineer", "reviewer", "architect")
 
 
 def _agents(payload: dict[str, Any]) -> list[Any]:
@@ -223,6 +223,8 @@ def _model(args: list[str]) -> str | None:
 
 
 def _expected(keys: dict[str, Any], role: str) -> list[tuple[str, str | None, list[str]]]:
+    if role == "architect":
+        role = "reviewer"
     kind = keys.get(f"{role}-kind")
     if not kind:
         raise ValueError(f"config lacks {role}-kind")
@@ -245,7 +247,7 @@ def _seat_specs(raw_seats: list[str] | None) -> dict[str, str]:
     for raw in raw_seats or []:
         name, _, role = raw.partition(":")
         if not name or role not in _ROLES:
-            raise ValueError("seat must use NAME:engineer or NAME:reviewer")
+            raise ValueError("seat must use NAME:engineer, NAME:reviewer or NAME:architect")
         if name in seats:
             raise ValueError(f"duplicate seat specification: {name}")
         seats[name] = role
@@ -328,7 +330,7 @@ def _pi_session_is_named(path: Path, name: str, process_start: datetime) -> bool
                     return False
                 if not isinstance(entry, dict):
                     return False
-                if entry.get("type") == "message":
+                if entry.get("type") in {"message", "model_change"}:
                     return named
                 if entry.get("type") == "session_info" and entry.get("name") == name:
                     named = True
@@ -385,11 +387,20 @@ def _route_matches_model(route_model: str | None, running_model: str) -> bool:
     )
 
 
+def _route_match_count(routes: list[tuple[str, str | None, list[str]]], model: str) -> int:
+    return sum(route_model is not None and _route_matches_model(route_model, model)
+               for _, route_model, _ in routes)
+
+
 def format_drift_roster(
     payload: dict[str, Any],
     keys: dict[str, Any],
     seats: dict[str, str],
     workspace: str | None = None,
+    *,
+    lead: str = "",
+    run_dir: str = "",
+    installed_skill_dir: str = "",
 ) -> tuple[list[str], bool]:
     """Return DRIFT lines, an UNVERIFIABLE line for a matching kind with an unbound model, and whether any UNVERIFIABLE line was produced.
 
@@ -420,11 +431,9 @@ def format_drift_roster(
         expected = _expected(keys, role)
         launch_args, argv0_process = _launch_args(pane_id, kind)
         model = _model(launch_args) if launch_args is not None else None
-        matching_kinds = [(k, m) for k, m, _ in expected if kind == k]
+        matching_kinds = [route for route in expected if route[0] == kind]
         pi_session_model = bool(matching_kinds and argv0_process is not None and kind == "pi")
         if pi_session_model:
-            if any(m is None for _, m in matching_kinds):
-                continue
             model, reason = _pi_running_model(name, argv0_process)
             if reason is not None:
                 want = " or ".join(f"{k} --model {m or '-'}" for k, m, _ in expected)
@@ -435,8 +444,6 @@ def format_drift_roster(
                 unverifiable = True
                 continue
         elif matching_kinds and launch_args is None:
-            if any(m is None for _, m in matching_kinds):
-                continue
             want = " or ".join(f"{k} --model {m or '-'}" for k, m, _ in expected)
             lines.append(
                 f"{pane_id} {name} {kind} UNVERIFIABLE role={role} "
@@ -444,14 +451,63 @@ def format_drift_roster(
             )
             unverifiable = True
             continue
-        if any(
-            m is None or (_route_matches_model(m, model) if pi_session_model else model == m)
-            for _, m in matching_kinds
-        ):
+        route_matches = [
+            (k, m, b) for k, m, b in expected if k == kind and (
+                _route_matches_model(m, model) if pi_session_model and m is not None
+                else m is None or m == model
+            )
+        ]
+        if not pi_session_model and launch_args is not None and len(route_matches) > 1:
+            argv_matches = [route for route in route_matches if _has_block(launch_args, route[2])]
+            if argv_matches:
+                route_matches = argv_matches
+        if pi_session_model and _route_match_count(matching_kinds, model) > 1:
+            want = " or ".join(f"{k} --model {m or '-'}" for k, m, _ in expected)
+            lines.append(
+                f"{pane_id} {name} {kind} UNVERIFIABLE role={role} reason=route-ambiguous expected={want}"
+            )
+            unverifiable = True
+            continue
+        if route_matches:
             if launch_args is None:
+                lines.append(
+                    f"{pane_id} {name} {kind} UNVERIFIABLE role={role} "
+                    f"reason=launch-argv-hidden expected="
+                    + " or ".join(f"{k} --model {m or '-'}" for k, m, _ in expected)
+                )
+                unverifiable = True
                 continue
-            blocks = [b for k, m, b in expected if k == kind and (m is None or m == model)]
-            if any(_has_block(launch_args, b) for b in blocks):
+            matched = route_matches
+            try:
+                expanded = project_config.expand_launch(
+                    keys, role=role, kind=kind, role_args=matched[0][2], seat=name,
+                    lead=lead, run_dir=run_dir, installed_skill_dir=installed_skill_dir,
+                    settings_file=(
+                        str(project_config.peer_settings_path(run_dir, name)) if run_dir else ""
+                    ),
+                )
+            except ValueError as exc:
+                lines.append(f"{pane_id} {name} {kind} UNVERIFIABLE role={role} reason={exc}")
+                unverifiable = True
+                continue
+            blocks = [expanded["argv"]]
+            if any(_has_block(launch_args, block) for block in blocks):
+                if expanded["settings_file"]:
+                    settings_path = Path(expanded["settings_file"])
+                    if settings_path.is_symlink() or not settings_path.is_file():
+                        lines.append(f"{pane_id} {name} {kind} UNVERIFIABLE role={role} reason=settings-file-unreadable")
+                        unverifiable = True
+                        continue
+                    try:
+                        actual_settings = json.loads(settings_path.read_text(encoding="utf-8"))
+                    except (OSError, UnicodeError, json.JSONDecodeError):
+                        lines.append(f"{pane_id} {name} {kind} UNVERIFIABLE role={role} reason=settings-file-unreadable")
+                        unverifiable = True
+                        continue
+                    if actual_settings != expanded["settings_json"]:
+                        lines.append(f"{pane_id} {name} {kind} UNVERIFIABLE role={role} reason=settings-mismatch")
+                        unverifiable = True
+                        continue
                 continue
             missing = " or ".join(shlex.join(b) for b in blocks)
             want = " or ".join(f"{k} --model {m or '-'}" for k, m, _ in expected)
@@ -459,6 +515,13 @@ def format_drift_roster(
                 f"{pane_id} {name} {kind} DRIFT role={role} running={kind} --model {model or '-'} "
                 f"expected={want} missing={missing}"
             )
+            continue
+        if pi_session_model:
+            lines.append(
+                f"{pane_id} {name} {kind} UNVERIFIABLE role={role} reason=launch-argv-hidden "
+                f"expected=" + " or ".join(f"{k} --model {m or '-'}" for k, m, _ in expected)
+            )
+            unverifiable = True
             continue
         want = " or ".join(f"{k} --model {m or '-'}" for k, m, _ in expected)
         lines.append(
@@ -503,8 +566,11 @@ def main(argv: list[str] | None = None) -> int:
         "--seat",
         action="append",
         metavar="NAME:ROLE",
-        help="seat and role (engineer or reviewer) for --drift; repeat per seat",
+        help="seat and role (engineer, reviewer or architect) for --drift; repeat per seat",
     )
+    parser.add_argument("--lead", default="", help="verified Lead seat name for profile expansion")
+    parser.add_argument("--run-dir", default="", help="recorded run directory for profile expansion")
+    parser.add_argument("--installed-skill-dir", default="", help="verified installed skill directory")
     parser.add_argument(
         "--peer",
         action="append",
@@ -534,7 +600,9 @@ def main(argv: list[str] | None = None) -> int:
             if not args.seat:
                 raise ValueError("--drift requires at least one --seat")
             lines, unverifiable = format_drift_roster(
-                payload, project_config.load(args.drift), _seat_specs(args.seat), args.workspace
+                payload, project_config.load(args.drift), _seat_specs(args.seat), args.workspace,
+                lead=args.lead, run_dir=args.run_dir,
+                installed_skill_dir=args.installed_skill_dir,
             )
             exit_code = int(unverifiable)
         elif args.never_started:

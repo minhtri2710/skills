@@ -3,8 +3,8 @@ type: llm
 weight: 1
 ---
 
-Grade whether the Lead writes the exact start command for the named pi Engineer seat using the configured route args and the pi launch flags.
+Grade whether the Lead applies the configured role args and generic exact-kind launch profile without inventing a second runtime-specific path.
 
-PASS only if the response includes a `herdr agent start` command for `eng-parser` in pane `w5:p3` with `--kind pi`, and the argv after `--` includes all of `--approve --model cliproxyapi/gpt-6-luna --exclude-tools ask_question --name eng-parser -e ~/.agents/skills/herdr-delivery-workflow/extensions/report-wake.js --report-lead lead-mvc-lift --report-seat eng-parser --report-dir ~/.herdr/projects/demo/runs/parser-run` (any order after `--`; `$HOME` or an expanded home accepted for `~`).
+PASS only if the response states `herdr agent start eng-parser --kind pi --pane w5:p3 --` and gives exactly the configured role args followed by the shared profile expansion: `--approve --model cliproxyapi/gpt-6-luna --name eng-parser --exclude-tools '*question*' -e ~/.agents/skills/herdr-delivery-workflow/extensions/report-wake.js --report-lead lead-mvc-lift --report-seat eng-parser --report-dir ~/.herdr/projects/demo/runs/parser-run`. `$HOME` or expanded home paths are equivalent.
 
-FAIL if the start command omits `--name`, uses a different name, omits or changes the configured route args or the launch flags, adds a flag that turns off skill, extension or prompt-template loading, omits any report-wake argument, or otherwise does not state that exact start command.
+FAIL if a configured value is missing or changed, `herdr agent start` is replaced, or unconfigured launch controls are invented. The expected pattern is quoted to prevent shell glob expansion; it must be passed literally to Pi.

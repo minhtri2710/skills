@@ -1,42 +1,29 @@
 {
+  "lead-kind": "<Human-selected Lead Herdr kind>",
+  "lead-args": ["<exact Human-approved Lead model and posture argv>"],
   "engineer-kind": "<preferred agent kind for Engineer Peers>",
+  "engineer-args": ["<exact native argv after -- for the Engineer kind>"],
   "reviewer-kind": "<preferred agent kind for the Reviewer Peer>",
+  "reviewer-args": ["<exact native argv after -- for the Reviewer kind>"],
   "engineer-fallback": "<pre-chosen fallback Engineer kind for a died or cooled-down Engineer>",
   "reviewer-fallback": "<pre-chosen fallback Reviewer kind>",
-  "engineer-args": ["<exact native argv after -- for the Engineer kind>"],
-  "reviewer-args": ["<exact native argv after -- for the Reviewer kind>"],
   "engineer-fallback-args": ["<exact native argv after -- for the fallback Engineer kind>"],
   "reviewer-fallback-args": ["<exact native argv after -- for the fallback Reviewer kind>"],
+  "launch-profiles": {
+    "<exact Herdr kind>": {
+      "seat-argv": [],
+      "peer-argv": [],
+      "peer-settings-json": {},
+      "runtime-state-dir": "/absolute/runtime/state/path"
+    }
+  },
   "checks-light": ["<claim-shaped light command, and how to scope a test run to the changed paths>"],
   "checks-heavy": ["<claim-shaped heavy command>"],
-  "ci": {
-    "trigger": "none",
-    "workflows": []
-  },
+  "ci": {"trigger": "none", "workflows": []},
   "local-ops": ["<exact named command the Lead may run on the Human's checkout after a landed merge>"],
-  "lane-defaults": {
-    "<path or change class>": "normal"
-  },
+  "lane-defaults": {"<path or change class>": "normal"},
   "target-line": "<default integration product line>",
   "always-gate": ["<decision always routed to the Human>"],
   "worker-cap": 3,
-  "provenance": {
-    "file": ["<where this config came from and who last changed it>"],
-    "engineer-kind": ["<what the value holds and why it was chosen>"],
-    "reviewer-kind": ["<what the value holds and why it was chosen>"],
-    "engineer-fallback": ["<what the value holds and why it was chosen>"],
-    "reviewer-fallback": ["<what the value holds and why it was chosen>"],
-    "engineer-args": ["<the model, permission-mode and tool-deny flags of the kind, as the exact argv elements after --; the claude command allowlist is the seat --settings file, not this key>"],
-    "reviewer-args": ["<the same for the Reviewer kind, plus a mode that withholds tree writes where the kind has one>"],
-    "engineer-fallback-args": ["<the same flags for the fallback Engineer kind>"],
-    "reviewer-fallback-args": ["<the same flags for the fallback Reviewer kind>"],
-    "checks-light": ["<what each command proves and how it scopes to the changed paths>"],
-    "checks-heavy": ["<what each command proves>"],
-    "ci": ["<the workflow files and trigger (pr or push) that run the heavy checks; none with no workflows when no CI runs them>"],
-    "local-ops": ["<why each command is safe on dev or disposable data>"],
-    "lane-defaults": ["<which paths or change classes map to which lane, and why>"],
-    "target-line": ["<the integration product line and why>"],
-    "always-gate": ["<why each decision always goes to the Human>"],
-    "worker-cap": ["<the most Engineers in one partition, and why>"]
-  }
+  "provenance": {"file": ["<source and last editor>"]}
 }

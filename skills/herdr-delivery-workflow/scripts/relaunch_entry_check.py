@@ -11,6 +11,7 @@ import sys
 from pathlib import Path
 
 import deploy_skill
+import gate_row
 
 
 class CheckError(Exception):
@@ -119,17 +120,23 @@ def verify_block(block_file: Path, source_file: Path) -> list[str]:
     return gate_ids
 
 
-def _require_count_args(args: argparse.Namespace) -> tuple[Path, str, str, Path]:
+def _require_count_args(args: argparse.Namespace) -> tuple[Path, Path, str, str, Path]:
     missing = [
         name for name, value in (
-            ("--head", args.head),
+            ("--ledger", args.ledger),
+            ("--skill", args.skill),
             ("--skill-path", args.skill_path),
             ("--installed-path", args.installed_path),
         ) if value is None
     ]
     if missing:
         raise CheckError(f"--count requires {', '.join(missing)}")
-    return Path(args.repo).resolve(), args.head, args.skill_path, Path(args.installed_path).expanduser().resolve()
+    if not args.ledger.is_absolute():
+        raise CheckError("--ledger must be an absolute path")
+    if Path(args.skill_path).name != args.skill:
+        raise CheckError("--skill-path must name the selected top-level skill")
+    return (Path(args.repo).resolve(), args.ledger, args.skill, args.skill_path,
+            Path(args.installed_path).expanduser().resolve())
 
 
 def _require_verify_args(args: argparse.Namespace) -> tuple[Path, Path]:
@@ -150,7 +157,8 @@ def main(argv: list[str] | None = None) -> int:
     modes.add_argument("--count", action="store_true", help="derive tracked/installed/drifted counts")
     modes.add_argument("--verify", action="store_true", help="verify a next-item block verbatim")
     parser.add_argument("--repo", type=Path, default=Path.cwd())
-    parser.add_argument("--head", help="deployed git head used for COUNT mode")
+    parser.add_argument("--ledger", type=Path, help="verified project gate ledger")
+    parser.add_argument("--skill", help="top-level deployed skill name")
     parser.add_argument("--skill-path", help="repository-relative skill directory used for COUNT mode")
     parser.add_argument("--installed-path", type=Path,
                         help="installed skill directory used for COUNT mode")
@@ -162,13 +170,19 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         if args.count:
-            repo, head, skill_path, install_dir = _require_count_args(args)
+            repo, ledger, skill, skill_path, install_dir = _require_count_args(args)
+            try:
+                _branch, head, _row = gate_row.select_deployed_head(ledger, skill, repo)
+            except gate_row.RowError as exc:
+                raise CheckError(f"gate_row: {exc}") from None
             tracked, installed, drifted = count_evidence(repo, head, skill_path, install_dir)
             print(f"tracked={tracked} installed={installed} drifted={drifted}")
+            if tracked != installed or drifted:
+                return 1
         else:
             block_file, source_file = _require_verify_args(args)
             print(" ".join(verify_block(block_file, source_file)))
-    except (CheckError, OSError) as exc:
+    except (CheckError, OSError, subprocess.SubprocessError) as exc:
         print(f"relaunch_entry_check: {exc}", file=sys.stderr)
         return 1
     return 0

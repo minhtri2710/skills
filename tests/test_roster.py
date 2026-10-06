@@ -281,6 +281,11 @@ class RosterTest(unittest.TestCase):
         "engineer-fallback": "pi",
         "engineer-fallback-args": ["--approve", "--model=prov/flash"],
         "reviewer-kind": "agy",
+        "launch-profiles": {
+            "pi": {"seat-argv": ["--name", "{seat}"], "peer-argv": []},
+            "agy": {"seat-argv": [], "peer-argv": []},
+            "claude": {"seat-argv": [], "peer-argv": []},
+        },
     }
 
     def _drift(
@@ -374,17 +379,17 @@ class RosterTest(unittest.TestCase):
             agent("w1:p21", "eng-malformed-files", "pi"),
         ]
         argv = {
-            "w1:p1": ["node", "/opt/bin/pi", "--approve", "--model", "prov/luna"],
-            "w1:p2": ["pi", "--approve", "--model=prov/flash"],
-            "w1:p3": ["pi", "--model", "prov/old"],
+            "w1:p1": ["node", "/opt/bin/pi", "--approve", "--model", "prov/luna", "--name", "eng-primary"],
+            "w1:p2": ["pi", "--approve", "--model=prov/flash", "--name", "eng-fallback"],
+            "w1:p3": ["pi", "--model", "prov/old", "--name", "eng-model"],
             "w1:p4": {
                 "argv0": "claude",
-                "argv": ["claude", "--model", "claude-opus-5-5", "--effort", "low"],
+                "argv": ["claude", "--model", "claude-opus-5-5", "--effort", "low", "--name", "eng-kind"],
                 "cwd": "/Users/beowulf/Work/beo-skills",
                 "name": "2.1.283",
                 "pid": 6753,
             },
-            "w1:p5": ["agy", "--dangerously-skip-permissions"],
+            "w1:p5": ["agy", "--dangerously-skip-permissions", "--name", "review-a"],
             "w1:p9": {"argv0": "agy", "cwd": "/tmp", "name": "agy", "pid": 100},
             "w1:p7": {
                 "argv0": "pi", "cwd": "/Users/beowulf/Work/beo-skills",
@@ -394,13 +399,20 @@ class RosterTest(unittest.TestCase):
             "w1:p10": {"argv0": "pi", "cwd": "/workspace:project", "name": "node", "pid": 14410},
             **{
                 f"w1:p{i}": {
+                    "argv": ["pi", "--model", "prov/other"],
                     "argv0": "pi", "cwd": "/workspace/project", "name": "node", "pid": 14400 + i,
                 }
-                for i in range(11, 18)
+                for i in range(11, 16)
+            },
+            **{
+                f"w1:p{i}": {
+                    "argv0": "pi", "cwd": "/workspace/project", "name": "node", "pid": 14400 + i,
+                }
+                for i in (16, 17)
             },
             "w1:p19": {"argv0": "pi", "cwd": "/workspace/project", "name": "node", "pid": 14419},
             "w1:p20": {"argv0": "pi", "cwd": "/workspace/project", "name": "node", "pid": 14420},
-            "w1:p21": {"argv0": "pi", "cwd": "/workspace/project", "name": "node", "pid": 14421},
+            "w1:p21": {"argv": ["pi", "--model", "prov/luna", "--name", "eng-malformed-files"], "argv0": "pi", "cwd": "/workspace/project", "name": "node", "pid": 14421},
         }
         seats = ["eng-primary:engineer", "eng-fallback:engineer", "eng-model:engineer",
                  "eng-kind:engineer", "review-a:reviewer", "eng-noargv:engineer",
@@ -448,24 +460,35 @@ class RosterTest(unittest.TestCase):
             "expected=pi --model prov/luna or pi --model prov/flash",
             "w1:p4 eng-kind claude DRIFT role=engineer running=claude --model claude-opus-5-5 "
             "expected=pi --model prov/luna or pi --model prov/flash",
+            "w1:p5 review-a agy UNVERIFIABLE role=reviewer reason=reviewer role args are missing",
             "w1:p7 eng-noargv pi UNVERIFIABLE role=engineer reason=no-named-session "
             "expected=pi --model prov/luna or pi --model prov/flash",
             "w1:p8 review-noargv claude DRIFT role=reviewer running=claude --model - "
             "expected=agy --model -",
+            "w1:p9 review-noargs agy UNVERIFIABLE role=reviewer reason=model-unavailable "
+            "expected=agy --model -",
+            "w1:p10 eng-named pi UNVERIFIABLE role=engineer reason=launch-argv-hidden "
+            "expected=pi --model prov/luna or pi --model prov/flash",
             "w1:p11 eng-wrong-model pi DRIFT role=engineer running=pi --model prov/other "
             "expected=pi --model prov/luna or pi --model prov/flash",
-            "w1:p12 eng-no-session pi UNVERIFIABLE role=engineer reason=no-named-session "
+            "w1:p12 eng-no-session pi DRIFT role=engineer running=pi --model prov/other "
             "expected=pi --model prov/luna or pi --model prov/flash",
-            "w1:p13 eng-old-session pi UNVERIFIABLE role=engineer reason=no-named-session "
+            "w1:p13 eng-old-session pi DRIFT role=engineer running=pi --model prov/other "
             "expected=pi --model prov/luna or pi --model prov/flash",
-            "w1:p14 eng-other-seat pi UNVERIFIABLE role=engineer reason=no-named-session "
+            "w1:p14 eng-other-seat pi DRIFT role=engineer running=pi --model prov/other "
             "expected=pi --model prov/luna or pi --model prov/flash",
-            "w1:p15 eng-ambiguous pi UNVERIFIABLE role=engineer reason=ambiguous-session "
+            "w1:p15 eng-ambiguous pi DRIFT role=engineer running=pi --model prov/other "
+            "expected=pi --model prov/luna or pi --model prov/flash",
+            "w1:p16 eng-last-model pi UNVERIFIABLE role=engineer reason=launch-argv-hidden "
+            "expected=pi --model prov/luna or pi --model prov/flash",
+            "w1:p17 eng-bare-route pi UNVERIFIABLE role=engineer reason=launch-argv-hidden "
             "expected=pi --model prov/luna or pi --model prov/flash",
             "w1:p19 eng-no-model-change pi UNVERIFIABLE role=engineer reason=no-named-session "
             "expected=pi --model prov/luna or pi --model prov/flash",
             "w1:p20 eng-after-message pi UNVERIFIABLE role=engineer reason=no-named-session "
             "expected=pi --model prov/luna or pi --model prov/flash",
+            "w1:p21 eng-malformed-files pi DRIFT role=engineer running=pi --model prov/luna "
+            "expected=pi --model prov/luna or pi --model prov/flash missing=--approve --model prov/luna --name eng-malformed-files",
         ]
         self.assertEqual(lines, expected_lines)
         bare_config = {**self._DRIFT_CONFIG, "engineer-fallback-args": ["--approve", "--model=luna"]}
@@ -475,9 +498,12 @@ class RosterTest(unittest.TestCase):
             pi_sessions={"w1:p17": [session("eng-bare-route", [{"type": "model_change", "provider": "other", "modelId": "luna"}])]},
             process_start=process_start,
         )
-        self.assertEqual((rc, error, lines), (0, "", []))
+        self.assertEqual((rc, error, lines), (1, "", [
+            "w1:p17 eng-bare-route pi UNVERIFIABLE role=engineer reason=launch-argv-hidden "
+            "expected=pi --model prov/luna or pi --model luna",
+        ]))
         rc, lines, error = self._drift(agents[:5], argv, seats[:5])
-        self.assertEqual((rc, error, lines), (0, "", expected_lines[:2]))
+        self.assertEqual((rc, error, lines), (1, "", expected_lines[:3]))
         reviewer_agent = agent("w1:p18", "review-unavailable", "agy")
         reviewer_process = {"w1:p18": {"argv0": "agy", "cwd": "/workspace", "pid": 812}}
         reviewer_config = {**self._DRIFT_CONFIG, "reviewer-args": ["--model", "review/model"]}
@@ -490,18 +516,56 @@ class RosterTest(unittest.TestCase):
             "expected=agy --model review/model",
         ]))
 
+    def test_drift_reports_peer_settings_mismatch(self):
+        config = {
+            "reviewer-kind": "pi", "reviewer-args": ["--model", "review-model"],
+            "launch-profiles": {"pi": {
+                "seat-argv": [], "peer-argv": ["--settings", "{settings_file}"],
+                "peer-settings-json": {"mode": "configured"},
+            }},
+        }
+        seat = {"pane_id": "w1:p1", "name": "rev", "agent": "pi", "agent_status": "idle"}
+        with tempfile.TemporaryDirectory() as directory:
+            settings = roster.project_config.peer_settings_path(directory, "rev")
+            process = {"w1:p1": ["pi", "--model", "review-model", "--settings", str(settings)]}
+            settings.write_text('{"mode":"drifted"}', encoding="utf-8")
+            listing = json.dumps({"result": {"agents": [seat]}})
+            commands = []
+            def run(command, **_kwargs):
+                commands.append(command)
+                if command[1:3] == ["agent", "list"]:
+                    output = listing
+                else:
+                    output = json.dumps({"result": {"process_info": {"foreground_processes": [{"argv": process["w1:p1"]}]}}})
+                return subprocess.CompletedProcess(command, 0, output, "")
+            config["launch-profiles"]["pi"]["peer-settings-json"] = {"mode": "configured"}
+            config_path = Path(directory) / "config.json"
+            config_path.write_text(json.dumps(config), encoding="utf-8")
+            output, error = io.StringIO(), io.StringIO()
+            with mock.patch.object(roster.herdr_cli.subprocess, "run", side_effect=run), \
+                    mock.patch("sys.stdout", output), mock.patch("sys.stderr", error):
+                rc = roster.main(["--drift", str(config_path), "--seat", "rev:reviewer",
+                                  "--run-dir", directory, "--lead", "lead-demo",
+                                  "--installed-skill-dir", "/installed"])
+        self.assertEqual((rc, error.getvalue()), (1, ""))
+        self.assertEqual(output.getvalue(), "w1:p1 rev pi UNVERIFIABLE role=reviewer reason=settings-mismatch\n")
+
     def test_drift_requires_the_matched_routes_args_as_one_contiguous_block(self):
         config = {
             "engineer-kind": "claude",
             "engineer-args": ["--model", "m1", "--permission-mode", "auto"],
             "engineer-fallback": "pi",
             "engineer-fallback-args": ["--approve", "--model", "p1"],
+            "launch-profiles": {
+                "claude": {"seat-argv": [], "peer-argv": []},
+                "pi": {"seat-argv": [], "peer-argv": []},
+            },
         }
         launches = {
-            "ok": ["claude", "--settings", "s", "--model", "m1", "--permission-mode", "auto", "--add-dir", "d"],
-            "split": ["claude", "--model", "m1", "--settings", "s", "--permission-mode", "auto"],
+            "ok": ["claude", "--model", "m1", "--permission-mode", "auto"],
+            "split": ["claude", "--model", "m1", "--permission-mode", "auto"],
             "absent": ["claude", "--model", "m1"],
-            "fallback-ok": ["pi", "--name", "x", "--approve", "--model", "p1"],
+            "fallback-ok": ["pi", "--approve", "--model", "p1", "--name", "x"],
             "fallback-missing": ["pi", "--model", "p1"],
         }
         agents = [
@@ -515,13 +579,46 @@ class RosterTest(unittest.TestCase):
         self.assertEqual((rc, error), (0, ""))
         want = "expected=claude --model m1 or pi --model p1 missing="
         self.assertEqual(lines, [
-            "w1:p1 split claude DRIFT role=engineer running=claude --model m1 "
-            f"{want}--model m1 --permission-mode auto",
             "w1:p2 absent claude DRIFT role=engineer running=claude --model m1 "
             f"{want}--model m1 --permission-mode auto",
             "w1:p4 fallback-missing pi DRIFT role=engineer running=pi --model p1 "
             f"{want}--approve --model p1",
         ])
+
+    def test_drift_uses_visible_args_to_distinguish_same_kind_and_model_routes(self):
+        config = {
+            "engineer-kind": "pi", "engineer-args": ["--model", "same", "--primary"],
+            "engineer-fallback": "pi", "engineer-fallback-args": ["--model", "same", "--fallback"],
+            "launch-profiles": {"pi": {"seat-argv": [], "peer-argv": []}},
+        }
+        agent = {"pane_id": "w1:p1", "name": "eng", "agent": "pi", "agent_status": "idle"}
+        process = {"w1:p1": ["pi", "--model", "same", "--fallback"]}
+        rc, lines, error = self._drift([agent], process, ["eng:engineer"], config)
+        self.assertEqual((rc, lines, error), (0, [], ""))
+
+    def test_drift_marks_ambiguous_model_alias_unverifiable(self):
+        config = {
+            "engineer-kind": "pi", "engineer-args": ["--model", "luna"],
+            "engineer-fallback": "pi", "engineer-fallback-args": ["--model", "prov/luna"],
+            "launch-profiles": {"pi": {"seat-argv": [], "peer-argv": []}},
+        }
+        seat = {"pane_id": "w1:p1", "name": "eng", "agent": "pi", "agent_status": "idle"}
+        start = datetime(2026, 9, 26, 13).astimezone()
+        timestamp = start.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+        process = {"w1:p1": {
+            "argv0": "pi", "cwd": "/workspace", "name": "node", "pid": 14423,
+        }}
+        sessions = {"w1:p1": [[
+            {"type": "session", "timestamp": timestamp},
+            {"type": "session_info", "name": "eng"},
+            {"type": "model_change", "provider": "prov", "modelId": "luna"},
+            {"type": "message"},
+        ]]}
+        rc, lines, error = self._drift(
+            [seat], process, ["eng:engineer"], config, pi_sessions=sessions, process_start=start,
+        )
+        self.assertEqual((rc, error), (1, ""))
+        self.assertIn("UNVERIFIABLE role=engineer reason=route-ambiguous", lines[0])
 
     def test_drift_fails_closed_without_the_role_key_the_seat_process_or_the_seat(self):
         seat = [{"pane_id": "w1:p1", "name": "eng", "agent": "pi", "agent_status": "idle"}]

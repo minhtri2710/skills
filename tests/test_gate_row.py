@@ -1225,6 +1225,46 @@ class GateRowTest(unittest.TestCase):
         self.assertRegex(rows[1], rf"(?:^| \\| )prev_hash={expected}(?: \\| |$)")
         self.assertNotIn(f"prev_hash={with_newline}", rows[1])
 
+    def test_deploy_targets_select_latest_applicable_completed_row(self):
+        skill_root = self.repo / "skills" / "example"
+        skill_root.mkdir(parents=True)
+        (skill_root / "SKILL.md").write_text("test skill\n", encoding="utf-8")
+        self.git("add", "skills/example")
+        self.git("commit", "-qm", "add skill")
+        first_head = self.rev("HEAD")
+        args = [
+            "--ledger", str(self.ledger), "--repo", str(self.repo),
+            "--kind", "deploy", "--status", "resolved:deploy", "--skill", "example",
+            "--words", "seat", "--note", "deployed", "--quote", "ok",
+        ]
+        self.assertEqual(self.run_main(args), 0, self.err.getvalue())
+        first_row = gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))[-1]
+        self.assertIn("skills=example", first_row)
+        (skill_root / "SKILL.md").write_text("newer skill\n", encoding="utf-8")
+        self.git("add", "skills/example")
+        self.git("commit", "-qm", "update skill")
+        second_head = self.rev("HEAD")
+        self.assertEqual(self.run_main(args), 0, self.err.getvalue())
+        selected = gate_row.select_deployed_head(self.ledger, "example", self.repo)
+        self.assertEqual(selected[:2], ("main", second_head))
+        self.assertEqual(selected[2], gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))[-1])
+        self.assertNotEqual(first_head, second_head)
+        self.assertEqual(self.run_main([
+            "--ledger", str(self.ledger), "--repo", str(self.repo),
+            "--deployed-head", "missing",
+        ]), 1)
+        self.assertIn("no completed target-bearing deploy row", self.err.getvalue())
+
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            self.assertEqual(gate_row.main([
+                "--ledger", str(self.ledger), "--repo", str(self.repo),
+                "--deployed-head", "example",
+            ]), 0)
+        branch_head, source_row = output.getvalue().splitlines()
+        self.assertEqual(branch_head, f"main@{second_head}")
+        self.assertEqual(source_row, selected[2])
+
     def test_fresh_ledger_g1_to_g2_forms_an_intact_chain(self):
         self.assertEqual(self.append(), 0)
         self.assertEqual(self.append(), 0)

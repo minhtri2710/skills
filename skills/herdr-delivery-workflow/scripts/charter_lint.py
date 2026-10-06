@@ -138,9 +138,37 @@ def _staffing_problems(
         if match is None:
             continue
         seat = match.group(1).upper()
-        for key in ("posture=", "dialog=", "skills=", "extensions="):
+        for key in (
+            "posture=", "dialog=", "dialog-tools=", "dialog-deny=", "dialog-source=",
+            "skills=", "extensions=",
+        ):
             if key not in line:
                 problems.append(f"{seat} seat missing {key}")
+        dialog_match = re.search(r"(?:^|\s)dialog=([^\s]+)", line, re.IGNORECASE)
+        evidence = {
+            key: re.search(rf"(?:^|\s){key}=([^\s]+)", line, re.IGNORECASE)
+            for key in ("dialog-tools", "dialog-deny", "dialog-source")
+        }
+        if dialog_match is not None and dialog_match.group(1).lower() not in {"denied", "absent"}:
+            problems.append(f"{seat} seat cannot have dialog={dialog_match.group(1)}")
+        elif dialog_match is not None and all(evidence.values()):
+            tool_names, deny, source = (evidence[key].group(1) for key in evidence)
+            if source.lower() == "none":
+                problems.append(f"{seat} seat dialog-source must identify inventory evidence")
+            if dialog_match.group(1).lower() == "absent":
+                if tool_names.lower() != "none" or deny.lower() != "none":
+                    problems.append(f"{seat} dialog=absent requires dialog-tools=none and dialog-deny=none")
+            elif tool_names.lower() == "none" or deny.lower() == "none":
+                problems.append(f"{seat} dialog=denied requires tool names and a deny pattern")
+            else:
+                names = tool_names.split(",")
+                patterns = deny.split(",")
+                for name in names:
+                    if not name or not any(
+                        re.fullmatch(re.escape(pattern).replace(r"\*", ".*"), name)
+                        for pattern in patterns
+                    ):
+                        problems.append(f"{seat} dialog-deny does not cover {name or 'empty tool name'}")
         if (
             disposition == seat.lower()
             and seat in {"REVIEWER", "ARCHITECT"}

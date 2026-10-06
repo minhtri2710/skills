@@ -27,6 +27,7 @@ SLOT_RE = re.compile(r"<([a-z][a-z0-9_]*)>")
 NOT_CLAUSES = {
     "SEAT_RE", "PLACEHOLDER_RE", "RANGE_RE", "STAFFED_HEAD_RE",
     "PRIOR_RE", "PRIOR_GLOSS_RE", "UNIT_RANGE_RE", "SHORT_SHA_RE",
+    "SEAT_RE", "PLACEHOLDER_RE",
 }
 
 
@@ -36,7 +37,7 @@ def staffing(head: str) -> str:
         "LEAD: kind=claude model=claude-opus-5-5 workspace=w1\n"
         f"HEAD: {head}\n"
         "REVIEWER: review-aaaaaaaaaaaa kind=claude model=claude-opus-5-5 posture=allowlisted "
-        f"dialog=denied skills=none extensions=none fence=none(no OS write fence is needed) "
+        f"dialog=denied dialog-tools=ask_user_question dialog-deny=ask_user_question dialog-source=pi-1.0.4-runtime-inventory skills=none extensions=none fence=none(no OS write fence is needed) "
         f"pane=w1:p1 workspace=w1 head={head}\n"
     )
 

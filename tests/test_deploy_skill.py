@@ -175,7 +175,9 @@ class DeploySkillTest(unittest.TestCase):
         self.assertIn("deploy-skill-", call["source"])
         self.assertFalse(Path(call["source"]).exists())
         self.assertTrue((self.home / ".agents" / "skills" / "herdr-delivery-workflow").is_dir())
-        self.assertEqual(len(gate_row.ledger_rows(ledger.read_text(encoding="utf-8"))), 1)
+        rows = gate_row.ledger_rows(ledger.read_text(encoding="utf-8"))
+        self.assertEqual(len(rows), 1)
+        self.assertIn("skills=herdr-delivery-workflow", rows[0])
 
     def test_dirty_worktree_installs_head_blob_and_mode(self):
         (self.source / "run.sh").write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
