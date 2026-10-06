@@ -126,6 +126,23 @@ class ReviewerCharterTemplateTest(unittest.TestCase):
         sentence = section.split("carries, by value: ", 1)[1].strip()
         self.assertIn(sentence, TEMPLATE.read_text(encoding="utf-8"))
 
+    def test_carries_unconditional_reviewer_clauses_of_charters(self):
+        charters = (SKILL / "references" / "charters.md").read_text(encoding="utf-8")
+        reviewer = charters.split("\n**Disposition: Reviewer.**", 1)[1].split("\n*Frozen tree:*", 1)[0]
+        for clause in (
+            "`floor_guard.py`",
+            "the ran and skipped counts of each rerun beside the reported ones",
+            "applying only the added or changed test files to the base",
+            "running that row's command, one targeted run and never a mutant run",
+            "did not call for: new files; abstractions with one caller; config or flags that no caller varies; "
+            "handling for states the types or callers make impossible; old paths kept beside new ones; "
+            "comments that restate the code. Each one is a finding, and it fails the head only when it crosses "
+            "the acceptance boundary",
+        ):
+            with self.subTest(clause=clause):
+                self.assertIn(clause, reviewer)
+                self.assertIn(clause.replace("`floor_guard.py`", f"floor_guard.py --base {self.base}"), self.filled)
+
     def test_report_block_no_write_form_writes_hostile_body_verbatim(self):
         form = re.search(
             r"`(cat > <run-dir>/report-<peer-name>\.md <<(\S+))`",
