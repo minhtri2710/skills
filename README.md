@@ -37,6 +37,7 @@ skills/<name>/
 | `bug-diagnosis` | Diagnose a hard bug by building a red-capable feedback loop before forming any theory. |
 | `capability-map` | Split a bundled requirement into modules with stable ids, one-way dependencies, and a build order, gated before any spec. |
 | `context-boundary-routing` | At a phase boundary, choose continue, clear, hand off, delegate, or compact, and pick the delegation shape. |
+| `change-impact-review` | Trace a concrete change's downstream consumers and test one or two safety-critical claims against real code. |
 | `decision-record-discipline` | Keep the glossary current and record only gated decisions and rejected concepts, once each. |
 | `deep-module-design` | Design or deepen a module interface and seam placement with the deep-module vocabulary. |
 | `dependency-intake-audit` | Decide whether a package may enter, install it without unreviewed scripts, and triage the audit. |

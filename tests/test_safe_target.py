@@ -103,6 +103,23 @@ class SafeTargetTest(unittest.TestCase):
             link,
         )
 
+    def test_symlink_owner_does_not_trust_matching_pointee_marker(self) -> None:
+        parent = self.root / "abc123"
+        pointee = parent / "object"
+        pointee.mkdir()
+        (pointee / ".owner").write_text("worker-7\n")
+        (parent / ".owner").write_text("someone-else\n")
+        link = parent / "link"
+        link.symlink_to(pointee)
+
+        with self.assertRaises(safe_target.Refused):
+            safe_target.resolve_target(
+                link,
+                [str(self.root)],
+                owner_file=".owner",
+                expect_owner="worker-7",
+            )
+
     def test_sibling_named_like_traversal_is_accepted(self) -> None:
         sneaky = self.root / "..cache"
         sneaky.mkdir()
