@@ -61,6 +61,7 @@ skills/<name>/
 | `test-first-seams` | Build a feature or fix a bug test-first in red-green vertical slices at agreed seams. |
 | `test-proof-debt-audit` | Audit one behavioral claim and the test or gate cited as its proof, or a named test set for redundant tests. |
 | `throwaway-prototype` | Build throwaway code that answers one design question: a logic demo or structurally different UI variants. |
+| `verification-skill-lifecycle` | Create or maintain a source-grounded verification contract and feature map with owned cleanup and surviving evidence. |
 
 ## Checks
 
