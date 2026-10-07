@@ -1265,6 +1265,58 @@ class GateRowTest(unittest.TestCase):
         self.assertEqual(branch_head, f"main@{second_head}")
         self.assertEqual(source_row, selected[2])
 
+    def test_binary_deploy_without_skill_is_chained_but_not_a_recovery_target(self):
+        skill_root = self.repo / "skills" / "example"
+        skill_root.mkdir(parents=True)
+        (skill_root / "SKILL.md").write_text("test skill\n", encoding="utf-8")
+        self.git("add", "skills/example")
+        self.git("commit", "-qm", "add skill")
+
+        def cli(*args: str) -> subprocess.CompletedProcess[str]:
+            return subprocess.run(
+                [sys.executable, str(SCRIPTS / "gate_row.py"),
+                 "--ledger", str(self.ledger), "--repo", str(self.repo), *args],
+                capture_output=True, text=True, stdin=subprocess.DEVNULL, check=False,
+            )
+
+        common = ("--kind", "deploy", "--words", "seat", "--note", "installed binary",
+                  "--quote", "ok")
+        before = self.ledger.read_bytes()
+        for extra, error in (
+            (("--status", "open"), "kind=deploy requires a completed deploy status"),
+            (("--status", "resolved:deploy", "--skill", "example", "--skill", "example"),
+             "kind=deploy --skill names a skill more than once"),
+            (("--status", "resolved:deploy", "--skill", "../example"),
+             "kind=deploy --skill names a malformed top-level skill"),
+        ):
+            with self.subTest(extra=extra):
+                rejected = cli(*common, *extra)
+                self.assertEqual(rejected.returncode, 1)
+                self.assertIn(error, rejected.stderr)
+                self.assertEqual(self.ledger.read_bytes(), before)
+
+        deployed = cli(*common, "--status", "resolved:deploy")
+        self.assertEqual(deployed.returncode, 0, deployed.stderr)
+        first_row = gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))[0]
+        self.assertNotIn("skills=", first_row)
+
+        chained = cli(
+            "--kind", "merge", "--status", "resolved:standing-waiver", "--words", "human",
+            "--note", "continue ledger", "--quote", "merge",
+        )
+        self.assertEqual(chained.returncode, 0, chained.stderr)
+        rows = gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))
+        self.assertEqual(len(rows), 2)
+        self.assertIn(f"prev_hash={gate_row.row_hash(rows[0])}", rows[1])
+
+        checked = cli("--check")
+        self.assertEqual(checked.returncode, 0, checked.stderr)
+        self.assertEqual(checked.stdout, "ok: G2 checks out\n")
+
+        recovery = cli("--deployed-head", "example")
+        self.assertEqual(recovery.returncode, 1)
+        self.assertIn("no completed target-bearing deploy row", recovery.stderr)
+
     def test_fresh_ledger_g1_to_g2_forms_an_intact_chain(self):
         self.assertEqual(self.append(), 0)
         self.assertEqual(self.append(), 0)

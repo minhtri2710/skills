@@ -855,8 +855,6 @@ def build(args: argparse.Namespace, repo: Path,
         if args.status not in {"recorded:deploy", "resolved:deploy", "resolved:human"}:
             raise RowError("kind=deploy requires a completed deploy status")
         skills = getattr(args, "skill", None) or []
-        if not skills:
-            raise RowError("kind=deploy requires at least one --skill <top-level-skill>")
         if len(skills) != len(set(skills)):
             raise RowError("kind=deploy --skill names a skill more than once")
         if any(not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", skill) for skill in skills):
@@ -997,7 +995,7 @@ def build(args: argparse.Namespace, repo: Path,
             "— an argument accepted and silently dropped is how a row loses the evidence "
             "it claims to carry"
         )
-    if args.kind == "deploy":
+    if args.kind == "deploy" and args.skill:
         fields.append(f"skills={' '.join(sorted(args.skill))}")
     if targets:
         fields.append(f"resolves={','.join(targets)}")
