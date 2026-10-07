@@ -1,0 +1,2 @@
+{"type":"message","message":{"role":"toolResult","toolCallId":"order-1","toolName":"bash","isError":false,"content":[{"type":"text","text":"RESULT_CANARY"}]}}
+{"type":"message","message":{"role":"assistant","content":[{"type":"toolCall","id":"order-1","name":"bash","arguments":{"command":"ARGUMENT_CANARY"}}]}}

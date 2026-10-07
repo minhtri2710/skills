@@ -1,0 +1,3 @@
+{"type":"message","message":{"role":"assistant","content":[{"type":"toolCall","id":"safe-id","name":"bash","arguments":{}}]}}
+not-json
+{"type":"message","message":{"role":"toolResult","toolCallId":"safe-id","toolName":"bash","isError":false,"details":{"truncation":{"limit":1}},"content":[]}}

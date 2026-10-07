@@ -8,7 +8,7 @@ Acceptance commands: <every command, verbatim>
 HEAD <full SHA> | <candidate | repair-<n> | reviewed | integrated>
   Tree: <porcelain and stash list at this head>
   Kind: <agent kind behind each scope at this head>
-  Baseline results: <command: real exit code, one line per command>
-  Integrated results: <command: real exit code, one line per command; or n/a>
+  Baseline results: <command: observed result and actual exit code, or UNPROVEN; session ref, line range and byte offset; artifact and exact head link>
+  Integrated results: <command: observed result and actual exit code, or UNPROVEN; session ref, line range and byte offset; artifact and exact head link; or n/a>
   Verdict: <PASS | FAIL | BLOCKED> by <reviewing seat, kind> on this exact SHA
-  Failures: <causal classification of every failure at this head, or none>
+  Failures: <causal classification of every failure at this head, or none; preserve earlier failures and link any correction>

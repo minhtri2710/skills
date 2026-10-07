@@ -1,0 +1,4 @@
+{"type":"session_info","id":"fixture-session"}
+{"type":"message","message":{"role":"user","content":[{"type":"text","text":"USER_TEXT_CANARY"}]}}
+{"type":"message","message":{"role":"assistant","content":[{"type":"toolCall","id":"ID_CANARY","name":"bash","arguments":{"command":"ARGUMENT_CANARY"}}]}}
+{"type":"message","message":{"role":"toolResult","toolCallId":"ID_CANARY","toolName":"bash","isError":false,"content":[{"type":"text","text":"RESULT_CANARY"}]}}

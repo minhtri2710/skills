@@ -1,0 +1,3 @@
+{"type":"message","message":{"role":"assistant","content":[{"type":"toolCall","id":"dupe-1","name":"bash","arguments":{}}]}}
+{"type":"message","message":{"role":"assistant","content":[{"type":"toolCall","id":"dupe-1","name":"bash","arguments":{}}]}}
+{"type":"message","message":{"role":"toolResult","toolCallId":"dupe-1","toolName":"bash","isError":false,"content":[]}}

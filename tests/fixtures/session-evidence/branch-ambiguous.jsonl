@@ -1,0 +1,2 @@
+{"type":"message","id":"entry-call","parentId":"branch-a","timestamp":"2026-10-07T00:00:00Z","message":{"role":"assistant","content":[{"type":"toolCall","id":"shared-call","name":"bash","arguments":{}}]}}
+{"type":"message","id":"entry-result","parentId":"branch-b","timestamp":"2026-10-07T00:00:01Z","message":{"role":"toolResult","toolCallId":"shared-call","toolName":"bash","isError":false,"content":[]}}
