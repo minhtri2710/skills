@@ -391,7 +391,13 @@ class MailboxAppendTest(unittest.TestCase):
         self.assertEqual(self.path.read_text(encoding="utf-8"), f"---\n{header}\ndetail\n")
         self.assertEqual(self.stdout.getvalue(), header + "\n")
         self.assertEqual(mailbox.select_entries(self.path.read_text(encoding="utf-8"), headers=True), [header])
-        self.assertIn(" | gate opened | HEAD ", header)
+        self.assertRegex(
+            header,
+            r"^## lead-beo-skills -> supervisor \| "
+            r"2026-09-24T03:04:05Z \| gate opened \| HEAD "
+            r"[0-9a-f]{40}$",
+        )
+        self.assertIsNotNone(mailbox.HEADER_RE.match(header))
 
     def test_append_attention_takes_slug_from_mailbox_directory_and_appends(self):
         self.assertEqual(self.append("one\n"), 0)

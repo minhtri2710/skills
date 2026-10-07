@@ -10,11 +10,12 @@ import yaml
 class SkillFrontmatterTest(unittest.TestCase):
     def test_every_skill_has_valid_frontmatter(self):
         repo_root = Path(__file__).resolve().parents[1]
-        skill_paths = sorted((repo_root / "skills").glob("*/SKILL.md"))
-        skill_dirs = {path.parent.name for path in skill_paths}
+        skills_root = repo_root / "skills"
+        skill_dirs = {path.name for path in skills_root.iterdir() if path.is_dir()}
+        skill_paths = sorted(skills_root.glob("*/SKILL.md"))
         for skill_dir in sorted(skill_dirs):
             with self.subTest(skill_dir=skill_dir):
-                self.assertIn(repo_root / "skills" / skill_dir / "SKILL.md", skill_paths, skill_dir)
+                self.assertTrue((skills_root / skill_dir / "SKILL.md").is_file(), skill_dir)
 
         for path in skill_paths:
             with self.subTest(path=path):
