@@ -10,7 +10,7 @@ Turn the user's current prompt into a stronger working prompt without changing t
 ## Workflow
 
 1. Read the raw prompt and identify the real job to be done.
-2. Infer the task type: coding, research, writing, analysis, planning, or review.
+2. Infer the task type with the script's deterministic whole-word keyword rules; `--task` overrides inference.
 3. Rebuild the prompt with the framework blocks in `references/framework.md`.
 4. Keep the result proportional: do not over-specify a simple task.
 5. Return both the improved prompt and a short explanation of what changed when useful.
@@ -43,10 +43,7 @@ When the user asks for a hook, model it as a pre-processing layer:
 4. Return the upgraded prompt for execution.
 5. Optionally keep a diff or summary of injected structure.
 
-Use `scripts/augment_prompt.py` for a first-pass rewrite; it judges the task type
-and effort level with a TypeSafe System One call (needs `TYPESAFE_API_KEY`),
-reports API timeouts as errors after 10 seconds, and preserves the prompt text's
-internal whitespace, including code fences and newlines, in the rewritten result.
+Use `scripts/augment_prompt.py` for a first-pass rewrite. It classifies locally, without network access or credentials. The first matching keyword category wins in this order: review, coding, research, writing, planning, analysis; prompts with no matching keyword default to analysis. Matching is case-insensitive and whole-word. Pass `--task` to override classification. Effort defaults to `Standard`; `--intensity` accepts `Light`, `Standard`, or `Deep`. The rewritten result preserves the prompt text's internal whitespace, including code fences and newlines.
 
 ## Quality Bar
 

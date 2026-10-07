@@ -39,11 +39,15 @@ Define what must be true before the agent stops.
 
 ## Intensity Levels
 
-Use the minimum level that matches the task.
+The script defaults to `Standard`; select another level with `--intensity` when the task calls for it.
 
 - `Light`: simple edits, formatting, quick rewrites.
 - `Standard`: typical coding, research, and drafting tasks.
 - `Deep`: debugging, architecture, complex research, or high-stakes outputs.
+
+## Task Classification
+
+The script classifies locally by case-insensitive whole-word keyword matches. The first matching category wins, in this order: review, coding, research, writing, planning, analysis. If none match, it uses analysis. `--task` explicitly overrides the inferred category.
 
 ## Task-Type Adjustments
 
