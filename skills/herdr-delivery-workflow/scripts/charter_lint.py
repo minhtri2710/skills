@@ -327,11 +327,6 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--repo", required=True, type=Path, help="checkout whose objects the SHAs must name"
     )
-    parser.add_argument(
-        "--jev",
-        action="store_true",
-        help="print an optional Jev charter-coherence advisory",
-    )
     args = parser.parse_args(argv)
 
     try:
@@ -355,18 +350,6 @@ def main(argv: list[str] | None = None) -> int:
     except ValueError as exc:
         print(f"charter_lint: {exc}", file=sys.stderr)
         return 1
-
-    if args.jev:
-        import jev  # jev needs python >= 3.10; only --jev loads it
-
-        if disposition_match is None:
-            advisory = jev.triage_charter(None, charter)
-        else:
-            advisory = jev.triage_charter(disposition_match.group(1).capitalize(), charter)
-        if advisory.available:
-            print(f"Jev advisory: {advisory.coherence.label}")
-        else:
-            print(f"Jev advisory: unavailable ({advisory.reason})")
 
     if problems:
         for problem in problems:

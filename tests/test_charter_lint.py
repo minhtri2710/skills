@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import contextlib
 import hashlib
-import importlib.util
 import io
 import os
 import subprocess
@@ -17,7 +16,6 @@ SCRIPTS = Path(__file__).resolve().parents[1] / "skills" / "herdr-delivery-workf
 sys.path.insert(0, str(SCRIPTS))
 
 import charter_lint  # noqa: E402
-import jev  # noqa: E402
 
 
 class CharterLintTest(unittest.TestCase):
@@ -44,13 +42,10 @@ class CharterLintTest(unittest.TestCase):
         self,
         charter: str,
         staffing: str | None = None,
-        jev_enabled: bool = False,
     ) -> tuple[int, str, str]:
         charter_path = self.tmp / "charter.md"
         charter_path.write_text(charter, encoding="utf-8")
         argv = ["--charter", str(charter_path), "--lead", "lead-beo-skills", "--repo", str(self.repo)]
-        if jev_enabled:
-            argv.append("--jev")
         if staffing is not None:
             staffing_path = self.tmp / "staffing.txt"
             staffing_path.write_text(staffing, encoding="utf-8")
@@ -340,85 +335,6 @@ class CharterLintTest(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn("ARCHITECT seat missing dialog=", error)
 
-    def test_default_lint_does_not_call_jev(self):
-        with unittest.mock.patch.object(jev, "triage_charter") as triage:
-            code, output, error = self.run_lint(self.engineer_charter(), self.staffing_record())
-        self.assertEqual(code, 0)
-        self.assertIn("OK:", output)
-        self.assertNotIn("Jev advisory", output)
-        self.assertEqual(error, "")
-        triage.assert_not_called()
-
-    def test_jev_is_opt_in_advisory_and_cannot_change_lint_result(self):
-        with unittest.mock.patch.object(
-            jev,
-            "triage_charter",
-            return_value=jev.UnavailableResult(
-                status="unavailable", reason="missing_api_key"
-            ),
-        ) as triage:
-            clean = self.run_lint(self.engineer_charter(), self.staffing_record(), jev_enabled=True)
-            broken = self.run_lint(
-                self.engineer_charter().replace("Disposition: Engineer\n", ""),
-                jev_enabled=True,
-            )
-        self.assertEqual(clean[0], 0)
-        self.assertEqual(broken[0], 1)
-        self.assertIn("Jev advisory: unavailable (missing_api_key)", clean[1])
-        self.assertIn("Jev advisory: unavailable (missing_api_key)", broken[1])
-        self.assertIn("Disposition", broken[2])
-        self.assertEqual(triage.call_count, 2)
-
-    def test_available_jev_advisory_is_bounded_and_does_not_authorize(self):
-        judgment = jev.CharterAdvisoryResult(
-            status="available",
-            coherence=jev.NoulJudgment(label="incoherent", probability=0.1),
-        )
-        with unittest.mock.patch.object(
-            jev, "triage_charter", return_value=judgment
-        ) as triage:
-            code, output, error = self.run_lint(
-                self.engineer_charter(), self.staffing_record(), jev_enabled=True
-            )
-        self.assertEqual(code, 0)
-        self.assertEqual(error, "")
-        self.assertEqual(output.count("Jev advisory:"), 1)
-        self.assertIn("Jev advisory: incoherent", output)
-        self.assertIn("OK:", output)
-        triage.assert_called_once()
-
-    def test_lint_without_jev_runs_when_jev_is_unimportable(self):
-        # jev needs python >= 3.10; a fresh charter_lint must load and lint
-        # without it, and only --jev may import it.
-        spec = importlib.util.spec_from_file_location(
-            "charter_lint_without_jev", SCRIPTS / "charter_lint.py"
-        )
-        module = importlib.util.module_from_spec(spec)
-        charter_path = self.tmp / "charter.md"
-        charter_path.write_text(self.engineer_charter(), encoding="utf-8")
-        staffing_path = self.tmp / "staffing.txt"
-        staffing_path.write_text(self.staffing_record(), encoding="utf-8")
-        stdout = io.StringIO()
-        with unittest.mock.patch.dict(sys.modules, {"jev": None, spec.name: module}):
-            spec.loader.exec_module(module)
-            with contextlib.redirect_stdout(stdout):
-                code = module.main([
-                    "--charter", str(charter_path),
-                    "--lead", "lead-beo-skills",
-                    "--staffing", str(staffing_path),
-                    "--repo", str(self.repo),
-                ])
-            with self.assertRaises(ImportError):
-                module.main([
-                    "--charter", str(charter_path),
-                    "--lead", "lead-beo-skills",
-                    "--staffing", str(staffing_path),
-                    "--repo", str(self.repo),
-                    "--jev",
-                ])
-        self.assertEqual(code, 0)
-        self.assertIn("OK:", stdout.getvalue())
-
     def test_staffing_missing_each_required_key_is_named(self):
         complete = self.staffing_record()
         for key in (
@@ -621,22 +537,6 @@ class CharterLintTest(unittest.TestCase):
                 )
                 expected = (0, "") if problem is None else (1, f"charter_lint: {problem}\n")
                 self.assertEqual((code, error), expected)
-
-    def test_jev_receives_the_declared_disposition_and_full_charter(self):
-        unavailable = jev.UnavailableResult(status="unavailable", reason="x")
-        no_disposition = self.engineer_charter().replace("Disposition: Engineer\n", "")
-        with unittest.mock.patch.object(
-            jev, "triage_charter", return_value=unavailable
-        ) as triage:
-            self.run_lint(self.engineer_charter(), self.staffing_record(), jev_enabled=True)
-            self.run_lint(no_disposition, jev_enabled=True)
-        self.assertEqual(
-            triage.call_args_list,
-            [
-                unittest.mock.call("Engineer", self.engineer_charter()),
-                unittest.mock.call(None, no_disposition),
-            ],
-        )
 
     @staticmethod
     def engineer_charter() -> str:

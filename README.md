@@ -27,8 +27,6 @@ skills/<name>/
   agents/           # optional: per-agent interface metadata (e.g. openai.yaml)
 ```
 
-`herdr-delivery-workflow` also carries `.claude-plugin/` and `plugin-eval/`, a repo-only `claude plugin eval` suite; its `deploy_skill.py` excludes both from the installed copy.
-
 ## Standalone skills
 
 | Skill | Use |
@@ -50,6 +48,7 @@ skills/<name>/
 | `frontend-design` | Implement a UI change whose rendered hierarchy, flow, or responsive behavior is part of acceptance. |
 | `herdr-delivery-workflow` | Control Herdr and run bounded delivery with the Supervisor / Lead / Peer role model. |
 | `human-step-wizard` | Generate a resumable bash wizard for the credential and dashboard steps only a human can do. |
+| `jev` | Run optional advisory triage for structured findings and bounded forks. |
 | `llm-trust-boundary` | Harden a feature that calls a model, exposes tools to one, or retrieves documents for one. |
 | `performance-verification` | Improve a measured performance problem through measure, fix, re-measure, keep-or-revert. |
 | `prompt-leverage` | Strengthen a raw prompt into an execution-ready instruction set. |
@@ -63,15 +62,9 @@ skills/<name>/
 | `test-proof-debt-audit` | Audit one behavioral claim and the test or gate cited as its proof, or a named test set for redundant tests. |
 | `throwaway-prototype` | Build throwaway code that answers one design question: a logic demo or structurally different UI variants. |
 
-## Sources
-
-Many of the skills here adapt material from [addyosmani/agent-skills](https://github.com/addyosmani/agent-skills) (MIT, Copyright (c) 2025 Addy Osmani) and [mattpocock/skills](https://github.com/mattpocock/skills) (MIT, Copyright (c) 2026 Matt Pocock).
-
-`test-proof-debt-audit` and `test-first-seams` adapt ideas from the `test-audit` skill in [openclaw/openclaw](https://github.com/openclaw/openclaw/tree/main/.agents/skills/test-audit) (MIT, Copyright (c) 2026 OpenClaw Foundation).
-
 ## Checks
 
-Scripts with test coverage in `tests/` are `herdr-delivery-workflow`, `quality-floor/scripts/floor_guard.py`, `destructive-path-guard/scripts/safe_target.py`, `human-step-wizard/scripts/wizard-template.sh`, `prompt-leverage/scripts/augment_prompt.py`, `security-setup/scripts/security_check.py`, and `bug-diagnosis/scripts/hitl-loop.sh`. Run:
+Scripts with test coverage in `tests/` are `herdr-delivery-workflow`, `jev/scripts/jev.py`, `quality-floor/scripts/floor_guard.py`, `destructive-path-guard/scripts/safe_target.py`, `human-step-wizard/scripts/wizard-template.sh`, `prompt-leverage/scripts/augment_prompt.py`, `security-setup/scripts/security_check.py`, and `bug-diagnosis/scripts/hitl-loop.sh`. Run:
 
 ```bash
 .venv/bin/python -m unittest discover -s tests

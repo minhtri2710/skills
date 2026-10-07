@@ -1,6 +1,6 @@
 STATUS: accepted | blocked | needs-human-gate | needs-rework
 OUTCOME: <one sentence>
-PREDICTION: <falsifiable forward claim naming a plugin-eval case or named anti-pattern; none if this run changes no doctrine>
+PREDICTION: <falsifiable forward claim about expected behavior; none if this run changes no doctrine>
 PREDICTION OUTCOME: <confirmed | falsified | pending-next-run>
 HEAD: <exact reviewed SHA or none>
 INTEGRATED: <exact integrated SHA or none>

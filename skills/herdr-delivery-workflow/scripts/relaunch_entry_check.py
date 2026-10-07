@@ -72,9 +72,7 @@ def count_evidence(repo: Path, head: str, skill_path: str,
     """
     prefix = skill_prefix(skill_path)
     try:
-        paths = deploy_skill.runtime_paths(
-            deploy_skill.tracked_files(repo, head, prefix.rstrip("/")), prefix.rstrip("/")
-        )
+        paths = deploy_skill.tracked_files(repo, head, prefix.rstrip("/"))
     except deploy_skill.DeployError as exc:
         raise CheckError(str(exc)) from None
     installed = installed_files(install_dir)

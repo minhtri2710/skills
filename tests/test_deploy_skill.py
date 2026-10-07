@@ -135,10 +135,7 @@ class DeploySkillTest(unittest.TestCase):
     def assert_install_matches_head(self, skill: str, head: str) -> None:
         root = self.home / ".agents" / "skills" / skill
         prefix = f"skills/{skill}/"
-        tracked = deploy_skill.runtime_paths(
-            deploy_skill.tracked_files(self.repo, head, f"skills/{skill}"),
-            f"skills/{skill}",
-        )
+        tracked = deploy_skill.tracked_files(self.repo, head, f"skills/{skill}")
         self.assertEqual(
             {path.relative_to(root).as_posix() for path in root.rglob("*") if path.is_file()},
             {path[len(prefix):] for path in tracked},
@@ -299,29 +296,9 @@ class DeploySkillTest(unittest.TestCase):
             self.assertEqual(call["argv"][call["argv"].index("-s") + 1], Path(call["source"]).name)
         self.assertEqual(len(gate_row.ledger_rows(ledger.read_text(encoding="utf-8"))), 1)
 
-    def test_plugin_and_eval_directories_are_excluded_from_install(self):
-        (self.source / ".claude-plugin").mkdir()
-        (self.source / ".claude-plugin" / "plugin.json").write_text('{"name":"x"}\n')
-        (self.source / "plugin-eval" / "case").mkdir(parents=True)
-        (self.source / "plugin-eval" / "case" / "prompt.md").write_text("case\n")
-        self.git("add", "skills")
-        self.git("commit", "-qm", "add repo-only directories")
-        self.origin(self.head())
-
-        result = self.run_deploy(self.deploy_args(self.tmp / "gates.md"))
-
-        self.assertEqual(result, 0)
-        installed = self.home / ".agents" / "skills" / "herdr-delivery-workflow"
-        self.assertTrue((installed / "SKILL.md").is_file())
-        self.assertFalse((installed / ".claude-plugin").exists())
-        self.assertFalse((installed / "plugin-eval").exists())
-
     def test_verify_rejects_extra_files_and_ignores_pycache(self):
         head = self.head()
-        paths = deploy_skill.runtime_paths(
-            deploy_skill.tracked_files(self.repo, head, "skills/herdr-delivery-workflow"),
-            "skills/herdr-delivery-workflow",
-        )
+        paths = deploy_skill.tracked_files(self.repo, head, "skills/herdr-delivery-workflow")
         install = self.tmp / "install"
         install.mkdir()
         (install / "SKILL.md").write_bytes((self.source / "SKILL.md").read_bytes())

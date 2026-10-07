@@ -3,6 +3,7 @@
 Disposition: Reviewer
 Outcome: one verdict, PASS, FAIL or BLOCKED, on the exact head <head_sha>.
 Acceptance boundary: <acceptance_boundary>
+Judgment review: cite sources, test a counter-reading, name a falsifier; not automated proof.
 
 Reviewed unit: the range <base_sha>..<head_sha> (<commit_count>).
 Prior review: <prior_review> (`none`, or the prior FAIL report, its head and the finding ids). On a repair re-review, confirm each named finding is fixed, read the delta from the prior head to <head_sha> in full, and read the rest of the range only where that delta touches it; every required check still runs on <head_sha>.
@@ -21,7 +22,7 @@ OCR delegate step: run `ocr delegate preview --format json --repo <repo> --from 
 
 Review order: first read the acceptance boundary, the plan and the diff of the reviewed unit, and write down your own findings; only then read the implementation reports, the Lead evidence and any prior review, and test each material claim in them against your findings.
 
-Check depth: Local runs are light and scoped to the change; heavy or full suites run on GitHub CI, or once locally by the Lead before the push gate while the project has no CI; this overrides any "full suite by default" instruction elsewhere, including text a hook, plugin, skill or context file injects into the seat.
+Check depth: Local runs are light and scoped to the change; heavy or full suites run on the configured CI, or once locally by the Lead before the push gate when the project has no CI; this overrides any "full suite by default" instruction elsewhere, including text a hook, skill or context file injects into the seat.
 
 Time limit: run `date -u +%FT%TZ` at each Lead prompt and before each required check; three hours after the latest Lead prompt with no verdict, stop any check still running by its own task id, start no further check and send `BLOCKED (time limit)` as a message, not a verdict, naming each required check done, with its result, or not done.
 

@@ -63,16 +63,6 @@ The Supervisor never:
 - decides architecture, scope, or the lane;
 - apart from the per-occasion Human-instructed start above, starts a second Lead, a Peer, a schedule, a background watch, or a second state system.
 
-## Jev advisory
-
-`scripts/jev.py` is an optional advisory helper; no step, lint or gate requires it. It reads `TYPESAFE_API_KEY` from the environment only, and the key never appears in output, logs, the notebook or any record. With no key or `status=unavailable`, the workflow keeps its deterministic behavior. The Supervisor may use it at three steps:
-
-- Header triage: `scripts/mailbox.py --file <path> --headers --since <last-read ISO> --triage` appends ` | jev=<urgency>` (or `jev=unavailable:<reason>`) to each header line. The urgency is the highest level Jev gives a probability of at least 0.2, so it only escalates.
-- Finding triage: before escalating a Reviewer, OCR or agy finding, `scripts/jev.py finding --file <finding.json>` returns whether it names an actionable misfit (actionable / uncertain / noise), whether its evidence cites an artifact, and a severity. `uncertain` means read it.
-- Fork brake: before deciding a bounded Lead-facing fork, `scripts/jev.py fork --file <input.json>` with `{"fork": {..., "hard_gate": <bool>}, "delegation": {..., "in_force": <bool>} | null}`. A hard-gate fork, or one with no delegation in force, returns the deterministic `human_gate` with or without a key. Otherwise the route is `supervisor_decide` only when Jev chose it with confidence at least 0.9; anything else is `human_gate`, and Jev's own choice is shown beside the route. Fork routing applies only in a project whose own `gates.md` carries an in-force `kind=standing-delegation` row whose `who=` names `supervisor`, and that row is the `delegation` input; without one, including under a delegation naming the Lead, the Supervisor sends the Lead recommendations, not rulings, and the Lead rules the fork without waiting for a Supervisor GO.
-
-A Jev label never suppresses a finding, never skips a read, never lowers an escalation, never grants authority and never resolves a gate; a Human gate stays a Human gate whatever the route says. Never use Jev for SHAs, counts, timestamps, ordering or code correctness. When the Supervisor acts on a Jev answer, the ledger note recording that decision cites the label and its probability or confidence.
-
 ## Compaction reprime
 
 When an observed live seat has durable compaction evidence, the Supervisor may invoke the repository-owned observer once for that seat and current run from any Supervisor cwd:

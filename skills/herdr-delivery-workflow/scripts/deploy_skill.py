@@ -16,20 +16,6 @@ class DeployError(Exception):
     pass
 
 
-# Repo-only directories: the plugin manifest and the `claude plugin eval` suite exist for the
-# R1 green-eval gate and are never skill runtime. A deployed `.claude-plugin/` auto-loads as a
-# plugin on the next session, so these are excluded from the install even when tracked.
-DEPLOY_EXCLUDE = (".claude-plugin", "plugin-eval")
-
-
-def runtime_paths(paths: list[str], skill_prefix: str) -> list[str]:
-    prefix = skill_prefix.rstrip("/") + "/"
-    kept = [p for p in paths if p[len(prefix):].split("/", 1)[0] not in DEPLOY_EXCLUDE]
-    if not kept:
-        raise DeployError("no runtime files remain after excluding repo-only directories")
-    return kept
-
-
 def git(repo: Path, *args: str) -> str:
     proc = subprocess.run(
         ["git", "-C", str(repo), *args],
@@ -123,10 +109,6 @@ def resolved_files(repo: Path, head: str, paths: list[str], skill_prefix: str) -
     return resolved
 
 
-def _relative_paths(paths: list[str], prefix: str) -> set[Path]:
-    return {Path(path[len(prefix):]) for path in paths}
-
-
 def _is_pycache(path: Path) -> bool:
     return "__pycache__" in path.parts
 
@@ -144,7 +126,7 @@ def verify_install(repo: Path, head: str, install_dir: Path,
     install_dir = Path(os.path.abspath(os.path.expanduser(install_dir)))
     if install_dir.is_symlink():
         raise DeployError(f"install tree is a symlink: {install_dir}")
-    tracked = _relative_paths(paths, prefix)
+    tracked = {Path(path[len(prefix):]) for path in paths}
     for tracked_path in paths:
         installed = install_dir / Path(tracked_path[len(prefix):])
         if installed.is_symlink() or not installed.is_file():
@@ -263,7 +245,7 @@ def main(argv: list[str] | None = None) -> int:
         deployments = []
         for skill in selected:
             skill_prefix = f"skills/{skill}"
-            paths = runtime_paths(tracked_files(repo, head, skill_prefix), skill_prefix)
+            paths = tracked_files(repo, head, skill_prefix)
             resolved = resolved_files(repo, head, paths, skill_prefix)
             deployments.append((skill, paths, skill_prefix, resolved))
 

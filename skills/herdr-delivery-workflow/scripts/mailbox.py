@@ -11,12 +11,9 @@ import sys
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable, Iterable
+from typing import Iterable
 
 import herdr_cli
-
-if TYPE_CHECKING:
-    import jev
 
 HEADER_RE = re.compile(
     r"^## [^|\r\n]+ -> [^|\r\n]+ \| "
@@ -42,24 +39,6 @@ class Entry:
     header: str
     timestamp: str
     body: str
-
-
-@dataclass(frozen=True)
-class TriagedEntry:
-    entry: Entry
-    advisory: jev.HeaderJevResult
-
-    @property
-    def header(self) -> str:
-        return self.entry.header
-
-
-def triage_entries(
-    entries: Iterable[Entry],
-    *,
-    triage: Callable[[str], jev.HeaderJevResult],
-) -> list[TriagedEntry]:
-    return [TriagedEntry(entry=entry, advisory=triage(entry.header)) for entry in entries]
 
 
 def _entries(text: str) -> list[Entry]:
@@ -111,12 +90,6 @@ def select_entries(
     if headers:
         return [entry.header for entry in entries]
     return ["\n".join((entry.header, entry.body)) for entry in entries]
-
-
-def _triage_label(advisory: jev.HeaderJevResult) -> str:
-    if advisory.available:
-        return advisory.urgency.label
-    return f"unavailable:{advisory.reason}"
 
 
 def _require_project_mailbox(path: str, flag: str) -> None:
@@ -259,11 +232,6 @@ def main(argv: list[str] | None = None) -> int:
     selectors.add_argument("--since", metavar="ISO")
     selectors.add_argument("--last", metavar="N", type=int)
     parser.add_argument("--headers", action="store_true")
-    parser.add_argument(
-        "--triage",
-        action="store_true",
-        help="with --headers, append an advisory jev=<label> to each header line",
-    )
     parser.add_argument("--wake", metavar="SEAT", help="read the last header and re-wake a seat")
     parser.add_argument("--append", action="store_true",
                         help="append one entry whose body is read from stdin, then wake --to")
@@ -286,12 +254,6 @@ def main(argv: list[str] | None = None) -> int:
     elif any(value is not None for value in append_args) or args.attention or args.stdin:
         parser.error("--from, --to, --repo, --event, --attention and --stdin require --append")
 
-    if args.triage:
-        if args.wake is not None:
-            parser.error("--triage cannot be combined with --wake")
-        if not args.headers:
-            parser.error("--triage requires --headers")
-
     try:
         if args.append:
             header = append_entry(
@@ -308,20 +270,7 @@ def main(argv: list[str] | None = None) -> int:
 
         if args.since is None and args.last is None and not args.headers:
             raise ValueError("at least one of --headers, --since, or --last is required")
-        if args.triage:
-            import jev  # jev needs python >= 3.10; only --triage loads it
-
-            # The callable is passed explicitly so the lookup happens at call
-            # time and tests can patch jev.triage_header through main().
-            triaged = triage_entries(
-                _selected_entries(text, since=args.since, last=args.last),
-                triage=jev.triage_header,
-            )
-            output = [
-                f"{item.header} | jev={_triage_label(item.advisory)}" for item in triaged
-            ]
-        else:
-            output = select_entries(text, since=args.since, last=args.last, headers=args.headers)
+        output = select_entries(text, since=args.since, last=args.last, headers=args.headers)
     except (OSError, ValueError) as exc:
         print(f"mailbox: {args.file}: {exc}", file=sys.stderr)
         return 1
