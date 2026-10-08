@@ -25,6 +25,20 @@ import pre_push_guard  # noqa: E402
 ZERO = "0" * 40
 
 
+def count_folds(run):
+    """Run `run()` and return (its result, how many rows it folded into a LedgerState)."""
+    folded: list[str] = []
+    real_add = gate_row.LedgerState.add
+
+    def counting_add(state, row):
+        folded.append(row)
+        real_add(state, row)
+
+    with patch.object(gate_row.LedgerState, "add", counting_add):
+        result = run()
+    return result, len(folded)
+
+
 def rechained(text: str) -> str:
     out, prev = [], None
     for line in text.splitlines():
@@ -151,6 +165,15 @@ class PrePushGuardTest(unittest.TestCase):
         self.assertIn("covered", out.getvalue())
         self.assertEqual(err.getvalue(), "")
 
+    def test_a_guard_run_folds_each_ledger_row_once(self):
+        c1 = self.advance("c1")
+        self.assertEqual(self.review(self.base), 0)
+        self.standing()
+        rows = gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))
+        (code, _, err), folds = count_folds(lambda: self.invoke(self.ref_line(self.base, c1)))
+        self.assertEqual(code, 0, err)
+        self.assertEqual(folds, len(rows))
+
     def test_failed_review_leaves_the_range_uncovered(self):
         c1 = self.advance("c1")
         self.assertEqual(self.review(self.base, "recorded:review-fail", "FAIL: 2 findings"), 0)
@@ -194,9 +217,9 @@ class PrePushGuardTest(unittest.TestCase):
             "--words", "human", "--note", "continue", "--quote", "continue",
         ), 0)
         rows = gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))
-        gate_row.validate_ledger(rows, self.repo)
+        state = gate_row.validate_ledger(rows, self.repo)
         self.assertEqual(gate_row.require_push_authority(
-            rows, self.repo, "origin", "refs/heads/main", self.base, c1,
+            state, self.repo, "origin", "refs/heads/main", self.base, c1,
             datetime.now(timezone.utc),
         ), grant_id)
         code, out, err = self.invoke(self.ref_line(self.base, c1))
@@ -549,11 +572,11 @@ class PrePushGuardTest(unittest.TestCase):
     def test_expiry_is_compared_against_the_passed_clock(self):
         c1 = self.advance("c1")
         self.standing(expiry="2030-06-01T12:00:00Z")
-        rows = gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))
+        state = gate_row.LedgerState.of(gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8")))
 
         def at(instant: str) -> None:
             gate_row.require_push_authority(
-                rows, self.repo, "origin", "refs/heads/main", self.base, c1,
+                state, self.repo, "origin", "refs/heads/main", self.base, c1,
                 datetime.strptime(instant, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc))
 
         at("2030-06-01T11:59:59Z")
@@ -699,7 +722,7 @@ class PrePushGuardTest(unittest.TestCase):
 
     def hand_row(self, fields: str) -> None:
         rows = gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))
-        gid = f"G{gate_row.next_id_from_rows(rows)}"
+        gid = f"G{gate_row.LedgerState.of(rows).next_id}"
         timestamp = gate_row.split_row(rows[-1])[0][1]
         row = (f"{gid} | {timestamp} | kind=merge | main@{self.base} | status=open | "
                f"record=timely | {fields} | prev_hash={'0' * 64} | words=none | note=hand | quote=\"\"")
@@ -879,6 +902,16 @@ class PushDigestTest(unittest.TestCase):
         code, out = self.digest((ledger, repo))
         self.assertEqual(code, 1)
         self.assertIn(f"ERROR: resolves={gate} refused: never-open", out)
+
+    def test_a_digest_run_folds_each_ledger_row_once(self):
+        ledger, repo, base = self.project("alpha")
+        self.advance(repo, "a1")
+        self.review(ledger, repo, base)
+        self.push_gate(ledger, repo)
+        rows = gate_row.ledger_rows(ledger.read_text(encoding="utf-8"))
+        (code, _), folds = count_folds(lambda: self.digest((ledger, repo)))
+        self.assertEqual(code, 0)
+        self.assertEqual(folds, len(rows))
 
     def test_ready_and_uncovered_projects_only_ready_is_offered(self):
         ready, ready_repo, ready_base = self.project("alpha")

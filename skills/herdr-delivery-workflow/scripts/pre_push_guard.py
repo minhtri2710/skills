@@ -134,7 +134,7 @@ def check(
     try:
         with gate_row.locked_ledger(ledger, exclusive=False) as handle:
             rows = gate_row.ledger_rows(gate_row.handle_text(handle))
-            gate_row.validate_ledger(rows, repo)
+            state = gate_row.validate_ledger(rows, repo)
     except OSError as exc:
         raise GuardError(f"cannot read ledger {ledger}: {exc}") from None
     except gate_row.RowError as exc:
@@ -149,7 +149,7 @@ def check(
                 if held and ref.startswith("refs/heads/"):
                     base = new_branch_base(repo, tip, remote_held_tips(repo, remote, held),
                                            f"the tips {remote} holds")
-            gate_row.require_push_authority(rows, repo, remote, ref, base, tip, now)
+            gate_row.require_push_authority(state, repo, remote, ref, base, tip, now)
             if tip == ZERO:
                 continue
             if base == ZERO:
@@ -158,7 +158,7 @@ def check(
                 base = git(repo, "merge-base", base, tip)  # a force push publishes merge-base..tip
                 if base == tip:
                     continue  # a rewind publishes no commit
-            gate_row.require_review_coverage(rows, repo, base, tip)
+            state.require_review_coverage(repo, base, tip)
         except gate_row.RowError as exc:
             raise GuardError(str(exc)) from None
     return [tip for _, _, tip in pairs]
@@ -221,12 +221,12 @@ def digest_project(ledger: Path, repo: Path, remote: str, now: datetime,
     """
     with gate_row.locked_ledger(ledger, exclusive=False) as handle:
         rows = gate_row.ledger_rows(gate_row.handle_text(handle))
-        gate_row.validate_ledger(rows, repo)
-    tips = gate_row.open_push_gate_tips(rows, repo)
+        state = gate_row.validate_ledger(rows, repo)
+    tips = gate_row.open_push_gate_tips(state, repo)
     ungated = ungated_lines(repo, tips)
     if not tips:
         return ungated, []
-    gates = gate_row.open_push_gate_rows(rows)
+    gates = gate_row.open_push_gate_rows(state)
     heads = [gate_row.split_row(row)[0][3].split("@") for row in gates]
     branch_gates: dict[str, list[str]] = {}
     branch_tip: dict[str, str] = {}
@@ -237,7 +237,7 @@ def digest_project(ledger: Path, repo: Path, remote: str, now: datetime,
         other for other in branch_gates if branch_tip[other] != tip
         and gate_row.is_ancestor(repo, branch_tip[other], tip)
     ] for branch, tip in branch_tip.items()}
-    blocks = {branch: gated_lines(rows, branch_gates[branch], branch, branch_tip[branch],
+    blocks = {branch: gated_lines(state, branch_gates[branch], branch, branch_tip[branch],
                                   [branch_tip[dep] for dep in deps[branch]], ledger, repo, remote, now)
               for branch in branch_gates}
     for branch in sorted(branch_gates, key=lambda b: len(deps[b])):  # a dependency has fewer
@@ -258,7 +258,7 @@ def digest_project(ledger: Path, repo: Path, remote: str, now: datetime,
     return [*lines, *ungated], items
 
 
-def gated_lines(rows: list[str], gates: list[str], branch: str, tip: str, stacked_tips: list[str],
+def gated_lines(state: gate_row.LedgerState, gates: list[str], branch: str, tip: str, stacked_tips: list[str],
                 ledger: Path, repo: Path, remote: str, now: datetime) -> tuple[list[str], Item | None]:
     ref = f"refs/heads/{branch}"
     lines = [
@@ -284,11 +284,11 @@ def gated_lines(rows: list[str], gates: list[str], branch: str, tip: str, stacke
             return [*lines, f"NOT READY: new branch: {exc}"], None
     try:
         commits = gate_row.range_commits(repo, base, tip)
-        gate_row.require_review_coverage(rows, repo, base, tip)
+        state.require_review_coverage(repo, base, tip)
     except gate_row.RowError as exc:
         return [*lines, f"range:{label} {base}..{tip}", f"NOT READY: {exc}"], None
     reviews = []
-    for row in rows:
+    for row in state.rows:
         kind, _, status = gate_row.row_evidence(row)
         rng = gate_row.review_range(row) if kind == "review" and status == "recorded:review-pass" else None
         if rng and rng[1] in commits:
@@ -298,7 +298,7 @@ def gated_lines(rows: list[str], gates: list[str], branch: str, tip: str, stacke
         f"review rows: {' '.join(reviews)}; coverage ok",
     ]
     try:
-        lines.append(f"authority: granted by {gate_row.require_push_authority(rows, repo, remote, ref, base, tip, now)}")
+        lines.append(f"authority: granted by {gate_row.require_push_authority(state, repo, remote, ref, base, tip, now)}")
     except gate_row.RowError as exc:
         lines.append(f"authority: needs push-grant: {exc}")
     text = f"{ledger.parent.name} {branch}{label} {base[:7]}..{tip[:7]} ({len(commits)} commits)"

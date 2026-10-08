@@ -271,10 +271,10 @@ def check_closeout(
     try:
         with gate_row.locked_ledger(ledger_path, exclusive=False) as handle:
             rows = gate_row.ledger_rows(gate_row.handle_text(handle))
-            gate_row.validate_ledger(rows, canonical)
-        gate_tips = gate_row.open_push_gate_tips(rows, canonical)
+            state = gate_row.validate_ledger(rows, canonical)
+        gate_tips = gate_row.open_push_gate_tips(state, canonical)
         unpushed = pre_push_guard.unpushed_commits(canonical, gate_tips)
-        reviewed = gate_row.review_covered_commits(rows, canonical, set(unpushed)) & set(unpushed)
+        reviewed = state.covered_by_reviews(canonical, set(unpushed)) & set(unpushed)
         if reviewed:
             findings.append(
                 f"reviewed unpushed commit(s) {' '.join(sorted(reviewed))} have no open push-gate row"

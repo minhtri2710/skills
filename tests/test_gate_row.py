@@ -329,7 +329,7 @@ class GateRowTest(unittest.TestCase):
         )
         with mock.patch.object(gate_row, "datetime") as clock:
             clock.now.return_value = datetime(2000, 1, 1, tzinfo=timezone.utc)
-            backdated = gate_row.build(args, self.repo, existing_rows)
+            backdated = gate_row.build(args, self.repo, gate_row.LedgerState.of(existing_rows))
         self.ledger.write_text(
             self.ledger.read_text(encoding="utf-8") + backdated + "\n", encoding="utf-8"
         )
@@ -452,11 +452,93 @@ class GateRowTest(unittest.TestCase):
         ]), 1)
         self.assertIn("requires expiry= field", self.err.getvalue())
 
-    def test_standing_delegation_rejects_non_human_words(self):
+    def test_standing_delegation_accepts_a_dialog_selected_option_quote(self):
+        self.assertEqual(self.append_standing_delegation(
+            "--channel", "supervisor-relay:dialog", "--words", "selected",
+            "--quote", "Yes, delegate it",
+        ), 0, self.err.getvalue())
+        row = self.last_row()
+        self.assertIn("words=selected", row)
+        self.assertIn("channel=supervisor-relay:dialog", row)
+        self.assertEqual(self.check_last(), 0, self.err.getvalue())
+
+    def test_standing_delegation_rejects_words_outside_human_and_selected(self):
         before = self.ledger.read_bytes()
-        self.assertEqual(self.append_standing_delegation("--words", "selected"), 1)
-        self.assertIn("requires words=human", self.err.getvalue())
+        self.assertEqual(self.append_standing_delegation("--words", "seat"), 1)
+        self.assertIn("requires words=human or words=selected", self.err.getvalue())
         self.assertEqual(self.ledger.read_bytes(), before)
+
+    def test_check_refuses_a_standing_delegation_written_with_seat_words(self):
+        self.assertEqual(self.append_standing_delegation(), 0, self.err.getvalue())
+        row = self.last_row().replace("words=human", "words=seat")
+        self.ledger.write_text(row + "\n", encoding="utf-8")
+        self.assertEqual(self.check_last(), 1)
+        self.assertIn("requires words=human or words=selected", self.err.getvalue())
+
+    def test_dialog_selected_standing_delegation_refuses_an_empty_quote_on_append(self):
+        before = self.ledger.read_bytes()
+        self.assertEqual(self.append_standing_delegation(
+            "--channel", "supervisor-relay:dialog", "--words", "selected", "--quote", "",
+        ), 1)
+        self.assertIn("words=none iff quote= is empty", self.err.getvalue())
+        self.assertEqual(self.ledger.read_bytes(), before)
+
+    def test_dialog_selected_standing_delegation_tamper_is_refused_on_check(self):
+        self.assertEqual(self.append_standing_delegation(
+            "--channel", "supervisor-relay:dialog", "--words", "selected",
+            "--quote", "Yes, delegate it",
+        ), 0, self.err.getvalue())
+        selected = self.last_row()
+        for tampered, message in (
+            (selected.replace('quote="Yes, delegate it"', 'quote=""'), "words=none iff quote= is empty"),
+            (selected.replace("words=selected", "words=human"),
+             "channel=supervisor-relay:dialog requires words=selected"),
+        ):
+            with self.subTest(message=message):
+                self.ledger.write_text(tampered + "\n", encoding="utf-8")
+                self.assertEqual(self.check_last(), 1)
+                self.assertIn(message, self.err.getvalue())
+
+    def test_validation_checks_each_row_once_against_the_state_its_predecessors_leave(self):
+        rows = self.chained([self.fixture_row(f"G{n}", "resolved:standing-waiver") for n in range(1, 6)])
+        seen: list[int] = []
+        real_check = gate_row.check
+
+        def spy(row, repo, state=None):
+            seen.append(len(state.rows))
+            return real_check(row, repo, state)
+
+        with mock.patch.object(gate_row, "check", side_effect=spy):
+            state = gate_row.validate_ledger(rows, self.repo)
+        self.assertEqual(seen, [0, 1, 2, 3, 4])
+        self.assertEqual(state.rows, rows)
+
+    def test_validation_asks_git_once_for_a_head_shared_by_every_row(self):
+        rows = self.chained([self.fixture_row(f"G{n}", "resolved:standing-waiver") for n in range(1, 31)])
+        with mock.patch.object(gate_row.subprocess, "run", wraps=gate_row.subprocess.run) as run:
+            gate_row.validate_ledger(rows, self.repo)
+        self.assertEqual(run.call_count, 1)
+
+    def test_validation_resolves_every_distinct_head_in_one_cat_file_batch(self):
+        for n in range(30):
+            subprocess.run(["git", "-C", str(self.repo), "commit", "--allow-empty", "-qm", f"e{n}"],
+                           check=True, capture_output=True, stdin=subprocess.DEVNULL)
+        heads = [self.rev(f"HEAD~{n}") for n in range(30)]
+        rows = self.chained([
+            self.fixture_row(f"G{n}", "resolved:standing-waiver").replace(f"main@{self.rev('HEAD')}", f"main@{head}")
+            for n, head in enumerate(heads, 1)
+        ])
+        with mock.patch.object(gate_row.subprocess, "run", wraps=gate_row.subprocess.run) as run:
+            gate_row.validate_ledger(rows, self.repo)
+        git_verbs = [call.args[0][3] for call in run.call_args_list]
+        self.assertEqual(git_verbs.count("cat-file"), 1)
+        self.assertEqual(git_verbs.count("rev-parse"), 0)
+
+    def test_a_push_range_reads_its_commits_through_one_diff_tree_call(self):
+        with mock.patch.object(gate_row.subprocess, "run", wraps=gate_row.subprocess.run) as run:
+            gate_row.derive_push(self.repo, self.rev("HEAD~2"), self.rev("HEAD"), ["."])
+        git_verbs = [call.args[0][3] for call in run.call_args_list]
+        self.assertEqual(git_verbs.count("diff-tree"), 1)
 
     def check_last(self) -> int:
         return self.run_main(["--ledger", str(self.ledger), "--repo", str(self.repo), "--check"])
@@ -823,7 +905,7 @@ class GateRowTest(unittest.TestCase):
         for row, reason in bad_rows:
             row = row.replace(" | words=", f" | prev_hash={gate_row.row_hash(prior)} | words=", 1)
             with self.subTest(reason=reason), self.assertRaisesRegex(gate_row.RowError, re.escape(reason)):
-                gate_row.check(row, self.repo, [prior])
+                gate_row.check(row, self.repo, gate_row.LedgerState.of([prior]))
 
         failed_review = self.fixture_row("G1", "recorded:review-fail", kind="review")
         voided_failed_review = self.fixture_row(
@@ -835,7 +917,7 @@ class GateRowTest(unittest.TestCase):
         with self.assertRaisesRegex(
             gate_row.RowError, "target must be a kind=review status=recorded:review-pass"
         ):
-            gate_row.check(voided_failed_review, self.repo, [failed_review])
+            gate_row.check(voided_failed_review, self.repo, gate_row.LedgerState.of([failed_review]))
 
         review = self.fixture_row("G1", "recorded:review-pass", kind="review")
         first = self.fixture_row("G2", "recorded:correction", kind="correction").replace(
@@ -845,7 +927,7 @@ class GateRowTest(unittest.TestCase):
             " | words=", " | void=G1 | words=", 1
         ).replace(" | words=", f" | prev_hash={gate_row.row_hash(first)} | words=", 1)
         with self.assertRaisesRegex(gate_row.RowError, "already voided"):
-            gate_row.check(repeated, self.repo, [review, first])
+            gate_row.check(repeated, self.repo, gate_row.LedgerState.of([review, first]))
 
     def test_open_gate_mode_uses_last_rows_and_structured_resolves_only(self):
         base, head = self.rev("HEAD~1"), self.rev("HEAD")
@@ -884,7 +966,7 @@ class GateRowTest(unittest.TestCase):
                f'boundary-check="" | words=human | note=n | quote="q"')
         prior = self.fixture_row("G1", "recorded:review-pass", kind="review")
         with self.assertRaises(gate_row.RowError) as ctx:
-            gate_row.check(self.chained([prior, row])[1], self.repo, [prior])
+            gate_row.check(self.chained([prior, row])[1], self.repo, gate_row.LedgerState.of([prior]))
         self.assertIn("carries 2 commits", str(ctx.exception))
 
     def test_a_failed_check_never_writes_a_row(self):
@@ -1022,7 +1104,7 @@ class GateRowTest(unittest.TestCase):
         prior = rows[:-1]
         row = rows[-1].replace("G2", "G9", 1)
         with self.assertRaisesRegex(gate_row.RowError, "next local id G2"):
-            gate_row.check(row, self.repo, prior)
+            gate_row.check(row, self.repo, gate_row.LedgerState.of(prior))
 
     def test_a_delimiter_in_note_is_refused(self):
         for note in ("a | b", 'a " b'):
@@ -1169,7 +1251,7 @@ class GateRowTest(unittest.TestCase):
                 tampered = row.replace(before, after)
                 self.assertNotEqual(tampered, row, "the tamper did not change the row")
                 with self.assertRaisesRegex(gate_row.RowError, re.escape(message)):
-                    gate_row.check(tampered, self.repo, prior_rows)
+                    gate_row.check(tampered, self.repo, gate_row.LedgerState.of(prior_rows))
 
     def test_check_derives_a_push_row_with_no_boundary_flag(self):
         self.valid_push_row()
@@ -1250,7 +1332,7 @@ class GateRowTest(unittest.TestCase):
         self.assertNotEqual(empty, row)
         rows = gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))
         with self.assertRaises(gate_row.RowError) as ctx:
-            gate_row.check(empty, self.repo, rows[:-1])
+            gate_row.check(empty, self.repo, gate_row.LedgerState.of(rows[:-1]))
         self.assertIn("empty boundary", str(ctx.exception))
 
     def test_a_dot_boundary_covers_the_whole_repository(self):
@@ -1278,7 +1360,7 @@ class GateRowTest(unittest.TestCase):
         gate_row.check(row.replace("topic@", "nonexistent-branch@"), self.repo)
         push_row, _ = self.valid_push_row()
         prior_rows = gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))[:-1]
-        gate_row.check(push_row.replace("main@", "nonexistent-branch@"), self.repo, prior_rows)
+        gate_row.check(push_row.replace("main@", "nonexistent-branch@"), self.repo, gate_row.LedgerState.of(prior_rows))
 
     def test_a_push_row_without_push_base_never_reaches_the_ledger(self):
         self.assertEqual(self.append_review_pass(), 0)
@@ -1662,9 +1744,9 @@ class GateRowTest(unittest.TestCase):
         self.assertEqual(self.append("--resolves", "G7"), 0, self.err.getvalue())
         self.assertEqual(self.append_standing_delegation(
             "--expiry", "until-revoked", "--push-scope", "upstream:release,origin:main"), 0)
-        rows = gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))
+        state = gate_row.LedgerState.of(gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8")))
         self.assertEqual(gate_row.require_push_authority(
-            rows, self.repo, "origin", "refs/heads/main", base, head, datetime.now(timezone.utc)), "G9")
+            state, self.repo, "origin", "refs/heads/main", base, head, datetime.now(timezone.utc)), "G9")
 
     def test_the_landed_check_reads_origins_copy_of_the_rows_branch(self):
         self.assertEqual(self.append_review_pass(), 0, self.err.getvalue())
@@ -1863,7 +1945,7 @@ class GateRowTest(unittest.TestCase):
         first, row = gate_row.ledger_rows(self.ledger.read_text())
         forged = row.replace(" | words=", f" | archive={'a' * 64} | words=")
         with self.assertRaisesRegex(gate_row.RowError, "words= is missing or out of order"):
-            gate_row.check(forged, self.repo, [first])
+            gate_row.check(forged, self.repo, gate_row.LedgerState.of([first]))
 
     def test_an_archive_value_carrying_a_second_equals_is_refused(self):
         head = self.rev("HEAD")
@@ -2033,7 +2115,7 @@ class GateRowTest(unittest.TestCase):
                                 gate_row.verify_chain([*rows[:index], tampered])
                         else:
                             with self.assertRaises(gate_row.RowError):
-                                gate_row.check(tampered, self.repo, rows[:index])
+                                gate_row.check(tampered, self.repo, gate_row.LedgerState.of(rows[:index]))
 
     def test_a_truncated_row_is_a_row_error_not_a_crash(self):
         head = self.rev("HEAD")
@@ -2056,7 +2138,7 @@ class GateRowTest(unittest.TestCase):
         ]
         for text in rows:
             with self.subTest(text), self.assertRaises(gate_row.RowError):
-                gate_row.check(text, self.repo, [])
+                gate_row.check(text, self.repo, gate_row.LedgerState.of([]))
         cutover = row("cutover", gate_row.CUTOVER_STATUS,
                       f"{record} | archive={'a' * 64} | words=none | note=n")
         with self.assertRaises(gate_row.RowError):
@@ -2087,7 +2169,7 @@ class GateRowTest(unittest.TestCase):
                 tampered = row.replace(before, after, 1)
                 self.assertNotEqual(tampered, row)
                 with self.assertRaises(gate_row.RowError):
-                    gate_row.check(tampered, self.repo, rows[:rows.index(row)])
+                    gate_row.check(tampered, self.repo, gate_row.LedgerState.of(rows[:rows.index(row)]))
 
     def test_an_unknown_commit_is_refused_naming_git_rev_parse_verify(self):
         bad, zero = "1" * 40, "0" * 40
@@ -2167,13 +2249,13 @@ class GateRowTest(unittest.TestCase):
         return gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))
 
     def test_push_authority_matches_any_push_scope_entry(self):
-        rows = self.push_scope_rows("upstream:x,origin:release,origin:apex/*,origin:refs/*")
+        state = gate_row.LedgerState.of(self.push_scope_rows("upstream:x,origin:release,origin:apex/*,origin:refs/*"))
         prev, head, now = self.rev("HEAD~1"), self.rev("HEAD"), datetime.now(timezone.utc)
         for ref, base in (("refs/heads/release", prev), ("refs/heads/apex/t1", prev),
                           ("refs/heads/apex/t1", gate_row.ZERO)):
             with self.subTest(ref=ref, base=base):
                 self.assertEqual(gate_row.require_push_authority(
-                    rows, self.repo, "origin", ref, base, head, now), "G1")
+                    state, self.repo, "origin", ref, base, head, now), "G1")
         for remote, ref, base, tip, refusal in (
             ("origin", "refs/heads/main", prev, head, "G1 standing delegation scope is push-scope="),
             ("origin", "refs/heads/apex", prev, head, "G1 standing delegation scope is push-scope="),
@@ -2184,13 +2266,13 @@ class GateRowTest(unittest.TestCase):
         ):
             with self.subTest(remote=remote, ref=ref, base=base):
                 with self.assertRaisesRegex(gate_row.RowError, re.escape(refusal)):
-                    gate_row.require_push_authority(rows, self.repo, remote, ref, base, tip, now)
+                    gate_row.require_push_authority(state, self.repo, remote, ref, base, tip, now)
 
     def test_push_authority_names_a_push_scope_row_without_expiry(self):
-        rows = [self.push_scope_rows()[0].replace(" | expiry=until-revoked", "")]
+        state = gate_row.LedgerState.of([self.push_scope_rows()[0].replace(" | expiry=until-revoked", "")])
         with self.assertRaisesRegex(gate_row.RowError, re.escape("expiry='' is not an ISO-8601")):
             gate_row.require_push_authority(
-                rows, self.repo, "origin", "refs/heads/main", self.rev("HEAD~1"), self.rev("HEAD"),
+                state, self.repo, "origin", "refs/heads/main", self.rev("HEAD~1"), self.rev("HEAD"),
                 datetime.now(timezone.utc))
 
     def run_in_locale(self, locale: str, *argv: str) -> subprocess.CompletedProcess:

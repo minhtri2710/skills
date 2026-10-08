@@ -62,6 +62,8 @@ LOCAL_ID_RE = re.compile(r"^G([0-9]+)$")
 RESOLVE_ID_RE = re.compile(r'^[^,\s|"]+$')
 RECORD_VALUES = ("timely", "reconstruction")
 WORDS_VALUES = ("seat", "human", "selected", "none")
+# A standing delegation is the Human's words typed in the pane, or the option the Human picked from a dialog.
+STANDING_DELEGATION_WORDS = ("human", "selected")
 LOCAL_OPS_STATUS = "recorded:local-ops"
 STANDING_DELEGATION_STATUS = "recorded:standing-delegation"
 HANDOFF_STATUS = "recorded:handoff"
@@ -152,14 +154,68 @@ def require_mailbox_attention(gid: str, head: str, mailbox: Path) -> None:
     )
 
 
-def git(repo: Path, *args: str) -> str:
+# Git answers memoized for one validate_ledger pass. Every query is over immutable
+# object ids, so an answer cannot change inside the pass; a failure is memoized as
+# its message and re-raised identically. Outside a pass the memo is None: no caching.
+GIT_MEMO: dict[tuple[str, tuple[str, ...], str | None], tuple[bool, str]] | None = None
+
+
+@contextmanager
+def memoized_git():
+    global GIT_MEMO
+    outer, GIT_MEMO = GIT_MEMO, {}
+    try:
+        yield
+    finally:
+        GIT_MEMO = outer
+
+
+def git(repo: Path, *args: str, stdin: str | None = None) -> str:
+    key = (str(repo), args, stdin)
+    if GIT_MEMO is not None and key in GIT_MEMO:
+        ok, text = GIT_MEMO[key]
+    else:
+        proc = subprocess.run(
+            ["git", "-C", str(repo), *args],
+            input=stdin, capture_output=True, text=True, encoding="utf-8", check=False,
+        )
+        ok = proc.returncode == 0
+        text = proc.stdout.strip() if ok else proc.stderr.strip()
+        if GIT_MEMO is not None:
+            GIT_MEMO[key] = (ok, text)
+    if not ok:
+        raise RowError(f"git {' '.join(args)} failed: {text}")
+    return text
+
+
+def warm_head_commits(repo: Path, rows: list[str]) -> None:
+    """Resolve every row's head in one cat-file call, memoizing the hits only.
+
+    Only a commit answer is memoized. A miss, an ambiguous name, or a failed call
+    stays out of the memo, so the git() call that asks for that head runs
+    rev-parse and raises the message it always raised.
+    """
+    names = []
+    for row in rows:
+        parts = row.split(" | ")
+        match = HEAD_RE.fullmatch(parts[3]) if len(parts) > 3 else None
+        if match:
+            names.append(match.group("head"))
+    names = list(dict.fromkeys(names))
+    if not names:
+        return
     proc = subprocess.run(
-        ["git", "-C", str(repo), *args],
+        ["git", "-C", str(repo), "cat-file", "--batch-check"],
+        input="".join(f"{name}^{{commit}}\n" for name in names),
         capture_output=True, text=True, encoding="utf-8", check=False,
     )
-    if proc.returncode != 0:
-        raise RowError(f"git {' '.join(args)} failed: {proc.stderr.strip()}")
-    return proc.stdout.strip()
+    lines = proc.stdout.splitlines()
+    if len(lines) != len(names):
+        return
+    for name, line in zip(names, lines):
+        fields = line.split()
+        if len(fields) == 3 and fields[1] == "commit":
+            GIT_MEMO[(str(repo), ("rev-parse", "--verify", f"{name}^{{commit}}"), None)] = (True, fields[0])
 
 
 PREV_HASH_RE = re.compile(r"^[0-9a-f]{64}$")
@@ -227,14 +283,19 @@ def deployed_head(rows: list[str], skill: str, repo: Path) -> tuple[str, str, st
     return branch, full_head, row
 
 
-def validate_ledger(rows: list[str], repo: Path) -> None:
-    """Validate every row against only its predecessors, as it was recorded."""
+def validate_ledger(rows: list[str], repo: Path) -> "LedgerState":
+    """Validate every row against only its predecessors, in one pass; return the state they leave."""
     cutovers = [index for index, row in enumerate(rows)
                 if split_row(row)[0][2] == "kind=cutover"]
     if cutovers and cutovers != [0]:
         raise RowError("kind=cutover is only valid as the first row")
-    for index, row in enumerate(rows):
-        check(row, repo, rows[:index])
+    state = LedgerState()
+    with memoized_git():
+        warm_head_commits(repo, rows)
+        for row in rows:
+            check(row, repo, state)
+            state.add(row)
+    return state
 
 
 def select_deployed_head(ledger: Path, skill: str, repo: Path) -> tuple[str, str, str]:
@@ -247,17 +308,6 @@ def select_deployed_head(ledger: Path, skill: str, repo: Path) -> tuple[str, str
             raise RowError(f"no completed target-bearing deploy row for skill {skill!r}")
         validate_ledger(rows, repo)
         return deployed_head(rows, skill, repo)
-
-
-def next_id_from_rows(rows: list[str]) -> int:
-    ids = []
-    for line in rows:
-        match = ID_RE.match(line)
-        if match:
-            local = LOCAL_ID_RE.match(match.group("id"))
-            if local:
-                ids.append(int(local.group(1)))
-    return max(ids) + 1 if ids else 1
 
 
 def split_row(row: str) -> tuple[list[str], str]:
@@ -329,55 +379,6 @@ def review_range(row: str) -> tuple[str, str] | None:
 
 def review_field(base: str, head: str, count: str) -> str:
     return f"review={base}..{head} count={count}"
-
-
-def review_covered_commits(rows: list[str], repo: Path, commits: set[str]) -> set[str]:
-    covered: set[str] = set()
-    _, _, _, voided_by = open_state(rows)
-    for row in rows:
-        fields, _ = split_row(row)
-        gid = fields[0]
-        kind, _row_head, status = row_evidence(row)
-        if kind != "review" or status != "recorded:review-pass" or gid in voided_by:
-            continue
-        rng = review_range(row)
-        if rng is None:
-            continue
-        rbase, rhead = rng
-        if rhead not in commits:
-            continue
-        covered.update(range_commits(repo, rbase, rhead))
-    return covered
-
-
-def require_review_coverage(rows: list[str], repo: Path, base: str, head: str) -> None:
-    """Require every commit in the pushed range to be covered by a review PASS range.
-
-    A single review covers its whole range, so a delivery's intra-run intermediates
-    (one commit per scope, `lead.md` "Quiesce and commit") ride their reviewed head
-    without their own rows. Stacked deliveries tile the range with one row each; a
-    gap — an unreviewed delivery riding a reviewed tip's push — leaves its commits
-    uncovered and is refused. The tip is covered only if it is itself a reviewed
-    head, so a tip-unreviewed push is refused here too.
-    """
-    pushed = set(range_commits(repo, base, head))
-    covered = review_covered_commits(rows, repo, pushed)
-    _, _, _, voided_by = open_state(rows)
-    missing = [sha for sha in pushed if sha not in covered]
-    if missing:
-        voided_reviews = []
-        for row in rows:
-            fields, _ = split_row(row)
-            gid = fields[0]
-            kind, _, status = row_evidence(row)
-            rng = review_range(row) if kind == "review" and status == "recorded:review-pass" else None
-            if gid in voided_by and rng and rng[1] in pushed:
-                voided_reviews.append(f"{gid} review row is void ({voided_by[gid]})")
-        detail = f"; {', '.join(voided_reviews)}" if voided_reviews else ""
-        raise RowError(
-            f"refusing push of {base}..{head}: {', '.join(sorted(missing))} "
-            f"is not covered by any review PASS range{detail}"
-        )
 
 
 def row_field(fields: list[str], name: str) -> str | None:
@@ -458,27 +459,8 @@ def grant_holds(repo: Path, grant: re.Match, op: str, remote_sha: str, local_sha
     return (grant["base"], grant["tip"]) == (remote_sha, local_sha)
 
 
-def require_grant_consumed(
-    rows: list[str], repo: Path, branch: str, base: str, head: str, resolves: list[str],
-) -> None:
-    """A push row resolves every unconsumed origin grant for its branch that holds its range."""
-    _, _, resolved_at, _ = open_state(rows)
-    for row in rows:
-        fields, _ = split_row(row)
-        gid = fields[0]
-        if fields[2] != "kind=push-grant" or gid in resolved_at or gid in resolves:
-            continue
-        grant = GRANT_RE.fullmatch(row_field(fields, "grant") or "")
-        if (grant and (grant["remote"], grant["ref"]) == ("origin", f"refs/heads/{branch}")
-                and grant_holds(repo, grant, grant["op"], base, head)):
-            raise RowError(
-                f"push {base}..{head} lands under open grant {gid}, which this row "
-                f"leaves unconsumed; add --resolves {gid}"
-            )
-
-
 def require_push_authority(
-    rows: list[str], repo: Path, remote: str, ref: str,
+    state: LedgerState, repo: Path, remote: str, ref: str,
     remote_sha: str, local_sha: str, now: datetime,
 ) -> str:
     """Return the id of the row that authorizes one pushed ref, or refuse naming what is missing.
@@ -496,9 +478,9 @@ def require_push_authority(
         op = "push"
     tag = ref.startswith("refs/tags/")
     special = "tag push" if tag else {"force": "force push", "delete": "deletion"}.get(op)
-    _, _, resolved_at, voided_by = open_state(rows)
+    resolved_at, voided_by = state.resolved_at, state.voided_by
     reasons: list[str] = []
-    for index, row in enumerate(rows):
+    for index, row in enumerate(state.rows):
         fields, _ = split_row(row)
         gid, kind = fields[0], fields[2].split("=", 1)[1]
         closed = resolved_at.get(gid, -1) > index
@@ -610,44 +592,12 @@ def validate_after(value: str, repo: Path) -> None:
     git(repo, "rev-parse", "--verify", f"{match.group('head')}^{{commit}}")
 
 
-def repair_findings_since_boundary(rows: list[str]) -> set[str]:
-    findings: set[str] = set()
-    for previous_row in reversed(rows):
-        previous_kind, _, previous_status = row_evidence(previous_row)
-        if (
-            previous_status == "recorded:review-pass"
-            or previous_kind == "push"
-            or (
-                previous_kind == "merge"
-                and previous_status.startswith("resolved:")
-            )
-            or previous_kind == "repair-cap-gate"
-        ):
-            break
-        if previous_kind == "repair-grant":
-            previous_fields, _ = split_row(previous_row)
-            matching = [field for field in previous_fields if field.startswith("finding=")]
-            if len(matching) != 1:
-                raise RowError("kind=repair-grant requires exactly one finding= field")
-            finding = finding_value(matching[0].split("=", 1)[1])
-            if finding in findings:
-                refuse_repair_cap(finding)
-            findings.add(finding)
-    return findings
-
-
 def refuse_repair_cap(finding: str) -> None:
     raise RowError(
         f"repair cap reached (finding={finding} repeated since the last progress "
         "boundary): record kind=repair-cap-gate and route the Human instead of "
         "another kind=repair-grant"
     )
-
-
-def require_repair_progress(rows: list[str], finding: str) -> None:
-    previous_findings = repair_findings_since_boundary(rows)
-    if finding in previous_findings:
-        refuse_repair_cap(finding)
 
 
 def structured_row(row: str) -> tuple[str, str, list[str], str, str | None]:
@@ -674,81 +624,185 @@ def structured_row(row: str) -> tuple[str, str, list[str], str, str | None]:
     return fields[0], status, resolves, kind, void
 
 
-def open_state(
-    rows: list[str],
-) -> tuple[dict[str, tuple[int, str]], set[str], dict[str, int], dict[str, str]]:
-    latest: dict[str, tuple[int, str]] = {}
-    ever_open: set[str] = set()
-    resolved_at: dict[str, int] = {}
-    voided_by: dict[str, str] = {}
-    for index, row in enumerate(rows):
-        gid, status, resolves, _kind, void = structured_row(row)
-        latest[gid] = (index, status)
-        if status == "open":
-            ever_open.add(gid)
-        for target in resolves:
-            resolved_at[target] = index
+class LedgerState:
+    """The facts a row is checked against, folded in one row at a time.
+
+    `add` takes a row once it has passed `check`, so one pass over a ledger costs one
+    state update per row and every question a later row asks is a dict or set probe,
+    never a rescan of its predecessors. `resolved_at` and `voided_by` also answer the
+    end-of-ledger questions that `require_push_authority` asks.
+    """
+
+    def __init__(self) -> None:
+        self.rows: list[str] = []
+        self.last_when = ""
+        self.max_id = 0
+        self.latest: dict[str, tuple[int, str]] = {}  # gid -> (index, status) of its row
+        self.kinds: dict[str, str] = {}
+        self.ever_open: set[str] = set()
+        self.resolved_at: dict[str, int] = {}  # gid -> index of the row that closed it
+        self.voided_by: dict[str, str] = {}  # gid -> the correction that voided it
+        self.standing: dict[str, int] = {}  # standing-delegation gid -> index
+        # Unconsumed push grants by (remote, ref); a grant leaves when a row resolves it.
+        self.open_grants: dict[tuple[str, str], dict[str, re.Match]] = {}
+        self.grant_key: dict[str, tuple[str, str]] = {}
+        # Review PASS rows by reviewed head: (index, gid, reviewed range base).
+        self.reviews: dict[str, list[tuple[int, str, str]]] = {}
+        self.repair_findings: set[str] = set()
+
+    @classmethod
+    def of(cls, rows: list[str]) -> "LedgerState":
+        state = cls()
+        for row in rows:
+            state.add(row)
+        return state
+
+    @property
+    def next_id(self) -> int:
+        return self.max_id + 1
+
+    def add(self, row: str) -> None:
+        fields, _ = split_row(row)
+        gid, status, resolves, kind, void = structured_row(row)
+        index = len(self.rows)
         if void is not None:
-            validate_void_target(void, rows[:index], voided_by)
-            voided_by[void] = gid
-            resolved_at[void] = index
-    return latest, ever_open, resolved_at, voided_by
+            self.validate_void(void)
+        self.rows.append(row)
+        self.last_when = fields[1]
+        local = LOCAL_ID_RE.fullmatch(gid)
+        if local:
+            self.max_id = max(self.max_id, int(local.group(1)))
+        self.latest[gid] = (index, status)
+        self.kinds[gid] = kind
+        if status == "open":
+            self.ever_open.add(gid)
+        if kind == "standing-delegation":
+            self.standing[gid] = index
+        for target in resolves:
+            self.close(target, index)
+        if void is not None:
+            self.voided_by[void] = gid
+            self.close(void, index)
+        if kind == "push-grant":
+            grant = GRANT_RE.fullmatch(row_field(fields, "grant") or "")
+            if grant:
+                key = (grant["remote"], grant["ref"])
+                self.open_grants.setdefault(key, {})[gid] = grant
+                self.grant_key[gid] = key
+        if kind == "review" and status == "recorded:review-pass":
+            rng = review_range(row)
+            if rng is not None:
+                self.reviews.setdefault(rng[1], []).append((index, gid, rng[0]))
+        if (status == "recorded:review-pass" or kind == "push"
+                or (kind == "merge" and status.startswith("resolved:"))
+                or kind == "repair-cap-gate"):
+            self.repair_findings.clear()
+        elif kind == "repair-grant":
+            matching = [field for field in fields if field.startswith("finding=")]
+            if len(matching) != 1:
+                raise RowError("kind=repair-grant requires exactly one finding= field")
+            self.repair_findings.add(finding_value(matching[0].split("=", 1)[1]))
+
+    def close(self, gid: str, index: int) -> None:
+        self.resolved_at[gid] = index
+        key = self.grant_key.pop(gid, None)
+        if key is not None:
+            del self.open_grants[key][gid]
+
+    def validate_void(self, target: str) -> None:
+        if not target or not RESOLVE_ID_RE.fullmatch(target):
+            raise RowError(f"void={target!r} is an empty or malformed id")
+        if target not in self.latest:
+            raise RowError(f"void={target} refused: target is not an earlier row of this ledger")
+        kind, status = self.kinds[target], self.latest[target][1]
+        if not (kind == "review" and status == "recorded:review-pass") and kind != "push-grant":
+            raise RowError(
+                f"void={target} refused: target must be a kind=review status=recorded:review-pass "
+                "row or a kind=push-grant row"
+            )
+        if target in self.voided_by:
+            raise RowError(f"void={target} refused: already voided by {self.voided_by[target]}")
+
+    def require_open(self, targets: list[str]) -> None:
+        for target in targets:
+            if target in self.standing:
+                if self.resolved_at.get(target, -1) > self.standing[target]:
+                    raise RowError(f"resolves={target} refused: already-revoked")
+                continue
+            if target not in self.ever_open:
+                raise RowError(f"resolves={target} refused: never-open; supersede by citing its id in note=")
+            own = self.latest.get(target)
+            if own is None or own[1] != "open" or self.resolved_at.get(target, -1) > own[0]:
+                raise RowError(f"resolves={target} refused: already-closed")
+
+    def require_repair_progress(self, finding: str) -> None:
+        if finding in self.repair_findings:
+            refuse_repair_cap(finding)
+
+    def open_gate_ids(self) -> list[str]:
+        open_rows = [
+            (index, gid)
+            for gid, (index, status) in self.latest.items()
+            if status == "open" and self.resolved_at.get(gid, -1) <= index
+        ]
+        return [gid for _, gid in sorted(open_rows)]
+
+    def require_grant_consumed(
+        self, repo: Path, branch: str, base: str, head: str, resolves: list[str],
+    ) -> None:
+        """A push row resolves every unconsumed origin grant for its branch that holds its range."""
+        for gid, grant in self.open_grants.get(("origin", f"refs/heads/{branch}"), {}).items():
+            if gid not in resolves and grant_holds(repo, grant, grant["op"], base, head):
+                raise RowError(
+                    f"push {base}..{head} lands under open grant {gid}, which this row "
+                    f"leaves unconsumed; add --resolves {gid}"
+                )
+
+    def covered_by_reviews(self, repo: Path, commits: set[str]) -> set[str]:
+        covered: set[str] = set()
+        for sha in commits:
+            for _, gid, rbase in self.reviews.get(sha, []):
+                if gid not in self.voided_by:
+                    covered.update(range_commits(repo, rbase, sha))
+        return covered
+
+    def require_review_coverage(self, repo: Path, base: str, head: str) -> None:
+        """Require every commit in the pushed range to be covered by a review PASS range.
+
+        A single review covers its whole range, so a delivery's intra-run intermediates
+        (one commit per scope, `lead.md` "Quiesce and commit") ride their reviewed head
+        without their own rows. Stacked deliveries tile the range with one row each; a
+        gap — an unreviewed delivery riding a reviewed tip's push — leaves its commits
+        uncovered and is refused. The tip is covered only if it is itself a reviewed
+        head, so a tip-unreviewed push is refused here too.
+        """
+        pushed = set(range_commits(repo, base, head))
+        covered = self.covered_by_reviews(repo, pushed)
+        missing = [sha for sha in pushed if sha not in covered]
+        if missing:
+            voided = sorted(
+                (index, f"{gid} review row is void ({self.voided_by[gid]})")
+                for sha in pushed
+                for index, gid, _ in self.reviews.get(sha, [])
+                if gid in self.voided_by
+            )
+            detail = f"; {', '.join(text for _, text in voided)}" if voided else ""
+            raise RowError(
+                f"refusing push of {base}..{head}: {', '.join(sorted(missing))} "
+                f"is not covered by any review PASS range{detail}"
+            )
 
 
-def open_gate_ids(rows: list[str]) -> list[str]:
-    latest, _, resolved_at, _ = open_state(rows)
-    open_rows = [
-        (index, gid)
-        for gid, (index, status) in latest.items()
-        if status == "open" and resolved_at.get(gid, -1) <= index
-    ]
-    return [gid for _, gid in sorted(open_rows)]
-
-
-def open_push_gate_rows(rows: list[str]) -> list[str]:
-    open_ids = set(open_gate_ids(rows))
-    return [row for row in rows if row.split(" | ", 1)[0] in open_ids
+def open_push_gate_rows(state: LedgerState) -> list[str]:
+    open_ids = set(state.open_gate_ids())
+    return [row for row in state.rows if row.split(" | ", 1)[0] in open_ids
             and row_evidence(row)[0] == "push-gate"]
 
 
-def open_push_gate_tips(rows: list[str], repo: Path) -> list[str]:
-    heads = [split_row(row)[0][3].split("@") for row in open_push_gate_rows(rows)]
+def open_push_gate_tips(state: LedgerState, repo: Path) -> list[str]:
+    heads = [split_row(row)[0][3].split("@") for row in open_push_gate_rows(state)]
     return [git(repo, "rev-parse", "--verify", f"{sha}^{{commit}}")
             for _, sha in heads]
-
-
-def require_open_targets(rows: list[str], targets: list[str]) -> None:
-    latest, ever_open, resolved_at, _ = open_state(rows)
-    standing = {
-        split_row(row)[0][0]: index for index, row in enumerate(rows)
-        if row_evidence(row)[0] == "standing-delegation"
-    }
-    for target in targets:
-        own = latest.get(target)
-        if target in standing:
-            if resolved_at.get(target, -1) > standing[target]:
-                raise RowError(f"resolves={target} refused: already-revoked")
-            continue
-        if target not in ever_open:
-            raise RowError(f"resolves={target} refused: never-open; supersede by citing its id in note=")
-        if own is None or own[1] != "open" or resolved_at.get(target, -1) > own[0]:
-            raise RowError(f"resolves={target} refused: already-closed")
-
-
-def validate_void_target(target: str, prior_rows: list[str], voided_by: dict[str, str]) -> None:
-    if not target or not RESOLVE_ID_RE.fullmatch(target):
-        raise RowError(f"void={target!r} is an empty or malformed id")
-    row = next((row for row in prior_rows if split_row(row)[0][0] == target), None)
-    if row is None:
-        raise RowError(f"void={target} refused: target is not an earlier row of this ledger")
-    kind, _, status = row_evidence(row)
-    if not (kind == "review" and status == "recorded:review-pass") and kind != "push-grant":
-        raise RowError(
-            f"void={target} refused: target must be a kind=review status=recorded:review-pass "
-            "row or a kind=push-grant row"
-        )
-    if target in voided_by:
-        raise RowError(f"void={target} refused: already voided by {voided_by[target]}")
 
 
 def range_commits(repo: Path, base: str, head: str) -> list[str]:
@@ -784,13 +838,10 @@ def derive_push(repo: Path, base: str, head: str, boundary: list[str]) -> tuple[
             )
     commits = range_commits(repo, base, head)
     count = str(len(commits))
-    changed: set[str] = set()
-    for commit in commits:
-        changed.update(
-            path for path in git(
-                repo, "diff-tree", "--root", "-m", "--no-commit-id", "--name-only", "-r", commit,
-            ).splitlines() if path
-        )
+    changed = set(path for path in git(
+        repo, "diff-tree", "--root", "-m", "--no-commit-id", "--name-only", "-r", "--stdin",
+        stdin="\n".join(commits) + "\n",
+    ).splitlines() if path)
     outside = sorted(path for path in changed
                      if not any(b == "." or path == b or path.startswith(b.rstrip("/") + "/")
                                 for b in boundary))
@@ -831,8 +882,7 @@ def resolve_row_head(args: argparse.Namespace, repo: Path, record: str) -> tuple
     return branch, head
 
 
-def build(args: argparse.Namespace, repo: Path,
-          existing_rows: list[str]) -> str:
+def build(args: argparse.Namespace, repo: Path, state: LedgerState) -> str:
     note = args.note.strip()
     if args.quote and args.quote_file:
         raise RowError("--quote and --quote-file are mutually exclusive")
@@ -877,7 +927,7 @@ def build(args: argparse.Namespace, repo: Path,
         if len(void_values) != 1:
             raise RowError("kind=correction requires exactly one --void <id>")
         target = void_values[0]
-        validate_void_target(target, existing_rows, open_state(existing_rows)[3])
+        state.validate_void(target)
         special_fields.append(f"void={target}")
     if kind == "local-ops":
         if args.status != LOCAL_OPS_STATUS:
@@ -893,8 +943,8 @@ def build(args: argparse.Namespace, repo: Path,
     elif kind == "standing-delegation":
         if args.status != STANDING_DELEGATION_STATUS:
             raise RowError(f"kind=standing-delegation requires status={STANDING_DELEGATION_STATUS}")
-        if args.words != "human":
-            raise RowError("kind=standing-delegation requires words=human for the Human's quote")
+        if args.words not in STANDING_DELEGATION_WORDS:
+            raise RowError("kind=standing-delegation requires words=human or words=selected for the Human's quote")
         for name in ("who", "scope", "conditions", "expiry"):
             if not getattr(args, name, ""):
                 raise RowError(f"kind=standing-delegation requires {name}= field")
@@ -923,13 +973,12 @@ def build(args: argparse.Namespace, repo: Path,
         validate_grant(grant, repo)
         special_fields.append(f"grant={grant}")
 
-    rows = existing_rows
-    gid = f"G{next_id_from_rows(rows)}"
+    gid = f"G{state.next_id}"
     targets = resolve_ids(args.resolves)
     if targets:
-        require_open_targets(rows, targets)
+        state.require_open(targets)
     if kind == "repair-grant":
-        require_repair_progress(rows, finding)
+        state.require_repair_progress(finding)
 
     fields = [
         gid,
@@ -978,7 +1027,7 @@ def build(args: argparse.Namespace, repo: Path,
             )
         count, outside = derive_push(repo, args.push_base, head, args.boundary)
         fields.append(push_field(args.push_base, head, count, args.boundary, outside))
-        require_review_coverage(rows, repo, args.push_base, head)
+        state.require_review_coverage(repo, args.push_base, head)
     elif args.kind == "review":
         if not args.review_base:
             raise RowError(
@@ -1010,8 +1059,8 @@ def build(args: argparse.Namespace, repo: Path,
         fields.append(f"resolves={','.join(targets)}")
     if special_fields:
         fields.extend(special_fields)
-    if rows:
-        fields.append(f"prev_hash={row_hash(rows[-1])}")
+    if state.rows:
+        fields.append(f"prev_hash={row_hash(state.rows[-1])}")
     fields.append(f"words={args.words}")
     fields.append(f"note={note}")
     fields.append(f'quote="{quote}"')
@@ -1020,7 +1069,10 @@ def build(args: argparse.Namespace, repo: Path,
     return row
 
 
-def check(row: str, repo: Path, prior_rows: list[str] | None = None) -> None:
+def check(row: str, repo: Path, state: LedgerState | None = None) -> None:
+    """Check one row against the state its predecessors leave; `state` is not advanced."""
+    if state is None:
+        state = LedgerState()
     fields, quote = split_row(row)
     gid, when, kind, head_field, status, *rest = fields
     for name, value, pattern in (
@@ -1030,13 +1082,10 @@ def check(row: str, repo: Path, prior_rows: list[str] | None = None) -> None:
             raise RowError(f"field {value!r} is not a valid {name}=")
     if not re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z", when):
         raise RowError(f"time {when!r} is not an ISO UTC timestamp")
-    if prior_rows:
-        predecessor_fields, _ = split_row(prior_rows[-1])
-        predecessor_when = predecessor_fields[1]
-        if when < predecessor_when:
-            raise RowError(
-                f"timestamp regression: predecessor {predecessor_when} -> this row {when}"
-            )
+    if state.rows and when < state.last_when:
+        raise RowError(
+            f"timestamp regression: predecessor {state.last_when} -> this row {when}"
+        )
     m = HEAD_RE.fullmatch(head_field)
     if not m:
         raise RowError(f"field {head_field!r} is not <branch>@<head>")
@@ -1129,7 +1178,7 @@ def check(row: str, repo: Path, prior_rows: list[str] | None = None) -> None:
             raise RowError("kind=correction requires status=recorded:correction")
         if void_target is None:
             raise RowError("kind=correction requires exactly one void= field after resolves=")
-        validate_void_target(void_target, prior_rows or [], open_state(prior_rows or [])[3])
+        state.validate_void(void_target)
     elif void_fields:
         raise RowError(f"void= is only on a kind=correction row, not kind={row_kind}")
 
@@ -1179,10 +1228,8 @@ def check(row: str, repo: Path, prior_rows: list[str] | None = None) -> None:
     else:
         current_finding = None
 
-    if prior_rows:
-        expected_gid = f"G{next_id_from_rows(prior_rows)}"
-        if gid != expected_gid:
-            raise RowError(f"gate id {gid} is not the next local id {expected_gid}")
+    if state.rows and gid != f"G{state.next_id}":
+        raise RowError(f"gate id {gid} is not the next local id G{state.next_id}")
 
     if index < len(rest) and rest[index].startswith("prev_hash="):
         index += 1
@@ -1195,9 +1242,11 @@ def check(row: str, repo: Path, prior_rows: list[str] | None = None) -> None:
     index += 1
 
     if row_kind == "repair-grant":
-        require_repair_progress(prior_rows or [], current_finding)
+        state.require_repair_progress(current_finding)
     if row_kind == "push-grant" and words not in ("human", "selected"):
         raise RowError("kind=push-grant requires words=human or words=selected")
+    if row_kind == "standing-delegation" and words not in STANDING_DELEGATION_WORDS:
+        raise RowError("kind=standing-delegation requires words=human or words=selected")
 
     if index >= len(rest) or not rest[index].startswith("note="):
         raise RowError("note= is missing or out of order")
@@ -1237,9 +1286,8 @@ def check(row: str, repo: Path, prior_rows: list[str] | None = None) -> None:
                 f'outside the declared boundary is "{" ".join(outside)}"'
             )
         if row_kind == "push":
-            require_review_coverage(prior_rows or [], repo, base, m.group("head"))
-            require_grant_consumed(prior_rows or [], repo, m.group("branch"), base,
-                                   m.group("head"), resolves)
+            state.require_review_coverage(repo, base, m.group("head"))
+            state.require_grant_consumed(repo, m.group("branch"), base, m.group("head"), resolves)
 
     if review is not None:
         r = REVIEW_RE.fullmatch(review)
@@ -1257,7 +1305,7 @@ def check(row: str, repo: Path, prior_rows: list[str] | None = None) -> None:
             )
 
     if resolves:
-        require_open_targets(prior_rows or [], resolves)
+        state.require_open(resolves)
 
 
 def check_mailbox_for_open_gate(row: str, mailbox: Path | None) -> None:
@@ -1388,8 +1436,7 @@ def main(argv: list[str] | None = None) -> int:
                 raise RowError("--open-gates cannot be combined with append arguments")
             with locked_ledger(args.ledger, exclusive=False) as handle:
                 rows = ledger_rows(handle_text(handle))
-                validate_ledger(rows, args.repo)
-                ids = open_gate_ids(rows)
+                ids = validate_ledger(rows, args.repo).open_gate_ids()
             sys.stdout.write("".join(f"{gid}\n" for gid in ids))
             return 0
 
@@ -1412,10 +1459,9 @@ def main(argv: list[str] | None = None) -> int:
 
         with locked_ledger(args.ledger, exclusive=True) as handle:
             before = handle_text(handle)
-            existing_rows = ledger_rows(before)
-            validate_ledger(existing_rows, args.repo)
-            row = build(args, args.repo, existing_rows)
-            check(row, args.repo, existing_rows)
+            state = validate_ledger(ledger_rows(before), args.repo)
+            row = build(args, args.repo, state)
+            check(row, args.repo, state)
             if before and not before.endswith("\n"):
                 handle.seek(0, 2)
                 handle.write("\n")

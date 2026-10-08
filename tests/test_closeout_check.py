@@ -50,6 +50,20 @@ class FakeHerdr:
         return self.processes.get(pane_id, {"foreground_processes": []})
 
 
+def count_folds(run):
+    """Run `run()` and return (its result, how many rows it folded into a LedgerState)."""
+    folded: list[str] = []
+    real_add = gate_row.LedgerState.add
+
+    def counting_add(state, row):
+        folded.append(row)
+        real_add(state, row)
+
+    with mock.patch.object(gate_row.LedgerState, "add", counting_add):
+        result = run()
+    return result, len(folded)
+
+
 class CloseoutCheckTest(unittest.TestCase):
     def setUp(self) -> None:
         self.tmp = tempfile.TemporaryDirectory()
@@ -233,6 +247,24 @@ class CloseoutCheckTest(unittest.TestCase):
         git(repo, "commit", "-qam", "unreviewed")
         unreviewed = closeout_check.check_closeout(self.record, self.herdr)
         self.assertTrue(unreviewed.passed, unreviewed.findings)
+
+    def test_closeout_folds_each_ledger_row_once(self):
+        def git(*args: str) -> str:
+            return subprocess.run(["git", "-C", str(self.canonical), *args], check=True,
+                                  capture_output=True, text=True, stdin=subprocess.DEVNULL).stdout.strip()
+
+        base = git("rev-parse", "HEAD")
+        (self.canonical / "tracked.txt").write_text("next\n", encoding="utf-8")
+        git("commit", "-qam", "next")
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            self.assertEqual(gate_row.main([
+                "--ledger", str(self.ledger), "--repo", str(self.canonical),
+                "--kind", "review", "--status", "recorded:review-pass", "--review-base", base,
+                "--words", "seat", "--note", "review passed", "--quote", "PASS",
+            ]), 0)
+        rows = gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))
+        _, folds = count_folds(lambda: closeout_check.check_closeout(self.record, self.herdr))
+        self.assertEqual(folds, len(rows))
 
     def test_open_recorded_peer_fails_even_when_agent_is_not_found_then_passes_after_close(self):
         result = closeout_check.check_closeout(self.record, self.herdr)
