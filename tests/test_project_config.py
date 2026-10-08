@@ -18,7 +18,7 @@ import project_config  # noqa: E402
 _FULL = {
     "lead-kind": "pi",
     "lead-args": ["--model", "lead-model"],
-    "launch-profiles": {"pi": {"seat-argv": ["--name", "{seat}"], "peer-argv": ["-e", "{installed_skill_dir}/extensions/report-wake.js", "--report-lead", "{lead}"], "peer-settings-json": {"lead": "{lead}"}}},
+    "launch-profiles": {"pi": {"seat-argv": ["--name", "{seat}"], "peer-argv": ["--settings", "{settings_file}"], "peer-settings-json": {"lead": "{lead}"}}},
     "engineer-kind": "claude",
     "engineer-args": ["--model", "m1", "--permission-mode", "auto", ""],
     "reviewer-kind": "claude",
@@ -60,7 +60,7 @@ class ProjectConfigTests(unittest.TestCase):
             ({key: value for key, value in _FULL.items() if key != "engineer-fallback-args"}, "engineer-fallback and engineer-fallback-args must be configured together"),
             ({key: value for key, value in _FULL.items() if key != "reviewer-fallback"}, "reviewer-fallback and reviewer-fallback-args must be configured together"),
             ({**_FULL, "engineer-arg": []}, "engineer-arg: unknown key"),
-            ({**_FULL, "launch-profiles": {"pi": {"pi-extension": []}}}, "launch-profiles.pi.pi-extension: unknown key"),
+            ({**_FULL, "launch-profiles": {"pi": {"unknown-key": []}}}, "launch-profiles.pi.unknown-key: unknown key"),
             ({**_FULL, "launch-profiles": {"pi": {"seat-argv": ["{unknown}"]}}}, "unknown placeholder"),
             ({**_FULL, "launch-profiles": {"pi": {"runtime-state-dir": "/tmp/{unknown}"}}}, "unknown placeholder"),
             ({**_FULL, "launch-profiles": {"pi": {"runtime-state-dir": "relative"}}}, "must be an absolute path"),
@@ -217,7 +217,7 @@ class ProjectConfigTests(unittest.TestCase):
             "lead-kind": "pi", "lead-args": ["--approve"],
             "launch-profiles": {"pi": {
                 "seat-argv": ["--name", "{seat}", "--exclude-tools", "ask_question"],
-                "peer-argv": ["-e", "{installed_skill_dir}/hook.js", "--report-lead", "{lead}"],
+                "peer-argv": ["--settings", "{settings_file}"],
             }},
         }
         path = self._write(config)
