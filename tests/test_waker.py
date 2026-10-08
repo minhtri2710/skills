@@ -15,7 +15,7 @@ from unittest import mock
 SCRIPTS = Path(__file__).resolve().parents[1] / "skills" / "herdr-delivery-workflow" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 
-import waker  # noqa: E402
+import waker
 
 LEAD = "lead-example"
 SEAT = "eng-example"
