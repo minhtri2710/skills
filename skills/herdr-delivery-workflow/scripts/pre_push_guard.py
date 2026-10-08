@@ -134,6 +134,7 @@ def check(
     try:
         with gate_row.locked_ledger(ledger, exclusive=False) as handle:
             rows = gate_row.ledger_rows(gate_row.handle_text(handle))
+            gate_row.validate_ledger(rows, repo)
     except OSError as exc:
         raise GuardError(f"cannot read ledger {ledger}: {exc}") from None
     except gate_row.RowError as exc:
@@ -220,6 +221,7 @@ def digest_project(ledger: Path, repo: Path, remote: str, now: datetime,
     """
     with gate_row.locked_ledger(ledger, exclusive=False) as handle:
         rows = gate_row.ledger_rows(gate_row.handle_text(handle))
+        gate_row.validate_ledger(rows, repo)
     tips = gate_row.open_push_gate_tips(rows, repo)
     ungated = ungated_lines(repo, tips)
     if not tips:

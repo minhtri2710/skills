@@ -271,6 +271,7 @@ def check_closeout(
     try:
         with gate_row.locked_ledger(ledger_path, exclusive=False) as handle:
             rows = gate_row.ledger_rows(gate_row.handle_text(handle))
+            gate_row.validate_ledger(rows, canonical)
         gate_tips = gate_row.open_push_gate_tips(rows, canonical)
         unpushed = pre_push_guard.unpushed_commits(canonical, gate_tips)
         reviewed = gate_row.review_covered_commits(rows, canonical, set(unpushed)) & set(unpushed)

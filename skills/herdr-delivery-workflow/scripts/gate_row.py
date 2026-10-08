@@ -227,6 +227,16 @@ def deployed_head(rows: list[str], skill: str, repo: Path) -> tuple[str, str, st
     return branch, full_head, row
 
 
+def validate_ledger(rows: list[str], repo: Path) -> None:
+    """Validate every row against only its predecessors, as it was recorded."""
+    cutovers = [index for index, row in enumerate(rows)
+                if split_row(row)[0][2] == "kind=cutover"]
+    if cutovers and cutovers != [0]:
+        raise RowError("kind=cutover is only valid as the first row")
+    for index, row in enumerate(rows):
+        check(row, repo, rows[:index])
+
+
 def select_deployed_head(ledger: Path, skill: str, repo: Path) -> tuple[str, str, str]:
     """Read and validate the entire hash-chained ledger before selecting a deployed head."""
     if not ledger.is_absolute():
@@ -235,8 +245,7 @@ def select_deployed_head(ledger: Path, skill: str, repo: Path) -> tuple[str, str
         rows = ledger_rows(handle_text(handle))
         if not rows:
             raise RowError(f"no completed target-bearing deploy row for skill {skill!r}")
-        for index, row in enumerate(rows):
-            check(row, repo, rows[:index])
+        validate_ledger(rows, repo)
         return deployed_head(rows, skill, repo)
 
 
@@ -1364,8 +1373,7 @@ def main(argv: list[str] | None = None) -> int:
                 rows = ledger_rows(handle_text(handle))
                 if not rows:
                     raise RowError(f"no completed target-bearing deploy row for skill {args.deployed_head!r}")
-                for index, row in enumerate(rows):
-                    check(row, args.repo, rows[:index])
+                validate_ledger(rows, args.repo)
                 branch, head, source_row = deployed_head(rows, args.deployed_head, args.repo)
             print(f"{branch}@{head}\n{source_row}")
             return 0
@@ -1379,7 +1387,9 @@ def main(argv: list[str] | None = None) -> int:
             if any(ignored):
                 raise RowError("--open-gates cannot be combined with append arguments")
             with locked_ledger(args.ledger, exclusive=False) as handle:
-                ids = open_gate_ids(ledger_rows(handle_text(handle)))
+                rows = ledger_rows(handle_text(handle))
+                validate_ledger(rows, args.repo)
+                ids = open_gate_ids(rows)
             sys.stdout.write("".join(f"{gid}\n" for gid in ids))
             return 0
 
@@ -1388,13 +1398,7 @@ def main(argv: list[str] | None = None) -> int:
                 rows = ledger_rows(handle_text(handle))
                 if not rows:
                     raise RowError(f"{args.ledger} holds no gate row")
-                cutovers = [index for index, row in enumerate(rows)
-                            if split_row(row)[0][2] == "kind=cutover"]
-                if cutovers and cutovers != [0]:
-                    raise RowError("kind=cutover is only valid as the first row")
-                if cutovers:
-                    check(rows[0], args.repo)
-                check(rows[-1], args.repo, rows[:-1])
+                validate_ledger(rows, args.repo)
                 check_mailbox_for_open_gate(rows[-1], args.mailbox)
                 print(f"ok: {rows[-1].split(' | ')[0]} checks out")
             return 0
@@ -1409,6 +1413,7 @@ def main(argv: list[str] | None = None) -> int:
         with locked_ledger(args.ledger, exclusive=True) as handle:
             before = handle_text(handle)
             existing_rows = ledger_rows(before)
+            validate_ledger(existing_rows, args.repo)
             row = build(args, args.repo, existing_rows)
             check(row, args.repo, existing_rows)
             if before and not before.endswith("\n"):

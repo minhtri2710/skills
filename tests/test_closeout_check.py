@@ -102,6 +102,65 @@ class CloseoutCheckTest(unittest.TestCase):
         self.herdr.add_peer("review-teardown", "w1:p4")
         self.addCleanup(self.tmp.cleanup)
 
+    def test_closeout_rejects_an_earlier_unconsumed_grant_push(self):
+        origin = Path(self.tmp.name) / "origin.git"
+        subprocess.run(["git", "init", "-q", "--bare", str(origin)], check=True,
+                       capture_output=True, text=True, stdin=subprocess.DEVNULL)
+
+        def git(path: Path, *args: str) -> str:
+            return subprocess.run(
+                ["git", "-C", str(path), *args], check=True,
+                capture_output=True, text=True, stdin=subprocess.DEVNULL,
+            ).stdout.strip()
+
+        def row(*args: str) -> None:
+            out, err = io.StringIO(), io.StringIO()
+            with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+                code = gate_row.main([
+                    "--ledger", str(self.ledger), "--repo", str(self.canonical), *args,
+                ])
+            self.assertEqual(code, 0, err.getvalue())
+
+        base = git(self.canonical, "rev-parse", "HEAD")
+        (self.canonical / "tracked.txt").write_text("pushed\n", encoding="utf-8")
+        git(self.canonical, "add", "tracked.txt")
+        git(self.canonical, "commit", "-qm", "pushed")
+        tip = git(self.canonical, "rev-parse", "HEAD")
+        git(self.canonical, "remote", "add", "origin", str(origin))
+        git(self.canonical, "push", "-q", "-u", "origin", "main")
+        row("--kind", "review", "--status", "recorded:review-pass", "--review-base", base,
+            "--words", "seat", "--note", "review passed", "--quote", "PASS")
+        grant = f"origin refs/heads/main push {base}..{tip}"
+        row("--kind", "push-grant", "--status", "open", "--writer", "supervisor",
+            "--channel", "supervisor-relay:typed", "--grant", grant,
+            "--words", "human", "--note", "push grant", "--quote", "push")
+        grant_id = gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))[-1].split(" | ")[0]
+        row("--kind", "push", "--status", "resolved:push", "--push-base", base,
+            "--boundary", "tracked.txt", "--resolves", grant_id,
+            "--words", "human", "--note", "push landed", "--quote", "pushed")
+
+        rows = gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))
+        invalid_push = rows[-1].replace(f" | resolves={grant_id}", "")
+        repeated_push = invalid_push.replace("G3 |", "G4 |", 1).replace(
+            f"prev_hash={gate_row.row_hash(rows[-2])}",
+            f"prev_hash={gate_row.row_hash(invalid_push)}",
+        ).replace(" | push=", f" | resolves={grant_id} | push=", 1)
+        self.ledger.write_text(
+            "# Gate ledger — test\n\n" + "\n".join([*rows[:-1], invalid_push, repeated_push]) + "\n",
+            encoding="utf-8",
+        )
+        self.herdr.close("w1:p3")
+        self.herdr.close("w1:p4")
+
+        result = closeout_check.check_closeout(self.record, self.herdr)
+        self.assertFalse(result.passed)
+        self.assertEqual(len(result.findings), 1)
+        self.assertIn("gate ledger could not be checked:", result.findings[0])
+        self.assertIn(
+            f"push {base}..{tip} lands under open grant {grant_id}, which this row leaves unconsumed",
+            result.findings[0],
+        )
+
     def test_reviewed_unpushed_commit_needs_an_open_push_gate(self):
         temp = Path(self.tmp.name) / "d4"
         repo = temp / "repo"

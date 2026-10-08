@@ -189,21 +189,14 @@ class PrePushGuardTest(unittest.TestCase):
         self.ledger.write_text("# Gate ledger — test\n\n")
         self.assertEqual(self.review(self.base), 0)
         grant_id = self.grant(f"origin refs/heads/main push {self.base}..{c1}")
+        self.assertEqual(self.row(
+            "--kind", "merge", "--status", "resolved:standing-waiver",
+            "--words", "human", "--note", "continue", "--quote", "continue",
+        ), 0)
         rows = gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))
-        for index, row in enumerate(rows):
-            with self.subTest(checked_row=row.split(" | ")[0]):
-                gate_row.check(row, self.repo, rows[:index])
-        legacy_id = f"G{gate_row.next_id_from_rows(rows)}"
-        legacy = (f"{legacy_id} | 2026-09-06T00:00:00Z | kind=correction | main@{self.base} | "
-                  "status=recorded:correction | record=timely | "
-                  f"prev_hash={gate_row.row_hash(rows[-1])} | words=seat | "
-                  "note=legacy prose correction | quote=\"legacy\"")
-        self.ledger.write_text("# Gate ledger — test\n\n" + "\n".join([*rows, legacy]) + "\n",
-                               encoding="utf-8")
-        loaded_rows = gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))
-        self.assertEqual(loaded_rows[-1], legacy)
+        gate_row.validate_ledger(rows, self.repo)
         self.assertEqual(gate_row.require_push_authority(
-            loaded_rows, self.repo, "origin", "refs/heads/main", self.base, c1,
+            rows, self.repo, "origin", "refs/heads/main", self.base, c1,
             datetime.now(timezone.utc),
         ), grant_id)
         code, out, err = self.invoke(self.ref_line(self.base, c1))
@@ -229,6 +222,39 @@ class PrePushGuardTest(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn(c2, err)
         self.assertIn("not covered", err)
+
+    def test_guard_and_digest_reject_an_earlier_unconsumed_grant_push(self):
+        tip = self.advance("c1")
+        self.assertEqual(self.review(self.base), 0)
+        grant_id = self.grant(f"origin refs/heads/main push {self.base}..{tip}")
+        self.git("push", "-q", "origin", "main")
+        self.assertEqual(self.row(
+            "--kind", "push", "--status", "resolved:push", "--push-base", self.base,
+            "--boundary", "file.txt", "--resolves", grant_id,
+            "--words", "human", "--note", "push landed", "--quote", "pushed",
+        ), 0)
+        rows = gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))
+        invalid_push = rows[-1].replace(f" | resolves={grant_id}", "")
+        repeated_push = invalid_push.replace("G3 |", "G4 |", 1).replace(
+            f"prev_hash={gate_row.row_hash(rows[-2])}",
+            f"prev_hash={gate_row.row_hash(invalid_push)}",
+        ).replace(" | push=", f" | resolves={grant_id} | push=", 1)
+        self.ledger.write_text(
+            "# Gate ledger — test\n\n" + "\n".join([*rows[:-1], invalid_push, repeated_push]) + "\n",
+            encoding="utf-8",
+        )
+        expected = f"push {self.base}..{tip} lands under open grant {grant_id}, which this row leaves unconsumed"
+        code, out, err = self.invoke(self.ref_line(self.base, tip))
+        self.assertEqual(code, 1)
+        self.assertEqual(out, "")
+        self.assertIn(expected, err)
+        self.assertNotIn("grant is consumed", err)
+
+        output, error = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(output), contextlib.redirect_stderr(error):
+            digest_code = pre_push_guard.digest([[str(self.ledger), str(self.repo)]], "origin")
+        self.assertEqual(digest_code, 1)
+        self.assertIn(f"ERROR: {expected}", output.getvalue())
 
     def test_tampered_chain_is_reported_as_guard_error(self):
         self.advance("c1")
@@ -672,8 +698,11 @@ class PrePushGuardTest(unittest.TestCase):
         self.ledger.write_text(rechained("\n".join(lines)), encoding="utf-8")
 
     def hand_row(self, fields: str) -> None:
-        row = (f"G9 | 2026-09-06T00:00:00Z | kind=merge | main@{self.base} | status=open | "
-               f"{fields} | prev_hash={'0' * 64} | words=none | note=hand | quote=\"\"")
+        rows = gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))
+        gid = f"G{gate_row.next_id_from_rows(rows)}"
+        timestamp = gate_row.split_row(rows[-1])[0][1]
+        row = (f"{gid} | {timestamp} | kind=merge | main@{self.base} | status=open | "
+               f"record=timely | {fields} | prev_hash={'0' * 64} | words=none | note=hand | quote=\"\"")
         self.ledger.write_text(rechained(self.ledger.read_text(encoding="utf-8") + row), encoding="utf-8")
 
     def granted(self) -> tuple[str, str]:
@@ -698,7 +727,7 @@ class PrePushGuardTest(unittest.TestCase):
                 self.edit(gid, old, new)
                 self.assertNotEqual(self.invoke(self.ref_line(self.base, c1))[0], 0)
 
-    def test_a_later_row_resolves_only_the_exact_id_it_names(self):
+    def test_a_later_row_cannot_resolve_a_nonexistent_gate_id(self):
         c1, _ = self.granted()
         original = self.ledger.read_text(encoding="utf-8")
         for target in ("G2=x", "x=G2"):
@@ -706,7 +735,8 @@ class PrePushGuardTest(unittest.TestCase):
                 self.ledger.write_text(original, encoding="utf-8")
                 self.hand_row(f"resolves={target}")
                 code, _, err = self.invoke(self.ref_line(self.base, c1))
-                self.assertEqual(code, 0, err)
+                self.assertEqual(code, 1)
+                self.assertIn("never-open", err)
 
     def test_a_malformed_resolves_row_fails_the_read(self):
         c1, _ = self.granted()
@@ -727,20 +757,22 @@ class PrePushGuardTest(unittest.TestCase):
                 self.ledger.write_text(original.replace(field, new, 1), encoding="utf-8")
                 self.assertNotEqual(self.invoke(self.ref_line(self.base, c1))[0], 0)
 
-    def test_a_grant_naming_its_own_id_in_resolves_is_not_consumed_by_itself(self):
+    def test_a_grant_cannot_resolve_its_own_id(self):
         c1, _ = self.granted()
-        self.edit("G2", " | words=", " | resolves=G2 | words=")
+        self.edit("G2", " | grant=", " | resolves=G2 | grant=")
         code, _, err = self.invoke(self.ref_line(self.base, c1))
-        self.assertEqual(code, 0, err)
+        self.assertEqual(code, 1)
+        self.assertIn("resolves=G2 refused: never-open", err)
 
-    def test_a_malformed_grant_row_does_not_end_the_authority_search(self):
+    def test_a_malformed_grant_row_refuses_the_ledger(self):
         c1, spec = self.granted()
         self.grant(spec)
         self.edit("G2", f"grant={spec}", "grant=garbage")
         code, _, err = self.invoke(self.ref_line(self.base, c1))
-        self.assertEqual(code, 0, err)
+        self.assertEqual(code, 1)
+        self.assertIn("grant='garbage' is not", err)
 
-    def test_a_review_row_without_its_block_does_not_end_the_coverage_search(self):
+    def test_a_review_row_without_its_block_refuses_the_ledger(self):
         c1 = self.advance("c1")
         self.assertEqual(self.review(self.base), 0)
         self.assertEqual(self.review(self.base), 0)
@@ -748,15 +780,17 @@ class PrePushGuardTest(unittest.TestCase):
         block = re.search(r" \| review=\S+ count=\d+", self.ledger.read_text(encoding="utf-8")).group(0)
         self.edit("G1", block, "")
         code, _, err = self.invoke(self.ref_line(self.base, c1))
-        self.assertEqual(code, 0, err)
+        self.assertEqual(code, 1)
+        self.assertIn("kind=review and carries no review block", err)
 
-    def test_a_five_field_first_row_is_read(self):
+    def test_a_malformed_first_row_refuses_the_ledger(self):
         c1, _ = self.granted()
         self.edit("G1", " | words=", f" | prev_hash={'0' * 64} | words=")
         first = f'G0 | 2026-09-06T00:00:00Z | kind=merge | main@{self.base} | status=open | quote=""\n'
         self.ledger.write_text(rechained(first + self.ledger.read_text(encoding="utf-8")), encoding="utf-8")
         code, _, err = self.invoke(self.ref_line(self.base, c1))
-        self.assertEqual(code, 0, err)
+        self.assertEqual(code, 1)
+        self.assertIn("record= is missing or out of order", err)
 
 
 class PushDigestTest(unittest.TestCase):
@@ -834,17 +868,17 @@ class PushDigestTest(unittest.TestCase):
         return [row for row in gate_row.ledger_rows(ledger.read_text(encoding="utf-8"))
                 if gate_row.row_evidence(row)[0] == "push-grant"]
 
-    def test_a_push_gate_naming_its_own_id_in_resolves_stays_open(self):
+    def test_a_push_gate_cannot_resolve_its_own_id(self):
         ledger, repo, base = self.project("alpha")
         self.advance(repo, "a1")
         self.review(ledger, repo, base)
         gate = self.push_gate(ledger, repo)
         text = ledger.read_text(encoding="utf-8")
-        ledger.write_text(rechained(text.replace(" | words=none", f" | resolves={gate} | words=none", 1)),
+        ledger.write_text(rechained(text.replace(" | prev_hash=", f" | resolves={gate} | prev_hash=", 1)),
                           encoding="utf-8")
         code, out = self.digest((ledger, repo))
-        self.assertEqual(code, 0)
-        self.assertIn(f"gates: {gate}", out)
+        self.assertEqual(code, 1)
+        self.assertIn(f"ERROR: resolves={gate} refused: never-open", out)
 
     def test_ready_and_uncovered_projects_only_ready_is_offered(self):
         ready, ready_repo, ready_base = self.project("alpha")

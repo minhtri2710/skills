@@ -170,7 +170,7 @@ class GateRowTest(unittest.TestCase):
     def open_gates(self) -> list[str]:
         self.assertEqual(self.run_main([
             "--ledger", str(self.ledger), "--repo", str(self.repo), "--open-gates",
-        ]), 0)
+        ]), 0, self.err.getvalue())
         return self.out.getvalue().splitlines()
 
     def test_words_is_required_for_append(self):
@@ -520,6 +520,103 @@ class GateRowTest(unittest.TestCase):
         self.assertIn("--grant is only meaningful", self.err.getvalue())
         self.assertEqual(self.ledger.read_bytes(), before)
 
+    def test_strict_ledger_check_rejects_pre_void_correction_under_current_contract(self):
+        rows = [
+            self.fixture_row("G1", "resolved:done", kind="merge"),
+            self.fixture_row("G2", "recorded:correction", kind="correction"),
+            self.fixture_row("G3", "recorded:handoff", kind="handoff"),
+        ]
+        self.ledger.write_text(
+            "# Gate ledger — disposable historical-contract fixture\n\n"
+            + "\n".join(self.chained(rows)) + "\n",
+            encoding="utf-8",
+        )
+        code = self.run_main([
+            "--ledger", str(self.ledger), "--repo", str(self.repo), "--check",
+        ])
+        self.assertEqual(code, 1)
+        self.assertEqual(
+            self.err.getvalue(),
+            "gate_row: kind=correction requires exactly one void= field after resolves=\n",
+        )
+
+    def test_every_ledger_mode_rejects_an_earlier_unconsumed_push_grant(self):
+        skill_root = self.repo / "skills" / "example"
+        skill_root.mkdir(parents=True)
+        (skill_root / "SKILL.md").write_text("test skill\n", encoding="utf-8")
+        self.git("add", "skills/example")
+        self.git("commit", "-qm", "add skill")
+        self.assertEqual(self.run_main([
+            "--ledger", str(self.ledger), "--repo", str(self.repo),
+            "--kind", "deploy", "--status", "resolved:deploy", "--skill", "example",
+            "--words", "seat", "--note", "deployed", "--quote", "ok",
+        ]), 0, self.err.getvalue())
+        self.assertEqual(self.append_review_pass(), 0, self.err.getvalue())
+        self.add_remote("HEAD")
+        base, head = self.rev("HEAD~2"), self.rev("HEAD")
+        self.assertEqual(self.append_push_grant(
+            f"origin refs/heads/main push {base}..{head}"), 0, self.err.getvalue())
+        grant_id = self.last_row().split(" | ")[0]
+        self.assertEqual(self.append(
+            "--kind", "push", "--push-base", base, "--boundary", ".",
+            "--resolves", grant_id,
+        ), 0, self.err.getvalue())
+        original_push = self.last_row()
+        self.assertEqual(self.run_main([
+            "--ledger", str(self.ledger), "--repo", str(self.repo),
+            "--kind", "deploy", "--status", "resolved:deploy", "--skill", "example",
+            "--words", "seat", "--note", "deployed", "--quote", "ok",
+        ]), 0, self.err.getvalue())
+
+        rows = gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))
+        self.assertEqual(self.run_main([
+            "--ledger", str(self.ledger), "--repo", str(self.repo), "--check",
+        ]), 0, self.err.getvalue())
+        self.assertEqual(self.run_main([
+            "--ledger", str(self.ledger), "--repo", str(self.repo),
+            "--deployed-head", "example",
+        ]), 0, self.err.getvalue())
+        self.assertEqual(self.run_main([
+            "--ledger", str(self.ledger), "--repo", str(self.repo), "--open-gates",
+        ]), 0, self.err.getvalue())
+
+        invalid_push = original_push.replace(f" | resolves={grant_id}", "")
+        repeated_push = invalid_push.replace("G4 |", "G5 |", 1).replace(
+            f"prev_hash={gate_row.row_hash(rows[2])}",
+            f"prev_hash={gate_row.row_hash(invalid_push)}",
+        ).replace(
+            " | push=", f" | resolves={grant_id} | push=", 1,
+        )
+        deploy_row = rows[-1].replace("G5 |", "G6 |", 1).replace(
+            f"prev_hash={gate_row.row_hash(original_push)}",
+            f"prev_hash={gate_row.row_hash(repeated_push)}",
+        )
+        self.ledger.write_text(
+            "# Gate ledger — test\n\n" + "\n".join(
+                [*rows[:3], invalid_push, repeated_push, deploy_row]
+            ) + "\n",
+            encoding="utf-8",
+        )
+        expected_error = (
+            f"gate_row: push {base}..{head} lands under open grant {grant_id}, "
+            f"which this row leaves unconsumed; add --resolves {grant_id}\n"
+        )
+        results = []
+        before_append = self.ledger.read_bytes()
+        for argv in (
+            ["--check"],
+            ["--deployed-head", "example"],
+            ["--open-gates"],
+            ["--kind", "merge", "--status", "resolved:standing-waiver",
+             "--words", "human", "--note", "later append", "--quote", "append"],
+        ):
+            code = self.run_main([
+                "--ledger", str(self.ledger), "--repo", str(self.repo), *argv,
+            ])
+            results.append((code, self.err.getvalue()))
+        self.assertEqual(results, [(1, expected_error)] * 4, repr(results))
+        self.assertEqual(self.ledger.read_bytes(), before_append)
+
     def test_a_push_row_must_consume_the_open_grant_its_push_landed_under(self):
         self.assertEqual(self.append_review_pass(), 0, self.err.getvalue())
         self.add_remote("HEAD")
@@ -666,8 +763,12 @@ class GateRowTest(unittest.TestCase):
         self.assertEqual(self.append("--resolves", "G1"), 1)
         self.assertIn("G1", self.err.getvalue())
         self.assertIn("already-closed", self.err.getvalue())
+        base, head = self.rev("HEAD~1"), self.rev("HEAD")
+        grant = self.fixture_row("G1", "open", "human", "grant", kind="push-grant").replace(
+            " | words=", f" | grant=origin refs/heads/main push {base}..{head} | words=", 1
+        )
         rows = [
-            self.fixture_row("G1", "open", "none", "", kind="push-grant"),
+            grant,
             self.fixture_row("G2", "recorded:correction", kind="correction").replace(
                 " | words=", " | void=G1 | words=", 1
             ),
@@ -676,7 +777,7 @@ class GateRowTest(unittest.TestCase):
         self.assertEqual(self.open_gates(), [])
         self.assertEqual(self.append("--resolves", "G1"), 1)
         self.assertIn("already-closed", self.err.getvalue())
-        legacy = self.fixture_row("G3", "recorded:correction", kind="correction")
+        legacy = self.fixture_row("G1", "resolved:done")
         self.ledger.write_text(legacy + "\n", encoding="utf-8")
         self.assertEqual(self.open_gates(), [])
 
@@ -747,22 +848,24 @@ class GateRowTest(unittest.TestCase):
             gate_row.check(repeated, self.repo, [review, first])
 
     def test_open_gate_mode_uses_last_rows_and_structured_resolves_only(self):
+        base, head = self.rev("HEAD~1"), self.rev("HEAD")
+        push_grant = self.fixture_row("G31", "open", "human", "grant", kind="push-grant").replace(
+            " | words=", f" | grant=origin refs/heads/main push {base}..{head} | words=", 1
+        )
         rows = [
             self.fixture_row("G26", "open", "none", ""),
-            self.fixture_row("G26", "open", "none", ""),
-            self.fixture_row("G26", "resolved:done"),
             self.fixture_row("G27", "open", "none", "", note="prose says resolves=G27"),
             self.fixture_row("G28", "open", "none", ""),
             self.fixture_row("G29", "resolved:done", resolves="G28"),
             self.fixture_row("G30", "open", "none", ""),
-            self.fixture_row("G31", "open", "none", "", kind="push-grant"),
+            push_grant,
             self.fixture_row("G32", "recorded:correction", kind="correction").replace(
                 " | words=", " | void=G31 | words=", 1
             ),
-            self.fixture_row("G33", "recorded:correction", kind="correction"),
+            self.fixture_row("G33", "resolved:done"),
         ]
         self.ledger.write_text("# fixture\n" + "\n".join(self.chained(rows)) + "\n")
-        self.assertEqual(self.open_gates(), ["G27", "G30"])
+        self.assertEqual(self.open_gates(), ["G26", "G27", "G30"])
 
     def test_words_values_require_the_matching_quote_presence(self):
         self.assertEqual(self.append("--status", "open", "--words", "none", "--quote", ""), 0)
@@ -1823,17 +1926,23 @@ class GateRowTest(unittest.TestCase):
         )
 
     def test_a_gate_whose_latest_own_row_is_closed_cannot_be_resolved(self):
-        rows = [self.fixture_row("G1", "open", "none", ""), self.fixture_row("G1", "resolved:done")]
+        rows = [
+            self.fixture_row("G1", "open", "none", ""),
+            self.fixture_row("G2", "resolved:done", resolves="G1"),
+        ]
         self.ledger.write_text("# fixture\n" + "\n".join(self.chained(rows)) + "\n")
         self.assertEqual(self.append("--resolves", "G1"), 1)
         self.assertIn("resolves=G1 refused: already-closed", self.err.getvalue())
 
-    def test_a_row_naming_its_own_id_in_resolves_does_not_close_itself(self):
-        for kind, status in (("merge", "open"), ("standing-delegation", "recorded:standing-delegation")):
-            with self.subTest(kind):
-                row = self.fixture_row("G1", status, resolves="G1", kind=kind)
-                self.ledger.write_text(row + "\n", encoding="utf-8")
-                self.assertEqual(self.append("--resolves", "G1"), 0, self.err.getvalue())
+    def test_a_later_row_can_resolve_an_open_gate_or_standing_delegation(self):
+        self.assertEqual(self.append(
+            "--status", "open", "--words", "none", "--quote", "",
+        ), 0, self.err.getvalue())
+        self.assertEqual(self.append("--resolves", "G1"), 0, self.err.getvalue())
+        self.assertEqual(self.append_standing_delegation(
+            "--expiry", "until-revoked", "--push-scope", "origin:main",
+        ), 0, self.err.getvalue())
+        self.assertEqual(self.append("--resolves", "G3"), 0, self.err.getvalue())
 
     def test_a_prior_repair_grant_finding_is_read_whole(self):
         row = self.fixture_row("G1", "recorded:granted", kind="repair-grant").replace(
@@ -1842,7 +1951,7 @@ class GateRowTest(unittest.TestCase):
         self.assertEqual(self.append_repair_grant("c"), 1)
         self.assertIn("finding='a=b' is not an identity token", self.err.getvalue())
 
-    def test_a_hand_edited_review_pass_status_is_not_a_repair_progress_boundary(self):
+    def test_append_rejects_a_malformed_historical_review_status(self):
         for status in ("recorded:review-pass=x", "x=recorded:review-pass"):
             with self.subTest(status):
                 rows = [
@@ -1852,7 +1961,7 @@ class GateRowTest(unittest.TestCase):
                 ]
                 self.ledger.write_text("# fixture\n" + "\n".join(self.chained(rows)) + "\n")
                 self.assertEqual(self.append_repair_grant("F-1"), 1)
-                self.assertIn("repair cap reached", self.err.getvalue())
+                self.assertIn("is not a valid status=", self.err.getvalue())
 
     def test_read_only_modes_do_not_create_a_missing_ledger(self):
         missing = self.tmp / "missing" / "gates.md"
