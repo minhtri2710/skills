@@ -14,8 +14,6 @@ Row shape, one line, ` | ` between fields:
       [| resolves=<id>[,<id>...]] [| under=<standing-delegation id>] [| void=<id>]
       [| op=<command> | after=<branch>@<head>]
       [| who=<delegate> | scope=<scope> | conditions=<conditions> | expiry=<expiry>
-         [| push-scope=<remote>:<branch|prefix/*>[,<remote>:<branch|prefix/*>...]]]
-      [| grant=<remote> <ref> <push|force|delete> <base>..<tip>]
       [| finding=<identity>] [| archive=<64 lowercase hex genesis marker>]
       [| skills=<sorted, unique top-level deploy targets>] [| prev_hash=<64 lowercase hex>]
       | words=<seat|human|selected|none>
@@ -78,13 +76,6 @@ HUMAN_GATE_KINDS = frozenset({
     "push", "merge", "deploy", "push-gate", "merge-gate", "deploy-gate",
 })
 SEAT_PERMISSION_GATE_KINDS = frozenset({"push-gate", "merge-gate", "deploy-gate"})
-ZERO = "0" * 40
-GRANT_RE = re.compile(
-    r"^(?P<remote>[A-Za-z0-9._-]+) (?P<ref>refs/(heads|tags)/[^\s|\"]+) "
-    r"(?P<op>push|force|delete) (?P<base>[0-9a-f]{40})\.\.(?P<tip>[0-9a-f]{40})$"
-)
-PUSH_SCOPE_ENTRY_RE = re.compile(r"^[A-Za-z0-9._-]+:[^\s|\",:*]+(/\*)?$")
-UNTIL_REVOKED = "until-revoked"
 ISO_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
 # Every character str.splitlines() splits on; a row is one line, so no field holds one.
 LINE_BREAKS = "\n\r\x0b\x0c\x1c\x1d\x1e\x85\u2028\u2029"
@@ -396,139 +387,6 @@ def is_ancestor(repo: Path, ancestor: str, descendant: str) -> bool:
     return True
 
 
-def validate_grant(value: str, repo: Path) -> None:
-    """A one-shot grant names one remote, one ref, one op, and the exact range the Human approved."""
-    match = GRANT_RE.fullmatch(value)
-    if not match:
-        raise RowError(
-            f"grant={value!r} is not <remote> <refs/heads/..|refs/tags/..> "
-            "<push|force|delete> <40-hex base>..<40-hex tip>"
-        )
-    op, base, tip = match.group("op"), match.group("base"), match.group("tip")
-    if op == "delete":
-        if tip != ZERO or base == ZERO:
-            raise RowError("grant op delete names the deleted remote tip as base and a zero tip")
-        git(repo, "rev-parse", "--verify", f"{base}^{{commit}}")
-    elif op == "force":
-        if ZERO in (base, tip):
-            raise RowError("grant op force names the overwritten remote tip and the new tip")
-        for sha in (base, tip):
-            git(repo, "rev-parse", "--verify", f"{sha}^{{commit}}")
-    else:
-        if tip == ZERO:
-            raise RowError("grant op push names a non-zero tip; a deletion is op delete")
-        range_commits(repo, base, tip)
-
-
-def expiry_instant(value: str) -> datetime | None:
-    """The machine expiry of a push-scoped standing delegation; None means until-revoked."""
-    if value == UNTIL_REVOKED:
-        return None
-    if not ISO_RE.fullmatch(value):
-        raise RowError(
-            f"expiry={value!r} is not an ISO-8601 UTC timestamp or {UNTIL_REVOKED}; "
-            "a push-scope delegation needs a machine-readable expiry"
-        )
-    return datetime.strptime(value, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
-
-
-def validate_push_scope(value: str, expiry: str) -> None:
-    entries = value.split(",")
-    if not value or any(not PUSH_SCOPE_ENTRY_RE.fullmatch(e) for e in entries):
-        raise RowError(f"push-scope={value!r} is not <remote>:<branch>[,<remote>:<branch>...], "
-                       "where a <branch> may end in /* to cover every branch under that prefix")
-    expiry_instant(expiry)
-
-
-def push_scope_covers(scope: str, remote: str, branch: str) -> bool:
-    """An entry names <remote>:<branch>, or <remote>:<prefix>/* with the branch under <prefix>/."""
-    for entry in scope.split(","):
-        entry_remote, _, entry_branch = entry.partition(":")
-        if entry_remote == remote and (
-                entry_branch == branch
-                or entry_branch.endswith("/*") and branch.startswith(entry_branch[:-1])):
-            return True
-    return False
-
-
-def grant_holds(repo: Path, grant: re.Match, op: str, remote_sha: str, local_sha: str) -> bool:
-    """A push grant holds every pushed commit; a force or delete grant names the exact range."""
-    if op == "push":
-        return set(range_commits(repo, remote_sha, local_sha)) <= set(
-            range_commits(repo, grant["base"], grant["tip"]))
-    return (grant["base"], grant["tip"]) == (remote_sha, local_sha)
-
-
-def require_push_authority(
-    state: LedgerState, repo: Path, remote: str, ref: str,
-    remote_sha: str, local_sha: str, now: datetime,
-) -> str:
-    """Return the id of the row that authorizes one pushed ref, or refuse naming what is missing.
-
-    Authority is an unconsumed kind=push-grant naming this remote, ref and op whose
-    range holds the pushed range, or, for a fast-forward or new branch only, an
-    unrevoked, unexpired kind=standing-delegation whose push-scope= covers
-    <remote>:<branch>. A force push, a deletion and a tag need a one-shot grant.
-    """
-    if local_sha == ZERO:
-        op = "delete"
-    elif remote_sha != ZERO and not is_ancestor(repo, remote_sha, local_sha):
-        op = "force"
-    else:
-        op = "push"
-    tag = ref.startswith("refs/tags/")
-    special = "tag push" if tag else {"force": "force push", "delete": "deletion"}.get(op)
-    resolved_at, voided_by = state.resolved_at, state.voided_by
-    reasons: list[str] = []
-    for index, row in enumerate(state.rows):
-        fields, _ = split_row(row)
-        gid, kind = fields[0], fields[2].split("=", 1)[1]
-        closed = resolved_at.get(gid, -1) > index
-        if kind == "push-grant":
-            grant = GRANT_RE.fullmatch(row_field(fields, "grant") or "")
-            if not grant:
-                continue
-            if (grant["remote"], grant["ref"], grant["op"]) != (remote, ref, op):
-                reasons.append(f"{gid} grant scope is {grant['remote']} {grant['ref']} {grant['op']}")
-                continue
-            if not grant_holds(repo, grant, op, remote_sha, local_sha):
-                reasons.append(f"{gid} grant scope is range {grant['base']}..{grant['tip']}")
-                continue
-            if closed:
-                if gid in voided_by:
-                    reasons.append(f"{gid} grant is void ({voided_by[gid]})")
-                else:
-                    reasons.append(f"{gid} grant is consumed")
-                continue
-            return gid
-        if kind == "standing-delegation":
-            scope = row_field(fields, "push-scope")
-            if scope is None:
-                reasons.append(f"{gid} standing delegation has no push-scope")
-                continue
-            if special:
-                reasons.append(f"{gid} standing delegation never covers a {special}")
-                continue
-            branch = ref.removeprefix("refs/heads/")
-            if branch == ref or not push_scope_covers(scope, remote, branch):
-                reasons.append(f"{gid} standing delegation scope is push-scope={scope}")
-                continue
-            if closed:
-                reasons.append(f"{gid} standing delegation is revoked")
-                continue
-            until = expiry_instant(row_field(fields, "expiry") or "")
-            if until is not None and now >= until:
-                reasons.append(f"{gid} standing delegation expiry {row_field(fields, 'expiry')} has passed")
-                continue
-            return gid
-    need = f"a {special} needs a one-shot kind=push-grant naming op " \
-        f"{op}; " if special else ""
-    raise RowError(
-        f"refusing {op} of {remote_sha}..{local_sha} to {remote} {ref}: no push authority — "
-        + need + ("; ".join(reasons) or "no grant row in the ledger")
-    )
-
-
 def field_text(name: str, value: str | None) -> str:
     value = (value or "").strip()
     if not value:
@@ -561,9 +419,8 @@ def reject_special_fields(args: argparse.Namespace, kind: str) -> None:
     allowed = {
         "correction": {"--void"},
         "local-ops": {"--op", "--after"},
-        "standing-delegation": {"--who", "--scope", "--conditions", "--expiry", "--push-scope"},
+        "standing-delegation": {"--who", "--scope", "--conditions", "--expiry"},
         "repair-grant": {"--finding"},
-        "push-grant": {"--grant"},
         "deploy": {"--skill"},
     }.get(kind, set())
     supplied = (
@@ -572,8 +429,6 @@ def reject_special_fields(args: argparse.Namespace, kind: str) -> None:
         ("--conditions", getattr(args, "conditions", "")),
         ("--expiry", getattr(args, "expiry", "")),
         ("--finding", getattr(args, "finding", "")),
-        ("--push-scope", getattr(args, "push_scope", "")),
-        ("--grant", getattr(args, "grant", "")),
         ("--void", getattr(args, "void", [])),
         ("--skill", getattr(args, "skill", [])),
     )
@@ -629,8 +484,7 @@ class LedgerState:
 
     `add` takes a row once it has passed `check`, so one pass over a ledger costs one
     state update per row and every question a later row asks is a dict or set probe,
-    never a rescan of its predecessors. `resolved_at` and `voided_by` also answer the
-    end-of-ledger questions that `require_push_authority` asks.
+    never a rescan of its predecessors.
     """
 
     def __init__(self) -> None:
@@ -643,9 +497,6 @@ class LedgerState:
         self.resolved_at: dict[str, int] = {}  # gid -> index of the row that closed it
         self.voided_by: dict[str, str] = {}  # gid -> the correction that voided it
         self.standing: dict[str, int] = {}  # standing-delegation gid -> index
-        # Unconsumed push grants by (remote, ref); a grant leaves when a row resolves it.
-        self.open_grants: dict[tuple[str, str], dict[str, re.Match]] = {}
-        self.grant_key: dict[str, tuple[str, str]] = {}
         # Review PASS rows by reviewed head: (index, gid, reviewed range base).
         self.reviews: dict[str, list[tuple[int, str, str]]] = {}
         self.repair_findings: set[str] = set()
@@ -683,12 +534,6 @@ class LedgerState:
         if void is not None:
             self.voided_by[void] = gid
             self.close(void, index)
-        if kind == "push-grant":
-            grant = GRANT_RE.fullmatch(row_field(fields, "grant") or "")
-            if grant:
-                key = (grant["remote"], grant["ref"])
-                self.open_grants.setdefault(key, {})[gid] = grant
-                self.grant_key[gid] = key
         if kind == "review" and status == "recorded:review-pass":
             rng = review_range(row)
             if rng is not None:
@@ -705,9 +550,6 @@ class LedgerState:
 
     def close(self, gid: str, index: int) -> None:
         self.resolved_at[gid] = index
-        key = self.grant_key.pop(gid, None)
-        if key is not None:
-            del self.open_grants[key][gid]
 
     def validate_void(self, target: str) -> None:
         if not target or not RESOLVE_ID_RE.fullmatch(target):
@@ -715,10 +557,9 @@ class LedgerState:
         if target not in self.latest:
             raise RowError(f"void={target} refused: target is not an earlier row of this ledger")
         kind, status = self.kinds[target], self.latest[target][1]
-        if not (kind == "review" and status == "recorded:review-pass") and kind != "push-grant":
+        if not (kind == "review" and status == "recorded:review-pass"):
             raise RowError(
-                f"void={target} refused: target must be a kind=review status=recorded:review-pass "
-                "row or a kind=push-grant row"
+                f"void={target} refused: target must be a kind=review status=recorded:review-pass row"
             )
         if target in self.voided_by:
             raise RowError(f"void={target} refused: already voided by {self.voided_by[target]}")
@@ -757,17 +598,6 @@ class LedgerState:
             if status == "open" and self.resolved_at.get(gid, -1) <= index
         ]
         return [gid for _, gid in sorted(open_rows)]
-
-    def require_grant_consumed(
-        self, repo: Path, branch: str, base: str, head: str, resolves: list[str],
-    ) -> None:
-        """A push row resolves every unconsumed origin grant for its branch that holds its range."""
-        for gid, grant in self.open_grants.get(("origin", f"refs/heads/{branch}"), {}).items():
-            if gid not in resolves and grant_holds(repo, grant, grant["op"], base, head):
-                raise RowError(
-                    f"push {base}..{head} lands under open grant {gid}, which this row "
-                    f"leaves unconsumed; add --resolves {gid}"
-                )
 
     def covered_by_reviews(self, repo: Path, commits: set[str]) -> set[str]:
         covered: set[str] = set()
@@ -963,10 +793,6 @@ def build(args: argparse.Namespace, repo: Path, state: LedgerState) -> str:
                 raise RowError(f"kind=standing-delegation requires {name}= field")
             value = field_text(name, getattr(args, name))
             special_fields.append(f"{name}={value}")
-        if getattr(args, "push_scope", ""):
-            push_scope = field_text("push-scope", args.push_scope)
-            validate_push_scope(push_scope, args.expiry.strip())
-            special_fields.append(f"push-scope={push_scope}")
     elif kind == "handoff":
         if args.status != HANDOFF_STATUS:
             raise RowError(f"kind=handoff requires status={HANDOFF_STATUS}")
@@ -975,16 +801,6 @@ def build(args: argparse.Namespace, repo: Path, state: LedgerState) -> str:
             raise RowError("kind=repair-grant requires finding= field")
         finding = finding_value(args.finding)
         special_fields.append(f"finding={finding}")
-    elif kind == "push-grant":
-        if args.status != "open":
-            raise RowError("kind=push-grant requires status=open; the row that consumes it resolves it")
-        if args.words not in ("human", "selected"):
-            raise RowError("kind=push-grant requires words=human or words=selected: it records the Human's grant")
-        if not getattr(args, "grant", ""):
-            raise RowError("kind=push-grant requires grant= field")
-        grant = field_text("grant", args.grant)
-        validate_grant(grant, repo)
-        special_fields.append(f"grant={grant}")
 
     gid = f"G{state.next_id}"
     targets = resolve_ids(args.resolves)
@@ -1110,7 +926,7 @@ def check(row: str, repo: Path, state: LedgerState | None = None) -> None:
 
     known = (
         "channel=", "writer=", "record=", "push=", "review=", "resolves=", "under=", "void=", "op=", "after=", "skills=",
-        "who=", "scope=", "conditions=", "expiry=", "push-scope=", "grant=", "finding=", "archive=", "prev_hash=", "words=", "note=",
+        "who=", "scope=", "conditions=", "expiry=", "finding=", "archive=", "prev_hash=", "words=", "note=",
     )
     for field in rest:
         if not field.startswith(known):
@@ -1212,17 +1028,9 @@ def check(row: str, repo: Path, state: LedgerState | None = None) -> None:
         )
         if status != f"status={STANDING_DELEGATION_STATUS}":
             raise RowError(f"kind=standing-delegation requires status={STANDING_DELEGATION_STATUS}")
-        if index < len(rest) and rest[index].startswith("push-scope="):
-            validate_push_scope(rest[index].split("=", 1)[1], values["expiry"])
-            index += 1
     elif row_kind == "deploy":
         if index < len(rest) and rest[index].startswith("skills="):
             raise RowError("skills= is missing or out of order")
-    elif row_kind == "push-grant":
-        if status != "status=open":
-            raise RowError("kind=push-grant requires status=open")
-        values, index = required_fields(rest, index, ("grant",), row_kind)
-        validate_grant(values["grant"], repo)
     elif row_kind == "handoff":
         if status != f"status={HANDOFF_STATUS}":
             raise RowError(f"kind=handoff requires status={HANDOFF_STATUS}")
@@ -1266,8 +1074,6 @@ def check(row: str, repo: Path, state: LedgerState | None = None) -> None:
         state.require_in_force(under, when)
     if row_kind == "repair-grant":
         state.require_repair_progress(current_finding)
-    if row_kind == "push-grant" and words not in ("human", "selected"):
-        raise RowError("kind=push-grant requires words=human or words=selected")
     if row_kind == "standing-delegation" and words not in STANDING_DELEGATION_WORDS:
         raise RowError("kind=standing-delegation requires words=human or words=selected")
 
@@ -1310,7 +1116,6 @@ def check(row: str, repo: Path, state: LedgerState | None = None) -> None:
             )
         if row_kind == "push":
             state.require_review_coverage(repo, base, m.group("head"))
-            state.require_grant_consumed(repo, m.group("branch"), base, m.group("head"), resolves)
 
     if review is not None:
         r = REVIEW_RE.fullmatch(review)
@@ -1390,18 +1195,13 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--who", help="the delegate named by a standing-delegation row")
     parser.add_argument("--scope", help="the delegated scope")
     parser.add_argument("--conditions", help="the delegation conditions")
-    parser.add_argument("--expiry", help="the granting Human's expiry; with --push-scope an ISO-8601 "
-                        "UTC timestamp or until-revoked")
-    parser.add_argument("--push-scope", help="the <remote>:<branch>[,...] a standing delegation "
-                        "authorizes fast-forward pushes to, where a <branch> ending in /* covers every "
-                        "branch under that prefix; without it the row authorizes no push")
-    parser.add_argument("--grant", help="a one-shot push-grant: <remote> <ref> <push|force|delete> "
-                        "<base>..<tip>, full SHAs")
+    parser.add_argument("--expiry", help="the granting Human's expiry; an ISO-8601 UTC timestamp "
+                        "is enforced by --under")
     parser.add_argument("--finding", help="the repair-grant finding identity")
     parser.add_argument("--skill", action="append", default=[],
                         help="top-level skill deployed; repeat for each exact target")
     parser.add_argument("--void", action="append", default=[],
-                        help="the earlier review-pass or push-grant row a correction voids")
+                        help="the earlier review-pass row a correction voids")
     parser.add_argument("--record", choices=RECORD_VALUES)
     parser.add_argument("--head", help="the row head as <branch>@<full 40-hex commit SHA>; "
                         "a past review, deploy, deploy-gate, handoff or push head is timely when "
@@ -1438,7 +1238,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.deployed_head:
             if any((args.check, args.open_gates, args.kind, args.status, args.channel, args.writer,
                     args.op, args.after, args.who, args.scope, args.conditions, args.expiry,
-                    args.push_scope, args.grant, args.finding, args.void, args.skill, args.record,
+                    args.finding, args.void, args.skill, args.record,
                     args.head, args.push_base, args.review_base, args.boundary, args.resolves,
                     args.under, args.words, args.note, args.quote, args.quote_file, args.mailbox)):
                 raise RowError("--deployed-head cannot be combined with check or append arguments")
@@ -1453,7 +1253,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.open_gates:
             ignored = (
                 args.kind, args.status, args.channel, args.writer, args.op, args.after,
-                args.who, args.scope, args.conditions, args.expiry, args.push_scope, args.grant, args.finding, args.void, args.skill,
+                args.who, args.scope, args.conditions, args.expiry, args.finding, args.void, args.skill,
                 args.record, args.head, args.push_base, args.review_base, args.boundary, args.resolves, args.under, args.words,
                 args.note, args.quote, args.quote_file, args.mailbox,
             )

@@ -116,7 +116,7 @@ class CloseoutCheckTest(unittest.TestCase):
         self.herdr.add_peer("review-teardown", "w1:p4")
         self.addCleanup(self.tmp.cleanup)
 
-    def test_closeout_rejects_an_earlier_unconsumed_grant_push(self):
+    def test_closeout_reports_a_ledger_that_fails_check(self):
         origin = Path(self.tmp.name) / "origin.git"
         subprocess.run(["git", "init", "-q", "--bare", str(origin)], check=True,
                        capture_output=True, text=True, stdin=subprocess.DEVNULL)
@@ -144,23 +144,14 @@ class CloseoutCheckTest(unittest.TestCase):
         git(self.canonical, "push", "-q", "-u", "origin", "main")
         row("--kind", "review", "--status", "recorded:review-pass", "--review-base", base,
             "--words", "seat", "--note", "review passed", "--quote", "PASS")
-        grant = f"origin refs/heads/main push {base}..{tip}"
-        row("--kind", "push-grant", "--status", "open", "--writer", "supervisor",
-            "--channel", "supervisor-relay:typed", "--grant", grant,
-            "--words", "human", "--note", "push grant", "--quote", "push")
-        grant_id = gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))[-1].split(" | ")[0]
         row("--kind", "push", "--status", "resolved:push", "--push-base", base,
-            "--boundary", "tracked.txt", "--resolves", grant_id,
+            "--boundary", "tracked.txt",
             "--words", "human", "--note", "push landed", "--quote", "pushed")
 
         rows = gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))
-        invalid_push = rows[-1].replace(f" | resolves={grant_id}", "")
-        repeated_push = invalid_push.replace("G3 |", "G4 |", 1).replace(
-            f"prev_hash={gate_row.row_hash(rows[-2])}",
-            f"prev_hash={gate_row.row_hash(invalid_push)}",
-        ).replace(" | push=", f" | resolves={grant_id} | push=", 1)
+        miscounted = rows[-1].replace(" count=1 ", " count=2 ", 1)
         self.ledger.write_text(
-            "# Gate ledger — test\n\n" + "\n".join([*rows[:-1], invalid_push, repeated_push]) + "\n",
+            "# Gate ledger — test\n\n" + "\n".join([*rows[:-1], miscounted]) + "\n",
             encoding="utf-8",
         )
         self.herdr.close("w1:p3")
@@ -170,10 +161,7 @@ class CloseoutCheckTest(unittest.TestCase):
         self.assertFalse(result.passed)
         self.assertEqual(len(result.findings), 1)
         self.assertIn("gate ledger could not be checked:", result.findings[0])
-        self.assertIn(
-            f"push {base}..{tip} lands under open grant {grant_id}, which this row leaves unconsumed",
-            result.findings[0],
-        )
+        self.assertIn(f"count=2 but {base}..{tip} carries 1 commits", result.findings[0])
 
     def test_reviewed_unpushed_commit_needs_an_open_push_gate(self):
         temp = Path(self.tmp.name) / "d4"

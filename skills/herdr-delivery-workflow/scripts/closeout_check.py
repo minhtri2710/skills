@@ -13,7 +13,6 @@ from typing import Any, Mapping, Protocol
 
 import herdr_cli
 import gate_row
-import pre_push_guard
 
 
 class HerdrReadBoundary(Protocol):
@@ -29,6 +28,17 @@ class CloseoutResult:
     passed: bool
     findings: tuple[str, ...]
     checked_panes: tuple[str, ...] = ()
+
+def _unpushed_commits(repo: Path, gate_tips: list[str]) -> list[str]:
+    head = gate_row.git(repo, "rev-parse", "HEAD")
+    try:
+        upstream = gate_row.git(repo, "rev-parse", "--verify", "@{upstream}")
+    except gate_row.RowError:
+        exclude = ["--remotes"]
+    else:
+        exclude = [upstream]
+    return gate_row.git(repo, "rev-list", head, "--not", *exclude, *gate_tips).splitlines()
+
 
 _HANDLE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$")
 _ROLE_RE = {"Engineer", "Reviewer"}
@@ -273,13 +283,13 @@ def check_closeout(
             rows = gate_row.ledger_rows(gate_row.handle_text(handle))
             state = gate_row.validate_ledger(rows, canonical)
         gate_tips = gate_row.open_push_gate_tips(state, canonical)
-        unpushed = pre_push_guard.unpushed_commits(canonical, gate_tips)
+        unpushed = _unpushed_commits(canonical, gate_tips)
         reviewed = state.covered_by_reviews(canonical, set(unpushed)) & set(unpushed)
         if reviewed:
             findings.append(
                 f"reviewed unpushed commit(s) {' '.join(sorted(reviewed))} have no open push-gate row"
             )
-    except (OSError, UnicodeError, gate_row.RowError, pre_push_guard.GuardError) as exc:
+    except (OSError, UnicodeError, gate_row.RowError) as exc:
         findings.append(f"gate ledger could not be checked: {exc}")
 
     checked: list[str] = []
