@@ -566,65 +566,6 @@ class GateRowTest(unittest.TestCase):
     def check_last(self) -> int:
         return self.run_main(["--ledger", str(self.ledger), "--repo", str(self.repo), "--check"])
 
-    def append_push_grant(self, spec: str, *extra: str) -> int:
-        return self.run_main([
-            "--ledger", str(self.ledger), "--repo", str(self.repo),
-            "--kind", "push-grant", "--status", "open", "--writer", "supervisor",
-            "--channel", "supervisor-relay:typed", "--grant", spec,
-            "--words", "human", "--note", "one-shot push grant", "--quote", "push it", *extra,
-        ])
-
-    def test_push_scope_delegation_round_trips_with_a_machine_expiry(self):
-        for expiry in ("until-revoked", "2030-01-01T00:00:00Z"):
-            self.assertEqual(self.append_standing_delegation(
-                "--expiry", expiry, "--push-scope", "origin:main,upstream:release/1,origin:apex/*"), 0,
-                self.err.getvalue())
-            row = self.last_row()
-            self.assertIn(f"expiry={expiry} | push-scope=origin:main,upstream:release/1,origin:apex/* | ", row)
-            self.assertEqual(self.check_last(), 0, self.err.getvalue())
-
-    def test_push_scope_refuses_a_free_text_expiry_and_a_malformed_scope(self):
-        before = self.ledger.read_bytes()
-        self.assertEqual(self.append_standing_delegation("--push-scope", "origin:main"), 1)
-        self.assertIn("not an ISO-8601 UTC timestamp or until-revoked", self.err.getvalue())
-        for scope in ("main", "origin:*", "origin:/*", "origin:apex*", "origin:apex/*/x", "origin:apex/**"):
-            with self.subTest(scope):
-                self.assertEqual(self.append_standing_delegation(
-                    "--expiry", "until-revoked", "--push-scope", scope), 1)
-                self.assertIn("is not <remote>:<branch>", self.err.getvalue())
-        self.assertEqual(self.ledger.read_bytes(), before)
-        self.assertEqual(self.append("--push-scope", "origin:main"), 1)
-        self.assertIn("--push-scope is only meaningful", self.err.getvalue())
-
-    def test_push_grant_round_trips_and_refuses_bad_shapes(self):
-        base, head = self.rev("HEAD~1"), self.rev("HEAD")
-        zero = "0" * 40
-        self.assertEqual(self.append_push_grant(f"origin refs/heads/main push {base}..{head}"), 0,
-                         self.err.getvalue())
-        self.assertIn(f"grant=origin refs/heads/main push {base}..{head} | ", self.last_row())
-        self.assertEqual(self.check_last(), 0, self.err.getvalue())
-        self.assertEqual(self.append_push_grant(f"origin refs/heads/dead delete {base}..{zero}"), 0,
-                         self.err.getvalue())
-        self.assertEqual(self.check_last(), 0, self.err.getvalue())
-        before = self.ledger.read_bytes()
-        for spec, message in (
-            (f"origin refs/heads/main push {head}..{base}", "is-ancestor"),
-            (f"origin refs/heads/main push {base[:12]}..{head}", "is not <remote>"),
-            (f"origin main push {base}..{head}", "is not <remote>"),
-            (f"origin refs/heads/main delete {base}..{head}", "zero tip"),
-            (f"origin refs/heads/main push {base}..{zero}", "op delete"),
-        ):
-            self.assertEqual(self.append_push_grant(spec), 1, spec)
-            self.assertIn(message, self.err.getvalue())
-        spec = f"origin refs/heads/main push {base}..{head}"
-        self.assertEqual(self.append_push_grant(spec, "--words", "seat"), 1)
-        self.assertIn("requires words=human or words=selected", self.err.getvalue())
-        self.assertEqual(self.append_push_grant(spec, "--status", "resolved:instruction"), 1)
-        self.assertIn("requires status=open", self.err.getvalue())
-        self.assertEqual(self.append("--grant", spec), 1)
-        self.assertIn("--grant is only meaningful", self.err.getvalue())
-        self.assertEqual(self.ledger.read_bytes(), before)
-
     def test_strict_ledger_check_rejects_pre_void_correction_under_current_contract(self):
         rows = [
             self.fixture_row("G1", "resolved:done", kind="merge"),
@@ -645,118 +586,8 @@ class GateRowTest(unittest.TestCase):
             "gate_row: kind=correction requires exactly one void= field after resolves=\n",
         )
 
-    def test_every_ledger_mode_rejects_an_earlier_unconsumed_push_grant(self):
-        skill_root = self.repo / "skills" / "example"
-        skill_root.mkdir(parents=True)
-        (skill_root / "SKILL.md").write_text("test skill\n", encoding="utf-8")
-        self.git("add", "skills/example")
-        self.git("commit", "-qm", "add skill")
-        self.assertEqual(self.run_main([
-            "--ledger", str(self.ledger), "--repo", str(self.repo),
-            "--kind", "deploy", "--status", "resolved:deploy", "--skill", "example",
-            "--words", "seat", "--note", "deployed", "--quote", "ok",
-        ]), 0, self.err.getvalue())
-        self.assertEqual(self.append_review_pass(), 0, self.err.getvalue())
-        self.add_remote("HEAD")
-        base, head = self.rev("HEAD~2"), self.rev("HEAD")
-        self.assertEqual(self.append_push_grant(
-            f"origin refs/heads/main push {base}..{head}"), 0, self.err.getvalue())
-        grant_id = self.last_row().split(" | ")[0]
-        self.assertEqual(self.append(
-            "--kind", "push", "--push-base", base, "--boundary", ".",
-            "--resolves", grant_id,
-        ), 0, self.err.getvalue())
-        original_push = self.last_row()
-        self.assertEqual(self.run_main([
-            "--ledger", str(self.ledger), "--repo", str(self.repo),
-            "--kind", "deploy", "--status", "resolved:deploy", "--skill", "example",
-            "--words", "seat", "--note", "deployed", "--quote", "ok",
-        ]), 0, self.err.getvalue())
-
-        rows = gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))
-        self.assertEqual(self.run_main([
-            "--ledger", str(self.ledger), "--repo", str(self.repo), "--check",
-        ]), 0, self.err.getvalue())
-        self.assertEqual(self.run_main([
-            "--ledger", str(self.ledger), "--repo", str(self.repo),
-            "--deployed-head", "example",
-        ]), 0, self.err.getvalue())
-        self.assertEqual(self.run_main([
-            "--ledger", str(self.ledger), "--repo", str(self.repo), "--open-gates",
-        ]), 0, self.err.getvalue())
-
-        invalid_push = original_push.replace(f" | resolves={grant_id}", "")
-        repeated_push = invalid_push.replace("G4 |", "G5 |", 1).replace(
-            f"prev_hash={gate_row.row_hash(rows[2])}",
-            f"prev_hash={gate_row.row_hash(invalid_push)}",
-        ).replace(
-            " | push=", f" | resolves={grant_id} | push=", 1,
-        )
-        deploy_row = rows[-1].replace("G5 |", "G6 |", 1).replace(
-            f"prev_hash={gate_row.row_hash(original_push)}",
-            f"prev_hash={gate_row.row_hash(repeated_push)}",
-        )
-        self.ledger.write_text(
-            "# Gate ledger — test\n\n" + "\n".join(
-                [*rows[:3], invalid_push, repeated_push, deploy_row]
-            ) + "\n",
-            encoding="utf-8",
-        )
-        expected_error = (
-            f"gate_row: push {base}..{head} lands under open grant {grant_id}, "
-            f"which this row leaves unconsumed; add --resolves {grant_id}\n"
-        )
-        results = []
-        before_append = self.ledger.read_bytes()
-        for argv in (
-            ["--check"],
-            ["--deployed-head", "example"],
-            ["--open-gates"],
-            ["--kind", "merge", "--status", "resolved:human",
-             "--words", "human", "--note", "later append", "--quote", "append"],
-        ):
-            code = self.run_main([
-                "--ledger", str(self.ledger), "--repo", str(self.repo), *argv,
-            ])
-            results.append((code, self.err.getvalue()))
-        self.assertEqual(results, [(1, expected_error)] * 4, repr(results))
-        self.assertEqual(self.ledger.read_bytes(), before_append)
-
-    def test_a_push_row_must_consume_the_open_grant_its_push_landed_under(self):
-        self.assertEqual(self.append_review_pass(), 0, self.err.getvalue())
-        self.add_remote("HEAD")
-        base, head = self.rev("HEAD~2"), self.rev("HEAD")
-        self.assertEqual(self.append_push_grant(f"origin refs/heads/main push {base}..{head}"), 0,
-                         self.err.getvalue())
-        grant_id = self.last_row().split(" | ")[0]
-        before = self.ledger.read_bytes()
-        self.assertEqual(self.append("--kind", "push", "--push-base", base, "--boundary", "."), 1)
-        self.assertIn(f"open grant {grant_id}", self.err.getvalue())
-        self.assertIn(f"--resolves {grant_id}", self.err.getvalue())
-        self.assertEqual(self.ledger.read_bytes(), before)
-        self.assertEqual(self.append("--kind", "push", "--push-base", base, "--boundary", ".",
-                                     "--resolves", grant_id), 0, self.err.getvalue())
-        self.assertEqual(self.check_last(), 0, self.err.getvalue())
-        rows = gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))
-        self.ledger.write_text("# Gate ledger — test\n\n" + "\n".join(
-            rows[:-1] + [rows[-1].replace(f" | resolves={grant_id}", "")]) + "\n", encoding="utf-8")
-        self.assertEqual(self.check_last(), 1)
-        self.assertIn(f"open grant {grant_id}", self.err.getvalue())
-
-    def test_a_push_row_ignores_grants_for_another_branch_or_range(self):
-        self.assertEqual(self.append_review_pass(), 0, self.err.getvalue())
-        self.add_remote("HEAD")
-        base, mid, head = self.rev("HEAD~2"), self.rev("HEAD~1"), self.rev("HEAD")
-        self.assertEqual(self.append_push_grant(f"origin refs/heads/other push {base}..{head}"), 0)
-        self.assertEqual(self.append_push_grant(f"upstream refs/heads/main push {base}..{head}"), 0)
-        self.assertEqual(self.append_push_grant(f"origin refs/heads/main push {base}..{mid}"), 0)
-        self.assertEqual(self.append("--kind", "push", "--push-base", base, "--boundary", "."), 0,
-                         self.err.getvalue())
-        self.assertEqual(self.check_last(), 0, self.err.getvalue())
-
     def test_a_standing_delegation_is_revoked_once_by_a_resolving_row(self):
-        self.assertEqual(self.append_standing_delegation(
-            "--expiry", "until-revoked", "--push-scope", "origin:main"), 0)
+        self.assertEqual(self.append_standing_delegation(), 0)
         self.assertEqual(self.append("--resolves", "G1"), 0, self.err.getvalue())
         self.assertEqual(self.check_last(), 0, self.err.getvalue())
         self.assertEqual(self.append("--resolves", "G1"), 1)
@@ -868,20 +699,6 @@ class GateRowTest(unittest.TestCase):
         self.assertEqual(self.append("--resolves", "G1"), 1)
         self.assertIn("G1", self.err.getvalue())
         self.assertIn("already-closed", self.err.getvalue())
-        base, head = self.rev("HEAD~1"), self.rev("HEAD")
-        grant = self.fixture_row("G1", "open", "human", "grant", kind="push-grant").replace(
-            " | words=", f" | grant=origin refs/heads/main push {base}..{head} | words=", 1
-        )
-        rows = [
-            grant,
-            self.fixture_row("G2", "recorded:correction", kind="correction").replace(
-                " | words=", " | void=G1 | words=", 1
-            ),
-        ]
-        self.ledger.write_text("# fixture\n" + "\n".join(self.chained(rows)) + "\n")
-        self.assertEqual(self.open_gates(), [])
-        self.assertEqual(self.append("--resolves", "G1"), 1)
-        self.assertIn("already-closed", self.err.getvalue())
         legacy = self.fixture_row("G1", "resolved:done")
         self.ledger.write_text(legacy + "\n", encoding="utf-8")
         self.assertEqual(self.open_gates(), [])
@@ -953,21 +770,13 @@ class GateRowTest(unittest.TestCase):
             gate_row.check(repeated, self.repo, gate_row.LedgerState.of([review, first]))
 
     def test_open_gate_mode_uses_last_rows_and_structured_resolves_only(self):
-        base, head = self.rev("HEAD~1"), self.rev("HEAD")
-        push_grant = self.fixture_row("G31", "open", "human", "grant", kind="push-grant").replace(
-            " | words=", f" | grant=origin refs/heads/main push {base}..{head} | words=", 1
-        )
         rows = [
             self.fixture_row("G26", "open", "none", ""),
             self.fixture_row("G27", "open", "none", "", note="prose says resolves=G27"),
             self.fixture_row("G28", "open", "none", ""),
             self.fixture_row("G29", "resolved:done", resolves="G28"),
             self.fixture_row("G30", "open", "none", ""),
-            push_grant,
-            self.fixture_row("G32", "recorded:correction", kind="correction").replace(
-                " | words=", " | void=G31 | words=", 1
-            ),
-            self.fixture_row("G33", "resolved:done"),
+            self.fixture_row("G31", "resolved:done"),
         ]
         self.ledger.write_text("# fixture\n" + "\n".join(self.chained(rows)) + "\n")
         self.assertEqual(self.open_gates(), ["G26", "G27", "G30"])
@@ -1710,13 +1519,6 @@ class GateRowTest(unittest.TestCase):
         self.assertIn(" | resolves=G1,G2 | ", self.last_row())
         self.assertEqual(self.open_gates(), [])
 
-    def test_a_selected_push_grant_lands_and_checks_out(self):
-        spec = f"origin refs/heads/main push {self.rev('HEAD~1')}..{self.rev('HEAD')}"
-        self.assertEqual(self.append_push_grant(
-            spec, "--channel", "supervisor-relay:dialog", "--words", "selected", "--quote", "Approve"),
-            0, self.err.getvalue())
-        self.assertEqual(self.check_last(), 0, self.err.getvalue())
-
     def test_only_a_progress_boundary_resets_the_repair_cap(self):
         self.add_remote("HEAD")
         cases = (
@@ -1734,42 +1536,6 @@ class GateRowTest(unittest.TestCase):
                 self.assertEqual(self.append_repair_grant(), 0, self.err.getvalue())
                 self.assertEqual(boundary(), 0, self.err.getvalue())
                 self.assertEqual(self.append_repair_grant(), 0 if resets else 1, self.err.getvalue())
-
-    def test_a_push_inside_a_wider_grant_must_consume_it(self):
-        self.assertEqual(self.append_review_pass(), 0, self.err.getvalue())
-        self.add_remote("HEAD")
-        self.assertEqual(self.append_push_grant(
-            f"origin refs/heads/main push {self.rev('HEAD~2')}..{self.rev('HEAD')}"), 0, self.err.getvalue())
-        self.assertEqual(self.append(
-            "--kind", "push", "--push-base", self.rev("HEAD~1"), "--boundary", "."), 1)
-        self.assertIn("open grant G2", self.err.getvalue())
-
-    def test_a_grant_already_consumed_is_not_demanded_again(self):
-        self.assertEqual(self.append_review_pass(), 0, self.err.getvalue())
-        self.add_remote("HEAD")
-        self.assertEqual(self.append_push_grant(
-            f"origin refs/heads/main push {self.rev('HEAD~2')}..{self.rev('HEAD')}"), 0, self.err.getvalue())
-        self.assertEqual(self.append("--resolves", "G2"), 0, self.err.getvalue())
-        self.assertEqual(self.append(
-            "--kind", "push", "--push-base", self.rev("HEAD~2"), "--boundary", "."), 0, self.err.getvalue())
-
-    def test_push_authority_is_found_past_rows_that_do_not_grant_it(self):
-        base, mid, head = self.rev("HEAD~2"), self.rev("HEAD~1"), self.rev("HEAD")
-        self.assertEqual(self.append_push_grant(f"origin refs/heads/other push {base}..{head}"), 0)
-        self.assertEqual(self.append_push_grant(f"origin refs/heads/main push {mid}..{head}"), 0)
-        self.assertEqual(self.append_push_grant(f"origin refs/heads/main push {base}..{head}"), 0)
-        self.assertEqual(self.append("--resolves", "G3"), 0, self.err.getvalue())
-        self.assertEqual(self.append_standing_delegation(), 0)
-        self.assertEqual(self.append_standing_delegation(
-            "--expiry", "until-revoked", "--push-scope", "upstream:main"), 0)
-        self.assertEqual(self.append_standing_delegation(
-            "--expiry", "until-revoked", "--push-scope", "origin:main"), 0)
-        self.assertEqual(self.append("--resolves", "G7"), 0, self.err.getvalue())
-        self.assertEqual(self.append_standing_delegation(
-            "--expiry", "until-revoked", "--push-scope", "upstream:release,origin:main"), 0)
-        state = gate_row.LedgerState.of(gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8")))
-        self.assertEqual(gate_row.require_push_authority(
-            state, self.repo, "origin", "refs/heads/main", base, head, datetime.now(timezone.utc)), "G9")
 
     def test_the_landed_check_reads_origins_copy_of_the_rows_branch(self):
         self.assertEqual(self.append_review_pass(), 0, self.err.getvalue())
@@ -1808,7 +1574,7 @@ class GateRowTest(unittest.TestCase):
         self.assertEqual(self.check_last(), 0, self.err.getvalue())
 
     def test_the_touched_set_counts_the_root_commit_merges_and_both_rename_sides(self):
-        self.assertEqual(gate_row.derive_push(self.repo, gate_row.ZERO, self.rev("HEAD"), ["f1.txt", "f2.txt"]),
+        self.assertEqual(gate_row.derive_push(self.repo, "0" * 40, self.rev("HEAD"), ["f1.txt", "f2.txt"]),
                          ("3", ["f0.txt"]))
         base = self.rev("HEAD")
         self.git("checkout", "-qb", "side")
@@ -2001,22 +1767,6 @@ class GateRowTest(unittest.TestCase):
                 self.assertEqual(self.check_last(), 1)
                 self.assertIn(needle, self.err.getvalue())
 
-    def test_a_push_scope_branch_may_carry_an_equals_sign(self):
-        self.assertEqual(self.append_standing_delegation(
-            "--expiry", "until-revoked", "--push-scope", "origin:a=b"), 0, self.err.getvalue())
-        self.assertEqual(self.check_last(), 0, self.err.getvalue())
-
-    def test_a_push_scope_is_validated_whole_past_a_second_equals(self):
-        self.assertEqual(self.append_standing_delegation(
-            "--expiry", "until-revoked", "--push-scope", "origin:a=b"), 0, self.err.getvalue())
-        row = self.last_row()
-        for scope in ("origin:a=b:c", "origin:a=b,,"):
-            with self.subTest(scope):
-                self.ledger.write_text(row.replace("push-scope=origin:a=b", f"push-scope={scope}") + "\n",
-                                       encoding="utf-8")
-                self.assertEqual(self.check_last(), 1)
-                self.assertIn("is not <remote>:<branch>", self.err.getvalue())
-
     def test_local_ops_values_are_read_up_to_the_first_equals(self):
         self.assertEqual(self.append_local_ops("--op", "export X="), 0, self.err.getvalue())
         self.git("branch", "a=")
@@ -2044,9 +1794,7 @@ class GateRowTest(unittest.TestCase):
             "--status", "open", "--words", "none", "--quote", "",
         ), 0, self.err.getvalue())
         self.assertEqual(self.append("--resolves", "G1"), 0, self.err.getvalue())
-        self.assertEqual(self.append_standing_delegation(
-            "--expiry", "until-revoked", "--push-scope", "origin:main",
-        ), 0, self.err.getvalue())
+        self.assertEqual(self.append_standing_delegation(), 0, self.err.getvalue())
         self.assertEqual(self.append("--resolves", "G3"), 0, self.err.getvalue())
 
     def test_a_prior_repair_grant_finding_is_read_whole(self):
@@ -2157,7 +1905,7 @@ class GateRowTest(unittest.TestCase):
             row("repair-grant", "recorded:granted", record),
             row("cutover", gate_row.CUTOVER_STATUS, record),
             row("standing-delegation", gate_row.STANDING_DELEGATION_STATUS,
-                record + " | who=w | scope=s | conditions=c | expiry=until-revoked"),
+                record + " | who=w | scope=s | conditions=c | expiry=e"),
         ]
         for text in rows:
             with self.subTest(text), self.assertRaises(gate_row.RowError):
@@ -2169,11 +1917,9 @@ class GateRowTest(unittest.TestCase):
 
     def test_check_refuses_hand_edits_the_writer_never_emits(self):
         self.assertEqual(self.append(), 0, self.err.getvalue())
-        self.assertEqual(self.append_push_grant(
-            f"origin refs/heads/other push {self.rev('HEAD~1')}..{self.rev('HEAD')}"), 0, self.err.getvalue())
         push, _ = self.valid_push_row()
         rows = gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))
-        merge, grant, review = rows[0], rows[1], rows[2]
+        merge, review = rows[0], rows[1]
         head, mid = self.rev("HEAD"), self.rev("HEAD~1")
         tampers = [
             (merge, "status=resolved:human", "status=Done"),
@@ -2183,7 +1929,6 @@ class GateRowTest(unittest.TestCase):
             (merge, "note=merged the reviewed head", 'note=merged "the" reviewed head'),
             (merge, 'quote="merge it"', 'quote="merge it'),
             (merge, 'quote="merge it"', 'quote=merge it"'),
-            (grant, "words=human", "words=seat"),
             (review, f"main@{head}", f"main@{mid}"),
             (push, f"main@{head}", f"main@{mid}"),
         ]
@@ -2195,12 +1940,10 @@ class GateRowTest(unittest.TestCase):
                     gate_row.check(tampered, self.repo, gate_row.LedgerState.of(rows[:rows.index(row)]))
 
     def test_an_unknown_commit_is_refused_naming_git_rev_parse_verify(self):
-        bad, zero = "1" * 40, "0" * 40
+        bad = "1" * 40
         appends = {
             "--after": lambda: self.append_local_ops("--after", f"main@{bad}"),
             "--head": lambda: self.append("--head", f"main@{bad}", "--record", "reconstruction"),
-            "delete base": lambda: self.append_push_grant(f"origin refs/heads/main delete {bad}..{zero}"),
-            "force base": lambda: self.append_push_grant(f"origin refs/heads/main force {bad}..{self.rev('HEAD')}"),
         }
         for name, append in appends.items():
             with self.subTest(name):
@@ -2265,38 +2008,6 @@ class GateRowTest(unittest.TestCase):
                 before = self.ledger.read_bytes()
                 self.assertEqual(self.run_main(["--ledger", str(self.ledger), "--open-gates"]), 1)
                 self.assertEqual(self.ledger.read_bytes(), before)
-
-    def push_scope_rows(self, scope: str = "upstream:x,origin:main") -> list[str]:
-        self.assertEqual(self.append_standing_delegation(
-            "--expiry", "until-revoked", "--push-scope", scope), 0, self.err.getvalue())
-        return gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))
-
-    def test_push_authority_matches_any_push_scope_entry(self):
-        state = gate_row.LedgerState.of(self.push_scope_rows("upstream:x,origin:release,origin:apex/*,origin:refs/*"))
-        prev, head, now = self.rev("HEAD~1"), self.rev("HEAD"), datetime.now(timezone.utc)
-        for ref, base in (("refs/heads/release", prev), ("refs/heads/apex/t1", prev),
-                          ("refs/heads/apex/t1", gate_row.ZERO)):
-            with self.subTest(ref=ref, base=base):
-                self.assertEqual(gate_row.require_push_authority(
-                    state, self.repo, "origin", ref, base, head, now), "G1")
-        for remote, ref, base, tip, refusal in (
-            ("origin", "refs/heads/main", prev, head, "G1 standing delegation scope is push-scope="),
-            ("origin", "refs/heads/apex", prev, head, "G1 standing delegation scope is push-scope="),
-            ("origin", "refs/heads/apexx/t1", prev, head, "G1 standing delegation scope is push-scope="),
-            ("upstream", "refs/heads/apex/t1", prev, head, "G1 standing delegation scope is push-scope="),
-            ("origin", "refs/notes/x", prev, head, "G1 standing delegation scope is push-scope="),
-            ("origin", "refs/heads/apex/t1", head, prev, "G1 standing delegation never covers a force push"),
-        ):
-            with self.subTest(remote=remote, ref=ref, base=base):
-                with self.assertRaisesRegex(gate_row.RowError, re.escape(refusal)):
-                    gate_row.require_push_authority(state, self.repo, remote, ref, base, tip, now)
-
-    def test_push_authority_names_a_push_scope_row_without_expiry(self):
-        state = gate_row.LedgerState.of([self.push_scope_rows()[0].replace(" | expiry=until-revoked", "")])
-        with self.assertRaisesRegex(gate_row.RowError, re.escape("expiry='' is not an ISO-8601")):
-            gate_row.require_push_authority(
-                state, self.repo, "origin", "refs/heads/main", self.rev("HEAD~1"), self.rev("HEAD"),
-                datetime.now(timezone.utc))
 
     def run_in_locale(self, locale: str, *argv: str) -> subprocess.CompletedProcess:
         env = {k: v for k, v in os.environ.items() if k not in ("PYTHONUTF8", "PYTHONIOENCODING", "LANG")}

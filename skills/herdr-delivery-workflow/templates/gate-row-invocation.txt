@@ -3,19 +3,13 @@ scripts/gate_row.py --ledger ~/.herdr/projects/<project-slug>/gates.md --kind me
 local-ops:
 scripts/gate_row.py --ledger ~/.herdr/projects/<project-slug>/gates.md --kind local-ops --status recorded:local-ops --record timely --op "<one named command>" --after <branch>@<exact head the merge landed> --words seat --note "<why this local op ran>" --quote "<the named command>"
 
-standing-delegation (offer these prefilled values in one question; the Lead is the default delegate, as who=supervisor adds a relay hop to every push and merge):
+standing-delegation (offer these prefilled values in one question; the Lead is the default delegate, as who=supervisor adds a relay hop to every merge):
 scripts/gate_row.py --ledger ~/.herdr/projects/<project-slug>/gates.md --kind standing-delegation --status recorded:standing-delegation --record timely --who lead-<project-slug> --scope "<delegated scope>" --conditions "independent review PASS on the exact SHA; CI green on that SHA" --expiry "<the Human's verbatim expiry text>" --words human --note "<note>" --quote "<the Human's verbatim grant>"
 # CI green holds where the project's ci trigger runs: under pr only on a PR, so work reaches the target line by PR merge, never a direct push;
 # under push on the pushed head's run; with no ci the clause is dropped.
-# A delegation covering pushes adds --push-scope <remote>:<branch>[,...], where a <branch> ending in /*
-# covers every branch under that prefix (fast-forward or new branch only), and its --expiry is
-# an ISO-8601 UTC timestamp or until-revoked; without --push-scope it authorizes no push.
 
-correction (void one earlier review-pass or push-grant row):
-scripts/gate_row.py --ledger ~/.herdr/projects/<project-slug>/gates.md --kind correction --status recorded:correction --void <id> --words seat --note "<why the verdict or grant does not stand>" --quote "<correction source>"
-
-push-grant (one-shot; consumed by the kind=push row that resolves it):
-scripts/gate_row.py --ledger ~/.herdr/projects/<project-slug>/gates.md --kind push-grant --status open --writer supervisor --channel supervisor-relay:typed --grant "<remote> <refs/heads/..|refs/tags/..> <push|force|delete> <full base>..<full tip>" --words human --note "<note>" --quote "<the Human's verbatim grant>"
+correction (void one earlier review-pass row):
+scripts/gate_row.py --ledger ~/.herdr/projects/<project-slug>/gates.md --kind correction --status recorded:correction --void <id> --words seat --note "<why the verdict does not stand>" --quote "<correction source>"
 
 Human-gate mailbox check:
 scripts/gate_row.py --ledger ~/.herdr/projects/<project-slug>/gates.md --check --mailbox ~/.herdr/projects/<project-slug>/supervisor-mailbox.md
