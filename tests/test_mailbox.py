@@ -399,6 +399,17 @@ class MailboxAppendTest(unittest.TestCase):
         )
         self.assertIsNotNone(mailbox.HEADER_RE.match(header))
 
+    def test_append_without_stdin_writes_a_header_only_entry(self):
+        argv = ["--file", str(self.path), "--append", "--from", "lead-beo-skills", "--to", "supervisor",
+                "--repo", str(self.repo), "--event", "G1 PR#1"]
+        self.assertEqual(mailbox.main(argv), 0, self.stderr.getvalue())
+        self.assertEqual(self.append("two\n"), 0)
+        header = f"## lead-beo-skills -> supervisor | 2026-09-24T03:04:05Z | G1 PR#1 | HEAD {self.head}"
+        self.assertTrue(self.path.read_text(encoding="utf-8").startswith(f"---\n{header}\n---\n"))
+        entries = mailbox._entries(self.path.read_text(encoding="utf-8"))
+        self.assertEqual([(e.header, e.body) for e in entries][0], (header, ""))
+        self.assertEqual(entries[1].body, "two")
+
     def test_append_attention_takes_slug_from_mailbox_directory_and_appends(self):
         self.assertEqual(self.append("one\n"), 0)
         self.assertEqual(self.append("two\n", "--attention", "human-gate"), 0)
