@@ -57,7 +57,7 @@ def render(args: argparse.Namespace) -> tuple[str, str]:
         diff_base = base
     if not commits:
         raise ValueError(f"range {base}..{head} has no commits")
-    paths = _git(repo, "diff", "--name-only", diff_base, head).split("\n")[:-1]
+    paths = _git(repo, "diff", "-z", "--name-only", diff_base, head).split("\0")[:-1]
     authors = dict.fromkeys(
         _git(repo, "log", "--no-walk", "--format=%(trailers:key=Seat,valueonly,separator=%x2C) "
              "(%(trailers:key=Model,valueonly,separator=%x2C))", *commits).split("\n")[:-1]
@@ -65,7 +65,7 @@ def render(args: argparse.Namespace) -> tuple[str, str]:
     if any(author.startswith(" (") or author.endswith(" ()") for author in authors):
         raise ValueError("a commit in the range lacks a Seat: or Model: trailer")
     seats = {author.split(" (")[0] for author in authors}
-    tracked = _git(repo, "ls-tree", "-r", "--name-only", head).split("\n")[:-1]
+    tracked = _git(repo, "ls-tree", "-r", "-z", "--name-only", head).split("\0")[:-1]
     guidance = [
         str(repo / name) for name in tracked
         if Path(name).name in GUIDANCE

@@ -37,10 +37,11 @@ class CharterRenderTest(unittest.TestCase):
         git = ["git", "-C", str(self.repo), "-c", "user.name=t", "-c", "user.email=t@example.com"]
         self.repo.mkdir()
         subprocess.run([*git, "init", "-q"], check=True, stdin=subprocess.DEVNULL)
-        for name, subject in (("AGENTS.md", "docs: guidance"), ("a/b.py", "feat(a): add b")):
-            (self.repo / name).parent.mkdir(exist_ok=True)
-            (self.repo / name).write_text("x\n", encoding="utf-8")
-            subprocess.run([*git, "add", name], check=True, stdin=subprocess.DEVNULL)
+        for names, subject in ((("AGENTS.md",), "docs: guidance"), (("é/AGENTS.md", "é/b.py"), "feat(é): add b")):
+            for name in names:
+                (self.repo / name).parent.mkdir(exist_ok=True)
+                (self.repo / name).write_text("x\n", encoding="utf-8")
+            subprocess.run([*git, "add", *names], check=True, stdin=subprocess.DEVNULL)
             subprocess.run(
                 [*git, "commit", "-q", "-m", subject, "--trailer", f"Seat: {LEAD}",
                  "--trailer", "Model: claude claude-opus-5-5"],
@@ -70,9 +71,9 @@ class CharterRenderTest(unittest.TestCase):
         text = charter.read_text(encoding="utf-8")
         for expected in (
             f"Reviewed unit: the range {self.base}..{self.head} (1 commit: {self.head[:7]}).",
-            "Mode: solo-Lead. Declared source scope: a/b.py.",
+            "Mode: solo-Lead. Declared source scope: é/AGENTS.md, é/b.py.",
             f"Scope authors (commit trailers): {LEAD} (claude claude-opus-5-5).",
-            f"Governing contracts: {self.repo}/AGENTS.md;",
+            f"Governing contracts: {self.repo}/AGENTS.md, {self.repo}/é/AGENTS.md;",
             "pane w7:p3, workspace w7.",
             "1. git diff --check",
         ):
