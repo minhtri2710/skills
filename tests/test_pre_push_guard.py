@@ -213,7 +213,7 @@ class PrePushGuardTest(unittest.TestCase):
         self.assertEqual(self.review(self.base), 0)
         grant_id = self.grant(f"origin refs/heads/main push {self.base}..{c1}")
         self.assertEqual(self.row(
-            "--kind", "merge", "--status", "resolved:standing-waiver",
+            "--kind", "merge", "--status", "resolved:human",
             "--words", "human", "--note", "continue", "--quote", "continue",
         ), 0)
         rows = gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))

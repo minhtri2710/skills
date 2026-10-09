@@ -60,7 +60,7 @@ class GateRowTest(unittest.TestCase):
     def append(self, *extra: str) -> int:
         return self.run_main([
             "--ledger", str(self.ledger), "--repo", str(self.repo),
-            "--kind", "merge", "--status", "resolved:standing-waiver",
+            "--kind", "merge", "--status", "resolved:human",
             "--words", "human", "--note", "merged the reviewed head", "--quote", "merge it", *extra,
         ])
 
@@ -144,7 +144,7 @@ class GateRowTest(unittest.TestCase):
         try:
             rc = self.run_main([
                 "--ledger", "gates.md", "--repo", str(self.repo),
-                "--kind", "merge", "--status", "resolved:standing-waiver",
+                "--kind", "merge", "--status", "resolved:human",
                 "--words", "human", "--note", "n", "--quote", "q",
             ])
         finally:
@@ -176,7 +176,7 @@ class GateRowTest(unittest.TestCase):
     def test_words_is_required_for_append(self):
         self.assertEqual(self.run_main([
             "--ledger", str(self.ledger), "--repo", str(self.repo),
-            "--kind", "merge", "--status", "resolved:standing-waiver",
+            "--kind", "merge", "--status", "resolved:human",
             "--note", "merged the reviewed head", "--quote", "merge it",
         ]), 1)
         self.assertIn("--words is required", self.err.getvalue())
@@ -523,7 +523,7 @@ class GateRowTest(unittest.TestCase):
                 self.assertIn(message, self.err.getvalue())
 
     def test_validation_checks_each_row_once_against_the_state_its_predecessors_leave(self):
-        rows = self.chained([self.fixture_row(f"G{n}", "resolved:standing-waiver") for n in range(1, 6)])
+        rows = self.chained([self.fixture_row(f"G{n}", "resolved:human") for n in range(1, 6)])
         seen: list[int] = []
         real_check = gate_row.check
 
@@ -537,7 +537,7 @@ class GateRowTest(unittest.TestCase):
         self.assertEqual(state.rows, rows)
 
     def test_validation_asks_git_once_for_a_head_shared_by_every_row(self):
-        rows = self.chained([self.fixture_row(f"G{n}", "resolved:standing-waiver") for n in range(1, 31)])
+        rows = self.chained([self.fixture_row(f"G{n}", "resolved:human") for n in range(1, 31)])
         with mock.patch.object(gate_row.subprocess, "run", wraps=gate_row.subprocess.run) as run:
             gate_row.validate_ledger(rows, self.repo)
         self.assertEqual(run.call_count, 1)
@@ -548,7 +548,7 @@ class GateRowTest(unittest.TestCase):
                            check=True, capture_output=True, stdin=subprocess.DEVNULL)
         heads = [self.rev(f"HEAD~{n}") for n in range(30)]
         rows = self.chained([
-            self.fixture_row(f"G{n}", "resolved:standing-waiver").replace(f"main@{self.rev('HEAD')}", f"main@{head}")
+            self.fixture_row(f"G{n}", "resolved:human").replace(f"main@{self.rev('HEAD')}", f"main@{head}")
             for n, head in enumerate(heads, 1)
         ])
         with mock.patch.object(gate_row.subprocess, "run", wraps=gate_row.subprocess.run) as run:
@@ -712,7 +712,7 @@ class GateRowTest(unittest.TestCase):
             ["--check"],
             ["--deployed-head", "example"],
             ["--open-gates"],
-            ["--kind", "merge", "--status", "resolved:standing-waiver",
+            ["--kind", "merge", "--status", "resolved:human",
              "--words", "human", "--note", "later append", "--quote", "append"],
         ):
             code = self.run_main([
@@ -793,7 +793,7 @@ class GateRowTest(unittest.TestCase):
         quote_file.write_text(quote, encoding="utf-8")
         argv = [
             "--ledger", str(self.ledger), "--repo", str(self.repo),
-            "--kind", "merge", "--status", "resolved:standing-waiver",
+            "--kind", "merge", "--status", "resolved:human",
             "--words", "human", "--note", "merged the reviewed head",
             "--quote-file", str(quote_file),
         ]
@@ -808,7 +808,7 @@ class GateRowTest(unittest.TestCase):
         quote_file.write_text("runtime denied command\n", encoding="utf-8")
         self.assertEqual(self.run_main([
             "--ledger", str(self.ledger), "--repo", str(self.repo),
-            "--kind", "merge", "--status", "resolved:standing-waiver",
+            "--kind", "merge", "--status", "resolved:human",
             "--words", "human", "--note", "merged the reviewed head",
             "--quote-file", str(quote_file),
         ]), 0)
@@ -819,7 +819,7 @@ class GateRowTest(unittest.TestCase):
         quote_file.write_text("file quote", encoding="utf-8")
         self.assertEqual(self.run_main([
             "--ledger", str(self.ledger), "--repo", str(self.repo),
-            "--kind", "merge", "--status", "resolved:standing-waiver",
+            "--kind", "merge", "--status", "resolved:human",
             "--words", "human", "--note", "merged the reviewed head",
             "--quote", "argument quote", "--quote-file", str(quote_file),
         ]), 1)
@@ -831,7 +831,7 @@ class GateRowTest(unittest.TestCase):
         quote_file.write_text("", encoding="utf-8")
         self.assertEqual(self.run_main([
             "--ledger", str(self.ledger), "--repo", str(self.repo),
-            "--kind", "merge", "--status", "resolved:standing-waiver",
+            "--kind", "merge", "--status", "resolved:human",
             "--words", "human", "--note", "merged the reviewed head",
             "--quote-file", str(quote_file),
         ]), 1)
@@ -984,7 +984,7 @@ class GateRowTest(unittest.TestCase):
     def test_a_count_that_does_not_match_the_range_is_rejected(self):
         base, head = self.rev("HEAD~2"), self.rev("HEAD")
         row = (f'G2 | 2026-09-06T00:00:00Z | kind=push | main@{head} | '
-               f'status=resolved:standing-waiver | record=timely | '
+               f'status=resolved:human | record=timely | '
                f'push={base}..{head} count=7 boundary="f1.txt f2.txt" '
                f'boundary-check="" | words=human | note=n | quote="q"')
         prior = self.fixture_row("G1", "recorded:review-pass", kind="review")
@@ -1162,7 +1162,7 @@ class GateRowTest(unittest.TestCase):
     def test_an_undocumented_key_is_refused(self):
         head = self.rev("HEAD")
         row = (f'G9 | 2026-09-06T00:00:00Z | kind=push | main@{head} | '
-               f'status=resolved:standing-waiver | authority=G64 | project=beo-skills | '
+               f'status=resolved:human | authority=G64 | project=beo-skills | '
                f'record=timely | words=human | note=n | quote="q"')
         with self.assertRaises(gate_row.RowError) as ctx:
             gate_row.check(row, self.repo)
@@ -1509,7 +1509,7 @@ class GateRowTest(unittest.TestCase):
         self.assertNotIn("skills=", first_row)
 
         chained = cli(
-            "--kind", "merge", "--status", "resolved:standing-waiver", "--words", "human",
+            "--kind", "merge", "--status", "resolved:human", "--words", "human",
             "--note", "continue ledger", "--quote", "merge",
         )
         self.assertEqual(chained.returncode, 0, chained.stderr)
@@ -1636,7 +1636,7 @@ class GateRowTest(unittest.TestCase):
     def test_repo_defaults_to_the_working_directory(self):
         with contextlib.chdir(self.repo):
             self.assertEqual(self.run_main([
-                "--ledger", str(self.ledger), "--kind", "merge", "--status", "resolved:standing-waiver",
+                "--ledger", str(self.ledger), "--kind", "merge", "--status", "resolved:human",
                 "--words", "human", "--note", "merged the reviewed head", "--quote", "merge it",
             ]), 0, self.err.getvalue())
         self.assertIn(f" | main@{self.rev('HEAD')} | ", self.last_row())
@@ -1872,7 +1872,7 @@ class GateRowTest(unittest.TestCase):
                 self.assertIn(f"ok: {gid} checks out", self.out.getvalue())
                 self.assertEqual(self.run_main([
                     "--ledger", str(self.ledger), "--repo", str(self.repo),
-                    "--kind", "merge", "--status", "resolved:standing-waiver",
+                    "--kind", "merge", "--status", "resolved:human",
                     "--words", "human", "--note", "continue genesis chain", "--quote", "continue",
                 ]), 0, self.err.getvalue())
                 second = self.last_row()
@@ -1923,7 +1923,7 @@ class GateRowTest(unittest.TestCase):
         broken = genesis.replace(f"archive={archive}", f"archive={'A' * 64}")
         re_chained = (
             f'G{int(gid[1:]) + 1} | {timestamp} | kind=merge | {branch}@{head} | '
-            f'status=resolved:standing-waiver | writer={writer} | record=timely | '
+            f'status=resolved:human | writer={writer} | record=timely | '
             f'prev_hash={gate_row.row_hash(broken)} | words=human | note=re-chained | quote="continue"'
         )
         rows = [broken, re_chained]
@@ -2176,7 +2176,7 @@ class GateRowTest(unittest.TestCase):
         merge, grant, review = rows[0], rows[1], rows[2]
         head, mid = self.rev("HEAD"), self.rev("HEAD~1")
         tampers = [
-            (merge, "status=resolved:standing-waiver", "status=Done"),
+            (merge, "status=resolved:human", "status=Done"),
             (merge, "kind=merge", "kind=Merge"),
             (merge, "note=merged the reviewed head", "writer=lead-beo-skills"),
             (merge, "note=merged the reviewed head", "note=merged|the reviewed head"),
@@ -2308,7 +2308,7 @@ class GateRowTest(unittest.TestCase):
         quote = self.tmp / "quote.txt"
         quote.write_text("café\n", encoding="utf-8")
         proc = self.run_in_locale("en_US.ISO8859-1", "--ledger", str(self.ledger), "--repo", str(self.repo),
-                                  "--kind", "merge", "--status", "resolved:standing-waiver", "--words", "human",
+                                  "--kind", "merge", "--status", "resolved:human", "--words", "human",
                                   "--note", "merged", "--quote-file", str(quote))
         self.assertEqual(proc.returncode, 0, proc.stderr)
         self.assertIn('quote="café"'.encode("latin-1"), proc.stdout)
