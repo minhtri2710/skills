@@ -20,6 +20,9 @@ is better. When the shape of the interface itself is in question, use
 
 ## Before adding a test
 
+By default add no new test. Add one when the user asked for tests or test-first
+work, or when it protects a named behavior no existing test could catch; whether
+the change is risky enough to need one is a question to answer, not a number.
 Beyond what behavior the test protects and which regression turns it red, answer
 two more questions; without an answer, do not add the test yet:
 
@@ -29,6 +32,11 @@ two more questions; without an answer, do not add the test yet:
   the owner's table or fixture instead of a sibling test.
 - Would the test only work through a hook, export, flag, or wrapper added for it
   alone? Then drop that seam and drive the test through the one production uses.
+
+Pick the type by risk, one test each: a public contract gets one contract test,
+pure logic with many edge cases one property test instead of many examples, a main
+user flow a few end-to-end tests run in CI. Mutation testing and fuzzing run only
+on request; the time budget for checks is `quality-floor`'s.
 
 ## The loop
 
@@ -65,7 +73,9 @@ Refactoring belongs to review, after the slice is green.
 - It verifies through the interface: create a user, then fetch the user, rather
   than querying the database behind it.
 - Its expected value comes from independent truth — a known literal, a worked
-  example, the spec — never recomputed the way the code computes it.
+  example, the spec, the user's request, the bug report — never recomputed the way
+  the code computes it. A test whose only source is the implementation it guards
+  adds no proof; leave it out.
 - It mocks only system boundaries: third-party APIs, time, randomness, and
   sometimes the database or filesystem. Prefer a real implementation, then a fake,
   then a stub. Internal collaborators you control stay real.
