@@ -42,10 +42,10 @@ def format_roster(payload: dict[str, Any], workspace: str | None = None) -> list
             continue
         try:
             pane_id = agent["pane_id"]
-            kind = agent["agent"]
             state = agent["agent_status"]
         except KeyError as exc:
             raise ValueError(f"agent record lacks {exc.args[0]}") from exc
+        kind = agent.get("agent") or "-"
         lines.append(f"{pane_id} {agent.get('name') or '-'} {kind} {state}")
     return lines
 
@@ -122,10 +122,10 @@ def format_never_started_roster(
             raise ValueError(f"never-started peer {name!r} lacks a peer specification")
         try:
             pane_id = agent["pane_id"]
-            kind = agent["agent"]
             state = agent["agent_status"]
         except KeyError as exc:
             raise ValueError(f"agent record lacks {exc.args[0]}") from exc
+        kind = agent.get("agent") or "-"
         if state not in _SETTLED_STATES:
             continue
         report_path, progress_path = peer_specs[name]
@@ -182,10 +182,10 @@ def format_stalled_roster(
             continue
         try:
             pane_id = agent["pane_id"]
-            kind = agent["agent"]
             state = agent["agent_status"]
         except KeyError as exc:
             raise ValueError(f"agent record lacks {exc.args[0]}") from exc
+        kind = agent.get("agent") or "-"
         if state not in _SETTLED_STATES:
             continue
 
@@ -424,9 +424,9 @@ def format_drift_roster(
         unseen.discard(name)
         try:
             pane_id = agent["pane_id"]
-            kind = agent["agent"]
         except KeyError as exc:
             raise ValueError(f"agent record lacks {exc.args[0]}") from exc
+        kind = agent.get("agent") or "-"
         role = seats[name]
         expected = _expected(keys, role)
         launch_args, argv0_process = _launch_args(pane_id, kind)

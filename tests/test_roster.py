@@ -58,6 +58,12 @@ class RosterTest(unittest.TestCase):
             ["w1:p1 lead claude working"],
         )
 
+    def test_launch_pending_record_without_agent_kind_is_listed(self):
+        payload = {"result": {"agents": [
+            {"pane_id": "w1:p2", "name": "eng", "agent_status": "unknown", "workspace_id": "w1"},
+        ]}}
+        self.assertEqual(roster.format_roster(payload, workspace="w1"), ["w1:p2 eng - unknown"])
+
     _SAMPLE = '{"result":{"agents":[{"pane_id":"w1:p1","name":"lead","agent":"claude","agent_status":"working","workspace_id":"w1"}]}}'
 
     def test_default_prints_the_agent_list(self):
