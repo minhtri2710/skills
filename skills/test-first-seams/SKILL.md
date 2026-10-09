@@ -33,10 +33,10 @@ two more questions; without an answer, do not add the test yet:
 - Would the test only work through a hook, export, flag, or wrapper added for it
   alone? Then drop that seam and drive the test through the one production uses.
 
-Pick the type by risk, one test each: a public contract gets one contract test,
-pure logic with many edge cases one property test instead of many examples, a main
-user flow a few end-to-end tests run in CI. Mutation testing and fuzzing run only
-on request; the time budget for checks is `quality-floor`'s.
+Pick the type by risk, one test each: pure logic with many edge cases gets one
+property test instead of many examples, a main user flow a few end-to-end tests
+run in CI. Mutation testing and fuzzing run only on request; the time budget for
+checks is `quality-floor`'s.
 
 ## The loop
 
