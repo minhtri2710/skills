@@ -119,7 +119,7 @@ def append_entry(
     repo: str,
     event: str,
     attention: str | None,
-    body: str,
+    body: str | None,
 ) -> str:
     _require_project_mailbox(path, "--append")
     for name, seat in (("--from", sender), ("--to", recipient)):
@@ -129,10 +129,10 @@ def append_entry(
     if attention is not None:
         slug = Path(path).resolve().parent.name
         text = f"ATTENTION {slug} {_one_line('--attention', attention)}: {text}"
-    body = body.rstrip("\n")
-    if not body.strip():
+    body = None if body is None else body.rstrip("\n")
+    if body is not None and not body.strip():
         raise ValueError("stdin body must be non-empty")
-    for line in body.splitlines():
+    for line in (body or "").splitlines():
         # Every "## " line a script writes is a header; readers fail closed on any other.
         if line.startswith("## "):
             raise ValueError("stdin body must not contain a line starting '## '")
@@ -146,7 +146,7 @@ def append_entry(
     stamp = _now().strftime("%Y-%m-%dT%H:%M:%SZ")
     header = f"## {sender} -> {recipient} | {stamp} | {text} | HEAD {head}"
     assert HEADER_RE.match(header) is not None
-    data = f"---\n{header}\n{body}\n"
+    data = f"---\n{header}\n" + ("" if body is None else f"{body}\n")
     try:
         with open(path, "rb") as existing:
             existing.seek(0, os.SEEK_END)
@@ -234,7 +234,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--headers", action="store_true")
     parser.add_argument("--wake", metavar="SEAT", help="read the last header and re-wake a seat")
     parser.add_argument("--append", action="store_true",
-                        help="append one entry whose body is read from stdin, then wake --to")
+                        help="append one entry, header only unless --stdin, then wake --to")
     parser.add_argument("--from", dest="sender", metavar="SEAT")
     parser.add_argument("--to", dest="recipient", metavar="SEAT")
     parser.add_argument("--repo", metavar="PATH", help="checkout whose HEAD the header carries")
@@ -245,8 +245,8 @@ def main(argv: list[str] | None = None) -> int:
 
     append_args = (args.sender, args.recipient, args.repo, args.event)
     if args.append:
-        if None in append_args or not args.stdin:
-            parser.error("--append requires --from, --to, --repo, --event and --stdin")
+        if None in append_args:
+            parser.error("--append requires --from, --to, --repo and --event")
         if args.since is not None or args.last is not None or args.headers:
             parser.error("--append cannot be combined with mailbox selectors")
         if args.wake is not None:
@@ -258,7 +258,8 @@ def main(argv: list[str] | None = None) -> int:
         if args.append:
             header = append_entry(
                 args.file, sender=args.sender, recipient=args.recipient, repo=args.repo,
-                event=args.event, attention=args.attention, body=sys.stdin.read(),
+                event=args.event, attention=args.attention,
+                body=sys.stdin.read() if args.stdin else None,
             )
             print(header)
             return wake(args.recipient, args.file)
