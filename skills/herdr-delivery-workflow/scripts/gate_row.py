@@ -11,7 +11,7 @@ Row shape, one line, ` | ` between fields:
       [| channel=<channel>] [| writer=<seat>] | record=<timely|reconstruction>
       [| push=<base>..<head> count=<n> boundary="<declared paths>"
          boundary-check="<paths outside the boundary>"]
-      [| resolves=<id>[,<id>...]] [| void=<id>]
+      [| resolves=<id>[,<id>...]] [| under=<standing-delegation id>] [| void=<id>]
       [| op=<command> | after=<branch>@<head>]
       [| who=<delegate> | scope=<scope> | conditions=<conditions> | expiry=<expiry>
          [| push-scope=<remote>:<branch|prefix/*>[,<remote>:<branch|prefix/*>...]]]
@@ -735,6 +735,17 @@ class LedgerState:
             if own is None or own[1] != "open" or self.resolved_at.get(target, -1) > own[0]:
                 raise RowError(f"resolves={target} refused: already-closed")
 
+    def require_in_force(self, target: str, when: str) -> None:
+        """A row answered under a standing delegation names it; it must be unrevoked and unexpired."""
+        if self.kinds.get(target) != "standing-delegation":
+            raise RowError(f"under={target} is not an earlier kind=standing-delegation row")
+        index = self.standing[target]
+        if self.resolved_at.get(target, -1) > index:
+            raise RowError(f"under={target} refused: the delegation is revoked")
+        expiry = row_field(split_row(self.rows[index])[0], "expiry") or ""
+        if ISO_RE.fullmatch(expiry) and when >= expiry:
+            raise RowError(f"under={target} refused: the delegation expired at {expiry}")
+
     def require_repair_progress(self, finding: str) -> None:
         if finding in self.repair_findings:
             refuse_repair_cap(finding)
@@ -883,6 +894,8 @@ def resolve_row_head(args: argparse.Namespace, repo: Path, record: str) -> tuple
 
 
 def build(args: argparse.Namespace, repo: Path, state: LedgerState) -> str:
+    if getattr(args, "under", None) and args.words is None:
+        args.words = "seat"
     note = args.note.strip()
     if args.quote and args.quote_file:
         raise RowError("--quote and --quote-file are mutually exclusive")
@@ -1057,6 +1070,8 @@ def build(args: argparse.Namespace, repo: Path, state: LedgerState) -> str:
         fields.append(f"skills={' '.join(sorted(args.skill))}")
     if targets:
         fields.append(f"resolves={','.join(targets)}")
+    if getattr(args, "under", None):
+        fields.append(f"under={args.under}")
     if special_fields:
         fields.extend(special_fields)
     if state.rows:
@@ -1094,7 +1109,7 @@ def check(row: str, repo: Path, state: LedgerState | None = None) -> None:
     git(repo, "rev-parse", "--verify", f"{m.group('head')}^{{commit}}")
 
     known = (
-        "channel=", "writer=", "record=", "push=", "review=", "resolves=", "void=", "op=", "after=", "skills=",
+        "channel=", "writer=", "record=", "push=", "review=", "resolves=", "under=", "void=", "op=", "after=", "skills=",
         "who=", "scope=", "conditions=", "expiry=", "push-scope=", "grant=", "finding=", "archive=", "prev_hash=", "words=", "note=",
     )
     for field in rest:
@@ -1164,6 +1179,10 @@ def check(row: str, repo: Path, state: LedgerState | None = None) -> None:
     resolves: list[str] = []
     if index < len(rest) and rest[index].startswith("resolves="):
         resolves = parse_resolves(rest[index].split("=", 1)[1])
+        index += 1
+    under = None
+    if index < len(rest) and rest[index].startswith("under="):
+        under = rest[index].split("=", 1)[1]
         index += 1
 
     void_fields = [field for field in rest if field.startswith("void=")]
@@ -1241,6 +1260,10 @@ def check(row: str, repo: Path, state: LedgerState | None = None) -> None:
         raise RowError(f"field {rest[index]!r} is not one of {WORDS_VALUES}")
     index += 1
 
+    if under is not None:
+        if words != "seat":
+            raise RowError(f"under={under} records the seat's own decision and requires words=seat")
+        state.require_in_force(under, when)
     if row_kind == "repair-grant":
         state.require_repair_progress(current_finding)
     if row_kind == "push-grant" and words not in ("human", "selected"):
@@ -1393,6 +1416,8 @@ def main(argv: list[str] | None = None) -> int:
                              "same paths without being told them")
     parser.add_argument("--resolves", action="append", default=[],
                         help="an open gate id to resolve; repeatable and comma-separated")
+    parser.add_argument("--under", help="the in-force kind=standing-delegation id a row answered "
+                        "under it names; the row records the seat's decision, words=seat")
     parser.add_argument("--words", choices=WORDS_VALUES,
                         help="who authored quote=; required when appending")
     parser.add_argument("--note", default="")
@@ -1415,7 +1440,7 @@ def main(argv: list[str] | None = None) -> int:
                     args.op, args.after, args.who, args.scope, args.conditions, args.expiry,
                     args.push_scope, args.grant, args.finding, args.void, args.skill, args.record,
                     args.head, args.push_base, args.review_base, args.boundary, args.resolves,
-                    args.words, args.note, args.quote, args.quote_file, args.mailbox)):
+                    args.under, args.words, args.note, args.quote, args.quote_file, args.mailbox)):
                 raise RowError("--deployed-head cannot be combined with check or append arguments")
             with locked_ledger(args.ledger, exclusive=False) as handle:
                 rows = ledger_rows(handle_text(handle))
@@ -1429,7 +1454,7 @@ def main(argv: list[str] | None = None) -> int:
             ignored = (
                 args.kind, args.status, args.channel, args.writer, args.op, args.after,
                 args.who, args.scope, args.conditions, args.expiry, args.push_scope, args.grant, args.finding, args.void, args.skill,
-                args.record, args.head, args.push_base, args.review_base, args.boundary, args.resolves, args.words,
+                args.record, args.head, args.push_base, args.review_base, args.boundary, args.resolves, args.under, args.words,
                 args.note, args.quote, args.quote_file, args.mailbox,
             )
             if any(ignored):
@@ -1454,7 +1479,7 @@ def main(argv: list[str] | None = None) -> int:
             raise RowError("--mailbox requires --check")
         if not args.kind or not args.status:
             raise RowError("--kind and --status are required to append a row")
-        if args.words is None:
+        if args.words is None and not args.under:
             raise RowError("--words is required when appending a row")
 
         with locked_ledger(args.ledger, exclusive=True) as handle:

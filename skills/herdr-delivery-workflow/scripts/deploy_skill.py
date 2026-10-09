@@ -179,6 +179,8 @@ def append_deploy_row(
         command.extend(["--channel", args.channel])
     for gate_id in args.resolves:
         command.extend(["--resolves", gate_id])
+    if args.under:
+        command.extend(["--under", args.under])
     result = subprocess.run(
         command, capture_output=True, text=True, encoding="utf-8", check=False,
         stdin=subprocess.DEVNULL
@@ -218,6 +220,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--status", required=True)
     parser.add_argument("--channel")
     parser.add_argument("--resolves", action="append", default=[])
+    parser.add_argument("--under")
     parser.add_argument("--words", required=True)
     parser.add_argument("--note", required=True)
     parser.add_argument("--quote", required=True)

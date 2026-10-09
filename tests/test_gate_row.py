@@ -462,6 +462,29 @@ class GateRowTest(unittest.TestCase):
         self.assertIn("channel=supervisor-relay:dialog", row)
         self.assertEqual(self.check_last(), 0, self.err.getvalue())
 
+    def test_under_names_an_in_force_delegation_and_records_the_seats_words(self):
+        merge = ["--ledger", str(self.ledger), "--repo", str(self.repo), "--kind", "merge",
+                 "--status", "resolved:standing-delegation", "--note", "merged under delegation",
+                 "--quote", "merged PR#1 at the reviewed head"]
+        self.assertEqual(self.append_standing_delegation(), 0, self.err.getvalue())
+        self.assertEqual(self.run_main([*merge, "--under", "G1"]), 0, self.err.getvalue())
+        self.assertIn("| under=G1 | prev_hash=", self.last_row())
+        self.assertIn('words=seat | note=merged under delegation | quote="merged PR#1', self.last_row())
+        self.assertEqual(self.check_last(), 0, self.err.getvalue())
+        self.assertEqual(self.append_standing_delegation("--expiry", "2020-01-01T00:00:00Z"), 0)
+        self.assertEqual(self.append_standing_delegation("--resolves", "G1"), 0, self.err.getvalue())
+        for extra, message in (
+            (["--under", "G2"], "under=G2 is not an earlier kind=standing-delegation row"),
+            (["--under", "G3"], "under=G3 refused: the delegation expired at 2020-01-01T00:00:00Z"),
+            (["--under", "G1"], "under=G1 refused: the delegation is revoked"),
+            (["--under", "G4", "--words", "human"], "requires words=seat"),
+        ):
+            with self.subTest(extra=extra):
+                before = self.ledger.read_bytes()
+                self.assertEqual(self.run_main([*merge, *extra]), 1)
+                self.assertIn(message, self.err.getvalue())
+                self.assertEqual(self.ledger.read_bytes(), before)
+
     def test_standing_delegation_rejects_words_outside_human_and_selected(self):
         before = self.ledger.read_bytes()
         self.assertEqual(self.append_standing_delegation("--words", "seat"), 1)
