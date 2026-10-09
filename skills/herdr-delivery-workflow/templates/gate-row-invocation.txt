@@ -1,4 +1,4 @@
-scripts/gate_row.py --ledger ~/.herdr/projects/<project-slug>/gates.md --kind merge --status resolved:standing-waiver --channel supervisor-relay:typed --words human --note "merged the reviewed head" --quote "<the Human's literal words>"
+scripts/gate_row.py --ledger ~/.herdr/projects/<project-slug>/gates.md --kind merge --status resolved:standing-delegation --under <delegation id> --note "merged the reviewed head" --quote "<what the seat did>"
 
 local-ops:
 scripts/gate_row.py --ledger ~/.herdr/projects/<project-slug>/gates.md --kind local-ops --status recorded:local-ops --record timely --op "<one named command>" --after <branch>@<exact head the merge landed> --words seat --note "<why this local op ran>" --quote "<the named command>"
