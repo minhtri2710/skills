@@ -5,8 +5,8 @@ Each mode makes one bounded `herdr agent wait`, then sends the Lead at most one 
 The prompt carries no pane or report text, and the waker never reports success or retries.
 
 Owner preconditions, not enforced here:
-- peer mode: dispatch with `herdr agent prompt <seat> <text> --wait --until working` and start the waker only
-  after that returns 0. An idle Peer satisfies `agent wait` at once, so an earlier start wakes the Lead for a turn
+- peer mode: dispatch with `herdr agent prompt <seat> <text> --wait --until working --until blocked` and start
+  the waker only after that returns `working`. An idle Peer satisfies `agent wait` at once, so an earlier start wakes the Lead for a turn
   that has not begun.
 - lead mode: start it from inside the Lead's own working turn, so the wait ends when that turn ends.
 """
