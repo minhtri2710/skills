@@ -24,12 +24,12 @@ SKILL = Path(__file__).resolve().parents[1] / "skills" / "herdr-delivery-workflo
 # Human's own words, cited by ledger row id in the commit message.
 BUDGET = {
     "SKILL.md": 10_081,
-    "references/lead.md": 96_143,
+    "references/lead.md": 96_142,
     "references/relaunch.md": 3_698,
     "references/herdr-cli.md": 20_348,
     "references/project-config.md": 5_950,
     "references/structural-misfit-policy.md": 8_497,
-    "references/charters.md": 36_209,
+    "references/charters.md": 36_171,
     "references/closeout.md": 12_052,
     "references/supervisor.md": 21_975,
 }
