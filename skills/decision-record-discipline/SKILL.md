@@ -1,6 +1,6 @@
 ---
 name: decision-record-discipline
-description: "Keep a project's glossary current and record only the decisions and rejections worth remembering: terms in CONTEXT.md, decisions that pass a three-part gate as one-paragraph records, and rejected concepts as one file each so they are not re-litigated. Use when a term is resolved or contested, a decision with real alternatives is made, or a request is ruled out of scope. Do not use for implementation notes, specs, or task tracking."
+description: "Keep a project's glossary current and record only the decisions and rejections worth remembering: terms in CONTEXT.md, decisions that pass a three-part gate where the project keeps them, and rejected concepts as one file each so they are not re-litigated. Use when a term is resolved or contested, a decision with real alternatives is made, or a request is ruled out of scope. Do not use for implementation notes, specs, or task tracking."
 ---
 
 # Decision Record Discipline
@@ -32,7 +32,7 @@ resolved before code is written. Cross-check claims against the code and surface
 contradictions ("the glossary says partial cancellation exists; the code cancels
 whole orders").
 
-## Decisions: docs/adr/NNNN-slug.md
+## Decisions: where the project keeps them
 
 Record a decision only when all three hold:
 
@@ -49,11 +49,13 @@ technology with lock-in, ownership and boundary decisions, deliberate deviations
 from the obvious path, constraints invisible in the code, and rejected
 alternatives whose rejection is non-obvious.
 
-A record is one paragraph: context, decision, why. Add considered options or
-consequences only when they carry weight. Number from the highest existing file.
-When a decision changes, rewrite the record to say what is true now; there is no
-status field or supersession chain, because a reader wants the current answer,
-not the history of answers.
+A decision lives where the project says: a comment at the code that enforces it,
+a rule in `AGENTS.md`, or the project's ledger. Write a separate record only when
+no code or rule can carry it, in the place the project names: one paragraph,
+context, decision, why, with considered options or consequences only when they
+carry weight. When a decision changes, rewrite it to say what is true now; there
+is no status field or supersession chain, because a reader wants the current
+answer, not the history of answers.
 
 ## Rejections: .out-of-scope/<concept>.md
 
