@@ -54,6 +54,11 @@ class BoundedRunTest(unittest.TestCase):
                              stdin=subprocess.DEVNULL, capture_output=True, text=True)
         self.assertEqual((run.returncode, run.stderr), (3, ""))
 
+    def test_a_signal_killed_command_exits_128_plus_the_signal(self):
+        run = subprocess.run([sys.executable, str(SCRIPT), "--seconds", "10", "--", "sh", "-c", "kill -KILL $$"],
+                             stdin=subprocess.DEVNULL, capture_output=True, text=True)
+        self.assertEqual(run.returncode, 128 + signal.SIGKILL)
+
     def test_limit_kills_a_grandchild_that_ignores_sigterm(self):
         run = subprocess.run(self.wrapper("1", "trap '' TERM; sleep 300 & echo $! > \"$1\"; wait"),
                              stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=30)

@@ -75,7 +75,7 @@ def main(argv: list[str] | None = None) -> int:
         return TIMED_OUT
     if _group_alive(proc.pid):
         stop_group(proc, args.grace)
-    return code
+    return 128 - code if code < 0 else code
 
 
 if __name__ == "__main__":
