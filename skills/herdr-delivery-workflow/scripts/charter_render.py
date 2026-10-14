@@ -57,6 +57,8 @@ def scope_authors(staffing: Path, lead: str, paths: list[str]) -> tuple[str, lis
         if line is None:
             raise ValueError(f"{staffing} has no LEAD line")
         fields = _seat(f"{lead} {line.group(1)}")[1]
+        if not fields.get("kind") or not fields.get("model"):
+            raise ValueError(f"{staffing} LEAD line lacks kind= or model=")
         return "solo-Lead", [f"{lead} ({fields.get('kind')} {fields.get('model')})"]
     engineers = [_seat(line) for line in re.findall(r"^ENGINEER: (.*)$", text, re.MULTILINE)]
     authors: dict[str, None] = {}
@@ -92,7 +94,7 @@ def render(args: argparse.Namespace) -> tuple[str, str]:
         raise ValueError(f"range {base}..{head} has no commits")
     authored = [commit for commit in commits if clean_merge_parents(repo, commit) is None]
     paths = sorted({path for path in _git(repo, "log", "--no-walk", "--format=", "--name-only", "-z",
-                                          "--no-renames", *authored).split("\0") if path}
+                                          "--no-renames", "--diff-merges=remerge", *authored).split("\0") if path}
                    ) if authored else []
     mode, authors = scope_authors(args.staffing, lead, paths)
     tracked = _git(repo, "ls-tree", "-r", "-z", "--name-only", head).split("\0")[:-1]

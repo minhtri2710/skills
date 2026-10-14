@@ -152,6 +152,32 @@ class CharterRenderTest(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn("main.txt has no ENGINEER owner", err)
 
+    def test_a_conflict_resolving_merge_owner_checks_its_own_content(self):
+        git = lambda *a: subprocess.run(["git", "-C", str(self.repo), "-c", "user.name=t", "-c",
+                                         "user.email=t@example.com", *a], capture_output=True, text=True,
+                                        stdin=subprocess.DEVNULL)
+        git("checkout", "-q", "-b", "side", self.head)
+        (self.repo / "é" / "b.py").write_text("side\n", encoding="utf-8")
+        git("commit", "-q", "-am", "side")
+        git("checkout", "-q", "-B", "work", self.head)
+        (self.repo / "é" / "b.py").write_text("work\n", encoding="utf-8")
+        git("commit", "-q", "-am", "work")
+        self.assertNotEqual(git("merge", "-q", "side").returncode, 0)
+        (self.repo / "é" / "b.py").write_text("resolved\n", encoding="utf-8")
+        (self.repo / "evil.txt").write_text("evil\n", encoding="utf-8")
+        git("add", "-A")
+        git("commit", "-q", "-m", "merge side")
+        self.partitioned("é/")
+        code, _, err = self.render("--head", git("rev-parse", "HEAD").stdout.strip())
+        self.assertEqual(code, 1)
+        self.assertIn("evil.txt has no ENGINEER owner", err)
+
+    def test_a_lead_line_without_kind_and_model_is_refused(self):
+        self.write_staffing("MODE: solo-Lead\nLEAD: workspace=w7\n")
+        code, _, err = self.render()
+        self.assertEqual(code, 1)
+        self.assertIn("LEAD line lacks kind= or model=", err)
+
     def test_refuses_an_abbreviated_head(self):
         code, _, err = self.render("--head", self.head[:12])
         self.assertEqual(code, 1)
