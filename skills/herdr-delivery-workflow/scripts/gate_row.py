@@ -614,11 +614,21 @@ class LedgerState:
         (one commit per scope, `lead.md` "Quiesce and commit") ride their reviewed head
         without their own rows. Stacked deliveries tile the range with one row each; a
         gap — an unreviewed delivery riding a reviewed tip's push — leaves its commits
-        uncovered and is refused. The tip is covered only if it is itself a reviewed
-        head, so a tip-unreviewed push is refused here too.
+        uncovered and is refused. A commit already on origin/HEAD landed through its own
+        review and merge. A clean merge commit is covered when each parent is covered or
+        precedes the range, so merging the product line into a branch needs no new review;
+        a merge whose tree differs from its parents' automatic merge stays uncovered.
         """
         pushed = set(range_commits(repo, base, head))
-        covered = self.covered_by_reviews(repo, pushed)
+        covered = self.covered_by_reviews(repo, pushed) | landed_commits(repo, head, pushed)
+        grew = True
+        while grew:
+            grew = False
+            for sha in pushed - covered:
+                parents = clean_merge_parents(repo, sha)
+                if parents and all(p in covered or p not in pushed for p in parents):
+                    covered.add(sha)
+                    grew = True
         missing = [sha for sha in pushed if sha not in covered]
         if missing:
             voided = sorted(
@@ -644,6 +654,27 @@ def open_push_gate_tips(state: LedgerState, repo: Path) -> list[str]:
     heads = [split_row(row)[0][3].split("@") for row in open_push_gate_rows(state)]
     return [git(repo, "rev-parse", "--verify", f"{sha}^{{commit}}")
             for _, sha in heads]
+
+
+def landed_commits(repo: Path, head: str, commits: set[str]) -> set[str]:
+    """The commits already reachable from origin/HEAD, the remote's product line; none without it."""
+    try:
+        tip = git(repo, "rev-parse", "--verify", "refs/remotes/origin/HEAD^{commit}")
+    except RowError:
+        return set()
+    return commits - set(git(repo, "rev-list", head, "--not", tip).split())
+
+
+def clean_merge_parents(repo: Path, sha: str) -> list[str] | None:
+    """The two parents of a merge commit whose tree is exactly their automatic merge, else None."""
+    parents = git(repo, "rev-list", "--parents", "-n", "1", sha).split()[1:]
+    if len(parents) != 2:
+        return None
+    try:
+        merged = git(repo, "merge-tree", "--write-tree", *parents).split()[0]
+    except RowError:
+        return None
+    return parents if merged == git(repo, "rev-parse", f"{sha}^{{tree}}") else None
 
 
 def range_commits(repo: Path, base: str, head: str) -> list[str]:

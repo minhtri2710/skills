@@ -1115,6 +1115,54 @@ class GateRowTest(unittest.TestCase):
         ]), 1)
         self.assertIn("not covered by any review PASS range", self.err.getvalue())
 
+    def merged_branch(self, land_main: bool, edit_merge: bool) -> str:
+        """feat (reviewed) merges a later main commit; returns the push base. origin/HEAD is origin/main."""
+        git = lambda *a: subprocess.run(["git", "-C", str(self.repo), *a], check=True,
+                                        capture_output=True, text=True, stdin=subprocess.DEVNULL)
+        base = self.rev("HEAD")
+        self.add_remote("HEAD")
+        git("fetch", "-q", "origin")
+        git("remote", "set-head", "origin", "main")
+        git("switch", "-q", "-c", "feat")
+        (self.repo / "feat.txt").write_text("feat\n")
+        git("add", "-A")
+        git("commit", "-qm", "feat")
+        self.assertEqual(self.append_review_pass(base), 0)
+        git("switch", "-q", "main")
+        (self.repo / "main.txt").write_text("main\n")
+        git("add", "-A")
+        git("commit", "-qm", "main")
+        if land_main:
+            git("push", "-q", "origin", "main")
+            git("fetch", "-q", "origin")
+        git("switch", "-q", "feat")
+        if edit_merge:
+            git("merge", "-q", "--no-commit", "main")
+            (self.repo / "extra.txt").write_text("extra\n")
+            git("add", "-A")
+            git("commit", "-qm", "merge main with an edit")
+        else:
+            git("merge", "-q", "--no-edit", "main")
+        git("push", "-q", "origin", "feat")
+        return base
+
+    def test_a_clean_merge_of_landed_main_is_covered_by_its_parents(self):
+        base = self.merged_branch(land_main=True, edit_merge=False)
+        self.assertEqual(self.append("--kind", "push", "--push-base", base, "--boundary", "."), 0, self.err.getvalue())
+        self.assertEqual(self.run_main(["--ledger", str(self.ledger), "--repo", str(self.repo), "--check"]), 0)
+
+    def test_a_merge_that_adds_content_needs_its_own_review(self):
+        base = self.merged_branch(land_main=True, edit_merge=True)
+        self.assertEqual(self.append("--kind", "push", "--push-base", base, "--boundary", "."), 1)
+        self.assertIn(f"{self.rev('HEAD')} is not covered by any review PASS range", self.err.getvalue())
+
+    def test_a_merged_main_commit_not_yet_landed_stays_uncovered(self):
+        base = self.merged_branch(land_main=False, edit_merge=False)
+        self.assertEqual(self.append("--kind", "push", "--push-base", base, "--boundary", "."), 1)
+        self.assertIn("is not covered by any review PASS range", self.err.getvalue())
+        for unreviewed in (self.rev("main"), self.rev("HEAD")):
+            self.assertIn(unreviewed, self.err.getvalue())
+
     def test_a_push_row_with_no_declared_boundary_never_reaches_the_ledger(self):
         self.assertEqual(self.append_review_pass(), 0)
         self.add_remote("HEAD")

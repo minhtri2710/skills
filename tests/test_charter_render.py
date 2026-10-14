@@ -92,6 +92,36 @@ class CharterRenderTest(unittest.TestCase):
             ])
         self.assertEqual((lint, lint_err.getvalue()), (0, ""))
 
+    def merge_untrailered_main(self, land: bool) -> str:
+        """Merge a trailer-less main commit into the head; origin/HEAD is origin/main. Returns the merge."""
+        git = lambda *a: subprocess.run(["git", "-C", str(self.repo), "-c", "user.name=t", "-c",
+                                         "user.email=t@example.com", *a], check=True, capture_output=True,
+                                        text=True, stdin=subprocess.DEVNULL).stdout.strip()
+        bare = self.repo.parent / "origin.git"
+        subprocess.run(["git", "init", "-q", "--bare", "-b", "main", str(bare)], check=True, stdin=subprocess.DEVNULL)
+        git("remote", "add", "origin", str(bare))
+        git("checkout", "-q", "-b", "trunk", self.base)
+        (self.repo / "main.txt").write_text("main\n", encoding="utf-8")
+        git("add", "main.txt")
+        git("commit", "-q", "-m", "main without trailers")
+        git("push", "-q", "origin", f"{self.base if not land else 'HEAD'}:refs/heads/main")
+        git("fetch", "-q", "origin")
+        git("remote", "set-head", "origin", "main")
+        git("checkout", "-q", "-B", "work", self.head)
+        git("merge", "-q", "--no-edit", "trunk")
+        return git("rev-parse", "HEAD")
+
+    def test_a_clean_merge_of_landed_main_needs_no_trailers(self):
+        code, _, err = self.render("--head", self.merge_untrailered_main(land=True))
+        self.assertEqual((code, err), (0, ""))
+        charter = next(self.run_dir.glob("charter-review-*.md")).read_text(encoding="utf-8")
+        self.assertIn("Mode: solo-Lead.", charter)
+
+    def test_an_unlanded_untrailered_commit_is_refused(self):
+        code, _, err = self.render("--head", self.merge_untrailered_main(land=False))
+        self.assertEqual(code, 1)
+        self.assertIn("lacks a Seat: or Model: trailer", err)
+
     def test_refuses_an_abbreviated_head(self):
         code, _, err = self.render("--head", self.head[:12])
         self.assertEqual(code, 1)
