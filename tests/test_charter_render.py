@@ -178,6 +178,17 @@ class CharterRenderTest(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn("LEAD line lacks kind= or model=", err)
 
+    def test_owned_globs_cross_directories_only_with_a_double_star(self):
+        for entry, path, owned in (
+            ("src/*.py", "src/a.py", True), ("src/*.py", "src/x/a.py", False),
+            ("*.md", "x/y.md", False), ("a?.md", "a/.md", False),
+            ("src/**/*.py", "src/a.py", True), ("src/**/*.py", "src/x/y/a.py", True),
+            ("src/**", "src/x/a.py", True), ("docs/", "docs/x/y.md", True),
+            ("app/[id].tsx", "app/[id].tsx", True), ("app/[id].tsx", "app/i.tsx", False),
+        ):
+            with self.subTest(entry=entry, path=path):
+                self.assertEqual(charter_render._owns(entry, path), owned)
+
     def test_refuses_an_abbreviated_head(self):
         code, _, err = self.render("--head", self.head[:12])
         self.assertEqual(code, 1)
