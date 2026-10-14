@@ -105,6 +105,7 @@ def render(args: argparse.Namespace) -> tuple[str, str]:
         "reviewable_paths": "(each reviewable path from the preview)",
         "required_checks": "\n".join(f"{n}. {check}" for n, check in enumerate(args.check, 1)),
         "quality_floor_dir": str(QUALITY_FLOOR),
+        "bounded_run": str(SKILL / "scripts" / "bounded_run.py"),
         "peer_name": peer,
         "herdr_home": str(run_dir.parents[3]),
     }
