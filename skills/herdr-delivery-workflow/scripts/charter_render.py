@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import fnmatch
 import hashlib
 import re
 import subprocess
@@ -17,7 +18,6 @@ TEMPLATE = SKILL / "templates" / "reviewer-charter.txt"
 QUALITY_FLOOR = SKILL.parent / "quality-floor"
 SLOT_RE = re.compile(r"<([a-z][a-z0-9_]*)>")
 NULL_OID = "0" * 40
-EMPTY_TREE = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
 GUIDANCE = ("AGENTS.md", "CLAUDE.md")
 
 
@@ -37,6 +37,38 @@ def _model(argv: list[str], key: str) -> str:
     return argv[argv.index("--model") + 1]
 
 
+def _seat(line: str) -> tuple[str, dict[str, str]]:
+    name, _, rest = line.partition(" ")
+    return name, dict(re.findall(r"([a-z-]+)=(\S*)", rest))
+
+
+def _owns(entry: str, path: str) -> bool:
+    return entry == path or path.startswith(entry.rstrip("/") + "/") or fnmatch.fnmatchcase(path, entry)
+
+
+def scope_authors(staffing: Path, lead: str, paths: list[str]) -> tuple[str, list[str]]:
+    """The mode and each scope author `seat (kind model)` from the staffing record; refuses an unowned path."""
+    text = staffing.read_text(encoding="utf-8")
+    mode = re.search(r"^MODE: (\S+)", text, re.MULTILINE)
+    if mode is None or mode.group(1) not in ("solo-Lead", "partitioned"):
+        raise ValueError(f"{staffing} has no MODE: solo-Lead or MODE: partitioned line")
+    if mode.group(1) == "solo-Lead":
+        line = re.search(r"^LEAD: (.*)$", text, re.MULTILINE)
+        if line is None:
+            raise ValueError(f"{staffing} has no LEAD line")
+        fields = _seat(f"{lead} {line.group(1)}")[1]
+        return "solo-Lead", [f"{lead} ({fields.get('kind')} {fields.get('model')})"]
+    engineers = [_seat(line) for line in re.findall(r"^ENGINEER: (.*)$", text, re.MULTILINE)]
+    authors: dict[str, None] = {}
+    for path in paths:
+        owners = [(name, fields) for name, fields in engineers
+                  if any(_owns(entry, path) for entry in fields.get("owned", "").split(",") if entry)]
+        if not owners:
+            raise ValueError(f"{path} has no ENGINEER owner in {staffing}")
+        authors.update((f"{name} ({fields.get('kind')} {fields.get('model')})", None) for name, fields in owners)
+    return "partitioned", list(authors)
+
+
 def render(args: argparse.Namespace) -> tuple[str, str]:
     repo = args.repo.resolve()
     run_dir = args.run_dir.resolve()
@@ -50,25 +82,19 @@ def render(args: argparse.Namespace) -> tuple[str, str]:
     base = args.base.lower()
     if base == NULL_OID:
         commits = _git(repo, "rev-list", "--reverse", head).split()
-        diff_base = EMPTY_TREE
     else:
         if _git(repo, "rev-parse", "--verify", f"{base}^{{commit}}").strip() != base:
             raise ValueError(f"--base must be the full 40-hex SHA, got {args.base}")
         commits = _git(repo, "rev-list", "--reverse", f"{base}..{head}").split()
-        diff_base = base
     landed = landed_commits(repo, head, set(commits))
     commits = [commit for commit in commits if commit not in landed]
     if not commits:
         raise ValueError(f"range {base}..{head} has no commits")
     authored = [commit for commit in commits if clean_merge_parents(repo, commit) is None]
-    paths = _git(repo, "diff", "-z", "--name-only", diff_base, head).split("\0")[:-1]
-    authors = dict.fromkeys(
-        _git(repo, "log", "--no-walk", "--format=%(trailers:key=Seat,valueonly,separator=%x2C) "
-             "(%(trailers:key=Model,valueonly,separator=%x2C))", *authored).split("\n")[:-1]
-    ) if authored else {}
-    if any(author.startswith(" (") or author.endswith(" ()") for author in authors):
-        raise ValueError("a commit in the range lacks a Seat: or Model: trailer")
-    seats = {author.split(" (")[0] for author in authors}
+    paths = sorted({path for path in _git(repo, "log", "--no-walk", "--format=", "--name-only", "-z",
+                                          "--no-renames", *authored).split("\0") if path}
+                   ) if authored else []
+    mode, authors = scope_authors(args.staffing, lead, paths)
     tracked = _git(repo, "ls-tree", "-r", "-z", "--name-only", head).split("\0")[:-1]
     guidance = [
         str(repo / name) for name in tracked
@@ -94,9 +120,9 @@ def render(args: argparse.Namespace) -> tuple[str, str]:
         "run_dir": str(run_dir),
         "evidence_paths": ", ".join(evidence),
         "validation_ids": args.validation,
-        "mode": "solo-Lead" if seats == {lead} else "partitioned",
+        "mode": mode,
         "declared_scope": ", ".join(paths),
-        "scope_authors": "Scope authors (commit trailers): " + ", ".join(authors),
+        "scope_authors": "Scope authors (staffing record): " + ", ".join(authors),
         "lead_kind": config["lead-kind"],
         "lead_model": _model(config["lead-args"], "lead-args"),
         "reviewer_kind": config["reviewer-kind"],
@@ -127,6 +153,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--reason", required=True, help="material reason for the lane")
     parser.add_argument("--boundary", required=True, help="acceptance boundary")
     parser.add_argument("--validation", required=True, help="validation claims or gate ids")
+    parser.add_argument("--staffing", required=True, type=Path,
+                        help="the run's staffing record: MODE, LEAD and each ENGINEER with owned paths")
     parser.add_argument("--prior", default="none", help="prior FAIL report, its head and finding ids")
     parser.add_argument("--check", required=True, action="append", help="one required check; repeat")
     args = parser.parse_args(argv)
