@@ -76,6 +76,7 @@ class CharterRenderTest(unittest.TestCase):
             f"Governing contracts: {self.repo}/AGENTS.md, {self.repo}/é/AGENTS.md;",
             "pane w7:p3, workspace w7.",
             "1. git diff --check",
+            f"`python3 {SCRIPTS / 'bounded_run.py'} --seconds N -- CMD`",
         ):
             self.assertIn(expected, text)
         staffing = self.run_dir / "staffing.txt"
