@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import fnmatch
 import hashlib
 import re
 import subprocess
@@ -42,8 +41,18 @@ def _seat(line: str) -> tuple[str, dict[str, str]]:
     return name, dict(re.findall(r"([a-z-]+)=(\S*)", rest))
 
 
+GLOB_TOKEN_RE = re.compile(r"\*\*/|\*\*|\*|\?|[^*?]+")
+
+
+def _glob_re(entry: str) -> re.Pattern[str]:
+    """`*` and `?` stay inside one directory, `**/` spans zero or more, `**` anything; the rest is literal."""
+    parts = {"**/": "(?:.*/)?", "**": ".*", "*": "[^/]*", "?": "[^/]"}
+    return re.compile("".join(parts.get(token, re.escape(token)) for token in GLOB_TOKEN_RE.findall(entry)))
+
+
 def _owns(entry: str, path: str) -> bool:
-    return entry == path or path.startswith(entry.rstrip("/") + "/") or fnmatch.fnmatchcase(path, entry)
+    return (entry == path or path.startswith(entry.rstrip("/") + "/")
+            or _glob_re(entry).fullmatch(path) is not None)
 
 
 def scope_authors(staffing: Path, lead: str, paths: list[str]) -> tuple[str, list[str]]:
