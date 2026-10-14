@@ -10,6 +10,7 @@ import sys
 from pathlib import Path
 
 import project_config
+from gate_row import RowError, clean_merge_parents, landed_commits
 
 SKILL = Path(__file__).resolve().parents[1]
 TEMPLATE = SKILL / "templates" / "reviewer-charter.txt"
@@ -55,13 +56,16 @@ def render(args: argparse.Namespace) -> tuple[str, str]:
             raise ValueError(f"--base must be the full 40-hex SHA, got {args.base}")
         commits = _git(repo, "rev-list", "--reverse", f"{base}..{head}").split()
         diff_base = base
+    landed = landed_commits(repo, head, set(commits))
+    commits = [commit for commit in commits if commit not in landed]
     if not commits:
         raise ValueError(f"range {base}..{head} has no commits")
+    authored = [commit for commit in commits if clean_merge_parents(repo, commit) is None]
     paths = _git(repo, "diff", "-z", "--name-only", diff_base, head).split("\0")[:-1]
     authors = dict.fromkeys(
         _git(repo, "log", "--no-walk", "--format=%(trailers:key=Seat,valueonly,separator=%x2C) "
-             "(%(trailers:key=Model,valueonly,separator=%x2C))", *commits).split("\n")[:-1]
-    )
+             "(%(trailers:key=Model,valueonly,separator=%x2C))", *authored).split("\n")[:-1]
+    ) if authored else {}
     if any(author.startswith(" (") or author.endswith(" ()") for author in authors):
         raise ValueError("a commit in the range lacks a Seat: or Model: trailer")
     seats = {author.split(" (")[0] for author in authors}
@@ -130,7 +134,7 @@ def main(argv: list[str] | None = None) -> int:
         peer, charter = render(args)
         path = args.run_dir.resolve() / f"charter-{peer}.md"
         path.write_text(charter, encoding="utf-8")
-    except (OSError, KeyError, ValueError) as exc:
+    except (OSError, KeyError, ValueError, RowError) as exc:
         print(f"charter_render: {exc}", file=sys.stderr)
         return 1
     print(f"{path} sha256={hashlib.sha256(charter.encode('utf-8')).hexdigest()}")
