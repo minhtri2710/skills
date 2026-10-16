@@ -62,7 +62,8 @@ class ProjectConfigTests(unittest.TestCase):
             ({**_FULL, "engineer-arg": []}, "engineer-arg: unknown key"),
             ({**_FULL, "launch-profiles": {"pi": {"unknown-key": []}}}, "launch-profiles.pi.unknown-key: unknown key"),
             ({**_FULL, "launch-profiles": {"pi": {"seat-argv": ["{unknown}"]}}}, "unknown placeholder"),
-            ({**_FULL, "launch-profiles": {"pi": {"runtime-state-paths": ["/tmp/{unknown}"]}}}, "unknown placeholder"),
+            ({**_FULL, "launch-profiles": {"pi": {"runtime-state-paths": ["/h/{installed_skill_dir}/s"]}}},
+             "'/h/{installed_skill_dir}/s' may hold only letters, digits, space and / . _ -"),
             ({**_FULL, "launch-profiles": {"pi": {"runtime-state-paths": ["/tmp/state", "relative"]}}},
              "launch-profiles.pi.runtime-state-paths: must be a non-empty array of absolute paths"),
             ({**_FULL, "launch-profiles": {"pi": {"runtime-state-paths": []}}}, "must be a non-empty array of absolute paths"),
@@ -134,7 +135,7 @@ class ProjectConfigTests(unittest.TestCase):
                 "seat-argv": ["--name", "{seat}", "--exclude-tools", "ask_question"],
                 "peer-argv": ["--settings", "{settings_file}"],
                 "peer-settings-json": {"seat": "{seat}", "run": "{run_dir}"},
-                "runtime-state-paths": ["/tmp/state", "/tmp/{seat}.json"],
+                "runtime-state-paths": ["/tmp/state", "/tmp/kind.json"],
             }},
         }
         result = project_config.expand_launch(
@@ -146,7 +147,7 @@ class ProjectConfigTests(unittest.TestCase):
             "argv": ["--model", "reviewer", "--name", "rev", "--exclude-tools", "ask_question", "--settings", "/run/settings.json"],
             "settings_file": "/run/settings.json",
             "settings_json": {"seat": "rev", "run": "/run"},
-            "runtime_state_paths": ["/tmp/state", "/tmp/rev.json"],
+            "runtime_state_paths": ["/tmp/state", "/tmp/kind.json"],
         })
         with self.assertRaisesRegex(ValueError, "must come from config"):
             project_config.expand_launch(
@@ -165,7 +166,7 @@ class ProjectConfigTests(unittest.TestCase):
             seat="arch", lead="lead", run_dir="/run", installed_skill_dir="/skill",
             settings_file="/run/settings.json",
         )
-        self.assertEqual(architect["runtime_state_paths"], ["/tmp/state", "/tmp/arch.json"])
+        self.assertEqual(architect["runtime_state_paths"], ["/tmp/state", "/tmp/kind.json"])
         lead = project_config.expand_launch(
             config, role="lead", kind="pi", role_args=["--model", "lead"], seat="lead", lead="lead",
             run_dir="/run", installed_skill_dir="/skill", settings_file="/run/settings.json",

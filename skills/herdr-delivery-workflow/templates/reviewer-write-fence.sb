@@ -4,7 +4,8 @@
 ; Write the <kind_state_path> line once per entry of the kind's launch-profiles runtime-state-paths
 ; (project_config.py --expand prints them as runtime_state_paths); it admits the path, everything
 ; under it, and its Write-tool temp sibling, so one form serves a directory and a file. An entry
-; holds only letters, digits, space and / . _ - (project_config refuses any other character).
+; is literal and holds only letters, digits, space and / . _ - (project_config refuses any other
+; character, placeholders included).
 ; In every regex line write each "." of a slot value as "\.". The last two admit the report and send
 ; file and each file's Write-tool temp sibling (name plus .tmp.PID.HEX), nothing else.
 (version 1)

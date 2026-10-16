@@ -20,7 +20,8 @@ _TRIGGERS = ("none", "pr", "push")
 _LANES = ("tiny", "normal", "high-risk")
 _PLACEHOLDERS = frozenset({"seat", "lead", "run_dir", "installed_skill_dir", "settings_file"})
 _PLACEHOLDER_RE = re.compile(r"\{([^{}]*)\}")
-# The write fence writes each runtime-state-paths entry into a regex, escaping only ".".
+# The write fence writes each runtime-state-paths entry literally into a regex, escaping only ".",
+# so an entry takes no placeholder and no other regex metacharacter.
 _STATE_PATH_RE = re.compile(r"[A-Za-z0-9/._ -]*")
 
 
@@ -100,9 +101,8 @@ def _validate(config: dict[str, Any]) -> None:
                     if not value or not _strings(value, nonempty=True) or not all(
                             Path(item).is_absolute() for item in value):
                         raise ValueError(f"{field}: must be a non-empty array of absolute paths")
-                    _validate_placeholders(value, field)
                     for item in value:
-                        if not _STATE_PATH_RE.fullmatch(_PLACEHOLDER_RE.sub("", item)):
+                        if not _STATE_PATH_RE.fullmatch(item):
                             raise ValueError(
                                 f"{field}: {item!r} may hold only letters, digits, space and / . _ -, "
                                 "because the write fence matches it as a regex")
@@ -217,8 +217,6 @@ def expand_launch(
     profile_values = [profile.get("seat-argv", [])]
     if peer:
         profile_values.extend((profile.get("peer-argv", []), profile.get("peer-settings-json", {})))
-    if role in {"reviewer", "architect"}:
-        profile_values.append(profile.get("runtime-state-paths", []))
     used = set().union(*(_all_placeholders(value) for value in profile_values))
     missing = sorted(name for name in used if not values[name])
     if missing:
@@ -233,7 +231,7 @@ def expand_launch(
         "settings_file": settings_file if settings is not None else None,
         "settings_json": _substitute(settings, values) if settings is not None else None,
         "runtime_state_paths": (
-            _substitute(profile["runtime-state-paths"], values)
+            profile["runtime-state-paths"]
             if role in {"reviewer", "architect"} and "runtime-state-paths" in profile
             else None
         ),
