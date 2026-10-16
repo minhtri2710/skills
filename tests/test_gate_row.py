@@ -10,6 +10,7 @@ import re
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from datetime import datetime, timezone
 from types import SimpleNamespace
@@ -329,7 +330,8 @@ class GateRowTest(unittest.TestCase):
         )
         with mock.patch.object(gate_row, "datetime") as clock:
             clock.now.return_value = datetime(2000, 1, 1, tzinfo=timezone.utc)
-            backdated = gate_row.build(args, self.repo, gate_row.LedgerState.of(existing_rows))
+            backdated = gate_row.build(args, self.repo, gate_row.LedgerState.of(existing_rows),
+                                       gate_row.resolve_row_head(args, self.repo, "timely"))
         self.ledger.write_text(
             self.ledger.read_text(encoding="utf-8") + backdated + "\n", encoding="utf-8"
         )
@@ -1223,6 +1225,35 @@ class GateRowTest(unittest.TestCase):
         self.assertIn(f"git push origin {self.rev('HEAD')}:refs/heads/feat ran, but origin/feat is absent",
                       self.err.getvalue())
         self.assertEqual(len(gate_row.ledger_rows(self.ledger.read_text())), 1)
+
+    def test_a_hung_push_is_killed_at_its_limit_and_records_nothing(self):
+        base = self.feature_with_origin()
+        hook_pid = self.tmp / "hook.pid"
+        hook = self.repo / ".git" / "hooks" / "pre-push"
+        hook.write_text(f"#!/bin/sh\nsleep 300 &\necho $! > {hook_pid}\nwait\n")
+        hook.chmod(0o755)
+        self.assertEqual(self.append_review_pass(base), 0)
+        began = time.monotonic()
+        with mock.patch.object(gate_row, "PUSH_TIMEOUT_S", 1):
+            self.assertEqual(self.push(base), 1)
+        self.assertLess(time.monotonic() - began, 30)
+        self.assertIn(f"git push origin {self.rev('HEAD')}:refs/heads/feat passed its 1s limit; its process "
+                      "group was killed and no row was written", self.err.getvalue())
+        self.assertNotIn("ran, but", self.err.getvalue())
+        sleeper, deadline = int(hook_pid.read_text()), time.monotonic() + 5
+        while time.monotonic() < deadline:
+            try:
+                os.kill(sleeper, 0)
+            except ProcessLookupError:
+                break
+            time.sleep(0.05)
+        else:
+            os.kill(sleeper, 9)
+            self.fail(f"the hook's sleep {sleeper} outlived the killed push")
+        self.assertNotIn("refs/heads/feat", self.remote_refs())
+        self.assertEqual(len(gate_row.ledger_rows(self.ledger.read_text())), 1)
+        hook.unlink()
+        self.assertEqual(self.push(base), 0, self.err.getvalue())
 
     def test_push_is_refused_off_a_push_row_and_with_check(self):
         self.assertEqual(self.append("--push"), 1)
