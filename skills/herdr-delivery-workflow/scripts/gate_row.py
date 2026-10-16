@@ -754,8 +754,8 @@ def resolve_row_head(args: argparse.Namespace, repo: Path, record: str) -> tuple
     return branch, head
 
 
-def push_head(args: argparse.Namespace, repo: Path) -> None:
-    """Push exactly <head> to origin/<branch>, never forced and never to the product line."""
+def push_head(args: argparse.Namespace, repo: Path) -> str:
+    """Push exactly <head> to origin/<branch>, never forced and never to the product line; return the refspec."""
     branch, head = resolve_row_head(args, repo, args.record or "timely")
     try:
         product = git(repo, "symbolic-ref", "--short", "refs/remotes/origin/HEAD")
@@ -769,8 +769,9 @@ def push_head(args: argparse.Namespace, repo: Path) -> None:
             f"--push refused: {branch} is not a feature branch; the product line "
             f"{product} moves only by merge"
         )
-    git(repo, "push", "--no-follow-tags", "--recurse-submodules=no", "origin",
-        f"{head}:refs/heads/{branch}")
+    refspec = f"{head}:refs/heads/{branch}"
+    git(repo, "push", "--no-follow-tags", "--recurse-submodules=no", "origin", refspec)
+    return refspec
 
 
 def build(args: argparse.Namespace, repo: Path, state: LedgerState, landed: bool = True) -> str:
@@ -1279,6 +1280,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--quote-file", default="",
                         help="read the verbatim quote from a UTF-8 file")
     args = parser.parse_args(argv)
+    pushed = ""
 
     try:
         if not args.ledger.is_absolute():
@@ -1344,9 +1346,8 @@ def main(argv: list[str] | None = None) -> int:
             if args.push:
                 if args.kind != "push":
                     raise RowError(f"--push is only meaningful on kind=push, not kind={args.kind}")
-                # The whole row is checked before anything leaves the machine.
                 check(build(args, args.repo, state, landed=False), args.repo, state)
-                push_head(args, args.repo)
+                pushed = push_head(args, args.repo)
             row = build(args, args.repo, state)
             check(row, args.repo, state)
             if before and not before.endswith("\n"):
@@ -1361,7 +1362,8 @@ def main(argv: list[str] | None = None) -> int:
         print(row)
         return 0
     except RowError as exc:
-        print(f"gate_row: {exc}", file=sys.stderr)
+        landed = f"git push origin {pushed} ran, but " if pushed else ""
+        print(f"gate_row: {landed}{exc}", file=sys.stderr)
         return 1
 
 

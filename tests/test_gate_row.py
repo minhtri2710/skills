@@ -1213,6 +1213,17 @@ class GateRowTest(unittest.TestCase):
         self.assertEqual(self.remote_refs()["refs/heads/feat"], side)
         self.assertEqual(len(gate_row.ledger_rows(self.ledger.read_text())), 1)
 
+    def test_a_push_that_lands_before_its_row_is_refused_says_so(self):
+        base = self.feature_with_origin()
+        hook = self.tmp / "origin.git" / "hooks" / "post-receive"
+        hook.write_text("#!/bin/sh\ngit update-ref -d refs/heads/feat\n")
+        hook.chmod(0o755)
+        self.assertEqual(self.append_review_pass(base), 0)
+        self.assertEqual(self.push(base), 1)
+        self.assertIn(f"git push origin {self.rev('HEAD')}:refs/heads/feat ran, but origin/feat is absent",
+                      self.err.getvalue())
+        self.assertEqual(len(gate_row.ledger_rows(self.ledger.read_text())), 1)
+
     def test_push_is_refused_off_a_push_row_and_with_check(self):
         self.assertEqual(self.append("--push"), 1)
         self.assertIn("--push is only meaningful on kind=push, not kind=merge", self.err.getvalue())
