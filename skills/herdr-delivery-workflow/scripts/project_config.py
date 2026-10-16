@@ -20,6 +20,8 @@ _TRIGGERS = ("none", "pr", "push")
 _LANES = ("tiny", "normal", "high-risk")
 _PLACEHOLDERS = frozenset({"seat", "lead", "run_dir", "installed_skill_dir", "settings_file"})
 _PLACEHOLDER_RE = re.compile(r"\{([^{}]*)\}")
+# The write fence writes each runtime-state-paths entry into a regex, escaping only ".".
+_STATE_PATH_RE = re.compile(r"[A-Za-z0-9/._ -]*")
 
 
 def _object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
@@ -99,6 +101,11 @@ def _validate(config: dict[str, Any]) -> None:
                             Path(item).is_absolute() for item in value):
                         raise ValueError(f"{field}: must be a non-empty array of absolute paths")
                     _validate_placeholders(value, field)
+                    for item in value:
+                        if not _STATE_PATH_RE.fullmatch(_PLACEHOLDER_RE.sub("", item)):
+                            raise ValueError(
+                                f"{field}: {item!r} may hold only letters, digits, space and / . _ -, "
+                                "because the write fence matches it as a regex")
     if "ci" in config:
         ci = config["ci"]
         if not isinstance(ci, dict) or set(ci) != {"trigger", "workflows"}:

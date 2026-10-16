@@ -67,6 +67,9 @@ class ProjectConfigTests(unittest.TestCase):
              "launch-profiles.pi.runtime-state-paths: must be a non-empty array of absolute paths"),
             ({**_FULL, "launch-profiles": {"pi": {"runtime-state-paths": []}}}, "must be a non-empty array of absolute paths"),
             ({**_FULL, "launch-profiles": {"pi": {"runtime-state-paths": "/tmp/state"}}}, "must be a non-empty array of absolute paths"),
+            *(({**_FULL, "launch-profiles": {"pi": {"runtime-state-paths": [f"/h/a{c}b"]}}},
+               f"{f'/h/a{c}b'!r} may hold only letters, digits, space and / . _ -")
+              for c in "+*?[]()|^$\\"),
             ({**_FULL, "engineer-args": "--model m1"}, "engineer-args: must be an array of strings"),
             ({**_FULL, "engineer-kind": ""}, "engineer-kind: must be a non-empty string"),
             ({**_FULL, "lane-defaults": {"src/": "tiny", "docs/": "urgent"}}, "lane-defaults.docs/: must map to one of"),
