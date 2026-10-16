@@ -1146,6 +1146,79 @@ class GateRowTest(unittest.TestCase):
         git("push", "-q", "origin", "feat")
         return base
 
+    def feature_with_origin(self) -> str:
+        """origin/main (origin/HEAD) is c0; feat is c2, two commits ahead. Returns the push base."""
+        self.add_remote("HEAD~2")
+        self.git("fetch", "-q", "origin")
+        self.git("remote", "set-head", "origin", "main")
+        self.git("switch", "-q", "-c", "feat")
+        return self.rev("HEAD~2")
+
+    def remote_refs(self) -> dict[str, str]:
+        return {ref: sha for sha, ref in (line.split("\t") for line in self.git("ls-remote", "origin").splitlines())}
+
+    def push(self, base: str, *extra: str) -> int:
+        return self.append("--kind", "push", "--push", "--push-base", base, "--boundary", ".", *extra)
+
+    def test_push_checks_the_row_then_pushes_only_the_named_branch_at_its_head(self):
+        base = self.feature_with_origin()
+        self.assertEqual(self.append_review_pass(base), 0)
+        self.assertEqual(self.push(base), 0, self.err.getvalue())
+        self.assertEqual(self.remote_refs(), {"HEAD": base, "refs/heads/main": base,
+                                              "refs/heads/feat": self.rev("HEAD")})
+        self.assertIn(f"kind=push | feat@{self.rev('HEAD')}", self.last_row())
+        self.assertEqual(self.run_main(["--ledger", str(self.ledger), "--repo", str(self.repo), "--check"]), 0)
+
+    def test_push_refuses_an_uncovered_head_before_pushing(self):
+        base = self.feature_with_origin()
+        self.assertEqual(self.push(base), 1)
+        self.assertIn("is not covered by any review PASS range", self.err.getvalue())
+        self.assertNotIn("refs/heads/feat", self.remote_refs())
+        self.assertEqual(gate_row.ledger_rows(self.ledger.read_text()), [])
+
+    def test_push_refuses_a_malformed_head_before_pushing(self):
+        base = self.feature_with_origin()
+        self.assertEqual(self.append_review_pass(base), 0)
+        self.assertEqual(self.push(base, "--head", f"feat@{self.rev('HEAD')[:7]}"), 1)
+        self.assertIn("is not <branch>@<full 40-hex commit SHA>", self.err.getvalue())
+        self.assertNotIn("refs/heads/feat", self.remote_refs())
+        self.assertEqual(len(gate_row.ledger_rows(self.ledger.read_text())), 1)
+
+    def test_push_never_moves_the_product_line(self):
+        base = self.feature_with_origin()
+        self.git("switch", "-q", "main")
+        self.assertEqual(self.append_review_pass(base), 0)
+        self.assertEqual(self.push(base), 1)
+        self.assertIn("main is not a feature branch; the product line origin/main moves only by merge",
+                      self.err.getvalue())
+        self.git("remote", "set-head", "origin", "--delete")
+        self.git("switch", "-q", "feat")
+        self.assertEqual(self.push(base), 1)
+        self.assertIn("origin/HEAD is unset", self.err.getvalue())
+        self.assertEqual(self.remote_refs()["refs/heads/main"], base)
+        self.assertNotIn("refs/heads/feat", self.remote_refs())
+
+    def test_push_never_forces_over_a_diverged_remote_branch(self):
+        base = self.feature_with_origin()
+        self.git("switch", "-q", "-c", "side", base)
+        (self.repo / "side.txt").write_text("side\n")
+        self.git("add", "-A")
+        self.git("commit", "-qm", "side")
+        self.git("push", "-q", "origin", "side:feat")
+        side = self.rev("HEAD")
+        self.git("switch", "-q", "feat")
+        self.assertEqual(self.append_review_pass(base), 0)
+        self.assertEqual(self.push(base), 1)
+        self.assertIn("git push", self.err.getvalue())
+        self.assertEqual(self.remote_refs()["refs/heads/feat"], side)
+        self.assertEqual(len(gate_row.ledger_rows(self.ledger.read_text())), 1)
+
+    def test_push_is_refused_off_a_push_row_and_with_check(self):
+        self.assertEqual(self.append("--push"), 1)
+        self.assertIn("--push is only meaningful on kind=push, not kind=merge", self.err.getvalue())
+        self.assertEqual(self.run_main(["--ledger", str(self.ledger), "--repo", str(self.repo), "--check", "--push"]), 1)
+        self.assertIn("--push cannot be combined with --check", self.err.getvalue())
+
     def test_a_clean_merge_of_landed_main_is_covered_by_its_parents(self):
         base = self.merged_branch(land_main=True, edit_merge=False)
         self.assertEqual(self.append("--kind", "push", "--push-base", base, "--boundary", "."), 0, self.err.getvalue())

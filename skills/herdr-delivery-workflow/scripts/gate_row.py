@@ -754,7 +754,26 @@ def resolve_row_head(args: argparse.Namespace, repo: Path, record: str) -> tuple
     return branch, head
 
 
-def build(args: argparse.Namespace, repo: Path, state: LedgerState) -> str:
+def push_head(args: argparse.Namespace, repo: Path) -> None:
+    """Push exactly <head> to origin/<branch>, never forced and never to the product line."""
+    branch, head = resolve_row_head(args, repo, args.record or "timely")
+    try:
+        product = git(repo, "symbolic-ref", "--short", "refs/remotes/origin/HEAD")
+    except RowError:
+        raise RowError(
+            "--push refused: origin/HEAD is unset, so the product line is unknown; "
+            "run git remote set-head origin --auto"
+        ) from None
+    if branch in {"HEAD", product.split("/", 1)[1]}:
+        raise RowError(
+            f"--push refused: {branch} is not a feature branch; the product line "
+            f"{product} moves only by merge"
+        )
+    git(repo, "push", "--no-follow-tags", "--recurse-submodules=no", "origin",
+        f"{head}:refs/heads/{branch}")
+
+
+def build(args: argparse.Namespace, repo: Path, state: LedgerState, landed: bool = True) -> str:
     if getattr(args, "under", None) and args.words is None:
         args.words = "seat"
     note = args.note.strip()
@@ -859,26 +878,27 @@ def build(args: argparse.Namespace, repo: Path, state: LedgerState) -> str:
                 "derived from it, and a push row carrying none of them asserts that a "
                 "push happened while holding no evidence that it did"
             )
-        remote = git(repo, "ls-remote", "origin", f"refs/heads/{branch}").split()
-        if not remote:
-            raise RowError(
-                f"origin/{branch} is absent — the push this row claims has not landed"
-            )
-        remote_tip = remote[0]
-        try:
-            git(repo, "rev-parse", "--verify", f"{remote_tip}^{{commit}}")
-        except RowError:
-            raise RowError(
-                f"origin/{branch} points to {remote_tip}, which is not present locally — "
-                "the Lead must git fetch it; gate_row never fetches"
-            ) from None
-        try:
-            git(repo, "merge-base", "--is-ancestor", head, remote_tip)
-        except RowError:
-            raise RowError(
-                f"origin/{branch} is {remote_tip}, but {head} is not an ancestor of "
-                "the remote tip — the push this row claims has not landed"
-            ) from None
+        if landed:
+            remote = git(repo, "ls-remote", "origin", f"refs/heads/{branch}").split()
+            if not remote:
+                raise RowError(
+                    f"origin/{branch} is absent — the push this row claims has not landed"
+                )
+            remote_tip = remote[0]
+            try:
+                git(repo, "rev-parse", "--verify", f"{remote_tip}^{{commit}}")
+            except RowError:
+                raise RowError(
+                    f"origin/{branch} points to {remote_tip}, which is not present locally — "
+                    "the Lead must git fetch it; gate_row never fetches"
+                ) from None
+            try:
+                git(repo, "merge-base", "--is-ancestor", head, remote_tip)
+            except RowError:
+                raise RowError(
+                    f"origin/{branch} is {remote_tip}, but {head} is not an ancestor of "
+                    "the remote tip — the push this row claims has not landed"
+                ) from None
         if not args.boundary:
             raise RowError(
                 "a push row needs --boundary: the declared paths the push was judged "
@@ -1241,6 +1261,9 @@ def main(argv: list[str] | None = None) -> int:
                         "under batching, not the intake merge-base; the head is derived")
     parser.add_argument("--review-base", help="the base of the reviewed range on a kind=review "
                         "row; the head is HEAD and the range is what a stacked push is checked against")
+    parser.add_argument("--push", action="store_true",
+                        help="on kind=push: check the row, then run the non-force git push of "
+                        "<head> to origin/<branch> (never the product line), then append the row")
     parser.add_argument("--boundary", action="append", default=[],
                         help="a declared boundary path; repeatable, required to append a push "
                              "row, and written into the row so --check derives against the "
@@ -1270,7 +1293,7 @@ def main(argv: list[str] | None = None) -> int:
             if any((args.check, args.open_gates, args.kind, args.status, args.channel, args.writer,
                     args.op, args.after, args.who, args.scope, args.conditions, args.expiry,
                     args.finding, args.void, args.skill, args.record,
-                    args.head, args.push_base, args.review_base, args.boundary, args.resolves,
+                    args.head, args.push_base, args.review_base, args.boundary, args.resolves, args.push,
                     args.under, args.words, args.note, args.quote, args.quote_file, args.mailbox)):
                 raise RowError("--deployed-head cannot be combined with check or append arguments")
             with locked_ledger(args.ledger, exclusive=False) as handle:
@@ -1285,7 +1308,7 @@ def main(argv: list[str] | None = None) -> int:
             ignored = (
                 args.kind, args.status, args.channel, args.writer, args.op, args.after,
                 args.who, args.scope, args.conditions, args.expiry, args.finding, args.void, args.skill,
-                args.record, args.head, args.push_base, args.review_base, args.boundary, args.resolves, args.under, args.words,
+                args.record, args.head, args.push_base, args.review_base, args.boundary, args.resolves, args.push, args.under, args.words,
                 args.note, args.quote, args.quote_file, args.mailbox,
             )
             if any(ignored):
@@ -1297,6 +1320,8 @@ def main(argv: list[str] | None = None) -> int:
             return 0
 
         if args.check:
+            if args.push:
+                raise RowError("--push cannot be combined with --check")
             with locked_ledger(args.ledger, exclusive=False) as handle:
                 rows = ledger_rows(handle_text(handle))
                 if not rows:
@@ -1316,6 +1341,12 @@ def main(argv: list[str] | None = None) -> int:
         with locked_ledger(args.ledger, exclusive=True) as handle:
             before = handle_text(handle)
             state = validate_ledger(ledger_rows(before), args.repo)
+            if args.push:
+                if args.kind != "push":
+                    raise RowError(f"--push is only meaningful on kind=push, not kind={args.kind}")
+                # The whole row is checked before anything leaves the machine.
+                check(build(args, args.repo, state, landed=False), args.repo, state)
+                push_head(args, args.repo)
             row = build(args, args.repo, state)
             check(row, args.repo, state)
             if before and not before.endswith("\n"):
