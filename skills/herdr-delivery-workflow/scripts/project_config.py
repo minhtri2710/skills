@@ -14,7 +14,7 @@ from typing import Any
 _STRINGS = ("lead-kind", "engineer-kind", "reviewer-kind", "engineer-fallback", "reviewer-fallback", "target-line")
 _ARGV = ("lead-args", "engineer-args", "reviewer-args", "engineer-fallback-args", "reviewer-fallback-args")
 _LISTS = ("checks-light", "checks-heavy", "local-ops", "always-gate")
-_PROFILE_KEYS = frozenset({"seat-argv", "peer-argv", "peer-settings-json", "runtime-state-dir"})
+_PROFILE_KEYS = frozenset({"seat-argv", "peer-argv", "peer-settings-json", "runtime-state-paths"})
 _KEYS = frozenset((*_STRINGS, *_ARGV, *_LISTS, "launch-profiles", "ci", "lane-defaults", "worker-cap", "provenance"))
 _TRIGGERS = ("none", "pr", "push")
 _LANES = ("tiny", "normal", "high-risk")
@@ -94,9 +94,10 @@ def _validate(config: dict[str, Any]) -> None:
                     if not isinstance(value, dict):
                         raise ValueError(f"{field}: must be a JSON object")
                     _validate_placeholders(value, field)
-                elif key == "runtime-state-dir":
-                    if not isinstance(value, str) or not Path(value).is_absolute():
-                        raise ValueError(f"{field}: must be an absolute path")
+                elif key == "runtime-state-paths":
+                    if not value or not _strings(value, nonempty=True) or not all(
+                            Path(item).is_absolute() for item in value):
+                        raise ValueError(f"{field}: must be a non-empty array of absolute paths")
                     _validate_placeholders(value, field)
     if "ci" in config:
         ci = config["ci"]
@@ -210,7 +211,7 @@ def expand_launch(
     if peer:
         profile_values.extend((profile.get("peer-argv", []), profile.get("peer-settings-json", {})))
     if role in {"reviewer", "architect"}:
-        profile_values.append(profile.get("runtime-state-dir", ""))
+        profile_values.append(profile.get("runtime-state-paths", []))
     used = set().union(*(_all_placeholders(value) for value in profile_values))
     missing = sorted(name for name in used if not values[name])
     if missing:
@@ -224,9 +225,9 @@ def expand_launch(
         "argv": argv,
         "settings_file": settings_file if settings is not None else None,
         "settings_json": _substitute(settings, values) if settings is not None else None,
-        "runtime_state_dir": (
-            _substitute(profile["runtime-state-dir"], values)
-            if role in {"reviewer", "architect"} and "runtime-state-dir" in profile
+        "runtime_state_paths": (
+            _substitute(profile["runtime-state-paths"], values)
+            if role in {"reviewer", "architect"} and "runtime-state-paths" in profile
             else None
         ),
     }

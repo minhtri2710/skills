@@ -62,8 +62,11 @@ class ProjectConfigTests(unittest.TestCase):
             ({**_FULL, "engineer-arg": []}, "engineer-arg: unknown key"),
             ({**_FULL, "launch-profiles": {"pi": {"unknown-key": []}}}, "launch-profiles.pi.unknown-key: unknown key"),
             ({**_FULL, "launch-profiles": {"pi": {"seat-argv": ["{unknown}"]}}}, "unknown placeholder"),
-            ({**_FULL, "launch-profiles": {"pi": {"runtime-state-dir": "/tmp/{unknown}"}}}, "unknown placeholder"),
-            ({**_FULL, "launch-profiles": {"pi": {"runtime-state-dir": "relative"}}}, "must be an absolute path"),
+            ({**_FULL, "launch-profiles": {"pi": {"runtime-state-paths": ["/tmp/{unknown}"]}}}, "unknown placeholder"),
+            ({**_FULL, "launch-profiles": {"pi": {"runtime-state-paths": ["/tmp/state", "relative"]}}},
+             "launch-profiles.pi.runtime-state-paths: must be a non-empty array of absolute paths"),
+            ({**_FULL, "launch-profiles": {"pi": {"runtime-state-paths": []}}}, "must be a non-empty array of absolute paths"),
+            ({**_FULL, "launch-profiles": {"pi": {"runtime-state-paths": "/tmp/state"}}}, "must be a non-empty array of absolute paths"),
             ({**_FULL, "engineer-args": "--model m1"}, "engineer-args: must be an array of strings"),
             ({**_FULL, "engineer-kind": ""}, "engineer-kind: must be a non-empty string"),
             ({**_FULL, "lane-defaults": {"src/": "tiny", "docs/": "urgent"}}, "lane-defaults.docs/: must map to one of"),
@@ -128,7 +131,7 @@ class ProjectConfigTests(unittest.TestCase):
                 "seat-argv": ["--name", "{seat}", "--exclude-tools", "ask_question"],
                 "peer-argv": ["--settings", "{settings_file}"],
                 "peer-settings-json": {"seat": "{seat}", "run": "{run_dir}"},
-                "runtime-state-dir": "/tmp/state",
+                "runtime-state-paths": ["/tmp/state", "/tmp/{seat}.json"],
             }},
         }
         result = project_config.expand_launch(
@@ -140,7 +143,7 @@ class ProjectConfigTests(unittest.TestCase):
             "argv": ["--model", "reviewer", "--name", "rev", "--exclude-tools", "ask_question", "--settings", "/run/settings.json"],
             "settings_file": "/run/settings.json",
             "settings_json": {"seat": "rev", "run": "/run"},
-            "runtime_state_dir": "/tmp/state",
+            "runtime_state_paths": ["/tmp/state", "/tmp/rev.json"],
         })
         with self.assertRaisesRegex(ValueError, "must come from config"):
             project_config.expand_launch(
@@ -153,18 +156,18 @@ class ProjectConfigTests(unittest.TestCase):
             seat="eng", lead="lead", run_dir="/run", installed_skill_dir="/skill",
             settings_file="/run/settings.json",
         )
-        self.assertIsNone(engineer["runtime_state_dir"])
+        self.assertIsNone(engineer["runtime_state_paths"])
         architect = project_config.expand_launch(
             config, role="architect", kind="pi", role_args=["--model", "reviewer"],
             seat="arch", lead="lead", run_dir="/run", installed_skill_dir="/skill",
             settings_file="/run/settings.json",
         )
-        self.assertEqual(architect["runtime_state_dir"], "/tmp/state")
+        self.assertEqual(architect["runtime_state_paths"], ["/tmp/state", "/tmp/arch.json"])
         lead = project_config.expand_launch(
             config, role="lead", kind="pi", role_args=["--model", "lead"], seat="lead", lead="lead",
             run_dir="/run", installed_skill_dir="/skill", settings_file="/run/settings.json",
         )
-        self.assertIsNone(lead["runtime_state_dir"])
+        self.assertIsNone(lead["runtime_state_paths"])
 
     def test_expand_refuses_missing_primary_role_args(self):
         for role in ("engineer", "reviewer"):
@@ -230,7 +233,7 @@ class ProjectConfigTests(unittest.TestCase):
         self.assertEqual((result.returncode, result.stderr), (0, ""))
         self.assertEqual(json.loads(result.stdout), {
             "argv": ["--approve", "--name", "lead-demo", "--exclude-tools", "ask_question"],
-            "settings_file": None, "settings_json": None, "runtime_state_dir": None,
+            "settings_file": None, "settings_json": None, "runtime_state_paths": None,
         })
 
     def test_peer_settings_are_seat_scoped_and_never_overwrite_different_data(self):
