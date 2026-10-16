@@ -14,7 +14,7 @@
       "seat-argv": [],
       "peer-argv": [],
       "peer-settings-json": {},
-      "runtime-state-dir": "/absolute/runtime/state/path"
+      "runtime-state-paths": ["/absolute/path/the/kind/writes", "/absolute/file/the/kind/writes.json"]
     }
   },
   "checks-light": ["<claim-shaped light command, and how to scope a test run to the changed paths>"],

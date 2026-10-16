@@ -180,22 +180,31 @@ class ReviewerCharterTemplateTest(unittest.TestCase):
         # Every temp root is admitted, so the denied targets live outside them.
         with tempfile.TemporaryDirectory(dir="/Users/Shared") as outside:
             root = Path(outside)
-            values = {"herdr_home": f"{root}/.herdr", "kind_state_dir": f"{root}/state",
+            # A kind's runtime-state-paths: a directory and a file it writes beside it.
+            state_paths = [f"{root}/state", f"{root}/kind.json"]
+            values = {"herdr_home": f"{root}/.herdr",
                       "run_dir": f"{root}/.herdr/projects/p/runs/2026-09-30", "peer_name": "review-45fa5929e7c1"}
             run_dir, name = Path(values["run_dir"]), values["peer_name"]
             # As a Lead fills it: a "." in a slot value becomes "\." on the regex lines.
             fill = lambda line: SLOT_RE.sub(
                 lambda m: values[m.group(1)].replace(".", "\\.") if "(regex" in line else values[m.group(1)], line)
             profile = root / "fence.sb"
-            profile.write_text("".join(fill(l) for l in FENCE.read_text(encoding="utf-8").splitlines(True)))
+            # Comments stay as written; the <kind_state_path> rule repeats once per runtime-state-paths entry.
+            lines = FENCE.read_text(encoding="utf-8").splitlines(True)
+            profile.write_text("".join(
+                l if l.startswith(";")
+                else "".join(fill(l.replace("<kind_state_path>", p.replace(".", "\\."))) for p in state_paths)
+                if "<kind_state_path>" in l else fill(l)
+                for l in lines))
             for d in (run_dir, root / ".herdr/heavy-slots", root / "state", root / "Xherdr/projects/p/runs/2026-09-30"):
                 d.mkdir(parents=True)
             report, send = run_dir / f"report-{name}.md", run_dir / f"send-{name}.txt"
             allowed = [report, send, Path(f"{report}.tmp.17614.7a0e172e9fe4"), Path(f"{send}.tmp.1.0"),
-                       root / "state/session", self.tmp / "scratch"]
+                       root / "state/session", root / "kind.json", Path(f"{root}/kind.json.tmp.1.a"),
+                       self.tmp / "scratch"]
             denied = [run_dir / "other.md", run_dir / "report-review-other.md", run_dir / f"send-{name}.md",
                       root / ".herdr/gates.md", root / ".herdr/heavy-slots/1", root / ".herdr/heavy-lockX",
-                      root / "checkout-file",
+                      root / "checkout-file", root / "stateX", root / "kind.jsonX", root / "kind.json.bak",
                       root / f"Xherdr/projects/p/runs/2026-09-30/report-{name}.md",
                       Path(str(report).replace("45fa5929e7c1.md", "45fa5929e7c1Xmd")),
                       *(Path(f"{report}{s}") for s in (".tmp", ".bak", "x", ".tmp.1.0.x", ".tmp.1.g", ".tmp..a", ".tmp.1.", ".tmpX1.0", ".tmp.1X0", ".tmp.1.d/x"))]
