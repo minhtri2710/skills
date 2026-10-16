@@ -28,12 +28,15 @@ from __future__ import annotations
 import argparse
 import fcntl
 import hashlib
+import os
 import re
 import subprocess
 import sys
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
+
+from bounded_run import stop_group
 
 NOTE_MAX = 200
 KIND_RE = re.compile(r"^[a-z][a-z-]*$")
@@ -42,6 +45,9 @@ CHANNEL_RE = re.compile(r"^(direct-seat-pane|supervisor-relay):(typed|dialog)$")
 WRITER_RE = re.compile(r"^[a-z][a-z0-9_-]*$")
 HEAD_RE = re.compile(r"^(?P<branch>[^ |@]+)@(?P<head>[0-9a-f]{7,40})$")
 HEAD_ARG_RE = re.compile(r"^(?P<branch>[^ |@]+)@(?P<head>[0-9a-f]{40})$")
+# One feature-branch push lands in seconds; two minutes covers a slow link or a large first
+# pack, and bounds how long a hung push can hold the ledger lock against every other writer.
+PUSH_TIMEOUT_S = 120
 PUSH_RE = re.compile(
     r'^push=(?P<base>[0-9a-f]{7,40})\.\.(?P<head>[0-9a-f]{7,40}) '
     r'count=(?P<count>\d+) boundary="(?P<declared>[^"]*)" '
@@ -754,9 +760,12 @@ def resolve_row_head(args: argparse.Namespace, repo: Path, record: str) -> tuple
     return branch, head
 
 
-def push_head(args: argparse.Namespace, repo: Path) -> str:
-    """Push exactly <head> to origin/<branch>, never forced and never to the product line; return the refspec."""
-    branch, head = resolve_row_head(args, repo, args.record or "timely")
+def push_head(repo: Path, branch: str, head: str) -> str:
+    """Push exactly <head> to origin/<branch>, never forced and never to the product line; return the refspec.
+
+    The push runs in its own session under PUSH_TIMEOUT_S, with no terminal prompt; at the limit
+    its whole process group (git, ssh, credential helpers, hooks) is killed and no row is written.
+    """
     try:
         product = git(repo, "symbolic-ref", "--short", "refs/remotes/origin/HEAD")
     except RowError:
@@ -770,11 +779,28 @@ def push_head(args: argparse.Namespace, repo: Path) -> str:
             f"{product} moves only by merge"
         )
     refspec = f"{head}:refs/heads/{branch}"
-    git(repo, "push", "--no-follow-tags", "--recurse-submodules=no", "origin", refspec)
+    proc = subprocess.Popen(
+        ["git", "-C", str(repo), "push", "--no-follow-tags", "--recurse-submodules=no", "origin", refspec],
+        stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8",
+        start_new_session=True, env={**os.environ, "GIT_TERMINAL_PROMPT": "0"},
+    )
+    try:
+        _, err = proc.communicate(timeout=PUSH_TIMEOUT_S)
+    except subprocess.TimeoutExpired:
+        stop_group(proc, 5)
+        proc.communicate()
+        raise RowError(
+            f"git push origin {refspec} passed its {PUSH_TIMEOUT_S}s limit; its process group was "
+            "killed and no row was written; read git ls-remote origin before retrying"
+        ) from None
+    if proc.returncode:
+        raise RowError(f"git push origin {refspec} failed: {err.strip()}")
     return refspec
 
 
-def build(args: argparse.Namespace, repo: Path, state: LedgerState, landed: bool = True) -> str:
+def build(args: argparse.Namespace, repo: Path, state: LedgerState,
+          target: tuple[str, str], landed: bool = True) -> str:
+    """The row for `target`, the (branch, head) resolve_row_head returned for these args."""
     if getattr(args, "under", None) and args.words is None:
         args.words = "seat"
     note = args.note.strip()
@@ -797,7 +823,7 @@ def build(args: argparse.Namespace, repo: Path, state: LedgerState, landed: bool
         words=args.words, quote=quote, note=note,
     )
     record = args.record or "timely"
-    branch, head = resolve_row_head(args, repo, record)
+    branch, head = target
 
     kind = args.kind
     if kind == "cutover":
@@ -1343,12 +1369,13 @@ def main(argv: list[str] | None = None) -> int:
         with locked_ledger(args.ledger, exclusive=True) as handle:
             before = handle_text(handle)
             state = validate_ledger(ledger_rows(before), args.repo)
+            target = resolve_row_head(args, args.repo, args.record or "timely")
             if args.push:
                 if args.kind != "push":
                     raise RowError(f"--push is only meaningful on kind=push, not kind={args.kind}")
-                check(build(args, args.repo, state, landed=False), args.repo, state)
-                pushed = push_head(args, args.repo)
-            row = build(args, args.repo, state)
+                check(build(args, args.repo, state, target, landed=False), args.repo, state)
+                pushed = push_head(args.repo, *target)
+            row = build(args, args.repo, state, target)
             check(row, args.repo, state)
             if before and not before.endswith("\n"):
                 handle.seek(0, 2)
