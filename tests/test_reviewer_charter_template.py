@@ -194,7 +194,8 @@ class ReviewerCharterTemplateTest(unittest.TestCase):
             allowed = [report, send, Path(f"{report}.tmp.17614.7a0e172e9fe4"), Path(f"{send}.tmp.1.0"),
                        root / "state/session", self.tmp / "scratch"]
             denied = [run_dir / "other.md", run_dir / "report-review-other.md", run_dir / f"send-{name}.md",
-                      root / ".herdr/gates.md", root / ".herdr/heavy-slots/1", root / "checkout-file",
+                      root / ".herdr/gates.md", root / ".herdr/heavy-slots/1", root / ".herdr/heavy-lockX",
+                      root / "checkout-file",
                       root / f"Xherdr/projects/p/runs/2026-09-30/report-{name}.md",
                       Path(str(report).replace("45fa5929e7c1.md", "45fa5929e7c1Xmd")),
                       *(Path(f"{report}{s}") for s in (".tmp", ".bak", "x", ".tmp.1.0.x", ".tmp.1.g", ".tmp..a", ".tmp.1.", ".tmpX1.0", ".tmp.1X0", ".tmp.1.d/x"))]
@@ -206,6 +207,12 @@ class ReviewerCharterTemplateTest(unittest.TestCase):
                     self.assertEqual(path.exists(), path in allowed, run.stderr)
                     if path in denied:
                         self.assertIn("Operation not permitted", run.stderr)
+            # The heavy slot is taken as bounded_run --lock takes it: mkdir, owner via a temp sibling, rmtree.
+            lock = root / ".herdr/heavy-lock"
+            take = f"mkdir {lock} && touch {lock}/.owner.1 && mv {lock}/.owner.1 {lock}/owner && rm -r {lock}"
+            run = subprocess.run(["sandbox-exec", "-f", str(profile), "sh", "-c", take],
+                                 capture_output=True, text=True, stdin=subprocess.DEVNULL)
+            self.assertEqual((run.returncode, run.stderr), (0, ""))
 
     def test_no_mutation_contract_bounds_the_awaited_background_check(self):
         text = TEMPLATE.read_text(encoding="utf-8")
