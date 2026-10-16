@@ -84,6 +84,7 @@ class CharterRenderTest(unittest.TestCase):
             "pane w7:p3, workspace w7.",
             "1. git diff --check",
             f"`python3 {SCRIPTS / 'bounded_run.py'} --seconds N -- CMD`",
+            f"--lock {self.run_dir.parents[3]}/heavy-lock --seat review-{self.head[:12]} --wait-seconds W",
         ):
             self.assertIn(expected, text)
         with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()) as lint_err:

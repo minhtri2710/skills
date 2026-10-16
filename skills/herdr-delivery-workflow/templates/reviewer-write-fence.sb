@@ -1,5 +1,5 @@
 ; Write fence for one Reviewer or Architect seat (charters.md, "Write fence").
-; Fill every slot with an absolute path, save as <run_dir>/fence-<peer_name>.sb,
+; Fill every slot with an absolute path (<herdr_home> is ~/.herdr), save as <run_dir>/fence-<peer_name>.sb,
 ; and start the seat's pane shell with sandbox-exec -f on that file.
 ; The last two rules are regexes: in them write every "." of <run_dir> and <peer_name> as "\.".
 ; They admit the report and send file and each file's Write-tool temp sibling (name plus .tmp.PID.HEX), nothing else.
@@ -11,5 +11,6 @@
     (require-not (subpath "/private/var/folders"))
     (require-not (subpath "/dev"))
     (require-not (subpath "<kind_state_dir>"))
+    (require-not (subpath "<herdr_home>/heavy-lock"))
     (require-not (regex #"^<run_dir>/report-<peer_name>\.md(\.tmp\.[0-9]+\.[0-9a-f]+)?$"))
     (require-not (regex #"^<run_dir>/send-<peer_name>\.txt(\.tmp\.[0-9]+\.[0-9a-f]+)?$"))))
