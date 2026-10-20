@@ -19,7 +19,8 @@ beside it is harmless. Otherwise say so and stop: start nothing.
 Each tier below Manager is a provider alias in `~/.paseo/config.json`: its tool policy is
 `agents.providers.<alias>.paseoTools.disabledTools`, and a `daemon.agentProfiles` entry names
 its model and mode. Read the live set with `paseo provider ls`. Launch a tier through its
-alias; the bare base provider carries no policy.
+alias; the bare base provider carries no policy. The `architect` profile runs at the
+Reviewer tier but returns one read-only assessment, not a `PASS` / `FAIL` / `BLOCKED` verdict.
 
 | Tier | Decides | Never |
 |---|---|---|
