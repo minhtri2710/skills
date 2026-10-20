@@ -68,8 +68,17 @@ the policy is the same act, hidden from the tier accountable for it.
    the Human's answer or is reported pending with the work it holds.
 7. **Close out.** Archive the agents and workspace the run created, remove the worktree and
    any leftover directory, and report: what changed, what was removed, tests run with their
-   output, what is still open. Done when `paseo ls` and `git worktree list` show nothing
-   left over from the run.
+   output, what is still open. A lesson that would change this doctrine beyond this delivery
+   is edited into this skill's source, not an installed copy, in the same run; the report
+   names the edit. Done when `paseo ls` and `git worktree list` show nothing left over from
+   the run.
+
+## Every agent
+
+- After compaction, `paseo agent reload`, or a resume from `closed`, rebuild scope before the
+  next action: your last report, your owned paths, the current branch and head.
+- Agents share one machine. Name every heavy suite you run in your report, and never run two
+  heavy suites at once on one checkout; the agent that staffs one says whether another runs.
 
 ## Human gates
 
