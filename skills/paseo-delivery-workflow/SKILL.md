@@ -76,9 +76,9 @@ the policy is the same act, hidden from the tier accountable for it.
 ## Every agent
 
 - After compaction, `paseo agent reload`, or a resume from `closed`, rebuild scope before the
-  next action: your last report, your owned paths, the current branch and head. Then continue.
+  next action: your last report, your owned paths, the current branch and head.
 - Agents share one machine. Name every heavy suite you run in your report, and never run two
-  heavy suites at once on one checkout.
+  heavy suites at once on one checkout; the agent that staffs one says whether another runs.
 
 ## Human gates
 
