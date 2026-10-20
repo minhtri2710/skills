@@ -51,6 +51,7 @@ skills/<name>/
 | `human-step-wizard` | Generate a resumable bash wizard for the credential and dashboard steps only a human can do. |
 | `jev` | Run optional advisory triage for structured findings and bounded forks. |
 | `llm-trust-boundary` | Harden a feature that calls a model, exposes tools to one, or retrieves documents for one. |
+| `paseo-delivery-workflow` | Run bounded delivery as Paseo agents with the Manager / Lead / Engineer / Reviewer tier model. |
 | `performance-verification` | Improve a measured performance problem through measure, fix, re-measure, keep-or-revert. |
 | `prompt-leverage` | Strengthen a raw prompt into an execution-ready instruction set. |
 | `quality-floor` | Write a project's quality bar as CONSTRAINTS.md and guard diffs against moves that lower it. |
