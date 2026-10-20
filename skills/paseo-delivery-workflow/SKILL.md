@@ -35,8 +35,8 @@ Tiers are guardrails, not a security boundary: policy is resolved by provider id
 agent-targeting tools take any `agentId` with no ownership check (only heartbeat tools check),
 any agent with a shell can run `paseo` itself, and a shell `paseo send` stamps whatever
 `PASEO_AGENT_ID` holds as `source-agent-id`, or none, which arrives as a user message. When the
-work needs a tool your tier lacks, report upward; running `paseo` from a shell to get around the
-policy is the same act, hidden from the tier accountable for it.
+work needs a tool your tier lacks, report upward; running `paseo` from a shell to get around
+the policy is the same act, hidden from the tier accountable for it.
 
 ## Route
 
@@ -52,11 +52,11 @@ policy is the same act, hidden from the tier accountable for it.
 1. **Place it.** One delivery in flight per project; one branch per delivery. Reuse the
    project's workspace for serial work; create a worktree workspace when two deliveries must
    run at once. Done when the workspace id and branch are named in your own report.
-2. **Staff it.** One Lead. The Manager may write a change too small to partition in place of
-   an Engineer; the Lead then commits it like any Engineer's. The Lead partitions into
-   Engineers only where path sets are disjoint; overlapping work is one Engineer, not two. Each Engineer's prompt names its owned
-   paths and its reporting target. Done when every staffed agent's owned paths are disjoint
-   and written down.
+2. **Staff it.** One Lead. The Manager may write a change too small to partition in place of an
+   Engineer; the Lead then commits it like any Engineer's. The Lead partitions into Engineers
+   only where path sets are disjoint; overlapping work is one Engineer, not two. Each
+   Engineer's prompt names its owned paths and its reporting target. Done when every staffed
+   agent's owned paths are disjoint and written down.
 3. **Implement.** Engineers write inside owned paths and report back by prompt. Done when
    every Engineer has reported and none is running.
 4. **Commit.** Only the Lead commits, on a quiet tree. Done when the commit SHA is named.
