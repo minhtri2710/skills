@@ -22,21 +22,21 @@ lead-<slug>`), where `<slug>` is the lowercased basename of the repository root 
 
 | Key | Value |
 |---|---|
-| `engineer-kind`, `reviewer-kind` | string: the Herdr kind for Engineer Peers, and for Reviewer and Architect Peers |
+| `engineer-kind`, `reviewer-kind` | non-empty string: the Herdr kind for Engineer Peers, and for Reviewer and Architect Peers |
 | `engineer-args`, `reviewer-args` | array of strings: that kind's argv after `--`, one element per argument, including the question-tool denial |
-| `checks-light` | array of strings: light check commands, with how to scope a test run to the changed paths |
-| `checks-heavy` | array of strings: heavy suite commands |
+| `checks-light` | array of non-empty strings: light check commands, with how to scope a test run to the changed paths |
+| `checks-heavy` | array of non-empty strings: heavy suite commands |
 | `ci` | `{"trigger": "pr" \| "push" \| "none", "workflows": [<workflow paths>]}`: the workflows that run the heavy suites and the event that starts them; `workflows` is empty exactly when `trigger` is `none` |
 
-When the file is missing or not valid JSON, lacks a key this run uses, or a value must
+When the file is missing or not a JSON object, lacks a key this run uses, or a value must
 change, ask the Human in your own pane as a gate (step 6): the path and each key to write,
 with a suggested value drawn from the repository and this machine (check commands from
 `AGENTS.md` and build files, CI from the workflow files, a kind from `herdr agent start
 --help` with args naming its model and question-tool denial); for a missing or invalid file,
-propose the whole file. Once the Human confirms the content, write the file, keeping every
-other key as it was, then read it back and confirm it parses and holds the confirmed values.
-Until then write nothing, and hold only the work that needs the value. The config changes by
-no other route.
+propose the whole file. Only the Human's confirmation of that drafted content answers this
+gate. Once it arrives, write the file, keeping every other key as it was, then read it back
+and confirm it parses and holds the confirmed values. Until then write nothing, and hold
+only the work that needs the value. The config changes by no other route.
 
 ## Tiers
 
