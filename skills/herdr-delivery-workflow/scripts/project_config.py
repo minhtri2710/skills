@@ -102,10 +102,10 @@ def _validate(config: dict[str, Any]) -> None:
                             Path(item).is_absolute() for item in value):
                         raise ValueError(f"{field}: must be a non-empty array of absolute paths")
                     for item in value:
-                        if item.endswith("/"):
+                        if item.endswith("/") or item.startswith("//") or os.path.normpath(item) != item:
                             raise ValueError(
-                                f"{field}: {item!r} must not end in '/', because the write fence "
-                                "then admits nothing real")
+                                f"{field}: {item!r} must be a normalized path not ending in '/', "
+                                "because the write fence then admits nothing real")
                         if not _STATE_PATH_RE.fullmatch(item):
                             raise ValueError(
                                 f"{field}: {item!r} may hold only letters, digits, space and / . _ -, "

@@ -66,8 +66,8 @@ class ProjectConfigTests(unittest.TestCase):
             ({**_FULL, "launch-profiles": {"pi": {"runtime-state-paths": []}}}, "must be a non-empty array of absolute paths"),
             ({**_FULL, "launch-profiles": {"pi": {"runtime-state-paths": "/tmp/state"}}}, "must be a non-empty array of absolute paths"),
             *(({**_FULL, "launch-profiles": {"pi": {"runtime-state-paths": [path]}}},
-               f"launch-profiles.pi.runtime-state-paths: {path!r} must not end in '/'")
-              for path in ("/", "/tmp/state/")),
+               f"launch-profiles.pi.runtime-state-paths: {path!r} must be a normalized path not ending in '/'")
+              for path in ("/", "/tmp/state/", "/tmp/s/.", "/tmp//s", "//tmp/s", "/tmp/a/../b")),
             *(({**_FULL, "launch-profiles": {"pi": {"runtime-state-paths": [f"/h/a{c}b"]}}},
                f"{f'/h/a{c}b'!r} may hold only letters, digits, space and / . _ -")
               for c in "+*?[]()|^$\\"),
