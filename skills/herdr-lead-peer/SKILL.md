@@ -54,15 +54,16 @@ and review stays mandatory. A dead Engineer is restaffed, never absorbed into so
 ## Lead turns
 
 After every dispatch the Lead ends its turn on `Awaiting reports: <seats>`, with no sleep,
-poll, or watch. On every wake it reads `herdr agent list` once, and a Peer's pane exactly when
-that Peer's report is still owed or its listed state does not fit its report; a Peer that
-dies silently with no other wake is the Human's to catch from that line. A Peer that is idle
-or gone with its report owed has stalled: read its pane, then re-prompt it; restaff the same
-prompt in a fresh pane only when it cannot resume, after `herdr agent send-keys <seat> esc`
-and a second read confirm it is no longer writing. Restaff once per seat per head; a
-replacement that also dies is `BLOCKED`, with both panes' evidence. A `blocked` Peer is the
-Human's to answer: notify once and send it no key. Relaunch only at a slice boundary with no
-Peer outstanding, after writing the rebuild state ("Every agent") to the run directory.
+poll, or watch. On every wake its seat check reads `herdr agent list` once, and a Peer's pane
+exactly when that Peer's report is still owed or its listed state does not fit its report; a
+Peer that dies silently with no other wake is the Human's to catch from that line. A Peer
+that is idle or gone with its report owed has stalled: read its pane, then re-prompt it;
+restaff the same prompt in a fresh pane only when it cannot resume, after `herdr agent
+send-keys <seat> esc` and a second read confirm it is no longer writing. Restaff once per
+seat per head; a replacement that also dies is `BLOCKED`, with both panes' evidence. A
+`blocked` Peer is the Human's to answer: notify once and send it no key. Relaunch only at a
+slice boundary with no Peer outstanding, after writing the rebuild state ("Every agent") to
+the run directory.
 
 ## Route
 
