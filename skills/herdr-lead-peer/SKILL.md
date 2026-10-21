@@ -90,18 +90,18 @@ the run directory.
    three unless the run directory records why the partition yields more; never merge disjoint
    scopes to fit the cap. A hub file, a moved file with its citers, or densely coupled code
    goes to one owner or runs sequentially; a contract change (interface, schema, shared
-   config, lockfile, generated file) is its own slice, run first; a path no scope owns, and a
-   path dirty at intake unless the Human assigns it, stays unowned. Start each Peer in a
-   sibling pane of the Lead's tab (`herdr pane split --current --no-focus`, then `herdr agent
-   start <name> --kind <kind> --pane <id> -- <args>`) with the config's kind and args
-   verbatim and its direct-question tool denied; a kind whose question tool cannot be denied
-   is not staffed. Each Peer's prompt states its role and acceptance boundary; for an
-   Engineer its owned paths, the peer scopes, and the unowned paths, for a Reviewer the exact
-   SHA; the `checks-light` commands; the governing files to read itself; the "Every agent"
-   rules by value; no writing git command, and read-only git with `--no-optional-locks`; that
-   it must not load this skill; and the Lead's seat name as its only report target. Done when
-   every Peer is started and its seat name, kind, pane id, and owned paths are written in the
-   run directory.
+   config, lockfile, generated file) is its own slice, run first; a path no scope owns stays
+   unowned, and so does a path dirty at intake unless the Human assigns it as a gate (step 6)
+   after the Lead lists its intake diff. Start each Peer in a sibling pane of the Lead's tab
+   (`herdr pane split --current --no-focus`, then `herdr agent start <name> --kind <kind>
+   --pane <id> -- <args>`) with the config's kind and args verbatim and its direct-question
+   tool denied; a kind whose question tool cannot be denied is not staffed. Each Peer's
+   prompt states its role and acceptance boundary; for an Engineer its owned paths, the peer
+   scopes, and the unowned paths, for a Reviewer the exact SHA; the `checks-light` commands;
+   the governing files to read itself; the "Every agent" rules by value; no writing git
+   command, and read-only git with `--no-optional-locks`; that it must not load this skill;
+   and the Lead's seat name as its only report target. Done when every Peer is started and
+   its seat name, kind, pane id, and owned paths are written in the run directory.
 3. **Implement.** Engineers edit only owned paths, run light checks on them, and report:
    owned paths, `Edited files` from their own actions, scoped porcelain, `Outside owned
    paths: none`, each check with command, exit code, and ran/skipped counts, the red proof of
@@ -112,21 +112,22 @@ the run directory.
    edited to agree with the code and never passed by special-casing production code: send a
    `REOPEN_REQUEST` quoting both. A solo Lead does this step itself and writes the same
    report to the run directory. Done when every Engineer has reported and is idle.
-4. **Commit.** Only the Lead commits, on a quiet tree: every Engineer idle; HEAD, branch, and
-   stash list unchanged since intake; and `git status --porcelain --untracked-files=all`
-   matching the intake record line for line and `git hash-object` for `git hash-object`,
-   except for the union of their `Edited files` (in a solo run, only the declared scope) and
-   any set the Human ordered committed or left as it is. That set is drawn only from paths
-   outside every owned path, and the Human confirms it as a gate (step 6) after the Lead
-   lists its exact paths with a diff summary and every other difference from the intake
-   record: each new, gone, or changed path. Stage the owned paths in the union and the paths
-   confirmed for commit by name, skipping a gone path that was never tracked and never using
-   `git add -A`; then read `git diff HEAD -- <those paths>` for crossed contracts,
-   credentials, or disabled checks; then commit with `git commit --only -- <those paths>` so
-   nothing else in the index rides along. A write inside another scope is named with its
-   writer and goes to that scope's owner to adopt or reject; the writer does not touch the
-   path again. In a partitioned run even an obvious fix goes back to its owner. Done when the
-   commit SHA is named.
+4. **Commit.** Only the Lead commits, on a quiet tree: every Engineer idle; branch and stash
+   list unchanged since intake, and HEAD since intake or this run's last commit; and `git
+   status --porcelain --untracked-files=all` matching the intake record line for line and
+   `git hash-object` for `git hash-object`, except for the owned paths in the union of their
+   `Edited files` (in a solo run, the declared scope less any path dirty at intake the Human
+   has not assigned) and any set the Human ordered committed or left as it is. That set is
+   drawn only from paths outside every owned path, and the Human confirms it as a gate (step
+   6) after the Lead lists its exact paths with a diff summary and every other difference
+   from the intake record: each new, gone, or changed path. Stage the owned paths in the
+   union and the paths confirmed for commit by name, skipping a gone path that was never
+   tracked and never using `git add -A`; then read `git diff HEAD -- <the staged paths>` for
+   crossed contracts, credentials, or disabled checks; then commit with `git commit --only --
+   <the staged paths>` so nothing else in the index rides along. A write inside another scope
+   is named with its writer and goes to that scope's owner to adopt or reject; the writer
+   does not touch the path again. In a partitioned run even an obvious fix goes back to its
+   owner. Done when the commit SHA is named.
 5. **Review.** Staff a Reviewer Peer named `review-<12-hex>` at the exact SHA, a distinct
    instance from the Lead and every Engineer. It records HEAD and porcelain before and after
    (a moved tree voids the verdict), reads the diff and writes its own findings before any
