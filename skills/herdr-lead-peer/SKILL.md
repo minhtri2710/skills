@@ -14,10 +14,28 @@ owns tiers, sequence, gates, and the behavior the CLI cannot tell you.
 `HERDR_ENV` must be `1`, or run no `herdr` command, touch no Herdr state, say so, and stop.
 The Lead names its own seat `lead-<slug>` (`herdr agent rename "$HERDR_PANE_ID"
 lead-<slug>`), where `<slug>` is the lowercased basename of the repository root and matches
-`[a-z][a-z0-9_-]{0,31}`. It reads the Human-owned project config at
-`~/.herdr/projects/<slug>/config.json` for role kinds and args, light and heavy checks, and
-CI, and never edits it. When the config lacks a value this file requires, ask the Human with
-the value you suggest; take no other route.
+`[a-z][a-z0-9_-]{0,31}`. It reads the project config before intake.
+
+## Project config
+
+`~/.herdr/projects/<slug>/config.json` is one JSON object; this file reads these keys:
+
+| Key | Value |
+|---|---|
+| `engineer-kind`, `engineer-args` | the Herdr kind and the argv after `--` for Engineer Peers, including the question-tool denial |
+| `reviewer-kind`, `reviewer-args` | the same for Reviewer and Architect Peers |
+| `checks-light` | light check commands, with how to scope a test run to the changed paths |
+| `checks-heavy` | heavy suite commands |
+| `ci` | `{"trigger": "pr" \| "push" \| "none", "workflows": [<workflow paths>]}`; `workflows` is empty exactly when `trigger` is `none` |
+
+When the file is missing or not valid JSON, lacks a key this run uses, or a value must
+change, ask the Human in your own pane as a gate (step 6): the path and each key to write,
+with a suggested value drawn from the repository and this machine (check commands from
+`AGENTS.md` and build files, CI from the workflow files, a kind from `herdr agent start
+--help` with args naming its model and question-tool denial). Once the Human confirms the
+content, write the file, keeping every other key as it was, then read it back and confirm it
+parses and holds the confirmed values. Until then write nothing, and hold only the work that
+needs the value. The config changes by no other route.
 
 ## Tiers
 
