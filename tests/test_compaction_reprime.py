@@ -6,6 +6,7 @@ import io
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -323,6 +324,40 @@ class ThresholdTest(ReprimeCase):
         digest = hashlib.sha256((SEAT + "\0" + PI_SESSION).encode("utf-8")).hexdigest()
         self.assertEqual(state_file.name, f"baseline-{digest}.json")
         self.assertEqual(json.loads(state_file.read_text(encoding="utf-8")), {"baseline": 3, "sent": 4})
+
+    def test_state_is_never_written_through_a_symlink(self) -> None:
+        self.write_pointer_files()
+        self.set_pi(3)
+        outside = self.root / "outside"
+        outside.mkdir()
+        runs = self.records_dir() / "runs"
+        coordination = runs / "coordination"
+        digest = hashlib.sha256((SEAT + "\0" + PI_SESSION).encode("utf-8")).hexdigest()
+        state_name = f"baseline-{digest}.json"
+
+        def plant(case: str) -> None:
+            if case == "coordination directory":
+                coordination.symlink_to(outside, target_is_directory=True)
+                return
+            coordination.mkdir()
+            if case == "state file":
+                (coordination / state_name).symlink_to(outside / "state.json")
+            else:
+                (coordination / f"baseline-{digest}.tmp").symlink_to(outside / "tmp.json")
+
+        for case, returncode in (("coordination directory", 1), ("state file", 1), ("temporary file", 0)):  # a planted fixed temp name is never used
+            with self.subTest(case):
+                plant(case)
+                try:
+                    self.assertEqual(self.run_cli(), returncode)
+                    self.assertEqual(list(outside.iterdir()), [])
+                finally:
+                    if coordination.is_symlink():
+                        coordination.unlink()
+                    else:
+                        shutil.rmtree(coordination)
+                    for leftover in outside.iterdir():
+                        leftover.unlink()
 
     def test_a_new_session_or_seat_starts_its_own_baseline(self) -> None:
         self.baseline_then_cross()

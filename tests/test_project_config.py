@@ -196,6 +196,26 @@ class ProjectConfigTests(unittest.TestCase):
         )
         self.assertEqual(result["argv"], ["--model", "fallback"])
 
+    def test_expand_cli_uses_current_fallback_kind_keys(self):
+        config = {
+            "engineer-kind": "claude", "engineer-args": ["--model", "engineer-primary"],
+            "engineer-fallback": "pi", "engineer-fallback-args": ["--model", "engineer-fallback"],
+            "reviewer-kind": "claude", "reviewer-args": ["--model", "reviewer-primary"],
+            "reviewer-fallback": "pi", "reviewer-fallback-args": ["--model", "reviewer-fallback"],
+            "launch-profiles": {"pi": {"seat-argv": [], "peer-argv": []}},
+        }
+        path = self._write(config)
+        for role in ("engineer", "reviewer"):
+            with self.subTest(role=role):
+                result = subprocess.run(
+                    [sys.executable, str(SCRIPT), "--expand", str(path), "--role", role,
+                     "--fallback", "--kind", "pi", "--seat", "peer", "--lead", "lead-demo",
+                     "--run-dir", "/run", "--installed-skill-dir", "/installed"],
+                    capture_output=True, text=True, encoding="utf-8", stdin=subprocess.DEVNULL,
+                )
+                self.assertEqual((result.returncode, result.stderr), (0, ""))
+                self.assertEqual(json.loads(result.stdout)["argv"], ["--model", f"{role}-fallback"])
+
     def test_expand_cli_emits_literal_json_for_the_existing_launcher(self):
         config = {
             "lead-kind": "pi", "lead-args": ["--approve"],

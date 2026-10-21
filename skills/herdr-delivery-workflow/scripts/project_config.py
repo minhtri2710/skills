@@ -249,25 +249,31 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--lead")
     parser.add_argument("--run-dir")
     parser.add_argument("--installed-skill-dir")
+    parser.add_argument("--fallback", action="store_true")
     args = parser.parse_args(argv)
     try:
         config = load(args.check or args.expand)
         if args.check:
             if any((args.role, args.kind, args.seat, args.lead, args.run_dir,
-                    args.installed_skill_dir)):
+                    args.installed_skill_dir, args.fallback)):
                 raise ValueError("--check cannot be combined with expansion arguments")
             print(f"ok: {args.check}")
             return 0
         required = (args.role, args.kind, args.seat, args.lead, args.run_dir, args.installed_skill_dir)
         if not all(required):
             raise ValueError("--expand requires --role, --kind, --seat, --lead, --run-dir, and --installed-skill-dir")
+        route = "fallback" if args.fallback else "primary"
         config_role = "reviewer" if args.role == "architect" else args.role
         if args.role == "lead":
+            if args.fallback:
+                raise ValueError("Lead has no fallback route")
             role_args = config.get("lead-args")
         else:
-            if config.get(f"{config_role}-kind") != args.kind:
-                raise ValueError(f"{args.kind!r} is not the configured primary kind for {args.role}")
-            role_args = config.get(f"{config_role}-args", [])
+            kind_key = f"{config_role}-fallback" if args.fallback else f"{config_role}-kind"
+            args_key = f"{config_role}-fallback-args" if args.fallback else f"{config_role}-args"
+            if config.get(kind_key) != args.kind:
+                raise ValueError(f"{args.kind!r} is not the configured {route} kind for {args.role}")
+            role_args = config.get(args_key, [])
         if not isinstance(role_args, list):
             raise ValueError(f"{args.role} role args are missing")
         run_dir = str(Path(args.run_dir).expanduser().resolve())

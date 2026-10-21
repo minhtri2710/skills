@@ -14,7 +14,9 @@ import hashlib
 import json
 import os
 import re
+import stat
 import sys
+import tempfile
 from pathlib import Path
 from typing import Any, Sequence
 
@@ -154,9 +156,29 @@ def _block(run_id: str, seat: str, threshold: int, slug: str, home: Path) -> str
     return "\n".join(lines)
 
 
+def _state_dir(home: Path, slug: str) -> Path:
+    """The coordination directory, created if missing; no component below projects/ may be a symlink."""
+    current = home / ".herdr" / "projects"
+    current.mkdir(parents=True, exist_ok=True)
+    for part in (slug, "runs", "coordination"):
+        current /= part
+        try:
+            mode = current.lstat().st_mode
+        except FileNotFoundError:
+            current.mkdir()
+            continue
+        if not stat.S_ISDIR(mode):
+            raise Unavailable(f"{current} is not a plain directory")
+    return current
+
+
 def _load_state(path: Path, count: int) -> dict[str, int] | None:
-    if not path.exists():
+    try:
+        mode = path.lstat().st_mode
+    except FileNotFoundError:
         return None
+    if not stat.S_ISREG(mode):
+        raise Unavailable(f"{path} is not a regular file")
     try:
         state = json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError:
@@ -169,10 +191,14 @@ def _load_state(path: Path, count: int) -> dict[str, int] | None:
 
 
 def _save_state(path: Path, state: dict[str, int]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_suffix(".tmp")
-    temporary.write_text(json.dumps(state, sort_keys=True) + "\n", encoding="utf-8")
-    os.replace(temporary, path)
+    descriptor, temporary = tempfile.mkstemp(dir=path.parent, prefix=".baseline-", suffix=".tmp")  # O_EXCL: never follows a link
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
+            stream.write(json.dumps(state, sort_keys=True) + "\n")
+        os.replace(temporary, path)
+    except BaseException:
+        Path(temporary).unlink(missing_ok=True)
+        raise
 
 
 def reprime(run_id: str, seat: str, project_root: Path) -> str:
@@ -191,7 +217,7 @@ def reprime(run_id: str, seat: str, project_root: Path) -> str:
     count = (_count_claude if agent["agent"] == "claude" else _count_pi)(records, session_id)
 
     digest = hashlib.sha256(f"{seat}\0{session_id}".encode("utf-8")).hexdigest()
-    path = home / ".herdr" / "projects" / slug / "runs" / "coordination" / f"baseline-{digest}.json"
+    path = _state_dir(home, slug) / f"baseline-{digest}.json"
     state = _load_state(path, count)
     if state is None:
         _save_state(path, {"baseline": count, "sent": 0})
