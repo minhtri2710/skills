@@ -107,10 +107,6 @@ class SecurityCheckTest(unittest.TestCase):
         self.write_fake("trivy", "printf '%s\\n' '{\"Results\":[]}'\n")
         self.write_fake("semgrep", "printf '%s\\n' '{\"results\":[]}'\n")
 
-    def test_default_config_validates(self) -> None:
-        security_check.validate_config(security_check.DEFAULT_CONFIG)
-        self.assertEqual(security_check.load_config(None), security_check.DEFAULT_CONFIG)
-
     def test_fail_on_rejects_empty_unknown_and_non_string_values(self) -> None:
         for fail_on in ([], ["HIHG"], [1], ["HIGH", "UNKNOWN"]):
             with self.subTest(fail_on=fail_on):

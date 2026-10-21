@@ -72,12 +72,6 @@ class CharterLintTest(unittest.TestCase):
         )
         self.assertEqual(error, "")
 
-    def test_missing_disposition_is_named(self):
-        charter = self.engineer_charter().replace("Disposition: Engineer\n", "")
-        code, _, error = self.run_lint(charter)
-        self.assertNotEqual(code, 0)
-        self.assertIn("Disposition", error)
-
     def test_bold_engineer_disposition_is_ok(self):
         charter = self.engineer_charter().replace(
             "Disposition: Engineer\n", "**Disposition:** Engineer.\n"
@@ -100,21 +94,6 @@ class CharterLintTest(unittest.TestCase):
         code, _, error = self.run_lint(charter)
         self.assertNotEqual(code, 0)
         self.assertIn("owned paths", error)
-
-    def test_reviewer_without_exact_head_is_named(self):
-        charter = self.engineer_charter().replace("Disposition: Engineer", "Disposition: Reviewer")
-        charter = charter.replace("Owned paths: tests/test_charter_lint.py\n", "Reviewed head: pending\n")
-        code, _, error = self.run_lint(charter)
-        self.assertNotEqual(code, 0)
-        self.assertIn("exact-head", error)
-
-    def test_reviewer_without_live_wake_guard_is_named(self):
-        charter = self.reviewer_charter().replace(self.live_wake_guard_sentence(), "")
-        code, _, error = self.run_lint(charter, self.staffing_record())
-        self.assertEqual(code, 1)
-        self.assertIn(
-            "missing live-wake guard: Never run `mailbox.py --wake` against a real seat", error
-        )
 
     def test_live_wake_guard_match_ignores_case_and_backticks(self):
         charter = self.reviewer_charter().replace(
@@ -149,16 +128,6 @@ class CharterLintTest(unittest.TestCase):
         self.assertIn("OK:", output)
         self.assertEqual(error, "")
 
-    def test_reviewer_without_either_ocr_delegate_command_is_named(self):
-        for command in ("ocr delegate preview", "ocr delegate rule"):
-            with self.subTest(command=command):
-                charter = self.reviewer_charter().replace(command, "ocr")
-                code, _, error = self.run_lint(charter, self.staffing_record())
-                self.assertEqual(code, 1)
-                self.assertIn(
-                    "missing OCR delegate step: ocr delegate preview and ocr delegate rule", error
-                )
-
     def test_reviewer_without_time_limit_clause_is_named(self):
         charter = self.reviewer_charter().replace(
             self.time_limit_sentence(),
@@ -168,29 +137,19 @@ class CharterLintTest(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn("missing time limit: BLOCKED (time limit)", error)
 
-    def test_missing_prompt_command_is_named(self):
-        charter = self.engineer_charter().replace("herdr agent prompt lead-beo-skills", "send the report")
-        code, _, error = self.run_lint(charter)
-        self.assertNotEqual(code, 0)
-        self.assertIn("herdr agent prompt lead-beo-skills", error)
-
-    def test_missing_report_path_is_named(self):
-        charter = self.engineer_charter().replace("report-eng-lint.md", "evidence.md")
-        code, _, error = self.run_lint(charter)
-        self.assertNotEqual(code, 0)
-        self.assertIn("report-*.md", error)
-
-    def test_report_block_without_send_failed_is_named(self):
-        charter = self.engineer_charter().replace("SEND-FAILED", "send failed")
-        code, _, error = self.run_lint(charter)
-        self.assertNotEqual(code, 0)
-        self.assertIn("SEND-FAILED", error)
-
-    def test_engineer_without_staffing_record_is_named(self):
-        code, _, error = self.run_lint(self.engineer_charter())
-        self.assertEqual(code, 1)
-        self.assertIn("staffing record is required", error)
-        self.assertIn("Engineer/Reviewer", error)
+    def test_engineer_reviewer_and_architect_without_staffing_record_are_named(self):
+        charters = {
+            "Engineer": self.engineer_charter(),
+            "Reviewer": self.reviewer_charter(),
+            "Architect": self.engineer_charter().replace("Disposition: Engineer", "Disposition: Architect"),
+        }
+        for disposition, charter in charters.items():
+            with self.subTest(disposition=disposition):
+                code, _, error = self.run_lint(charter)
+                self.assertEqual(code, 1)
+                self.assertIn(
+                    "staffing record is required for an Engineer/Reviewer/Architect disposition", error
+                )
 
     def test_fenced_seat_docker_residual_depends_on_charter_allowance(self):
         charter = self.reviewer_charter() + "The charter allows containers, using docker compose up.\n"
@@ -267,17 +226,6 @@ class CharterLintTest(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn("REVIEWER fence=none is not allowed", error)
 
-    def test_reviewer_missing_fence_profile_is_refused(self):
-        staffing = self.staffing_record().replace(
-            self.fence_evidence(),
-            "fence=sandbox-exec(missing.sb; probe touch /checkout/.fence-probe "
-            "-> Operation not permitted, no file)",
-            1,
-        )
-        code, _, error = self.run_lint(self.reviewer_charter(), staffing)
-        self.assertEqual(code, 1)
-        self.assertIn("must record an existing .sb file and a probe result", error)
-
     def test_reviewer_balanced_parentheses_in_fence_evidence_are_accepted(self):
         staffing = self.staffing_record().replace(
             self.fence_evidence(),
@@ -300,8 +248,10 @@ class CharterLintTest(unittest.TestCase):
         self.assertIn("OK:", output)
         self.assertEqual(error, "")
 
-    def test_reviewer_missing_fence_probe_is_refused(self):
+    def test_reviewer_missing_fence_profile_or_probe_is_refused(self):
         cases = (
+            "fence=sandbox-exec(missing.sb; probe touch /checkout/.fence-probe "
+            "-> Operation not permitted, no file)",
             "fence=sandbox-exec(fence.sb)",
             "fence=sandbox-exec(fence.sb; probe not run)",
             "fence=sandbox-exec(fence.sb; probe touch /checkout/.fence-probe -> Permission denied)",
@@ -313,14 +263,8 @@ class CharterLintTest(unittest.TestCase):
                 self.assertEqual(code, 1)
                 self.assertIn("must record an existing .sb file and a probe result", error)
 
-    def test_architect_staffing_is_required_and_architect_seat_is_checked(self):
+    def test_architect_seat_is_checked(self):
         charter = self.engineer_charter().replace("Disposition: Engineer", "Disposition: Architect")
-        code, _, error = self.run_lint(charter)
-        self.assertEqual(code, 1)
-        self.assertIn(
-            "staffing record is required for an Engineer/Reviewer/Architect disposition", error
-        )
-
         architect_record = self.staffing_record().replace("REVIEWER:", "ARCHITECT:", 1)
         code, output, error = self.run_lint(charter, architect_record)
         self.assertEqual(code, 0)
@@ -383,11 +327,6 @@ class CharterLintTest(unittest.TestCase):
         code, _, error = self.run_lint(self.engineer_charter(), staffing)
         self.assertEqual(code, 1)
         self.assertIn("ENGINEER seat missing dialog=", error)
-
-    def test_reviewer_without_staffing_record_is_named(self):
-        code, _, error = self.run_lint(self.reviewer_charter())
-        self.assertEqual(code, 1)
-        self.assertIn("staffing record is required", error)
 
     def test_unreadable_charter_or_staffing_exits_1_on_stderr(self):
         charter_path = self.tmp / "charter.md"

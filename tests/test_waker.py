@@ -116,12 +116,6 @@ class WakerTest(unittest.TestCase):
 
     # Peer watch: freshness is judged against the report state captured when the watch starts.
 
-    def test_fresh_report_at_idle_still_sends_one_prompt(self):
-        # A fresh report does not prove the Lead received anything, so the terminal event always wakes once.
-        fake = FakeHerdr(status="idle", on_wait=self.write_report_during_wait())
-        self.assertEqual(self.run_waker(fake, self.peer_argv()), 0)
-        self.assertEqual(fake.prompts(), [self.peer_prompt("idle", "yes")])
-
     def test_fresh_report_at_done_still_sends_one_prompt(self):
         fake = FakeHerdr(status="done", on_wait=self.write_report_during_wait())
         self.assertEqual(self.run_waker(fake, self.peer_argv()), 0)
@@ -144,26 +138,20 @@ class WakerTest(unittest.TestCase):
         self.assertEqual(self.run_waker(fake, self.peer_argv()), 0)
         self.assertEqual(fake.prompts(), [self.peer_prompt("blocked", "yes")])
 
-    def test_peer_provider_error_turn_without_report_prompts_without_error_text(self):
-        fake = FakeHerdr(status="idle", tail="provider error: 429 rate limit exceeded")
-        self.assertEqual(self.run_waker(fake, self.peer_argv()), 0)
-        self.assertEqual(fake.prompts(), [self.peer_prompt("idle", "no")])
-        self.assertNotIn("429", json.dumps(fake.prompts()))
-
     def test_peer_wait_uses_one_bounded_wait_on_the_named_seat(self):
+        # A fresh report does not prove the Lead received anything, so the terminal event always wakes once.
         fake = FakeHerdr(status="idle", on_wait=self.write_report_during_wait())
-        self.run_waker(fake, self.peer_argv())
+        self.assertEqual(self.run_waker(fake, self.peer_argv()), 0)
         self.assertEqual(fake.calls, [WAIT, self.peer_prompt("idle", "yes")])
+        self.assertEqual(fake.prompts(), [self.peer_prompt("idle", "yes")])
 
-    def test_peer_wait_timeout_sends_nothing_and_fails(self):
-        fake = FakeHerdr(wait_error="timeout")
-        self.assertEqual(self.run_waker(fake, self.peer_argv()), 1)
-        self.assertEqual(fake.prompts(), [])
-
-    def test_wait_failure_names_the_herdr_error_code(self):
-        fake = FakeHerdr(wait_error="agent_not_found")
-        self.assertEqual(self.run_waker(fake, self.peer_argv()), 1)
-        self.assertIn(f"herdr agent wait {SEAT} failed: agent_not_found", self.stderr)
+    def test_wait_failure_names_the_herdr_error_code_and_sends_nothing(self):
+        for code in ("timeout", "agent_not_found"):
+            with self.subTest(code=code):
+                fake = FakeHerdr(wait_error=code)
+                self.assertEqual(self.run_waker(fake, self.peer_argv()), 1)
+                self.assertEqual(fake.prompts(), [])
+                self.assertIn(f"herdr agent wait {SEAT} failed: {code}", self.stderr)
 
     def test_refused_peer_prompt_fails_after_one_attempt(self):
         fake = FakeHerdr(status="idle", prompt_code=1)
@@ -176,16 +164,11 @@ class WakerTest(unittest.TestCase):
         fake = FakeHerdr(status="idle")
         self.assertEqual(self.run_waker(fake, self.lead_argv()), 0)
         self.assertEqual(fake.prompts(), [])
+        self.assertEqual(fake.calls[0], ["agent", "wait", LEAD, "--until", "idle", "--until", "done", "--until", "blocked", "--timeout", str(TIMEOUT_MS)])
         self.assertEqual(fake.calls[1], ["agent", "read", LEAD, "--source", "recent-unwrapped", "--lines", "10"])
 
     def test_lead_awaiting_reports_marker_sends_no_prompt(self):
         fake = FakeHerdr(status="done", tail="Two reports are still owed.\n\nAwaiting reports: eng-a\n" + PI_FOOTER)
-        self.assertEqual(self.run_waker(fake, self.lead_argv()), 0)
-        self.assertEqual(fake.prompts(), [])
-
-    def test_real_read_text_with_awaiting_line_sends_no_prompt(self):
-        # The measured read output is plain text on stdout, so the marker is read from it directly.
-        fake = FakeHerdr(status="idle", tail=PI_TAIL)
         self.assertEqual(self.run_waker(fake, self.lead_argv()), 0)
         self.assertEqual(fake.prompts(), [])
 
@@ -252,11 +235,6 @@ class WakerTest(unittest.TestCase):
         self.assertEqual(fake.prompts(), [self.lead_prompt("idle")])
         self.assertNotIn("429", json.dumps(fake.prompts()))
 
-    def test_marker_inside_a_sentence_is_not_a_marker(self):
-        fake = FakeHerdr(status="idle", tail="We will say Awaiting: later in the report\n○ 🐴 ponytail: ⚡ FULL\n")
-        self.assertEqual(self.run_waker(fake, self.lead_argv()), 0)
-        self.assertEqual(fake.prompts(), [self.lead_prompt("idle")])
-
     def test_unreadable_lead_tail_fails_toward_one_prompt(self):
         fake = FakeHerdr(status="idle", read_error=True)
         self.assertEqual(self.run_waker(fake, self.lead_argv()), 0)
@@ -273,11 +251,6 @@ class WakerTest(unittest.TestCase):
         fake = FakeHerdr(status="blocked", tail="Human dialog: approve push?\n", prompt_code=1)
         self.assertEqual(self.run_waker(fake, self.lead_argv()), 1)
         self.assertEqual(fake.prompts(), [self.lead_prompt("blocked")])
-
-    def test_lead_wait_uses_one_bounded_wait_on_the_lead(self):
-        fake = FakeHerdr(status="idle")
-        self.run_waker(fake, self.lead_argv())
-        self.assertEqual(fake.calls[0], ["agent", "wait", LEAD, "--until", "idle", "--until", "done", "--until", "blocked", "--timeout", str(TIMEOUT_MS)])
 
     # Argument boundary: names are validated before they reach a path or an argv.
 

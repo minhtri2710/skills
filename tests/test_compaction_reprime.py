@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import io
-import os
 import json
+import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -13,6 +15,7 @@ from unittest.mock import patch
 
 
 SCRIPTS = Path(__file__).parents[1] / "skills" / "herdr-delivery-workflow" / "scripts"
+REFERENCES = SCRIPTS.parent / "references"
 SCRIPT = SCRIPTS / "compaction_reprime.py"
 sys.path.insert(0, str(SCRIPTS))
 SPEC = importlib.util.spec_from_file_location("compaction_reprime", SCRIPT)
@@ -21,937 +24,419 @@ compaction_reprime = importlib.util.module_from_spec(SPEC)
 sys.modules[SPEC.name] = compaction_reprime
 SPEC.loader.exec_module(compaction_reprime)
 
-
-def _guard_unpatched_subprocess_run(command: object, *args: object, **kwargs: object) -> None:
-    argv = command if isinstance(command, (list, tuple)) else ()
-    if argv and argv[0] == "herdr":
-        raise AssertionError("live herdr subprocess must be patched in this test")
-    raise AssertionError("unexpected unpatched subprocess.run in this test")
+SEAT = "lead-beo-skills"
+PI_SESSION = "01abc123"
+CLAUDE_SESSION = "058a68e8-ce90-4eae-9624-2310cc7e832f"
+ARGS = ["--run-id", "run-1", "--seat", SEAT]
 
 
-def _install_subprocess_guard(test_case: unittest.TestCase) -> None:
-    guard = patch.object(compaction_reprime.herdr_cli.subprocess, "run", side_effect=_guard_unpatched_subprocess_run)
-    guard.start()
-    test_case.addCleanup(guard.stop)
+class ReprimeCase(unittest.TestCase):
+    """Runs the CLI against a fake herdr at the subprocess boundary."""
 
-
-class CompactionReprimeObserverTest(unittest.TestCase):
     def setUp(self) -> None:
-        self.tmp = tempfile.TemporaryDirectory()
-        self.root = Path(self.tmp.name)
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.root = Path(tmp.name).resolve()
         self.home = self.root / "home"
         self.project = self.root / "project"
         self.home.mkdir()
         self.project.mkdir()
-        _install_subprocess_guard(self)
+        self.agents: list[dict[str, object]] = []
+        self.list_returncode = 0
+        self.prompts: list[list[str]] = []
+        self.prompt_outcome: object = 0
         self.stdout = io.StringIO()
         self.stderr = io.StringIO()
-        self._stdout_patch = patch.object(sys, "stdout", self.stdout)
-        self._stderr_patch = patch.object(sys, "stderr", self.stderr)
-        self._stdout_patch.start()
-        self._stderr_patch.start()
-        self.addCleanup(self._stderr_patch.stop)
-        self.addCleanup(self._stdout_patch.stop)
+        for patcher in (
+            patch.object(compaction_reprime.herdr_cli.subprocess, "run", side_effect=self.fake_herdr),
+            patch.dict(os.environ, {"HOME": str(self.home)}),
+            patch.object(sys, "stdout", self.stdout),
+            patch.object(sys, "stderr", self.stderr),
+        ):
+            patcher.start()
+            self.addCleanup(patcher.stop)
 
-    def tearDown(self) -> None:
-        self.tmp.cleanup()
+    def fake_herdr(self, argv: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        if argv[:3] == ["herdr", "agent", "list"]:
+            return subprocess.CompletedProcess(argv, self.list_returncode, json.dumps({"result": {"agents": self.agents}}), "")
+        if argv[:3] == ["herdr", "agent", "prompt"]:
+            self.prompts.append(argv)
+            if isinstance(self.prompt_outcome, BaseException):
+                raise self.prompt_outcome
+            return subprocess.CompletedProcess(argv, self.prompt_outcome, "", "")
+        raise AssertionError(f"unexpected herdr call {argv}")
+
+    def run_cli(self, *extra: str, args: list[str] | None = None) -> int:
+        self.stdout.seek(0), self.stdout.truncate()
+        self.stderr.seek(0), self.stderr.truncate()
+        return compaction_reprime.main((args or ARGS) + ["--project-root", str(self.project), *extra])
 
     def write_jsonl(self, path: Path, records: list[dict[str, object]]) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text("".join(json.dumps(record) + "\n" for record in records), encoding="utf-8")
 
-    def roster(
-        self,
-        *,
-        kind: str,
-        path: Path | None = None,
-        session_id: str | None = None,
-        seat: str = "lead-beo-skills",
-        pane_id: str = "w2Q:pA",
-    ) -> list[dict[str, object]]:
-        session: dict[str, object]
-        if kind == "pi":
-            session = {"source": "herdr:pi", "agent": "pi", "kind": "path", "value": str(path)}
-        else:
-            session = {"source": "herdr:claude", "agent": "claude", "kind": "id", "value": session_id}
-        return [{
-            "name": seat,
-            "pane_id": pane_id,
-            "agent": kind,
-            "cwd": str(self.project),
-            "agent_session": session,
-        }]
-
-    def observe(self, roster: object, seat: str, **kwargs: object) -> int | None:
-        session = compaction_reprime.resolve_live_session(roster, seat, **kwargs)
-        return compaction_reprime._verified_observation(session)
-
-    def pi_path(self, session_id: str = "01abc123") -> Path:
+    def pi_path(self, session_id: str = PI_SESSION) -> Path:
         return self.home / ".pi" / "agent" / "sessions" / "--project--" / f"2026-09-21T10-00-00-000Z_{session_id}.jsonl"
 
-    def pi_header(self) -> dict[str, object]:
-        return {
-            "type": "session",
-            "version": 3,
-            "id": "01abc123",
-            "timestamp": "2026-09-21T10:00:00.000Z",
-            "cwd": str(self.project),
-        }
-
-    def pi_compaction(self, record_id: str = "cmp123") -> dict[str, object]:
-        return {
-            "type": "compaction",
-            "id": record_id,
-            "parentId": "parent123",
-            "timestamp": "2026-09-21T10:01:00.000Z",
-            "summary": "summary",
-            "firstKeptEntryId": "kept123",
-            "tokensBefore": 100,
-        }
-
-    def test_pi_counts_only_verified_compaction_records(self) -> None:
-        path = self.pi_path()
-        self.write_jsonl(path, [self.pi_header(), self.pi_compaction(), self.pi_compaction("cmp456")])
-        self.assertEqual(
-            self.observe(
-                self.roster(kind="pi", path=path),
-                "lead-beo-skills",
-                project_root=self.project,
-                home_dir=self.home,
-            ),
-            2,
-        )
-
-    def test_pi_valid_records_survive_one_partial_trailing_line(self) -> None:
-        path = self.pi_path()
-        self.write_jsonl(path, [self.pi_header(), self.pi_compaction()])
-        with path.open("a", encoding="utf-8") as stream:
-            stream.write('{"type":"assistant"')
-        self.assertEqual(
-            self.observe(
-                self.roster(kind="pi", path=path),
-                "lead-beo-skills",
-                project_root=self.project,
-                home_dir=self.home,
-            ),
-            1,
-        )
-
-    def test_pi_malformed_incomplete_or_mismatched_evidence_fails_closed(self) -> None:
-        path = self.pi_path()
-        cases = [
-            [self.pi_header(), {"type": "compaction"}],
-            [self.pi_header(), self.pi_compaction(), self.pi_compaction()],
-            [{**self.pi_header(), "id": "other-session"}, self.pi_compaction()],
-            [self.pi_header(), {**self.pi_compaction(), "cwd": str(self.root / "other")}],
-        ]
-        for records in cases:
-            with self.subTest(records=records):
-                self.write_jsonl(path, records)
-                self.assertEqual(
-                    self.observe(
-                        self.roster(kind="pi", path=path),
-                        "lead-beo-skills",
-                        project_root=self.project,
-                        home_dir=self.home,
-                    ),
-                    None,
-                )
-        path.write_text("{not-json}\n", encoding="utf-8")
-        self.assertEqual(
-            self.observe(
-                self.roster(kind="pi", path=path),
-                "lead-beo-skills",
-                project_root=self.project,
-                home_dir=self.home,
-            ),
-            None,
-        )
-
-    def test_claude_counts_boundary_summary_pairs_in_order(self) -> None:
-        session_id = "058a68e8-ce90-4eae-9624-2310cc7e832f"
-        project_key = "-" + str(self.project.resolve()).lstrip("/").replace("/", "-")
-        path = self.home / ".claude" / "projects" / project_key / f"{session_id}.jsonl"
-        boundary = {
-            "type": "system",
-            "subtype": "compact_boundary",
-            "uuid": "e6ea46d6-901c-49e5-920a-10d06f333ef6",
-            "sessionId": session_id,
-            "cwd": str(self.project),
-            "compactMetadata": {"trigger": "auto"},
-        }
-        summary = {
-            "type": "user",
-            "isCompactSummary": True,
-            "uuid": "85ef7c32-1265-4a00-9395-0af4b3171f3e",
-            "sessionId": session_id,
-            "cwd": str(self.project),
-        }
-        self.write_jsonl(path, [boundary, summary, {**boundary, "uuid": "fa54338c-1c77-4eae-9624-2310cc7e832f"}, {**summary, "uuid": "b09c0db6-ec20-4036-8289-7dacd32e7e25"}])
-        self.assertEqual(
-            self.observe(
-                self.roster(kind="claude", session_id=session_id),
-                "lead-beo-skills",
-                project_root=self.project,
-                home_dir=self.home,
-            ),
-            2,
-        )
-
-    def test_claude_session_cwd_may_change_within_project_root(self) -> None:
-        session_id = "058a68e8-ce90-4eae-9624-2310cc7e832f"
-        project_key = "-" + str(self.project.resolve()).lstrip("/").replace("/", "-")
-        path = self.home / ".claude" / "projects" / project_key / f"{session_id}.jsonl"
-        subdirectory = self.project / "subdir"
-        subdirectory.mkdir()
-        boundary = {
-            "type": "system",
-            "subtype": "compact_boundary",
-            "uuid": "e6ea46d6-901c-49e5-920a-10d06f333ef6",
-            "sessionId": session_id,
-            "cwd": str(subdirectory),
-            "compactMetadata": {"trigger": "auto"},
-        }
-        summary = {
-            "type": "user",
-            "isCompactSummary": True,
-            "uuid": "85ef7c32-1265-4a00-9395-0af4b3171f3e",
-            "sessionId": session_id,
-            "cwd": str(self.project),
-        }
-        self.write_jsonl(path, [boundary, summary])
-        self.assertEqual(
-            self.observe(
-                self.roster(kind="claude", session_id=session_id),
-                "lead-beo-skills",
-                project_root=self.project,
-                home_dir=self.home,
-            ),
-            1,
-        )
-
-    def test_claude_missing_or_ambiguous_companion_fails_closed(self) -> None:
-        session_id = "058a68e8-ce90-4eae-9624-2310cc7e832f"
-        project_key = "-" + str(self.project.resolve()).lstrip("/").replace("/", "-")
-        path = self.home / ".claude" / "projects" / project_key / f"{session_id}.jsonl"
-        boundary = {
-            "type": "system",
-            "subtype": "compact_boundary",
-            "uuid": "e6ea46d6-901c-49e5-920a-10d06f333ef6",
-            "sessionId": session_id,
-            "cwd": str(self.project),
-            "compactMetadata": {"trigger": "auto"},
-        }
-        summary = {
-            "type": "user",
-            "isCompactSummary": True,
-            "uuid": "85ef7c32-1265-4eae-9624-2310cc7e832f",
-            "sessionId": session_id,
-            "cwd": str(self.project),
-        }
-        for records in ([boundary], [summary, boundary], [boundary, boundary], [{**boundary, "compactMetadata": {}} , summary], [boundary, {**summary, "sessionId": "other"}], [boundary, {**summary, "uuid": boundary["uuid"]}]):
-            with self.subTest(records=records):
-                self.write_jsonl(path, records)
-                self.assertEqual(
-                    self.observe(
-                        self.roster(kind="claude", session_id=session_id),
-                        "lead-beo-skills",
-                        project_root=self.project,
-                        home_dir=self.home,
-                    ),
-                    None,
-                )
-
-    def test_resolution_rejects_ambiguous_or_path_escaping_roster_evidence(self) -> None:
-        path = self.pi_path()
-        self.write_jsonl(path, [self.pi_header()])
-        roster = self.roster(kind="pi", path=path)
-        self.assertIsNotNone(compaction_reprime.resolve_live_session(roster, "lead-beo-skills", project_root=self.project, home_dir=self.home))
-        self.assertIsNone(compaction_reprime.resolve_live_session(roster + roster, "lead-beo-skills", project_root=self.project, home_dir=self.home))
-        escaping = self.roster(kind="pi", path=self.root / "outside.jsonl")
-        self.assertIsNone(compaction_reprime.resolve_live_session(escaping, "lead-beo-skills", project_root=self.project, home_dir=self.home))
-        self.assertEqual(
-            self.observe(roster, "../other", project_root=self.project, home_dir=self.home),
-            None,
-        )
-
-    def test_symlinked_session_root_and_file_are_rejected(self) -> None:
-        outside_root = self.root / "outside-sessions"
-        outside_root.mkdir()
-        symlinked_root = self.home / ".pi" / "agent" / "sessions"
-        symlinked_root.parent.mkdir(parents=True, exist_ok=True)
-        symlinked_root.symlink_to(outside_root, target_is_directory=True)
-        self.assertIsNone(
-            compaction_reprime.resolve_live_session(
-                self.roster(kind="pi", path=outside_root / "2026-09-21T10-00-00-000Z_01abc123.jsonl"),
-                "lead-beo-skills",
-                project_root=self.project,
-                home_dir=self.home,
-            )
-        )
-
-        symlinked_root.unlink()
-        outside = self.root / "outside.jsonl"
-        outside.write_text(json.dumps(self.pi_header()) + "\n" + json.dumps(self.pi_compaction()) + "\n", encoding="utf-8")
-        path = self.pi_path()
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.symlink_to(outside)
-        self.assertEqual(
-            self.observe(
-                self.roster(kind="pi", path=path),
-                "lead-beo-skills",
-                project_root=self.project,
-                home_dir=self.home,
-            ),
-            None,
-        )
-
-    def test_observer_does_not_prompt_or_write_state(self) -> None:
-        path = self.pi_path()
-        self.write_jsonl(path, [self.pi_header(), self.pi_compaction()])
-        before = sorted(str(item.relative_to(self.home)) for item in self.home.rglob("*") if item.is_file())
-        with patch.object(compaction_reprime.herdr_cli.subprocess, "run", side_effect=AssertionError("observer must not invoke commands")):
-            self.assertEqual(
-                self.observe(
-                    self.roster(kind="pi", path=path),
-                    "lead-beo-skills",
-                    project_root=self.project,
-                    home_dir=self.home,
-                ),
-                1,
-            )
-        after = sorted(str(item.relative_to(self.home)) for item in self.home.rglob("*") if item.is_file())
-        self.assertEqual(after, before)
-
-
-class CompactionReprimeStateFixture(unittest.TestCase):
-    def setUp(self) -> None:
-        self.tmp = tempfile.TemporaryDirectory()
-        self.root = Path(self.tmp.name)
-        self.home = self.root / "home"
-        self.project = self.root / "project"
-        self.home.mkdir()
-        self.project.mkdir()
-        _install_subprocess_guard(self)
-        self.stdout = io.StringIO()
-        self.stderr = io.StringIO()
-        self._stdout_patch = patch.object(sys, "stdout", self.stdout)
-        self._stderr_patch = patch.object(sys, "stderr", self.stderr)
-        self._stdout_patch.start()
-        self._stderr_patch.start()
-        self.addCleanup(self._stderr_patch.stop)
-        self.addCleanup(self._stdout_patch.stop)
-
-    def tearDown(self) -> None:
-        self.tmp.cleanup()
-
-    def write_jsonl(self, path: Path, records: list[dict[str, object]]) -> None:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text("".join(json.dumps(record) + "\n" for record in records), encoding="utf-8")
-
-    def pi_path(self, session_id: str = "01abc123") -> Path:
-        return self.home / ".pi" / "agent" / "sessions" / "--project--" / f"2026-09-21T10-00-00-000Z_{session_id}.jsonl"
-
-    def pi_header(self, session_id: str = "01abc123") -> dict[str, object]:
-        return {
-            "type": "session",
-            "version": 3,
-            "id": session_id,
-            "timestamp": "2026-09-21T10:00:00.000Z",
-            "cwd": str(self.project),
-        }
+    def pi_records(self, count: int, session_id: str = PI_SESSION) -> list[dict[str, object]]:
+        header = {"type": "session", "version": 3, "id": session_id, "timestamp": "2026-09-21T10:00:00.000Z", "cwd": str(self.project)}
+        return [header] + [self.pi_compaction(f"cmp{index}") for index in range(count)]
 
     def pi_compaction(self, record_id: str) -> dict[str, object]:
         return {
-            "type": "compaction",
-            "id": record_id,
-            "parentId": "parent123",
-            "timestamp": "2026-09-21T10:01:00.000Z",
-            "summary": "summary",
-            "firstKeptEntryId": "kept123",
-            "tokensBefore": 100,
+            "type": "compaction", "id": record_id, "parentId": "parent123", "timestamp": "2026-09-21T10:01:00.000Z",
+            "summary": "summary", "firstKeptEntryId": "kept123", "tokensBefore": 100,
         }
 
-    def roster(self, path: Path, *, seat: str = "lead-beo-skills") -> list[dict[str, object]]:
-        return [{
-            "name": seat,
-            "pane_id": f"pane-{seat}",
-            "agent": "pi",
-            "cwd": str(self.project),
-            "agent_session": {
-                "source": "herdr:pi",
-                "agent": "pi",
-                "kind": "path",
-                "value": str(path),
-            },
+    def set_pi(self, count: int, *, seat: str = SEAT, session_id: str = PI_SESSION, cwd: Path | None = None) -> None:
+        path = self.pi_path(session_id)
+        self.write_jsonl(path, self.pi_records(count, session_id))
+        self.agents = [{
+            "name": seat, "pane_id": f"pane-{seat}", "agent": "pi", "cwd": str(cwd or self.project),
+            "agent_session": {"source": "herdr:pi", "agent": "pi", "kind": "path", "value": str(path)},
         }]
 
-    def write_pi_count(self, path: Path, count: int, *, session_id: str = "01abc123") -> None:
-        self.write_jsonl(
-            path,
-            [self.pi_header(session_id)] + [self.pi_compaction(f"cmp{index}") for index in range(count)],
-        )
+    def claude_path(self, session_id: str = CLAUDE_SESSION) -> Path:
+        key = "-" + str(self.project).lstrip("/").replace("/", "-")
+        return self.home / ".claude" / "projects" / key / f"{session_id}.jsonl"
 
-    def track(self, path: Path, *, seat: str = "lead-beo-skills", run_id: str = "run-1"):
-        return compaction_reprime.track_live_seat(
-            self.roster(path, seat=seat),
-            seat,
-            run_id=run_id,
-            project_root=self.project,
-            home_dir=self.home,
-        )
+    def claude_records(self, pairs: int) -> list[dict[str, object]]:
+        records: list[dict[str, object]] = []
+        for index in range(pairs):
+            records.append({
+                "type": "system", "subtype": "compact_boundary", "uuid": f"boundary-{index}", "sessionId": CLAUDE_SESSION,
+                "cwd": str(self.project), "compactMetadata": {"trigger": "auto"},
+            })
+            records.append({
+                "type": "user", "isCompactSummary": True, "uuid": f"summary-{index}", "sessionId": CLAUDE_SESSION,
+                "cwd": str(self.project),
+            })
+        return records
 
-    def state_path(self, seat: str = "lead-beo-skills", session_id: str = "01abc123") -> Path:
-        import hashlib
+    def set_claude(self, records: list[dict[str, object]], session_id: str = CLAUDE_SESSION) -> None:
+        self.write_jsonl(self.claude_path(session_id), records)
+        self.agents = [{
+            "name": SEAT, "pane_id": "pane-claude", "agent": "claude", "cwd": str(self.project),
+            "agent_session": {"source": "herdr:claude", "agent": "claude", "kind": "id", "value": session_id},
+        }]
 
-        digest = hashlib.sha256((seat + "\0" + session_id).encode("utf-8")).hexdigest()
-        return self.home / ".herdr" / "projects" / "project" / "runs" / "coordination" / f"baseline-{digest}.json"
+    def records_dir(self) -> Path:
+        return self.home / ".herdr" / "projects" / "project"
 
-
-class CompactionReprimeBaselineTest(CompactionReprimeStateFixture):
-    def test_first_observation_initializes_without_eligibility_and_reloads(self) -> None:
-        path = self.pi_path()
-        self.write_pi_count(path, 3)
-        first = self.track(path)
-        self.assertIsNotNone(first)
-        assert first is not None
-        self.assertEqual(first.state.baseline_count, 3)
-        self.assertEqual(first.state.observed_count, 3)
-        self.assertIsNone(first.state.eligible_threshold)
-        self.assertEqual(first.state.next_threshold, 4)
-        self.assertEqual(first.state_path.parent.resolve(), self.state_path().parent.resolve())
-        self.assertEqual(json.loads(first.state_path.read_text(encoding="utf-8"))["schema_version"], 1)
-
-        reloaded = self.track(path, run_id="run-2")
-        self.assertIsNotNone(reloaded)
-        assert reloaded is not None
-        self.assertEqual(reloaded.state.baseline_count, 3)
-        self.assertEqual(reloaded.state.observed_count, 3)
-
-    def test_only_newly_observed_markers_cross_threshold_four(self) -> None:
-        path = self.pi_path()
-        self.write_pi_count(path, 3)
-        self.assertIsNotNone(self.track(path))
-
-        self.write_pi_count(path, 6)
-        crossed = self.track(path)
-        self.assertIsNotNone(crossed)
-        assert crossed is not None
-
-        self.write_pi_count(path, 7)
-        crossed = self.track(path)
-        self.assertIsNotNone(crossed)
-        assert crossed is not None
-        self.assertEqual(crossed.state.eligible_threshold, 4)
-        self.assertEqual(crossed.state.next_threshold, 8)
-
-        repeated = self.track(path)
-        self.assertIsNotNone(repeated)
-        assert repeated is not None
-        self.assertEqual(repeated.state.eligible_threshold, 4)
-
-    def test_state_isolated_by_seat_and_session_identity(self) -> None:
-        first_path = self.pi_path()
-        second_path = self.pi_path("02def456")
-        self.write_pi_count(first_path, 1)
-        self.write_pi_count(second_path, 8, session_id="02def456")
-        first = self.track(first_path, seat="lead-beo-skills")
-        second = self.track(second_path, seat="other-seat")
-        self.assertIsNotNone(first)
-        self.assertIsNotNone(second)
-        assert first is not None and second is not None
-        self.assertNotEqual(first.state_path, second.state_path)
-        self.assertEqual(first.state.baseline_count, 1)
-        self.assertEqual(second.state.baseline_count, 8)
-        self.assertIsNone(second.state.eligible_threshold)
-
-        first_session_state = first.state_path.read_bytes()
-        relaunched = self.track(second_path, seat="lead-beo-skills")
-        self.assertIsNotNone(relaunched)
-        assert relaunched is not None
-        self.assertEqual(relaunched.state.baseline_count, 8)
-        self.assertEqual(relaunched.state.observed_count, 8)
-        self.assertEqual(relaunched.state_path.resolve(), self.state_path(session_id="02def456").resolve())
-        self.assertEqual(first.state_path.read_bytes(), first_session_state)
-
-    def test_malformed_unknown_version_and_symlink_state_fail_closed(self) -> None:
-        path = self.pi_path()
-        self.write_pi_count(path, 1)
-        self.assertIsNotNone(self.track(path))
-        state_path = self.state_path()
-        state = json.loads(state_path.read_text(encoding="utf-8"))
-        state["schema_version"] = True
-        state_path.write_text(json.dumps(state), encoding="utf-8")
-        self.assertIsNone(self.track(path))
-
-        state_path.write_text("{not-json}\n", encoding="utf-8")
-        self.assertIsNone(self.track(path))
-
-        state_path.unlink()
-        outside = self.root / "outside-state.json"
-        outside.write_text("{}", encoding="utf-8")
-        state_path.symlink_to(outside)
-        self.assertIsNone(self.track(path))
-
-    def test_malformed_or_mismatched_state_is_unavailable(self) -> None:
-        path = self.pi_path()
-        self.write_pi_count(path, 1)
-        self.assertIsNotNone(self.track(path))
-        state_path = self.state_path()
-        state = json.loads(state_path.read_text(encoding="utf-8"))
-
-        state["seat"] = "other-seat"
-        state_path.write_text(json.dumps(state), encoding="utf-8")
-        self.assertIsNone(self.track(path))
-
-        state["seat"] = "lead-beo-skills"
-        state["observed_count"] = "not-an-integer"
-        state_path.write_text(json.dumps(state), encoding="utf-8")
-        self.assertIsNone(self.track(path))
-        self.assertEqual(list(state_path.parent.glob("*.tmp")), [])
-
-    def test_symlinked_coordination_root_is_unavailable_without_fallback(self) -> None:
-        outside = self.root / "outside-coordination"
-        outside.mkdir()
-        project_runs = self.home / ".herdr" / "projects" / "project" / "runs"
-        project_runs.mkdir(parents=True)
-        (project_runs / "coordination").symlink_to(outside, target_is_directory=True)
-        path = self.pi_path()
-        self.write_pi_count(path, 1)
-        self.assertIsNone(self.track(path))
-        self.assertEqual(list(outside.iterdir()), [])
-
-
-class CompactionReprimeDispatchTest(CompactionReprimeStateFixture):
-    def write_pointer_files(
-        self,
-        run_id: str = "run-1",
-        *,
-        run_files: tuple[str, ...] | None = None,
-    ) -> None:
-        project_records = self.home / ".herdr" / "projects" / "project"
-        for name, body in {
-            "context-pack.md": "RAW CONTEXT PACK BODY must not be copied",
-            "gates.md": "RAW GATE BODY must not be copied",
-            "supervisor-notebook.md": "RAW NOTEBOOK BODY must not be copied",
-        }.items():
-            project_records.joinpath(name).parent.mkdir(parents=True, exist_ok=True)
-            project_records.joinpath(name).write_text(body, encoding="utf-8")
-
-        run_dir = project_records / "runs" / run_id
+    def write_pointer_files(self, *, run_files: tuple[str, ...] = ("intake-record.md", "plan.md", "specification.md", "slices.json")) -> None:
+        records = self.records_dir()
+        records.mkdir(parents=True, exist_ok=True)
+        for name in ("context-pack.md", "gates.md", "supervisor-notebook.md"):
+            (records / name).write_text(f"RAW {name} BODY must not be copied", encoding="utf-8")
+        run_dir = records / "runs" / "run-1"
         run_dir.mkdir(parents=True, exist_ok=True)
-        run_file_bodies = {
-            "intake-record.md": "RAW INTAKE BODY must not be copied",
-            "plan.md": "RAW PLAN BODY must not be copied",
-            "specification.md": "RAW SPECIFICATION BODY must not be copied",
-            "slices.json": '{"raw": "RAW SLICES BODY must not be copied"}',
+        for name in run_files:
+            (run_dir / name).write_text(f"RAW {name} BODY must not be copied", encoding="utf-8")
+
+    def state_files(self) -> list[Path]:
+        return sorted((self.records_dir() / "runs" / "coordination").glob("*"))
+
+    def baseline_then_cross(self, baseline: int = 3, crossed: int = 7) -> None:
+        """First observation at `baseline` markers, then the file grows to `crossed`."""
+        self.write_pointer_files()
+        self.set_pi(baseline)
+        self.assertEqual(self.run_cli(), 0)
+        self.assertEqual(self.prompts, [])
+        self.set_pi(crossed)
+
+
+class CliContractTest(ReprimeCase):
+    def test_run_id_seat_and_project_root_are_required(self) -> None:
+        with self.assertRaises(SystemExit) as raised:
+            compaction_reprime.main([])
+        self.assertEqual(raised.exception.code, 2)
+        self.assertIn("the following arguments are required", self.stderr.getvalue())
+
+    def test_project_root_must_be_absolute(self) -> None:
+        with self.assertRaises(SystemExit) as raised:
+            compaction_reprime.main(ARGS + ["--project-root", "relative/project"])
+        self.assertEqual(raised.exception.code, 2)
+        self.assertIn("--project-root must be an absolute path", self.stderr.getvalue())
+        self.assertEqual(self.prompts, [])
+
+    def test_runs_from_any_cwd(self) -> None:
+        self.baseline_then_cross()
+        original = Path.cwd()
+        with tempfile.TemporaryDirectory() as elsewhere:
+            os.chdir(elsewhere)
+            try:
+                self.assertEqual(self.run_cli(), 0)
+            finally:
+                os.chdir(original)
+        self.assertEqual(len(self.prompts), 1)
+        self.assertIn(f"prompted {SEAT} at threshold 4", self.stdout.getvalue())
+
+
+class SeatResolutionTest(ReprimeCase):
+    def test_seat_resolves_by_name_or_pane_id_and_only_when_unique(self) -> None:
+        self.write_pointer_files()
+        self.set_pi(0)
+        agent = self.agents[0]
+        self.assertEqual(self.run_cli(), 0)
+        self.assertEqual(self.run_cli(args=["--run-id", "run-1", "--seat", f"pane-{SEAT}"]), 0)
+        self.agents = [agent, dict(agent)]
+        self.assertEqual(self.run_cli(), 1)
+        self.agents = [agent]
+        self.assertEqual(self.run_cli(args=["--run-id", "run-1", "--seat", "no-such-seat"]), 1)
+        self.assertEqual(self.prompts, [])
+
+    def test_unavailable_roster_fails_without_prompt(self) -> None:
+        self.baseline_then_cross()
+        self.list_returncode = 1
+        self.assertEqual(self.run_cli(), 1)
+        self.assertEqual(self.prompts, [])
+
+    def test_roster_cwd_may_be_a_subdirectory_of_the_project_root(self) -> None:
+        self.write_pointer_files()
+        inside = self.project / "subdir"
+        inside.mkdir()
+        self.set_pi(3, cwd=inside)
+        self.assertEqual(self.run_cli(), 0)
+        self.set_pi(7, cwd=inside)
+        self.assertEqual(self.run_cli(), 0)
+        self.assertEqual(len(self.prompts), 1)
+
+    def test_roster_cwd_outside_project_root_is_refused_before_any_state_or_prompt(self) -> None:
+        self.write_pointer_files()
+        outside = self.root / "elsewhere"
+        outside.mkdir()
+        self.set_pi(3, cwd=outside)
+        self.assertEqual(self.run_cli(), 1)
+        self.set_pi(7, cwd=outside)
+        self.assertEqual(self.run_cli(), 1)
+        self.assertEqual(self.state_files(), [])
+        self.assertEqual(self.prompts, [])
+
+
+class MarkerCountingTest(ReprimeCase):
+    def test_pi_counts_only_compaction_records_and_tolerates_a_partial_last_line(self) -> None:
+        self.write_pointer_files()
+        self.set_pi(0)
+        self.assertEqual(self.run_cli(), 0)
+        records = self.pi_records(4) + [{"type": "message", "id": "m1"}]
+        self.write_jsonl(self.pi_path(), records)
+        with self.pi_path().open("a", encoding="utf-8") as stream:
+            stream.write('{"type":"assistant"')
+        self.assertEqual(self.run_cli(), 0)
+        self.assertEqual(len(self.prompts), 1)
+
+    def test_claude_counts_boundary_summary_pairs(self) -> None:
+        self.write_pointer_files()
+        self.set_claude(self.claude_records(0) + [{"type": "user", "sessionId": CLAUDE_SESSION}])
+        self.assertEqual(self.run_cli(), 0)
+        self.set_claude(self.claude_records(3))
+        self.assertEqual(self.run_cli(), 0)
+        self.assertEqual(self.prompts, [])
+        self.set_claude(self.claude_records(4))
+        self.assertEqual(self.run_cli(), 0)
+        self.assertEqual(len(self.prompts), 1)
+
+    def test_unverified_pi_evidence_fails_closed(self) -> None:
+        self.write_pointer_files()
+        valid = self.pi_records(1)
+        cases = {
+            "incomplete marker": [valid[0], {"type": "compaction"}],
+            "duplicate marker id": valid + [valid[1]],
+            "header id is another session": [{**valid[0], "id": "other-session"}, valid[1]],
+            "malformed line": None,
         }
-        selected_run_files = set(run_file_bodies) if run_files is None else set(run_files)
-        for name, body in run_file_bodies.items():
-            if name in selected_run_files:
-                run_dir.joinpath(name).write_text(body, encoding="utf-8")
+        for name, records in cases.items():
+            with self.subTest(name):
+                self.set_pi(0)
+                if records is None:
+                    self.pi_path().write_text("{not-json}\n", encoding="utf-8")
+                else:
+                    self.write_jsonl(self.pi_path(), records)
+                self.assertEqual(self.run_cli(), 1)
+                self.assertEqual(self.state_files(), [])
+        self.assertEqual(self.prompts, [])
 
-    def make_pending(self, *, run_id: str = "run-1") -> Path:
-        path = self.pi_path()
-        self.write_pi_count(path, 3)
-        self.assertIsNotNone(self.track(path, run_id=run_id))
-        self.write_pi_count(path, 7)
-        pending = self.track(path, run_id=run_id)
-        self.assertIsNotNone(pending)
-        assert pending is not None
-        self.assertEqual(pending.state.eligible_threshold, 4)
-        return path
-
-    def dispatch(self, path: Path, *, run_id: str = "run-1"):
-        return compaction_reprime.dispatch_live_seat(
-            self.roster(path),
-            "lead-beo-skills",
-            run_id=run_id,
-            project_root=self.project,
-            home_dir=self.home,
-        )
-
-    def test_pointer_only_block_contains_canonical_paths_and_sections(self) -> None:
+    def test_unverified_claude_evidence_fails_closed(self) -> None:
         self.write_pointer_files()
-        block = compaction_reprime.build_reprime_block(
-            run_id="run-1",
-            seat="lead-beo-skills",
-            threshold=4,
-            project_root=self.project,
-            home_dir=self.home,
-        )
-        self.assertIsNotNone(block)
-        assert block is not None
-        self.assertFalse((self.project / "skills").exists())
-        doctrine_root = SCRIPT.resolve().parents[1] / "references"
-        expected_pointers = (
-            self.home / ".herdr" / "projects" / "project" / "context-pack.md",
-            self.home / ".herdr" / "projects" / "project" / "gates.md",
-            self.home / ".herdr" / "projects" / "project" / "supervisor-notebook.md",
-            self.home / ".herdr" / "projects" / "project" / "runs" / "run-1" / "intake-record.md",
-            self.home / ".herdr" / "projects" / "project" / "runs" / "run-1" / "plan.md",
-            self.home / ".herdr" / "projects" / "project" / "runs" / "run-1" / "specification.md",
-            self.home / ".herdr" / "projects" / "project" / "runs" / "run-1" / "slices.json",
-            doctrine_root / "lead.md#Recovery",
-            doctrine_root / "lead.md#Delivery sequence",
-            doctrine_root / "lead.md#Gates and ledger",
-            doctrine_root / "supervisor.md#Handoff",
-            doctrine_root / "closeout.md#Acceptance custody",
-        )
-        for pointer in expected_pointers:
-            self.assertIn(str(pointer), block)
-        for raw_body in (
-            "RAW CONTEXT PACK BODY",
-            "RAW GATE BODY",
-            "RAW NOTEBOOK BODY",
-            "RAW INTAKE BODY",
-            "RAW PLAN BODY",
-            "RAW SPECIFICATION BODY",
-            "RAW SLICES BODY",
-        ):
-            self.assertNotIn(raw_body, block)
-        self.assertNotIn("{", block)
-        self.assertNotIn("}", block)
+        pair = self.claude_records(1)
+        boundary, summary = pair
+        cases = {
+            "boundary without summary": [boundary],
+            "summary before boundary": [summary, boundary],
+            "two boundaries": [boundary, boundary],
+            "boundary without trigger": [{**boundary, "compactMetadata": {}}, summary],
+            "summary from another session": [boundary, {**summary, "sessionId": "other"}],
+            "summary reuses the boundary uuid": [boundary, {**summary, "uuid": boundary["uuid"]}],
+        }
+        for name, records in cases.items():
+            with self.subTest(name):
+                self.set_claude(records)
+                self.assertEqual(self.run_cli(), 1)
+                self.assertEqual(self.state_files(), [])
+        self.assertEqual(self.prompts, [])
 
-    def test_success_dispatch_uses_exact_argv_and_is_idempotent(self) -> None:
+    def test_claude_session_id_cannot_escape_the_project_directory(self) -> None:
         self.write_pointer_files()
-        path = self.make_pending()
-        with patch.object(compaction_reprime.herdr_cli.subprocess, "run", return_value=subprocess.CompletedProcess([], 0)) as run:
-            first = self.dispatch(path)
-        self.assertIsNotNone(first)
-        assert first is not None
-        self.assertTrue(first.prompt_succeeded)
-        self.assertEqual(first.threshold, 4)
-        self.assertEqual(run.call_count, 1)
-        argv = run.call_args.args[0]
-        self.assertEqual(argv[:4], ["herdr", "agent", "prompt", "lead-beo-skills"])
-        self.assertEqual(
-            argv[4],
-            compaction_reprime.build_reprime_block(
-                run_id="run-1",
-                seat="lead-beo-skills",
-                threshold=4,
-                project_root=self.project,
-                home_dir=self.home,
-            ),
-        )
-        self.assertEqual(json.loads(first.state_path.read_text(encoding="utf-8"))["consumed_threshold"], 4)
-        self.assertEqual(json.loads(first.state_path.read_text(encoding="utf-8"))["prompt_status"], "consumed")
+        self.set_claude(self.claude_records(0))
+        outside = self.home / ".claude" / "projects" / "outside.jsonl"
+        self.write_jsonl(outside, [])
+        self.agents[0]["agent_session"]["value"] = "../outside"  # type: ignore[index]
+        self.assertEqual(self.run_cli(), 1)
+        self.assertEqual(self.state_files(), [])
 
-        with patch.object(compaction_reprime.herdr_cli.subprocess, "run") as repeated_run:
-            repeated = self.dispatch(path)
-        self.assertIsNotNone(repeated)
-        assert repeated is not None
-        self.assertFalse(repeated.prompt_attempted)
-        self.assertIsNone(repeated.threshold)
-        repeated_run.assert_not_called()
 
-    def test_successful_thresholds_progress_one_at_a_time(self) -> None:
+class ThresholdTest(ReprimeCase):
+    def test_first_observation_sets_the_baseline_and_sends_nothing(self) -> None:
         self.write_pointer_files()
-        path = self.pi_path()
-        self.write_pi_count(path, 3)
-        self.assertIsNotNone(self.track(path))
-        self.write_pi_count(path, 11)
-        pending = self.track(path)
-        self.assertIsNotNone(pending)
-        assert pending is not None
-        self.assertEqual(pending.state.eligible_threshold, 4)
+        self.set_pi(9)
+        self.assertEqual(self.run_cli(), 0)
+        self.assertEqual(self.prompts, [])
+        self.assertIn(f"no newly crossed threshold for {SEAT}", self.stdout.getvalue())
 
-        with patch.object(compaction_reprime.herdr_cli.subprocess, "run", return_value=subprocess.CompletedProcess([], 0)) as first_run:
-            first = self.dispatch(path)
-        self.assertIsNotNone(first)
-        assert first is not None
-        self.assertEqual(first.threshold, 4)
-        self.assertEqual(first.state.next_threshold, 8)
-        self.assertEqual(first_run.call_count, 1)
-
-        with patch.object(compaction_reprime.herdr_cli.subprocess, "run", return_value=subprocess.CompletedProcess([], 0)) as second_run:
-            second = self.dispatch(path)
-        self.assertIsNotNone(second)
-        assert second is not None
-        self.assertEqual(second.threshold, 8)
-        self.assertEqual(second.state.consumed_threshold, 8)
-        self.assertEqual(second_run.call_count, 1)
-
-    def relaunch_line(self, threshold: int) -> str:
-        lead = SCRIPT.resolve().parents[1] / "references" / "lead.md"
-        return (
-            f"relaunch-recommended: {threshold} compactions since baseline; "
-            f"at the next slice boundary: {lead}#Relaunch and doctrine"
-        )
-
-    def test_relaunch_recommendation_starts_at_threshold_eight(self) -> None:
+    def test_only_markers_since_baseline_cross_the_first_threshold_of_four(self) -> None:
         self.write_pointer_files()
-        path = self.pi_path()
-        self.write_pi_count(path, 3)
-        self.assertIsNotNone(self.track(path))
-        self.write_pi_count(path, 15)
-        self.assertIsNotNone(self.track(path))
-        roster = {"result": {"agents": self.roster(path)}}
+        self.set_pi(3)
+        self.assertEqual(self.run_cli(), 0)
+        self.set_pi(6)
+        self.assertEqual(self.run_cli(), 0)
+        self.assertEqual(self.prompts, [])
+        self.set_pi(7)
+        self.assertEqual(self.run_cli(), 0)
+        self.assertEqual(len(self.prompts), 1)
+        self.assertIn("prompted lead-beo-skills at threshold 4\n", self.stdout.getvalue())
+
+    def test_each_crossed_threshold_prompts_once(self) -> None:
+        self.baseline_then_cross(baseline=3, crossed=15)
+        for expected in (4, 8, 12):
+            with self.subTest(threshold=expected):
+                self.assertEqual(self.run_cli(), 0)
+                self.assertEqual(len(self.prompts), expected // 4)
+                self.assertIn(f"at threshold {expected}", self.stdout.getvalue())
+        self.assertEqual(self.run_cli(), 0)
+        self.assertEqual(len(self.prompts), 3)
+        self.assertIn("no newly crossed threshold", self.stdout.getvalue())
+
+    def test_state_is_one_file_per_seat_session_holding_baseline_and_sent_threshold(self) -> None:
+        self.baseline_then_cross()
+        self.assertEqual(self.run_cli(), 0)
+        (state_file,) = self.state_files()
+        digest = hashlib.sha256((SEAT + "\0" + PI_SESSION).encode("utf-8")).hexdigest()
+        self.assertEqual(state_file.name, f"baseline-{digest}.json")
+        self.assertEqual(json.loads(state_file.read_text(encoding="utf-8")), {"baseline": 3, "sent": 4})
+
+    def test_a_new_session_or_seat_starts_its_own_baseline(self) -> None:
+        self.baseline_then_cross()
+        self.assertEqual(self.run_cli(), 0)
+        self.assertEqual(len(self.prompts), 1)
+        self.set_pi(8, session_id="02def456")
+        self.assertEqual(self.run_cli(), 0)
+        self.set_pi(8, seat="other-seat", session_id="02def456")
+        self.assertEqual(self.run_cli(args=["--run-id", "run-1", "--seat", "other-seat"]), 0)
+        self.assertEqual(len(self.prompts), 1)
+        self.assertEqual(len(self.state_files()), 3)
+
+    def test_unreadable_or_regressed_state_fails_closed(self) -> None:
+        self.baseline_then_cross()
+        (state_file,) = self.state_files()
+        for body in ("{not-json}\n", '{"baseline": "3", "sent": 0}', '{"baseline": 3, "sent": true}', "[]", '{"baseline": 9, "sent": 0}'):
+            with self.subTest(body=body):
+                state_file.write_text(body, encoding="utf-8")
+                self.assertEqual(self.run_cli(), 1)
+        self.assertEqual(self.prompts, [])
+
+
+class PromptTest(ReprimeCase):
+    def test_relaunch_is_recommended_from_eight_markers_since_baseline(self) -> None:
+        self.baseline_then_cross(baseline=3, crossed=15)
+        lead = REFERENCES / "lead.md"
         for threshold in (4, 8, 12):
             with self.subTest(threshold=threshold):
-                self.stdout.seek(0)
-                self.stdout.truncate()
-                with patch.object(compaction_reprime, "_load_live_roster", return_value=roster), \
-                        patch.object(
-                            compaction_reprime.herdr_cli.subprocess,
-                            "run",
-                            return_value=subprocess.CompletedProcess([], 0),
-                        ) as prompt, \
-                        patch.dict(os.environ, {"HOME": str(self.home)}):
-                    result = compaction_reprime.main([
-                        "--run-id", "run-1", "--seat", "lead-beo-skills", "--project-root", str(self.project),
-                    ])
-                self.assertEqual(result, 0)
-                prompt.assert_called_once()
-                argv = prompt.call_args.args[0]
-                self.assertEqual(argv[:4], ["herdr", "agent", "prompt", "lead-beo-skills"])
-                self.assertEqual(len(argv), 5)
-                block_lines = argv[4].split("\n")
-                if threshold < compaction_reprime.RELAUNCH_RECOMMEND_THRESHOLD:
-                    self.assertNotIn("relaunch-recommended", argv[4])
-                    self.assertEqual(
-                        self.stdout.getvalue(),
-                        f"compaction_reprime: prompted lead-beo-skills at threshold {threshold}\n",
-                    )
+                self.assertEqual(self.run_cli(), 0)
+                block = self.prompts[-1][4]
+                if threshold == 4:
+                    self.assertNotIn("relaunch-recommended", block)
+                    self.assertEqual(self.stdout.getvalue(), f"compaction_reprime: prompted {SEAT} at threshold 4\n")
                 else:
-                    self.assertEqual(block_lines[-1], self.relaunch_line(threshold))
-                    self.assertEqual(block_lines[-2].split(": ", 1)[0], "closeout")
+                    self.assertEqual(
+                        block.split("\n")[-1],
+                        f"relaunch-recommended: {threshold} compactions since baseline; at the next slice boundary: {lead}#Relaunch and doctrine",
+                    )
                     self.assertEqual(
                         self.stdout.getvalue(),
-                        f"compaction_reprime: prompted lead-beo-skills at threshold {threshold}"
-                        "; relaunch recommended at the next slice boundary\n",
+                        f"compaction_reprime: prompted {SEAT} at threshold {threshold}; relaunch recommended at the next slice boundary\n",
                     )
 
-    def test_block_below_relaunch_threshold_has_no_relaunch_line(self) -> None:
-        self.write_pointer_files()
-        kwargs = dict(run_id="run-1", seat="lead-beo-skills", project_root=self.project, home_dir=self.home)
-        below = compaction_reprime.build_reprime_block(threshold=4, **kwargs)
-        at = compaction_reprime.build_reprime_block(threshold=8, **kwargs)
-        assert below is not None and at is not None
-        self.assertNotIn("relaunch-recommended", below)
-        self.assertEqual(at, below + "\n" + self.relaunch_line(8))
+    def test_prompt_is_one_herdr_agent_prompt_of_pointers_only(self) -> None:
+        self.baseline_then_cross()
+        self.assertEqual(self.run_cli(), 0)
+        (argv,) = self.prompts
+        self.assertEqual(argv[:4], ["herdr", "agent", "prompt", SEAT])
+        self.assertEqual(len(argv), 5)
+        block = argv[4]
+        records, run_dir = self.records_dir(), self.records_dir() / "runs" / "run-1"
+        for pointer in (
+            records / "context-pack.md", records / "gates.md", records / "supervisor-notebook.md", run_dir,
+            run_dir / "intake-record.md", run_dir / "plan.md", run_dir / "specification.md", run_dir / "slices.json",
+            f"{REFERENCES / 'lead.md'}#Recovery", f"{REFERENCES / 'lead.md'}#Delivery sequence",
+            f"{REFERENCES / 'lead.md'}#Gates and ledger", f"{REFERENCES / 'supervisor.md'}#Handoff",
+            f"{REFERENCES / 'closeout.md'}#Acceptance custody",
+        ):
+            self.assertIn(str(pointer), block)
+        self.assertNotIn("RAW", block)
+        self.assertIn(f"run-id: run-1\nseat: {SEAT}\n", block)
 
-    def test_unavailable_prompt_is_durable_and_retryable(self) -> None:
-        self.write_pointer_files()
-        path = self.make_pending()
-        with patch.object(
-            compaction_reprime.herdr_cli,
-            "run",
-            side_effect=compaction_reprime.herdr_cli.HerdrUnavailable(
-                "herdr agent prompt lead-beo-skills timed out"
-            ),
-        ) as run:
-            failed = self.dispatch(path)
-        self.assertIsNotNone(failed)
-        assert failed is not None
-        self.assertTrue(failed.prompt_attempted)
-        self.assertIsNotNone(failed.threshold)
-        self.assertFalse(failed.prompt_succeeded)
-        self.assertEqual(json.loads(failed.state_path.read_text(encoding="utf-8"))["eligible_threshold"], 4)
-        run.assert_called_once()
-
-    def test_failed_prompt_is_durable_and_retryable(self) -> None:
-        self.write_pointer_files()
-        path = self.make_pending()
-        with patch.object(compaction_reprime.herdr_cli.subprocess, "run", return_value=subprocess.CompletedProcess([], 17)) as run:
-            failed = self.dispatch(path)
-        self.assertIsNotNone(failed)
-        assert failed is not None
-        self.assertTrue(failed.prompt_attempted)
-        self.assertIsNotNone(failed.threshold)
-        self.assertFalse(failed.prompt_succeeded)
-        state = json.loads(failed.state_path.read_text(encoding="utf-8"))
-        self.assertEqual(state["prompt_status"], "failed")
-        self.assertEqual(state["eligible_threshold"], 4)
-        self.assertEqual(state["consumed_threshold"], 0)
-        self.assertEqual(run.call_count, 1)
-
-        with patch.object(compaction_reprime.herdr_cli.subprocess, "run", return_value=subprocess.CompletedProcess([], 0)) as retry:
-            succeeded = self.dispatch(path)
-        self.assertIsNotNone(succeeded)
-        assert succeeded is not None
-        self.assertTrue(succeeded.prompt_succeeded)
-        self.assertEqual(succeeded.threshold, 4)
-        self.assertEqual(retry.call_count, 1)
-        state = json.loads(succeeded.state_path.read_text(encoding="utf-8"))
-        self.assertEqual(state["prompt_status"], "consumed")
-        self.assertIsNone(state["eligible_threshold"])
-        self.assertEqual(state["consumed_threshold"], 4)
-
-    def fail_write_of(self, status: str):
-        real_write = compaction_reprime._write_state
-
-        def write(root, path, state):
-            if state.prompt_status == status:
-                return False
-            return real_write(root, path, state)
-
-        return patch.object(compaction_reprime, "_write_state", side_effect=write)
-
-    def main_run(self, path: Path) -> int:
-        roster = {"result": {"agents": self.roster(path)}}
-        with patch.object(compaction_reprime, "_load_live_roster", return_value=roster), \
-                patch.dict(os.environ, {"HOME": str(self.home)}):
-            return compaction_reprime.main([
-                "--run-id", "run-1", "--seat", "lead-beo-skills", "--project-root", str(self.project),
-            ])
-
-    def test_failed_write_after_prompt_is_never_re_prompted(self) -> None:
-        self.write_pointer_files()
-        path = self.make_pending()
-        with patch.object(compaction_reprime.herdr_cli.subprocess, "run", return_value=subprocess.CompletedProcess([], 0)) as run, \
-                self.fail_write_of("consumed"):
-            self.assertEqual(self.main_run(path), 1)
-        self.assertEqual(run.call_count, 1)
-        state = json.loads(self.state_path().read_text(encoding="utf-8"))
-        self.assertEqual(state["prompt_status"], "prompting")
-        self.assertEqual(state["eligible_threshold"], 4)
-
-        with patch.object(compaction_reprime.herdr_cli.subprocess, "run") as rerun:
-            self.assertEqual(self.main_run(path), 1)
-        rerun.assert_not_called()
-        self.assertIn("lead-beo-skills threshold 4 outcome unknown; not re-prompted", self.stderr.getvalue())
-        state = json.loads(self.state_path().read_text(encoding="utf-8"))
-        self.assertEqual(state["prompt_status"], "consumed")
-        self.assertEqual(state["consumed_threshold"], 4)
-        self.assertIsNone(state["eligible_threshold"])
-
-        with patch.object(compaction_reprime.herdr_cli.subprocess, "run") as third:
-            self.assertEqual(self.main_run(path), 0)
-        third.assert_not_called()
-
-    def test_failed_write_before_prompt_sends_nothing(self) -> None:
-        self.write_pointer_files()
-        path = self.make_pending()
-        with patch.object(compaction_reprime.herdr_cli.subprocess, "run") as run, self.fail_write_of("prompting"):
-            self.assertIsNone(self.dispatch(path))
-        run.assert_not_called()
-        state = json.loads(self.state_path().read_text(encoding="utf-8"))
-        self.assertEqual(state["prompt_status"], "eligible")
-        self.assertEqual(state["eligible_threshold"], 4)
-
-    def test_prompting_state_requires_an_eligible_threshold(self) -> None:
-        self.write_pointer_files()
-        path = self.make_pending()
-        state_file = self.state_path()
-        state = json.loads(state_file.read_text(encoding="utf-8"))
-        state["prompt_status"] = "prompting"
-        state_file.write_text(json.dumps(state), encoding="utf-8")
-        tracked = self.track(path)
-        assert tracked is not None
-        self.assertEqual(tracked.state.prompt_status, "prompting")
-        state["eligible_threshold"] = None
-        state_file.write_text(json.dumps(state), encoding="utf-8")
-        self.assertIsNone(self.track(path))
-
-    def test_missing_pointer_fails_closed_without_prompt(self) -> None:
-        self.write_pointer_files()
-        path = self.make_pending()
-        (self.home / ".herdr" / "projects" / "project" / "context-pack.md").unlink()
-        with patch.object(compaction_reprime.herdr_cli.subprocess, "run") as run:
-            result = self.dispatch(path)
-        self.assertIsNotNone(result)
-        assert result is not None
-        self.assertFalse(result.prompt_attempted)
-        self.assertEqual(result.threshold, 4)
-        self.assertEqual(json.loads(result.state_path.read_text(encoding="utf-8"))["eligible_threshold"], 4)
-        run.assert_not_called()
-
-    def test_optional_run_pointers_include_only_present_files(self) -> None:
+    def test_run_records_absent_from_the_run_directory_are_not_pointed_at(self) -> None:
         self.write_pointer_files(run_files=("intake-record.md",))
-        block = compaction_reprime.build_reprime_block(
-            run_id="run-1",
-            seat="lead-beo-skills",
-            threshold=4,
-            project_root=self.project,
-            home_dir=self.home,
-        )
-        self.assertIsNotNone(block)
-        assert block is not None
-        run_dir = (self.home / ".herdr" / "projects" / "project" / "runs" / "run-1").resolve()
-        intake = (run_dir / "intake-record.md").resolve()
-        self.assertIn(f"run-dir: {run_dir}", block)
-        self.assertIn(f"intake: {intake}", block)
+        self.set_pi(3)
+        self.assertEqual(self.run_cli(), 0)
+        self.set_pi(7)
+        self.assertEqual(self.run_cli(), 0)
+        block = self.prompts[0][4]
+        self.assertIn("\nintake: ", block)
         for label in ("plan", "specification", "slices"):
-            self.assertNotIn(f"\n{label}:", f"\n{block}")
+            self.assertNotIn(f"\n{label}:", block)
 
-    def test_symlinked_present_run_pointer_fails_closed(self) -> None:
-        self.write_pointer_files()
-        plan = self.home / ".herdr" / "projects" / "project" / "runs" / "run-1" / "plan.md"
-        outside = self.root / "outside-plan.md"
-        outside.write_text("outside", encoding="utf-8")
-        plan.unlink()
-        plan.symlink_to(outside)
-        self.assertIsNone(
-            compaction_reprime.build_reprime_block(
-                run_id="run-1",
-                seat="lead-beo-skills",
-                threshold=4,
-                project_root=self.project,
-                home_dir=self.home,
-            )
-        )
+    def test_named_doctrine_sections_exist(self) -> None:
+        self.baseline_then_cross()
+        self.assertEqual(self.run_cli(), 0)
+        for pointer in re.findall(r"^[a-z-]+: (/\S+\.md)#(.+)$", self.prompts[0][4], re.MULTILINE):
+            path, section = pointer
+            with self.subTest(section=section):
+                self.assertRegex(Path(path).read_text(encoding="utf-8"), rf"(?m)^#{{1,4}} {re.escape(section)}\s*$")
 
-    def test_cli_requires_run_id_and_seat(self) -> None:
-        with patch.object(compaction_reprime, "_load_live_roster") as load:
-            load.return_value = []
-            with self.assertRaises(SystemExit) as raised:
-                compaction_reprime.main([])
-            self.assertEqual(raised.exception.code, 2)
-            self.assertIn("the following arguments are required", self.stderr.getvalue())
-            load.assert_not_called()
+    def test_failed_or_unavailable_prompt_leaves_the_threshold_unsent_and_the_next_run_retries(self) -> None:
+        for outcome in (17, FileNotFoundError("herdr")):
+            with self.subTest(outcome=outcome):
+                self.prompts.clear()
+                self.prompt_outcome = outcome
+                self.baseline_then_cross()
+                self.assertEqual(self.run_cli(), 1)
+                self.assertEqual(len(self.prompts), 1)
+                self.assertIn("prompt failed", self.stderr.getvalue())
+                self.prompt_outcome = 0
+                self.assertEqual(self.run_cli(), 0)
+                self.assertEqual(len(self.prompts), 2)
+                self.assertIn("at threshold 4", self.stdout.getvalue())
+                self.assertEqual(self.run_cli(), 0)
+                self.assertEqual(len(self.prompts), 2)
+                for state_file in self.state_files():
+                    state_file.unlink()
 
-    def test_cli_dispatches_from_explicit_project_root(self) -> None:
-        with patch.object(compaction_reprime, "_load_live_roster", return_value={"result": {"agents": []}}), \
-                patch.object(compaction_reprime, "dispatch_live_seat", return_value=None) as dispatch:
-            with patch("sys.stderr", new_callable=io.StringIO) as stderr:
-                result = compaction_reprime.main([
-                    "--run-id", "run-1", "--seat", "lead-beo-skills", "--project-root", str(self.project),
-                ])
-        self.assertEqual(result, 1)
-        dispatch.assert_called_once()
-        self.assertEqual(dispatch.call_args.kwargs["run_id"], "run-1")
-        self.assertEqual(dispatch.call_args.kwargs["project_root"], str(self.project))
-        self.assertEqual(dispatch.call_args.args[1], "lead-beo-skills")
-        self.assertIn("failed closed", stderr.getvalue())
+    def test_missing_pointer_file_sends_nothing_and_the_threshold_stays_pending(self) -> None:
+        self.baseline_then_cross()
+        (self.records_dir() / "context-pack.md").unlink()
+        self.assertEqual(self.run_cli(), 1)
+        self.assertEqual(self.prompts, [])
+        self.assertIn("threshold 4 remains pending", self.stderr.getvalue())
+        (self.records_dir() / "context-pack.md").write_text("pack", encoding="utf-8")
+        self.assertEqual(self.run_cli(), 0)
+        self.assertEqual(len(self.prompts), 1)
 
-    def test_cli_from_different_cwd_reaches_prompt_with_explicit_project_root(self) -> None:
-        self.write_pointer_files()
-        path = self.make_pending()
-        roster = {"result": {"agents": self.roster(path)}}
-        original_cwd = Path.cwd()
-        with tempfile.TemporaryDirectory() as other_cwd:
-            os.chdir(other_cwd)
-            try:
-                with patch.object(compaction_reprime, "_load_live_roster", return_value=roster), \
-                        patch.object(
-                            compaction_reprime.herdr_cli.subprocess,
-                            "run",
-                            return_value=subprocess.CompletedProcess([], 0),
-                        ) as prompt, \
-                        patch.dict(os.environ, {"HOME": str(self.home)}):
-                    result = compaction_reprime.main([
-                        "--run-id", "run-1", "--seat", "lead-beo-skills", "--project-root", str(self.project),
-                    ])
-            finally:
-                os.chdir(original_cwd)
-        self.assertEqual(result, 0)
-        prompt.assert_called_once()
-        self.assertEqual(prompt.call_args.args[0][:4], ["herdr", "agent", "prompt", "lead-beo-skills"])
-        self.assertIn("prompted lead-beo-skills at threshold 4", self.stdout.getvalue())
-
-    def test_cli_requires_absolute_project_root(self) -> None:
-        with patch.object(compaction_reprime, "_load_live_roster") as load:
-            for project_root in (None, "relative/project"):
-                arguments = ["--run-id", "run-1", "--seat", "lead-beo-skills"]
-                if project_root is not None:
-                    arguments.extend(["--project-root", project_root])
-                with self.subTest(project_root=project_root), self.assertRaises(SystemExit) as raised:
-                    compaction_reprime.main(arguments)
-                self.assertEqual(raised.exception.code, 2)
-            self.assertIn("--project-root must be an absolute path", self.stderr.getvalue())
-            load.assert_not_called()
+    def test_run_id_cannot_escape_the_runs_directory(self) -> None:
+        self.baseline_then_cross()
+        (self.records_dir() / "outside").mkdir()
+        self.assertEqual(self.run_cli(args=["--run-id", "../outside", "--seat", SEAT]), 1)
+        self.assertEqual(self.prompts, [])
 
 
 if __name__ == "__main__":

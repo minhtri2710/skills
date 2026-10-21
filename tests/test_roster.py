@@ -41,6 +41,12 @@ class RosterTest(unittest.TestCase):
                         "workspace_id": "w1",
                     },
                     {
+                        "pane_id": "w1:p2",
+                        "name": "eng",
+                        "agent_status": "unknown",
+                        "workspace_id": "w1",
+                    },
+                    {
                         "pane_id": "w2:p1",
                         "agent": "agy",
                         "agent_status": "idle",
@@ -51,18 +57,12 @@ class RosterTest(unittest.TestCase):
         }
         self.assertEqual(
             roster.format_roster(payload),
-            ["w1:p1 lead claude working", "w2:p1 - agy idle"],
+            ["w1:p1 lead claude working", "w1:p2 eng - unknown", "w2:p1 - agy idle"],
         )
         self.assertEqual(
             roster.format_roster(payload, workspace="w1"),
-            ["w1:p1 lead claude working"],
+            ["w1:p1 lead claude working", "w1:p2 eng - unknown"],
         )
-
-    def test_launch_pending_record_without_agent_kind_is_listed(self):
-        payload = {"result": {"agents": [
-            {"pane_id": "w1:p2", "name": "eng", "agent_status": "unknown", "workspace_id": "w1"},
-        ]}}
-        self.assertEqual(roster.format_roster(payload, workspace="w1"), ["w1:p2 eng - unknown"])
 
     _SAMPLE = '{"result":{"agents":[{"pane_id":"w1:p1","name":"lead","agent":"claude","agent_status":"working","workspace_id":"w1"}]}}'
 
@@ -149,53 +149,30 @@ class RosterTest(unittest.TestCase):
             self.assertEqual(rc, 0)
             self.assertEqual(output.getvalue(), "w1:p1 peer-1 claude NEVER-STARTED\n")
 
-    def test_never_started_is_not_reported_when_progress_exists(self):
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            report = root / "report.md"
-            progress = root / "progress.md"
-            progress.write_text("progress")
-            payload = {"result": {"agents": [{
-                "pane_id": "w1:p1", "name": "peer-1", "agent": "claude",
-                "agent_status": "done", "workspace_id": "w1",
-            }]}}
-            completed = subprocess.CompletedProcess(
-                args=["herdr", "agent", "list"], returncode=0,
-                stdout=json.dumps(payload), stderr="",
-            )
-            with mock.patch.object(roster.herdr_cli.subprocess, "run", return_value=completed):
-                output = io.StringIO()
-                with mock.patch("sys.stdout", output):
-                    rc = roster.main([
-                        "--never-started", "peer-1",
-                        "--peer", f"peer-1:{report}:{progress}",
-                    ])
-            self.assertEqual(rc, 0)
-            self.assertEqual(output.getvalue(), "")
-
-    def test_never_started_is_not_reported_when_report_exists(self):
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            report = root / "report.md"
-            progress = root / "progress.md"
-            report.write_text("done")
-            payload = {"result": {"agents": [{
-                "pane_id": "w1:p1", "name": "peer-1", "agent": "claude",
-                "agent_status": "done", "workspace_id": "w1",
-            }]}}
-            completed = subprocess.CompletedProcess(
-                args=["herdr", "agent", "list"], returncode=0,
-                stdout=json.dumps(payload), stderr="",
-            )
-            with mock.patch.object(roster.herdr_cli.subprocess, "run", return_value=completed):
-                output = io.StringIO()
-                with mock.patch("sys.stdout", output):
-                    rc = roster.main([
-                        "--never-started", "peer-1",
-                        "--peer", f"peer-1:{report}:{progress}",
-                    ])
-            self.assertEqual(rc, 0)
-            self.assertEqual(output.getvalue(), "")
+    def test_never_started_is_not_reported_when_progress_or_report_exists(self):
+        for existing in ("progress", "report"):
+            with self.subTest(existing=existing), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                report = root / "report.md"
+                progress = root / "progress.md"
+                {"progress": progress, "report": report}[existing].write_text(existing)
+                payload = {"result": {"agents": [{
+                    "pane_id": "w1:p1", "name": "peer-1", "agent": "claude",
+                    "agent_status": "done", "workspace_id": "w1",
+                }]}}
+                completed = subprocess.CompletedProcess(
+                    args=["herdr", "agent", "list"], returncode=0,
+                    stdout=json.dumps(payload), stderr="",
+                )
+                with mock.patch.object(roster.herdr_cli.subprocess, "run", return_value=completed):
+                    output = io.StringIO()
+                    with mock.patch("sys.stdout", output):
+                        rc = roster.main([
+                            "--never-started", "peer-1",
+                            "--peer", f"peer-1:{report}:{progress}",
+                        ])
+                self.assertEqual(rc, 0)
+                self.assertEqual(output.getvalue(), "")
 
     def test_stalled_missing_progress_remains_fail_closed(self):
         with tempfile.TemporaryDirectory() as directory:

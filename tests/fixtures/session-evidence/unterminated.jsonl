@@ -1,1 +1,0 @@
-{"type":"message","message":{"role":"assistant","content":[{"type":"toolCall","id":"end-1","name":"bash","arguments":{}}]}}

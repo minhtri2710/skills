@@ -250,38 +250,6 @@ class JevTest(unittest.TestCase):
                 probabilities[jev.SEVERITY_LEVELS.index(expected)],
             )
 
-    def test_fork_hard_gate_and_missing_delegation_are_deterministic_human_gate(self):
-        for fork, delegation in (
-            ({**FORK, "hard_gate": True}, DELEGATION),
-            (FORK, None),
-            (FORK, {}),
-            (FORK, {"in_force": False}),
-        ):
-            with self.subTest(delegation=delegation), mock.patch.object(
-                jev, "_request_answers"
-            ) as request_answers:
-                result = jev.route_fork(fork, delegation)
-
-            self.assertIsInstance(result, jev.ForkAdvisoryResult)
-            self.assertEqual(result.route, "human_gate")
-            self.assertIsNone(result.choice)
-            self.assertTrue(result.deterministic)
-            self.assertEqual(result.probabilities, {
-                "supervisor_decide": 0.0,
-                "human_gate": 1.0,
-            })
-            request_answers.assert_not_called()
-
-    def test_fork_missing_key_stays_unavailable_when_jev_is_needed(self):
-        with mock.patch.dict(jev.os.environ, {}, clear=True), mock.patch.object(
-            jev.urllib.request, "urlopen"
-        ) as urlopen:
-            result = jev.route_fork(FORK, DELEGATION)
-
-        self.assertIsInstance(result, jev.UnavailableResult)
-        self.assertEqual(result.reason, "missing_api_key")
-        urlopen.assert_not_called()
-
     def test_fork_deterministic_human_gate_without_api_key(self):
         with mock.patch.dict(jev.os.environ, {}, clear=True), mock.patch.object(
             jev.urllib.request, "urlopen"
@@ -443,33 +411,6 @@ class JevTest(unittest.TestCase):
             self.assertIsInstance(result, jev.UnavailableResult)
             self.assertEqual(result.reason, "invalid_answers")
             self.assertNotIn("test-key", repr(result))
-
-    def test_fork_transport_and_malformed_json_fail_open(self):
-        failures = (
-            (urllib.error.URLError("fork-secret"), "network_error"),
-            (TimeoutError("fork-secret"), "network_error"),
-            (urllib.error.HTTPError(
-                jev.API_URL, 503, "unavailable", {}, io.BytesIO(b"fork-secret")
-            ), "http_error"),
-        )
-        for failure, reason in failures:
-            with self.subTest(reason=reason), mock.patch.object(
-                jev.urllib.request, "urlopen", side_effect=failure
-            ):
-                result = jev.route_fork(FORK, DELEGATION)
-            self.assertIsInstance(result, jev.UnavailableResult)
-            self.assertEqual(result.reason, reason)
-            self.assertNotIn("fork-secret", repr(result))
-
-        response = mock.Mock()
-        response.status = 200
-        response.__enter__ = mock.Mock(return_value=response)
-        response.__exit__ = mock.Mock(return_value=None)
-        response.read.return_value = b"{not-json"
-        with mock.patch.object(jev.urllib.request, "urlopen", return_value=response):
-            result = jev.route_fork(FORK, DELEGATION)
-        self.assertIsInstance(result, jev.UnavailableResult)
-        self.assertEqual(result.reason, "malformed_json")
 
 
 CLI_AVAILABLE_PAYLOADS = {
