@@ -112,16 +112,18 @@ the run directory.
    `REOPEN_REQUEST` quoting both. A solo Lead does this step itself and writes the same
    report to the run directory. Done when every Engineer has reported and is idle.
 4. **Commit.** Only the Lead commits, on a quiet tree: every Engineer idle, `git status
-   --porcelain` shows only the union of their `Edited files` (in a solo run, only the
-   declared scope) plus any set the Human ordered committed or left untracked and confirmed
-   as a gate (step 6) after the Lead listed its exact paths, a diff summary, and which paths
-   the intake porcelain lacked or whose `git hash-object` changed since intake, drawn only
-   from paths outside every owned path, and HEAD, branch, and stash list are unchanged since
-   intake. Stage owned paths and the paths confirmed for commit by name, never `git add -A`,
-   and read the whole staged diff for crossed contracts, credentials, or disabled checks. A
-   write inside another scope is named with its writer and goes to that scope's owner to
-   adopt or reject; the writer does not touch the path again. In a partitioned run even an
-   obvious fix goes back to its owner. Done when the commit SHA is named.
+   --porcelain --untracked-files=all` shows only the union of their `Edited files` (in a solo
+   run, only the declared scope) plus any set the Human ordered committed or left untracked
+   and confirmed as a gate (step 6) after the Lead listed its exact paths, a diff summary,
+   which paths the intake porcelain lacked, and which intake paths are gone or whose `git
+   hash-object` changed since intake, drawn only from paths outside every owned path, and
+   HEAD, branch, stash list, and every intake path outside those two sets, with its `git
+   hash-object`, are unchanged since intake. Stage owned paths and the paths confirmed for
+   commit by name, never `git add -A`, and read the whole staged diff for crossed contracts,
+   credentials, or disabled checks. A write inside another scope is named with its writer and
+   goes to that scope's owner to adopt or reject; the writer does not touch the path again.
+   In a partitioned run even an obvious fix goes back to its owner. Done when the commit SHA
+   is named.
 5. **Review.** Staff a Reviewer Peer named `review-<12-hex>` at the exact SHA, a distinct
    instance from the Lead and every Engineer. It records HEAD and porcelain before and after
    (a moved tree voids the verdict), reads the diff and writes its own findings before any
@@ -165,10 +167,11 @@ the run directory.
   <file>)"`.
 - Run only the checks the acceptance and this file list: `checks-light` (changed-path tests,
   lint, typecheck) and `git diff --check` locally; heavy suites on the `ci.workflows` run,
-  green on the exact head before the merge gate, or, when `ci.trigger` is `none`,
-  `checks-heavy` once by the Lead on the exact head before the push gate. Generating or
-  running a mutant, or any other check beyond that list, is a finding. A new test's proof is
-  that it fails before the fix and passes after, run once, plus the acceptance lanes.
+  green on the exact head before the merge gate, or, when `ci.trigger` is `none` or the Human
+  accepts it in place of a missing CI run, `checks-heavy` once by the Lead on the exact head
+  before the push gate. Generating or running a mutant, or any other check beyond that list,
+  is a finding. A new test's proof is that it fails before the fix and passes after, run
+  once, plus the acceptance lanes.
 - Run every test, build, or browser command under a wall-clock bound sized to its worst case
   (where `timeout` is absent, `perl -e 'alarm <seconds>; exec @ARGV' -- <command>`) and name
   both in your report. A timeout, a missing tool, zero tests collected, or an unnamed skip is
