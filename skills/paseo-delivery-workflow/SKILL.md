@@ -94,14 +94,16 @@ the policy is the same act, hidden from the tier accountable for it.
 A lesson that would hold in another project is general; any other stays in the project that
 learned it, applied by its Lead at once. The learning project's Manager sends a general
 lesson as one item to the Manager of the project that owns this skill's source, or to the
-Human when none runs: the rule in one sentence, the incident in one line, the section it
-changes. The send ends the sender's duty: it edits no branch there and waits for no SHA.
-The receiving Manager first greps this file and its backlog for the mechanism. A match here
-means its sentence failed, so the item tightens that sentence; a match in the backlog adds
-the sighting to that item; an item sighted from a second project runs next. The item lands
-as a delivery on this skill's source, never an installed copy, with the incident in its
-commit message; a Lead whose delivery in flight touches the same section may take it in.
-Filing needs no Human approval; reinstalling the skill is a deploy gate.
+Human when none runs. The send ends the sender's duty: it edits no branch there and waits
+for no SHA. That project's Lead files the item, in the delivery in flight or the next one,
+as an entry in `lessons/paseo-delivery-workflow.md` at the source repository's root: the
+rule in one sentence, the incident in one line, the section it changes, and each sighting
+as project and date. It first greps this file and the lessons file for the mechanism. A
+match here means its sentence failed, so the entry tightens that sentence; a match in the
+lessons file adds a sighting; an entry sighted from a second project lands in the next
+delivery. An entry lands in this skill's source, never an installed copy, and the commit
+that lands it deletes it from the lessons file. Filing needs no Human approval;
+reinstalling the skill is a deploy gate.
 
 ## Human gates
 
