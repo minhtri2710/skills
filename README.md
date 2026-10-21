@@ -48,6 +48,7 @@ skills/<name>/
 | `effort-charting` | Chart a foggy effort as decision tickets, then split the approved spec into tracer slices with blocking edges. |
 | `frontend-design` | Implement a UI change whose rendered hierarchy, flow, or responsive behavior is part of acceptance. |
 | `herdr-delivery-workflow` | Control Herdr and run bounded delivery with the Supervisor / Lead / Peer role model. |
+| `herdr-lead-peer` | Run bounded delivery in Herdr with a Lead and its Peers only, no Supervisor seat. |
 | `human-step-wizard` | Generate a resumable bash wizard for the credential and dashboard steps only a human can do. |
 | `jev` | Run optional advisory triage for structured findings and bounded forks. |
 | `llm-trust-boundary` | Harden a feature that calls a model, exposes tools to one, or retrieves documents for one. |
