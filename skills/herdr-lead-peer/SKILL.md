@@ -113,17 +113,18 @@ the run directory.
    report to the run directory. Done when every Engineer has reported and is idle.
 4. **Commit.** Only the Lead commits, on a quiet tree: every Engineer idle; HEAD, branch, and
    stash list unchanged since intake; and `git status --porcelain --untracked-files=all`
-   showing only the union of their `Edited files` (in a solo run, only the declared scope),
-   intake paths whose `git hash-object` is unchanged since intake, and any set the Human
-   ordered committed or left as it is. That set is drawn only from paths outside every owned
-   path, and the Human confirms it as a gate (step 6) after the Lead lists its exact paths, a
-   diff summary, which of them the intake porcelain lacked, and which intake paths are gone
-   or changed. Stage the owned paths in the union and the paths confirmed for commit by name,
-   never `git add -A`, and read the whole staged diff for crossed contracts, credentials, or
-   disabled checks. A write inside another scope is named with its writer and goes to that
-   scope's owner to adopt or reject; the writer does not touch the path again. In a
-   partitioned run even an obvious fix goes back to its owner. Done when the commit SHA is
-   named.
+   matching the intake record line for line and `git hash-object` for `git hash-object`,
+   except for the union of their `Edited files` (in a solo run, only the declared scope) and
+   any set the Human ordered committed or left as it is. That set is drawn only from paths
+   outside every owned path, and the Human confirms it as a gate (step 6) after the Lead
+   lists every other difference from the intake record: each new, gone, or changed path.
+   Stage the owned paths in the union and the paths confirmed for commit by name, never `git
+   add -A`, commit them with `git commit --only -- <those paths>` so nothing else in the
+   index rides along, and first read their diff against HEAD for crossed contracts,
+   credentials, or disabled checks. A write inside another scope is named with its writer and
+   goes to that scope's owner to adopt or reject; the writer does not touch the path again.
+   In a partitioned run even an obvious fix goes back to its owner. Done when the commit SHA
+   is named.
 5. **Review.** Staff a Reviewer Peer named `review-<12-hex>` at the exact SHA, a distinct
    instance from the Lead and every Engineer. It records HEAD and porcelain before and after
    (a moved tree voids the verdict), reads the diff and writes its own findings before any
@@ -222,17 +223,17 @@ Human gates, which only the Human decides: push to the product line, PR mutation
 deploy or install, or any other external write; a destructive or irreversible action;
 credentials, permissions, or security-sensitive behavior; a material scope, architecture,
 dependency, data, or contract change; a project-config write; every approval dialog. The
-quiet tree (step 4), a `PASS` covering every pushed commit, the staged-diff credential read,
-and the heavy-suite result on the exact head are process preconditions, not gates: a Human
-decision can widen the quiet tree's porcelain through a confirmed set (step 4) and accept
-another heavy-suite result on that head in place of a missing CI one, and never waives
-exact-SHA review or the credential read. A pending gate holds only the work that depends on
-its answer: a delivery whose only remaining step is a pending push leaves the flight slot,
-and the next one stacks on its head with its own review. An explicit instruction in the
-current request answers its gate at the reviewed head only; an earlier request, the config,
-or an inference never does. A standing grant is written under `~/.herdr/projects/<slug>/`
-with its scope and conditions before the first act under it; each act under it cites the
-grant and the exact head.
+quiet tree (step 4), a `PASS` covering every pushed commit, the credential read of the
+committed diff (step 4), and the heavy-suite result on the exact head are process
+preconditions, not gates: a Human decision can widen the quiet tree's porcelain through a
+confirmed set (step 4) and accept another heavy-suite result on that head in place of a
+missing CI one, and never waives exact-SHA review or the credential read. A pending gate
+holds only the work that depends on its answer: a delivery whose only remaining step is a
+pending push leaves the flight slot, and the next one stacks on its head with its own review.
+An explicit instruction in the current request answers its gate at the reviewed head only; an
+earlier request, the config, or an inference never does. A standing grant is written under
+`~/.herdr/projects/<slug>/` with its scope and conditions before the first act under it; each
+act under it cites the grant and the exact head.
 
 ## Gotchas the CLI will not tell you
 
