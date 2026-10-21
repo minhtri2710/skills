@@ -49,9 +49,10 @@ the policy is the same act, hidden from the tier accountable for it.
 
 ## Delivery sequence
 
-1. **Place it.** One delivery in flight per project; one branch per delivery. Run it in the
-   project's existing workspace. Create a worktree workspace only while a second delivery is
-   running at the same time; without one, create no worktree. Done when the workspace id and
+1. **Place it.** One delivery in flight per project; one branch per delivery, run in the
+   project's existing workspace. Only the Manager may put a second delivery in flight on
+   the same project at once, under its own Lead in a `--new-workspace worktree` workspace;
+   with no second delivery in flight, create no worktree. Done when the workspace id and
    branch are named in your own report.
 2. **Staff it.** One Lead. The Lead partitions into Engineers only where path sets are
    disjoint; overlapping work is one Engineer, not two. When the Lead rules the delivery is one
@@ -70,12 +71,13 @@ the policy is the same act, hidden from the tier accountable for it.
 6. **Gate.** Route Human gates (below) before the external write. Done when each gate has
    the Human's answer or is reported pending with the work it holds.
 7. **Close out.** Archive the agents and workspace the run created, remove the worktree and
-   any leftover directory, `paseo project delete <id>` the project the run's workspace
-   registered for the worktree path, and report: what changed, what was removed, tests run
-   with their output, what is still open. A lesson that would change this doctrine beyond
-   this delivery is edited into this skill's source, not an installed copy, in the same run;
-   the report names the edit. Done when `paseo ls`, `paseo project ls`, and
-   `git worktree list` show nothing left over from the run.
+   any leftover directory. If the run used `--new-workspace local --cwd <path>`,
+   `paseo project delete` the project whose `paseo project ls` path equals `<path>`, never
+   the main checkout's: deleting a project deletes all its workspaces. Then report: what
+   changed, what was removed, tests run with their output, what is still open. A lesson
+   that would change this doctrine beyond this delivery is edited into this skill's source,
+   not an installed copy, in the same run; the report names the edit. Done when `paseo ls`,
+   `paseo project ls`, and `git worktree list` show nothing left over from the run.
 
 ## Every agent
 
@@ -110,7 +112,8 @@ Below the Manager tier, no agent answers another agent's permission request:
   checkout that already has a workspace row, use `--workspace <id>`.
 - `--new-workspace local --cwd <path>` registers `<path>` as a new project in
   `paseo project ls`. Archiving the workspace and removing the worktree leave that project
-  behind, pointing at a missing directory; delete it at close-out.
+  behind, pointing at a missing directory; delete it at close-out. A
+  `--new-workspace worktree` workspace stays under the parent project.
 - `paseo ls` can show `closed` (the provider process exited) while the agent is still
   resumable; `send` it rather than staffing a replacement.
 - Config edits land with `paseo reload`, but an agent keeps the tool policy and system prompt
