@@ -61,9 +61,11 @@ the policy is the same act, hidden from the tier accountable for it.
    every Engineer has reported and none is running.
 4. **Commit.** Only the Lead commits, on a quiet tree. Done when the commit SHA is named.
 5. **Review.** Staff a Reviewer at the exact SHA, as a different agent instance from every
-   writer. It re-runs the acceptance checks and returns `PASS` / `FAIL` / `BLOCKED` with the
-   command output it saw. A `FAIL` goes back to the owning Engineer, then re-review at the
-   new SHA. Done when a `PASS` names the SHA it covers.
+   writer. It re-runs the acceptance checks and sends `PASS` / `FAIL` / `BLOCKED` with the
+   command output it saw to the agent that staffed it, by prompt, as its last action: a
+   Lead that ended its turn is not woken by a finish notification alone. A `FAIL` goes back
+   to the owning Engineer, then re-review at the new SHA. Done when a `PASS` names the SHA
+   it covers.
 6. **Gate.** Route Human gates (below) before the external write. Done when each gate has
    the Human's answer or is reported pending with the work it holds.
 7. **Close out.** Archive the agents and workspace the run created, remove the worktree and
@@ -77,6 +79,9 @@ the policy is the same act, hidden from the tier accountable for it.
 
 - After compaction, `paseo agent reload`, or a resume from `closed`, rebuild scope before the
   next action: your last report, your owned paths, the current branch and head.
+- Never generate synthetic load (busy loops, stress tools, inflated worker or repeat counts)
+  on a machine that also serves production; reproduce slowness with a deterministic seam
+  such as a held lock or an injected delay.
 - Agents share one machine. Name every heavy suite you run in your report, and never run two
   heavy suites at once on one checkout; the agent that staffs you says whether another runs.
 - Treat your own approval dialog as a blocker to report.
