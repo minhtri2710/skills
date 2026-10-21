@@ -94,18 +94,18 @@ the policy is the same act, hidden from the tier accountable for it.
 A lesson that would hold in another project is general; any other stays in the project that
 learned it, applied by its Lead at once. The learning project's Manager sends a general
 lesson as one item to the Manager of the project that owns this skill's source, or to the
-Human when none runs. The send ends the sender's duty: it edits no branch there and waits
-for no SHA. The receiving Manager greps this file and
+Human when none runs. The send ends the sender's duty: the sender edits no branch in the
+source project and waits for no SHA. The receiving Manager greps this file and
 `~/.paseo/lessons/paseo-delivery-workflow.md` (outside git, created with its first entry)
-for the mechanism. A match here means its sentence failed, so the entry tightens that
-sentence; a match in the lessons file adds a sighting to that entry; otherwise the Manager
-writes one: the rule in one sentence, the incident in one line, the section it changes, and
-each sighting as project and date. Writing an entry needs no Human approval. The Manager
-hands an entry to the source project's Lead as scope of the delivery in flight when it
-touches the same section, else of the next one, which an entry sighted from a second project
-takes ahead of other work. The entry lands in this skill's source, never an installed copy,
-with the incident in its commit message; after the merge, the Manager deletes the entry at
-close-out. Reinstalling the skill is a deploy gate.
+for the lesson's rule. A match in the lessons file adds a sighting to that entry; otherwise
+the Manager writes an entry: the rule in one sentence, the incident in one line, the section
+it changes, and each sighting as project and date. A match in this file means that sentence
+failed, so the entry tightens it. Writing an entry needs no Human approval. The Manager
+hands an entry to the source project's Lead as scope of the delivery in flight when that
+delivery touches the entry's section, else of the next delivery; an entry sighted from a
+second project goes into the next delivery ahead of other work. The entry lands in this
+skill's source, never an installed copy, with the incident in its commit message. Once the
+merge lands, the Manager deletes the entry. Reinstalling the skill is a deploy gate.
 
 ## Human gates
 
