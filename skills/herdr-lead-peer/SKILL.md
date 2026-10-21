@@ -22,20 +22,21 @@ lead-<slug>`), where `<slug>` is the lowercased basename of the repository root 
 
 | Key | Value |
 |---|---|
-| `engineer-kind`, `engineer-args` | the Herdr kind and the argv after `--` for Engineer Peers, including the question-tool denial |
-| `reviewer-kind`, `reviewer-args` | the same for Reviewer and Architect Peers |
-| `checks-light` | light check commands, with how to scope a test run to the changed paths |
-| `checks-heavy` | heavy suite commands |
-| `ci` | `{"trigger": "pr" \| "push" \| "none", "workflows": [<workflow paths>]}`; `workflows` is empty exactly when `trigger` is `none` |
+| `engineer-kind`, `reviewer-kind` | string: the Herdr kind for Engineer Peers, and for Reviewer and Architect Peers |
+| `engineer-args`, `reviewer-args` | array of strings: that kind's argv after `--`, one element per argument, including the question-tool denial |
+| `checks-light` | array of strings: light check commands, with how to scope a test run to the changed paths |
+| `checks-heavy` | array of strings: heavy suite commands |
+| `ci` | `{"trigger": "pr" \| "push" \| "none", "workflows": [<workflow paths>]}`: the workflows that run the heavy suites and the event that starts them; `workflows` is empty exactly when `trigger` is `none` |
 
 When the file is missing or not valid JSON, lacks a key this run uses, or a value must
 change, ask the Human in your own pane as a gate (step 6): the path and each key to write,
 with a suggested value drawn from the repository and this machine (check commands from
 `AGENTS.md` and build files, CI from the workflow files, a kind from `herdr agent start
---help` with args naming its model and question-tool denial). Once the Human confirms the
-content, write the file, keeping every other key as it was, then read it back and confirm it
-parses and holds the confirmed values. Until then write nothing, and hold only the work that
-needs the value. The config changes by no other route.
+--help` with args naming its model and question-tool denial); for a missing or invalid file,
+propose the whole file. Once the Human confirms the content, write the file, keeping every
+other key as it was, then read it back and confirm it parses and holds the confirmed values.
+Until then write nothing, and hold only the work that needs the value. The config changes by
+no other route.
 
 ## Tiers
 
@@ -157,8 +158,9 @@ the run directory.
   notification. Any prompt carrying `$` or backticks is written to a file and sent as `"$(cat
   <file>)"`.
 - Run only the checks the acceptance and this file list: light checks (changed-path tests,
-  lint, typecheck, `git diff --check`) locally, heavy suites on CI, or once by the Lead on
-  the exact head before the push gate when there is no CI. Generating or running a mutant, or
+  lint, typecheck, `git diff --check`) locally; heavy suites on the `ci.workflows` run, green
+  on the exact head before the merge gate, or, when `ci.trigger` is `none`, `checks-heavy`
+  once by the Lead on the exact head before the push gate. Generating or running a mutant, or
   any other check beyond that list, is a finding. A new test's proof is that it fails before
   the fix and passes after, run once, plus the acceptance lanes.
 - Run every test, build, or browser command under a wall-clock bound sized to its worst case
@@ -206,13 +208,14 @@ exact-SHA review or a Human gate.
 
 Push to the product line, PR mutation, merge, deploy or install, or any other external write;
 a destructive or irreversible action; credentials, permissions, or security-sensitive
-behavior; a material scope, architecture, dependency, data, or contract change; every approval
-dialog. A pending gate holds only the work that depends on its answer: a delivery whose only
-remaining step is a pending push leaves the flight slot, and the next one stacks on its head
-with its own review. An explicit instruction in the current request answers its gate at the
-reviewed head only; an earlier request, the config, or an inference never does. A standing
-grant is written under `~/.herdr/projects/<slug>/` with its scope and conditions before the
-first act under it; each act under it cites the grant and the exact head.
+behavior; a material scope, architecture, dependency, data, or contract change; a
+project-config write; every approval dialog. A pending gate holds only the work that depends
+on its answer: a delivery whose only remaining step is a pending push leaves the flight slot,
+and the next one stacks on its head with its own review. An explicit instruction in the
+current request answers its gate at the reviewed head only; an earlier request, the config,
+or an inference never does. A standing grant is written under `~/.herdr/projects/<slug>/`
+with its scope and conditions before the first act under it; each act under it cites the
+grant and the exact head.
 
 ## Gotchas the CLI will not tell you
 
