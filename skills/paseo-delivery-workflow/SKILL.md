@@ -95,15 +95,15 @@ A lesson that would hold in another project is general; any other stays in the p
 learned it, applied by its Lead at once. The learning project's Manager sends a general
 lesson as one item to the Manager of the project that owns this skill's source, or to the
 Human when none runs. The send ends the sender's duty: it edits no branch there and waits
-for no SHA. That project's Lead files the item, in the delivery in flight or the next one,
-as an entry in `lessons/paseo-delivery-workflow.md` at the source repository's root: the
-rule in one sentence, the incident in one line, the section it changes, and each sighting
-as project and date. It first greps this file and the lessons file for the mechanism. A
-match here means its sentence failed, so the entry tightens that sentence; a match in the
-lessons file adds a sighting; an entry sighted from a second project lands in the next
-delivery. An entry lands in this skill's source, never an installed copy, and the commit
-that lands it deletes it from the lessons file. Filing needs no Human approval;
-reinstalling the skill is a deploy gate.
+for no SHA. That project's Lead adds the item to the scope of its delivery in flight or the
+next one, filed as an entry in `lessons/paseo-delivery-workflow.md` at the source
+repository's root: the rule in one sentence, the incident in one line, the section it
+changes, and each sighting as project and date. Before filing, the Lead greps this file and
+the lessons file for the mechanism. A match here means its sentence failed, so the entry
+tightens that sentence; a match in the lessons file adds a sighting; an entry sighted from a
+second project lands in the next delivery. An entry lands in this skill's source, never an
+installed copy, and the commit that lands it deletes it from the lessons file. Filing needs
+no Human approval; reinstalling the skill is a deploy gate.
 
 ## Human gates
 
