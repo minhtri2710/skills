@@ -117,19 +117,20 @@ the run directory.
    status --porcelain --untracked-files=all` matching the intake record line for line and
    `git hash-object` for `git hash-object`, except for the owned paths in the union of their
    `Edited files` over this run (in a solo run, the Lead's own edits inside the declared
-   scope, less any path dirty at intake the Human has not assigned) and any set the Human
-   ordered committed or left as it is. That set is drawn only from paths outside every owned
-   path, and the Human confirms it as a gate (step 6) after the Lead lists its exact paths
-   with a diff summary and every difference from the intake record, the set's included: each
-   new, gone, or changed path, with the Engineer that reported writing it. Stage the owned
-   paths in the union and the paths confirmed for commit by name, skipping a gone path that
-   was never tracked and never using `git add -A`; then read `git diff HEAD -- <the staged
-   paths>` for crossed contracts, credentials, or disabled checks; then commit with `git
-   commit --only -- <the staged paths>` so nothing else in the index rides along. A write
-   inside another scope is named with its writer and goes to that scope's owner to adopt or
-   reject; the writer does not touch the path again. In a partitioned run even an obvious fix
-   goes back to its owner. Done when the commit SHA is named and written to the run
-   directory.
+   scope, less any path dirty at intake the Human has not assigned) and any set the Human,
+   over this run, ordered committed or left as it is. A path ordered committed lies outside
+   every owned path, and one left as it is lies there too or is a path no Engineer reported
+   writing; the Human confirms the set as a gate (step 6) after the Lead lists its exact
+   paths with a diff summary and every difference from the intake record, the set's included:
+   each new, gone, or changed path, with the Engineer that reported writing it. Stage the
+   owned paths in the union and the paths confirmed for commit by name, skipping a gone path
+   that was never tracked and never using `git add -A`; then read `git diff HEAD -- <the
+   staged paths>` for crossed contracts, credentials, or disabled checks; then commit with
+   `git commit --only -- <the staged paths>` so nothing else in the index rides along. A
+   write inside another scope is named with its writer and goes to that scope's owner to
+   adopt or reject; the writer does not touch the path again. In a partitioned run even an
+   obvious fix goes back to its owner. Done when the commit SHA is named and written to the
+   run directory.
 5. **Review.** Staff a Reviewer Peer named `review-<12-hex>` at the exact SHA, a distinct
    instance from the Lead and every Engineer. It records HEAD and porcelain before and after
    (a moved tree voids the verdict), reads the diff and writes its own findings before any
