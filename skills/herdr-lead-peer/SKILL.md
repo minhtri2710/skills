@@ -114,14 +114,14 @@ the run directory.
    report to the run directory. Done when every Engineer has reported and is idle.
 4. **Commit.** Only the Lead commits, on a quiet tree: every Engineer idle; branch, stash
    list, and HEAD as at intake or this run's last commit; porcelain (`--untracked-files=all`)
-   showing only the union of their `Edited files` (in a solo run, the declared scope) plus
-   any change outside every owned path no Peer reported, once listed with a diff and
-   confirmed by the Human (step 6). Stage those paths by name, never `git add -A`; read `git
-   diff --cached` for crossed contracts, credentials, or disabled checks; then `git commit
-   --only -- <the staged paths>`. A write to an owned path its owner did not report goes,
-   with any known writer named, to that owner to adopt or reject; the writer does not touch
+   showing only the union of their `Edited files` (solo: the declared scope) plus any change
+   outside every owned path no Peer reported, once listed with a diff and Human-confirmed
+   (step 6). Stage those paths by name, never `git add -A`; read `git diff --cached` for
+   crossed contracts, credentials, or disabled checks; then `git commit --only -- <the staged
+   paths>`. A write inside another scope, or one its owner did not report, is named with any
+   known writer and goes to that scope's owner to adopt or reject; the writer does not touch
    the path again. In a partitioned run even an obvious fix goes back to its owner. Done when
-   the commit SHA is written to the run directory.
+   the commit SHA is in the run directory.
 5. **Review.** Staff a Reviewer Peer named `review-<12-hex>` at the exact SHA, a distinct
    instance from the Lead and every Engineer. It records HEAD and porcelain before and after
    (a moved tree voids the verdict), reads the diff and writes its own findings before any
