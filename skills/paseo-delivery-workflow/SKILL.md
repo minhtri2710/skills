@@ -75,8 +75,9 @@ the policy is the same act, hidden from the tier accountable for it.
    command output it saw. A `FAIL` goes back to the owning Engineer, then re-review at the
    new SHA. Done when a `PASS` names the SHA it covers.
 6. **Gate.** Route Human gates (below) before the external write; the Lead performs it once
-   the answer arrives. Done when each answered gate's write is performed and named with its
-   head, or the gate is reported pending with the work it holds.
+   the answer arrives. Done when each approved gate's write is performed and named with its
+   head, and every other gate is reported with its answer, or as pending with the work it
+   holds.
 7. **Close out.** Archive the agents and workspace the run created, remove the worktree and
    any leftover directory. If the run used `--new-workspace local --cwd <path>`,
    `paseo project delete` the project whose `paseo project ls` path equals `<path>`, never
