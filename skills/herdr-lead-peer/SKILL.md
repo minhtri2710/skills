@@ -94,11 +94,11 @@ the run directory.
    config's kind and args verbatim and its direct-question tool denied; a kind whose question
    tool cannot be denied is not staffed. Each Peer's prompt states its role and acceptance
    boundary; for an Engineer its owned paths, the peer scopes, and the unowned paths, for a
-   Reviewer the exact SHA; the governing files to read itself; the "Every agent" rules by
-   value; no writing git command, and read-only git with `--no-optional-locks`; that it must
-   not load this skill; and the Lead's seat name as its only report target. Done when every
-   Peer is started and its seat name, kind, pane id, and owned paths are written in the run
-   directory.
+   Reviewer the exact SHA; the `checks-light` commands; the governing files to read itself;
+   the "Every agent" rules by value; no writing git command, and read-only git with
+   `--no-optional-locks`; that it must not load this skill; and the Lead's seat name as its
+   only report target. Done when every Peer is started and its seat name, kind, pane id, and
+   owned paths are written in the run directory.
 3. **Implement.** Engineers edit only owned paths, run light checks on them, and report:
    owned paths, `Edited files` from their own actions, scoped porcelain, `Outside owned
    paths: none`, each check with command, exit code, and ran/skipped counts, the red proof of
@@ -157,12 +157,12 @@ the run directory.
   send is retried once, then marked `SEND-FAILED` in the report with a `--sound request`
   notification. Any prompt carrying `$` or backticks is written to a file and sent as `"$(cat
   <file>)"`.
-- Run only the checks the acceptance and this file list: light checks (changed-path tests,
-  lint, typecheck, `git diff --check`) locally; heavy suites on the `ci.workflows` run, green
-  on the exact head before the merge gate, or, when `ci.trigger` is `none`, `checks-heavy`
-  once by the Lead on the exact head before the push gate. Generating or running a mutant, or
-  any other check beyond that list, is a finding. A new test's proof is that it fails before
-  the fix and passes after, run once, plus the acceptance lanes.
+- Run only the checks the acceptance and this file list: `checks-light` (changed-path tests,
+  lint, typecheck) and `git diff --check` locally; heavy suites on the `ci.workflows` run,
+  green on the exact head before the merge gate, or, when `ci.trigger` is `none`,
+  `checks-heavy` once by the Lead on the exact head before the push gate. Generating or
+  running a mutant, or any other check beyond that list, is a finding. A new test's proof is
+  that it fails before the fix and passes after, run once, plus the acceptance lanes.
 - Run every test, build, or browser command under a wall-clock bound sized to its worst case
   (where `timeout` is absent, `perl -e 'alarm <seconds>; exec @ARGV' -- <command>`) and name
   both in your report. A timeout, a missing tool, zero tests collected, or an unnamed skip is
