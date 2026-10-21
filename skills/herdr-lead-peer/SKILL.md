@@ -54,7 +54,7 @@ and review stays mandatory. A dead Engineer is restaffed, never absorbed into so
 ## Lead turns
 
 After every dispatch the Lead ends its turn on `Awaiting reports: <seats>`, with no sleep,
-poll, or watch. On every wake it reads `herdr agent list` once, and a Peer's pane only when
+poll, or watch. On every wake it reads `herdr agent list` once, and a Peer's pane exactly when
 that Peer's report is still owed or its listed state does not fit its report; a Peer that
 dies silently with no other wake is the Human's to catch from that line. A Peer that is idle
 or gone with its report owed has stalled: read its pane, then re-prompt it; restaff the same
@@ -112,13 +112,13 @@ Peer outstanding, after writing the rebuild state ("Every agent") to the run dir
 4. **Commit.** Only the Lead commits, on a quiet tree: every Engineer idle, `git status
    --porcelain` shows only the union of their `Edited files` (in a solo run, only the
    declared scope) plus any set the Human ordered committed and confirmed after the Lead
-   listed its exact paths and a diff summary, drawn only from the intake porcelain and paths
-   outside every owned path, and HEAD, branch, and stash list are unchanged since intake.
-   Stage owned paths and the confirmed set by name, never `git add -A`, and read the whole
-   staged diff for crossed contracts, credentials, or disabled checks. A write inside another
-   scope is named with its writer and goes to that scope's owner to adopt or reject; the
-   writer does not touch the path again. In a partitioned run even an obvious fix goes back
-   to its owner. Done when the commit SHA is named.
+   listed its exact paths, a diff summary, and which paths the intake porcelain lacked, drawn
+   only from paths outside every owned path, and HEAD, branch, and stash list are unchanged
+   since intake. Stage owned paths and the confirmed set by name, never `git add -A`, and
+   read the whole staged diff for crossed contracts, credentials, or disabled checks. A write
+   inside another scope is named with its writer and goes to that scope's owner to adopt or
+   reject; the writer does not touch the path again. In a partitioned run even an obvious fix
+   goes back to its owner. Done when the commit SHA is named.
 5. **Review.** Staff a Reviewer Peer named `review-<12-hex>` at the exact SHA, a distinct
    instance from the Lead and every Engineer. It records HEAD and porcelain before and after
    (a moved tree voids the verdict), reads the diff and writes its own findings before any
