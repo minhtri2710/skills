@@ -1,2 +1,0 @@
-{"type":"message","message":{"role":"assistant","content":[{"type":"toolCall","id":"pending-1","name":"read","arguments":{"path":"SECRET_CANARY"}}]}}
-{"type":"message","message":{"role":"user","content":[{"type":"text","text":"not a result"}]}}

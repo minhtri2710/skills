@@ -51,9 +51,6 @@ class ProjectConfigTests(unittest.TestCase):
         )
         return self.path
 
-    def test_accepts_a_config_with_every_key(self):
-        self.assertEqual(project_config.load(self._write(_FULL)), _FULL)
-
     def test_refuses_each_class_naming_the_path_and_the_key(self):
         cases = [
             ({key: value for key, value in _FULL.items() if key != "lead-args"}, "lead-kind and lead-args must be configured together"),

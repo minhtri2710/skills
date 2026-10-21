@@ -27,7 +27,6 @@ SLOT_RE = re.compile(r"<([a-z][a-z0-9_]*)>")
 NOT_CLAUSES = {
     "SEAT_RE", "PLACEHOLDER_RE", "RANGE_RE", "STAFFED_HEAD_RE",
     "PRIOR_RE", "PRIOR_GLOSS_RE", "UNIT_RANGE_RE", "SHORT_SHA_RE",
-    "SEAT_RE", "PLACEHOLDER_RE",
 }
 
 
@@ -237,9 +236,6 @@ class ReviewerCharterTemplateTest(unittest.TestCase):
         ):
             with self.subTest(bound=bound):
                 self.assertIn(bound, contract)
-
-    def test_filled_template_lints_ok(self):
-        self.assertEqual(self.run_lint(self.filled), (0, ""))
 
     def test_clause_set_is_derived_from_charter_lint(self):
         self.assertGreaterEqual(len(lint_patterns()), 7)

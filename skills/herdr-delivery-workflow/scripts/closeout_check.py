@@ -9,18 +9,10 @@ import shlex
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Mapping, Protocol
+from typing import Any, Mapping
 
 import herdr_cli
 import gate_row
-
-
-class HerdrReadBoundary(Protocol):
-    def read_pane(self, pane_id: str) -> Mapping[str, Any]: ...
-
-    def read_agent(self, agent_name: str) -> Mapping[str, Any]: ...
-
-    def read_processes(self, pane_id: str) -> Mapping[str, Any]: ...
 
 
 @dataclass(frozen=True)
@@ -256,7 +248,7 @@ def _process_list(evidence: Mapping[str, Any]) -> list[Any] | None:
 
 def check_closeout(
     staffing_record: Mapping[str, Any] | str | Path,
-    herdr: HerdrReadBoundary,
+    herdr: _SubprocessHerdr,
 ) -> CloseoutResult:
     """Inspect exactly the recorded peer panes through a read-only Herdr boundary.
 

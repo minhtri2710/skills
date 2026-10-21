@@ -66,33 +66,28 @@ def count_evidence(repo: Path, head: str, skill_path: str,
     """Return tracked count, installed count, and drifted count.
 
     A tracked file drifts when it is absent from the installed tree, or its
-    installed hash or mode differs from the head tree (deploy_skill.tree_mode).
+    installed hash or mode differs from the head tree (deploy_skill.tracked_files).
     Extra installed files affect the installed count but not the drifted
     count; the two values expose both directions of drift.
     """
     prefix = skill_prefix(skill_path)
     try:
-        paths = deploy_skill.tracked_files(repo, head, prefix.rstrip("/"))
+        entries = deploy_skill.tracked_files(repo, head, prefix.rstrip("/"))
     except deploy_skill.DeployError as exc:
         raise CheckError(str(exc)) from None
     installed = installed_files(install_dir)
     installed_set = set(installed)
     drifted = 0
-    for tracked in paths:
+    for tracked, expected_mode, expected in entries:
         relative = Path(tracked[len(prefix):])
         destination = install_dir / relative
         if relative not in installed_set or destination.is_symlink() or not destination.is_file():
             drifted += 1
             continue
-        expected = git(repo, "rev-parse", f"{head}:{tracked}")
         actual = git(repo, "hash-object", str(destination))
-        try:
-            expected_mode = deploy_skill.tree_mode(repo, head, tracked)
-        except deploy_skill.DeployError as exc:
-            raise CheckError(str(exc)) from None
         if actual != expected or stat.S_IMODE(destination.stat().st_mode) != expected_mode:
             drifted += 1
-    return len(paths), len(installed), drifted
+    return len(entries), len(installed), drifted
 
 
 def read_exact(path: Path) -> str:

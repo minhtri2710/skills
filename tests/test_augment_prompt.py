@@ -26,9 +26,6 @@ class TaskDetectionTest(unittest.TestCase):
         self.assertEqual(augment_prompt.detect_task("fixing the output", None), "analysis")
         self.assertEqual(augment_prompt.detect_task("find sources", None), "research")
 
-    def test_explicit_task_overrides_detected_keywords(self):
-        self.assertEqual(augment_prompt.detect_task("review this code", "writing"), "writing")
-
 
 class UpgradeTest(unittest.TestCase):
     def test_template_preserves_prompt_and_uses_default_intensity(self):

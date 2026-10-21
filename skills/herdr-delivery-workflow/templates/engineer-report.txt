@@ -24,7 +24,7 @@
 - Reuse search: none | one row per new function, type or module:
   | new function, type or module | search command | hits | why no hit served |
   |------------------------------|----------------|------|--------------------|
-  | <name and path> | <semble or zg command> | <hits> | <why no hit served> |
+  | <name and path> | <code-search command> | <hits> | <why no hit served> |
 
 ## Risks
 <residual gaps, skips the acceptance names, and unresolved findings>

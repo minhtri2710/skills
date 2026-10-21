@@ -264,6 +264,7 @@ class CloseoutCheckTest(unittest.TestCase):
         self.herdr.close("w1:p4")
         result = closeout_check.check_closeout(self.record, self.herdr)
         self.assertTrue(result.passed, result.findings)
+        self.assertEqual(result.checked_panes, ("w1:p3", "w1:p4"))
 
     def test_existing_herd_directory_fails_with_typo_finding(self):
         (self.home / ".herd").mkdir()
@@ -324,13 +325,6 @@ class CloseoutCheckTest(unittest.TestCase):
             with self.subTest(argv=argv):
                 self.assertEqual(closeout_check._is_server_process({"cmdline": argv}), expected)
 
-    def test_persistent_lead_and_supervisor_are_not_teardown_targets(self):
-        self.herdr.close("w1:p3")
-        self.herdr.close("w1:p4")
-        result = closeout_check.check_closeout(self.record, self.herdr)
-        self.assertTrue(result.passed, result.findings)
-        self.assertEqual(result.checked_panes, ("w1:p3", "w1:p4"))
-
     def test_lead_only_persistent_record_passes_validation_and_closeout(self):
         record = dict(self.record)
         record["persistent"] = [self.record["persistent"][0]]
@@ -339,42 +333,26 @@ class CloseoutCheckTest(unittest.TestCase):
         result = closeout_check.check_closeout(record, self.herdr)
         self.assertTrue(result.passed, result.findings)
 
-    def test_zero_lead_persistent_record_refuses(self):
-        record = dict(self.record)
-        record["persistent"] = [self.record["persistent"][1]]
-        result = closeout_check.check_closeout(record, self.herdr)
-        self.assertFalse(result.passed)
-        self.assertIn(
-            "persistent must record exactly one Lead and at most one Human Supervisor",
-            result.findings[0],
-        )
-
-    def test_two_human_supervisors_refuse(self):
-        record = dict(self.record)
-        record["persistent"] = [
-            self.record["persistent"][0],
-            self.record["persistent"][1],
-            {"role": "Human Supervisor", "name": "supervisor-2", "pane": "w1:p5"},
-        ]
-        result = closeout_check.check_closeout(record, self.herdr)
-        self.assertFalse(result.passed)
-        self.assertIn(
-            "persistent must record exactly one Lead and at most one Human Supervisor",
-            result.findings[0],
-        )
-
-    def test_unknown_persistent_role_refuses(self):
-        record = dict(self.record)
-        record["persistent"] = [
-            self.record["persistent"][0],
-            {"role": "Architect", "name": "architect", "pane": "w1:p5"},
-        ]
-        result = closeout_check.check_closeout(record, self.herdr)
-        self.assertFalse(result.passed)
-        self.assertIn(
-            "persistent must record exactly one Lead and at most one Human Supervisor",
-            result.findings[0],
-        )
+    def test_persistent_record_without_exactly_one_lead_or_with_extra_roles_refuses(self):
+        lead, supervisor = self.record["persistent"][0], self.record["persistent"][1]
+        cases = {
+            "zero lead": [supervisor],
+            "two human supervisors": [
+                lead, supervisor,
+                {"role": "Human Supervisor", "name": "supervisor-2", "pane": "w1:p5"},
+            ],
+            "unknown role": [lead, {"role": "Architect", "name": "architect", "pane": "w1:p5"}],
+        }
+        for label, persistent in cases.items():
+            with self.subTest(label):
+                record = dict(self.record)
+                record["persistent"] = persistent
+                result = closeout_check.check_closeout(record, self.herdr)
+                self.assertFalse(result.passed)
+                self.assertIn(
+                    "persistent must record exactly one Lead and at most one Human Supervisor",
+                    result.findings[0],
+                )
 
     def test_duplicate_persistent_pane_is_rejected(self):
         record = dict(self.record)

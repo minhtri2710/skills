@@ -800,7 +800,7 @@ def push_head(repo: Path, branch: str, head: str) -> str:
 
 def build(args: argparse.Namespace, repo: Path, state: LedgerState,
           target: tuple[str, str], landed: bool = True) -> str:
-    """The row for `target`, the (branch, head) resolve_row_head returned for these args."""
+    """The row for `target`, the (branch, head) resolve_row_head returned for these args, checked as a stored row."""
     if getattr(args, "under", None) and args.words is None:
         args.words = "seat"
     note = args.note.strip()
@@ -831,60 +831,36 @@ def build(args: argparse.Namespace, repo: Path, state: LedgerState,
     reject_special_fields(args, kind)
     special_fields: list[str] = []
     if kind == "deploy":
-        if args.status not in {"recorded:deploy", "resolved:deploy", "resolved:human"}:
-            raise RowError("kind=deploy requires a completed deploy status")
         skills = getattr(args, "skill", None) or []
         if len(skills) != len(set(skills)):
             raise RowError("kind=deploy --skill names a skill more than once")
         if any(not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", skill) for skill in skills):
             raise RowError("kind=deploy --skill names a malformed top-level skill")
-    if kind == "correction":
-        if args.status != "recorded:correction":
-            raise RowError("kind=correction requires status=recorded:correction")
+    elif kind == "correction":
         void_values = getattr(args, "void", None) or []
         if not void_values:
             raise RowError("kind=correction requires --void <id>")
         if len(void_values) != 1:
             raise RowError("kind=correction requires exactly one --void <id>")
-        target = void_values[0]
-        state.validate_void(target)
-        special_fields.append(f"void={target}")
-    if kind == "local-ops":
-        if args.status != LOCAL_OPS_STATUS:
-            raise RowError(f"kind=local-ops requires status={LOCAL_OPS_STATUS}")
-        if not getattr(args, "op", ""):
-            raise RowError("kind=local-ops requires op= field")
-        if not getattr(args, "after", ""):
-            raise RowError("kind=local-ops requires after= field")
-        op = field_text("op", args.op)
-        after = field_text("after", args.after)
-        validate_after(after, repo)
-        special_fields.extend((f"op={op}", f"after={after}"))
+        special_fields.append(f"void={void_values[0]}")
+    elif kind == "local-ops":
+        for name in ("op", "after"):
+            if getattr(args, name, ""):
+                special_fields.append(f"{name}={field_text(name, getattr(args, name))}")
     elif kind == "standing-delegation":
-        if args.status != STANDING_DELEGATION_STATUS:
-            raise RowError(f"kind=standing-delegation requires status={STANDING_DELEGATION_STATUS}")
         if args.words not in STANDING_DELEGATION_WORDS:
             raise RowError("kind=standing-delegation requires words=human or words=selected for the Human's quote")
         for name in ("who", "scope", "conditions", "expiry"):
-            if not getattr(args, name, ""):
-                raise RowError(f"kind=standing-delegation requires {name}= field")
-            value = field_text(name, getattr(args, name))
-            special_fields.append(f"{name}={value}")
-    elif kind == "handoff":
-        if args.status != HANDOFF_STATUS:
-            raise RowError(f"kind=handoff requires status={HANDOFF_STATUS}")
+            if getattr(args, name, ""):
+                special_fields.append(f"{name}={field_text(name, getattr(args, name))}")
     elif kind == "repair-grant":
-        if not getattr(args, "finding", ""):
-            raise RowError("kind=repair-grant requires finding= field")
-        finding = finding_value(args.finding)
-        special_fields.append(f"finding={finding}")
+        if getattr(args, "finding", ""):
+            special_fields.append(f"finding={finding_value(args.finding)}")
 
     gid = f"G{state.next_id}"
     targets = resolve_ids(args.resolves)
     if targets:
         state.require_open(targets)
-    if kind == "repair-grant":
-        state.require_repair_progress(finding)
 
     fields = [
         gid,
@@ -974,7 +950,7 @@ def build(args: argparse.Namespace, repo: Path, state: LedgerState,
     fields.append(f"note={note}")
     fields.append(f'quote="{quote}"')
     row = " | ".join(fields)
-    split_row(row)
+    check(row, repo, state)
     return row
 
 
@@ -1256,14 +1232,15 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--ledger", required=True, type=Path,
                         help="path to gates.md; the Reviewer round-trips against a scratch file")
     parser.add_argument("--repo", type=Path, default=Path.cwd())
-    parser.add_argument("--check", action="store_true",
-                        help="check the ledger's last row instead of appending one")
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--check", action="store_true",
+                      help="check the ledger's last row instead of appending one")
     parser.add_argument("--mailbox", type=Path,
                         help="with --check, require a matching open-gate ATTENTION header")
-    parser.add_argument("--open-gates", action="store_true",
-                        help="print the structured open-gate id set, one id per line")
-    parser.add_argument("--deployed-head", metavar="SKILL",
-                        help="select the latest applicable completed deploy row for SKILL after full ledger verification")
+    mode.add_argument("--open-gates", action="store_true",
+                      help="print the structured open-gate id set, one id per line")
+    mode.add_argument("--deployed-head", metavar="SKILL",
+                      help="select the latest applicable completed deploy row for SKILL after full ledger verification")
     parser.add_argument("--kind")
     parser.add_argument("--status")
     parser.add_argument("--channel")
@@ -1306,6 +1283,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--quote-file", default="",
                         help="read the verbatim quote from a UTF-8 file")
     args = parser.parse_args(argv)
+    append_args = (
+        args.kind, args.status, args.channel, args.writer, args.op, args.after,
+        args.who, args.scope, args.conditions, args.expiry, args.finding, args.void, args.skill,
+        args.record, args.head, args.push_base, args.review_base, args.boundary, args.resolves,
+        args.push, args.under, args.words, args.note, args.quote, args.quote_file, args.mailbox,
+    )
     pushed = ""
 
     try:
@@ -1315,31 +1298,14 @@ def main(argv: list[str] | None = None) -> int:
                 "~/.herdr/projects/<slug>/gates.md and a relative path resolves "
                 "against the shell cwd, silently starting a stray G1"
             )
-        if args.check and args.open_gates:
-            raise RowError("--check and --open-gates are mutually exclusive")
         if args.deployed_head:
-            if any((args.check, args.open_gates, args.kind, args.status, args.channel, args.writer,
-                    args.op, args.after, args.who, args.scope, args.conditions, args.expiry,
-                    args.finding, args.void, args.skill, args.record,
-                    args.head, args.push_base, args.review_base, args.boundary, args.resolves, args.push,
-                    args.under, args.words, args.note, args.quote, args.quote_file, args.mailbox)):
-                raise RowError("--deployed-head cannot be combined with check or append arguments")
-            with locked_ledger(args.ledger, exclusive=False) as handle:
-                rows = ledger_rows(handle_text(handle))
-                if not rows:
-                    raise RowError(f"no completed target-bearing deploy row for skill {args.deployed_head!r}")
-                validate_ledger(rows, args.repo)
-                branch, head, source_row = deployed_head(rows, args.deployed_head, args.repo)
+            if any(append_args):
+                raise RowError("--deployed-head cannot be combined with append arguments")
+            branch, head, source_row = select_deployed_head(args.ledger, args.deployed_head, args.repo)
             print(f"{branch}@{head}\n{source_row}")
             return 0
         if args.open_gates:
-            ignored = (
-                args.kind, args.status, args.channel, args.writer, args.op, args.after,
-                args.who, args.scope, args.conditions, args.expiry, args.finding, args.void, args.skill,
-                args.record, args.head, args.push_base, args.review_base, args.boundary, args.resolves, args.push, args.under, args.words,
-                args.note, args.quote, args.quote_file, args.mailbox,
-            )
-            if any(ignored):
+            if any(append_args):
                 raise RowError("--open-gates cannot be combined with append arguments")
             with locked_ledger(args.ledger, exclusive=False) as handle:
                 rows = ledger_rows(handle_text(handle))
@@ -1373,10 +1339,9 @@ def main(argv: list[str] | None = None) -> int:
             if args.push:
                 if args.kind != "push":
                     raise RowError(f"--push is only meaningful on kind=push, not kind={args.kind}")
-                check(build(args, args.repo, state, target, landed=False), args.repo, state)
+                build(args, args.repo, state, target, landed=False)
                 pushed = push_head(args.repo, *target)
             row = build(args, args.repo, state, target)
-            check(row, args.repo, state)
             if before and not before.endswith("\n"):
                 handle.seek(0, 2)
                 handle.write("\n")

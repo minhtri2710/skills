@@ -56,14 +56,20 @@ def selected_skills(repo: Path, head: str, requested: list[str]) -> list[str]:
     return [skill for skill in available if skill in requested]
 
 
-def tracked_files(repo: Path, head: str, skill_prefix: str) -> list[str]:
+def tracked_files(repo: Path, head: str, skill_prefix: str) -> list[tuple[str, int, str]]:
+    """(path, install mode, blob id) for every file under the skill, from one ls-tree."""
     prefix = skill_prefix.rstrip("/") + "/"
-    paths = git(repo, "ls-tree", "-r", "--name-only", head, prefix).splitlines()
-    if not paths:
+    records = [r for r in git(repo, "ls-tree", "-r", "-z", head, prefix).split("\0") if r]
+    if not records:
         raise DeployError(f"head {head} has no tracked files under {prefix}")
-    if any(not path.startswith(prefix) for path in paths):
-        raise DeployError(f"git ls-tree returned a path outside {prefix}")
-    return paths
+    entries = []
+    for record in records:
+        metadata, path = record.split("\t", 1)
+        mode, _object_type, object_id = metadata.split()
+        if not path.startswith(prefix):
+            raise DeployError(f"git ls-tree returned a path outside {prefix}")
+        entries.append((path, install_mode(mode, path), object_id))
+    return entries
 
 
 def install_mode(git_mode: str, tracked_path: str) -> int:
@@ -72,72 +78,56 @@ def install_mode(git_mode: str, tracked_path: str) -> int:
     return 0o755 if git_mode == "100755" else 0o644
 
 
-def resolved_files(repo: Path, head: str, paths: list[str], skill_prefix: str) -> list[tuple[Path, bytes, int]]:
+def read_blobs(repo: Path, object_ids: list[str]) -> dict[str, bytes]:
+    unique = sorted(set(object_ids))
+    proc = subprocess.run(
+        ["git", "-C", str(repo), "cat-file", "--batch"],
+        input="".join(f"{object_id}\n" for object_id in unique).encode(),
+        capture_output=True,
+        check=False,
+    )
+    if proc.returncode:
+        raise DeployError(f"git cat-file failed: {proc.stderr.decode(errors='replace').strip()}")
+    blobs: dict[str, bytes] = {}
+    offset = 0
+    for object_id in unique:
+        end = proc.stdout.index(b"\n", offset)
+        header = proc.stdout[offset:end].split()
+        if header[:2] != [object_id.encode(), b"blob"]:
+            raise DeployError(f"git cat-file returned no blob for {object_id}")
+        start = end + 1
+        blobs[object_id] = proc.stdout[start:start + int(header[2])]
+        offset = start + int(header[2]) + 1
+    return blobs
+
+
+def resolved_files(repo: Path, entries: list[tuple[str, int, str]],
+                   skill_prefix: str) -> list[tuple[Path, bytes, int]]:
     prefix = skill_prefix.rstrip("/") + "/"
-    resolved: list[tuple[Path, bytes, int]] = []
-    for tracked in paths:
-        tree = subprocess.run(
-            ["git", "-C", str(repo), "ls-tree", head, "--", tracked],
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            check=False,
-            stdin=subprocess.DEVNULL,
-        )
-        if tree.returncode:
-            raise DeployError(f"git ls-tree failed for {tracked}: {tree.stderr.strip()}")
-        entries = tree.stdout.splitlines()
-        if len(entries) != 1:
-            raise DeployError(f"head {head} has no unique tree entry for {tracked}")
-        metadata = entries[0].split("\t", 1)[0].split()
-        if len(metadata) != 3:
-            raise DeployError(f"git ls-tree returned malformed metadata for {tracked}")
-        mode, object_type, _object_id = metadata
-        if object_type != "blob":
-            raise DeployError(f"tracked path has unsupported mode for {tracked}: {mode}")
-        file_mode = install_mode(mode, tracked)
-        blob = subprocess.run(
-            ["git", "-C", str(repo), "cat-file", "blob", f"{head}:{tracked}"],
-            capture_output=True,
-            check=False,
-            stdin=subprocess.DEVNULL,
-        )
-        if blob.returncode:
-            detail = blob.stderr.decode(errors="replace").strip()
-            raise DeployError(f"git cat-file failed for {tracked}: {detail}")
-        resolved.append((Path(tracked[len(prefix):]), blob.stdout, file_mode))
-    return resolved
+    blobs = read_blobs(repo, [object_id for _path, _mode, object_id in entries])
+    return [(Path(path[len(prefix):]), blobs[object_id], mode) for path, mode, object_id in entries]
 
 
 def _is_pycache(path: Path) -> bool:
     return "__pycache__" in path.parts
 
 
-def tree_mode(repo: Path, head: str, tracked_path: str) -> int:
-    metadata = git(repo, "ls-tree", head, "--", tracked_path).split("\t", 1)[0].split()
-    if len(metadata) != 3:
-        raise DeployError(f"git ls-tree returned malformed metadata for {tracked_path}")
-    return install_mode(metadata[0], tracked_path)
-
-
-def verify_install(repo: Path, head: str, install_dir: Path,
-                   paths: list[str], skill_prefix: str) -> None:
+def verify_install(repo: Path, install_dir: Path, entries: list[tuple[str, int, str]],
+                   skill_prefix: str) -> None:
     prefix = skill_prefix.rstrip("/") + "/"
     install_dir = Path(os.path.abspath(os.path.expanduser(install_dir)))
     if install_dir.is_symlink():
         raise DeployError(f"install tree is a symlink: {install_dir}")
-    tracked = {Path(path[len(prefix):]) for path in paths}
-    for tracked_path in paths:
+    tracked = {Path(path[len(prefix):]) for path, _mode, _object_id in entries}
+    for tracked_path, expected_mode, expected in entries:
         installed = install_dir / Path(tracked_path[len(prefix):])
         if installed.is_symlink() or not installed.is_file():
             raise DeployError(f"installed file is missing: {installed}")
-        expected = git(repo, "rev-parse", f"{head}:{tracked_path}")
         actual = git(repo, "hash-object", str(installed))
         if actual != expected:
             raise DeployError(
                 f"installed hash mismatch for {tracked_path}: expected {expected}, got {actual}"
             )
-        expected_mode = tree_mode(repo, head, tracked_path)
         if stat.S_IMODE(installed.stat().st_mode) != expected_mode:
             raise DeployError(
                 f"installed mode mismatch for {tracked_path}: expected {oct(expected_mode)}, "
@@ -248,9 +238,9 @@ def main(argv: list[str] | None = None) -> int:
         deployments = []
         for skill in selected:
             skill_prefix = f"skills/{skill}"
-            paths = tracked_files(repo, head, skill_prefix)
-            resolved = resolved_files(repo, head, paths, skill_prefix)
-            deployments.append((skill, paths, skill_prefix, resolved))
+            entries = tracked_files(repo, head, skill_prefix)
+            resolved = resolved_files(repo, entries, skill_prefix)
+            deployments.append((skill, entries, skill_prefix, resolved))
 
         install_root = Path.home() / ".agents" / "skills"
         with tempfile.TemporaryDirectory(prefix="deploy-skill-") as temporary:
@@ -264,8 +254,8 @@ def main(argv: list[str] | None = None) -> int:
                     os.chmod(destination, mode)
             for skill, _paths, _prefix, _resolved in deployments:
                 _install_with_skills(cli, staging_root / skill, skill)
-            for skill, paths, skill_prefix, _resolved in deployments:
-                verify_install(repo, head, install_root / skill, paths, skill_prefix)
+            for skill, entries, skill_prefix, _resolved in deployments:
+                verify_install(repo, install_root / skill, entries, skill_prefix)
 
         args.skill = selected
         append_deploy_row(

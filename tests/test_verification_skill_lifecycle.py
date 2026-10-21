@@ -9,7 +9,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-FIXTURE = Path(__file__).resolve().parents[1] / "skills" / "verification-skill-lifecycle" / "fixtures" / "cli_app.py"
+FIXTURE = Path(__file__).resolve().parent / "fixtures" / "verification-skill-lifecycle" / "cli_app.py"
 OWNER = "fixture-owner"
 
 

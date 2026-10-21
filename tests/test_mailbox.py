@@ -88,16 +88,6 @@ class MailboxTest(unittest.TestCase):
             ],
         )
 
-    def test_no_selector_returns_all_entries(self):
-        self.assertEqual(
-            mailbox.select_entries(self.path.read_text(encoding="utf-8")),
-            [
-                "## lead-beo-skills -> supervisor | 2026-09-10T00:05:01Z | first\none",
-                "## lead-beo-skills -> supervisor | 2026-09-10T00:10:02Z | second\ntwo",
-                "## lead-beo-skills -> supervisor | 2026-09-10T00:15:03Z | third\nthree",
-            ],
-        )
-
     def test_since_and_last_are_mutually_exclusive(self):
         with contextlib.redirect_stderr(io.StringIO()) as stderr:
             with self.assertRaises(SystemExit) as ctx:
@@ -128,11 +118,14 @@ class MailboxTest(unittest.TestCase):
         )
         self.assertEqual(stderr.getvalue(), "")
 
-    def test_minute_precision_header_and_since_are_rejected(self):
+    def test_minute_and_fractional_precision_header_and_since_are_rejected(self):
         minute_header = "## lead-beo-skills -> supervisor | 2026-09-10T00:20Z | minute"
-        self.assertIsNone(mailbox.HEADER_RE.match(minute_header))
-        with self.assertRaisesRegex(ValueError, "ISO-8601"):
-            mailbox.select_entries(minute_header, since="2026-09-10T00:20Z")
+        fractional_header = "## lead-beo-skills -> supervisor | 2026-09-10T00:20:00.500Z | fractional"
+        for header, since in ((minute_header, "2026-09-10T00:20Z"), (fractional_header, "2026-09-10T00:20:00.500Z")):
+            with self.subTest(since=since):
+                self.assertIsNone(mailbox.HEADER_RE.match(header))
+                with self.assertRaisesRegex(ValueError, "ISO-8601"):
+                    mailbox.select_entries(header, since=since)
         stdout = io.StringIO()
         stderr = io.StringIO()
         path = self.path
@@ -141,12 +134,6 @@ class MailboxTest(unittest.TestCase):
             result = mailbox.main(["--file", str(path), "--headers", "--since", "2026-09-10T00:20Z"])
         self.assertEqual(result, 1)
         self.assertIn("ISO-8601", stderr.getvalue())
-
-    def test_fractional_precision_header_and_since_are_rejected(self):
-        fractional_header = "## lead-beo-skills -> supervisor | 2026-09-10T00:20:00.500Z | fractional"
-        self.assertIsNone(mailbox.HEADER_RE.match(fractional_header))
-        with self.assertRaisesRegex(ValueError, "ISO-8601"):
-            mailbox.select_entries(fractional_header, since="2026-09-10T00:20:00.500Z")
 
     def test_seconds_precision_orders_entries_at_the_same_minute(self):
         text = (

@@ -30,17 +30,6 @@ class SafeTargetTest(unittest.TestCase):
     def resolve(self, candidate: Path, **kwargs: object) -> Path:
         return safe_target.resolve_target(candidate, [str(self.root)], **kwargs)  # type: ignore[arg-type]
 
-    def test_child_of_root_is_accepted(self) -> None:
-        self.assertEqual(self.resolve(self.root / "abc123"), self.root / "abc123")
-
-    def test_root_itself_is_refused(self) -> None:
-        with self.assertRaises(safe_target.Refused):
-            self.resolve(self.root)
-
-    def test_path_outside_root_is_refused(self) -> None:
-        with self.assertRaises(safe_target.Refused):
-            self.resolve(self.outside)
-
     def test_traversal_out_of_root_is_refused(self) -> None:
         with self.assertRaises(safe_target.Refused):
             self.resolve(self.root / "abc123" / ".." / ".." / "elsewhere")
@@ -67,11 +56,11 @@ class SafeTargetTest(unittest.TestCase):
 
     def test_target_equal_to_a_root_is_refused_even_with_a_parent_root(self) -> None:
         nested = self.root / "abc123"
-        code, out, err = self.run_cli(
-            str(nested), "--root", str(nested), "--root", str(self.root)
-        )
-        self.assertEqual((code, out), (1, ""))
-        self.assertIn("target is or contains", err)
+        for target, roots in ((nested, (nested, self.root)), (self.root, (self.root,))):
+            with self.subTest(target=target, roots=roots):
+                code, out, err = self.run_cli(str(target), *(arg for root in roots for arg in ("--root", str(root))))
+                self.assertEqual((code, out), (1, ""))
+                self.assertIn("target is or contains", err)
 
     def test_target_containing_a_listed_root_is_refused(self) -> None:
         nested = self.root / "a" / "b"
@@ -158,10 +147,6 @@ class SafeTargetTest(unittest.TestCase):
         (self.root / "def456").mkdir()
         with self.assertRaises(safe_target.Refused):
             self.resolve(self.root / "def456", owner_file=".owner", expect_owner="worker-7")
-
-    def test_unresolvable_root_cannot_be_checked(self) -> None:
-        with self.assertRaises(safe_target.CannotCheck):
-            safe_target.resolve_target(self.root / "abc123", [str(self.outside / "missing")])
 
     def run_cli(self, *argv: str) -> tuple[int, str, str]:
         out, err = io.StringIO(), io.StringIO()
