@@ -30,7 +30,7 @@ you suggest; edit no config and take no other route.
 |---|---|---|
 | Human | the gates below | — |
 | Manager (the session the Human talks to) | which project runs, which Lead is staffed, what reaches the Human | commit, write source, or move a branch of a project that has a Lead |
-| Lead (one per project, per delivery) | scope, partition, every commit on the tree, acceptance | write source an Engineer owns, run a second delivery, poll |
+| Lead (one per project, per delivery) | scope, partition, every commit on the tree, acceptance | write source in a partitioned run, run a second delivery, poll |
 | Engineer (one per owned path set) | the implementation inside its owned paths | edit outside owned paths, commit, staff anyone |
 | Reviewer | `PASS` / `FAIL` / `BLOCKED` on one exact SHA | write anything, review a moving tree |
 | Heartbeat | nothing; reports one bounded snapshot | start work, run tests, edit |
@@ -55,14 +55,16 @@ the policy is the same act, hidden from the tier accountable for it.
 
 1. **Place it.** One delivery in flight per project; one branch per delivery, run in the
    project's existing workspace, and every Engineer of the delivery works on that branch and
-   checkout, never on a branch, worktree, or PR of its own. Only the Manager may put a second delivery in flight on
-   the same project at once, under its own Lead in a `--new-workspace worktree` workspace;
-   with no second delivery in flight, create no worktree. The project's record is
-   `~/.paseo/reports/<project>/`; another workflow's state directory is data, never the
-   record. Done when the workspace id and branch are named in your own report.
+   checkout, never on a branch, worktree, or PR of its own. Only the Manager may put a
+   second delivery in flight on the same project at once, under its own Lead in a
+   `--new-workspace worktree` workspace; with no second delivery in flight, create no
+   worktree. The project's record is `~/.paseo/reports/<project>/`; another workflow's state
+   directory is data, never the record. Done when the workspace id and branch are named in
+   your own report.
 2. **Staff it.** One Lead. The Lead partitions into Engineers only where path sets are
    disjoint; overlapping work is one Engineer, not two. When the Lead rules the delivery is one
-   Engineer's work, the Lead writes it itself, under the same owned paths and report. Each Engineer's prompt names its owned paths and its reporting target.
+   Engineer's work, the Lead writes it itself, under the same owned paths and report. Each
+   Engineer's prompt names its owned paths and its reporting target.
    Replace a Lead only after it writes state, standing rules, open gates, and next work to
    the project's record; for a Lead that cannot, the Manager writes it from the Lead's
    `paseo logs`. The new Lead's first report checks that record against the tree.
@@ -73,10 +75,11 @@ the policy is the same act, hidden from the tier accountable for it.
    this commit's paths. Done when the commit SHA is named.
 5. **Review.** Staff a Reviewer at the exact SHA, as a different agent instance from every
    writer. It re-runs the acceptance checks and reports `PASS` / `FAIL` / `BLOCKED` with the
-   command output it saw. A check too costly to re-run runs once, at the reviewed SHA, by an
-   agent that runs acceptance; the Reviewer reads that output and checks the SHA it names is
-   the reviewed one, and a repair touching any path the check reads runs it again. A `FAIL` goes back to the owning Engineer, then re-review at the
-   new SHA. Done when a `PASS` names the SHA it covers.
+   command output it saw. A check the Lead names too costly to re-run runs once, at the
+   reviewed SHA, by an agent that runs acceptance; the Reviewer reads that output and checks
+   the SHA it names is the reviewed one, and a repair touching any path the check reads runs
+   it again. A `FAIL` goes back to the owning writer, then re-review at the new SHA. Done
+   when a `PASS` names the SHA it covers.
 6. **Gate.** Route Human gates (below) before the external write; the Lead performs it once
    the answer arrives. Done when each approved gate's write is performed and named with its
    head, and every other gate is reported with its answer, or as pending with the work it
@@ -161,7 +164,8 @@ Below the Manager tier, no agent answers another agent's permission request:
   `paseo project ls`. Archiving the workspace and removing the worktree leave that project
   behind, pointing at a missing directory; delete it at close-out. A
   `--new-workspace worktree` workspace stays under the parent project and creates its own
-  branch, `<name>-1`; close-out deletes that branch.
+  branch, `<name>-1`; close-out deletes that branch once its head is merged, and a branch
+  holding a pending gate's head stays.
 - The Manager's Human-question dialog can reach a Lead as a `needs permission` notification;
   the Lead leaves it unanswered.
 - `paseo ls` can show `closed` (the provider process exited) while the agent is still
