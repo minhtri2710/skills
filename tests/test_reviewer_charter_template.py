@@ -126,6 +126,12 @@ class ReviewerCharterTemplateTest(unittest.TestCase):
         sentence = section.split("carries, by value: ", 1)[1].strip()
         self.assertIn(sentence, TEMPLATE.read_text(encoding="utf-8"))
 
+    def test_one_heavy_suite_per_checkout_rule_is_in_doctrine_and_charter(self):
+        rule = "Never run two heavy suites at once on one checkout."
+        lead = (SKILL / "references" / "lead.md").read_text(encoding="utf-8")
+        self.assertIn(rule, lead.split("Every test, build, or browser command", 1)[1].split("\n\n", 1)[0])
+        self.assertIn(rule, TEMPLATE.read_text(encoding="utf-8"))
+
     def test_carries_unconditional_reviewer_clauses_of_charters(self):
         charters = (SKILL / "references" / "charters.md").read_text(encoding="utf-8")
         reviewer = charters.split("\n**Disposition: Reviewer.**", 1)[1].split("\n*Frozen tree:*", 1)[0]
@@ -181,8 +187,7 @@ class ReviewerCharterTemplateTest(unittest.TestCase):
             root = Path(outside)
             # A kind's runtime-state-paths: a directory and a file it writes beside it.
             state_paths = [f"{root}/state", f"{root}/kind.json"]
-            values = {"herdr_home": f"{root}/.herdr",
-                      "run_dir": f"{root}/.herdr/projects/p/runs/2026-09-30", "peer_name": "review-45fa5929e7c1"}
+            values = {"run_dir": f"{root}/.herdr/projects/p/runs/2026-09-30", "peer_name": "review-45fa5929e7c1"}
             run_dir, name = Path(values["run_dir"]), values["peer_name"]
             # As a Lead fills it: a "." in a slot value becomes "\." on the regex lines.
             fill = lambda line: SLOT_RE.sub(
@@ -195,14 +200,14 @@ class ReviewerCharterTemplateTest(unittest.TestCase):
                 else "".join(fill(l.replace("<kind_state_path>", p.replace(".", "\\."))) for p in state_paths)
                 if "<kind_state_path>" in l else fill(l)
                 for l in lines))
-            for d in (run_dir, root / ".herdr/heavy-slots", root / "state", root / "Xherdr/projects/p/runs/2026-09-30"):
+            for d in (run_dir, root / "state", root / "Xherdr/projects/p/runs/2026-09-30"):
                 d.mkdir(parents=True)
             report, send = run_dir / f"report-{name}.md", run_dir / f"send-{name}.txt"
             allowed = [report, send, Path(f"{report}.tmp.17614.7a0e172e9fe4"), Path(f"{send}.tmp.1.0"),
                        root / "state/session", root / "kind.json", Path(f"{root}/kind.json.tmp.1.a"),
                        self.tmp / "scratch"]
             denied = [run_dir / "other.md", run_dir / "report-review-other.md", run_dir / f"send-{name}.md",
-                      root / ".herdr/gates.md", root / ".herdr/heavy-slots/1", root / ".herdr/heavy-lockX",
+                      root / ".herdr/gates.md",
                       root / "checkout-file", root / "stateX", root / "kind.jsonX", root / "kind.json.bak",
                       root / f"Xherdr/projects/p/runs/2026-09-30/report-{name}.md",
                       Path(str(report).replace("45fa5929e7c1.md", "45fa5929e7c1Xmd")),
@@ -215,12 +220,6 @@ class ReviewerCharterTemplateTest(unittest.TestCase):
                     self.assertEqual(path.exists(), path in allowed, run.stderr)
                     if path in denied:
                         self.assertIn("Operation not permitted", run.stderr)
-            # The heavy slot is taken as bounded_run --lock takes it: mkdir, owner via a temp sibling, rmtree.
-            lock = root / ".herdr/heavy-lock"
-            take = f"mkdir {lock} && touch {lock}/.owner.1 && mv {lock}/.owner.1 {lock}/owner && rm -r {lock}"
-            run = subprocess.run(["sandbox-exec", "-f", str(profile), "sh", "-c", take],
-                                 capture_output=True, text=True, stdin=subprocess.DEVNULL)
-            self.assertEqual((run.returncode, run.stderr), (0, ""))
 
     def test_no_mutation_contract_bounds_the_awaited_background_check(self):
         text = TEMPLATE.read_text(encoding="utf-8")
