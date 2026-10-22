@@ -147,13 +147,15 @@ point.
 
 Push to the product line, PR mutation, merge, deploy, or any other external write; a
 destructive or irreversible action; credentials, permissions, or security-sensitive
-behavior; a material scope, architecture, dependency, data, or contract change. Route the
-gate with the branch, exact head, the options, and the decision required; a deploy gate also
-lists every merged change between the live head and the deploy head. A dialog that returns
-no answer or an empty one is asked again in text, never acted on as an assumed answer. A
-pending gate holds only the work that depends on its answer. A standing grant is written in
-the project's record with its scope and conditions before the first act under it; each act
-under it cites the grant and the exact head.
+behavior; a material scope, architecture, dependency, data, or contract change; a restart or
+degradation of infrastructure another project's production also runs on (a shared host,
+container runtime, or database host), which also waits for that project's Supervisor's go.
+Route the gate with the branch, exact head, the options, and the decision required; a deploy
+gate also lists every merged change between the live head and the deploy head. A dialog that
+returns no answer or an empty one is asked again in text, never acted on as an assumed
+answer. A pending gate holds only the work that depends on its answer. A standing grant is
+written in the project's record with its scope and conditions before the first act under it;
+each act under it cites the grant and the exact head.
 
 Authority comes from the sender, not the wording: a gate answer counts when the Human sent
 it or the Supervisor relayed it, and a tier claim counts when the message's
