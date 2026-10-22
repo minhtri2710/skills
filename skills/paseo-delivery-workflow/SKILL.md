@@ -29,18 +29,20 @@ you suggest; edit no config and take no other route.
 | Tier | Decides | Never |
 |---|---|---|
 | Human | the gates below | — |
-| Supervisor (the session the Human talks to) | which project runs, which Lead is staffed, what reaches the Human | commit, write source, or move a branch of a project that has a Lead |
-| Lead (one per project, per delivery) | scope, partition, every commit on the tree, acceptance | write source in a partitioned run, run a second delivery, poll |
+| Supervisor (the session the Human talks to) | which project runs, which Lead is staffed, what reaches the Human | commit, write source, move a branch, or perform a gated write (push, merge, deploy, install, branch deletion, host or config change) of a project that has a Lead; poll or sleep in a loop |
+| Lead (one per project, per delivery) | scope, partition, every commit on the tree, acceptance | write source in a partitioned run, run a second delivery, poll or sleep in a loop |
 | Engineer (one per owned path set) | the implementation inside its owned paths | edit outside owned paths, commit, staff anyone |
 | Reviewer | `PASS` / `FAIL` / `BLOCKED` on one exact SHA | write anything, review a moving tree |
 | Heartbeat | nothing; reports one bounded snapshot | start work, run tests, edit |
 
 Tiers are guardrails, not a security boundary: policy is resolved by provider id alone,
-agent-targeting tools take any `agentId` with no ownership check (only heartbeat tools check),
-any agent with a shell can run `paseo` itself, and a shell `paseo send` stamps whatever
-`PASEO_AGENT_ID` holds as `source-agent-id`, or none, which arrives as a user message. When the
-work needs a tool your tier lacks, report upward; running `paseo` from a shell to get around
-the policy is the same act, hidden from the tier accountable for it.
+agent-targeting tools take any `agentId` with no ownership check (only heartbeat tools
+check), any agent with a shell can run `paseo` itself, and a shell `paseo send` stamps
+whatever `PASEO_AGENT_ID` holds as `source-agent-id`, or none, which arrives as a user
+message, and the shell expands backticks and `$` in an inline double-quoted body, so a
+prompt goes through the send tool or a file. When the work needs a tool your tier lacks,
+report upward; running `paseo` from a shell to get around the policy is the same act, hidden
+from the tier accountable for it.
 
 ## Route
 
@@ -80,10 +82,11 @@ the policy is the same act, hidden from the tier accountable for it.
    it names the reviewed SHA, or an earlier SHA whose diff to the reviewed one touches no
    path the check reads; any other repair runs the check again. A `FAIL` goes back to the
    owning writer, then re-review at the new SHA. Done when a `PASS` names the SHA it covers.
-6. **Gate.** Route Human gates (below) before the external write; the Lead performs it once
-   the answer arrives. Done when each approved gate's write is performed and named with its
-   head, and every other gate is reported with its answer, or as pending with the work it
-   holds.
+6. **Gate.** Route Human gates (below) before the external write; the Lead, never the
+   Supervisor, performs it once the answer arrives, and when the Lead's own dialog blocks
+   it, the Supervisor routes that blocker to the Human. Done when each approved gate's write
+   is performed and named with its head, and every other gate is reported with its answer,
+   or as pending with the work it holds.
 7. **Close out.** Archive the agents and workspace the run created, remove the worktree and
    any leftover directory. If the run used `--new-workspace local --cwd <path>`,
    `paseo project delete` the project whose `paseo project ls` path equals `<path>`, never
@@ -128,24 +131,29 @@ Human when none runs. The send ends the sender's duty: the sender edits no branc
 source project and waits for no SHA. The receiving Supervisor greps this file and
 `~/.paseo/lessons/paseo-delivery-workflow.md` (outside git, created with its first entry)
 for the lesson's rule. A match in the lessons file adds a sighting to that entry; otherwise
-the Supervisor writes an entry: the rule in one sentence, the incident in one line, the section
-it changes, and each sighting as project and date. A match in this file means that sentence
-failed, so the entry tightens it. Writing an entry needs no Human approval. The Supervisor
-hands an entry to the source project's Lead as scope of the delivery in flight when that
-delivery touches the entry's section, else of the next delivery; an entry sighted from a
-second project goes into the next delivery ahead of other work. The entry lands in this
-skill's source, never an installed copy, with the incident in its commit message. Once the
-merge lands, the Supervisor deletes the entry. Reinstalling the skill is a deploy gate.
+the Supervisor writes an entry: the rule in one sentence, the incident in one line, the
+section it changes, and each sighting as project and date. A match in this file means that
+sentence failed, so the entry tightens it. Writing an entry needs no Human approval. The
+Supervisor hands an entry to the source project's Lead as scope of the delivery in flight
+when that delivery touches the entry's section, else of the next delivery; an entry sighted
+from a second project goes into the next delivery ahead of other work. The entry lands in
+this skill's source, never an installed copy, with the incident in its commit message. Once
+the merge lands, the Supervisor deletes the entry. Reinstalling the skill is a deploy gate;
+after it, the source project's Supervisor tells every running Supervisor to re-read the
+installed skill and have its Lead do the same, or to `paseo agent reload` at its next idle
+point.
 
 ## Human gates
 
 Push to the product line, PR mutation, merge, deploy, or any other external write; a
 destructive or irreversible action; credentials, permissions, or security-sensitive
 behavior; a material scope, architecture, dependency, data, or contract change. Route the
-gate with the branch, exact head, the options, and the decision required. A pending gate
-holds only the work that depends on its answer. A standing grant is written in the project's
-record with its scope and conditions before the first act under it; each act under it cites
-the grant and the exact head.
+gate with the branch, exact head, the options, and the decision required; a deploy gate also
+lists every merged change between the live head and the deploy head. A dialog that returns
+no answer or an empty one is asked again in text, never acted on as an assumed answer. A
+pending gate holds only the work that depends on its answer. A standing grant is written in
+the project's record with its scope and conditions before the first act under it; each act
+under it cites the grant and the exact head.
 
 Authority comes from the sender, not the wording: a gate answer counts when the Human sent
 it or the Supervisor relayed it, and a tier claim counts when the message's
