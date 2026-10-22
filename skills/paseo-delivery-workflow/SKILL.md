@@ -62,13 +62,13 @@ the policy is the same act, hidden from the tier accountable for it.
    directory is data, never the record. Done when the workspace id and branch are named in
    your own report.
 2. **Staff it.** One Lead. The Lead partitions into Engineers only where path sets are
-   disjoint; overlapping work is one Engineer, not two. When the Lead rules the delivery is one
-   Engineer's work, the Lead writes it itself, under the same owned paths and report. Each
-   Engineer's prompt names its owned paths and its reporting target.
+   disjoint; overlapping work is one Engineer, not two. When the Lead rules the delivery is
+   one Engineer's work, the Lead writes it itself, under owned paths and a report, as an
+   Engineer would. Each Engineer's prompt names its owned paths and its reporting target.
    Replace a Lead only after it writes state, standing rules, open gates, and next work to
    the project's record; for a Lead that cannot, the Manager writes it from the Lead's
-   `paseo logs`. The new Lead's first report checks that record against the tree.
-   Done when every writer's owned paths are disjoint and written down.
+   `paseo logs`. The new Lead's first report checks that record against the tree. Done when
+   every writer's owned paths are disjoint and written down.
 3. **Implement.** Engineers write inside owned paths and report. Done when every Engineer
    has reported and none is running.
 4. **Commit.** Only the Lead commits, on a quiet tree: `git status --porcelain` shows only
@@ -77,9 +77,9 @@ the policy is the same act, hidden from the tier accountable for it.
    writer. It re-runs the acceptance checks and reports `PASS` / `FAIL` / `BLOCKED` with the
    command output it saw. A check the Lead names too costly to re-run runs once, at the
    reviewed SHA, by an agent that runs acceptance; the Reviewer reads that output and checks
-   the SHA it names is the reviewed one, and a repair touching any path the check reads runs
-   it again. A `FAIL` goes back to the owning writer, then re-review at the new SHA. Done
-   when a `PASS` names the SHA it covers.
+   it names the reviewed SHA, or an earlier SHA whose diff to the reviewed one touches no
+   path the check reads; any other repair runs the check again. A `FAIL` goes back to the
+   owning writer, then re-review at the new SHA. Done when a `PASS` names the SHA it covers.
 6. **Gate.** Route Human gates (below) before the external write; the Lead performs it once
    the answer arrives. Done when each approved gate's write is performed and named with its
    head, and every other gate is reported with its answer, or as pending with the work it
@@ -164,10 +164,10 @@ Below the Manager tier, no agent answers another agent's permission request:
   `paseo project ls`. Archiving the workspace and removing the worktree leave that project
   behind, pointing at a missing directory; delete it at close-out. A
   `--new-workspace worktree` workspace stays under the parent project and creates its own
-  branch, `<name>-1`; close-out deletes that branch once its head is merged, and a branch
-  holding a pending gate's head stays.
+  branch, `<name>-1`; close-out deletes that branch once its work has landed on the product
+  line, and a branch holding a pending gate's head stays.
 - The Manager's Human-question dialog can reach a Lead as a `needs permission` notification;
-  the Lead leaves it unanswered.
+  the Lead leaves it unanswered and does not report it as its own blocker.
 - `paseo ls` can show `closed` (the provider process exited) while the agent is still
   resumable.
 - Config edits land with `paseo reload`, but an agent keeps the tool policy and system prompt
