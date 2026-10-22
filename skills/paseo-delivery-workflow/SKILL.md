@@ -29,7 +29,7 @@ you suggest; edit no config and take no other route.
 | Tier | Decides | Never |
 |---|---|---|
 | Human | the gates below | — |
-| Supervisor (the session the Human talks to) | which project runs, which Lead is staffed, what reaches the Human | commit, write source, move a branch, or perform a gated write (push, merge, deploy, install, branch deletion, host or config change) of a project that has a Lead; poll or sleep in a loop |
+| Supervisor (the session the Human talks to) | which project runs, which Lead is staffed, what reaches the Human | commit, write source, move or delete a branch, push, mutate a PR, merge, deploy, install, or change a host or config of a project that has a Lead; poll or sleep in a loop |
 | Lead (one per project, per delivery) | scope, partition, every commit on the tree, acceptance | write source in a partitioned run, run a second delivery, poll or sleep in a loop |
 | Engineer (one per owned path set) | the implementation inside its owned paths | edit outside owned paths, commit, staff anyone |
 | Reviewer | `PASS` / `FAIL` / `BLOCKED` on one exact SHA | write anything, review a moving tree |
@@ -39,10 +39,10 @@ Tiers are guardrails, not a security boundary: policy is resolved by provider id
 agent-targeting tools take any `agentId` with no ownership check (only heartbeat tools
 check), any agent with a shell can run `paseo` itself, and a shell `paseo send` stamps
 whatever `PASEO_AGENT_ID` holds as `source-agent-id`, or none, which arrives as a user
-message, and the shell expands backticks and `$` in an inline double-quoted body, so a
-prompt goes through the send tool or a file. When the work needs a tool your tier lacks,
-report upward; running `paseo` from a shell to get around the policy is the same act, hidden
-from the tier accountable for it.
+message. When the work needs a tool your tier lacks, report upward; running `paseo` from a
+shell to get around the policy is the same act, hidden from the tier accountable for it.
+Send a prompt through the send tool or from a file, never as an inline double-quoted shell
+argument, whose backticks and `$` the shell expands.
 
 ## Route
 
@@ -82,11 +82,11 @@ from the tier accountable for it.
    it names the reviewed SHA, or an earlier SHA whose diff to the reviewed one touches no
    path the check reads; any other repair runs the check again. A `FAIL` goes back to the
    owning writer, then re-review at the new SHA. Done when a `PASS` names the SHA it covers.
-6. **Gate.** Route Human gates (below) before the external write; the Lead, never the
-   Supervisor, performs it once the answer arrives, and when the Lead's own dialog blocks
-   it, the Supervisor routes that blocker to the Human. Done when each approved gate's write
-   is performed and named with its head, and every other gate is reported with its answer,
-   or as pending with the work it holds.
+6. **Gate.** Route Human gates (below) before the external write; the Lead performs it once
+   the answer arrives, and when the Lead's own dialog blocks it, the Supervisor routes that
+   blocker to the Human. Done when each approved gate's write is performed and named with
+   its head, and every other gate is reported with its answer, or as pending with the work
+   it holds.
 7. **Close out.** Archive the agents and workspace the run created, remove the worktree and
    any leftover directory. If the run used `--new-workspace local --cwd <path>`,
    `paseo project delete` the project whose `paseo project ls` path equals `<path>`, never
