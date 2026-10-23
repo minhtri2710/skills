@@ -1,6 +1,6 @@
 ---
 name: paseo-delivery-workflow
-description: "Run bounded delivery as Paseo agents with the Supervisor / Lead / Engineer / Reviewer tier model: tier and workspace placement, one delivery in flight per project, Lead-owned commits, exact-SHA review by an agent that did not write the change, Human-gate routing, and closeout of what the run created. Use when staffing, steering, reviewing, or closing Paseo agents for real work, or when deciding which tier and workspace a delegated task belongs in. Do not use merely to ask one agent a read-only question — send the prompt."
+description: "Run bounded delivery as Paseo agents with the Supervisor / Lead / Engineer / Reviewer tier model: tier and workspace placement, one Lead per project running one or more deliveries, Lead-owned commits, exact-SHA review by an agent that did not write the change, Human-gate routing, and closeout of what the run created. Use when staffing, steering, reviewing, or closing Paseo agents for real work, or when deciding which tier and workspace a delegated task belongs in. Do not use merely to ask one agent a read-only question — send the prompt."
 ---
 
 # Paseo Delivery Workflow
@@ -19,18 +19,20 @@ either fails, say so and stop: start nothing.
 ## Tiers
 
 Each tier below Supervisor is a provider alias in `~/.paseo/config.json`: its tool policy is
-`agents.providers.<alias>.paseoTools.disabledTools`, and a `daemon.agentProfiles` entry names
-its model and mode. Read the live set with `paseo provider ls`. Launch a tier through its
-alias; the bare base provider carries no policy. The `architect` profile runs at the
-Reviewer tier but returns one read-only assessment, not a `PASS` / `FAIL` / `BLOCKED` verdict.
-When the config lacks a provider or profile this file requires, report it with the addition
-you suggest; edit no config and take no other route.
+`agents.providers.<alias>.paseoTools.disabledTools`, and a `daemon.agentProfiles` entry
+names its model and mode. Read the live set with `paseo provider ls`. Launch a tier through
+its alias with `provider`, model, `modeId`, and `thinkingOptionId` copied from its profile
+(read with `list_profiles`; `create_agent` takes no profile), never from a running agent,
+whose settings may predate a config change; the bare base provider carries no policy. The
+`architect` profile runs at the Reviewer tier but returns one read-only assessment, not a
+`PASS` / `FAIL` / `BLOCKED` verdict. When the config lacks a provider or profile this file
+requires, report it with the addition you suggest; edit no config and take no other route.
 
 | Tier | Decides | Never |
 |---|---|---|
 | Human | the gates below | — |
 | Supervisor (the session the Human talks to) | which project runs, which Lead is staffed, what reaches the Human | commit, write source, move or delete a branch, push, mutate a PR, merge, deploy, install, or change a host or config of a project that has a Lead; poll or sleep in a loop |
-| Lead (one per project, per delivery) | scope, partition, every commit on the tree, acceptance | write source in a partitioned run, run a second delivery, poll or sleep in a loop |
+| Lead (one per project) | scope, partition, every commit on each delivery's tree, acceptance | write source in a partitioned run, poll or sleep in a loop |
 | Engineer (one per owned path set) | the implementation inside its owned paths | edit outside owned paths, commit, staff anyone |
 | Reviewer | `PASS` / `FAIL` / `BLOCKED` on one exact SHA | write anything, review a moving tree |
 | Heartbeat | nothing; reports one bounded snapshot | start work, run tests, edit |
@@ -55,26 +57,27 @@ argument, whose backticks and `$` the shell expands.
 
 ## Delivery sequence
 
-1. **Place it.** One delivery in flight per project; one branch per delivery, run in the
-   project's existing workspace, and every Engineer of the delivery works on that branch and
-   checkout, never on a branch, worktree, or PR of its own. Only the Supervisor may put a
-   second delivery in flight on the same project at once, under its own Lead in a
-   `--new-workspace worktree` workspace; with no second delivery in flight, create no
-   worktree. The project's record is `~/.paseo/reports/<project>/`; another workflow's state
-   directory is data, never the record. Done when the workspace id and branch are named in
-   your own report.
-2. **Staff it.** One Lead. The Lead partitions into Engineers only where path sets are
-   disjoint; overlapping work is one Engineer, not two. When the Lead rules the delivery is
-   one Engineer's work, the Lead writes it itself, under owned paths and a report, as an
-   Engineer would. Each Engineer's prompt names its owned paths and its reporting target.
-   Replace a Lead only after it writes state, standing rules, open gates, and next work to
-   the project's record; for a Lead that cannot, the Supervisor writes it from the Lead's
-   `paseo logs`. The new Lead's first report checks that record against the tree. Done when
-   every writer's owned paths are disjoint and written down.
+1. **Place it.** The project's one Lead runs each delivery the Supervisor hands it, one
+   branch per delivery. A lone delivery in flight runs in the project's existing workspace
+   and creates no worktree; each further delivery in flight at once runs on its own branch
+   in its own `--new-workspace worktree` workspace. Every Engineer of a delivery works on
+   that delivery's branch and checkout, never on a branch, worktree, or PR of its own;
+   commits, exact-SHA review, gates, and close-out stay per delivery. The project's record
+   is `~/.paseo/reports/<project>/`; another workflow's state directory is data, never the
+   record. Done when the workspace id and branch are named in your own report.
+2. **Staff it.** The Lead partitions by default: one Engineer per disjoint path set, all
+   running in parallel; overlapping work is one Engineer, not two. Only when the work does
+   not split does the Lead write it itself, under owned paths and a report, as an Engineer
+   would, and the plan records why. Each Engineer's prompt names its owned paths, its
+   delivery's branch and checkout, and its reporting target. Replace a Lead only after it
+   writes state, standing rules, open gates, and next work to the project's record; for a
+   Lead that cannot, the Supervisor writes it from the Lead's `paseo logs`. The new Lead's
+   first report checks that record against the tree. Done when every writer's owned paths
+   are disjoint and written down.
 3. **Implement.** Engineers write inside owned paths and report. Done when every Engineer
    has reported and none is running.
-4. **Commit.** Only the Lead commits, on a quiet tree: `git status --porcelain` shows only
-   this commit's paths. Done when the commit SHA is named.
+4. **Commit.** Only the Lead commits, on the delivery's quiet tree: `git status --porcelain`
+   shows only this commit's paths. Done when the commit SHA is named.
 5. **Review.** Staff a Reviewer at the exact SHA, as a different agent instance from every
    writer. It re-runs the acceptance checks and reports `PASS` / `FAIL` / `BLOCKED` with the
    command output it saw. Terminal output meant for a human is checked under a real pty with
@@ -90,17 +93,20 @@ argument, whose backticks and `$` the shell expands.
    there. Done when a `PASS` names the SHA it covers.
 6. **Gate.** Route Human gates (below) before the external write; the Lead performs it once
    the answer arrives, and when the Lead's own dialog blocks it, the Supervisor routes that
-   blocker to the Human. Done when each approved gate's write is performed and named with
-   its head, and every other gate is reported with its answer, or as pending with the work
-   it holds.
-7. **Close out.** Archive the agents and workspace the run created, remove the worktree and
-   any leftover directory. If the run used `--new-workspace local --cwd <path>`,
-   `paseo project delete` the project whose `paseo project ls` path equals `<path>`, never
-   the main checkout's: deleting a project deletes all its workspaces. Then report: what
-   changed, what was removed, tests run with their output, what is still open, and each
-   lesson routed as "Self-improvement" says. Done when `paseo ls`, `paseo workspace ls`,
-   `paseo project ls`, and `git worktree list` show nothing of this project that no delivery
-   in flight owns; report an archive only after the listing no longer shows its id.
+   blocker to the Human. A gated edit to declarative runtime config (a compose file,
+   manifest, or unit file) is written only once its gate is approved, and applied in that
+   same window: staged while the gate is pending, a later routine command applies it
+   ungated. Done when each approved gate's write is performed and named with its head, and
+   every other gate is reported with its answer, or as pending with the work it holds.
+7. **Close out.** Each delivery closes on its own: archive the agents and workspace it
+   created, remove its worktree and any leftover directory. If the delivery used
+   `--new-workspace local --cwd <path>`, `paseo project delete` the project whose
+   `paseo project ls` path equals `<path>`, never the main checkout's: deleting a project
+   deletes all its workspaces. Then report: what changed, what was removed, tests run with
+   their output, what is still open, and each lesson routed as "Self-improvement" says. Done
+   when `paseo ls`, `paseo workspace ls`, `paseo project ls`, and `git worktree list` show
+   nothing of this project that no delivery in flight owns; report an archive only after the
+   listing no longer shows its id.
 
 ## Every agent
 
@@ -121,6 +127,13 @@ argument, whose backticks and `$` the shell expands.
   check that did not run, is a failed check. A command that outlasts your tool timeout runs as
   your runtime's tracked background task whose completion wakes you, never under `nohup` or
   detached before you end the turn.
+- Engineers and Reviewers use in-seat teammates (the runtime's own subagents) for disjoint
+  sub-work, such as reading or independent test lanes, and work alone only when the work
+  does not split. An Engineer's writing teammate stays inside paths the Engineer assigns it
+  from its own owned set, disjoint from every other writer's; a Reviewer's teammates are
+  read-only. The rules above bind every teammate, and no teammate runs a heavy suite while
+  another runs on the checkout. Stop every teammate before your report, merge its results,
+  and name each teammate and what it did in the report.
 - Run only the checks the acceptance and this file list: generating or running a mutant, or
   any other check beyond that list, is a finding. A new test's proof is that it fails before
   the fix and passes after, run once, plus the acceptance lanes.
@@ -143,14 +156,13 @@ for the lesson's rule. A match in the lessons file adds a sighting to that entry
 the Supervisor writes an entry: the rule in one sentence, the incident in one line, the
 section it changes, and each sighting as project and date. A match in this file means that
 sentence failed, so the entry tightens it. Writing an entry needs no Human approval. The
-Supervisor hands an entry to the source project's Lead as scope of the delivery in flight
-when that delivery touches the entry's section, else of the next delivery; an entry sighted
-from a second project goes into the next delivery ahead of other work. The entry lands in
-this skill's source, never an installed copy, with the incident in its commit message. Once
-the merge lands, the Supervisor deletes the entry. Reinstalling the skill is a deploy gate;
-after it, the source project's Supervisor tells every running Supervisor to re-read the
-installed skill and have its Lead do the same, or to `paseo agent reload` at its next idle
-point.
+Supervisor hands an entry to the source project's Lead as scope of a delivery in flight that
+touches the entry's section, else of the next delivery; an entry sighted from a second
+project goes into the next delivery ahead of other work. The entry lands in this skill's
+source, never an installed copy, with the incident in its commit message. Once the merge
+lands, the Supervisor deletes the entry. Reinstalling the skill is a deploy gate; after it,
+the source project's Supervisor tells every running Supervisor to re-read the installed
+skill and have its Lead do the same, or to `paseo agent reload` at its next idle point.
 
 ## Human gates
 
@@ -191,8 +203,8 @@ Below the Supervisor tier, no agent answers another agent's permission request:
   `paseo project ls`. Archiving the workspace and removing the worktree leave that project
   behind, pointing at a missing directory; delete it at close-out. A
   `--new-workspace worktree` workspace stays under the parent project and creates its own
-  branch, `<name>-1`; close-out deletes that branch once its work has landed on the product
-  line, and a branch holding a pending gate's head stays.
+  branch, `<name>-1`, the branch of the delivery placed there; close-out deletes it once
+  its work has landed on the product line, and a branch holding a pending gate's head stays.
 - The Supervisor's Human-question dialog can reach a Lead as a `needs permission` notification;
   the Lead leaves it unanswered and does not report it as its own blocker.
 - `paseo ls` can show `closed` (the provider process exited) while the agent is still
