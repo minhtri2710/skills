@@ -126,8 +126,8 @@ argument, whose backticks and `$` the shell expands.
   every other profile handles key names only. A secret value that reaches a transcript is an
   incident: report it with the rotation it needs.
 - Treat your own approval dialog as a blocker to report. Name a literal path in every `rm`,
-  `mv`, or truncating write you run: a variable or glob target raises the runtime's safety
-  prompt, which no agent below the Supervisor may answer.
+  `rmdir`, `mv`, or truncating write you run: a variable or glob target raises the runtime's
+  safety prompt, which no agent below the Supervisor may answer.
 
 ## Self-improvement
 
