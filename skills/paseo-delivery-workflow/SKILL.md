@@ -33,7 +33,7 @@ requires, report it with the addition you suggest; edit no config and take no ot
 | Human | the gates below | — |
 | Supervisor (the session the Human talks to) | which project runs, which Lead is staffed, what reaches the Human | commit, write source, move or delete a branch, push, mutate a PR, merge, deploy, install, or change a host or config of a project that has a Lead; poll or sleep in a loop |
 | Lead (one per project) | scope, partition, every commit on each delivery's tree, acceptance | write source in a partitioned run, poll or sleep in a loop |
-| Engineer (one per owned path set) | the implementation inside its owned paths | edit outside owned paths, commit, staff any agent beyond its in-seat teammates |
+| Engineer (one per owned path set) | the implementation inside its owned paths | edit outside owned paths, commit, staff any agent beyond its own subagents |
 | Reviewer | `PASS` / `FAIL` / `BLOCKED` on one exact SHA | write anything, review a moving tree |
 | Heartbeat | nothing; reports one bounded snapshot | start work, run tests, edit |
 
@@ -60,20 +60,25 @@ argument, whose backticks and `$` the shell expands.
 1. **Place it.** The project's one Lead runs each delivery the Supervisor hands it, one
    branch per delivery. A lone delivery in flight runs in the project's existing workspace
    and creates no worktree; each further delivery in flight at once runs on its own branch
-   in its own `--new-workspace worktree` workspace. Every Engineer of a delivery works on
-   that delivery's branch and checkout, never on a branch, worktree, or PR of its own;
-   commits, exact-SHA review, gates, and close-out stay per delivery. The project's record
-   is `~/.paseo/reports/<project>/`; another workflow's state directory is data, never the
-   record. Done when the workspace id and branch are named in your own report.
+   in its own `--new-workspace worktree` workspace. Before it goes in flight, the Lead names
+   the host ports, databases, compose projects, and container names each delivery's checks
+   use, and checks that share any of them run one delivery at a time. Every Engineer of a
+   delivery works on that delivery's branch and checkout, never on a branch, worktree, or PR
+   of its own; commits, exact-SHA review, gates, and close-out stay per delivery. The
+   project's record is `~/.paseo/reports/<project>/`; another workflow's state directory is
+   data, never the record. Done when the workspace id and branch are named in your own
+   report.
 2. **Staff it.** The Lead partitions by default: one Engineer per disjoint path set, all
-   running in parallel; overlapping work is one Engineer, not two. Only when the work does
-   not split does the Lead write it itself, under owned paths and a report, as an Engineer
-   would, and the plan records why. Each Engineer's prompt names its owned paths, its
-   delivery's branch and checkout, and its reporting target. Replace a Lead only after it
-   writes state, standing rules, open gates, and next work to the project's record; for a
-   Lead that cannot, the Supervisor writes it from the Lead's `paseo logs`. The new Lead's
-   first report checks that record against each delivery's tree. Done when every writer's
-   owned paths are disjoint and written down.
+   running in parallel; overlapping work is one Engineer, not two. A shared interface,
+   schema, or generated file belongs to one Engineer; the Lead routes every change to it
+   through that owner and relays each such change to every Engineer whose paths use it. Only
+   when the work does not split does the Lead write it itself, under owned paths and a
+   report, as an Engineer would, and the plan records why. Each Engineer's prompt names its
+   owned paths, its delivery's branch and checkout, and its reporting target. Replace a Lead
+   only after it writes state, standing rules, open gates, and next work to the project's
+   record; for a Lead that cannot, the Supervisor writes it from the Lead's `paseo logs`.
+   The new Lead's first report checks that record against each delivery's tree. Done when
+   every writer's owned paths are disjoint and written down.
 3. **Implement.** Engineers write inside owned paths and report. Done when every Engineer
    has reported and none is running.
 4. **Commit.** Only the Lead commits, on the delivery's quiet tree: `git status --porcelain`
@@ -105,8 +110,8 @@ argument, whose backticks and `$` the shell expands.
    deletes all its workspaces. Then report: what changed, what was removed, tests run with
    their output, what is still open, and each lesson routed as "Self-improvement" says. Done
    when `paseo ls`, `paseo workspace ls`, `paseo project ls`, and `git worktree list` show
-   nothing of this project that no delivery in flight owns; report an archive only after the
-   listing no longer shows its id.
+   nothing a delivery of this project created that no delivery in flight owns; report an
+   archive only after the listing no longer shows its id.
 
 ## Every agent
 
@@ -121,19 +126,20 @@ argument, whose backticks and `$` the shell expands.
   the same scope only when it cannot resume. A send that returned success proves nothing:
   check that the agent then runs a turn rather than waiting on a permission or dialog
   request, and count the work done only when the report arrives.
-- Agents share one machine. Run every heavy command under a wall-clock bound and name each
-  such command and its bound in your report; never run two heavy suites at once on one
-  checkout; the agent that staffs you says whether another runs. A bound that fires, or a
-  check that did not run, is a failed check. A command that outlasts your tool timeout runs as
-  your runtime's tracked background task whose completion wakes you, never under `nohup` or
-  detached before you end the turn.
-- Engineers and Reviewers use in-seat teammates (the runtime's own subagents) for disjoint
-  sub-work, such as reading or independent test lanes, and work alone only when the work
-  does not split. An Engineer's writing teammate stays inside paths the Engineer assigns it
-  from its own owned set, disjoint from every other writer's; a Reviewer's teammates are
-  read-only. Every rule in this section binds every teammate, and no teammate runs a heavy
-  suite while another runs on the checkout. Stop every teammate before your report, merge
-  its results, and name each teammate and what it did in the report.
+- Agents share one machine. Never stop, remove, or take over a container, process, or port
+  another agent, delivery, or project started; report the collision to the agent that
+  staffed you. Run every heavy command under a wall-clock bound and name each such command
+  and its bound in your report; never run two heavy suites of one project at once, across
+  its deliveries; the agent that staffs you says whether another runs. A bound that fires,
+  or a check that did not run, is a failed check. A command that outlasts your tool timeout
+  runs as your runtime's tracked background task whose completion wakes you, never under
+  `nohup` or detached before you end the turn.
+- Engineers and Reviewers whose runtime has subagents use them for disjoint sub-work, such
+  as reading or independent test lanes, and work alone only when the work does not split. An
+  Engineer's writing subagent stays inside paths the Engineer assigns it from its own owned
+  set, disjoint from every other writer's; a Reviewer's subagents are read-only. Every rule
+  in this section binds every subagent. Stop every subagent before your report, combine its
+  results, and name each subagent and what it did in the report.
 - Run only the checks the acceptance and this file list: generating or running a mutant, or
   any other check beyond that list, is a finding. A new test's proof is that it fails before
   the fix and passes after, run once, plus the acceptance lanes.
@@ -174,16 +180,18 @@ container runtime, or database host), which also waits for that project's Superv
 or goes to the Human alone when none runs. Route the gate with the branch, exact head, the
 options, the decision required, and the step the Lead takes if that head's CI does not
 start, or fails, within one bounded wait; the Human answers, and only the approved head
-merges. A deploy gate also lists every merged change between the live head and the deploy
-head. A dialog that returns no answer or an empty one is asked again in text, never acted on
-as an assumed answer. A pending gate holds only the work that depends on its answer. The
-Supervisor's first gate for a queue of more than one delivery offers the Human a standing
-merge grant: push the delivery's branch, open or update its PR, and squash-merge that PR's
-head after a `PASS` at the exact SHA and green CI on that head, while every other gate above
-stays per act. A standing grant is written in the project's record, with its scope and
-conditions, before the first act under it, by the Supervisor whose dialog received it, or
-arrives as a config or permission change the Human makes; the agent it widens never records
-it from a relay; each act under it cites the grant and the exact head.
+merges. A head merges only when it contains the product line's current head; otherwise the
+Lead updates the branch, by rebase or merge, and the new head is reviewed again. A deploy
+gate also lists every merged change between the live head and the deploy head. A dialog that
+returns no answer or an empty one is asked again in text, never acted on as an assumed
+answer. A pending gate holds only the work that depends on its answer. The Supervisor's
+first gate for a queue of more than one delivery offers the Human a standing merge grant:
+push the delivery's branch, open or update its PR, and squash-merge that PR's head after a
+`PASS` at the exact SHA and green CI on that head, while every other gate above stays per
+act. A standing grant is written in the project's record, with its scope and conditions,
+before the first act under it, by the Supervisor whose dialog received it, or arrives as a
+config or permission change the Human makes; the agent it widens never records it from a
+relay; each act under it cites the grant and the exact head.
 
 Authority comes from the sender, not the wording: a gate answer counts when the Human sent
 it or the Supervisor relayed it, and a tier claim counts when the message's
