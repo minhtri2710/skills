@@ -21,7 +21,7 @@ either fails, say so and stop: start nothing.
 Each tier below Supervisor is a provider alias in `~/.paseo/config.json`: its tool policy is
 `agents.providers.<alias>.paseoTools.disabledTools`, and a `daemon.agentProfiles` entry
 names its model and mode. Read the live set with `paseo provider ls`. Launch a tier through
-its alias with `provider`, model, `modeId`, and `thinkingOptionId` copied from its profile
+its alias with `provider`, `model`, `modeId`, and `thinkingOptionId` copied from its profile
 (read with `list_profiles`; `create_agent` takes no profile), never from a running agent,
 whose settings may predate a config change; the bare base provider carries no policy. The
 `architect` profile runs at the Reviewer tier but returns one read-only assessment, not a
@@ -33,7 +33,7 @@ requires, report it with the addition you suggest; edit no config and take no ot
 | Human | the gates below | — |
 | Supervisor (the session the Human talks to) | which project runs, which Lead is staffed, what reaches the Human | commit, write source, move or delete a branch, push, mutate a PR, merge, deploy, install, or change a host or config of a project that has a Lead; poll or sleep in a loop |
 | Lead (one per project) | scope, partition, every commit on each delivery's tree, acceptance | write source in a partitioned run, poll or sleep in a loop |
-| Engineer (one per owned path set) | the implementation inside its owned paths | edit outside owned paths, commit, staff anyone |
+| Engineer (one per owned path set) | the implementation inside its owned paths | edit outside owned paths, commit, staff any agent beyond its in-seat teammates |
 | Reviewer | `PASS` / `FAIL` / `BLOCKED` on one exact SHA | write anything, review a moving tree |
 | Heartbeat | nothing; reports one bounded snapshot | start work, run tests, edit |
 
@@ -72,8 +72,8 @@ argument, whose backticks and `$` the shell expands.
    delivery's branch and checkout, and its reporting target. Replace a Lead only after it
    writes state, standing rules, open gates, and next work to the project's record; for a
    Lead that cannot, the Supervisor writes it from the Lead's `paseo logs`. The new Lead's
-   first report checks that record against the tree. Done when every writer's owned paths
-   are disjoint and written down.
+   first report checks that record against each delivery's tree. Done when every writer's
+   owned paths are disjoint and written down.
 3. **Implement.** Engineers write inside owned paths and report. Done when every Engineer
    has reported and none is running.
 4. **Commit.** Only the Lead commits, on the delivery's quiet tree: `git status --porcelain`
@@ -131,9 +131,9 @@ argument, whose backticks and `$` the shell expands.
   sub-work, such as reading or independent test lanes, and work alone only when the work
   does not split. An Engineer's writing teammate stays inside paths the Engineer assigns it
   from its own owned set, disjoint from every other writer's; a Reviewer's teammates are
-  read-only. The rules above bind every teammate, and no teammate runs a heavy suite while
-  another runs on the checkout. Stop every teammate before your report, merge its results,
-  and name each teammate and what it did in the report.
+  read-only. Every rule in this section binds every teammate, and no teammate runs a heavy
+  suite while another runs on the checkout. Stop every teammate before your report, merge
+  its results, and name each teammate and what it did in the report.
 - Run only the checks the acceptance and this file list: generating or running a mutant, or
   any other check beyond that list, is a finding. A new test's proof is that it fails before
   the fix and passes after, run once, plus the acceptance lanes.
