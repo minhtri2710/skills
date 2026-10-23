@@ -36,7 +36,7 @@ A light check observes the changed paths: the test modules or specs that read or
 
 ### Bounded runs
 
-Every test, build, or browser command a seat runs, the Lead's own included, runs as `python3 <skill>/scripts/bounded_run.py --seconds N -- CMD`, with N sized to that command's real worst case, so a hang cannot outlive its limit. Exit 124 means the limit killed the command's whole process group: a failed check reported with its limit and never rerun unchanged. Never run two heavy suites at once on one checkout. Every Engineer and Reviewer charter carries this rule by value with the script's absolute path.
+Every test, build, or browser command a seat runs, the Lead's own included, runs as `python3 <skill>/scripts/bounded_run.py --seconds N -- CMD`, with N sized to that command's real worst case, so a hang cannot outlive its limit. Exit 124 means the limit killed the command's whole process group: a failed check reported with its limit and never rerun unchanged. Never run two heavy suites of one project at once, across its checkout, baseline tree, and sandboxes. Every Engineer and Reviewer charter carries this rule by value with the script's absolute path.
 
 ### Frozen anchors
 
@@ -360,4 +360,4 @@ After compaction or relaunch, follow `relaunch.md`'s ordered recovery checklist 
 
 ### Boundary and authority
 
-The Lead never kills a process by pattern (`pkill -f`, `killall`, `pgrep ... | xargs kill`); it stops only a pid or task id it started itself and routes any other process to its owner.
+The Lead never kills a process by pattern (`pkill -f`, `killall`, `pgrep ... | xargs kill`); it stops only a pid or task id it started itself and routes any other process to its owner. It never stops, removes, or takes over a container, process, or port another agent, issue, or project started, and reports the collision to the Supervisor.

@@ -126,11 +126,20 @@ class ReviewerCharterTemplateTest(unittest.TestCase):
         sentence = section.split("carries, by value: ", 1)[1].strip()
         self.assertIn(sentence, TEMPLATE.read_text(encoding="utf-8"))
 
-    def test_one_heavy_suite_per_checkout_rule_is_in_doctrine_and_charter(self):
-        rule = "Never run two heavy suites at once on one checkout."
+    def test_one_heavy_suite_per_project_rule_is_in_doctrine_and_charter(self):
+        rule = "Never run two heavy suites of one project at once, across its checkout, baseline tree, and sandboxes."
         lead = (SKILL / "references" / "lead.md").read_text(encoding="utf-8")
         self.assertIn(rule, lead.split("Every test, build, or browser command", 1)[1].split("\n\n", 1)[0])
         self.assertIn(rule, TEMPLATE.read_text(encoding="utf-8"))
+
+    def test_takeover_guard_is_in_charters_and_charter(self):
+        clause = (
+            "Never stop, remove, or take over a container, process, or port another agent, issue, "
+            "or project started; report the collision to the Lead."
+        )
+        charters = (SKILL / "references" / "charters.md").read_text(encoding="utf-8")
+        self.assertIn(f"the takeover guard clause: {clause}", charters)
+        self.assertIn(clause, TEMPLATE.read_text(encoding="utf-8"))
 
     def test_carries_unconditional_reviewer_clauses_of_charters(self):
         charters = (SKILL / "references" / "charters.md").read_text(encoding="utf-8")
