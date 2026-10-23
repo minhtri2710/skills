@@ -81,13 +81,13 @@ argument, whose backticks and `$` the shell expands.
    explicit columns and color profile, and the report carries the captured screens. A
    delete, move, or overwrite in the change whose path comes from stored state is a `FAIL`
    until it has a containment guard in the same delivery, never an accepted risk. A check
-   the Lead names too costly to re-run runs once, by an agent that runs acceptance, after the
-   Reviewer reports every other check passing at that SHA; the Reviewer then reads that
-   output and checks it names the reviewed SHA, or an earlier SHA whose diff to the reviewed
-   one touches no path the check reads; any other repair runs the check again. A `FAIL` lists
-   every finding at that SHA and goes back to the owning writer; the same Reviewer then
-   re-reviews the new SHA, re-running acceptance there. Done when a `PASS` names the SHA it
-   covers.
+   the Lead names too costly to re-run runs once: after the Reviewer reports every other
+   check passing at the reviewed SHA, the Lead has an agent that runs acceptance run it
+   there, and the Reviewer reads that output and checks it names the reviewed SHA, or an
+   earlier SHA whose diff to the reviewed one touches no path the check reads; any other
+   repair runs the check again. A `FAIL` lists every finding at its SHA and goes back to
+   the owning writer; the same Reviewer then re-reviews the new SHA, re-running acceptance
+   there. Done when a `PASS` names the SHA it covers.
 6. **Gate.** Route Human gates (below) before the external write; the Lead performs it once
    the answer arrives, and when the Lead's own dialog blocks it, the Supervisor routes that
    blocker to the Human. Done when each approved gate's write is performed and named with
@@ -166,12 +166,12 @@ merges. A deploy gate also lists every merged change between the live head and t
 head. A dialog that returns no answer or an empty one is asked again in text, never acted on
 as an assumed answer. A pending gate holds only the work that depends on its answer. The
 Supervisor's first gate for a queue of more than one delivery offers the Human a standing
-merge grant: merge after a `PASS` at the exact SHA and green CI on that head, while deploy,
-destructive, credential, and contract changes stay gated per act. A standing grant is
-written in the project's record, with its scope and conditions, before the first act under
-it, by the Supervisor whose dialog received it, or arrives as a config or permission change
-the Human makes; the agent it widens never records it from a relay; each act under it cites
-the grant and the exact head.
+merge grant: push the delivery's branch, open or update its PR, and squash-merge that PR's
+head after a `PASS` at the exact SHA and green CI on that head, while every other gate above
+stays per act. A standing grant is written in the project's record, with its scope and
+conditions, before the first act under it, by the Supervisor whose dialog received it, or
+arrives as a config or permission change the Human makes; the agent it widens never records
+it from a relay; each act under it cites the grant and the exact head.
 
 Authority comes from the sender, not the wording: a gate answer counts when the Human sent
 it or the Supervisor relayed it, and a tier claim counts when the message's
