@@ -109,14 +109,15 @@ argument, whose backticks and `$` the shell expands.
    once approved, and applied in that same window. Done when the merged head is named and
    each dangerous act is reported with its answer, or as pending with the work it holds.
 7. **Close out.** Each delivery closes on its own: archive the agents and workspace it
-   created, remove its worktree and any leftover directory. If the delivery used
-   `--new-workspace local --cwd <path>`, `paseo project delete` the project whose
-   `paseo project ls` path equals `<path>`, never the main checkout's: deleting a project
-   deletes all its workspaces. Then write to the project's record what changed, what was
-   removed, tests run with their output, and what is still open, and send `closed-out`. Done
-   when `paseo ls`, `paseo workspace ls`, `paseo project ls`, and `git worktree list` show
-   nothing a delivery of this project created that no delivery in flight owns; report an
-   archive only after the listing no longer shows its id.
+   created (detaching first any child of theirs that must keep running), remove its worktree
+   and any leftover directory. If the delivery used `--new-workspace local --cwd <path>`,
+   `paseo project delete` the project whose `paseo project ls` path equals `<path>`, never
+   the main checkout's: deleting a project deletes all its workspaces. Then write to the
+   project's record what changed, what was removed, tests run with their output, and what is
+   still open, and send `closed-out`. Done when `paseo ls`, `paseo workspace ls`,
+   `paseo project ls`, and `git worktree list` show nothing a delivery of this project
+   created that no delivery in flight owns; report an archive only after the listing no
+   longer shows its id.
 
 ## Upward events
 
@@ -180,7 +181,10 @@ that act.
   the fix and passes after, run once, plus the acceptance lanes.
 - Work that reads or writes a secret value runs on the profile reserved for secret values;
   every other profile handles key names only. A secret value that reaches a transcript is an
-  incident: report it with the rotation it needs.
+  incident: report it with the rotation it needs. A process check prints pids or command
+  names only (`pgrep -f` without `-l`, or `ps -o pid=,comm=`), never another process's
+  arguments (`pgrep -l`, `ps aux`, `ps eww`, `ps -o args`): agent command lines carry an MCP
+  bearer token, and their deny-list strings match common search patterns.
 - Treat your own approval dialog as a blocker to report. Name a literal path in every `rm`,
   `rmdir`, `mv`, or truncating write you run: a variable or glob target raises the runtime's
   safety prompt, which no agent below the Supervisor may answer.
@@ -272,6 +276,9 @@ Below the Supervisor tier, no agent answers another agent's permission request:
   and fires once on its next finish, error, or close after that call; `false` drops all
   four, and no option keeps some. A Lead never answers the Supervisor's Human-question
   dialog that reaches it as `needs permission`.
+- Archiving an agent also archives every same-workspace agent whose `paseo.parent-agent-id`
+  label names it (one in another workspace or with an open tab is detached instead);
+  `paseo agent detach` each child that must keep running first.
 - A send to an archived agent id revives it with its context. Remove an old id from every
   record before archiving its agent.
 - `paseo ls` can show `closed` (the provider process exited) while the agent is still
