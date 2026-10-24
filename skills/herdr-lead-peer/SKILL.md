@@ -181,6 +181,9 @@ the run directory.
   named before the report.
 - Stop only a pid or task id you started; never `pkill -f`, `killall`, or `pgrep | xargs
   kill`, because other seats' commands carry the same names.
+- Never stop, remove, or take over a container, process, or port another agent, delivery,
+  or project started; report the collision to the agent that staffed you, or, as the Lead, to
+  the Human.
 - Work that reads or writes a secret value runs only on a kind the Human approved for secret
   values; every other seat handles key names only. A secret value that reaches a transcript
   is an incident: report it with the rotation it needs.
