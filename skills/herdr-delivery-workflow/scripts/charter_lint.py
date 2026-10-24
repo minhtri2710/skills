@@ -43,6 +43,10 @@ OCR_STEP_RES = (
     re.compile(r"ocr\s+delegate\s+rule", re.IGNORECASE),
 )
 KILL_GUARD_RE = re.compile(r"never\s+kill\s+a\s+process\s+by\s+pattern", re.IGNORECASE)
+TAKEOVER_GUARD_RE = re.compile(
+    r"never\s+stop,\s+remove,\s+or\s+take\s+over\s+a\s+container,\s+process,\s+or\s+port",
+    re.IGNORECASE,
+)
 REVIEW_ORDER_RE = re.compile(
     r"only\s+then\s+read\s+the\s+implementation\s+reports", re.IGNORECASE
 )
@@ -87,6 +91,10 @@ def _charter_problems(text: str, lead: str) -> list[str]:
         problems.append("missing time limit: BLOCKED (time limit)")
     if KILL_GUARD_RE.search(text) is None:
         problems.append("missing pattern-kill guard: Never kill a process by pattern")
+    if TAKEOVER_GUARD_RE.search(text) is None:
+        problems.append(
+            "missing takeover guard: Never stop, remove, or take over a container, process, or port"
+        )
 
     if f"herdr agent prompt {lead}" not in text:
         problems.append(f"missing report-by-prompt block: herdr agent prompt {lead}")

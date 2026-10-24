@@ -119,6 +119,34 @@ class CharterLintTest(unittest.TestCase):
                 self.assertEqual(code, 1)
                 self.assertIn("missing pattern-kill guard: Never kill a process by pattern", error)
 
+    def test_each_disposition_without_takeover_guard_is_named(self):
+        charters = {
+            "Engineer": self.engineer_charter(),
+            "Reviewer": self.reviewer_charter(),
+            "Architect": self.engineer_charter().replace("Disposition: Engineer", "Disposition: Architect"),
+        }
+        for disposition, charter in charters.items():
+            with self.subTest(disposition=disposition):
+                code, _, error = self.run_lint(
+                    charter.replace(self.takeover_guard_sentence(), ""), self.staffing_record()
+                )
+                self.assertEqual(code, 1)
+                self.assertEqual(
+                    error,
+                    "charter_lint: missing takeover guard: Never stop, remove, or take over a "
+                    "container, process, or port\n",
+                )
+
+    def test_takeover_guard_match_ignores_case_and_spacing(self):
+        charter = self.engineer_charter().replace(
+            "Never stop, remove, or take over a container, process, or port",
+            "NEVER stop,  remove, or take over\na container, process, or port",
+        )
+        code, output, error = self.run_lint(charter, self.staffing_record())
+        self.assertEqual(code, 0)
+        self.assertIn("OK:", output)
+        self.assertEqual(error, "")
+
     def test_pattern_kill_guard_match_ignores_case_and_spacing(self):
         charter = self.engineer_charter().replace(
             "Never kill a process by pattern", "NEVER kill  a process\nby pattern"
@@ -483,6 +511,7 @@ class CharterLintTest(unittest.TestCase):
             "Disposition: Engineer\n"
             "Owned paths: tests/test_charter_lint.py\n"
             + CharterLintTest.kill_guard_sentence()
+            + CharterLintTest.takeover_guard_sentence()
             + "Write the finished report/verdict to report-eng-lint.md with the editor/write tool (never via the shell), then print it as the pane's final output.\n"
             "At send time, compose a prompt with the verdict/outcome line, a bounded summary (~200 words max), and full report at report-eng-lint.md; send ONLY that composed prompt with the EXACT command herdr agent prompt lead-beo-skills \"<composed prompt>\" and NO other flags. Do not send the report file contents. THIS SEND IS MANDATORY.\n"
             "If the command exits non-zero: retry it ONCE with exactly the same form; if it still fails, append a line SEND-FAILED to the end of the report file and run herdr notification show \"eng-lint: report send failed\" --body \"report-eng-lint.md\" --sound request, then stop.\n"
@@ -504,6 +533,13 @@ class CharterLintTest(unittest.TestCase):
         )
 
     @staticmethod
+    def takeover_guard_sentence() -> str:
+        return (
+            "Never stop, remove, or take over a container, process, or port another agent, issue, "
+            "or project started; report the collision to the Lead.\n"
+        )
+
+    @staticmethod
     def time_limit_sentence() -> str:
         return "Time limit: three hours after the latest Lead prompt with no verdict, send `BLOCKED (time limit)`.\n"
 
@@ -521,6 +557,7 @@ class CharterLintTest(unittest.TestCase):
             f"Reviewed head: {cls.head}\n"
             + cls.live_wake_guard_sentence()
             + cls.kill_guard_sentence()
+            + cls.takeover_guard_sentence()
             + cls.ocr_step_sentence()
             + "Review order: first the diff and your own findings; only then read the implementation reports.\n"
             + cls.time_limit_sentence()
