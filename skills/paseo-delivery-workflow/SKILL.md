@@ -113,12 +113,12 @@ argument, whose backticks and `$` the shell expands.
    holding it stays with its worktree, recorded as still open. Remove its worktree and any
    leftover directory. If the delivery used `--new-workspace local --cwd <path>`,
    `paseo project delete` the project whose `paseo project ls` path equals `<path>`, never
-   the main checkout's: deleting a project deletes all its workspaces. Then write to the
-   project's record what changed, what was removed, tests run with their output, and what is
-   still open, and send `closed-out`. Done when `paseo ls`, `paseo workspace ls`,
-   `paseo project ls`, and `git worktree list` show nothing a delivery of this project
-   created that no delivery in flight owns or the record names as still open; report an
-   archive only after the listing no longer shows its id.
+   the main checkout's, nor one holding a kept workspace: deleting a project deletes all its
+   workspaces. Then write to the project's record what changed, what was removed, tests run
+   with their output, and what is still open, and send `closed-out`. Done when `paseo ls`,
+   `paseo workspace ls`, `paseo project ls`, and `git worktree list` show nothing a delivery
+   of this project created that no delivery in flight owns or the record names as still
+   open; report an archive only after the listing no longer shows its id.
 
 ## Upward events
 
