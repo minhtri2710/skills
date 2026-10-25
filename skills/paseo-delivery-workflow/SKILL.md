@@ -134,8 +134,8 @@ acknowledgement:
   that neither resumes nor restaffs;
 - `ci`: CI on a pushed head failed or did not start within its bounded wait, blocking a
   merge that no condition in `grants.md` already accounts for, or CI on a merged head
-  failed; a known CI state the record already holds goes in the record and the `closed-out`
-  event instead;
+  failed; a CI state a `grants.md` condition already accounts for goes in the record and the
+  `closed-out` event instead;
 - `collision`: a container, process, port, or host resource another project started or
   holds;
 - `errored`: its previous turn died on an API or runtime error, sent first in its next turn;
