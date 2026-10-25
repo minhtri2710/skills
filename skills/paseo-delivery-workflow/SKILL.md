@@ -132,7 +132,10 @@ acknowledgement:
   request id);
 - `blocked`: a Reviewer's `BLOCKED`, a tool or profile its tier lacks, or a staffed scope
   that neither resumes nor restaffs;
-- `ci`: CI on a pushed or merged head failed or did not start within its bounded wait;
+- `ci`: CI on a pushed head failed or did not start within its bounded wait, blocking a
+  merge that no condition in `grants.md` already accounts for, or CI on a merged head
+  failed; a known CI state the record already holds goes in the record and the `closed-out`
+  event instead;
 - `collision`: a container, process, port, or host resource another project started or
   holds;
 - `errored`: its previous turn died on an API or runtime error, sent first in its next turn;
@@ -140,10 +143,11 @@ acknowledgement:
   ranks first, or none.
 
 On each event or answer the Supervisor reads that project's `handoff.md` and the file named,
-and acts from them, never from memory of an earlier turn. Every send between a Lead and the
-Supervisor passes `notifyOnFinish: false`, except the Supervisor's answer that clears a
-dangerous act, whose `needs permission` notification is the Lead's permission request for
-that act.
+and acts from them, never from memory of an earlier turn. It tells the Human only what needs
+the Human's decision or is an incident, and verifies and absorbs every other event. Every
+send between a Lead and the Supervisor passes `notifyOnFinish: false`, except the
+Supervisor's answer that clears a dangerous act, whose `needs permission` notification is
+the Lead's permission request for that act.
 
 ## Every agent
 
@@ -158,13 +162,16 @@ that act.
   when the run's own output shows the seam fired on the path under test; otherwise it is
   inconclusive.
 - Send your report to the agent that staffed you by prompt, as your last action, with
-  `notifyOnFinish` false; a finish notification alone wakes no one. An agent you staffed
-  that is idle, closed, or errored with its report still owed has stalled: read its
-  `paseo logs`, then re-prompt it; restaff the same scope only when it cannot resume. The
-  Supervisor learns a Lead stalled from an `errored` event, a watched answer's notification,
-  or the Human's Paseo attention list, and never polls for it. A send that returned success
-  proves nothing: check that the agent then runs a turn rather than waiting on a permission
-  or dialog request, and count the work done only when the report arrives.
+  `notifyOnFinish` false; a finish notification alone wakes no one. A staffing prompt asks
+  for the report this way and never for an end-of-turn report: a turn ended to wait on a
+  background task spends the staffer's one finish notification, and the later report reaches
+  no one. An agent you staffed that is idle, closed, or errored with its report still owed
+  has stalled: read its `paseo logs`, then re-prompt it; restaff the same scope only when it
+  cannot resume. The Supervisor learns a Lead stalled from an `errored` event, a watched
+  answer's notification, or the Human's Paseo attention list, and never polls for it. A send
+  that returned success proves nothing: check that the agent then runs a turn rather than
+  waiting on a permission or dialog request, and count the work done only when the report
+  arrives.
 - Agents share one machine. Never stop, remove, or take over a container, process, or port
   another agent, delivery, or project started; report the collision to the agent that
   staffed you. Run every heavy command under a wall-clock bound and name each such command
