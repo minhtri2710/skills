@@ -109,15 +109,15 @@ argument, whose backticks and `$` the shell expands.
    once approved, and applied in that same window. Done when the merged head is named and
    each dangerous act is reported with its answer, or as pending with the work it holds.
 7. **Close out.** Each delivery closes on its own: archive the agents and workspace it
-   created (detaching first any child of theirs that must keep running), remove its worktree
-   and any leftover directory. If the delivery used `--new-workspace local --cwd <path>`,
-   `paseo project delete` the project whose `paseo project ls` path equals `<path>`, never
-   the main checkout's: deleting a project deletes all its workspaces. Then write to the
-   project's record what changed, what was removed, tests run with their output, and what is
-   still open, and send `closed-out`. Done when `paseo ls`, `paseo workspace ls`,
-   `paseo project ls`, and `git worktree list` show nothing a delivery of this project
-   created that no delivery in flight owns; report an archive only after the listing no
-   longer shows its id.
+   created; a child of theirs that must keep running is detached first, and the workspace
+   holding it stays. Remove its worktree and any leftover directory. If the delivery used
+   `--new-workspace local --cwd <path>`, `paseo project delete` the project whose
+   `paseo project ls` path equals `<path>`, never the main checkout's: deleting a project
+   deletes all its workspaces. Then write to the project's record what changed, what was
+   removed, tests run with their output, and what is still open, and send `closed-out`. Done
+   when `paseo ls`, `paseo workspace ls`, `paseo project ls`, and `git worktree list` show
+   nothing a delivery of this project created that no delivery in flight owns; report an
+   archive only after the listing no longer shows its id.
 
 ## Upward events
 
@@ -153,7 +153,9 @@ that act.
   its record.
 - Never generate synthetic load (busy loops, stress tools, inflated worker or repeat counts)
   on a machine that also serves production; reproduce slowness with a deterministic seam
-  such as a held lock or an injected delay.
+  such as a held lock or an injected delay. A pass under such a seam disproves a race only
+  when the run's own output shows the seam fired on the path under test; otherwise it is
+  inconclusive.
 - Send your report to the agent that staffed you by prompt, as your last action, with
   `notifyOnFinish` false; a finish notification alone wakes no one. An agent you staffed
   that is idle, closed, or errored with its report still owed has stalled: read its
@@ -183,8 +185,8 @@ that act.
   every other profile handles key names only. A secret value that reaches a transcript is an
   incident: report it with the rotation it needs. A process check prints pids or command
   names only (`pgrep -f` without `-l`, or `ps -o pid=,comm=`), never another process's
-  arguments (`pgrep -l`, `ps aux`, `ps eww`, `ps -o args`): agent command lines carry an MCP
-  bearer token, and their deny-list strings match common search patterns.
+  arguments (`pgrep -fl`, `ps aux`, `ps eww`, `ps -o args`): agent command lines carry an
+  MCP bearer token, and their deny-list strings match common search patterns.
 - Treat your own approval dialog as a blocker to report. Name a literal path in every `rm`,
   `rmdir`, `mv`, or truncating write you run: a variable or glob target raises the runtime's
   safety prompt, which no agent below the Supervisor may answer.
@@ -277,8 +279,9 @@ Below the Supervisor tier, no agent answers another agent's permission request:
   four, and no option keeps some. A Lead never answers the Supervisor's Human-question
   dialog that reaches it as `needs permission`.
 - Archiving an agent also archives every same-workspace agent whose `paseo.parent-agent-id`
-  label names it (one in another workspace or with an open tab is detached instead);
-  `paseo agent detach` each child that must keep running first.
+  label names it (one in another workspace or with an open tab is detached instead); list
+  them with `paseo ls --label paseo.parent-agent-id=<id>` and `paseo agent detach` each one
+  that must keep running first.
 - A send to an archived agent id revives it with its context. Remove an old id from every
   record before archiving its agent.
 - `paseo ls` can show `closed` (the provider process exited) while the agent is still
