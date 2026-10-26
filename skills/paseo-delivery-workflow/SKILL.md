@@ -197,14 +197,12 @@ the Lead's permission request for that act.
   the fix and passes after, run once, plus the acceptance lanes.
 - Work that reads or writes a secret value runs on the profile reserved for secret values;
   every other profile handles key names only. A secret value that reaches a transcript is an
-  incident: report it with the rotation it needs. The daemon and every agent outside that
-  profile start with no secret value in their environment; a command that needs a key loads
-  it into that command alone at the point of use, and every staffing prompt forbids commands
+  incident: report it with the rotation it needs. Every staffing prompt forbids commands
   that print an environment, such as `env`, `printenv`, `set`, `export -p`, `ps -E`, or
-  `ps eww`. A process check prints pids or command names only (`pgrep -f` without `-l`, or
-  `ps -o pid=,comm=`), never another process's arguments (`pgrep -fl`, `ps aux`, `ps eww`,
-  `ps -o args`): agent command lines carry an MCP bearer token, and their deny-list strings
-  match common search patterns.
+  `ps eww`: an agent's environment may hold secret values. A process check prints pids or
+  command names only (`pgrep -f` without `-l`, or `ps -o pid=,comm=`), never another
+  process's arguments (`pgrep -fl`, `ps aux`, `ps eww`, `ps -o args`): agent command lines
+  carry an MCP bearer token, and their deny-list strings match common search patterns.
 - Treat your own approval dialog as a blocker to report. Name a literal path in every `rm`,
   `rmdir`, `mv`, or truncating write you run: a variable or glob target raises the runtime's
   safety prompt, which no agent below the Supervisor may answer.
