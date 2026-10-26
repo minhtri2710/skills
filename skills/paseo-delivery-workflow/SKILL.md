@@ -120,11 +120,11 @@ argument, whose backticks and `$` the shell expands.
    the main checkout's, nor one holding a kept workspace: deleting a project deletes all its
    workspaces. Then write to the project's record what changed, what was removed, tests run
    with their output, and what is still open, and send `closed-out`. Every SHA, head,
-   installed version, and branch state in `closed-out` is read from the remote and the
-   installed copy after its act completes, never drafted ahead of it. Done when `paseo ls`,
-   `paseo workspace ls`, `paseo project ls`, and `git worktree list` show nothing a delivery
-   of this project created that no delivery in flight owns or the record names as still
-   open; report an archive only after the listing no longer shows its id.
+   installed version, and branch state in `closed-out` is read from the remote, the
+   checkout, and the installed copy after its act completes, never drafted ahead of it. Done
+   when `paseo ls`, `paseo workspace ls`, `paseo project ls`, and `git worktree list` show
+   nothing a delivery of this project created that no delivery in flight owns or the record
+   names as still open; report an archive only after the listing no longer shows its id.
 
 ## Upward events
 
@@ -200,10 +200,11 @@ the Lead's permission request for that act.
   incident: report it with the rotation it needs. The daemon and every agent outside that
   profile start with no secret value in their environment; a command that needs a key loads
   it into that command alone at the point of use, and every staffing prompt forbids commands
-  that print an environment (`env`, `printenv`, `ps -E`, `ps eww`). A process check prints
-  pids or command names only (`pgrep -f` without `-l`, or `ps -o pid=,comm=`), never another
-  process's arguments (`pgrep -fl`, `ps aux`, `ps eww`, `ps -o args`): agent command lines
-  carry an MCP bearer token, and their deny-list strings match common search patterns.
+  that print an environment, such as `env`, `printenv`, `set`, `export -p`, `ps -E`, or
+  `ps eww`. A process check prints pids or command names only (`pgrep -f` without `-l`, or
+  `ps -o pid=,comm=`), never another process's arguments (`pgrep -fl`, `ps aux`, `ps eww`,
+  `ps -o args`): agent command lines carry an MCP bearer token, and their deny-list strings
+  match common search patterns.
 - Treat your own approval dialog as a blocker to report. Name a literal path in every `rm`,
   `rmdir`, `mv`, or truncating write you run: a variable or glob target raises the runtime's
   safety prompt, which no agent below the Supervisor may answer.
