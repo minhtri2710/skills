@@ -104,10 +104,14 @@ argument, whose backticks and `$` the shell expands.
    squash-merges it once a `PASS` names that PR's head, CI is green on that head where the
    project runs CI, and the head contains the product line's current head; otherwise it
    merges the product line into the branch, never rebasing a pushed branch, and the new head
-   is reviewed again. A dangerous act is performed once its answer arrives. A dangerous edit
-   to declarative runtime config (a compose file, manifest, or unit file) is written only
-   once approved, and applied in that same window. Done when the merged head is named and
-   each dangerous act is reported with its answer, or as pending with the work it holds.
+   is reviewed again. Where CI cannot run for a recorded reason, a Human condition in
+   `grants.md` that names its replacement checks and its removal condition stands in for
+   green CI, and the record, the `closed-out` event, and any `dangerous` request for the
+   merge name the CI state. A dangerous act is performed once its answer arrives. A
+   dangerous edit to declarative runtime config (a compose file, manifest, or unit file) is
+   written only once approved, and applied in that same window. Done when the merged head is
+   named and each dangerous act is reported with its answer, or as pending with the work it
+   holds.
 7. **Close out.** Each delivery closes on its own: archive the agents and workspace it
    created; a child of theirs that must keep running is detached first, and the workspace
    holding it stays with its worktree, recorded as still open. Remove its worktree and any
@@ -115,10 +119,12 @@ argument, whose backticks and `$` the shell expands.
    `paseo project delete` the project whose `paseo project ls` path equals `<path>`, never
    the main checkout's, nor one holding a kept workspace: deleting a project deletes all its
    workspaces. Then write to the project's record what changed, what was removed, tests run
-   with their output, and what is still open, and send `closed-out`. Done when `paseo ls`,
-   `paseo workspace ls`, `paseo project ls`, and `git worktree list` show nothing a delivery
-   of this project created that no delivery in flight owns or the record names as still
-   open; report an archive only after the listing no longer shows its id.
+   with their output, and what is still open, and send `closed-out`. Every SHA, head,
+   installed version, and branch state in `closed-out` is read from the remote, the
+   checkout, and the installed copy after its act completes, never drafted ahead of it. Done
+   when `paseo ls`, `paseo workspace ls`, `paseo project ls`, and `git worktree list` show
+   nothing a delivery of this project created that no delivery in flight owns or the record
+   names as still open; report an archive only after the listing no longer shows its id.
 
 ## Upward events
 
@@ -191,10 +197,14 @@ the Lead's permission request for that act.
   the fix and passes after, run once, plus the acceptance lanes.
 - Work that reads or writes a secret value runs on the profile reserved for secret values;
   every other profile handles key names only. A secret value that reaches a transcript is an
-  incident: report it with the rotation it needs. A process check prints pids or command
-  names only (`pgrep -f` without `-l`, or `ps -o pid=,comm=`), never another process's
-  arguments (`pgrep -fl`, `ps aux`, `ps eww`, `ps -o args`): agent command lines carry an
-  MCP bearer token, and their deny-list strings match common search patterns.
+  incident: report it with the rotation it needs. The daemon and every agent outside that
+  profile start with no secret value in their environment; a command that needs a key loads
+  it into that command alone at the point of use, and every staffing prompt forbids commands
+  that print an environment, such as `env`, `printenv`, `set`, `export -p`, `ps -E`, or
+  `ps eww`. A process check prints pids or command names only (`pgrep -f` without `-l`, or
+  `ps -o pid=,comm=`), never another process's arguments (`pgrep -fl`, `ps aux`, `ps eww`,
+  `ps -o args`): agent command lines carry an MCP bearer token, and their deny-list strings
+  match common search patterns.
 - Treat your own approval dialog as a blocker to report. Name a literal path in every `rm`,
   `rmdir`, `mv`, or truncating write you run: a variable or glob target raises the runtime's
   safety prompt, which no agent below the Supervisor may answer.
