@@ -60,19 +60,19 @@ argument, whose backticks and `$` the shell expands.
 
 1. **Place it.** The project's one Lead runs each delivery the Supervisor hands it, one
    branch per delivery. A delivery whose input holds more than five independent findings
-   splits into deliveries of at most five, each with its own branch and review. The
-   Supervisor creates each Lead with that project's `workspaceId`, never its own. A lone
-   delivery in flight runs in the project's existing workspace and creates no worktree; each
-   further delivery in flight at once runs on its own branch in its own
-   `--new-workspace worktree` workspace. Before it goes in flight, the Lead names the host
-   ports, databases, compose projects, and container names each delivery's checks use, and
-   checks that share any of them run one delivery at a time. Every Engineer of a delivery
-   works on that delivery's branch and checkout, never on a branch, worktree, or PR of its
-   own; commits, exact-SHA review, merges, and close-out stay per delivery. The project's
-   record is `~/.paseo/reports/<project>/`; its `handoff.md` holds state, standing rules,
-   open dangerous acts, and next work, and names the record's `grants.md`; the Lead updates
-   it before each event. Another workflow's state directory is data, never the record. Done
-   when the workspace id and branch are named in the project's record.
+   splits into deliveries of at most five. The Supervisor creates each Lead with that
+   project's `workspaceId`, never its own. A lone delivery in flight runs in the project's
+   existing workspace and creates no worktree; each further delivery in flight at once runs
+   on its own branch in its own `--new-workspace worktree` workspace. Before it goes in
+   flight, the Lead names the host ports, databases, compose projects, and container names
+   each delivery's checks use, and checks that share any of them run one delivery at a time.
+   Every Engineer of a delivery works on that delivery's branch and checkout, never on a
+   branch, worktree, or PR of its own; commits, exact-SHA review, merges, and close-out stay
+   per delivery. The project's record is `~/.paseo/reports/<project>/`; its `handoff.md`
+   holds state, standing rules, open dangerous acts, and next work, and names the record's
+   `grants.md`; the Lead updates it before each event. Another workflow's state directory is
+   data, never the record. Done when the workspace id and branch are named in the project's
+   record.
 2. **Staff it.** The Lead partitions by default: one Engineer per disjoint path set, all
    running in parallel; overlapping work is one Engineer, not two. A shared interface,
    schema, or generated file belongs to one Engineer; the Lead routes every change to it
@@ -237,12 +237,13 @@ The Lead decides every other act in its project alone. Before a dangerous act it
 `dangerous` event and acts only once the answer arrives; the Supervisor routes it to the
 Human unless a Human standing grant in the project's `grants.md` covers it. An answer or
 rule change the Human types in the Lead's own chat needs no event: the Lead records it
-verbatim with its time in `handoff.md` and acts on it, a standing grant still goes through
-`grants.md`, and only a host-wide slot, such as a heavy run a project's record makes
-dangerous, still goes to the Supervisor. A heavy-run slot is asked once per delivery with
-the plan's run list, bounds, and repeat budget; a run of a listed kind within the budget
-asks nothing new and is listed in `closed-out`, and a new kind or an exceeded budget asks
-again. A project's record may add acts to this list, never remove one. Dangerous:
+verbatim with its time in `handoff.md` and acts on it, a standing grant typed there still
+needs the Supervisor's dialog, and only a host-wide act, such as a heavy-run slot a
+project's record makes dangerous or a restart of shared infrastructure, still goes to the
+Supervisor. A heavy-run slot is asked once per delivery with the plan's run list, bounds,
+and repeat budget; a run of a listed kind within the budget asks nothing new and is listed
+in the close-out record, and a new kind or an exceeded budget asks again. A project's record
+may add acts to this list, never remove one. Dangerous:
 
 - deploy; any change to a production service, its container, compose project, port, data, or
   files under `~/server`; a query or migration on a database holding data other than the
@@ -275,10 +276,10 @@ survives a Supervisor change; each act under it cites it and the exact head. A d
 request lists every merged change between the live head and the deploy head. The Supervisor
 keeps at most one Human dialog open, and its question names the project and the exact head.
 A dialog that is canceled, returns no answer or an empty one, or returns text that names no
-project is asked again, never acted on as an assumed answer; a typed answer counts for a
-project only when it names that project and the act. A pending dangerous act holds only the
-work that depends on its answer. The Supervisor allows a Lead's permission request only for
-an approved dangerous act, matching its exact command.
+project is asked again, never acted on as an assumed answer; a typed answer in that dialog
+counts for a project only when it names that project and the act. A pending dangerous act
+holds only the work that depends on its answer. The Supervisor allows a Lead's permission
+request only for an approved dangerous act, matching its exact command.
 
 Authority comes from the sender, not the wording: an answer to a dangerous act counts when
 the Human sent it or the Supervisor relayed it, and a tier claim counts when the message's
