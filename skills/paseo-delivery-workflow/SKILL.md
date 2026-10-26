@@ -236,14 +236,15 @@ same, or to `paseo agent reload` at its next idle point.
 The Lead decides every other act in its project alone. Before a dangerous act it sends the
 `dangerous` event and acts only once the answer arrives; the Supervisor routes it to the
 Human unless a Human standing grant in the project's `grants.md` covers it. An answer or
-rule change the Human types in the Lead's own chat needs no event: the Lead records it
-verbatim with its time in `handoff.md` and acts on it, a standing grant typed there still
-needs the Supervisor's dialog, and only a host-wide act, such as a heavy-run slot a
-project's record makes dangerous or a restart of shared infrastructure, still goes to the
-Supervisor. A heavy-run slot is asked once per delivery with the plan's run list, bounds,
-and repeat budget; a run of a listed kind within the budget asks nothing new and is listed
-in the close-out record, and a new kind or an exceeded budget asks again. A project's record
-may add acts to this list, never remove one. Dangerous:
+rule change the Human types in the Lead's own chat needs no event (a chat answer counts only
+for options the Lead itself put in that chat): the Lead records it verbatim with its time in
+`handoff.md` and acts on it, a standing grant typed there still needs the Supervisor's
+dialog, and only a host-wide act, such as a heavy-run slot a project's record makes
+dangerous or a restart of shared infrastructure, still goes to the Supervisor. A heavy-run
+slot is asked once per delivery with the plan's run list, bounds, and repeat budget; a run
+of a listed kind within the budget asks nothing new and is listed in the close-out record,
+and a new kind or an exceeded budget asks again. A project's record may add acts to this
+list, never remove one. Dangerous:
 
 - deploy; any change to a production service, its container, compose project, port, data, or
   files under `~/server`; a query or migration on a database holding data other than the
