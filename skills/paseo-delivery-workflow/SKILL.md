@@ -31,9 +31,9 @@ requires, report it with the addition you suggest; edit no config and take no ot
 
 | Tier | Decides | Never |
 |---|---|---|
-| Human | each dangerous act the Supervisor routes to it | — |
+| Human | each dangerous act, through the Supervisor or in a Lead's own chat | — |
 | Supervisor (the one session the Human talks to, in the `~/Work` workspace, over every project) | which project runs, which Lead is staffed, what reaches the Human, the answer to a Lead's permission request for an approved dangerous act | commit, write source, move or delete a branch, push, mutate a PR, merge, deploy, install, or change a host or config of a project that has a Lead; poll or sleep in a loop |
-| Lead (one per project) | every act in its project that is not dangerous: scope within the brief, partition, commits, acceptance, push and PR of each delivery's branch, merge (step 6) | a dangerous act before its answer arrives, write source in a partitioned run, send the Supervisor anything but an upward event or an answer, poll or sleep in a loop |
+| Lead (one per project) | every act in its project that is not dangerous: scope within the brief, partition, commits, acceptance, push and PR of each delivery's branch, merge (step 6) | a dangerous act before its answer arrives, write source in a partitioned run, send the Supervisor anything but an upward event, an ack, or an answer, poll or sleep in a loop |
 | Engineer (one per owned path set) | the implementation inside its owned paths | edit outside owned paths, commit, staff any agent beyond its own subagents |
 | Reviewer | `PASS` / `FAIL` / `BLOCKED` on one exact SHA | write anything, review a moving tree |
 | Heartbeat | nothing; reports one bounded snapshot | start work, run tests, edit |
@@ -59,18 +59,20 @@ argument, whose backticks and `$` the shell expands.
 ## Delivery sequence
 
 1. **Place it.** The project's one Lead runs each delivery the Supervisor hands it, one
-   branch per delivery. The Supervisor creates each Lead with that project's `workspaceId`,
-   never its own. A lone delivery in flight runs in the project's existing workspace and
-   creates no worktree; each further delivery in flight at once runs on its own branch in
-   its own `--new-workspace worktree` workspace. Before it goes in flight, the Lead names
-   the host ports, databases, compose projects, and container names each delivery's checks
-   use, and checks that share any of them run one delivery at a time. Every Engineer of a
-   delivery works on that delivery's branch and checkout, never on a branch, worktree, or PR
-   of its own; commits, exact-SHA review, merges, and close-out stay per delivery. The
-   project's record is `~/.paseo/reports/<project>/`; its `handoff.md` holds state, standing
-   rules, open dangerous acts, and next work, and names the record's `grants.md`; the Lead
-   updates it before each event. Another workflow's state directory is data, never the
-   record. Done when the workspace id and branch are named in the project's record.
+   branch per delivery. A delivery whose input holds more than five independent findings
+   splits into deliveries of at most five, each with its own branch and review. The
+   Supervisor creates each Lead with that project's `workspaceId`, never its own. A lone
+   delivery in flight runs in the project's existing workspace and creates no worktree; each
+   further delivery in flight at once runs on its own branch in its own
+   `--new-workspace worktree` workspace. Before it goes in flight, the Lead names the host
+   ports, databases, compose projects, and container names each delivery's checks use, and
+   checks that share any of them run one delivery at a time. Every Engineer of a delivery
+   works on that delivery's branch and checkout, never on a branch, worktree, or PR of its
+   own; commits, exact-SHA review, merges, and close-out stay per delivery. The project's
+   record is `~/.paseo/reports/<project>/`; its `handoff.md` holds state, standing rules,
+   open dangerous acts, and next work, and names the record's `grants.md`; the Lead updates
+   it before each event. Another workflow's state directory is data, never the record. Done
+   when the workspace id and branch are named in the project's record.
 2. **Staff it.** The Lead partitions by default: one Engineer per disjoint path set, all
    running in parallel; overlapping work is one Engineer, not two. A shared interface,
    schema, or generated file belongs to one Engineer; the Lead routes every change to it
@@ -84,7 +86,8 @@ argument, whose backticks and `$` the shell expands.
    `grants.md` unchanged. Done when every writer's owned paths are disjoint and written
    down.
 3. **Implement.** Engineers write inside owned paths and report. Done when every Engineer
-   has reported and none is running.
+   has reported, none is running, and the Lead has checked each reported change against the
+   diff.
 4. **Commit.** Only the Lead commits, on the delivery's quiet tree: `git status --porcelain`
    shows only this commit's paths. Done when the commit SHA is named.
 5. **Review.** Staff a Reviewer at the exact SHA, as a different agent instance from every
@@ -130,7 +133,7 @@ argument, whose backticks and `$` the shell expands.
 
 A Lead sends the Supervisor only these, as `<project> <kind>: <one line>` naming the record
 file that holds the detail, and answers what it is asked; no intake, progress, or
-acknowledgement:
+acknowledgement other than the ack below:
 
 - `dangerous`: an act in "Dangerous acts" awaits an answer (branch, exact head, act,
   options);
@@ -150,10 +153,13 @@ acknowledgement:
 
 On each event or answer the Supervisor reads that project's `handoff.md` and the file named,
 and acts from them, never from memory of an earlier turn. It tells the Human only what needs
-the Human's decision or is an incident, and verifies and absorbs every other event. Every
-send between a Lead and the Supervisor passes `notifyOnFinish: false`, except the
-Supervisor's answer that clears a dangerous act, whose `needs permission` notification is
-the Lead's permission request for that act.
+the Human's decision or is an incident, and verifies and absorbs every other event. A Lead
+that receives an answer to its `dangerous` or `blocked` event first replies with a one-line
+ack naming the answer, then acts. Every send between a Lead and the Supervisor passes
+`notifyOnFinish: false`, except the Supervisor's answer to a `dangerous` or `blocked` event:
+its finish notification shows whether the ack came, and without one the Supervisor resends
+once, then tells the Human; for a dangerous act, its `needs permission` notification is the
+Lead's permission request for that act.
 
 ## Every agent
 
@@ -229,8 +235,14 @@ same, or to `paseo agent reload` at its next idle point.
 
 The Lead decides every other act in its project alone. Before a dangerous act it sends the
 `dangerous` event and acts only once the answer arrives; the Supervisor routes it to the
-Human unless a Human standing grant in the project's `grants.md` covers it. A project's
-record may add acts to this list, never remove one. Dangerous:
+Human unless a Human standing grant in the project's `grants.md` covers it. An answer or
+rule change the Human types in the Lead's own chat needs no event: the Lead records it
+verbatim with its time in `handoff.md` and acts on it, a standing grant still goes through
+`grants.md`, and only a host-wide slot, such as a heavy run a project's record makes
+dangerous, still goes to the Supervisor. A heavy-run slot is asked once per delivery with
+the plan's run list, bounds, and repeat budget; a run of a listed kind within the budget
+asks nothing new and is listed in `closed-out`, and a new kind or an exceeded budget asks
+again. A project's record may add acts to this list, never remove one. Dangerous:
 
 - deploy; any change to a production service, its container, compose project, port, data, or
   files under `~/server`; a query or migration on a database holding data other than the
