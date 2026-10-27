@@ -54,15 +54,17 @@ argument, whose backticks and `$` the shell expands.
 | Status | a snapshot is all that is asked | one `paseo ls` / `inspect` / `logs` read, then end the turn |
 | Prompt | an existing agent can answer or absorb the work | `send_agent_prompt`, nothing staffed |
 | Delivery | any source change or external effect | the sequence below |
-| Review-only | a named SHA needs a verdict | the project's Lead, or the Supervisor when none runs, staffs one Reviewer at that SHA; staff no writer |
+| Review-only | a named SHA needs a verdict | the project's Lead, or the Supervisor when none runs, starts the acceptance lanes and staffs one Reviewer at that SHA, as in step 5; staff no writer |
 
 ## Delivery sequence
 
 1. **Place it.** The project's one Lead runs each delivery the Supervisor hands it, one
    branch per delivery. A delivery whose input holds more than five independent findings
    splits into deliveries of at most five. The Supervisor creates each Lead with that
-   project's `workspaceId`, never its own. A lone delivery in flight runs in the project's
-   existing workspace and creates no worktree; each further delivery in flight at once runs
+   project's `workspaceId`, never its own. The Lead starts, in parallel, every queued
+   delivery that no pending answer holds and whose written paths are disjoint from those in
+   flight; one that overlaps waits for the merge it overlaps. The first delivery in flight
+   runs in the project's existing workspace and creates no worktree; each further one runs
    on its own branch in its own `--new-workspace worktree` workspace. Before it goes in
    flight, the Lead names the host ports, databases, compose projects, and container names
    each delivery's checks use, and checks that share any of them run one delivery at a time.
@@ -83,26 +85,30 @@ argument, whose backticks and `$` the shell expands.
    only after its `handoff.md` is current; for a Lead that cannot write it, the new Lead
    writes it from the old Lead's `paseo logs` before other work. The new Lead first checks
    that record against each delivery's tree and writes each mismatch into it, and reads
-   `grants.md` unchanged. Done when every writer's owned paths are disjoint and written
-   down.
-3. **Implement.** Engineers write inside owned paths and report. Done when every Engineer
-   has reported, none is running, and the Lead has checked each reported change against the
-   diff.
+   `grants.md` unchanged. The plan names the fast lane, each acceptance lane with the paths
+   it reads, and the project's refusal and acceptance table, or none. Done when every
+   writer's owned paths are disjoint and written down.
+3. **Implement.** Engineers write inside owned paths; before reporting, each runs the plan's
+   fast lane and checks its change against the refusal and acceptance table the plan names,
+   quoting both in its report. Done when every Engineer has reported, none is running, and
+   the Lead has checked each reported change against the diff.
 4. **Commit.** Only the Lead commits, on the delivery's quiet tree: `git status --porcelain`
    shows only this commit's paths. Done when the commit SHA is named.
-5. **Review.** Staff a Reviewer at the exact SHA, as a different agent instance from every
-   writer. It re-runs the acceptance checks and reports `PASS` / `FAIL` / `BLOCKED` with the
-   command output it saw. Terminal output meant for a human is checked under a real pty with
-   explicit columns and color profile, and the report carries the captured screens. A
-   delete, move, or overwrite in the change whose path comes from stored state is a `FAIL`
-   until it has a containment guard in the same delivery, never an accepted risk. A check
-   the Lead names too costly to re-run runs once: after the Reviewer reports every other
-   check passing at the reviewed SHA, the Lead has an agent that runs acceptance run it
-   there, and the Reviewer reads that output and checks it names the reviewed SHA, or an
-   earlier SHA whose diff to the reviewed one touches no path the check reads; any other
-   repair runs the check again. A `FAIL` lists every finding at its SHA and goes back to the
-   owning writer; the same Reviewer then re-reviews the new SHA, re-running acceptance
-   there. Done when a `PASS` names the SHA it covers.
+5. **Review.** At the commit, the Lead starts the plan's acceptance lanes at that SHA and,
+   in parallel, staffs a Reviewer there, as a different agent instance from every writer.
+   The Reviewer reviews the diff while the lanes run, runs no lane itself, and reports
+   `PASS` / `FAIL` / `BLOCKED` only after reading every lane's output file, quoting what it
+   saw; the Lead sends it each file's path as its lane ends, and a Reviewer waiting on one
+   is not stalled. A lane's output shows the HEAD before and after it. A lane is green at a
+   SHA when its output shows it passing there, or at an earlier SHA whose diff to this one
+   touches no path the lane reads; a `PASS` needs every lane green at its SHA. A lane that
+   checks terminal output meant for a human runs under a real pty with explicit columns and
+   color profile, and its output carries the captured screens. A delete, move, or overwrite
+   in the change whose path comes from stored state is a `FAIL` until it has a containment
+   guard in the same delivery, never an accepted risk. A `FAIL` lists every finding at its
+   SHA and goes back to the owning writer; the same Reviewer then re-reviews the fix's diff
+   at the new SHA, and only the lanes whose read paths the fix touches run there again. Done
+   when a `PASS` names the SHA it covers.
 6. **Merge.** The Lead pushes the delivery's branch, opens or updates its PR, and
    squash-merges it once a `PASS` names that PR's head, CI is green on that head where the
    project runs CI, and the head contains the product line's current head; otherwise it
@@ -122,12 +128,19 @@ argument, whose backticks and `$` the shell expands.
    `paseo project delete` the project whose `paseo project ls` path equals `<path>`, never
    the main checkout's, nor one holding a kept workspace: deleting a project deletes all its
    workspaces. Then write to the project's record what changed, what was removed, tests run
-   with their output, and what is still open, and send `closed-out`. Every SHA, head,
-   installed version, and branch state in `closed-out` is read from the remote, the
-   checkout, and the installed copy after its act completes, never drafted ahead of it. Done
-   when `paseo ls`, `paseo workspace ls`, `paseo project ls`, and `git worktree list` show
-   nothing a delivery of this project created that no delivery in flight owns or the record
-   names as still open; report an archive only after the listing no longer shows its id.
+   with their output, what is still open, and the times of its start, first Engineer report,
+   `PASS`, and merge, each written to the record when it happens, and send `closed-out`.
+   Every SHA, head, installed version, and branch state in `closed-out` is read from the
+   remote, the checkout, and the installed copy after its act completes, never drafted ahead
+   of it. In that same turn the Lead starts every queued delivery step 1 admits; with none
+   in flight, it ends a turn only on an empty queue or with every queued delivery held by a
+   pending answer. A Lead that ends a turn with work queued keeps one recurring self-prompt
+   (a heartbeat, not the Heartbeat tier), each wake one turn that re-reads `handoff.md`,
+   starts what step 1 admits, and ends; it deletes the heartbeat once its queue is empty.
+   Done when `paseo ls`, `paseo workspace ls`, `paseo project ls`, and `git worktree list`
+   show nothing a delivery of this project created that no delivery in flight owns or the
+   record names as still open; report an archive only after the listing no longer shows its
+   id.
 
 ## Upward events
 
@@ -148,8 +161,8 @@ acknowledgement other than the ack below:
 - `collision`: a container, process, port, or host resource another project started or
   holds;
 - `errored`: its previous turn died on an API or runtime error, sent first in its next turn;
-- `closed-out`: a delivery closed (step 7), with each general lesson and the next work it
-  ranks first, or none.
+- `closed-out`: a delivery closed (step 7), with its start, first Engineer report, `PASS`,
+  and merge times, each general lesson and the next work it ranks first, or none.
 
 On each event or answer the Supervisor reads that project's `handoff.md` and the file named,
 and acts from them, never from memory of an earlier turn. It tells the Human only what needs
@@ -193,11 +206,11 @@ Lead's permission request for that act.
   as your runtime's tracked background task whose completion wakes you, never under `nohup`
   or detached before you end the turn.
 - Engineers and Reviewers whose runtime has subagents use them for disjoint sub-work, such
-  as reading or independent test lanes, and work alone only when the work does not split. An
-  Engineer's writing subagent stays inside paths the Engineer assigns it from its own owned
-  set, disjoint from every other writer's; a Reviewer's subagents are read-only. Every rule
-  in this section binds every subagent. Stop every subagent before your report, combine its
-  results, and name each subagent and what it did in the report.
+  as reading or an Engineer's independent test lanes, and work alone only when the work does
+  not split. An Engineer's writing subagent stays inside paths the Engineer assigns it from
+  its own owned set, disjoint from every other writer's; a Reviewer's subagents are
+  read-only. Every rule in this section binds every subagent. Stop every subagent before
+  your report, combine its results, and name each subagent and what it did in the report.
 - Run only the checks the acceptance and this file list: generating or running a mutant, or
   any other check beyond that list, is a finding. A new test's proof is that it fails before
   the fix and passes after, run once, plus the acceptance lanes.
