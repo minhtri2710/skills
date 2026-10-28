@@ -72,7 +72,7 @@ the run directory.
 | Status | a snapshot is all that is asked | one `herdr agent list` / `agent read` / `git` read, then end the turn |
 | Prompt | an existing agent can answer | one `herdr agent prompt`, nothing staffed |
 | Delivery | any source change or external effect | the sequence below |
-| Review-only | a named SHA needs a verdict | staff one Reviewer Peer at that SHA; staff no writer |
+| Review-only | a named SHA, or named uncommitted files, needs a verdict | staff one Reviewer Peer at that SHA, or at a candidate of those files built as in step 4; staff no writer |
 
 ## Delivery sequence
 
@@ -82,59 +82,83 @@ the run directory.
    are settled before code, with the Human when behavior or destruction stays ambiguous.
    Write the intake to the run directory `~/.herdr/projects/<slug>/runs/<run>/`: lane, mode
    (solo or partitioned), partition or the solo declared scope, base, branch, HEAD, stash
-   list, Human gates, on a clean tree: `git status --porcelain --untracked-files=all` empty,
-   or stop and tell the Human that this process precondition needs their WIP committed or
-   stashed by them and reported back; the Lead never commits or stashes it. One delivery in
-   flight per project, on one branch in the one checkout; several requests run one at a time
-   in a named order. Done when the intake file is read back.
+   list, Human gates, and the intake tree. The tree is clean
+   (`git status --porcelain --untracked-files=all` empty), or the current request asks to
+   edit named uncommitted files in place: those files are then the scope of an in-place run,
+   and the Lead records the porcelain and each other dirty path's `git hash-object`, copies
+   no file content, and tells the Human to leave the checkout unedited until close-out.
+   Otherwise stop and tell the Human that this process precondition needs their WIP
+   committed or stashed by them and reported back; the Lead never commits or stashes it. P
+   is HEAD at intake, then this run's last commit. B, the base for red proofs and the
+   agents' delta, is P, or in an in-place run a commit of the named files as found, built
+   and pinned before any edit as step 4 builds a candidate. One delivery in flight per
+   project, on one branch in the one checkout; several requests run one at a time in a named
+   order. Done when the intake file is read back.
 2. **Partition and staff.** Partition before any edit: Engineers own disjoint paths, at most
-   three unless the run directory records why the partition yields more; never merge disjoint
-   scopes to fit the cap. A hub file, a moved file with its citers, or densely coupled code
-   goes to one owner or runs sequentially; a contract change (interface, schema, shared
-   config, lockfile, generated file) is its own slice, run first; a path no scope owns stays
-   unowned. Start each Peer in a sibling pane of the Lead's tab (`herdr pane split --current
-   --no-focus`, then `herdr agent start <name> --kind <kind> --pane <id> -- <args>`) with the
-   config's kind and args verbatim and its direct-question tool denied; a kind whose question
-   tool cannot be denied is not staffed. Each Peer's prompt states its role and acceptance
-   boundary; for an Engineer its owned paths, the peer scopes, and the unowned paths, for a
-   Reviewer the exact SHA; the `checks-light` commands; the governing files to read itself;
+   three unless the run directory records why the partition yields more; never merge
+   disjoint scopes to fit the cap. A hub file, a moved file with its citers, or densely
+   coupled code goes to one owner or runs sequentially; a contract change (interface,
+   schema, shared config, lockfile, generated file) is its own slice, run first; a path no
+   scope owns stays unowned. Start each Peer in a sibling pane of the Lead's tab
+   (`herdr pane split --current --no-focus`, then
+   `herdr agent start <name> --kind <kind> --pane <id> -- <args>`) with the config's kind
+   and args verbatim and its direct-question tool denied; a kind whose question tool cannot
+   be denied is not staffed. Each Peer's prompt states its role and acceptance boundary; for
+   an Engineer its owned paths, the peer scopes, and the unowned paths, for a Reviewer the
+   candidate H, P, and B; the `checks-light` commands; the governing files to read itself;
    the "Every agent" rules by value; no writing git command, and read-only git with
    `--no-optional-locks`; that it must not load this skill; and the Lead's seat name as its
    only report target. Done when every Peer is started and its seat name, kind, pane id, and
    owned paths are written in the run directory.
 3. **Implement.** Engineers edit only owned paths, run light checks on them, and report:
-   owned paths, `Edited files` from their own actions, scoped porcelain, `Outside owned
-   paths: none`, each check with command, exit code, and ran/skipped counts, the red proof of
-   each new test, risks. A report missing `Edited files` or porcelain goes back. A Peer that
-   hits a broken premise, needs a path outside its scope, or faces a hard call sends one
-   `REOPEN_REQUEST`, `DEPENDENCY_REQUEST`, `BLOCKED`, or `COUNCIL_REQUEST` with reason,
-   evidence, and the decision needed, then stops. A test that contradicts the spec is never
-   edited to agree with the code and never passed by special-casing production code: send a
-   `REOPEN_REQUEST` quoting both. A solo Lead does this step itself and writes the same
-   report to the run directory. Done when every Engineer has reported and is idle.
-4. **Commit.** Only the Lead commits, on a quiet tree: every Engineer idle; branch, stash
-   list, and HEAD as at intake or this run's last commit; porcelain (`--untracked-files=all`)
-   showing only the union of their `Edited files` (solo: the declared scope) plus any change
+   owned paths, `Edited files` from their own actions, scoped porcelain (in an in-place run,
+   also `git diff --stat <B> -- <owned paths>`), `Outside owned paths: none`, each check
+   with command, exit code, and ran/skipped counts, the red proof of each new test, risks. A
+   report missing `Edited files` or porcelain goes back. A Peer that hits a broken premise,
+   needs a path outside its scope, or faces a hard call sends one `REOPEN_REQUEST`,
+   `DEPENDENCY_REQUEST`, `BLOCKED`, or `COUNCIL_REQUEST` with reason, evidence, and the
+   decision needed, then stops. A test that contradicts the spec is never edited to agree
+   with the code and never passed by special-casing production code: send a `REOPEN_REQUEST`
+   quoting both. A solo Lead does this step itself and writes the same report to the run
+   directory. Done when every Engineer has reported and is idle.
+4. **Candidate.** Only the Lead builds candidates and commits, on a quiet tree: every
+   Engineer idle; branch, stash list, and HEAD at P; porcelain (`--untracked-files=all`)
+   showing only the union of their `Edited files` (solo: the declared scope), in an in-place
+   run the named files and every other dirty path at its recorded hash, plus any change
    outside every owned path no Peer reported, once listed with a diff and Human-confirmed
-   (step 6). Stage those paths by name, never `git add -A`; read `git diff --cached` for
-   crossed contracts, credentials, or disabled checks; then `git commit --only -- <the staged
-   paths>`. A write inside another scope, or one its owner did not report, is named with any
-   known writer and goes to that scope's owner to adopt or reject; the writer does not touch
-   the path again. In a partitioned run even an obvious fix goes back to its owner. Done when
-   the commit SHA is in the run directory.
-5. **Review.** Staff a Reviewer Peer named `review-<12-hex>` at the exact SHA, a distinct
-   instance from the Lead and every Engineer. It records HEAD and porcelain before and after
-   (a moved tree voids the verdict), reads the diff and writes its own findings before any
-   report, and re-runs the light acceptance checks in the quiet checkout at the SHA. A check
-   that writes files runs in a `git archive <sha>` copy, and one that also reads git metadata
-   in a detached clone; red proofs are re-derived by applying only the new tests to the base
-   in such a copy. It names each copy in its report and removes it before reporting, and it
-   treats a diff to tests, fixtures, lint, or CI config as a review target. It reports `PASS`
-   / `FAIL` / `BLOCKED` with the output it saw; an unmet acceptance criterion is `FAIL` at
-   any severity. A `FAIL` goes back to the owning Engineer, and each repair head gets a new
-   Reviewer instance that confirms every finding fixed and reads the full delta; a finding
-   that returns twice goes to the Human. Done when a `PASS` names the SHA it covers and every
-   finding in it is read.
+   (step 6). Build the candidate H from those paths by name, never `git add -A`, off every
+   branch: `GIT_INDEX_FILE=<run>/index git read-tree P`, then `git add -- <paths>` and
+   `git write-tree` under that index, `git commit-tree <tree> -p P -F <message file>`, and
+   `git update-ref refs/herdr/<run>/<12-hex of H> <H>` so it survives `git gc`; the Human's
+   index, branch, and working tree stay as they are. Read `git diff P H` and the message for
+   crossed contracts, credentials, or disabled checks. A write inside another scope, or one
+   its owner did not report, is named with any known writer and goes to that scope's owner
+   to adopt or reject; the writer does not touch the path again. In a partitioned run even
+   an obvious fix goes back to its owner. Done when H and its paths are in the run
+   directory.
+5. **Review and land.** Staff a Reviewer Peer named `review-<12-hex>` at H, a distinct
+   instance from the Lead and every Engineer. It reads `git diff P H` (in an in-place run,
+   `git diff B H` is the agents' delta and the rest the Human's starting edits) and writes
+   its own findings before any report. It re-runs the light acceptance checks in the quiet
+   checkout after confirming it holds H: HEAD at P and every path that differs between P and
+   H holding its content in H (`git hash-object` against `git rev-parse H:<path>`), recorded
+   before and after (a moved tree voids the verdict); in an in-place run it names the other
+   dirty paths those checks also saw. A check that writes files runs in a `git archive <H>`
+   copy, and one that also reads git metadata in a `git clone --shared` copy detached at H;
+   red proofs are re-derived by applying only the new tests to B in such a copy. It names
+   each copy in its report and removes it before reporting, and it treats a diff to tests,
+   fixtures, lint, or CI config as a review target. It reports `PASS` / `FAIL` / `BLOCKED`
+   with the output it saw; an unmet acceptance criterion is `FAIL` at any severity. A `FAIL`
+   goes back to the owning Engineer, and each repair candidate gets a new Reviewer instance
+   that confirms every finding fixed and reads the full delta; a finding that returns twice
+   goes to the Human. A `PASS` at H covers any commit whose parent is P and whose tree is
+   H's. After it, a clean run, or an in-place run whose current request asks for a commit,
+   lands H: stage the paths that differ between P and H by name, run
+   `git commit -C <H> --only -- <those paths>`, and check that the new HEAD's parent is P
+   and its tree is H's; a mismatch makes that commit the next candidate to review. An
+   in-place run without a commit leaves its result unstaged, each such path holding its
+   content in H. Done when a `PASS` names the H it covers, every finding in it is read, and
+   H is landed.
 6. **Gate.** Ask each Human gate (below) in your own pane with the branch, exact head,
    options, and decision required, then `herdr notification show "<title>" --body "<line>"
    --sound request`, and end the turn. When the answer arrives, perform the approved write
@@ -145,14 +169,16 @@ the run directory.
 7. **Close out.** For each Peer this run staffed, keep its report, and a Reviewer's
    transcript (`herdr agent read`), then `herdr pane close <pane>`. Confirm each copy a
    report names is gone, stop the processes this run started, and name any other process
-   whose cwd is under the checkout. Delete a run branch only when `git rev-list <branch>
-   --not <target>` is empty. When the run changed an artifact installed outside the checkout,
-   gate its install, then compare the installed files with `git rev-parse <head>:<path>`.
-   Report status, head, verdict and its head, checks with exit codes, what changed, what was
-   installed, risks, next, and each lesson routed as "Self-improvement" says, then notify
-   with `--sound done`. Done when `herdr pane list --workspace "$HERDR_WORKSPACE_ID"`, `git
-   worktree list`, and porcelain show nothing of this run; report a pane closed only after
-   the listing no longer shows it.
+   whose cwd is under the checkout. Delete a run branch only when
+   `git rev-list <branch> --not <target>` is empty. When the run changed an artifact
+   installed outside the checkout, gate its install, then compare the installed files with
+   `git rev-parse <head>:<path>`. Report status, head, verdict and its head, checks with
+   exit codes, what changed, what was installed, risks, next, and each lesson routed as
+   "Self-improvement" says, then notify with `--sound done`. Delete `refs/herdr/<run>/` and
+   `<run>/index`. Done when `herdr pane list --workspace "$HERDR_WORKSPACE_ID"`,
+   `git worktree list`, `git for-each-ref refs/herdr/<run>/`, and porcelain show nothing of
+   this run but an in-place run's unstaged result, with every other dirty path at its
+   recorded hash; report a pane closed only after the listing no longer shows it.
 
 ## Every agent
 
@@ -223,18 +249,18 @@ Human gates, which only the Human decides: push to the product line, PR mutation
 deploy or install, or any other external write; a destructive or irreversible action;
 credentials, permissions, or security-sensitive behavior; a material scope, architecture,
 dependency, data, or contract change; a project-config write; every approval dialog. The
-clean tree at intake (step 1), the quiet tree (step 4), a `PASS` covering every pushed
-commit, the credential read of the committed diff (step 4), and the heavy-suite result on the
-exact head are process preconditions, not gates: a Human decision can widen the quiet tree's
-porcelain through a set confirmed in the run (step 4) and accept another heavy-suite result
-on that head in place of a missing CI one, and never waives the clean tree at intake,
-exact-SHA review, or the credential read. A pending gate holds only the work that depends on
-its answer: a delivery whose only remaining step is a pending push leaves the flight slot,
-and the next one stacks on its head with its own review. An explicit instruction in the
-current request answers its gate at the reviewed head only; an earlier request, the config,
-or an inference never does. A standing grant is written under `~/.herdr/projects/<slug>/`
-with its scope and conditions before the first act under it; each act under it cites the
-grant and the exact head.
+intake tree (step 1), the quiet tree (step 4), a `PASS` covering every pushed commit, the
+credential read of the candidate diff (step 4), and the heavy-suite result on the exact head
+are process preconditions, not gates: a Human decision can widen the quiet tree's porcelain
+through a set confirmed in the run (step 4) and accept another heavy-suite result on that
+head in place of a missing CI one, and never waives the intake tree, exact-SHA review, or
+the credential read. A pending gate holds only the work that depends on its answer: a
+delivery whose only remaining step is a pending push leaves the flight slot, and the next
+one stacks on its head with its own review. An explicit instruction in the current request
+answers its gate at the reviewed head only; an earlier request, the config, or an inference
+never does. A standing grant is written under `~/.herdr/projects/<slug>/` with its scope and
+conditions before the first act under it; each act under it cites the grant and the exact
+head.
 
 ## Gotchas the CLI will not tell you
 
