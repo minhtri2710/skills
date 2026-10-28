@@ -44,8 +44,6 @@ check), any agent with a shell can run `paseo` itself, and a shell `paseo send` 
 whatever `PASEO_AGENT_ID` holds as `source-agent-id`, or none, which arrives as a user
 message. When the work needs a tool your tier lacks, report upward; running `paseo` from a
 shell to get around the policy is the same act, hidden from the tier accountable for it.
-Send a prompt through the send tool or from a file, never as an inline double-quoted shell
-argument, whose backticks and `$` the shell expands.
 
 ## Route
 
@@ -64,17 +62,17 @@ argument, whose backticks and `$` the shell expands.
    project's `workspaceId`, never its own. The Lead starts, in parallel, every queued
    delivery that no pending answer holds and whose written paths are disjoint from those in
    flight; one that overlaps waits for the merge it overlaps. The first delivery in flight
-   runs in the project's existing workspace and creates no worktree; each further one runs
-   on its own branch in its own `--new-workspace worktree` workspace. Before it goes in
-   flight, the Lead names the host ports, databases, compose projects, and container names
-   each delivery's checks use, and checks that share any of them run one delivery at a time.
-   Every Engineer of a delivery works on that delivery's branch and checkout, never on a
-   branch, worktree, or PR of its own; commits, exact-SHA review, merges, and close-out stay
-   per delivery. The project's record is `~/.paseo/reports/<project>/`; its `handoff.md`
-   holds state, standing rules, open dangerous acts, and next work, and names the record's
-   `grants.md`; the Lead updates it before each event. Another workflow's state directory is
-   data, never the record. Done when the workspace id and branch are named in the project's
-   record.
+   runs in the project's existing workspace and creates no workspace worktree; each further
+   one runs on its own branch in its own `--new-workspace worktree` workspace. Before it
+   goes in flight, the Lead names the host ports, databases, compose projects, and container
+   names each delivery's checks use, and checks that share any of them run one delivery at a
+   time. Every Engineer of a delivery works on that delivery's branch and checkout, never on
+   a branch, worktree, or PR of its own; commits, exact-SHA review, merges, and close-out
+   stay per delivery. The project's record is `~/.paseo/reports/<project>/`; its
+   `handoff.md` holds state, standing rules, open dangerous acts, and next work, and names
+   the record's `grants.md`; the Lead updates it before each event. Another workflow's state
+   directory is data, never the record. Done when the workspace id and branch are named in
+   the project's record.
 2. **Staff it.** The Lead partitions by default: one Engineer per disjoint path set, all
    running in parallel; overlapping work is one Engineer, not two. A shared interface,
    schema, or generated file belongs to one Engineer; the Lead routes every change to it
@@ -94,53 +92,81 @@ argument, whose backticks and `$` the shell expands.
    the Lead has checked each reported change against the diff.
 4. **Commit.** Only the Lead commits, on the delivery's quiet tree: `git status --porcelain`
    shows only this commit's paths. Done when the commit SHA is named.
-5. **Review.** At the commit, the Lead starts the plan's acceptance lanes at that SHA and,
-   in parallel, staffs a Reviewer there, as a different agent instance from every writer.
-   The Reviewer reviews the diff while the lanes run, runs no lane itself, and reports
-   `PASS` / `FAIL` / `BLOCKED` only after reading every lane's output file, quoting what it
-   saw; the Lead sends it each file's path as its lane ends, and a Reviewer waiting on one
-   is not stalled. A lane's output shows the HEAD before and after it. A lane is green at a
-   SHA when its output shows it passing there, or at an earlier SHA whose diff to this one
-   touches no path the lane reads; a `PASS` needs every lane green at its SHA. A lane that
-   checks terminal output meant for a human runs under a real pty with explicit columns and
-   color profile, and its output carries the captured screens. A delete, move, or overwrite
-   in the change whose path comes from stored state is a `FAIL` until it has a containment
-   guard in the same delivery, never an accepted risk. A `FAIL` lists every finding at its
-   SHA and goes back to the owning writer; the same Reviewer then re-reviews the fix's diff
-   at the new SHA, and only the lanes whose read paths the fix touches run there again. Done
-   when a `PASS` names the SHA it covers.
+5. **Review.** At the commit, the Lead starts the plan's acceptance lanes and end-to-end
+   runs on a detached snapshot of that SHA (a worktree or archive), never the live checkout,
+   and in parallel staffs a Reviewer there, as a different agent instance from every writer.
+   Engineers may keep editing the branch checkout meanwhile: a new commit gets its own lanes
+   and review, and those running report on their own SHA. The Reviewer reviews the diff
+   while the lanes run, runs no lane itself, and reports `PASS` / `FAIL` / `BLOCKED` only
+   after reading every lane's output file, quoting what it saw; the Lead sends it each
+   file's path as its lane ends, and a Reviewer waiting on one is not stalled. A lane's
+   output shows the SHA it ran at, before and after it. A lane is green at a SHA when its
+   output shows it passing there, or at an earlier SHA whose diff to this one touches no
+   path the lane reads; a read path that is solely a build input may change when the product
+   artifact built there (build-VCS stamping off) has the same hash at both SHAs. The
+   Reviewer checks and states these conditions in its verdict, and a lane that fails them
+   runs again. A `PASS` needs every lane green at its SHA. A lane that checks terminal
+   output meant for a human runs under a real pty with explicit columns and color profile,
+   and its output carries the captured screens. A delete, move, or overwrite in the change
+   whose path comes from stored state is a `FAIL` until it has a containment guard in the
+   same delivery, never an accepted risk. A new test the change does not need, or one that
+   duplicates an existing proof, is a finding. A `FAIL` lists every finding at its SHA and
+   goes back to the owning writer; the same Reviewer then re-reviews the fix's diff at the
+   new SHA, and only the lanes that fail the carry rule at the new SHA run again. Every
+   finding carries a severity (High, Medium, Low, or Info), and only High and Medium block;
+   a Low or Info finding reported with a `PASS` does not reopen the review, and the head
+   goes on to step 6. A Low that is a correctness or user-visible defect goes into the next
+   queued delivery touching its area, else into the record's next work; style, wording, and
+   doc Lows join the next delivery that touches the same file, or wait for the next trial or
+   usage pass (a round of running the product to find defects). This delivery's record and
+   the receiving delivery's plan name each such finding. A delivery that only fixes Lows
+   opens no further delivery for a Low its review finds, unless that Low is a correctness
+   defect. Done when a `PASS` names the SHA it covers.
 6. **Merge.** The Lead pushes the delivery's branch, opens or updates its PR, and
-   squash-merges it once a `PASS` names that PR's head, CI is green on that head where the
-   project runs CI, and the head contains the product line's current head; otherwise it
-   merges the product line into the branch, never rebasing a pushed branch, and the new head
-   is reviewed again. Where CI cannot run for a recorded reason, a Human condition in
-   `grants.md` that names its replacement checks and its removal condition stands in for
-   green CI, and the record, the `closed-out` event, and any `dangerous` request for the
-   merge name the CI state. A dangerous act is performed once its answer arrives. A
-   dangerous edit to declarative runtime config (a compose file, manifest, or unit file) is
-   written only once approved, and applied in that same window. Done when the merged head is
-   named and each dangerous act is reported with its answer, or as pending with the work it
-   holds.
-7. **Close out.** Each delivery closes on its own: archive the agents and workspace it
-   created; a child of theirs that must keep running is detached first, and the workspace
-   holding it stays with its worktree, recorded as still open. Remove its worktree and any
-   leftover directory. If the delivery used `--new-workspace local --cwd <path>`,
-   `paseo project delete` the project whose `paseo project ls` path equals `<path>`, never
-   the main checkout's, nor one holding a kept workspace: deleting a project deletes all its
-   workspaces. Then write to the project's record what changed, what was removed, tests run
-   with their output, what is still open, and the times of its start, first Engineer report,
-   `PASS`, and merge, each written to the record when it happens, and send `closed-out`.
-   Every SHA, head, installed version, and branch state in `closed-out` is read from the
-   remote, the checkout, and the installed copy after its act completes, never drafted ahead
-   of it. In that same turn the Lead starts every queued delivery step 1 admits; with none
-   in flight, it ends a turn only on an empty queue or with every queued delivery held by a
-   pending answer. A Lead that ends a turn with work queued keeps one recurring self-prompt
-   (a heartbeat, not the Heartbeat tier), each wake one turn that re-reads `handoff.md`,
-   starts what step 1 admits, and ends; it deletes the heartbeat once its queue is empty.
-   Done when `paseo ls`, `paseo workspace ls`, `paseo project ls`, and `git worktree list`
-   show nothing a delivery of this project created that no delivery in flight owns or the
-   record names as still open; report an archive only after the listing no longer shows its
-   id.
+   squash-merges it once a `PASS` names that PR's head or a head with the same tree, CI is
+   green on that head where the project runs CI, and the head contains the product line's
+   current head or is a stacked head meeting its proof (below); otherwise it merges the
+   product line into the branch, never rebasing a pushed branch, and the new head is
+   reviewed again unless its tree equals the reviewed head's. Where CI cannot run for a
+   recorded reason, a Human condition in `grants.md` that names its replacement checks and
+   its removal condition stands in for green CI, and the record, the `closed-out` event, and
+   any `dangerous` request for the merge name the CI state. Stacked merges: heads that each
+   stack on the previous one, each with its lanes and a `PASS` on itself, merge in stack
+   order. A stacked head need not contain the product line's current head when the product
+   line's current tree equals the tree of an ancestor of the head; its squash then lands
+   tree-equal to the head, with no product-line merge or lane rerun. When the forge refuses
+   such a head because its merge base is the pre-squash product line, merge the product line
+   into the head resolving every conflict to the head's side, prove the new head's tree
+   equals the tested head (empty diff), and squash pinned to the new head's SHA; no lane
+   reruns. A dangerous act is performed once its answer arrives. A dangerous edit to
+   declarative runtime config (a compose file, manifest, or unit file) is written only once
+   approved, and applied in that same window. Done when the merged head is named and each
+   dangerous act is reported with its answer, or as pending with the work it holds.
+7. **Close out.** Each delivery closes on its own: check that each merge it made in a stack
+   squashed to a tree equal to its head's; archive each agent it created, then the workspace
+   it created (archiving a workspace archives none of its agents); a child of theirs that
+   must keep running is detached first, and the workspace holding it stays with its
+   worktree, recorded as still open. Remove its worktree and any leftover directory. If the
+   delivery used `--new-workspace local --cwd <path>`, `paseo project delete` the project
+   whose `paseo project ls` path equals `<path>`, never the main checkout's, nor one holding
+   a kept workspace: deleting a project deletes all its workspaces. Then write to the
+   project's record what changed, what was removed, tests run with their output, the net
+   test-line change with one line of reason, what is still open, and the times of its start,
+   first Engineer report, `PASS`, and merge, each written to the record when it happens, and
+   send `closed-out`. Every SHA, head, installed version, and branch state in `closed-out`
+   is read from the remote, the checkout, and the installed copy after its act completes,
+   never drafted ahead of it. In that same turn the Lead starts every queued delivery step 1
+   admits; with none in flight, it ends a turn only on an empty queue or with every queued
+   delivery held by a pending answer. A Lead that ends a turn with work queued keeps one
+   recurring self-prompt (a heartbeat, not the Heartbeat tier), each wake one turn that
+   re-reads `handoff.md`, starts what step 1 admits, and ends; it deletes the heartbeat once
+   its queue is empty. After each trial or usage pass (step 5), the Lead runs the
+   `test-proof-debt-audit` skill on the fastest-growing suites and deletes redundant tests
+   in a delivery of its own, through the normal review; that audit's delivery reports test
+   lines before and after in its `closed-out`. Done when `paseo ls`, `paseo workspace ls`,
+   `paseo project ls`, and `git worktree list` show nothing a delivery of this project
+   created that no delivery in flight owns or the record names as still open; report an
+   archive only after `paseo ls`, not the workspace state, no longer shows its id.
 
 ## Upward events
 
@@ -162,7 +188,8 @@ acknowledgement other than the ack below:
   holds;
 - `errored`: its previous turn died on an API or runtime error, sent first in its next turn;
 - `closed-out`: a delivery closed (step 7), with its start, first Engineer report, `PASS`,
-  and merge times, each general lesson and the next work it ranks first, or none.
+  and merge times, its net test-line change (test lines before and after for an audit
+  delivery), each general lesson and the next work it ranks first, or none.
 
 On each event or answer the Supervisor reads that project's `handoff.md` and the file named,
 and acts from them, never from memory of an earlier turn. It tells the Human only what needs
@@ -212,8 +239,17 @@ Lead's permission request for that act.
   read-only. Every rule in this section binds every subagent. Stop every subagent before
   your report, combine its results, and name each subagent and what it did in the report.
 - Run only the checks the acceptance and this file list: generating or running a mutant, or
-  any other check beyond that list, is a finding. A new test's proof is that it fails before
-  the fix and passes after, run once, plus the acceptance lanes.
+  any other check beyond that list, is a finding.
+- Extend before adding: a fix first extends an existing test or table row that can be made
+  to fail for the defect, and adds a new test only when none can. A test asserts exit codes,
+  refusal ids, and key tokens (command, flag, path, SHA), never a whole sentence of prose;
+  text that protects data, such as a step telling the user what is kept or lost, is the
+  exception. A new or extended test's proof is that it fails before the fix and passes
+  after, run once, plus the acceptance lanes.
+- Write every text file (brief, report, PR body) with the file-write tool or a quoted
+  heredoc (`<<'EOF'`), and send a prompt through the send tool or from such a file; never
+  use an unquoted heredoc, an `echo` of prose, or an inline double-quoted shell argument,
+  whose backticks, `$(...)`, and `$` variables the shell expands.
 - Work that reads or writes a secret value runs on the profile reserved for secret values;
   every other profile handles key names only. A secret value that reaches a transcript is an
   incident: report it with the rotation it needs. Every staffing prompt forbids commands
