@@ -125,17 +125,18 @@ shell to get around the policy is the same act, hidden from the tier accountable
 6. **Merge.** The Lead pushes the delivery's branch, opens or updates its PR, and
    squash-merges it once a `PASS` names that PR's head or a head with the same tree, CI is
    green on that head where the project runs CI, and the head contains the product line's
-   current head or is a stacked head (below); otherwise it merges the product line into the
-   branch, never rebasing a pushed branch, and the new head is reviewed again unless its
-   tree equals the reviewed head's. Where CI cannot run for a recorded reason, a Human
-   condition in `grants.md` that names its replacement checks and its removal condition
-   stands in for green CI, and the record, the `closed-out` event, and any `dangerous`
-   request for the merge name the CI state. Stacked merges: heads that each stack on the
-   previous one, each with its lanes and a `PASS` on itself, merge in stack order; each
-   squash lands tree-equal to its head, so none re-merges the product line or reruns a lane.
-   When the forge refuses a stacked head because its merge base is the pre-squash product
-   line, prove the product line's tree equals an ancestor of the head, merge the product
-   line into the head resolving every conflict to the head's side, prove the new head's tree
+   current head or is a stacked head meeting its proof (below); otherwise it merges the
+   product line into the branch, never rebasing a pushed branch, and the new head is
+   reviewed again unless its tree equals the reviewed head's. Where CI cannot run for a
+   recorded reason, a Human condition in `grants.md` that names its replacement checks and
+   its removal condition stands in for green CI, and the record, the `closed-out` event, and
+   any `dangerous` request for the merge name the CI state. Stacked merges: heads that each
+   stack on the previous one, each with its lanes and a `PASS` on itself, merge in stack
+   order. A stacked head need not contain the product line's current head when the product
+   line's current tree equals the tree of an ancestor of the head; its squash then lands
+   tree-equal to the head, with no product-line merge or lane rerun. When the forge refuses
+   such a head because its merge base is the pre-squash product line, merge the product line
+   into the head resolving every conflict to the head's side, prove the new head's tree
    equals the tested head (empty diff), and squash pinned to the new head's SHA; no lane
    reruns. A dangerous act is performed once its answer arrives. A dangerous edit to
    declarative runtime config (a compose file, manifest, or unit file) is written only once
