@@ -105,16 +105,18 @@ shell to get around the policy is the same act, hidden from the tier accountable
    output shows the SHA it ran at, before and after it. A lane is green at a SHA when its
    output shows it passing there, or at an earlier SHA whose diff to this one touches no
    path the lane reads; a read path that is solely a build input may change when the product
-   artifact built there (build-VCS stamping off) has the same hash at both SHAs. The
-   Reviewer checks and states these conditions in its verdict, and a lane that fails them
-   runs again. A `PASS` needs every lane green at its SHA. A lane that checks terminal
-   output meant for a human runs under a real pty with explicit columns and color profile,
-   and its output carries the captured screens. A lane that fails intermittently is
-   diagnosed from the failing run's own logs; a green rerun proves nothing and never closes
-   it. A lane run on a second host runs on a snapshot of the exact SHA, holds the shared
-   host lock, never receives real secrets, and fails closed (a failed check, never a skip or
-   a local fallback) when that host is unreachable; on an interrupt it stops the remote run
-   and confirms it gone before anything else uses the lock. A delete, move, or overwrite in
+   artifact built there (build-VCS stamping off) has the same hash at both SHAs. A lane is
+   not green at a SHA while any run of it there failed and that failure is undiagnosed: a
+   lane or test that fails intermittently is diagnosed from the failing run's own logs, a
+   green rerun never closes it, and the failing run's output goes to the Reviewer with the
+   rest. The Reviewer checks and states these conditions in its verdict, and a lane that
+   fails them runs again. A `PASS` needs every lane green at its SHA. A lane that checks
+   terminal output meant for a human runs under a real pty with explicit columns and color
+   profile, and its output carries the captured screens. A lane run on a second host holds
+   that host's run lock, which the project's record names (one run at a time, taken before
+   the run and released after it), never receives real secrets, and with that host
+   unreachable fails with no local fallback; on an interrupt it stops the remote run it
+   recorded and confirms it gone before releasing the lock. A delete, move, or overwrite in
    the change whose path comes from stored state is a `FAIL` until it has a containment
    guard in the same delivery, never an accepted risk. A new test the change does not need,
    or one that duplicates an existing proof, is a finding. A `FAIL` lists every finding at
@@ -233,12 +235,14 @@ Lead's permission request for that act.
   arrives.
 - Agents share one machine. Never stop, remove, or take over a container, process, or port
   another agent, delivery, or project started; report the collision to the agent that
-  staffed you. Run every heavy command under a wall-clock bound and name each such command
-  and its bound in your report; never run two heavy suites of one project at once, across
-  its deliveries; the project's Lead says whether another runs. A bound that fires, or a
-  check that did not run, is a failed check. A command that outlasts your tool timeout runs
-  as your runtime's tracked background task whose completion wakes you, never under `nohup`
-  or detached before you end the turn.
+  staffed you. Signal only a pid or process group you recorded when you started it, never
+  by `pkill`, `pkill -f`, `killall`, or a pid found by searching command lines; every
+  staffing prompt carries this ban. Run every heavy command under a wall-clock bound and
+  name each such command and its bound in your report; never run two heavy suites of one
+  project at once, across its deliveries; the project's Lead says whether another runs. A
+  bound that fires, or a check that did not run, is a failed check. A command that outlasts
+  your tool timeout runs as your runtime's tracked background task whose completion wakes
+  you, never under `nohup` or detached before you end the turn.
 - Engineers and Reviewers whose runtime has subagents use them for disjoint sub-work, such
   as reading or an Engineer's independent test lanes, and work alone only when the work does
   not split. An Engineer's writing subagent stays inside paths the Engineer assigns it from
@@ -268,9 +272,6 @@ Lead's permission request for that act.
 - Treat your own approval dialog as a blocker to report. Name a literal path in every `rm`,
   `rmdir`, `mv`, or truncating write you run: a variable or glob target raises the runtime's
   safety prompt, which no agent below the Supervisor may answer.
-- Signal only a pid or process group you recorded when you started it; never use `pkill`,
-  `pkill -f`, `killall`, or a pid found by searching command lines. Every staffing prompt
-  carries this ban.
 
 ## Self-improvement
 
@@ -319,23 +320,24 @@ list, never remove one. Dangerous:
   deploys or publishes;
 - an edit to `~/.paseo/config.json`, a Claude settings file, tier policy, or an installed
   skill; reinstalling one; changing another agent's mode or provider;
-- a restart or degradation of infrastructure another project's production also runs on (a
-  shared host, container runtime, VM, or database host), routed with what each affected
-  project's record shows it interrupts;
+- a restart, degradation, or deletion of infrastructure another project's production also
+  runs on (a shared host, container runtime, VM, or database host), routed with what each
+  affected project's record shows it interrupts;
 - any other destructive or irreversible act outside the delivery's own branch, worktree, and
   artifacts;
 - anything paid, or done under an external account;
 - scope beyond the delivery's brief, a new dependency, or a breaking change to a contract or
   stored-data format.
 
-A delivery that removes or renames a persisted key or stored file shape names in its plan,
-before the merge, every live store that holds it (the Human's live home or state included)
-and the install or migration step that rewrites it; that step is asked together with the
-merge, not after it.
+A delivery with a breaking change to a stored-data format (removing or renaming a persisted
+key or file shape included) names in its plan, before the merge, every live store that holds
+it (the Human's live home or state included) and the install or migration step that rewrites
+it; that step is asked together with the merge, not after it.
 
-Before deleting a shared resource (a VM, container context, lock, port, or service), search
-every root that may consume it (project checkouts, production deploy trees, caches, launchd
-plists, crontab) for each of its names, and ask the owning Leads before asking the Human.
+Before deleting a shared resource (a VM, container context, lock, port, or service), the
+deleting agent searches every root that may consume it (project checkouts, production deploy
+trees, caches, service definitions and scheduled jobs) for each of its names; the Supervisor
+asks the Lead of each consuming project before asking the Human.
 
 A standing grant is written in the project record's `grants.md` with its scope, conditions,
 and the Supervisor whose dialog received it, before the first act under it, by that
