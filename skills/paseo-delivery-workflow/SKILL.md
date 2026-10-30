@@ -87,9 +87,11 @@ shell to get around the policy is the same act, hidden from the tier accountable
    it reads, and the project's refusal and acceptance table, or none. Done when every
    writer's owned paths are disjoint and written down.
 3. **Implement.** Engineers write inside owned paths; before reporting, each runs the plan's
-   fast lane and checks its change against the refusal and acceptance table the plan names,
-   quoting both in its report. Done when every Engineer has reported, none is running, and
-   the Lead has checked each reported change against the diff.
+   fast lane with the same race or sanitizer flags as the acceptance lanes (for example a
+   race detector), so a data race is caught before hand-in, and checks its change against
+   the refusal and acceptance table the plan names, quoting both in its report. Done when
+   every Engineer has reported, none is running, and the Lead has checked each reported
+   change against the diff.
 4. **Commit.** Only the Lead commits, on the delivery's quiet tree: `git status --porcelain`
    shows only this commit's paths. Done when the commit SHA is named.
 5. **Review.** At the commit, the Lead starts the plan's acceptance lanes and end-to-end
@@ -103,25 +105,32 @@ shell to get around the policy is the same act, hidden from the tier accountable
    output shows the SHA it ran at, before and after it. A lane is green at a SHA when its
    output shows it passing there, or at an earlier SHA whose diff to this one touches no
    path the lane reads; a read path that is solely a build input may change when the product
-   artifact built there (build-VCS stamping off) has the same hash at both SHAs. The
-   Reviewer checks and states these conditions in its verdict, and a lane that fails them
-   runs again. A `PASS` needs every lane green at its SHA. A lane that checks terminal
-   output meant for a human runs under a real pty with explicit columns and color profile,
-   and its output carries the captured screens. A delete, move, or overwrite in the change
-   whose path comes from stored state is a `FAIL` until it has a containment guard in the
-   same delivery, never an accepted risk. A new test the change does not need, or one that
-   duplicates an existing proof, is a finding. A `FAIL` lists every finding at its SHA and
-   goes back to the owning writer; the same Reviewer then re-reviews the fix's diff at the
-   new SHA, and only the lanes that fail the carry rule at the new SHA run again. Every
-   finding carries a severity (High, Medium, Low, or Info), and only High and Medium block;
-   a Low or Info finding reported with a `PASS` does not reopen the review, and the head
-   goes on to step 6. A Low that is a correctness or user-visible defect goes into the next
-   queued delivery touching its area, else into the record's next work; style, wording, and
-   doc Lows join the next delivery that touches the same file, or wait for the next trial or
-   usage pass (a round of running the product to find defects). This delivery's record and
-   the receiving delivery's plan name each such finding. A delivery that only fixes Lows
-   opens no further delivery for a Low its review finds, unless that Low is a correctness
-   defect. Done when a `PASS` names the SHA it covers.
+   artifact built there (build-VCS stamping off) has the same hash at both SHAs. A lane is
+   not green at a SHA while any run of it there failed and that failure is undiagnosed: a
+   lane or test that fails intermittently is diagnosed from the failing run's own logs, a
+   green rerun never closes it, and the failing run's output goes to the Reviewer with the
+   rest. The Reviewer checks and states these conditions in its verdict, and a lane that
+   fails them runs again. A `PASS` needs every lane green at its SHA. A lane that checks
+   terminal output meant for a human runs under a real pty with explicit columns and color
+   profile, and its output carries the captured screens. A lane run on a second host holds
+   that host's run lock, which the project's record names (one run at a time, taken before
+   the run and released after it), never receives real secrets, and with that host
+   unreachable fails with no local fallback; on an interrupt it stops the remote run it
+   recorded and confirms it gone before releasing the lock. A delete, move, or overwrite in
+   the change whose path comes from stored state is a `FAIL` until it has a containment
+   guard in the same delivery, never an accepted risk. A new test the change does not need,
+   or one that duplicates an existing proof, is a finding. A `FAIL` lists every finding at
+   its SHA and goes back to the owning writer; the same Reviewer then re-reviews the fix's
+   diff at the new SHA, and only the lanes that fail the carry rule at the new SHA run
+   again. Every finding carries a severity (High, Medium, Low, or Info), and only High and
+   Medium block; a Low or Info finding reported with a `PASS` does not reopen the review,
+   and the head goes on to step 6. A Low that is a correctness or user-visible defect goes
+   into the next queued delivery touching its area, else into the record's next work; style,
+   wording, and doc Lows join the next delivery that touches the same file, or wait for the
+   next trial or usage pass (a round of running the product to find defects). This
+   delivery's record and the receiving delivery's plan name each such finding. A delivery
+   that only fixes Lows opens no further delivery for a Low its review finds, unless that
+   Low is a correctness defect. Done when a `PASS` names the SHA it covers.
 6. **Merge.** The Lead pushes the delivery's branch, opens or updates its PR, and
    squash-merges it once a `PASS` names that PR's head or a head with the same tree, CI is
    green on that head where the project runs CI, and the head contains the product line's
@@ -226,12 +235,14 @@ Lead's permission request for that act.
   arrives.
 - Agents share one machine. Never stop, remove, or take over a container, process, or port
   another agent, delivery, or project started; report the collision to the agent that
-  staffed you. Run every heavy command under a wall-clock bound and name each such command
-  and its bound in your report; never run two heavy suites of one project at once, across
-  its deliveries; the project's Lead says whether another runs. A bound that fires, or a
-  check that did not run, is a failed check. A command that outlasts your tool timeout runs
-  as your runtime's tracked background task whose completion wakes you, never under `nohup`
-  or detached before you end the turn.
+  staffed you. Signal only a pid or process group you recorded when you started it, never
+  by `pkill`, `pkill -f`, `killall`, or a pid found by searching command lines; every
+  staffing prompt carries this ban. Run every heavy command under a wall-clock bound and
+  name each such command and its bound in your report; never run two heavy suites of one
+  project at once, across its deliveries; the project's Lead says whether another runs. A
+  bound that fires, or a check that did not run, is a failed check. A command that outlasts
+  your tool timeout runs as your runtime's tracked background task whose completion wakes
+  you, never under `nohup` or detached before you end the turn.
 - Engineers and Reviewers whose runtime has subagents use them for disjoint sub-work, such
   as reading or an Engineer's independent test lanes, and work alone only when the work does
   not split. An Engineer's writing subagent stays inside paths the Engineer assigns it from
@@ -309,14 +320,24 @@ list, never remove one. Dangerous:
   deploys or publishes;
 - an edit to `~/.paseo/config.json`, a Claude settings file, tier policy, or an installed
   skill; reinstalling one; changing another agent's mode or provider;
-- a restart or degradation of infrastructure another project's production also runs on (a
-  shared host, container runtime, VM, or database host), routed with what each affected
-  project's record shows it interrupts;
+- a restart, degradation, or deletion of infrastructure another project's production also
+  runs on (a shared host, container runtime, VM, or database host), routed with what each
+  affected project's record shows it interrupts;
 - any other destructive or irreversible act outside the delivery's own branch, worktree, and
   artifacts;
 - anything paid, or done under an external account;
 - scope beyond the delivery's brief, a new dependency, or a breaking change to a contract or
   stored-data format.
+
+A delivery with a breaking change to a stored-data format (removing or renaming a persisted
+key or file shape included) names in its plan, before the merge, every live store that holds
+it (the Human's live home or state included) and the install or migration step that rewrites
+it; that step is asked together with the merge, not after it.
+
+Before deleting a shared resource (a VM, container context, lock, port, or service), the
+deleting agent searches every root that may consume it (project checkouts, production deploy
+trees, caches, service definitions and scheduled jobs) for each of its names; the Supervisor
+asks the Lead of each consuming project before asking the Human.
 
 A standing grant is written in the project record's `grants.md` with its scope, conditions,
 and the Supervisor whose dialog received it, before the first act under it, by that
