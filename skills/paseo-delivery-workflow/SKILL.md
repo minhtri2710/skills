@@ -87,9 +87,11 @@ shell to get around the policy is the same act, hidden from the tier accountable
    it reads, and the project's refusal and acceptance table, or none. Done when every
    writer's owned paths are disjoint and written down.
 3. **Implement.** Engineers write inside owned paths; before reporting, each runs the plan's
-   fast lane and checks its change against the refusal and acceptance table the plan names,
-   quoting both in its report. Done when every Engineer has reported, none is running, and
-   the Lead has checked each reported change against the diff.
+   fast lane with the same race or sanitizer flags as the acceptance lanes (for example a
+   race detector), so a data race is caught before hand-in, and checks its change against
+   the refusal and acceptance table the plan names, quoting both in its report. Done when
+   every Engineer has reported, none is running, and the Lead has checked each reported
+   change against the diff.
 4. **Commit.** Only the Lead commits, on the delivery's quiet tree: `git status --porcelain`
    shows only this commit's paths. Done when the commit SHA is named.
 5. **Review.** At the commit, the Lead starts the plan's acceptance lanes and end-to-end
@@ -107,21 +109,26 @@ shell to get around the policy is the same act, hidden from the tier accountable
    Reviewer checks and states these conditions in its verdict, and a lane that fails them
    runs again. A `PASS` needs every lane green at its SHA. A lane that checks terminal
    output meant for a human runs under a real pty with explicit columns and color profile,
-   and its output carries the captured screens. A delete, move, or overwrite in the change
-   whose path comes from stored state is a `FAIL` until it has a containment guard in the
-   same delivery, never an accepted risk. A new test the change does not need, or one that
-   duplicates an existing proof, is a finding. A `FAIL` lists every finding at its SHA and
-   goes back to the owning writer; the same Reviewer then re-reviews the fix's diff at the
-   new SHA, and only the lanes that fail the carry rule at the new SHA run again. Every
-   finding carries a severity (High, Medium, Low, or Info), and only High and Medium block;
-   a Low or Info finding reported with a `PASS` does not reopen the review, and the head
-   goes on to step 6. A Low that is a correctness or user-visible defect goes into the next
-   queued delivery touching its area, else into the record's next work; style, wording, and
-   doc Lows join the next delivery that touches the same file, or wait for the next trial or
-   usage pass (a round of running the product to find defects). This delivery's record and
-   the receiving delivery's plan name each such finding. A delivery that only fixes Lows
-   opens no further delivery for a Low its review finds, unless that Low is a correctness
-   defect. Done when a `PASS` names the SHA it covers.
+   and its output carries the captured screens. A lane that fails intermittently is
+   diagnosed from the failing run's own logs; a green rerun proves nothing and never closes
+   it. A lane run on a second host runs on a snapshot of the exact SHA, holds the shared
+   host lock, never receives real secrets, and fails closed (a failed check, never a skip or
+   a local fallback) when that host is unreachable; on an interrupt it stops the remote run
+   and confirms it gone before anything else uses the lock. A delete, move, or overwrite in
+   the change whose path comes from stored state is a `FAIL` until it has a containment
+   guard in the same delivery, never an accepted risk. A new test the change does not need,
+   or one that duplicates an existing proof, is a finding. A `FAIL` lists every finding at
+   its SHA and goes back to the owning writer; the same Reviewer then re-reviews the fix's
+   diff at the new SHA, and only the lanes that fail the carry rule at the new SHA run
+   again. Every finding carries a severity (High, Medium, Low, or Info), and only High and
+   Medium block; a Low or Info finding reported with a `PASS` does not reopen the review,
+   and the head goes on to step 6. A Low that is a correctness or user-visible defect goes
+   into the next queued delivery touching its area, else into the record's next work; style,
+   wording, and doc Lows join the next delivery that touches the same file, or wait for the
+   next trial or usage pass (a round of running the product to find defects). This
+   delivery's record and the receiving delivery's plan name each such finding. A delivery
+   that only fixes Lows opens no further delivery for a Low its review finds, unless that
+   Low is a correctness defect. Done when a `PASS` names the SHA it covers.
 6. **Merge.** The Lead pushes the delivery's branch, opens or updates its PR, and
    squash-merges it once a `PASS` names that PR's head or a head with the same tree, CI is
    green on that head where the project runs CI, and the head contains the product line's
@@ -261,6 +268,9 @@ Lead's permission request for that act.
 - Treat your own approval dialog as a blocker to report. Name a literal path in every `rm`,
   `rmdir`, `mv`, or truncating write you run: a variable or glob target raises the runtime's
   safety prompt, which no agent below the Supervisor may answer.
+- Signal only a pid or process group you recorded when you started it; never use `pkill`,
+  `pkill -f`, `killall`, or a pid found by searching command lines. Every staffing prompt
+  carries this ban.
 
 ## Self-improvement
 
@@ -317,6 +327,15 @@ list, never remove one. Dangerous:
 - anything paid, or done under an external account;
 - scope beyond the delivery's brief, a new dependency, or a breaking change to a contract or
   stored-data format.
+
+A delivery that removes or renames a persisted key or stored file shape names in its plan,
+before the merge, every live store that holds it (the Human's live home or state included)
+and the install or migration step that rewrites it; that step is asked together with the
+merge, not after it.
+
+Before deleting a shared resource (a VM, container context, lock, port, or service), search
+every root that may consume it (project checkouts, production deploy trees, caches, launchd
+plists, crontab) for each of its names, and ask the owning Leads before asking the Human.
 
 A standing grant is written in the project record's `grants.md` with its scope, conditions,
 and the Supervisor whose dialog received it, before the first act under it, by that
