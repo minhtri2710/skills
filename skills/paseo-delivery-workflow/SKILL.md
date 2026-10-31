@@ -106,38 +106,38 @@ shell to get around the policy is the same act, hidden from the tier accountable
    output shows it passing there, or at an earlier SHA whose diff to this one touches no
    path the lane reads; a read path that is solely a build input may change when the product
    artifact built there (build-VCS stamping off) has the same hash at both SHAs. A lane is
-   not green at a SHA while any run of it there failed and that failure is undiagnosed: a
-   lane or test that fails intermittently is diagnosed from the failing run's own logs, a
-   green rerun never closes it, and the failing run's output goes to the Reviewer with the
-   rest; the lane stays not green until the diagnosis is in the record. The Reviewer checks
-   and states these conditions in its verdict, and a lane that fails them runs again. A
-   `PASS` needs every lane green at its SHA. A lane that checks terminal output meant for a
-   human runs under a real pty with explicit columns and color profile, and its output
-   carries the captured screens. A lane run on a second host holds that host's run lock,
-   which the project's record names (one run at a time, taken before the run and released
-   after it), never receives real secrets, and with that host unreachable fails with no
-   local fallback; on an interrupt it stops the remote run it recorded and confirms it gone
-   before releasing the lock. A second-host run dies with its runner: the remote wrapper
-   kills its whole process group on every exit; a periodic heartbeat over the connection
-   turns a dead connection into SIGPIPE, since a dropped ssh connection with no pty sends no
-   HUP; and, under the run lock before starting, the runner checks the recorded remote
-   process group for an orphan and stops one it finds. A SIGKILL of the local runner mid-run
-   proves the whole; it runs once per change to the remote wrapper, with its output in the
-   project's record. A delete, move, or overwrite in the change whose path comes from stored
-   state is a `FAIL` until it has a containment guard in the same delivery, never an
-   accepted risk. A new test the change does not need, or one that duplicates an existing
-   proof, is a finding. A `FAIL` lists every finding at its SHA and goes back to the owning
-   writer; the same Reviewer then re-reviews the fix's diff at the new SHA, and only the
-   lanes that fail the carry rule at the new SHA run again. Every finding carries a severity
-   (High, Medium, Low, or Info), and only High and Medium block; a Low or Info finding
-   reported with a `PASS` does not reopen the review, and the head goes on to step 6. A Low
-   that is a correctness or user-visible defect goes into the next queued delivery touching
-   its area, else into the record's next work; style, wording, and doc Lows join the next
-   delivery that touches the same file, or wait for the next trial or usage pass (a round of
-   running the product to find defects). This delivery's record and the receiving delivery's
-   plan name each such finding. A delivery that only fixes Lows opens no further delivery
-   for a Low its review finds, unless that Low is a correctness defect. Done when a `PASS`
-   names the SHA it covers.
+   not green at a SHA while any run of it there failed and that failure has no diagnosis in
+   the record: a lane or test that fails intermittently is diagnosed from the failing run's
+   own logs, a green rerun never closes it, and the failing run's output goes to the
+   Reviewer with the rest. The Reviewer checks and states these conditions in its verdict,
+   and a lane that fails them runs again. A `PASS` needs every lane green at its SHA. A lane
+   that checks terminal output meant for a human runs under a real pty with explicit columns
+   and color profile, and its output carries the captured screens. A lane run on a second
+   host holds that host's run lock, which the project's record names (one run at a time,
+   taken before the run and released after it), never receives real secrets, and with that
+   host unreachable fails with no local fallback; on an interrupt it stops the remote run it
+   recorded and confirms it gone before releasing the lock. A second-host run dies with its
+   runner: the remote wrapper kills its whole process group on every exit; a periodic
+   heartbeat over the connection turns a dead connection into SIGPIPE, since a dropped ssh
+   connection with no pty sends no HUP; and, under the run lock before starting, the runner
+   checks the recorded remote process group for an orphan; with a live orphan it does not
+   start, reports the orphan to the agent that staffed it, and the lane is not green. A
+   SIGKILL of the local runner mid-run proves the whole; it runs once per change to the
+   remote wrapper, with its output in the project's record. A delete, move, or overwrite in
+   the change whose path comes from stored state is a `FAIL` until it has a containment
+   guard in the same delivery, never an accepted risk. A new test the change does not need,
+   or one that duplicates an existing proof, is a finding. A `FAIL` lists every finding at
+   its SHA and goes back to the owning writer; the same Reviewer then re-reviews the fix's
+   diff at the new SHA, and only the lanes that fail the carry rule at the new SHA run
+   again. Every finding carries a severity (High, Medium, Low, or Info), and only High and
+   Medium block; a Low or Info finding reported with a `PASS` does not reopen the review,
+   and the head goes on to step 6. A Low that is a correctness or user-visible defect goes
+   into the next queued delivery touching its area, else into the record's next work; style,
+   wording, and doc Lows join the next delivery that touches the same file, or wait for the
+   next trial or usage pass (a round of running the product to find defects). This
+   delivery's record and the receiving delivery's plan name each such finding. A delivery
+   that only fixes Lows opens no further delivery for a Low its review finds, unless that
+   Low is a correctness defect. Done when a `PASS` names the SHA it covers.
 6. **Merge.** The Lead pushes the delivery's branch, opens or updates its PR, and
    squash-merges it once a `PASS` names that PR's head or a head with the same tree, CI is
    green on that head where the project runs CI, and the head contains the product line's
@@ -233,16 +233,17 @@ Lead's permission request for that act.
   `notifyOnFinish` false; a finish notification alone wakes no one. A staffing prompt asks
   for the report this way and never for an end-of-turn report: a turn ended to wait on a
   background task spends the staffer's one finish notification, and the later report reaches
-  no one. Bound every wait on an agent you staffed: after a runtime exit or a "background
-  command was stopped" notice, check each such agent's status and re-prompt it rather than
-  waiting for a notification, since an agent that ended its turn waiting on a background
-  task the exit killed never gets its completion notice. An agent you staffed that is idle,
-  closed, or errored with its report still owed has stalled: read its `paseo logs`, then
-  re-prompt it; restaff the same scope only when it cannot resume. The Supervisor learns a
-  Lead stalled from an `errored` event, a watched answer's notification, or the Human's
-  Paseo attention list, and never polls for it. A send that returned success proves nothing:
-  check that the agent then runs a turn rather than waiting on a permission or dialog
-  request, and count the work done only when the report arrives.
+  no one. A wait on an agent you staffed that owes you a report runs as a tracked background
+  wait sized to the work (a bounded tracked wait is not a poll); its expiry, a runtime exit,
+  or a "background command was stopped" notice makes you check that agent's status at once,
+  since an agent that ended its turn waiting on a background task the exit killed never gets
+  its completion notice. An agent you staffed that is idle, closed, or errored with its
+  report still owed has stalled: read its `paseo logs`, then re-prompt it; restaff the same
+  scope only when it cannot resume. The Supervisor, to whom a Lead owes events and no
+  report, learns a Lead stalled from an `errored` event, a watched answer's notification, or
+  the Human's Paseo attention list, and never polls for it. A send that returned success
+  proves nothing: check that the agent then runs a turn rather than waiting on a permission
+  or dialog request, and count the work done only when the report arrives.
 - Agents share one machine. Never stop, remove, or take over a container, process, or port
   another agent, delivery, or project started; report the collision to the agent that
   staffed you. Never edit a script while a process runs it: a shell reads a script
