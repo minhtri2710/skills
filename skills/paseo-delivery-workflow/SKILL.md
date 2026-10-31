@@ -106,17 +106,24 @@ shell to get around the policy is the same act, hidden from the tier accountable
    output shows it passing there, or at an earlier SHA whose diff to this one touches no
    path the lane reads; a read path that is solely a build input may change when the product
    artifact built there (build-VCS stamping off) has the same hash at both SHAs. A lane is
-   not green at a SHA while any run of it there failed and that failure is undiagnosed: a
-   lane or test that fails intermittently is diagnosed from the failing run's own logs, a
-   green rerun never closes it, and the failing run's output goes to the Reviewer with the
-   rest. The Reviewer checks and states these conditions in its verdict, and a lane that
-   fails them runs again. A `PASS` needs every lane green at its SHA. A lane that checks
-   terminal output meant for a human runs under a real pty with explicit columns and color
-   profile, and its output carries the captured screens. A lane run on a second host holds
-   that host's run lock, which the project's record names (one run at a time, taken before
-   the run and released after it), never receives real secrets, and with that host
-   unreachable fails with no local fallback; on an interrupt it stops the remote run it
-   recorded and confirms it gone before releasing the lock. A delete, move, or overwrite in
+   not green at a SHA while any run of it there failed and that failure has no diagnosis in
+   the record: a lane or test that fails intermittently is diagnosed from the failing run's
+   own logs, a green rerun never closes it, and the failing run's output goes to the
+   Reviewer with the rest. The Reviewer checks and states these conditions in its verdict,
+   and a lane that fails them runs again. A `PASS` needs every lane green at its SHA. A lane
+   that checks terminal output meant for a human runs under a real pty with explicit columns
+   and color profile, and its output carries the captured screens. A lane run on a second
+   host holds that host's run lock, which the project's record names (one run at a time,
+   taken before the run and released after it), never receives real secrets, and with that
+   host unreachable fails with no local fallback; on an interrupt it stops the remote run it
+   recorded and confirms it gone before releasing the lock. A second-host run dies with its
+   runner: the remote wrapper kills its whole process group on every exit; a periodic
+   heartbeat over the connection turns a dead connection into SIGPIPE, since a dropped ssh
+   connection with no pty sends no HUP; and, under the run lock before starting, the runner
+   checks the recorded remote process group for an orphan; with a live orphan it does not
+   start, reports the orphan to the agent that staffed it, and the lane is not green. A
+   SIGKILL of the local runner mid-run proves the whole; it runs once per change to the
+   remote wrapper, with its output in the project's record. A delete, move, or overwrite in
    the change whose path comes from stored state is a `FAIL` until it has a containment
    guard in the same delivery, never an accepted risk. A new test the change does not need,
    or one that duplicates an existing proof, is a finding. A `FAIL` lists every finding at
@@ -226,23 +233,30 @@ Lead's permission request for that act.
   `notifyOnFinish` false; a finish notification alone wakes no one. A staffing prompt asks
   for the report this way and never for an end-of-turn report: a turn ended to wait on a
   background task spends the staffer's one finish notification, and the later report reaches
-  no one. An agent you staffed that is idle, closed, or errored with its report still owed
-  has stalled: read its `paseo logs`, then re-prompt it; restaff the same scope only when it
-  cannot resume. The Supervisor learns a Lead stalled from an `errored` event, a watched
-  answer's notification, or the Human's Paseo attention list, and never polls for it. A send
-  that returned success proves nothing: check that the agent then runs a turn rather than
-  waiting on a permission or dialog request, and count the work done only when the report
-  arrives.
+  no one. A wait on an agent you staffed that owes you a report runs as a tracked background
+  wait sized to the work (a bounded tracked wait is not a poll); its expiry, a runtime exit,
+  or a "background command was stopped" notice makes you check that agent's status at once,
+  since an agent that ended its turn waiting on a background task the exit killed never gets
+  its completion notice. An agent you staffed that is idle, closed, or errored with its
+  report still owed has stalled: read its `paseo logs`, then re-prompt it; restaff the same
+  scope only when it cannot resume. The Supervisor, to whom a Lead owes events and no
+  report, learns a Lead stalled from an `errored` event, a watched answer's notification, or
+  the Human's Paseo attention list, and never polls for it. A send that returned success
+  proves nothing: check that the agent then runs a turn rather than waiting on a permission
+  or dialog request, and count the work done only when the report arrives.
 - Agents share one machine. Never stop, remove, or take over a container, process, or port
   another agent, delivery, or project started; report the collision to the agent that
-  staffed you. Signal only a pid or process group you recorded when you started it, never
-  by `pkill`, `pkill -f`, `killall`, or a pid found by searching command lines; every
-  staffing prompt carries this ban. Run every heavy command under a wall-clock bound and
-  name each such command and its bound in your report; never run two heavy suites of one
-  project at once, across its deliveries; the project's Lead says whether another runs. A
-  bound that fires, or a check that did not run, is a failed check. A command that outlasts
-  your tool timeout runs as your runtime's tracked background task whose completion wakes
-  you, never under `nohup` or detached before you end the turn.
+  staffed you. Never edit a script while a process runs it: a shell reads a script
+  incrementally, so the process can execute new bytes at its old offset; edit a copy and
+  swap it in with an atomic `mv`, or wait for the run to end. Signal only a pid or process
+  group you recorded when you started it, never by `pkill`, `pkill -f`, `killall`, or a pid
+  found by searching command lines; every staffing prompt carries this ban. Run every heavy
+  command under a wall-clock bound and name each such command and its bound in your report;
+  never run two heavy suites of one project at once, across its deliveries; the project's
+  Lead says whether another runs. A bound that fires, or a check that did not run, is a
+  failed check. A command that outlasts your tool timeout runs as your runtime's tracked
+  background task whose completion wakes you, never under `nohup` or detached before you end
+  the turn.
 - Engineers and Reviewers whose runtime has subagents use them for disjoint sub-work, such
   as reading or an Engineer's independent test lanes, and work alone only when the work does
   not split. An Engineer's writing subagent stays inside paths the Engineer assigns it from
@@ -250,7 +264,10 @@ Lead's permission request for that act.
   read-only. Every rule in this section binds every subagent. Stop every subagent before
   your report, combine its results, and name each subagent and what it did in the report.
 - Run only the checks the acceptance and this file list: generating or running a mutant, or
-  any other check beyond that list, is a finding.
+  any other check beyond that list, is a finding. A script that must not reach a real
+  harness (a dry run with a stub agent CLI on `PATH`) resolves the binary to one absolute
+  path in a shell with no rc files (`zsh -f`) and aborts unless that path is the stub, since
+  an rc file can put the real binary ahead of the stub.
 - Extend before adding: a fix first extends an existing test or table row that can be made
   to fail for the defect, and adds a new test only when none can. A test asserts exit codes,
   refusal ids, and key tokens (command, flag, path, SHA), never a whole sentence of prose;
