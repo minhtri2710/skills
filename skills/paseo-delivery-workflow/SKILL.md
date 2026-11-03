@@ -121,23 +121,24 @@ shell to get around the policy is the same act, hidden from the tier accountable
    heartbeat over the connection turns a dead connection into SIGPIPE, since a dropped ssh
    connection with no pty sends no HUP; and, under the run lock before starting, the runner
    checks the recorded remote process group for an orphan; with a live orphan it does not
-   start, reports the orphan to the agent that staffed it, and the lane is not green. A
-   SIGKILL of the local runner mid-run proves the whole; it runs once per change to the
-   remote wrapper, with its output in the project's record. A delete, move, or overwrite in
-   the change whose path comes from stored state is a `FAIL` until it has a containment
-   guard in the same delivery, never an accepted risk. A new test the change does not need,
-   or one that duplicates an existing proof, is a finding. A `FAIL` lists every finding at
-   its SHA and goes back to the owning writer; the same Reviewer then re-reviews the fix's
-   diff at the new SHA, and only the lanes that fail the carry rule at the new SHA run
-   again. Every finding carries a severity (High, Medium, Low, or Info), and only High and
-   Medium block; a Low or Info finding reported with a `PASS` does not reopen the review,
-   and the head goes on to step 6. A Low that is a correctness or user-visible defect goes
-   into the next queued delivery touching its area, else into the record's next work; style,
-   wording, and doc Lows join the next delivery that touches the same file, or wait for the
-   next trial or usage pass (a round of running the product to find defects). This
-   delivery's record and the receiving delivery's plan name each such finding. A delivery
-   that only fixes Lows opens no further delivery for a Low its review finds, unless that
-   Low is a correctness defect. Done when a `PASS` names the SHA it covers.
+   start, the agent running the lane reports the orphan as a `collision`, and the lane is
+   not green. A SIGKILL of the local runner mid-run proves the whole; it runs once per
+   change to the remote wrapper, with its output in the project's record. A delete, move,
+   or overwrite in the change whose path comes from stored state is a `FAIL` until it has a
+   containment guard in the same delivery, never an accepted risk. A new test the change
+   does not need, or one that duplicates an existing proof, is a finding. A `FAIL` lists
+   every finding at its SHA and goes back to the owning writer; the same Reviewer then
+   re-reviews the fix's diff at the new SHA, and only the lanes that fail the carry rule at
+   the new SHA run again. Every finding carries a severity (High, Medium, Low, or Info),
+   and only High and Medium block; a Low or Info finding reported with a `PASS` does not
+   reopen the review, and the head goes on to step 6. A Low that is a correctness or
+   user-visible defect goes into the next queued delivery touching its area, else into the
+   record's next work; style, wording, and doc Lows join the next delivery that touches the
+   same file, or wait for the next trial or usage pass (a round of running the product to
+   find defects). This delivery's record and the receiving delivery's plan name each such
+   finding. A delivery that only fixes Lows opens no further delivery for a Low its review
+   finds, unless that Low is a correctness defect. Done when a `PASS` names the SHA it
+   covers.
 6. **Merge.** The Lead pushes the delivery's branch, opens or updates its PR, and
    squash-merges it once a `PASS` names that PR's head or a head with the same tree, CI is
    green on that head where the project runs CI, and the head contains the product line's
@@ -237,26 +238,29 @@ Lead's permission request for that act.
   wait sized to the work (a bounded tracked wait is not a poll); its expiry, a runtime exit,
   or a "background command was stopped" notice makes you check that agent's status at once,
   since an agent that ended its turn waiting on a background task the exit killed never gets
-  its completion notice. An agent you staffed that is idle, closed, or errored with its
-  report still owed has stalled: read its `paseo logs`, then re-prompt it; restaff the same
-  scope only when it cannot resume. The Supervisor, to whom a Lead owes events and no
-  report, learns a Lead stalled from an `errored` event, a watched answer's notification, or
-  the Human's Paseo attention list, and never polls for it. A send that returned success
-  proves nothing: check that the agent then runs a turn rather than waiting on a permission
-  or dialog request, and count the work done only when the report arrives.
+  its completion notice. After the check, a wait still owed is re-armed as a new bounded
+  wait, until the report arrives or you restaff the agent. An agent you staffed that is
+  idle, closed, or errored with its report still owed has stalled: read its `paseo logs`,
+  then re-prompt it; restaff the same scope only when it cannot resume. The Supervisor, to
+  whom a Lead owes events and no report, learns a Lead stalled from an `errored` event, a
+  watched answer's notification, or the Human's Paseo attention list, and never polls for
+  it. A send that returned success proves nothing: check that the agent then runs a turn
+  rather than waiting on a permission or dialog request, and count the work done only when
+  the report arrives.
 - Agents share one machine. Never stop, remove, or take over a container, process, or port
   another agent, delivery, or project started; report the collision to the agent that
-  staffed you. Never edit a script while a process runs it: a shell reads a script
-  incrementally, so the process can execute new bytes at its old offset; edit a copy and
-  swap it in with an atomic `mv`, or wait for the run to end. Signal only a pid or process
-  group you recorded when you started it, never by `pkill`, `pkill -f`, `killall`, or a pid
-  found by searching command lines; every staffing prompt carries this ban. Run every heavy
-  command under a wall-clock bound and name each such command and its bound in your report;
-  never run two heavy suites of one project at once, across its deliveries; the project's
-  Lead says whether another runs. A bound that fires, or a check that did not run, is a
-  failed check. A command that outlasts your tool timeout runs as your runtime's tracked
-  background task whose completion wakes you, never under `nohup` or detached before you end
-  the turn.
+  staffed you. Replace a file a process may be using (a script it runs, an installed file)
+  by writing the new bytes to a temp path beside it, verifying their hash, and moving them
+  in with `mv`, or wait for the run to end: a write straight to the live path can truncate
+  it in use, and a shell reads a script incrementally, so the process can execute new bytes
+  at its old offset. Signal only a pid or process group you recorded when you started it,
+  never by `pkill`, `pkill -f`, `killall`, or a pid found by searching command lines; every
+  staffing prompt carries this ban. Run every heavy command under a wall-clock bound and
+  name each such command and its bound in your report; never run two heavy suites of one
+  project at once, across its deliveries; the project's Lead says whether another runs. A
+  bound that fires, or a check that did not run, is a failed check. A command that outlasts
+  your tool timeout runs as your runtime's tracked background task whose completion wakes
+  you, never under `nohup` or detached before you end the turn.
 - Engineers and Reviewers whose runtime has subagents use them for disjoint sub-work, such
   as reading or an Engineer's independent test lanes, and work alone only when the work does
   not split. An Engineer's writing subagent stays inside paths the Engineer assigns it from
@@ -277,7 +281,8 @@ Lead's permission request for that act.
 - Write every text file (brief, report, PR body) with the file-write tool or a quoted
   heredoc (`<<'EOF'`), and send a prompt through the send tool or from such a file; never
   use an unquoted heredoc, an `echo` of prose, or an inline double-quoted shell argument,
-  whose backticks, `$(...)`, and `$` variables the shell expands.
+  whose backticks, `$(...)`, and `$` variables the shell expands. In zsh, brace a variable
+  next to a colon (`${M}:path`): `$M:t` reads as a history modifier.
 - Work that reads or writes a secret value runs on the profile reserved for secret values;
   every other profile handles key names only. A secret value that reaches a transcript is an
   incident: report it with the rotation it needs. Every staffing prompt forbids commands
@@ -335,8 +340,10 @@ list, never remove one. Dangerous:
   own origin; publishing a package, release, or tag;
 - a merge whose delivery changes CI config or the checks that decide green, or whose merge
   deploys or publishes;
-- an edit to `~/.paseo/config.json`, a Claude settings file, tier policy, or an installed
-  skill; reinstalling one; changing another agent's mode or provider;
+- an edit to `~/.paseo/config.json`, a Claude settings file, tier policy, an installed
+  skill, or an installed shared helper (a script or binary outside a repository that more
+  than one seat or project uses); reinstalling one; changing another agent's mode or
+  provider;
 - a restart, degradation, or deletion of infrastructure another project's production also
   runs on (a shared host, container runtime, VM, or database host), routed with what each
   affected project's record shows it interrupts;
@@ -345,6 +352,11 @@ list, never remove one. Dangerous:
 - anything paid, or done under an external account;
 - scope beyond the delivery's brief, a new dependency, or a breaking change to a contract or
   stored-data format.
+
+A shared helper lives in a repository and is installed only from a merged, reviewed
+commit, whose SHA is recorded where it is installed or in the owning project's record. An
+installed file is never edited in place: nothing would then show that the installed copy
+differs from the reviewed one.
 
 A delivery with a breaking change to a stored-data format (removing or renaming a persisted
 key or file shape included) names in its plan, before the merge, every live store that holds
