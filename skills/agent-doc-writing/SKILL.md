@@ -63,9 +63,8 @@ more available; keep one only as a hard guardrail, paired with the positive targ
 - One meaning lives in one place; other places cite it.
 - The environment is a source of truth. Leave one-command lookups (scripts,
   config, `--help`) to the environment and record only what looking cannot find:
-  unwritten conventions, reasons, gotchas. Record stable facts (a test command,
-  a runner, a required setting), not lists of instances that go stale (today's
-  failing tests).
+  unwritten conventions, reasons, gotchas. Of what looking cannot find, record
+  stable facts, not lists of instances that go stale (today's failing tests).
 - Test each sentence against the default: if the model already behaves that way
   without it, delete the whole sentence. The test is model-relative and settled by
   running the document, not by debate: observe whether the situation the sentence

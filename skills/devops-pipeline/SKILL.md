@@ -103,9 +103,8 @@ different environment is a distinct CI purpose; a duplicate command is not.
 Keep the check's existing command and owner visible when mapping it to a lane.
 A lane assignment holds only when its stage is shown to fire in the workflow
 that actually changes the repository. A commit-stage hook where the changes are
-not committed, a push-stage hook where they are not pushed, or a check whose
-tool is absent never fires, so its assignment stays `Not-Assessed` until the
-stage runs.
+not committed, or a push-stage hook where they are not pushed, never fires, so
+its assignment stays `Not-Assessed` until the stage is shown to fire.
 
 ### Hook stages
 
