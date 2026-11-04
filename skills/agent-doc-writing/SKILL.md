@@ -63,10 +63,14 @@ more available; keep one only as a hard guardrail, paired with the positive targ
 - One meaning lives in one place; other places cite it.
 - The environment is a source of truth. Leave one-command lookups (scripts,
   config, `--help`) to the environment and record only what looking cannot find:
-  unwritten conventions, reasons, gotchas.
+  unwritten conventions, reasons, gotchas. Of what looking cannot find, record
+  stable facts, not lists of instances that go stale (today's failing tests).
 - Test each sentence against the default: if the model already behaves that way
   without it, delete the whole sentence. The test is model-relative and settled by
-  running the document, not by debate. A leading word too weak to move the default
-  gets a stronger word.
+  running the document, not by debate: observe whether the situation the sentence
+  targets arose, whether the agent read or used it, and whether its action
+  changed. Check a kept sentence also on a task it does not target, since it can
+  add work there. Test sentences one at a time; a bundled sentence hides its own
+  cost. A leading word too weak to move the default gets a stronger word.
 - Remove lines that went stale or never bore on the task; stale layers settle
   because adding feels safe and removing feels risky.
