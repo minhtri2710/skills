@@ -88,7 +88,7 @@ def render(args: argparse.Namespace, seats: backend.Backend) -> tuple[str, str]:
     if len(run_dir.parts) < 5 or run_dir.parent.name != "runs" or run_dir.parents[2].name != "projects":
         raise ValueError(f"run dir {run_dir} is not ~/.terminal-delivery/projects/<slug>/runs/<run>")
     config = project_config.load(run_dir.parents[1] / "config.json")
-    lead = f"lead-{run_dir.parents[1].name}"
+    lead = args.lead
     head = _git(repo, "rev-parse", "--verify", f"{args.head}^{{commit}}").strip()
     if head != args.head.lower():
         raise ValueError(f"--head must be the full 40-hex SHA, got {args.head}")
@@ -162,6 +162,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--base", required=True, help="full SHA the reviewed unit starts from")
     parser.add_argument("--head", required=True, help="full SHA under review")
     parser.add_argument("--pane", required=True, help="Reviewer seat handle")
+    parser.add_argument("--lead", required=True, help="Lead seat handle; the report send block routes to it")
     parser.add_argument("--lane", required=True, choices=("tiny", "normal", "high-risk"))
     parser.add_argument("--reason", required=True, help="material reason for the lane")
     parser.add_argument("--boundary", required=True, help="acceptance boundary")

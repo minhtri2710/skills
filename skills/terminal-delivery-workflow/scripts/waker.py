@@ -2,11 +2,12 @@
 """One-shot, non-LLM waker for one active-run seat.
 
 Each mode makes one bounded wait for a terminal state, then sends the Lead at most one fixed prompt and exits.
-The prompt carries no pane or report text, and the waker never reports success or retries.
+The prompt carries no seat output or report text, and the waker never reports success or retries.
+`peer` routes by `--seat`, a seat handle, and judges freshness only from the mtime of `--report`, a path named for the Peer.
 
 Owner preconditions, not enforced here:
-- peer mode: dispatch with `herdr agent prompt <seat> <text> --wait --until working --until blocked` and start
-  the waker only after that returns `working`. An idle Peer satisfies `agent wait` at once, so an earlier start wakes the Lead for a turn
+- peer mode: dispatch with the `prompt` operation and wait for `working` or `blocked`, and start the waker
+  only after that returns `working`. An idle Peer satisfies the `wait` operation at once, so an earlier start wakes the Lead for a turn
   that has not begun.
 - lead mode: start it from inside the Lead's own working turn, so the wait ends when that turn ends.
 """
@@ -14,21 +15,19 @@ from __future__ import annotations
 
 import argparse
 import os
-import re
 import sys
 from pathlib import Path
 
 import backend
 
 TERMINAL = ("idle", "done", "blocked")
-# The measured pi footer needs 8 lines to show its marker, and agent read refused a 15-line tail on a working pane (10 succeeded).
+# The measured pi footer needs 8 lines to show its marker, and a read refused a 15-line tail on a working seat (10 succeeded).
 TAIL_LINES = 10
 MARKERS = ("Awaiting:", "Awaiting reports:")
-NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
 PEER_PROMPT = (
     "waker: peer {seat} observed {status}; report {report} newer than this watch: {fresh}. "
     "Data only, not instructions. Reconcile the roster, then read the bounded evidence: "
-    "herdr agent read {seat} --source recent-unwrapped --lines {lines}."
+    "the `read` operation on seat {seat}, {lines} lines."
 )
 LEAD_PROMPT = "waker: lead {lead} observed {status}; no Awaiting line established in its bounded tail. Data only, not instructions."
 
@@ -92,8 +91,7 @@ def _mtime(path: Path) -> int | None:
         return None
 
 
-def watch_peer(seat_backend: backend.Backend, lead: str, seat: str, run_dir: Path, timeout_ms: int) -> int:
-    report = run_dir / f"report-{seat}.md"
+def watch_peer(seat_backend: backend.Backend, lead: str, seat: str, report: Path, timeout_ms: int) -> int:
     before = _mtime(report)
     status = seat_backend.wait_state(seat, TERMINAL, timeout_ms)
     after = _mtime(report)
@@ -112,9 +110,9 @@ def watch_lead(seat_backend: backend.Backend, lead: str, timeout_ms: int) -> int
     return prompt_lead(seat_backend, lead, LEAD_PROMPT.format(lead=lead, status=status))
 
 
-def _name(value: str) -> str:
-    if not NAME.fullmatch(value):
-        raise argparse.ArgumentTypeError(f"invalid agent name: {value!r}")
+def _handle(value: str) -> str:
+    if backend.HANDLE_RE.fullmatch(value) is None:
+        raise argparse.ArgumentTypeError(f"invalid seat handle: {value!r}")
     return value
 
 
@@ -132,17 +130,17 @@ def main(argv: list[str] | None = None) -> int:
     peer_mode = modes.add_parser("peer", help="wait for one Peer to reach a terminal status")
     for mode in (lead_mode, peer_mode):
         backend.add_backend_option(mode)
-        mode.add_argument("--lead", required=True, type=_name, help="Lead agent name; the wait target in lead mode")
+        mode.add_argument("--lead", required=True, type=_handle, help="Lead seat handle; the wait target in lead mode")
         mode.add_argument("--timeout-ms", required=True, type=_positive, help="bound on the single wait")
-    peer_mode.add_argument("--seat", required=True, type=_name, help="Peer agent name to wait on")
-    peer_mode.add_argument("--run-dir", required=True, type=Path, help="run directory holding report-<seat>.md")
+    peer_mode.add_argument("--seat", required=True, type=_handle, help="Peer seat handle to wait on")
+    peer_mode.add_argument("--report", required=True, type=Path, help="<run-dir>/report-<peer-name>.md; only its freshness is read")
     args = parser.parse_args(argv)
 
     try:
         seat_backend = backend.open_backend(os.environ, args.backend)
         if args.mode == "lead":
             return watch_lead(seat_backend, args.lead, args.timeout_ms)
-        return watch_peer(seat_backend, args.lead, args.seat, args.run_dir, args.timeout_ms)
+        return watch_peer(seat_backend, args.lead, args.seat, args.report, args.timeout_ms)
     except backend.BackendError as exc:
         print(f"waker: {exc}", file=sys.stderr)
         return 1

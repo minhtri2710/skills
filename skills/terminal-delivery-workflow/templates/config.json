@@ -1,5 +1,5 @@
 {
-  "lead-kind": "<Human-selected Lead Herdr kind>",
+  "lead-kind": "<Human-selected Lead agent kind>",
   "lead-args": ["<exact Human-approved Lead model and posture argv>"],
   "engineer-kind": "<preferred agent kind for Engineer Peers>",
   "engineer-args": ["<exact native argv after -- for the Engineer kind>"],
@@ -10,7 +10,7 @@
   "engineer-fallback-args": ["<exact native argv after -- for the fallback Engineer kind>"],
   "reviewer-fallback-args": ["<exact native argv after -- for the fallback Reviewer kind>"],
   "launch-profiles": {
-    "<exact Herdr kind>": {
+    "<exact agent kind>": {
       "seat-argv": [],
       "peer-argv": [],
       "peer-settings-json": {},

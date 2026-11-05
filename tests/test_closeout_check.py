@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Tests for the repository-owned, pane-level closeout checker."""
+"""Tests for the repository-owned, seat-level closeout checker."""
 from __future__ import annotations
 
 import contextlib
@@ -42,13 +42,13 @@ def tearDownModule() -> None:
     _NEVER_RUN.stop()
 
 
-def add_peer(fake: FakeBackend, canonical: Path, name: str, pane: str, *, agent: bool = True,
+def add_peer(fake: FakeBackend, canonical: Path, name: str, seat: str, *, agent: bool = True,
              processes: list[dict[str, Any]] | None = None) -> None:
-    """An open peer pane; `agent=False` leaves the pane open with no agent registered for it."""
+    """An open peer seat; `agent=False` leaves its terminal open with no agent registered for it."""
     if agent:
-        fake.add_seat(pane, name=name, state="idle", cwd=str(canonical), processes=processes)
+        fake.add_seat(seat, name=name, state="idle", cwd=str(canonical), processes=processes)
     else:
-        fake.add_terminal(pane, cwd=str(canonical), processes=processes)
+        fake.add_terminal(seat, cwd=str(canonical), processes=processes)
 
 
 def count_folds(run):
@@ -96,14 +96,14 @@ class CloseoutCheckTest(unittest.TestCase):
             "canonical_checkout": str(self.canonical),
             "gates_ledger": str(self.ledger),
             "persistent": [
-                {"role": "Lead", "name": "lead-beo-skills", "pane": "w1:p1"},
-                {"role": "Human Supervisor", "name": "supervisor", "pane": "w1:p2"},
+                {"role": "Lead", "name": "lead-beo-skills", "seat": "w1:p1"},
+                {"role": "Human Supervisor", "name": "supervisor", "seat": "w1:p2"},
             ],
             "peers": [
                 {"issue": "teardown-clarify", "role": "Engineer",
-                 "name": "eng-teardown", "pane": "w1:p3"},
+                 "name": "eng-teardown", "seat": "w1:p3"},
                 {"issue": "teardown-clarify", "role": "Reviewer",
-                 "name": "review-teardown", "pane": "w1:p4"},
+                 "name": "review-teardown", "seat": "w1:p4"},
             ],
         }
         self.fake.add_terminal("w1:p1", cwd=str(self.canonical))
@@ -264,9 +264,9 @@ class CloseoutCheckTest(unittest.TestCase):
         self.fake.remove("w1:p4")
         result = closeout_check.check_closeout(self.record, self.fake)
         self.assertTrue(result.passed, result.findings)
-        self.assertEqual(result.checked_panes, ("w1:p3", "w1:p4"))
+        self.assertEqual(result.checked_seats, ("w1:p3", "w1:p4"))
 
-    def test_live_server_in_peer_pane_names_squatting_server_anti_pattern(self):
+    def test_live_server_in_peer_seat_names_squatting_server_anti_pattern(self):
         add_peer(self.fake, self.canonical, "eng-teardown", "w1:p3", agent=False, processes=[{
             "argv0": "npm",
             "command": "npm run dev",
@@ -317,9 +317,9 @@ class CloseoutCheckTest(unittest.TestCase):
             "zero lead": [supervisor],
             "two human supervisors": [
                 lead, supervisor,
-                {"role": "Human Supervisor", "name": "supervisor-2", "pane": "w1:p5"},
+                {"role": "Human Supervisor", "name": "supervisor-2", "seat": "w1:p5"},
             ],
-            "unknown role": [lead, {"role": "Architect", "name": "architect", "pane": "w1:p5"}],
+            "unknown role": [lead, {"role": "Architect", "name": "architect", "seat": "w1:p5"}],
         }
         for label, persistent in cases.items():
             with self.subTest(label):
@@ -332,35 +332,35 @@ class CloseoutCheckTest(unittest.TestCase):
                     result.findings[0],
                 )
 
-    def test_duplicate_persistent_pane_is_rejected(self):
+    def test_duplicate_persistent_seat_is_rejected(self):
         record = dict(self.record)
         record["persistent"] = [
             self.record["persistent"][0],
-            {"role": "Human Supervisor", "name": "supervisor", "pane": "w1:p1"},
+            {"role": "Human Supervisor", "name": "supervisor", "seat": "w1:p1"},
         ]
-        with self.assertRaisesRegex(ValueError, "persistent pane 'w1:p1' is duplicated"):
+        with self.assertRaisesRegex(ValueError, "persistent seat 'w1:p1' is duplicated"):
             closeout_check._validate_record(record)
 
     def test_duplicate_persistent_name_is_rejected(self):
         record = dict(self.record)
         record["persistent"] = [
             self.record["persistent"][0],
-            {"role": "Human Supervisor", "name": "lead-beo-skills", "pane": "w1:p2"},
+            {"role": "Human Supervisor", "name": "lead-beo-skills", "seat": "w1:p2"},
         ]
         with self.assertRaisesRegex(ValueError, "persistent name 'lead-beo-skills' is duplicated"):
             closeout_check._validate_record(record)
 
-    def test_pane_read_failure_fails_closed(self):
-        self.fake.script("get_terminal", backend.BackendUnavailable("herdr pane get timed out"))
+    def test_terminal_read_failure_fails_closed(self):
+        self.fake.script("get_terminal", backend.BackendUnavailable("get_terminal timed out"))
         result = closeout_check.check_closeout(self.record, self.fake)
         self.assertFalse(result.passed)
-        self.assertTrue(any("w1:p3: pane read failed" in finding for finding in result.findings))
+        self.assertTrue(any("w1:p3: terminal read failed" in finding for finding in result.findings))
 
-    def test_mismatched_pane_evidence_fails_closed(self):
+    def test_mismatched_terminal_evidence_fails_closed(self):
         self.fake.script("get_terminal", backend.Seat(handle="w1:p9", cwd=str(self.canonical)))
         result = closeout_check.check_closeout(self.record, self.fake)
         self.assertFalse(result.passed)
-        self.assertTrue(any("w1:p3: backend returned mismatched pane evidence" in finding
+        self.assertTrue(any("w1:p3: backend returned mismatched terminal evidence" in finding
                             for finding in result.findings))
 
     def test_agent_and_process_read_failures_are_findings_not_passes(self):
@@ -370,13 +370,13 @@ class CloseoutCheckTest(unittest.TestCase):
         self.assertFalse(result.passed)
         text = "\n".join(result.findings)
         self.assertIn("w1:p3: agent read failed: agent get timed out", text)
-        self.assertIn("eng-teardown pane w1:p3 remains open", text)
+        self.assertIn("eng-teardown seat w1:p3 remains open", text)
         self.assertNotIn("despite agent_not_found", text)
         self.assertIn("w1:p3: process read failed: process-info lacks foreground_processes", text)
 
     def test_malformed_opaque_handle_is_rejected_without_boundary_call(self):
         record = dict(self.record)
-        record["peers"] = [dict(self.record["peers"][0], pane="$(touch should-not-run)")]
+        record["peers"] = [dict(self.record["peers"][0], seat="$(touch should-not-run)")]
         result = closeout_check.check_closeout(record, self.fake)
         self.assertFalse(result.passed)
         self.assertIn("malformed staffing record", result.findings[0])
@@ -399,8 +399,8 @@ class CloseoutCheckTest(unittest.TestCase):
         self.assertEqual(
             record["persistent"],
             [
-                {"role": "Lead", "name": "lead-project-slug", "pane": "w0:pLead"},
-                {"role": "Human Supervisor", "name": "supervisor", "pane": "w0:pSupervisor"},
+                {"role": "Lead", "name": "lead-project-slug", "seat": "w0:pLead"},
+                {"role": "Human Supervisor", "name": "supervisor", "seat": "w0:pSupervisor"},
             ],
         )
 

@@ -6,12 +6,12 @@
     {
       "role": "Lead",
       "name": "lead-project-slug",
-      "pane": "w0:pLead"
+      "seat": "w0:pLead"
     },
     {
       "role": "Human Supervisor",
       "name": "supervisor",
-      "pane": "w0:pSupervisor"
+      "seat": "w0:pSupervisor"
     }
   ],
   "peers": [
@@ -19,13 +19,13 @@
       "issue": "issue-id",
       "role": "Engineer",
       "name": "eng-issue-id",
-      "pane": "w0:pEngineer"
+      "seat": "w0:pEngineer"
     },
     {
       "issue": "issue-id",
       "role": "Reviewer",
       "name": "review-issue-id",
-      "pane": "w0:pReviewer"
+      "seat": "w0:pReviewer"
     }
   ]
 }

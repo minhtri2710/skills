@@ -66,7 +66,7 @@ def staffing(head: str) -> str:
         f"HEAD: {head}\n"
         "REVIEWER: review-aaaaaaaaaaaa kind=claude model=claude-opus-5-5 posture=allowlisted "
         f"dialog=denied dialog-tools=ask_user_question dialog-deny=ask_user_question dialog-source=pi-1.0.4-runtime-inventory skills=none extensions=none fence=none(no OS write fence is needed) "
-        f"pane=w1:p1 workspace=w1 head={head}\n"
+        f"seat=w1:p1 workspace=w1 head={head}\n"
     )
 
 
@@ -151,15 +151,17 @@ class ReviewerCharterTemplateTest(unittest.TestCase):
         self.assertIsNone(charter_lint.PLACEHOLDER_RE.search(self.filled.replace("<<'", "'")))
 
     def test_report_block_matches_report_by_prompt_template(self):
-        # The lines that carry no command are shared verbatim; the commands are the <send_block> slot.
+        # Every line of the shared block appears verbatim in the charter; the commands are the <send_block> slot.
         template = TEMPLATE.read_text(encoding="utf-8")
-        shared = [line for line in REPORT_BLOCK.read_text(encoding="utf-8").strip().splitlines() if "herdr " not in line]
-        self.assertGreaterEqual(len(shared), 3)
+        block = REPORT_BLOCK.read_text(encoding="utf-8")
+        shared = [line for line in block.strip().splitlines() if line != "<send_block>"]
+        self.assertGreaterEqual(len(shared), 5)
         for line in shared:
             line = line.replace("<run-dir>", "<run_dir>").replace("<peer-name>", "<peer_name>")
             with self.subTest(line=line[:60]):
-                self.assertIn(line.replace("<lead-name>", "<lead_name>"), template)
+                self.assertIn(line, template)
         self.assertEqual(template.count("<send_block>"), 1)
+        self.assertEqual(block.count("<send_block>"), 1)
 
     def test_the_filled_charter_holds_the_send_block_of_the_backend_that_rendered_it(self):
         block = herdr.Adapter({}).send_block(LEAD, f"{RUN_DIR}/report-{PEER}.md")

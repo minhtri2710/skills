@@ -21,7 +21,7 @@ import charter_lint
 import charter_render
 from fake_backend import FakeBackend
 
-LEAD = "lead-demo"
+LEAD = "w7:p1"
 OPEN_BACKEND = backend.open_backend
 _real_run = subprocess.run
 
@@ -81,7 +81,7 @@ class CharterRenderTest(unittest.TestCase):
         self.staffing.write_text(
             f"{seats}HEAD: {self.head}\nREVIEWER: review-x kind=claude model=m posture=allowlisted "
             "dialog=absent dialog-tools=none dialog-deny=none dialog-source=inventory skills=none "
-            f"extensions=none fence=none(test) pane=w7:p3 workspace=w7 head={self.head}\n",
+            f"extensions=none fence=none(test) seat=w7:p3 workspace=w7 head={self.head}\n",
             encoding="utf-8",
         )
 
@@ -90,7 +90,7 @@ class CharterRenderTest(unittest.TestCase):
         with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
             code = charter_render.main([
                 "--repo", str(self.repo), "--run-dir", str(self.run_dir), "--base", self.base,
-                "--head", self.head, "--pane", "w7:p3", "--lane", "normal", "--reason", "new script",
+                "--head", self.head, "--pane", "w7:p3", "--lead", LEAD, "--lane", "normal", "--reason", "new script",
                 "--boundary", "b.py exists", "--validation", "G1", "--check", "git diff --check",
                 "--staffing", str(self.staffing),
                 *extra,
@@ -108,7 +108,7 @@ class CharterRenderTest(unittest.TestCase):
             "Mode: solo-Lead. Declared source scope: é/AGENTS.md, é/b.py.",
             f"Scope authors (staffing record): {LEAD} (claude claude-opus-5-5).",
             f"Governing contracts: {self.repo}/AGENTS.md, {self.repo}/é/AGENTS.md;",
-            "pane w7:p3",
+            "seat w7:p3",
             self.fake.send_block(LEAD, f"{self.run_dir}/report-review-{self.head[:12]}.md"),
             "1. git diff --check",
             f"`python3 {SCRIPTS / 'bounded_run.py'} --seconds N -- CMD`",
@@ -120,11 +120,11 @@ class CharterRenderTest(unittest.TestCase):
             ])
         self.assertEqual((lint, lint_err.getvalue()), (0, ""))
 
-    def render_with_template(self, template: str, pane: str = "w7:p3") -> tuple[int, str]:
+    def render_with_template(self, template: str, pane: str = "w7:p3", lead: str = LEAD) -> tuple[int, str]:
         path = self.run_dir.parent / "template.txt"
         path.write_text(template, encoding="utf-8")
         with mock.patch.object(charter_render, "TEMPLATE", path):
-            code, _, err = self.render("--pane", pane)
+            code, _, err = self.render("--pane", pane, "--lead", lead)
         return code, err
 
     def test_the_send_block_is_the_backends_block_for_the_run_report(self):
@@ -143,6 +143,14 @@ class CharterRenderTest(unittest.TestCase):
                 text = (self.run_dir / f"charter-review-{self.head[:12]}.md").read_text(encoding="utf-8")
                 self.assertEqual(text, handle)
 
+    def test_the_lead_handle_is_the_one_given_not_a_name_derived_from_the_project(self):
+        code, err = self.render_with_template("<lead_name>\n<send_block>\n", "w7:p3", "t9")
+        self.assertEqual((code, err), (0, ""))
+        report = f"{self.run_dir}/report-review-{self.head[:12]}.md"
+        self.assertEqual(self.fake.calls, [("send_block", "t9", report)])
+        text = (self.run_dir / f"charter-review-{self.head[:12]}.md").read_text(encoding="utf-8")
+        self.assertEqual(text, f"t9\n{self.fake.send_block('t9', report)}\n")
+
     def test_the_backend_flag_reaches_detect_as_explicit(self):
         out, err = io.StringIO(), io.StringIO()
         with mock.patch.object(backend, "open_backend", wraps=OPEN_BACKEND), \
@@ -150,7 +158,7 @@ class CharterRenderTest(unittest.TestCase):
                 contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
             code = charter_render.main([
                 "--repo", str(self.repo), "--run-dir", str(self.run_dir), "--base", self.base,
-                "--head", self.head, "--pane", "w7:p3", "--lane", "normal", "--reason", "r",
+                "--head", self.head, "--pane", "w7:p3", "--lead", LEAD, "--lane", "normal", "--reason", "r",
                 "--boundary", "b", "--validation", "G1", "--check", "c", "--staffing", str(self.staffing),
                 "--backend", "herdr@w7:p3",
             ])
@@ -185,8 +193,8 @@ class CharterRenderTest(unittest.TestCase):
     def partitioned(self, owned: str) -> None:
         self.write_staffing(
             "MODE: partitioned\nLEAD: kind=claude model=claude-opus-5-5 workspace=w7\n"
-            f"ENGINEER: eng-a kind=claude model=claude-haiku-5-5 posture=bypassed pane=w7:p4 owned={owned} extensions=none\n"
-            "ENGINEER: eng-b kind=pi model=luna posture=bypassed pane=w7:p5 owned=docs/ extensions=none\n"
+            f"ENGINEER: eng-a kind=claude model=claude-haiku-5-5 posture=bypassed seat=w7:p4 owned={owned} extensions=none\n"
+            "ENGINEER: eng-b kind=pi model=luna posture=bypassed seat=w7:p5 owned=docs/ extensions=none\n"
         )
 
     def test_partitioned_authors_are_the_engineers_owning_the_changed_paths(self):
