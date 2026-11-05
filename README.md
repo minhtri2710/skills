@@ -47,7 +47,6 @@ skills/<name>/
 | `doc-manager` | Reconcile Markdown documentation with code, cite non-obvious claims to `path:line`, and validate runbook sections through a safe check-only path. |
 | `effort-charting` | Chart a foggy effort as decision tickets, then split the approved spec into tracer slices with blocking edges. |
 | `frontend-design` | Implement a UI change whose rendered hierarchy, flow, or responsive behavior is part of acceptance. |
-| `herdr-lead-peer` | Run bounded delivery in Herdr with a Lead and its Peers only, no Supervisor seat. |
 | `human-step-wizard` | Generate a resumable bash wizard for the credential and dashboard steps only a human can do. |
 | `jev` | Run optional advisory triage for structured findings and bounded forks. |
 | `llm-trust-boundary` | Harden a feature that calls a model, exposes tools to one, or retrieves documents for one. |
