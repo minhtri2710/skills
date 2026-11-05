@@ -116,7 +116,7 @@ class AmbiguousTest(unittest.TestCase):
             self.assertEqual(backend.detect(environ, explicit("hc@t7")), "hc")
 
     def test_explicit_for_a_matched_but_unregistered_backend_is_unsupported(self) -> None:
-        with self.assertRaises(backend.Unsupported):
+        with mock.patch.dict(backend.ADAPTERS, {"herdr": "backends.herdr"}, clear=True), self.assertRaises(backend.Unsupported):
             backend.detect({**HC, **HERDR}, explicit("hc@t7"))
 
     def test_explicit_naming_a_backend_whose_signature_does_not_hold_fails_closed(self) -> None:
@@ -258,7 +258,7 @@ class OpenAndCliTest(unittest.TestCase):
 
     def test_open_backend_does_not_touch_an_adapter_when_detection_fails(self) -> None:
         with mock.patch.object(backend.importlib, "import_module") as module:
-            for environ in ({}, {**HC, **HERDR}, HC):
+            for environ in ({}, {**HC, **HERDR}, {"HC_TERMINAL_ID": "t7"}):
                 with self.subTest(environ=sorted(environ)), self.assertRaises(backend.BackendError):
                     backend.open_backend(environ)
         module.assert_not_called()

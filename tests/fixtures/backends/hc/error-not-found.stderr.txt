@@ -1,0 +1,2 @@
+error: no terminal t99
+hint: hc ls lists live terminals
