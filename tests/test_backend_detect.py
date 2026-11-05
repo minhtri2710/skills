@@ -258,7 +258,7 @@ class OpenAndCliTest(unittest.TestCase):
 
     def test_open_backend_does_not_touch_an_adapter_when_detection_fails(self) -> None:
         with mock.patch.object(backend.importlib, "import_module") as module:
-            for environ in ({}, {**HC, **HERDR}, HC):
+            for environ in ({}, {**HC, **HERDR}, {"HC_TERMINAL_ID": "t7"}):
                 with self.subTest(environ=sorted(environ)), self.assertRaises(backend.BackendError):
                     backend.open_backend(environ)
         module.assert_not_called()

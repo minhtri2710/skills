@@ -1,0 +1,1 @@
+{"address":"t9","name":"eng-b","labels":{},"argv":["pi"],"cwd":"/work/checkout","keep":false,"state":"finished","pid":null,"exit_code":1,"signal":null,"reason":"exited","created_ms":1762400000000,"finished_ms":1762400500000,"screen":"exact","cols":120,"rows":40,"identity":"ghostty","status":null,"status_ms":null,"turn":5,"reported":true,"title":"","parent":null,"notify":false}

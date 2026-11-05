@@ -1,0 +1,42 @@
+Every file here is `schema-derived`: written by hand from herdr-core source, never captured from a
+running hc (the Human's live proof, design section 9.4, is pending). Source repository:
+/Users/beowulf/Work/herdr-core at 52d7c56 (v0.1.17), read only. Field values are illustrative; only
+the shapes, field names, and the quoted words are from source.
+
+  get-live.json, get-live-no-status.json, get-finished-ok.json, get-finished-failed.json, kill.json
+      `hc get --json` and `hc kill --json` print the full terminal record: schema/hc.openrpc.json
+      components.schemas.Terminal (required: address labels argv cwd state created_ms screen cols
+      rows; also status, foreground, exit_code, reason, parent, turn) and crates/herdr-core/src/
+      terminals.rs:14-60. status is the OSC 7501 record {state, app, ...} (status.rs:14-29);
+      foreground is {pid, name, argv, cwd} of the foreground process group leader
+      (foreground.rs:12-21), absent once finished. reason "killed" is listed at terminals.rs:42-49.
+  ls.json, ls-non-object.json
+      `hc ls --json` prints {terminals: [short(t)], hidden_finished} (cli.rs:420-436 Cmd::Ls;
+      cli/output.rs:142-155 short: address name template parent state turn exit_code signal reason
+      cwd, status as the bare state word, agent = status.app else basename of argv[0]; no argv, no
+      labels). ls-non-object.json is a malformed variant.
+  run-bg.json
+      `hc run --bg --json` prints short(result) plus first_message/wait/output when present
+      (cli.rs:388-418 Cmd::Run); no template, so only the short fields.
+  send-started.json, send-not-started.json, send-unreported.json
+      `hc send --json`: schema SendResult {status, turn, started, wait} (api.rs terminal_send);
+      started true/false after a 5 s window, null when the program never reports status
+      (input.rs:70-72,203-212).
+  wait-idle.json, wait-error.json, wait-exit-ok.json, wait-exit-failed.json, wait-timeout.json,
+  wait-message.json
+      `hc wait --json`: schema WaitResult {terminal, ended, reason, status, turn, exit_code, signal,
+      children, from} (wait.rs:23-50); reasons listed at wait.rs:25-33 and api.rs terminal_send.
+  read.txt
+      `hc read` prints plain text, with the "[hc] only its screen: it is working; ..." note
+      appended while working (cli.rs:465-480; note text at 471).
+  interrupt.json
+      `hc interrupt --json`: InterruptResult {outcome, key}; outcomes stopped, exited,
+      still_working, unknown (api.rs:549-556).
+  rm.json
+      `hc rm --json`: RemoveResult {removed} (api.rs:297-312).
+  error-not-found.stderr.json, error-blocked.stderr.json, error-live.stderr.json
+      stderr {"error": {kind, message, hint}} (cli.rs:207-218 fail). blocked message and hint are
+      the text at input.rs:164-176; live at api.rs:301-306; not_found text is illustrative.
+  error-not-found.stderr.txt
+      the non-JSON form `error: <message>` / `hint: <hint>` (cli.rs:207-218) with exit code 3
+      (rpc.rs:55-70), for the exit-code fallback.

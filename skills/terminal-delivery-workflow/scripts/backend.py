@@ -66,9 +66,10 @@ STATES = ("idle", "working", "done", "blocked", "error", "unknown")
 SEAT_ERROR_KINDS = ("not_found", "blocked", "not_started")
 HANDLE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$")
 
-# One line per backend. Each module defines `Adapter`; S4 and S5 add the hc and rex lines.
+# One line per backend. Each module defines `Adapter`.
 ADAPTERS = {
     "herdr": "backends.herdr",
+    "hc": "backends.hc",
     "rex": "backends.rex",
 }
 

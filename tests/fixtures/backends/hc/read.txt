@@ -1,0 +1,3 @@
+> Fix the failing test in x.rs
+● Reading x.rs
+[hc] only its screen: it is working; read again once it stops for its history
