@@ -1,0 +1,23 @@
+Rex fixtures. Nothing here was produced by running rex in this repository.
+
+Copied byte for byte from sidekick-ultra.nvim, tests/fixtures/rex/ (sidekick-ultra.nvim live
+runs of 2026-11-05 against Rex Beta build 1696, CLI 0.0.1793377904-ge6592f; ids, pids, paths and users are
+placeholders). UNVERIFIED.txt is that directory's own provenance note and says which files are live-verified:
+  process_claude.json, process_codex.json, process_shell.json   verified live, `rex block call ... process`
+  process_none.json        NOT verified live: the missing `foreground` key and the {"code":0} last_exit are guesses
+  process_bad.json         deliberately malformed (string pid), not a rex shape
+  status_empty.json        verified live, `rex block call ... program_status`
+  status_working.json, status_blocked.json, status_blocked_other.json
+                           NOT verified live: record fields {state,kind,app,msg,owner.pid} are firstmate's findings
+                           (firstmate, docs/verification/runtime-backends.md, section Rex)
+  status_bad.json          deliberately malformed (records is a string)
+  UNVERIFIED.txt           copied for provenance; it also names fixtures this repository does not carry
+
+Written by hand from third-party adapter code (shape only, adapter-code-derived, never recorded):
+  block-ls.json            `rex block ls -s S --json` -> .blocks[]{block_id,label,window_id}; shape from
+                           munsu, internal/pane/rex.go:109-112 (rinfo fields block_id, label,
+                           window_id); the ids and labels are placeholders; the empty label is an assumption
+  whoami.json              `rex whoami --json` -> .endpoint; firstmate, docs/verification/runtime-backends.md:2321
+                           and bin/backends/rex.sh:214; other fields unknown and omitted
+  capture.txt              `rex capture -s S -b B --trim` plain text, scrollback plus screen; hand-written sample
+                           (the capture command is verified live, runtime-backends.md:2327; no reply was recorded)

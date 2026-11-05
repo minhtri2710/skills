@@ -43,14 +43,23 @@ class SingleSignatureTest(unittest.TestCase):
     def test_only_herdr(self) -> None:
         self.assertEqual(backend.detect(HERDR), "herdr")
 
-    def test_only_hc_is_a_defined_unsupported_until_its_adapter_exists(self) -> None:
-        with self.assertRaises(backend.Unsupported) as caught:
-            backend.detect(HC)
-        self.assertIn("hc", str(caught.exception))
-
-    def test_only_rex_is_a_defined_unsupported_until_its_adapter_exists(self) -> None:
-        with self.assertRaises(backend.Unsupported):
-            backend.detect(REX)
+    def test_each_signature_detects_when_registered_and_is_unsupported_when_not(self) -> None:
+        for name, environ in (("herdr", HERDR), ("hc", HC), ("rex", REX)):
+            with self.subTest(name, table="real"):
+                if name in backend.ADAPTERS:
+                    self.assertEqual(backend.detect(environ), name)
+                else:
+                    with self.assertRaises(backend.Unsupported):
+                        backend.detect(environ)
+            with self.subTest(name, table="registered"), mock.patch.dict(
+                backend.ADAPTERS, {name: f"backends.{name}"}
+            ):
+                self.assertEqual(backend.detect(environ), name)
+            others = {key: value for key, value in backend.ADAPTERS.items() if key != name}
+            with self.subTest(name, table="not registered"), mock.patch.dict(backend.ADAPTERS, others, clear=True):
+                with self.assertRaises(backend.Unsupported) as caught:
+                    backend.detect(environ)
+                self.assertIn(name, str(caught.exception))
 
     def test_registered_hc_and_rex_adapters_detect(self) -> None:
         with mock.patch.dict(backend.ADAPTERS, {"hc": "backends.hc", "rex": "backends.rex"}):
@@ -254,8 +263,13 @@ class OpenAndCliTest(unittest.TestCase):
                     backend.open_backend(environ)
         module.assert_not_called()
 
-    def test_adapter_table_has_one_line_per_backend_and_only_herdr_now(self) -> None:
-        self.assertEqual(backend.ADAPTERS, {"herdr": "backends.herdr"})
+    def test_adapter_table_names_an_importable_adapter_per_registered_backend(self) -> None:
+        self.assertIn("herdr", backend.ADAPTERS)
+        self.assertLessEqual(set(backend.ADAPTERS), set(backend._SIGNATURES))
+        for name, module in backend.ADAPTERS.items():
+            with self.subTest(name):
+                self.assertEqual(module, f"backends.{name}")
+                self.assertTrue(hasattr(backend.importlib.import_module(module), "Adapter"))
 
     def test_whoami_prints_backend_and_own_handle(self) -> None:
         fake = FakeBackend(handle="w1:p1")
