@@ -10,14 +10,37 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 SCRIPTS = Path(__file__).resolve().parents[1] / "skills" / "terminal-delivery-workflow" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
+sys.path.insert(0, str(Path(__file__).parent))
 
+import backend
 import charter_lint
 import charter_render
+from fake_backend import FakeBackend
 
 LEAD = "lead-demo"
+OPEN_BACKEND = backend.open_backend
+_real_run = subprocess.run
+
+
+def _git_only(command, *args, **kwargs):
+    if command[0] != "git":
+        raise AssertionError(f"tests run only git, not {command[0]}")
+    return _real_run(command, *args, **kwargs)
+
+
+_PATCH = mock.patch.object(subprocess, "run", side_effect=_git_only)
+
+
+def setUpModule() -> None:
+    _PATCH.start()
+
+
+def tearDownModule() -> None:
+    _PATCH.stop()
 
 
 class CharterRenderTest(unittest.TestCase):
@@ -49,6 +72,10 @@ class CharterRenderTest(unittest.TestCase):
         ).stdout.split()
         self.staffing = self.run_dir / "staffing.txt"
         self.write_staffing("MODE: solo-Lead\nLEAD: kind=claude model=claude-opus-5-5 workspace=w7\n")
+        self.fake = FakeBackend()
+        opened = mock.patch.object(backend, "open_backend", return_value=self.fake)
+        opened.start()
+        self.addCleanup(opened.stop)
 
     def write_staffing(self, seats: str) -> None:
         self.staffing.write_text(
@@ -81,7 +108,8 @@ class CharterRenderTest(unittest.TestCase):
             "Mode: solo-Lead. Declared source scope: é/AGENTS.md, é/b.py.",
             f"Scope authors (staffing record): {LEAD} (claude claude-opus-5-5).",
             f"Governing contracts: {self.repo}/AGENTS.md, {self.repo}/é/AGENTS.md;",
-            "pane w7:p3, workspace w7.",
+            "pane w7:p3",
+            self.fake.send_block(LEAD, f"{self.run_dir}/report-review-{self.head[:12]}.md"),
             "1. git diff --check",
             f"`python3 {SCRIPTS / 'bounded_run.py'} --seconds N -- CMD`",
         ):
@@ -91,6 +119,49 @@ class CharterRenderTest(unittest.TestCase):
                 "--charter", str(charter), "--lead", LEAD, "--staffing", str(self.staffing), "--repo", str(self.repo),
             ])
         self.assertEqual((lint, lint_err.getvalue()), (0, ""))
+
+    def render_with_template(self, template: str, pane: str = "w7:p3") -> tuple[int, str]:
+        path = self.run_dir.parent / "template.txt"
+        path.write_text(template, encoding="utf-8")
+        with mock.patch.object(charter_render, "TEMPLATE", path):
+            code, _, err = self.render("--pane", pane)
+        return code, err
+
+    def test_the_send_block_is_the_backends_block_for_the_run_report(self):
+        code, err = self.render_with_template("<pane_id>\n<send_block>\n")
+        self.assertEqual((code, err), (0, ""))
+        report = f"{self.run_dir}/report-review-{self.head[:12]}.md"
+        self.assertEqual(self.fake.calls, [("send_block", LEAD, report)])
+        text = (self.run_dir / f"charter-review-{self.head[:12]}.md").read_text(encoding="utf-8")
+        self.assertEqual(text, f"w7:p3\n{self.fake.send_block(LEAD, report)}\n")
+
+    def test_the_seat_handle_is_taken_as_given(self):
+        for handle in ("t7", "sess.blk", "w7:p3"):
+            with self.subTest(handle=handle):
+                code, err = self.render_with_template("<pane_id>", handle)
+                self.assertEqual((code, err), (0, ""))
+                text = (self.run_dir / f"charter-review-{self.head[:12]}.md").read_text(encoding="utf-8")
+                self.assertEqual(text, handle)
+
+    def test_the_backend_flag_reaches_detect_as_explicit(self):
+        out, err = io.StringIO(), io.StringIO()
+        with mock.patch.object(backend, "open_backend", wraps=OPEN_BACKEND), \
+                mock.patch.object(backend, "detect", side_effect=backend.DetectionError("stop")) as detect, \
+                contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            code = charter_render.main([
+                "--repo", str(self.repo), "--run-dir", str(self.run_dir), "--base", self.base,
+                "--head", self.head, "--pane", "w7:p3", "--lane", "normal", "--reason", "r",
+                "--boundary", "b", "--validation", "G1", "--check", "c", "--staffing", str(self.staffing),
+                "--backend", "herdr@w7:p3",
+            ])
+        self.assertEqual((code, err.getvalue()), (1, "charter_render: stop\n"))
+        self.assertEqual(detect.call_args.args[1], backend.Explicit("herdr", "w7:p3"))
+
+    def test_a_backend_that_cannot_render_the_send_block_fails_closed(self):
+        self.fake.script("send_block", ValueError("not a seat handle"))
+        code, err = self.render_with_template("<send_block>")
+        self.assertEqual((code, err), (1, "charter_render: not a seat handle\n"))
+        self.assertEqual(list(self.run_dir.glob("charter-*")), [])
 
     def merge_main(self, land: bool) -> str:
         """Merge a later main commit into the head; origin/HEAD is origin/main. Returns the merge."""

@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import os
 import re
 import subprocess
 import sys
 from pathlib import Path
 
+import backend
 import project_config
 from gate_row import RowError, clean_merge_parents, landed_commits
 
@@ -80,7 +82,7 @@ def scope_authors(staffing: Path, lead: str, paths: list[str]) -> tuple[str, lis
     return "partitioned", list(authors)
 
 
-def render(args: argparse.Namespace) -> tuple[str, str]:
+def render(args: argparse.Namespace, seats: backend.Backend) -> tuple[str, str]:
     repo = args.repo.resolve()
     run_dir = args.run_dir.resolve()
     if len(run_dir.parts) < 5 or run_dir.parent.name != "runs" or run_dir.parents[2].name != "projects":
@@ -142,12 +144,12 @@ def render(args: argparse.Namespace) -> tuple[str, str]:
         "repo": str(repo),
         "branch": config["target-line"],
         "pane_id": args.pane,
-        "workspace_id": args.pane.split(":")[0],
         "reviewable_paths": "(each reviewable path from the preview)",
         "required_checks": "\n".join(f"{n}. {check}" for n, check in enumerate(args.check, 1)),
         "quality_floor_dir": str(QUALITY_FLOOR),
         "bounded_run": str(SKILL / "scripts" / "bounded_run.py"),
         "peer_name": peer,
+        "send_block": seats.send_block(lead, f"{run_dir}/report-{peer}.md"),
         "state_root": str(run_dir.parents[2]),
     }
     return peer, SLOT_RE.sub(lambda match: values[match.group(1)], TEMPLATE.read_text(encoding="utf-8"))
@@ -159,7 +161,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--run-dir", required=True, type=Path, help="~/.terminal-delivery/projects/<slug>/runs/<run>")
     parser.add_argument("--base", required=True, help="full SHA the reviewed unit starts from")
     parser.add_argument("--head", required=True, help="full SHA under review")
-    parser.add_argument("--pane", required=True, help="Reviewer pane id, <workspace>:<pane>")
+    parser.add_argument("--pane", required=True, help="Reviewer seat handle")
     parser.add_argument("--lane", required=True, choices=("tiny", "normal", "high-risk"))
     parser.add_argument("--reason", required=True, help="material reason for the lane")
     parser.add_argument("--boundary", required=True, help="acceptance boundary")
@@ -168,12 +170,13 @@ def main(argv: list[str] | None = None) -> int:
                         help="the run's staffing record: MODE, LEAD and each ENGINEER with owned paths")
     parser.add_argument("--prior", default="none", help="prior FAIL report, its head and finding ids")
     parser.add_argument("--check", required=True, action="append", help="one required check; repeat")
+    backend.add_backend_option(parser)
     args = parser.parse_args(argv)
     try:
-        peer, charter = render(args)
+        peer, charter = render(args, backend.open_backend(os.environ, args.backend))
         path = args.run_dir.resolve() / f"charter-{peer}.md"
         path.write_text(charter, encoding="utf-8")
-    except (OSError, KeyError, ValueError, RowError) as exc:
+    except (OSError, KeyError, ValueError, RowError, backend.BackendError) as exc:
         print(f"charter_render: {exc}", file=sys.stderr)
         return 1
     print(f"{path} sha256={hashlib.sha256(charter.encode('utf-8')).hexdigest()}")

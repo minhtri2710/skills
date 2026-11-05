@@ -14,8 +14,33 @@ from pathlib import Path
 
 SCRIPTS = Path(__file__).resolve().parents[1] / "skills" / "terminal-delivery-workflow" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
+sys.path.insert(0, str(Path(__file__).parent))
 
+import backend  # noqa: E402
 import charter_lint  # noqa: E402
+from backends import herdr  # noqa: E402
+from fake_backend import FakeBackend  # noqa: E402
+
+LEAD = "lead-beo-skills"
+REPORT = "/state/demo/runs/r1/report-eng-lint.md"
+_real_run = subprocess.run
+
+
+def _git_only(command, *args, **kwargs):
+    if command[0] not in ("git", sys.executable):
+        raise AssertionError(f"tests run only git and this interpreter, not {command[0]}")
+    return _real_run(command, *args, **kwargs)
+
+
+_PATCH = unittest.mock.patch.object(subprocess, "run", side_effect=_git_only)
+
+
+def setUpModule() -> None:
+    _PATCH.start()
+
+
+def tearDownModule() -> None:
+    _PATCH.stop()
 
 
 class CharterLintTest(unittest.TestCase):
@@ -38,14 +63,22 @@ class CharterLintTest(unittest.TestCase):
         self.tmp = Path(self._tmp.name)
         self.addCleanup(self._tmp.cleanup)
 
+    def lint_main(self, argv: list[str], seats: backend.Backend | None = None) -> int:
+        opened = unittest.mock.patch.object(
+            charter_lint.backend, "open_backend", return_value=seats or FakeBackend()
+        )
+        with opened:
+            return charter_lint.main(argv)
+
     def run_lint(
         self,
         charter: str,
         staffing: str | None = None,
+        seats: backend.Backend | None = None,
     ) -> tuple[int, str, str]:
         charter_path = self.tmp / "charter.md"
         charter_path.write_text(charter, encoding="utf-8")
-        argv = ["--charter", str(charter_path), "--lead", "lead-beo-skills", "--repo", str(self.repo)]
+        argv = ["--charter", str(charter_path), "--lead", LEAD, "--repo", str(self.repo)]
         if staffing is not None:
             staffing_path = self.tmp / "staffing.txt"
             staffing_path.write_text(staffing, encoding="utf-8")
@@ -55,7 +88,7 @@ class CharterLintTest(unittest.TestCase):
         stderr = io.StringIO()
         with unittest.mock.patch.object(charter_lint, "_sandbox_exec_available", return_value=True), \
                 contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
-            code = charter_lint.main(argv)
+            code = self.lint_main(argv, seats)
         return code, stdout.getvalue(), stderr.getvalue()
 
     def test_ok_line_contains_sha256_of_each_linted_file(self):
@@ -368,9 +401,7 @@ class CharterLintTest(unittest.TestCase):
             with self.subTest(label=label):
                 stdout, stderr = io.StringIO(), io.StringIO()
                 with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
-                    code = charter_lint.main(
-                        [*argv, "--lead", "lead-beo-skills", "--repo", str(self.repo)]
-                    )
+                    code = self.lint_main([*argv, "--lead", LEAD, "--repo", str(self.repo)])
                 self.assertEqual(code, 1)
                 self.assertEqual(stdout.getvalue(), "")
                 self.assertIn(f"charter_lint: {label}", stderr.getvalue())
@@ -379,12 +410,12 @@ class CharterLintTest(unittest.TestCase):
     def test_charter_lead_and_repo_are_required_arguments(self):
         charter_path = self.tmp / "charter.md"
         charter_path.write_text(self.engineer_charter(), encoding="utf-8")
-        given = {"--charter": str(charter_path), "--lead": "lead-beo-skills", "--repo": str(self.repo)}
+        given = {"--charter": str(charter_path), "--lead": LEAD, "--repo": str(self.repo)}
         for omitted in given:
             argv = [part for flag, value in given.items() if flag != omitted for part in (flag, value)]
             with self.subTest(argv=argv), contextlib.redirect_stderr(io.StringIO()):
                 with self.assertRaises(SystemExit) as raised:
-                    charter_lint.main(argv)
+                    self.lint_main(argv)
                 self.assertEqual(raised.exception.code, 2)
 
     def test_a_charter_is_read_as_utf8_whatever_the_locale(self):
@@ -394,9 +425,10 @@ class CharterLintTest(unittest.TestCase):
         staffing.write_text(self.staffing_record(), encoding="utf-8")
         env = {k: v for k, v in os.environ.items() if k not in ("PYTHONUTF8", "PYTHONIOENCODING", "LANG")}
         proc = subprocess.run(
-            [sys.executable, "-c", "import sys; sys.path.insert(0, sys.argv[1]); import charter_lint; "
-             "sys.exit(charter_lint.main(sys.argv[2:]))", str(SCRIPTS), "--charter", str(charter),
-             "--lead", "lead-beo-skills", "--staffing", str(staffing), "--repo", str(self.repo)],
+            [sys.executable, "-c", "import sys; sys.path[:0] = sys.argv[1:3]; import backend, charter_lint; "
+             "from fake_backend import FakeBackend; backend.open_backend = lambda environ, explicit=None: FakeBackend(); "
+             "sys.exit(charter_lint.main(sys.argv[3:]))", str(SCRIPTS), str(Path(__file__).parent), "--charter", str(charter),
+             "--lead", LEAD, "--staffing", str(staffing), "--repo", str(self.repo)],
             capture_output=True, text=True, env={**env, "LC_ALL": "en_US.US-ASCII"},
             stdin=subprocess.DEVNULL,
         )
@@ -435,8 +467,8 @@ class CharterLintTest(unittest.TestCase):
         charter_path.write_text(self.engineer_charter(), encoding="utf-8")
         stderr = io.StringIO()
         with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(stderr):
-            code = charter_lint.main([
-                "--charter", str(charter_path), "--lead", "lead-beo-skills", "--repo", str(self.tmp),
+            code = self.lint_main([
+                "--charter", str(charter_path), "--lead", LEAD, "--repo", str(self.tmp),
             ])
         self.assertEqual(code, 1)
         self.assertIn(f"charter_lint: could not read repo {self.tmp}: ", stderr.getvalue())
@@ -444,8 +476,8 @@ class CharterLintTest(unittest.TestCase):
         missing_git = FileNotFoundError(2, "No such file or directory", "git")
         with unittest.mock.patch.object(charter_lint.subprocess, "run", side_effect=missing_git), \
                 contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(stderr):
-            code = charter_lint.main([
-                "--charter", str(charter_path), "--lead", "lead-beo-skills", "--repo", str(self.repo),
+            code = self.lint_main([
+                "--charter", str(charter_path), "--lead", LEAD, "--repo", str(self.repo),
             ])
         self.assertEqual(code, 1)
         self.assertIn("charter_lint: could not run git: ", stderr.getvalue())
@@ -505,6 +537,61 @@ class CharterLintTest(unittest.TestCase):
                 expected = (0, "") if problem is None else (1, f"charter_lint: {problem}\n")
                 self.assertEqual((code, error), expected)
 
+    def test_the_charter_must_hold_the_send_block_the_backend_renders(self):
+        rendered = FakeBackend().send_block(LEAD, REPORT)
+        wrong_lead = FakeBackend().send_block("lead-other", REPORT)
+        problem = f"charter_lint: missing report-by-prompt block, as fake renders it:\n{rendered}\n"
+        for label, block in (
+            ("absent", ""),
+            ("another lead", wrong_lead),
+            ("one byte changed", rendered.replace("FAKE-SEND", "FAKE-SENT")),
+        ):
+            with self.subTest(label):
+                code, _, error = self.run_lint(self.engineer_charter().replace(rendered, block), self.staffing_record())
+                self.assertEqual((code, error), (1, problem))
+
+    def test_the_send_block_is_whatever_the_opened_backend_renders(self):
+        block = herdr.Adapter({}).send_block(LEAD, REPORT)
+        charter = self.engineer_charter().replace(FakeBackend().send_block(LEAD, REPORT), block)
+        self.assertEqual(self.run_lint(charter, self.staffing_record(), herdr.Adapter({}))[::2], (0, ""))
+        code, _, error = self.run_lint(charter, self.staffing_record())
+        self.assertEqual(code, 1)
+        self.assertIn("as fake renders it", error)
+
+    def test_a_charter_without_an_absolute_report_path_is_named(self):
+        charter = self.engineer_charter().replace(FakeBackend().send_block(LEAD, REPORT), "").replace(REPORT, "report-eng-lint.md")
+        code, _, error = self.run_lint(charter, self.staffing_record())
+        self.assertEqual(code, 1)
+        self.assertEqual(error, "charter_lint: missing report-by-prompt block: absolute <run-dir>/report-<peer>.md path\n")
+
+    def test_a_send_block_the_backend_cannot_render_is_named(self):
+        seats = FakeBackend()
+        seats.script("send_block", ValueError("not a seat handle: 'x y'"))
+        code, _, error = self.run_lint(self.engineer_charter(), self.staffing_record(), seats)
+        self.assertEqual((code, error), (1, "charter_lint: report-by-prompt block cannot be rendered: not a seat handle: 'x y'\n"))
+
+    def test_the_backend_flag_reaches_detect_as_explicit(self):
+        charter_path = self.tmp / "charter.md"
+        charter_path.write_text(self.engineer_charter(), encoding="utf-8")
+        stderr = io.StringIO()
+        with unittest.mock.patch.object(backend, "detect", side_effect=backend.DetectionError("stop")) as detect, \
+                contextlib.redirect_stderr(stderr):
+            code = charter_lint.main([
+                "--charter", str(charter_path), "--lead", LEAD, "--repo", str(self.repo), "--backend", "herdr@w1:p1",
+            ])
+        self.assertEqual((code, stderr.getvalue()), (1, "charter_lint: stop\n"))
+        self.assertEqual(detect.call_args.args[1], backend.Explicit("herdr", "w1:p1"))
+
+    def test_a_backend_that_cannot_open_fails_closed(self):
+        charter_path = self.tmp / "charter.md"
+        charter_path.write_text(self.engineer_charter(), encoding="utf-8")
+        stderr = io.StringIO()
+        with unittest.mock.patch.object(
+            charter_lint.backend, "open_backend", side_effect=backend.BackendUnavailable("tool unavailable")
+        ), contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(stderr):
+            code = charter_lint.main(["--charter", str(charter_path), "--lead", LEAD, "--repo", str(self.repo)])
+        self.assertEqual((code, stderr.getvalue()), (1, "charter_lint: tool unavailable\n"))
+
     @staticmethod
     def engineer_charter() -> str:
         return (
@@ -513,8 +600,16 @@ class CharterLintTest(unittest.TestCase):
             + CharterLintTest.kill_guard_sentence()
             + CharterLintTest.takeover_guard_sentence()
             + "Write the finished report/verdict to report-eng-lint.md with the editor/write tool (never via the shell), then print it as the pane's final output.\n"
-            "At send time, compose a prompt with the verdict/outcome line, a bounded summary (~200 words max), and full report at report-eng-lint.md; send ONLY that composed prompt with the EXACT command herdr agent prompt lead-beo-skills \"<composed prompt>\" and NO other flags. Do not send the report file contents. THIS SEND IS MANDATORY.\n"
-            "If the command exits non-zero: retry it ONCE with exactly the same form; if it still fails, append a line SEND-FAILED to the end of the report file and run herdr notification show \"eng-lint: report send failed\" --body \"report-eng-lint.md\" --sound request, then stop.\n"
+            + CharterLintTest.send_block_text()
+        )
+
+    @staticmethod
+    def send_block_text(block: str | None = None) -> str:
+        block = FakeBackend().send_block(LEAD, REPORT) if block is None else block
+        return (
+            f"At send time, compose a prompt with the verdict/outcome line, a bounded summary (~200 words max), and full report at {REPORT}; "
+            f"send it with exactly this block and NO other flags:\n{block}\n"
+            "If the send exits non-zero: retry it ONCE; if it still fails, append a line SEND-FAILED to the end of the report file, then stop.\n"
         )
 
     @staticmethod
@@ -562,8 +657,7 @@ class CharterLintTest(unittest.TestCase):
             + "Review order: first the diff and your own findings; only then read the implementation reports.\n"
             + cls.time_limit_sentence()
             + "Write the finished report/verdict to report-eng-lint.md with the editor/write tool (never via the shell), then print it as the pane's final output.\n"
-            "At send time, compose a prompt with the verdict/outcome line, a bounded summary (~200 words max), and full report at report-eng-lint.md; send ONLY that composed prompt with the EXACT command herdr agent prompt lead-beo-skills \"<composed prompt>\" and NO other flags. Do not send the report file contents. THIS SEND IS MANDATORY.\n"
-            "If the command exits non-zero: retry it ONCE with exactly the same form; if it still fails, append a line SEND-FAILED to the end of the report file and run herdr notification show \"eng-lint: report send failed\" --body \"report-eng-lint.md\" --sound request, then stop.\n"
+            + CharterLintTest.send_block_text()
         )
 
     def staffing_record(self) -> str:

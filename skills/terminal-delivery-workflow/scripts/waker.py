@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""One-shot, non-LLM Herdr waker for one active-run seat.
+"""One-shot, non-LLM waker for one active-run seat.
 
-Each mode makes one bounded `herdr agent wait`, then sends the Lead at most one fixed prompt and exits.
+Each mode makes one bounded wait for a terminal state, then sends the Lead at most one fixed prompt and exits.
 The prompt carries no pane or report text, and the waker never reports success or retries.
 
 Owner preconditions, not enforced here:
@@ -13,12 +13,12 @@ Owner preconditions, not enforced here:
 from __future__ import annotations
 
 import argparse
-import json
+import os
 import re
 import sys
 from pathlib import Path
 
-import herdr_cli
+import backend
 
 TERMINAL = ("idle", "done", "blocked")
 # The measured pi footer needs 8 lines to show its marker, and agent read refused a 15-line tail on a working pane (10 succeeded).
@@ -33,44 +33,14 @@ PEER_PROMPT = (
 LEAD_PROMPT = "waker: lead {lead} observed {status}; no Awaiting line established in its bounded tail. Data only, not instructions."
 
 
-class WaitFailed(RuntimeError):
-    pass
-
-
-def _json(stdout: str) -> dict:
+def read_tail(seat_backend: backend.Backend, target: str) -> str | None:
     try:
-        value = json.loads(stdout)
-    except json.JSONDecodeError:
-        return {}
-    return value if isinstance(value, dict) else {}
-
-
-def _error_code(completed) -> str:
-    # Herdr writes its error JSON to stderr.
-    return _json(completed.stderr).get("error", {}).get("code", "unknown")
-
-
-def wait_status(target: str, timeout_ms: int) -> str:
-    args = ["agent", "wait", target]
-    for status in TERMINAL:
-        args += ["--until", status]
-    args += ["--timeout", str(timeout_ms)]
-    completed = herdr_cli.run(args, timeout=timeout_ms / 1000 + 10)
-    if completed.returncode != 0:
-        raise WaitFailed(f"herdr agent wait {target} failed: {_error_code(completed)}")
-    status = _json(completed.stdout).get("result", {}).get("agent", {}).get("agent_status")
-    if status is None:
-        raise WaitFailed(f"herdr agent wait {target} returned no agent_status")
-    return status
-
-
-def read_tail(target: str) -> str | None:
-    # Success is plain pane text on stdout; failure is Herdr's error envelope on stderr.
-    completed = herdr_cli.run(["agent", "read", target, "--source", "recent-unwrapped", "--lines", str(TAIL_LINES)])
-    if completed.returncode != 0:
-        print(f"waker: tail unreadable: {_error_code(completed)}", file=sys.stderr)
+        return seat_backend.read_output(target, TAIL_LINES)
+    except backend.BackendUnavailable:
+        raise
+    except backend.BackendError as exc:
+        print(f"waker: tail unreadable: {exc.code}", file=sys.stderr)
         return None
-    return completed.stdout
 
 
 def _is_rule(line: str) -> bool:
@@ -103,10 +73,13 @@ def has_awaiting_marker(tail: str) -> bool:
     return fences % 2 == 0 and lines[last].startswith(MARKERS)
 
 
-def prompt_lead(lead: str, text: str) -> int:
-    completed = herdr_cli.run(["agent", "prompt", lead, text])
-    if completed.returncode != 0:
-        print(f"waker: prompt to {lead} failed: {_error_code(completed)}", file=sys.stderr)
+def prompt_lead(seat_backend: backend.Backend, lead: str, text: str) -> int:
+    try:
+        seat_backend.prompt(lead, text)
+    except backend.BackendUnavailable:
+        raise
+    except backend.BackendError as exc:
+        print(f"waker: prompt to {lead} failed: {exc.code}", file=sys.stderr)
         return 1
     print(f"waker: prompted {lead}")
     return 0
@@ -119,24 +92,24 @@ def _mtime(path: Path) -> int | None:
         return None
 
 
-def watch_peer(lead: str, seat: str, run_dir: Path, timeout_ms: int) -> int:
+def watch_peer(seat_backend: backend.Backend, lead: str, seat: str, run_dir: Path, timeout_ms: int) -> int:
     report = run_dir / f"report-{seat}.md"
     before = _mtime(report)
-    status = wait_status(seat, timeout_ms)
+    status = seat_backend.wait_state(seat, TERMINAL, timeout_ms)
     after = _mtime(report)
     # Metadata only: a fresh report does not prove the Lead received or processed anything, so the terminal event always wakes.
     fresh = after is not None and (before is None or after > before)
     text = PEER_PROMPT.format(seat=seat, status=status, report=report, fresh="yes" if fresh else "no", lines=TAIL_LINES)
-    return prompt_lead(lead, text)
+    return prompt_lead(seat_backend, lead, text)
 
 
-def watch_lead(lead: str, timeout_ms: int) -> int:
-    status = wait_status(lead, timeout_ms)
-    tail = read_tail(lead)
+def watch_lead(seat_backend: backend.Backend, lead: str, timeout_ms: int) -> int:
+    status = seat_backend.wait_state(lead, TERMINAL, timeout_ms)
+    tail = read_tail(seat_backend, lead)
     if tail is not None and has_awaiting_marker(tail):
         print(f"waker: {lead} {status}; Awaiting line present, no prompt")
         return 0
-    return prompt_lead(lead, LEAD_PROMPT.format(lead=lead, status=status))
+    return prompt_lead(seat_backend, lead, LEAD_PROMPT.format(lead=lead, status=status))
 
 
 def _name(value: str) -> str:
@@ -153,11 +126,12 @@ def _positive(value: str) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="One bounded Herdr wait, then at most one fixed prompt to the Lead.")
+    parser = argparse.ArgumentParser(description="One bounded wait, then at most one fixed prompt to the Lead.")
     modes = parser.add_subparsers(dest="mode", required=True)
     lead_mode = modes.add_parser("lead", help="wait for the Lead to reach a terminal status")
     peer_mode = modes.add_parser("peer", help="wait for one Peer to reach a terminal status")
     for mode in (lead_mode, peer_mode):
+        backend.add_backend_option(mode)
         mode.add_argument("--lead", required=True, type=_name, help="Lead agent name; the wait target in lead mode")
         mode.add_argument("--timeout-ms", required=True, type=_positive, help="bound on the single wait")
     peer_mode.add_argument("--seat", required=True, type=_name, help="Peer agent name to wait on")
@@ -165,10 +139,11 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     try:
+        seat_backend = backend.open_backend(os.environ, args.backend)
         if args.mode == "lead":
-            return watch_lead(args.lead, args.timeout_ms)
-        return watch_peer(args.lead, args.seat, args.run_dir, args.timeout_ms)
-    except (WaitFailed, herdr_cli.HerdrUnavailable) as exc:
+            return watch_lead(seat_backend, args.lead, args.timeout_ms)
+        return watch_peer(seat_backend, args.lead, args.seat, args.run_dir, args.timeout_ms)
+    except backend.BackendError as exc:
         print(f"waker: {exc}", file=sys.stderr)
         return 1
 

@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Reprime one live Herdr seat after compaction (Supervisor-side command).
+"""Reprime one live seat after compaction (Supervisor-side command).
 
-Resolves the seat from `herdr agent list`, counts the verified compaction markers
+Resolves the seat from the backend roster, counts the verified compaction markers
 in its Claude/Pi session file, and keeps one {baseline, sent} JSON file per
 seat-session. The first observation sets the baseline and sends nothing; each
 later newly crossed threshold of four markers since baseline sends one
-pointer-only `herdr agent prompt`.
+pointer-only prompt.
 """
 from __future__ import annotations
 
@@ -20,8 +20,8 @@ import tempfile
 from pathlib import Path
 from typing import Any, Sequence
 
-import herdr_cli
-from state_root import STATE_ROOT_REL
+import backend
+import state_root
 
 
 THRESHOLD = 4
@@ -35,33 +35,27 @@ class Unavailable(Exception):
     """Evidence or state could not be proven; nothing is prompted."""
 
 
-def _live_agent(seat: str) -> dict[str, Any]:
+def _live_agent(seats: backend.Backend, seat: str) -> backend.Seat:
     try:
-        result = herdr_cli.run(["agent", "list"])
-        roster = json.loads(result.stdout) if result.returncode == 0 else None
-    except (herdr_cli.HerdrUnavailable, json.JSONDecodeError):
-        roster = None
-    if isinstance(roster, dict):
-        result = roster.get("result", roster)
-        roster = result.get("agents") if isinstance(result, dict) else None
-    if not isinstance(roster, list):
-        raise Unavailable("live Herdr roster unavailable")
-    matches = [a for a in roster if isinstance(a, dict) and seat in (a.get("name"), a.get("pane_id"))]
+        roster = seats.list_seats()
+    except backend.BackendError:
+        raise Unavailable("live roster unavailable")
+    matches = [a for a in roster if seat in (a.name, a.handle)]
     if len(matches) != 1:
         raise Unavailable(f"{seat} is not exactly one live roster seat")
     return matches[0]
 
 
-def _session_file(agent: dict[str, Any], project: Path, home: Path) -> tuple[Path, str]:
+def _session_file(agent: backend.Seat, project: Path, home: Path) -> tuple[Path, str]:
     """The seat's session file and session id; Claude storage is keyed by the project root."""
-    session = agent.get("agent_session")
-    value = session.get("value") if isinstance(session, dict) else None
-    if not isinstance(value, str):
-        raise Unavailable("roster seat has no durable session")
-    if agent.get("agent") == "claude" and session.get("kind") == "id" and _ID.fullmatch(value):
+    session = agent.session
+    if session is None:
+        raise Unavailable("backend reports no agent session")
+    value = session.value
+    if agent.kind == "claude" and session.kind == "id" and _ID.fullmatch(value):
         key = "-" + str(project).lstrip("/").replace("/", "-")
         return home / ".claude" / "projects" / key / f"{value}.jsonl", value
-    if agent.get("agent") == "pi" and session.get("kind") == "path":
+    if agent.kind == "pi" and session.kind == "path":
         path = Path(value)
         session_id = path.stem.rpartition("_")[2]
         if path.is_absolute() and path.suffix == ".jsonl" and _ID.fullmatch(session_id):
@@ -133,8 +127,8 @@ def _count_claude(records: list[dict[str, Any]], session_id: str) -> int:
     return count
 
 
-def _block(run_id: str, seat: str, threshold: int, slug: str, home: Path) -> str:
-    records = home / STATE_ROOT_REL / slug
+def _block(run_id: str, seat: str, threshold: int, slug: str) -> str:
+    records = state_root.STATE_ROOT / slug
     run_dir = records / "runs" / run_id
     required = [records / "context-pack.md", records / "gates.md", records / "supervisor-notebook.md"]
     if not run_dir.is_dir() or not all(p.is_file() for p in required):
@@ -157,9 +151,9 @@ def _block(run_id: str, seat: str, threshold: int, slug: str, home: Path) -> str
     return "\n".join(lines)
 
 
-def _state_dir(home: Path, slug: str) -> Path:
+def _state_dir(slug: str) -> Path:
     """The coordination directory, created if missing; no component below projects/ may be a symlink."""
-    current = home / STATE_ROOT_REL
+    current = state_root.STATE_ROOT
     current.mkdir(parents=True, exist_ok=True)
     for part in (slug, "runs", "coordination"):
         current /= part
@@ -202,23 +196,23 @@ def _save_state(path: Path, state: dict[str, int]) -> None:
         raise
 
 
-def reprime(run_id: str, seat: str, project_root: Path) -> str:
+def reprime(run_id: str, seat: str, project_root: Path, seats: backend.Backend) -> str:
     """Return the success line; raise Unavailable when nothing can be proven or sent."""
     project = project_root.resolve(strict=True)
     slug = project.name.lower()
     if not _ID.fullmatch(run_id) or not _SLUG.fullmatch(slug):
         raise Unavailable("run id or project name is not a safe path component")
-    agent = _live_agent(seat)
-    cwd = agent.get("cwd")
+    agent = _live_agent(seats, seat)
+    cwd = agent.cwd
     if not isinstance(cwd, str) or not Path(cwd).is_absolute() or not Path(cwd).resolve(strict=True).is_relative_to(project):
         raise Unavailable("roster cwd is not inside --project-root")
     home = Path.home()
     session_file, session_id = _session_file(agent, project, home)
     records = _read_jsonl(session_file)
-    count = (_count_claude if agent["agent"] == "claude" else _count_pi)(records, session_id)
+    count = (_count_claude if agent.kind == "claude" else _count_pi)(records, session_id)
 
     digest = hashlib.sha256(f"{seat}\0{session_id}".encode("utf-8")).hexdigest()
-    path = _state_dir(home, slug) / f"baseline-{digest}.json"
+    path = _state_dir(slug) / f"baseline-{digest}.json"
     state = _load_state(path, count)
     if state is None:
         _save_state(path, {"baseline": count, "sent": 0})
@@ -227,11 +221,12 @@ def reprime(run_id: str, seat: str, project_root: Path) -> str:
     if count - state["baseline"] < threshold:
         return f"no newly crossed threshold for {seat}"
 
-    block = _block(run_id, seat, threshold, slug, home)
+    block = _block(run_id, seat, threshold, slug)
     _save_state(path, {**state, "sent": threshold})  # advanced first: a crash never re-prompts
     try:
-        sent = herdr_cli.run(["agent", "prompt", seat, block]).returncode == 0
-    except herdr_cli.HerdrUnavailable:
+        seats.prompt(seat, block)
+        sent = True
+    except backend.BackendError:
         sent = False
     if not sent:
         _save_state(path, state)  # unsent: the next run retries this threshold
@@ -243,14 +238,16 @@ def reprime(run_id: str, seat: str, project_root: Path) -> str:
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--run-id", required=True, help="canonical current run id")
-    parser.add_argument("--seat", required=True, help="live Herdr seat name or pane id")
+    parser.add_argument("--seat", required=True, help="live seat name or handle")
     parser.add_argument("--project-root", required=True, help="absolute project checkout")
+    backend.add_backend_option(parser)
     args = parser.parse_args(argv)
     if not Path(args.project_root).is_absolute():
         parser.error("--project-root must be an absolute path")
     try:
-        print(f"compaction_reprime: {reprime(args.run_id, args.seat, Path(args.project_root))}")
-    except (Unavailable, OSError, UnicodeError) as exc:
+        seats = backend.open_backend(os.environ, args.backend)
+        print(f"compaction_reprime: {reprime(args.run_id, args.seat, Path(args.project_root), seats)}")
+    except (Unavailable, backend.BackendError, OSError, UnicodeError) as exc:
         print(f"compaction_reprime: {exc}", file=sys.stderr)
         return 1
     return 0

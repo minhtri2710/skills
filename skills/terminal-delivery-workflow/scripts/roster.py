@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Print the compact roster view from ``herdr agent list`` JSON."""
+"""Print the compact roster view of the live seats."""
 from __future__ import annotations
 
 import argparse
@@ -13,7 +13,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-import herdr_cli
+import backend
 import project_config
 
 
@@ -21,33 +21,12 @@ _SETTLED_STATES = frozenset({"idle", "done"})
 _ROLES = ("engineer", "reviewer", "architect")
 
 
-def _agents(payload: dict[str, Any]) -> list[Any]:
-    try:
-        agents = payload["result"]["agents"]
-    except (KeyError, TypeError) as exc:
-        raise ValueError("agent-list JSON lacks result.agents") from exc
-    if not isinstance(agents, list):
-        raise ValueError("agent-list JSON result.agents is not a list")
-    return agents
-
-
-def format_roster(payload: dict[str, Any], workspace: str | None = None) -> list[str]:
-    agents = _agents(payload)
-
-    lines = []
-    for agent in agents:
-        if not isinstance(agent, dict):
-            raise ValueError("agent-list JSON contains a non-object agent")
-        if workspace is not None and agent.get("workspace_id") != workspace:
-            continue
-        try:
-            pane_id = agent["pane_id"]
-            state = agent["agent_status"]
-        except KeyError as exc:
-            raise ValueError(f"agent record lacks {exc.args[0]}") from exc
-        kind = agent.get("agent") or "-"
-        lines.append(f"{pane_id} {agent.get('name') or '-'} {kind} {state}")
-    return lines
+def format_roster(seats: list[backend.Seat], workspace: str | None = None) -> list[str]:
+    return [
+        f"{seat.handle} {seat.name or '-'} {seat.kind or '-'} {seat.state}"
+        for seat in seats
+        if workspace is None or seat.workspace == workspace
+    ]
 
 
 def _load_previous_sample(path: str) -> dict[str, dict[str, Any]]:
@@ -96,7 +75,7 @@ def _peer_specs(raw_peers: list[str] | None) -> dict[str, tuple[Path, Path]]:
 
 
 def format_never_started_roster(
-    payload: dict[str, Any],
+    seats: list[backend.Seat],
     peer_specs: dict[str, tuple[Path, Path]],
     never_started: set[str],
     workspace: str | None = None,
@@ -110,23 +89,15 @@ def format_never_started_roster(
     cannot be the verdict.
     """
     lines = []
-    for agent in _agents(payload):
-        if not isinstance(agent, dict):
-            raise ValueError("agent-list JSON contains a non-object agent")
-        if workspace is not None and agent.get("workspace_id") != workspace:
+    for seat in seats:
+        if workspace is not None and seat.workspace != workspace:
             continue
-        name = agent.get("name")
-        if not isinstance(name, str) or name not in never_started:
+        name = seat.name
+        if name is None or name not in never_started:
             continue
         if name not in peer_specs:
             raise ValueError(f"never-started peer {name!r} lacks a peer specification")
-        try:
-            pane_id = agent["pane_id"]
-            state = agent["agent_status"]
-        except KeyError as exc:
-            raise ValueError(f"agent record lacks {exc.args[0]}") from exc
-        kind = agent.get("agent") or "-"
-        if state not in _SETTLED_STATES:
+        if seat.state not in _SETTLED_STATES:
             continue
         report_path, progress_path = peer_specs[name]
         try:
@@ -145,12 +116,12 @@ def format_never_started_roster(
             continue
         else:
             continue
-        lines.append(f"{pane_id} {name} {kind} NEVER-STARTED")
+        lines.append(f"{seat.handle} {name} {seat.kind or '-'} NEVER-STARTED")
     return lines
 
 
 def format_stalled_roster(
-    payload: dict[str, Any],
+    seats: list[backend.Seat],
     peer_specs: dict[str, tuple[Path, Path]],
     previous_sample: dict[str, dict[str, Any]],
     stale_after: float,
@@ -169,24 +140,14 @@ def format_stalled_roster(
     if now is None:
         now = time.time()
 
-    agents = _agents(payload)
-
     lines = []
-    for agent in agents:
-        if not isinstance(agent, dict):
-            raise ValueError("agent-list JSON contains a non-object agent")
-        if workspace is not None and agent.get("workspace_id") != workspace:
+    for seat in seats:
+        if workspace is not None and seat.workspace != workspace:
             continue
-        name = agent.get("name")
-        if not isinstance(name, str) or name not in peer_specs:
+        name = seat.name
+        if name is None or name not in peer_specs:
             continue
-        try:
-            pane_id = agent["pane_id"]
-            state = agent["agent_status"]
-        except KeyError as exc:
-            raise ValueError(f"agent record lacks {exc.args[0]}") from exc
-        kind = agent.get("agent") or "-"
-        if state not in _SETTLED_STATES:
+        if seat.state not in _SETTLED_STATES:
             continue
 
         prior = previous_sample.get(name)
@@ -209,7 +170,7 @@ def format_stalled_roster(
             continue
         if now - current_mtime <= stale_after:
             continue
-        lines.append(f"{pane_id} {name or '-'} {kind} STALLED")
+        lines.append(f"{seat.handle} {name} {seat.kind or '-'} STALLED")
     return lines
 
 
@@ -254,19 +215,10 @@ def _seat_specs(raw_seats: list[str] | None) -> dict[str, str]:
     return seats
 
 
-def _launch_args(pane_id: str, kind: str) -> tuple[list[str] | None, dict[str, Any] | None]:
-    try:
-        proc = herdr_cli.run(["pane", "process-info", "--pane", pane_id])
-    except herdr_cli.HerdrUnavailable as exc:
-        raise RuntimeError(f"could not run herdr pane process-info: {exc}") from exc
-    if proc.returncode:
-        detail = proc.stderr.strip() or proc.stdout.strip()
-        raise RuntimeError(f"herdr pane process-info {pane_id} failed: {detail or proc.returncode}")
-    try:
-        processes = json.loads(proc.stdout)["result"]["process_info"]["foreground_processes"]
-    except (json.JSONDecodeError, KeyError, TypeError) as exc:
-        raise ValueError(f"process-info JSON for {pane_id} lacks foreground_processes") from exc
-    for process in processes:
+def _launch_args(
+    seat_backend: backend.Backend, pane_id: str, kind: str
+) -> tuple[list[str] | None, dict[str, Any] | None]:
+    for process in seat_backend.processes(pane_id):
         if not isinstance(process, dict):
             continue
         argv = process.get("argv")
@@ -393,7 +345,8 @@ def _route_match_count(routes: list[tuple[str, str | None, list[str]]], model: s
 
 
 def format_drift_roster(
-    payload: dict[str, Any],
+    seat_backend: backend.Backend,
+    live: list[backend.Seat],
     keys: dict[str, Any],
     seats: dict[str, str],
     workspace: str | None = None,
@@ -413,23 +366,18 @@ def format_drift_roster(
     lines = []
     unverifiable = False
     unseen = set(seats)
-    for agent in _agents(payload):
-        if not isinstance(agent, dict):
-            raise ValueError("agent-list JSON contains a non-object agent")
-        if workspace is not None and agent.get("workspace_id") != workspace:
+    for seat in live:
+        if workspace is not None and seat.workspace != workspace:
             continue
-        name = agent.get("name")
-        if not isinstance(name, str) or name not in seats:
+        name = seat.name
+        if name is None or name not in seats:
             continue
         unseen.discard(name)
-        try:
-            pane_id = agent["pane_id"]
-        except KeyError as exc:
-            raise ValueError(f"agent record lacks {exc.args[0]}") from exc
-        kind = agent.get("agent") or "-"
+        pane_id = seat.handle
+        kind = seat.kind or "-"
         role = seats[name]
         expected = _expected(keys, role)
-        launch_args, argv0_process = _launch_args(pane_id, kind)
+        launch_args, argv0_process = _launch_args(seat_backend, pane_id, kind)
         model = _model(launch_args) if launch_args is not None else None
         matching_kinds = [route for route in expected if route[0] == kind]
         pi_session_model = bool(matching_kinds and argv0_process is not None and kind == "pi")
@@ -532,19 +480,9 @@ def format_drift_roster(
     return lines, unverifiable
 
 
-def _agent_list_json() -> str:
-    try:
-        proc = herdr_cli.run(["agent", "list"])
-    except herdr_cli.HerdrUnavailable as exc:
-        raise RuntimeError(f"could not run herdr agent list: {exc}") from exc
-    if proc.returncode:
-        detail = proc.stderr.strip() or proc.stdout.strip()
-        raise RuntimeError(f"herdr agent list failed: {detail or proc.returncode}")
-    return proc.stdout
-
-
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="compact herdr agent roster")
+    parser = argparse.ArgumentParser(description="compact agent roster")
+    backend.add_backend_option(parser)
     parser.add_argument("--workspace", metavar="ID", help="only show this workspace")
     parser.add_argument(
         "--stalled",
@@ -593,14 +531,15 @@ def main(argv: list[str] | None = None) -> int:
 
     exit_code = 0
     try:
-        payload = json.loads(_agent_list_json())
+        seat_backend = backend.open_backend(os.environ, args.backend)
+        live = seat_backend.list_seats()
         if sum(map(bool, (args.stalled, args.never_started, args.drift))) > 1:
             raise ValueError("--stalled, --never-started and --drift are mutually exclusive")
         if args.drift:
             if not args.seat:
                 raise ValueError("--drift requires at least one --seat")
             lines, unverifiable = format_drift_roster(
-                payload, project_config.load(args.drift), _seat_specs(args.seat), args.workspace,
+                seat_backend, live, project_config.load(args.drift), _seat_specs(args.seat), args.workspace,
                 lead=args.lead, run_dir=args.run_dir,
                 installed_skill_dir=args.installed_skill_dir,
             )
@@ -609,7 +548,7 @@ def main(argv: list[str] | None = None) -> int:
             if not args.peer:
                 raise ValueError("--never-started requires at least one --peer")
             lines = format_never_started_roster(
-                payload,
+                live,
                 _peer_specs(args.peer),
                 set(args.never_started),
                 args.workspace,
@@ -620,15 +559,15 @@ def main(argv: list[str] | None = None) -> int:
             if args.previous_sample is None:
                 raise ValueError("--stalled requires --previous-sample")
             lines = format_stalled_roster(
-                payload,
+                live,
                 _peer_specs(args.peer),
                 _load_previous_sample(args.previous_sample),
                 args.stale_after,
                 args.workspace,
             )
         else:
-            lines = format_roster(payload, args.workspace)
-    except (json.JSONDecodeError, ValueError, RuntimeError) as exc:
+            lines = format_roster(live, args.workspace)
+    except (backend.BackendError, json.JSONDecodeError, ValueError, RuntimeError) as exc:
         print(f"roster: {exc}", file=sys.stderr)
         return 1
 

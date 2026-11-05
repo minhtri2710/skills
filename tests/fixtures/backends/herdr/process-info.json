@@ -1,0 +1,5 @@
+{"result": {"process_info": {"foreground_processes": [
+  {"argv": ["caffeinate", "-i"]},
+  {"argv": ["/usr/local/bin/claude", "--model", "opus"], "argv0": "claude", "pid": 4242, "cwd": "/work/checkout"},
+  {"command": "npm run dev", "alive": true}
+]}}}

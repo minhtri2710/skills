@@ -11,6 +11,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from dataclasses import replace
 from pathlib import Path
 from unittest.mock import patch
 
@@ -19,11 +20,29 @@ SCRIPTS = Path(__file__).parents[1] / "skills" / "terminal-delivery-workflow" / 
 REFERENCES = SCRIPTS.parent / "references"
 SCRIPT = SCRIPTS / "compaction_reprime.py"
 sys.path.insert(0, str(SCRIPTS))
+sys.path.insert(0, str(Path(__file__).parent))
+import backend  # noqa: E402
+import state_root  # noqa: E402
+from fake_backend import FakeBackend  # noqa: E402
+
+OPEN_BACKEND = backend.open_backend
+
 SPEC = importlib.util.spec_from_file_location("compaction_reprime", SCRIPT)
 assert SPEC is not None and SPEC.loader is not None
 compaction_reprime = importlib.util.module_from_spec(SPEC)
 sys.modules[SPEC.name] = compaction_reprime
 SPEC.loader.exec_module(compaction_reprime)
+
+_PATCH = patch.object(subprocess, "run", side_effect=AssertionError("tests never run a terminal tool"))
+
+
+def setUpModule() -> None:
+    _PATCH.start()
+
+
+def tearDownModule() -> None:
+    _PATCH.stop()
+
 
 SEAT = "lead-beo-skills"
 PI_SESSION = "01abc123"
@@ -32,7 +51,7 @@ ARGS = ["--run-id", "run-1", "--seat", SEAT]
 
 
 class ReprimeCase(unittest.TestCase):
-    """Runs the CLI against a fake herdr at the subprocess boundary."""
+    """Runs the CLI against a FakeBackend and a temporary state root."""
 
     def setUp(self) -> None:
         tmp = tempfile.TemporaryDirectory()
@@ -42,14 +61,16 @@ class ReprimeCase(unittest.TestCase):
         self.project = self.root / "project"
         self.home.mkdir()
         self.project.mkdir()
-        self.agents: list[dict[str, object]] = []
-        self.list_returncode = 0
-        self.prompts: list[list[str]] = []
-        self.prompt_outcome: object = 0
+        self.state = self.root / "state"
+        self.fake = FakeBackend()
+        self.agents: list[backend.Seat] = []
+        self.roster_error: Exception | None = None
+        self.prompt_outcome: Exception | None = None
         self.stdout = io.StringIO()
         self.stderr = io.StringIO()
         for patcher in (
-            patch.object(compaction_reprime.herdr_cli.subprocess, "run", side_effect=self.fake_herdr),
+            patch.object(compaction_reprime.backend, "open_backend", return_value=self.fake),
+            patch.object(state_root, "STATE_ROOT", self.state),
             patch.dict(os.environ, {"HOME": str(self.home)}),
             patch.object(sys, "stdout", self.stdout),
             patch.object(sys, "stderr", self.stderr),
@@ -57,19 +78,19 @@ class ReprimeCase(unittest.TestCase):
             patcher.start()
             self.addCleanup(patcher.stop)
 
-    def fake_herdr(self, argv: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
-        if argv[:3] == ["herdr", "agent", "list"]:
-            return subprocess.CompletedProcess(argv, self.list_returncode, json.dumps({"result": {"agents": self.agents}}), "")
-        if argv[:3] == ["herdr", "agent", "prompt"]:
-            self.prompts.append(argv)
-            if isinstance(self.prompt_outcome, BaseException):
-                raise self.prompt_outcome
-            return subprocess.CompletedProcess(argv, self.prompt_outcome, "", "")
-        raise AssertionError(f"unexpected herdr call {argv}")
+    @property
+    def prompts(self) -> list[tuple[str, ...]]:
+        """The recorded prompt operations, each ("prompt", seat, text)."""
+        return [call for call in self.fake.calls if call[0] == "prompt"]
 
     def run_cli(self, *extra: str, args: list[str] | None = None) -> int:
         self.stdout.seek(0), self.stdout.truncate()
         self.stderr.seek(0), self.stderr.truncate()
+        self.fake.script("list_seats", self.roster_error or self.agents)
+        for agent in self.agents:
+            self.fake.add_seat(agent.handle, name=agent.name, kind=agent.kind, cwd=agent.cwd)
+        if self.prompt_outcome is not None:
+            self.fake.script("prompt", self.prompt_outcome)
         return compaction_reprime.main((args or ARGS) + ["--project-root", str(self.project), *extra])
 
     def write_jsonl(self, path: Path, records: list[dict[str, object]]) -> None:
@@ -92,10 +113,10 @@ class ReprimeCase(unittest.TestCase):
     def set_pi(self, count: int, *, seat: str = SEAT, session_id: str = PI_SESSION, cwd: Path | None = None) -> None:
         path = self.pi_path(session_id)
         self.write_jsonl(path, self.pi_records(count, session_id))
-        self.agents = [{
-            "name": seat, "pane_id": f"pane-{seat}", "agent": "pi", "cwd": str(cwd or self.project),
-            "agent_session": {"source": "herdr:pi", "agent": "pi", "kind": "path", "value": str(path)},
-        }]
+        self.agents = [backend.Seat(
+            handle=f"pane-{seat}", name=seat, kind="pi", cwd=str(cwd or self.project),
+            session=backend.Session("path", str(path)),
+        )]
 
     def claude_path(self, session_id: str = CLAUDE_SESSION) -> Path:
         key = "-" + str(self.project).lstrip("/").replace("/", "-")
@@ -116,13 +137,13 @@ class ReprimeCase(unittest.TestCase):
 
     def set_claude(self, records: list[dict[str, object]], session_id: str = CLAUDE_SESSION) -> None:
         self.write_jsonl(self.claude_path(session_id), records)
-        self.agents = [{
-            "name": SEAT, "pane_id": "pane-claude", "agent": "claude", "cwd": str(self.project),
-            "agent_session": {"source": "herdr:claude", "agent": "claude", "kind": "id", "value": session_id},
-        }]
+        self.agents = [backend.Seat(
+            handle="pane-claude", name=SEAT, kind="claude", cwd=str(self.project),
+            session=backend.Session("id", session_id),
+        )]
 
     def records_dir(self) -> Path:
-        return self.home / ".terminal-delivery" / "projects" / "project"
+        return self.state / "project"
 
     def write_pointer_files(self, *, run_files: tuple[str, ...] = ("intake-record.md", "plan.md", "specification.md", "slices.json")) -> None:
         records = self.records_dir()
@@ -180,7 +201,7 @@ class SeatResolutionTest(ReprimeCase):
         agent = self.agents[0]
         self.assertEqual(self.run_cli(), 0)
         self.assertEqual(self.run_cli(args=["--run-id", "run-1", "--seat", f"pane-{SEAT}"]), 0)
-        self.agents = [agent, dict(agent)]
+        self.agents = [agent, replace(agent)]
         self.assertEqual(self.run_cli(), 1)
         self.agents = [agent]
         self.assertEqual(self.run_cli(args=["--run-id", "run-1", "--seat", "no-such-seat"]), 1)
@@ -188,9 +209,46 @@ class SeatResolutionTest(ReprimeCase):
 
     def test_unavailable_roster_fails_without_prompt(self) -> None:
         self.baseline_then_cross()
-        self.list_returncode = 1
+        self.roster_error = backend.BackendUnavailable("tool unavailable")
         self.assertEqual(self.run_cli(), 1)
         self.assertEqual(self.prompts, [])
+        self.assertIn("live roster unavailable", self.stderr.getvalue())
+
+    def test_a_seat_without_an_agent_session_fails_closed(self) -> None:
+        self.write_pointer_files()
+        self.set_pi(7)
+        self.agents[0] = replace(self.agents[0], session=None)
+        self.assertEqual(self.run_cli(), 1)
+        self.assertIn("backend reports no agent session", self.stderr.getvalue())
+        self.assertEqual(self.prompts, [])
+        self.assertEqual(self.state_files(), [])
+
+    def test_a_session_kind_the_agent_does_not_use_fails_closed(self) -> None:
+        self.write_pointer_files()
+        self.set_claude(self.claude_records(0))
+        for kind, session in (("claude", backend.Session("path", "/x/a.jsonl")), ("pi", backend.Session("id", PI_SESSION))):
+            with self.subTest(kind=kind):
+                self.agents[0] = replace(self.agents[0], kind=kind, session=session)
+                self.assertEqual(self.run_cli(), 1)
+        self.assertEqual(self.state_files(), [])
+
+    def test_the_backend_flag_reaches_detect_as_explicit(self) -> None:
+        explicit = backend.Explicit("herdr", "w1:p1")
+        stop = backend.DetectionError("stop")
+        with patch.object(compaction_reprime.backend, "open_backend", wraps=OPEN_BACKEND) as opened, \
+                patch.object(backend, "detect", side_effect=stop) as detect:
+            self.assertEqual(self.run_cli("--backend", "herdr@w1:p1"), 1)
+        detect.assert_called_once()
+        self.assertEqual(detect.call_args.args[1], explicit)
+        self.assertEqual(opened.call_args.args[1], explicit)
+        self.assertIn("compaction_reprime: stop", self.stderr.getvalue())
+
+    def test_the_state_root_is_the_one_state_root_module_patch(self) -> None:
+        self.baseline_then_cross()
+        self.assertEqual(self.run_cli(), 0)
+        (state_file,) = self.state_files()
+        self.assertTrue(state_file.is_relative_to(self.state))
+        self.assertFalse((self.home / ".terminal-delivery").exists())
 
     def test_roster_cwd_may_be_a_subdirectory_of_the_project_root(self) -> None:
         self.write_pointer_files()
@@ -281,7 +339,7 @@ class MarkerCountingTest(ReprimeCase):
         self.set_claude(self.claude_records(0))
         outside = self.home / ".claude" / "projects" / "outside.jsonl"
         self.write_jsonl(outside, [])
-        self.agents[0]["agent_session"]["value"] = "../outside"  # type: ignore[index]
+        self.agents[0] = replace(self.agents[0], session=backend.Session("id", "../outside"))
         self.assertEqual(self.run_cli(), 1)
         self.assertEqual(self.state_files(), [])
 
@@ -387,7 +445,7 @@ class PromptTest(ReprimeCase):
         for threshold in (4, 8, 12):
             with self.subTest(threshold=threshold):
                 self.assertEqual(self.run_cli(), 0)
-                block = self.prompts[-1][4]
+                block = self.prompts[-1][2]
                 if threshold == 4:
                     self.assertNotIn("relaunch-recommended", block)
                     self.assertEqual(self.stdout.getvalue(), f"compaction_reprime: prompted {SEAT} at threshold 4\n")
@@ -401,13 +459,11 @@ class PromptTest(ReprimeCase):
                         f"compaction_reprime: prompted {SEAT} at threshold {threshold}; relaunch recommended at the next slice boundary\n",
                     )
 
-    def test_prompt_is_one_herdr_agent_prompt_of_pointers_only(self) -> None:
+    def test_prompt_is_one_prompt_operation_of_pointers_only(self) -> None:
         self.baseline_then_cross()
         self.assertEqual(self.run_cli(), 0)
-        (argv,) = self.prompts
-        self.assertEqual(argv[:4], ["herdr", "agent", "prompt", SEAT])
-        self.assertEqual(len(argv), 5)
-        block = argv[4]
+        ((operation, seat, block),) = self.prompts
+        self.assertEqual((operation, seat), ("prompt", SEAT))
         records, run_dir = self.records_dir(), self.records_dir() / "runs" / "run-1"
         for pointer in (
             records / "context-pack.md", records / "gates.md", records / "supervisor-notebook.md", run_dir,
@@ -426,7 +482,7 @@ class PromptTest(ReprimeCase):
         self.assertEqual(self.run_cli(), 0)
         self.set_pi(7)
         self.assertEqual(self.run_cli(), 0)
-        block = self.prompts[0][4]
+        block = self.prompts[0][2]
         self.assertIn("\nintake: ", block)
         for label in ("plan", "specification", "slices"):
             self.assertNotIn(f"\n{label}:", block)
@@ -434,21 +490,21 @@ class PromptTest(ReprimeCase):
     def test_named_doctrine_sections_exist(self) -> None:
         self.baseline_then_cross()
         self.assertEqual(self.run_cli(), 0)
-        for pointer in re.findall(r"^[a-z-]+: (/\S+\.md)#(.+)$", self.prompts[0][4], re.MULTILINE):
+        for pointer in re.findall(r"^[a-z-]+: (/\S+\.md)#(.+)$", self.prompts[0][2], re.MULTILINE):
             path, section = pointer
             with self.subTest(section=section):
                 self.assertRegex(Path(path).read_text(encoding="utf-8"), rf"(?m)^#{{1,4}} {re.escape(section)}\s*$")
 
     def test_failed_or_unavailable_prompt_leaves_the_threshold_unsent_and_the_next_run_retries(self) -> None:
-        for outcome in (17, FileNotFoundError("herdr")):
+        for outcome in (backend.SeatError("blocked", "agent blocked"), backend.BackendUnavailable("tool unavailable")):
             with self.subTest(outcome=outcome):
-                self.prompts.clear()
-                self.prompt_outcome = outcome
+                self.fake.calls.clear()
                 self.baseline_then_cross()
+                self.prompt_outcome = outcome
                 self.assertEqual(self.run_cli(), 1)
                 self.assertEqual(len(self.prompts), 1)
                 self.assertIn("prompt failed", self.stderr.getvalue())
-                self.prompt_outcome = 0
+                self.prompt_outcome = None
                 self.assertEqual(self.run_cli(), 0)
                 self.assertEqual(len(self.prompts), 2)
                 self.assertIn("at threshold 4", self.stdout.getvalue())

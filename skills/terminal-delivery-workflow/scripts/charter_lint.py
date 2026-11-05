@@ -1,14 +1,17 @@
 #!/usr/bin/env python3
-"""Check the dispatch-critical fields in a Herdr charter and staffing record."""
+"""Check the dispatch-critical fields in a charter and staffing record."""
 from __future__ import annotations
 
 import argparse
 import hashlib
+import os
 import re
 import shutil
 import subprocess
 import sys
 from pathlib import Path
+
+import backend
 
 DISPOSITION_RE = re.compile(
     r"^\s*[*#`_-]*\s*Disposition:\s*[*_`]*\s*(Engineer|Reviewer|Architect)\b",
@@ -31,7 +34,7 @@ UNIT_RANGE_RE = re.compile(
     re.IGNORECASE | re.MULTILINE,
 )
 SHORT_SHA_RE = re.compile(r"(?<![0-9a-f])[0-9a-f]{7,40}(?![0-9a-f])", re.IGNORECASE)
-REPORT_PATH_RE = re.compile(r"report-[^\s/]+\.md")
+REPORT_FILE_RE = re.compile(r"/[^\s\"'`$\\]*/report-[^\s/\"'`$\\]+\.md")
 SEAT_RE = re.compile(r"^\s*(ENGINEER|REVIEWER|ARCHITECT):.*$", re.IGNORECASE | re.MULTILINE)
 PLACEHOLDER_RE = re.compile(r"<[^>\r\n]+>")
 WAKE_GUARD_RE = re.compile(
@@ -63,7 +66,21 @@ def _read(path: Path, label: str) -> tuple[str, bytes]:
         raise ValueError(f"could not read {label} {path}: {exc}") from exc
 
 
-def _charter_problems(text: str, lead: str) -> list[str]:
+def _send_block_problems(text: str, lead: str, seats: backend.Backend) -> list[str]:
+    """The charter must hold, byte for byte, the send block the backend renders for one of its report paths."""
+    paths = list(dict.fromkeys(REPORT_FILE_RE.findall(text)))
+    if not paths:
+        return ["missing report-by-prompt block: absolute <run-dir>/report-<peer>.md path"]
+    try:
+        blocks = [seats.send_block(lead, path) for path in paths]
+    except ValueError as exc:
+        return [f"report-by-prompt block cannot be rendered: {exc}"]
+    if any(block in text for block in blocks):
+        return []
+    return [f"missing report-by-prompt block, as {seats.name} renders it:\n{blocks[0]}"]
+
+
+def _charter_problems(text: str, lead: str, seats: backend.Backend) -> list[str]:
     problems: list[str] = []
     disposition_match = DISPOSITION_RE.search(text)
     if disposition_match is None:
@@ -96,10 +113,7 @@ def _charter_problems(text: str, lead: str) -> list[str]:
             "missing takeover guard: Never stop, remove, or take over a container, process, or port"
         )
 
-    if f"herdr agent prompt {lead}" not in text:
-        problems.append(f"missing report-by-prompt block: herdr agent prompt {lead}")
-    if REPORT_PATH_RE.search(text) is None:
-        problems.append("missing report-by-prompt block: report-*.md path")
+    problems.extend(_send_block_problems(text, lead, seats))
     if "SEND-FAILED" not in text:
         problems.append("missing report-by-prompt block: SEND-FAILED fallback")
     return problems
@@ -330,16 +344,18 @@ def main(argv: list[str] | None = None) -> int:
         description="Lint the charter and optional staffing record supplied for dispatch."
     )
     parser.add_argument("--charter", required=True, type=Path, help="path to the charter")
-    parser.add_argument("--lead", required=True, help="Lead agent name used by the report block")
+    parser.add_argument("--lead", required=True, help="Lead seat name or handle used by the report block")
     parser.add_argument("--staffing", type=Path, help="optional staffing record")
     parser.add_argument(
         "--repo", required=True, type=Path, help="checkout whose objects the SHAs must name"
     )
+    backend.add_backend_option(parser)
     args = parser.parse_args(argv)
 
     try:
+        seats = backend.open_backend(os.environ, args.backend)
         charter, charter_bytes = _read(args.charter, "charter")
-        problems = _charter_problems(charter, args.lead)
+        problems = _charter_problems(charter, args.lead, seats)
         disposition_match = DISPOSITION_RE.search(charter)
         disposition = disposition_match.group(1).lower() if disposition_match else None
         if disposition in ("engineer", "reviewer", "architect") and args.staffing is None:
@@ -355,7 +371,7 @@ def main(argv: list[str] | None = None) -> int:
             problems.extend(_staffing_problems(staffing, disposition, args.staffing, charter))
         problems.extend(_sha_problems(args.repo, texts))
         problems.extend(_repair_range_problems(args.repo, charter))
-    except ValueError as exc:
+    except (ValueError, backend.BackendError) as exc:
         print(f"charter_lint: {exc}", file=sys.stderr)
         return 1
 

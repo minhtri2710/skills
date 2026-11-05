@@ -63,7 +63,7 @@ def text_subprocesses_without_encoding(path: Path) -> list[str]:
 
 class ScriptEncodingTest(unittest.TestCase):
     def test_every_text_mode_open_and_subprocess_names_an_encoding(self):
-        scripts = sorted(SKILLS.glob("*/scripts/*.py"))
+        scripts = sorted(SKILLS.glob("*/scripts/**/*.py"))
         self.assertTrue(scripts)
         opens = [site for path in scripts for site in text_opens_without_encoding(path)]
         self.assertEqual(opens, [], "text-mode open without encoding=")

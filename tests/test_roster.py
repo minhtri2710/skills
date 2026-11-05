@@ -16,8 +16,50 @@ from unittest import mock
 
 SCRIPTS = Path(__file__).resolve().parents[1] / "skills" / "terminal-delivery-workflow" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+import backend  # noqa: E402
 import roster  # noqa: E402
+from fake_backend import FakeBackend  # noqa: E402
+
+_NEVER_RUN = mock.patch.object(subprocess, "run", side_effect=AssertionError("tests never run a terminal tool"))
+
+
+def setUpModule() -> None:
+    _NEVER_RUN.start()
+
+
+def tearDownModule() -> None:
+    _NEVER_RUN.stop()
+
+
+def seats_of(agents):
+    return [
+        backend.Seat(
+            handle=agent["pane_id"], name=agent.get("name"), state=agent["agent_status"],
+            kind=agent.get("agent"), workspace=agent.get("workspace_id"),
+        )
+        for agent in agents
+    ]
+
+
+def fake_of(agents, processes=None):
+    fake = FakeBackend()
+    for agent in agents:
+        fake.add_seat(
+            agent["pane_id"], name=agent.get("name"), state=agent["agent_status"],
+            kind=agent.get("agent"), workspace=agent.get("workspace_id"),
+            processes=(processes or {}).get(agent["pane_id"]),
+        )
+    return fake
+
+
+def run_main(fake, argv):
+    output, error = io.StringIO(), io.StringIO()
+    with mock.patch.object(roster.backend, "open_backend", return_value=fake), \
+            mock.patch("sys.stdout", output), mock.patch("sys.stderr", error):
+        rc = roster.main(argv)
+    return rc, output.getvalue(), error.getvalue()
 
 
 class RosterTest(unittest.TestCase):
@@ -30,67 +72,41 @@ class RosterTest(unittest.TestCase):
         self.addCleanup(self._stdout_patch.stop)
 
     def test_formats_agents_and_filters_workspace(self):
-        payload = {
-            "result": {
-                "agents": [
-                    {
-                        "pane_id": "w1:p1",
-                        "name": "lead",
-                        "agent": "claude",
-                        "agent_status": "working",
-                        "workspace_id": "w1",
-                    },
-                    {
-                        "pane_id": "w1:p2",
-                        "name": "eng",
-                        "agent_status": "unknown",
-                        "workspace_id": "w1",
-                    },
-                    {
-                        "pane_id": "w2:p1",
-                        "agent": "agy",
-                        "agent_status": "idle",
-                        "workspace_id": "w2",
-                    },
-                ]
-            }
-        }
+        seats = [
+            backend.Seat("w1:p1", name="lead", kind="claude", state="working", workspace="w1"),
+            backend.Seat("w1:p2", name="eng", workspace="w1"),
+            backend.Seat("w2:p1", kind="agy", state="idle", workspace="w2"),
+        ]
         self.assertEqual(
-            roster.format_roster(payload),
+            roster.format_roster(seats),
             ["w1:p1 lead claude working", "w1:p2 eng - unknown", "w2:p1 - agy idle"],
         )
         self.assertEqual(
-            roster.format_roster(payload, workspace="w1"),
+            roster.format_roster(seats, workspace="w1"),
             ["w1:p1 lead claude working", "w1:p2 eng - unknown"],
         )
 
-    _SAMPLE = '{"result":{"agents":[{"pane_id":"w1:p1","name":"lead","agent":"claude","agent_status":"working","workspace_id":"w1"}]}}'
+    _AGENTS = [{"pane_id": "w1:p1", "name": "lead", "agent": "claude", "agent_status": "working", "workspace_id": "w1"}]
 
     def test_default_prints_the_agent_list(self):
-        completed = subprocess.CompletedProcess(
-            args=["herdr", "agent", "list"], returncode=0, stdout=self._SAMPLE, stderr=""
-        )
-        with mock.patch.object(roster.herdr_cli.subprocess, "run", return_value=completed) as run:
-            output = io.StringIO()
-            error = io.StringIO()
-            with mock.patch("sys.stdout", output), mock.patch("sys.stderr", error):
-                rc = roster.main(["--workspace", "w1"])
-        self.assertEqual(rc, 0)
-        self.assertEqual(output.getvalue(), "w1:p1 lead claude working\n")
-        self.assertEqual(error.getvalue(), "")
-        run.assert_called_once()
+        fake = fake_of(self._AGENTS)
+        rc, output, error = run_main(fake, ["--workspace", "w1"])
+        self.assertEqual((rc, output, error), (0, "w1:p1 lead claude working\n", ""))
+        self.assertEqual(fake.calls, [("list_seats",)])
 
-    def test_herdr_unavailable_maps_to_the_existing_cli_error(self):
-        with mock.patch.object(
-            roster.herdr_cli,
-            "run",
-            side_effect=roster.herdr_cli.HerdrUnavailable("herdr agent list timed out"),
-        ):
-            error = io.StringIO()
-            with mock.patch("sys.stdout", io.StringIO()), mock.patch("sys.stderr", error):
-                rc = roster.main([])
+    def test_unavailable_backend_fails_with_its_message(self):
+        fake = FakeBackend()
+        fake.script("list_seats", backend.BackendUnavailable("herdr agent list timed out"))
+        rc, output, error = run_main(fake, [])
+        self.assertEqual((rc, output), (1, ""))
+        self.assertIn("roster: herdr agent list timed out", error)
+
+    def test_backend_flag_reaches_detect_as_explicit(self):
+        with mock.patch.object(backend, "detect", side_effect=backend.DetectionError("no match")) as detect, \
+                mock.patch("sys.stdout", io.StringIO()), mock.patch("sys.stderr", io.StringIO()):
+            rc = roster.main(["--backend", "herdr@w1:p1"])
         self.assertEqual(rc, 1)
-        self.assertIn("could not run herdr agent list", error.getvalue())
+        detect.assert_called_once_with(mock.ANY, backend.Explicit("herdr", "w1:p1"))
 
     def test_stalled_requires_report_absent_and_stale_progress_across_interval(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -106,48 +122,34 @@ class RosterTest(unittest.TestCase):
                     "state": "working", "progress_mtime": stale_mtime,
                 }}})
             )
-            payload = {"result": {"agents": [{
+            agents = [{
                 "pane_id": "w1:p1", "name": "peer-1", "agent": "claude",
                 "agent_status": "idle", "workspace_id": "w1",
-            }]}}
-            completed = subprocess.CompletedProcess(
-                args=["herdr", "agent", "list"], returncode=0,
-                stdout=json.dumps(payload), stderr="",
-            )
-            with mock.patch.object(roster.herdr_cli.subprocess, "run", return_value=completed):
-                output = io.StringIO()
-                with mock.patch("sys.stdout", output):
-                    rc = roster.main([
-                        "--stalled", "--workspace", "w1",
-                        "--peer", f"peer-1:{report}:{progress}",
-                        "--previous-sample", str(previous), "--stale-after", "60",
-                    ])
+            }]
+            rc, output, _ = run_main(fake_of(agents), [
+                "--stalled", "--workspace", "w1",
+                "--peer", f"peer-1:{report}:{progress}",
+                "--previous-sample", str(previous), "--stale-after", "60",
+            ])
             self.assertEqual(rc, 0)
-            self.assertEqual(output.getvalue(), "w1:p1 peer-1 claude STALLED\n")
+            self.assertEqual(output, "w1:p1 peer-1 claude STALLED\n")
 
     def test_never_started_requires_explicit_evidence_and_missing_progress(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             report = root / "report.md"
             progress = root / "progress.md"
-            payload = {"result": {"agents": [{
+            agents = [{
                 "pane_id": "w1:p1", "name": "peer-1", "agent": "claude",
                 "agent_status": "idle", "workspace_id": "w1",
                 "tokens": {"sort_key": "000000000001"},
-            }]}}
-            completed = subprocess.CompletedProcess(
-                args=["herdr", "agent", "list"], returncode=0,
-                stdout=json.dumps(payload), stderr="",
-            )
-            with mock.patch.object(roster.herdr_cli.subprocess, "run", return_value=completed):
-                output = io.StringIO()
-                with mock.patch("sys.stdout", output):
-                    rc = roster.main([
-                        "--never-started", "peer-1", "--workspace", "w1",
-                        "--peer", f"peer-1:{report}:{progress}",
-                    ])
+            }]
+            rc, output, _ = run_main(fake_of(agents), [
+                "--never-started", "peer-1", "--workspace", "w1",
+                "--peer", f"peer-1:{report}:{progress}",
+            ])
             self.assertEqual(rc, 0)
-            self.assertEqual(output.getvalue(), "w1:p1 peer-1 claude NEVER-STARTED\n")
+            self.assertEqual(output, "w1:p1 peer-1 claude NEVER-STARTED\n")
 
     def test_never_started_is_not_reported_when_progress_or_report_exists(self):
         for existing in ("progress", "report"):
@@ -156,23 +158,15 @@ class RosterTest(unittest.TestCase):
                 report = root / "report.md"
                 progress = root / "progress.md"
                 {"progress": progress, "report": report}[existing].write_text(existing)
-                payload = {"result": {"agents": [{
+                agents = [{
                     "pane_id": "w1:p1", "name": "peer-1", "agent": "claude",
                     "agent_status": "done", "workspace_id": "w1",
-                }]}}
-                completed = subprocess.CompletedProcess(
-                    args=["herdr", "agent", "list"], returncode=0,
-                    stdout=json.dumps(payload), stderr="",
-                )
-                with mock.patch.object(roster.herdr_cli.subprocess, "run", return_value=completed):
-                    output = io.StringIO()
-                    with mock.patch("sys.stdout", output):
-                        rc = roster.main([
-                            "--never-started", "peer-1",
-                            "--peer", f"peer-1:{report}:{progress}",
-                        ])
-                self.assertEqual(rc, 0)
-                self.assertEqual(output.getvalue(), "")
+                }]
+                rc, output, _ = run_main(fake_of(agents), [
+                    "--never-started", "peer-1",
+                    "--peer", f"peer-1:{report}:{progress}",
+                ])
+                self.assertEqual((rc, output), (0, ""))
 
     def test_stalled_missing_progress_remains_fail_closed(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -183,23 +177,15 @@ class RosterTest(unittest.TestCase):
             previous.write_text(json.dumps({"peers": {
                 "peer-1": {"state": "working", "progress_mtime": 0},
             }}))
-            payload = {"result": {"agents": [{
+            agents = [{
                 "pane_id": "w1:p1", "name": "peer-1", "agent": "claude",
                 "agent_status": "idle", "workspace_id": "w1",
-            }]}}
-            completed = subprocess.CompletedProcess(
-                args=["herdr", "agent", "list"], returncode=0,
-                stdout=json.dumps(payload), stderr="",
-            )
-            with mock.patch.object(roster.herdr_cli.subprocess, "run", return_value=completed):
-                output = io.StringIO()
-                with mock.patch("sys.stdout", output):
-                    rc = roster.main([
-                        "--stalled", "--peer", f"peer-1:{report}:{progress}",
-                        "--previous-sample", str(previous), "--stale-after", "60",
-                    ])
-            self.assertEqual(rc, 0)
-            self.assertEqual(output.getvalue(), "")
+            }]
+            rc, output, _ = run_main(fake_of(agents), [
+                "--stalled", "--peer", f"peer-1:{report}:{progress}",
+                "--previous-sample", str(previous), "--stale-after", "60",
+            ])
+            self.assertEqual((rc, output), (0, ""))
 
     def test_stalled_single_idle_sample_with_report_is_not_stalled(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -214,23 +200,15 @@ class RosterTest(unittest.TestCase):
             previous.write_text(json.dumps({"peers": {
                 "peer-1": {"state": "working", "progress_mtime": stale_mtime},
             }}))
-            payload = {"result": {"agents": [{
+            agents = [{
                 "pane_id": "w1:p1", "name": "peer-1", "agent": "claude",
                 "agent_status": "idle", "workspace_id": "w1",
-            }]}}
-            completed = subprocess.CompletedProcess(
-                args=["herdr", "agent", "list"], returncode=0,
-                stdout=json.dumps(payload), stderr="",
-            )
-            with mock.patch.object(roster.herdr_cli.subprocess, "run", return_value=completed):
-                output = io.StringIO()
-                with mock.patch("sys.stdout", output):
-                    rc = roster.main([
-                        "--stalled", "--peer", f"peer-1:{report}:{progress}",
-                        "--previous-sample", str(previous), "--stale-after", "60",
-                    ])
-            self.assertEqual(rc, 0)
-            self.assertEqual(output.getvalue(), "")
+            }]
+            rc, output, _ = run_main(fake_of(agents), [
+                "--stalled", "--peer", f"peer-1:{report}:{progress}",
+                "--previous-sample", str(previous), "--stale-after", "60",
+            ])
+            self.assertEqual((rc, output), (0, ""))
 
     def test_stalled_single_idle_sample_with_fresh_progress_is_not_stalled(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -245,12 +223,12 @@ class RosterTest(unittest.TestCase):
                     "progress_mtime": current_mtime - 1,
                 }
             }
-            payload = {"result": {"agents": [{
+            agents = [{
                 "pane_id": "w1:p1", "name": "peer-1", "agent": "claude",
                 "agent_status": "idle", "workspace_id": "w1",
-            }]}}
+            }]
             lines = roster.format_stalled_roster(
-                payload,
+                seats_of(agents),
                 {"peer-1": (report, progress)},
                 previous,
                 stale_after=60,
@@ -275,25 +253,27 @@ class RosterTest(unittest.TestCase):
         self, agents, argv_by_pane, seats, config=_DRIFT_CONFIG, extra_argv=(),
         pi_sessions=None, process_start=None, ps_result=(0, None),
     ):
-        listing = json.dumps({"result": {"agents": agents}})
+        failure = None
+        processes = {}
+        for pane, process in argv_by_pane.items():
+            if isinstance(process, tuple):
+                failure = backend.BackendError(f"herdr pane process-info {pane} failed: unknown")
+                continue
+            processes[pane] = [
+                {"argv": ["caffeinate", "-i"]},
+                process if isinstance(process, dict) else {"argv": process},
+            ]
+        fake = fake_of(agents, processes)
+        if failure:
+            fake.script("processes", failure)
 
         def run(command, **_):
-            if command[0] == "ps":
-                rc, output = ps_result
-                start = process_start or datetime(2026, 9, 26, 13).astimezone()
-                stamp = start.strftime("%a %b %d %H:%M:%S %Y")
-                return subprocess.CompletedProcess(command, rc, output or stamp, "ps failed" if rc else "")
-            if command[1:3] == ["agent", "list"]:
-                out = listing
-            else:
-                pane = command[-1]
-                if isinstance(argv_by_pane[pane], tuple):
-                    return subprocess.CompletedProcess(command, *argv_by_pane[pane], "")
-                process = argv_by_pane[pane]
-                procs = [{"argv": ["caffeinate", "-i"]}]
-                procs.append(process if isinstance(process, dict) else {"argv": process})
-                out = json.dumps({"result": {"process_info": {"foreground_processes": procs}}})
-            return subprocess.CompletedProcess(command, 0, out, "")
+            if command[0] != "ps":
+                raise AssertionError(f"unexpected command: {command}")
+            rc, output = ps_result
+            start = process_start or datetime(2026, 9, 26, 13).astimezone()
+            stamp = start.strftime("%a %b %d %H:%M:%S %Y")
+            return subprocess.CompletedProcess(command, rc, output or stamp, "ps failed" if rc else "")
 
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -312,15 +292,13 @@ class RosterTest(unittest.TestCase):
                         path.write_text(entries, encoding="utf-8")
                     else:
                         path.write_text("".join(json.dumps(entry) + "\n" for entry in entries), encoding="utf-8")
-            output, error = io.StringIO(), io.StringIO()
-            with mock.patch.object(roster.herdr_cli.subprocess, "run", side_effect=run), \
-                    mock.patch.dict(os.environ, {"PI_CODING_AGENT_DIR": str(agent_dir)}), \
-                    mock.patch("sys.stdout", output), mock.patch("sys.stderr", error):
-                argv = ["--drift", str(config_path), *extra_argv]
-                for seat in seats:
-                    argv += ["--seat", seat]
-                rc = roster.main(argv)
-        return rc, output.getvalue().splitlines(), error.getvalue()
+            argv = ["--drift", str(config_path), *extra_argv]
+            for seat in seats:
+                argv += ["--seat", seat]
+            with mock.patch.object(roster.subprocess, "run", side_effect=run), \
+                    mock.patch.dict(os.environ, {"PI_CODING_AGENT_DIR": str(agent_dir)}):
+                rc, output, error = run_main(fake, argv)
+        return rc, output.splitlines(), error
 
     def test_drift_flags_only_seats_matching_neither_config_route(self):
         process_start = datetime(2026, 9, 26, 13).astimezone()
@@ -512,26 +490,17 @@ class RosterTest(unittest.TestCase):
             settings = roster.project_config.peer_settings_path(directory, "rev")
             process = {"w1:p1": ["pi", "--model", "review-model", "--settings", str(settings)]}
             settings.write_text('{"mode":"drifted"}', encoding="utf-8")
-            listing = json.dumps({"result": {"agents": [seat]}})
-            commands = []
-            def run(command, **_kwargs):
-                commands.append(command)
-                if command[1:3] == ["agent", "list"]:
-                    output = listing
-                else:
-                    output = json.dumps({"result": {"process_info": {"foreground_processes": [{"argv": process["w1:p1"]}]}}})
-                return subprocess.CompletedProcess(command, 0, output, "")
+            fake = fake_of([seat], {"w1:p1": [{"argv": process["w1:p1"]}]})
             config["launch-profiles"]["pi"]["peer-settings-json"] = {"mode": "configured"}
             config_path = Path(directory) / "config.json"
             config_path.write_text(json.dumps(config), encoding="utf-8")
-            output, error = io.StringIO(), io.StringIO()
-            with mock.patch.object(roster.herdr_cli.subprocess, "run", side_effect=run), \
-                    mock.patch("sys.stdout", output), mock.patch("sys.stderr", error):
-                rc = roster.main(["--drift", str(config_path), "--seat", "rev:reviewer",
-                                  "--run-dir", directory, "--lead", "lead-demo",
-                                  "--installed-skill-dir", "/installed"])
-        self.assertEqual((rc, error.getvalue()), (1, ""))
-        self.assertEqual(output.getvalue(), "w1:p1 rev pi UNVERIFIABLE role=reviewer reason=settings-mismatch\n")
+            rc, output, error = run_main(fake, [
+                "--drift", str(config_path), "--seat", "rev:reviewer",
+                "--run-dir", directory, "--lead", "lead-demo",
+                "--installed-skill-dir", "/installed",
+            ])
+        self.assertEqual((rc, error), (1, ""))
+        self.assertEqual(output, "w1:p1 rev pi UNVERIFIABLE role=reviewer reason=settings-mismatch\n")
 
     def test_drift_requires_the_matched_routes_args_as_one_contiguous_block(self):
         config = {
@@ -612,7 +581,6 @@ class RosterTest(unittest.TestCase):
             (self._DRIFT_CONFIG, pi, "gone:engineer", (), "no live seat named gone"),
             (self._DRIFT_CONFIG, pi, "eng:engineer", ("--workspace", "w2"), "no live seat named eng"),
             (self._DRIFT_CONFIG, {"w1:p1": (1, "")}, "eng:engineer", (), "process-info w1:p1 failed"),
-            (self._DRIFT_CONFIG, {"w1:p1": (0, "{}")}, "eng:engineer", (), "lacks foreground_processes"),
         ]
         for config, argv, name, extra_argv, message in cases:
             with self.subTest(message=message):
