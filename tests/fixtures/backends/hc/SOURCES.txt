@@ -1,6 +1,6 @@
 Every file here is `schema-derived`: written by hand from herdr-core source, never captured from a
 running hc (the Human's live proof, design section 9.4, is pending). Source repository:
-/Users/beowulf/Work/herdr-core at 52d7c56 (v0.1.17), read only. Field values are illustrative; only
+herdr-core commit 52d7c56 (v0.1.17), read only. Field values are illustrative; only
 the shapes, field names, and the quoted words are from source.
 
   get-live.json, get-live-no-status.json, get-finished-ok.json, get-finished-failed.json, kill.json
@@ -15,9 +15,6 @@ the shapes, field names, and the quoted words are from source.
       cli/output.rs:142-155 short: address name template parent state turn exit_code signal reason
       cwd, status as the bare state word, agent = status.app else basename of argv[0]; no argv, no
       labels). ls-non-object.json is a malformed variant.
-  run-bg.json
-      `hc run --bg --json` prints short(result) plus first_message/wait/output when present
-      (cli.rs:388-418 Cmd::Run); no template, so only the short fields.
   send-started.json, send-not-started.json, send-unreported.json
       `hc send --json`: schema SendResult {status, turn, started, wait} (api.rs terminal_send);
       started true/false after a 5 s window, null when the program never reports status
@@ -29,11 +26,6 @@ the shapes, field names, and the quoted words are from source.
   read.txt
       `hc read` prints plain text, with the "[hc] only its screen: it is working; ..." note
       appended while working (cli.rs:465-480; note text at 471).
-  interrupt.json
-      `hc interrupt --json`: InterruptResult {outcome, key}; outcomes stopped, exited,
-      still_working, unknown (api.rs:549-556).
-  rm.json
-      `hc rm --json`: RemoveResult {removed} (api.rs:297-312).
   error-not-found.stderr.json, error-blocked.stderr.json, error-live.stderr.json
       stderr {"error": {kind, message, hint}} (cli.rs:207-218 fail). blocked message and hint are
       the text at input.rs:164-176; live at api.rs:301-306; not_found text is illustrative.

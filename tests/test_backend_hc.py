@@ -70,7 +70,7 @@ class Recorder:
 
 def adapter(*replies: subprocess.CompletedProcess[str]) -> tuple[hc.Adapter, Recorder]:
     runner = Recorder(*replies)
-    return hc.Adapter(ENVIRON, runner=runner), runner
+    return hc.Adapter(ENVIRON, runner=runner, binary="hc"), runner
 
 
 # The whole command surface the adapter may use: verb -> flags it may pass (design 9.3 allow-list).
@@ -175,7 +175,7 @@ class CorePinTest(unittest.TestCase):
     def test_every_call_runs_with_hc_socket_set_to_the_terminal_socket(self) -> None:
         stale = {**ENVIRON, "HC_SOCKET": "/elsewhere/other.sock"}
         runner = Recorder(*[reply(fixture("get-live.json")) for _ in range(3)])
-        a = hc.Adapter(stale, runner=runner)
+        a = hc.Adapter(stale, runner=runner, binary="hc")
         a.get_seat("t7")
         a.processes("t7")
         a.identify()
@@ -186,7 +186,7 @@ class CorePinTest(unittest.TestCase):
 
     def test_without_a_socket_nothing_runs(self) -> None:
         runner = Recorder()
-        a = hc.Adapter({"HC_TERMINAL_ID": "t7"}, runner=runner)
+        a = hc.Adapter({"HC_TERMINAL_ID": "t7"}, runner=runner, binary="hc")
         for call in (a.identify, a.list_seats, lambda: a.get_seat("t7")):
             with self.assertRaises(backend.BackendUnavailable):
                 call()
@@ -279,7 +279,7 @@ class NormalizeTest(unittest.TestCase):
         for ref in ("", "-x", "--json", "t7 t8", "t7;rm", "a/b"):
             with self.subTest(ref):
                 a, runner = adapter()
-                for call in (a.get_seat, a.get_terminal, a.processes, a.interrupt, a.close, lambda r: a.read_output(r, 5), lambda r: a.prompt(r, "x")):
+                for call in (a.get_seat, a.get_terminal, a.processes, lambda r: a.read_output(r, 5), lambda r: a.prompt(r, "x")):
                     with self.assertRaises(ValueError):
                         call(ref)
                 with self.assertRaises(ValueError):
@@ -307,8 +307,6 @@ class ErrorKindTest(unittest.TestCase):
             "prompt": lambda a: a.prompt("t99", "x"),
             "wait": lambda a: a.wait_state("t99", ["idle"], 1000),
             "processes": lambda a: a.processes("t99"),
-            "interrupt": lambda a: a.interrupt("t99"),
-            "close": lambda a: a.close("t99"),
         }
         for label, call in calls.items():
             with self.subTest(label):
@@ -415,13 +413,29 @@ class WaitTest(unittest.TestCase):
                 self.assertEqual(caught.exception.code, "state_not_requested")
                 self.assertEqual(len(runner.calls), 1)
 
-    def test_a_check_in_or_a_message_is_not_a_state(self) -> None:
-        for name, code in (("wait-timeout.json", "timeout"), ("wait-message.json", "message")):
-            with self.subTest(code):
-                a, _ = adapter(reply(fixture(name)))
-                with self.assertRaises(backend.BackendError) as caught:
-                    a.wait_state("t7", ["idle"], 1000)
-                self.assertEqual(caught.exception.code, code)
+    def test_a_check_in_is_not_a_state(self) -> None:
+        a, runner = adapter(reply(fixture("wait-timeout.json")))
+        with self.assertRaises(backend.BackendError) as caught:
+            a.wait_state("t7", ["idle"], 1000)
+        self.assertEqual(caught.exception.code, "timeout")
+        self.assertEqual(len(runner.calls), 1)
+
+    def test_a_message_ends_the_wait_and_the_same_wait_is_reissued_for_the_time_left(self) -> None:
+        a, runner = adapter(reply(fixture("wait-message.json")), reply(fixture("wait-idle.json")))
+        with mock.patch.object(hc.time, "monotonic", side_effect=[0.0, 0.0, 12.0, 12.0]):
+            self.assertEqual(a.wait_state("t7", ["idle"], 30000), "idle")
+        self.assertEqual(
+            runner.calls[0][:2] + runner.calls[1][:2],
+            (["wait", "--json", "--timeout", "30", "t7"], 40.0, ["wait", "--json", "--timeout", "18", "t7"], 28.0),
+        )
+
+    def test_messages_until_the_deadline_end_in_a_timeout(self) -> None:
+        a, runner = adapter(reply(fixture("wait-message.json")), reply(fixture("wait-message.json")))
+        with mock.patch.object(hc.time, "monotonic", side_effect=[0.0, 0.0, 10.0, 10.0, 31.0]):
+            with self.assertRaises(backend.BackendError) as caught:
+                a.wait_state("t7", ["idle"], 30000)
+        self.assertEqual(caught.exception.code, "timeout")
+        self.assertEqual([args[3] for args in runner.argv], ["30", "20"])
 
     def test_wait_state_refuses_states_outside_the_seat_model(self) -> None:
         a, runner = adapter()
@@ -476,7 +490,7 @@ class IdentifyTest(unittest.TestCase):
     def test_identify_without_a_terminal_id_runs_nothing(self) -> None:
         runner = Recorder()
         with self.assertRaises(backend.BackendUnavailable):
-            hc.Adapter({"HC_TERMINAL_SOCKET": SOCKET}, runner=runner).identify()
+            hc.Adapter({"HC_TERMINAL_SOCKET": SOCKET}, runner=runner, binary="hc").identify()
         self.assertEqual(runner.calls, [])
 
     def test_identify_propagates_a_missing_binary(self) -> None:
@@ -503,93 +517,6 @@ class IdentifyTest(unittest.TestCase):
             backend.detect({**only_hc, "HERDR_ENV": "1", "HERDR_PANE_ID": "w1:p1"})
 
 
-class SpawnTest(unittest.TestCase):
-    ARGV = ["/usr/local/bin/claude", "--model", "opus"]
-
-    def test_spawn_argv_is_background_parentless_and_literal(self) -> None:
-        a, runner = adapter(reply(fixture("run-bg.json")))
-        handle = a.spawn("eng-c", "claude", self.ARGV, "/work/checkout")
-        self.assertEqual(handle, "t12")
-        self.assertEqual(
-            runner.argv,
-            [["run", "--bg", "--json", "--no-parent", "--name", "eng-c", "--cwd", "/work/checkout", "--", *self.ARGV]],
-        )
-
-    def test_a_program_argument_that_looks_like_a_flag_stays_the_programs(self) -> None:
-        a, runner = adapter(reply(fixture("run-bg.json")))
-        a.spawn("eng-c", "claude", ["claude", "--no-parent", "--json", "-p"], "/work")
-        self.assertEqual(runner.argv[0][-5:], ["--", "claude", "--no-parent", "--json", "-p"])
-
-    def test_spawn_refuses_what_hc_would_misread(self) -> None:
-        rows = {
-            "name with capitals": ("Eng", self.ARGV, "/work"),
-            "name too long": ("a" * 33, self.ARGV, "/work"),
-            "empty name": ("", self.ARGV, "/work"),
-            "no argv": ("eng", [], "/work"),
-            "empty word": ("eng", ["claude", ""], "/work"),
-            "lone string with a space": ("eng", ["claude --model opus"], "/work"),
-            "lone string with a shell sign": ("eng", ["cd x;claude"], "/work"),
-            "relative cwd": ("eng", self.ARGV, "work"),
-        }
-        for label, (name, argv, cwd) in rows.items():
-            with self.subTest(label):
-                a, runner = adapter()
-                with self.assertRaises(ValueError):
-                    a.spawn(name, "claude", argv, cwd)
-                self.assertEqual(runner.calls, [])
-
-    def test_a_lone_program_name_is_accepted(self) -> None:
-        a, _ = adapter(reply(fixture("run-bg.json")))
-        self.assertEqual(a.spawn("eng", "claude", ["claude"], "/work"), "t12")
-
-    def test_spawn_without_an_address_is_malformed(self) -> None:
-        for stdout in ('{"name": "eng"}', '{"address": ""}', '{"address": 7}'):
-            with self.subTest(stdout):
-                a, _ = adapter(reply(stdout))
-                with self.assertRaises(backend.BackendError):
-                    a.spawn("eng", "claude", ["claude"], "/work")
-
-    def test_a_taken_name_keeps_its_hc_code(self) -> None:
-        a, _ = adapter(reply(returncode=1, stderr='{"error": {"kind": "name_taken", "message": "x", "hint": ""}}'))
-        with self.assertRaises(backend.BackendError) as caught:
-            a.spawn("eng", "claude", ["claude"], "/work")
-        self.assertEqual(caught.exception.code, "name_taken")
-        self.assertNotIsInstance(caught.exception, backend.SeatError)
-
-
-class InterruptCloseNotifyTest(unittest.TestCase):
-    def test_interrupt_argv_and_outcome(self) -> None:
-        a, runner = adapter(reply(fixture("interrupt.json")))
-        self.assertEqual(a.interrupt("eng-a"), "stopped")
-        self.assertEqual(runner.argv, [["interrupt", "--json", "eng-a"]])
-
-    def test_interrupt_without_an_outcome_is_malformed(self) -> None:
-        a, _ = adapter(reply('{"key": "esc"}'))
-        with self.assertRaises(backend.BackendError):
-            a.interrupt("t7")
-
-    def test_close_kills_then_removes(self) -> None:
-        a, runner = adapter(reply(fixture("kill.json")), reply(fixture("rm.json")))
-        self.assertIsNone(a.close("t9"))
-        self.assertEqual(runner.argv, [["kill", "--json", "t9"], ["rm", "--json", "t9"]])
-
-    def test_close_stops_when_kill_fails_and_reports_a_live_terminal(self) -> None:
-        a, runner = adapter(reply(returncode=3, stderr=fixture("error-not-found.stderr.json")))
-        with self.assertRaises(backend.SeatError):
-            a.close("t9")
-        self.assertEqual(len(runner.calls), 1)
-        a, _ = adapter(reply(fixture("kill.json")), reply(returncode=1, stderr=fixture("error-live.stderr.json")))
-        with self.assertRaises(backend.BackendError) as caught:
-            a.close("t9")
-        self.assertEqual(caught.exception.code, "live")
-
-    def test_notify_is_unsupported_and_runs_nothing(self) -> None:
-        a, runner = adapter()
-        with self.assertRaises(backend.Unsupported):
-            a.notify("t3: report send failed", REPORT)
-        self.assertEqual(runner.calls, [])
-
-
 class SendBlockTest(unittest.TestCase):
     def test_block_is_the_report_by_prompt_send_with_no_notification_line(self) -> None:
         a, runner = adapter()
@@ -598,6 +525,13 @@ class SendBlockTest(unittest.TestCase):
         self.assertNotIn("\n", block)
         self.assertNotIn("notif", block)
         self.assertEqual(runner.calls, [])
+
+    def test_block_renders_the_binary_the_adapter_resolved(self) -> None:
+        resolved = hc.Adapter(ENVIRON, runner=Recorder(), binary="/home/u/.local/bin/herdr-core")
+        self.assertEqual(
+            resolved.send_block(LEAD, REPORT),
+            '"$HOME/.local/bin/herdr-core" send t3 "$(cat /state/projects/demo/runs/r1/send-eng-a.txt)"',
+        )
 
     def test_block_refuses_unsafe_or_misshapen_inputs(self) -> None:
         a, _ = adapter()
@@ -636,63 +570,57 @@ class ReferenceTest(unittest.TestCase):
     """The argv the adapter builds, the command the reference documents, and the allow-list agree."""
 
     def exercise(self) -> list[tuple[str, list[str]]]:
-        """Every operation once, as (operation, argv) read back from the runner."""
-        replies = {
-            "identify": [fixture("get-live.json")],
-            "spawn": [fixture("run-bg.json")],
-            "prompt": [fixture("send-started.json")],
-            "read": [fixture("read.txt")],
-            "state": [fixture("get-live.json")],
-            "wait": [fixture("wait-idle.json")],
-            "list": [fixture("ls.json")],
-            "processes": [fixture("get-live.json")],
-            "interrupt": [fixture("interrupt.json")],
-            "close": [fixture("kill.json"), fixture("rm.json")],
-        }
+        """Every operation the adapter implements once, as (operation, argv) read back from the runner."""
         steps = {
-            "identify": lambda a: a.identify(),
-            "spawn": lambda a: a.spawn("eng-c", "claude", ["claude", "--model", "opus"], "/work"),
-            "prompt": lambda a: a.prompt("t7", "go"),
-            "read": lambda a: a.read_output("t7", 50),
-            "state": lambda a: a.get_seat("t7"),
-            "wait": lambda a: a.wait_state("t7", ["idle"], 5000),
-            "list": lambda a: a.list_seats(),
-            "processes": lambda a: a.processes("t7"),
-            "interrupt": lambda a: a.interrupt("t7"),
-            "close": lambda a: a.close("t7"),
+            "identify": (["get-live.json"], lambda a: a.identify()),
+            "prompt": (["send-started.json"], lambda a: a.prompt("t7", "go")),
+            "read": (["read.txt"], lambda a: a.read_output("t7", 50)),
+            "state": (["get-live.json"], lambda a: a.get_seat("t7")),
+            "wait": (["wait-idle.json"], lambda a: a.wait_state("t7", ["idle"], 5000)),
+            "list": (["ls.json"], lambda a: a.list_seats()),
+            "processes": (["get-live.json"], lambda a: a.processes("t7")),
         }
         built = []
-        for operation, step in steps.items():
-            a, runner = adapter(*[reply(text) for text in replies[operation]])
+        for operation, (replies, step) in steps.items():
+            a, runner = adapter(*[reply(fixture(name)) for name in replies])
             step(a)
             built += [(operation, args) for args in runner.argv]
         return built
 
-    TEMPLATES = {
-        ("identify", 0): "hc get <t> --json",
-        ("spawn", 0): "hc run --bg --json --no-parent --name <name> --cwd <dir> -- <argv>...",
-        ("prompt", 0): "hc send --json <t> <text>",
-        ("read", 0): "hc read --lines <n> <t>",
-        ("state", 0): "hc get <t> --json",
-        ("wait", 0): "hc wait --json --timeout <s> <t>",
-        ("list", 0): "hc ls --json",
-        ("processes", 0): "hc get <t> --json",
-        ("interrupt", 0): "hc interrupt --json <t>",
-        ("close", 0): "hc kill --json <t>",
-        ("close", 1): "hc rm --json <t>",
+    BUILT = {
+        "identify": "hc get <t> --json",
+        "prompt": "hc send --json <t> <text>",
+        "read": "hc read --lines <n> <t>",
+        "state": "hc get <t> --json",
+        "wait": "hc wait --json --timeout <s> <t>",
+        "list": "hc ls --json",
+        "processes": "hc get <t> --json",
     }
+    # The seam has no spawn, interrupt or close yet (backend.py docstring): the reference documents
+    # their commands and the allow-list bounds them, but the adapter builds no argv for them.
+    REFERENCE_ONLY = (
+        "hc run --bg --json --no-parent --name <name> --cwd <dir> -- <argv>...",
+        "hc interrupt --json <t>",
+        "hc kill --json <t>",
+        "hc rm --json <t>",
+    )
 
     def test_each_built_argv_is_the_command_the_reference_documents(self) -> None:
         reference = REFERENCE.read_text(encoding="utf-8")
-        seen: dict[str, int] = {}
-        for operation, args in self.exercise():
-            index = seen.get(operation, 0)
-            seen[operation] = index + 1
-            template = self.TEMPLATES[(operation, index)]
-            with self.subTest(operation=operation, index=index):
+        built = self.exercise()
+        self.assertEqual([operation for operation, _ in built], list(self.BUILT))
+        for operation, args in built:
+            template = self.BUILT[operation]
+            with self.subTest(operation=operation):
                 self.assertIn(f"`{template}`", reference)
                 self.assertTrue(template_matches(template, args), f"{args} does not fit {template}")
-        self.assertEqual(sorted(seen), sorted({operation for operation, _ in self.TEMPLATES}))
+
+    def test_the_reference_only_commands_are_documented_and_inside_the_allow_list(self) -> None:
+        reference = REFERENCE.read_text(encoding="utf-8")
+        for template in self.REFERENCE_ONLY:
+            with self.subTest(template):
+                self.assertIn(f"`{template}`", reference)
+                self.assertIsNone(violation(template.split()[1:]))
 
     def test_every_built_argv_is_inside_the_allow_list(self) -> None:
         for operation, args in self.exercise():

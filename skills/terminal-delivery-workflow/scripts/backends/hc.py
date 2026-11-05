@@ -12,30 +12,29 @@ import math
 import os
 import re
 import subprocess
+import time
 from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
 import backend
 
+BINARY_NAME = "herdr-core"
 FALLBACK_BINARY = "hc"
 DEFAULT_TIMEOUT = 30.0
 # Error kind -> seat error kind; hc's other kinds (needs_target, status_mismatch, finished, unavailable...) stay BackendError codes.
 _SEAT_KINDS = {"not_found": "not_found", "blocked": "blocked"}
 # Exit codes of `hc` when stderr carries no JSON (SKILL.md:214-215).
 _EXIT_KINDS = {3: "not_found", 7: "needs_target", 9: "blocked", 10: "status_mismatch", 11: "finished"}
-_NAME_RE = re.compile(r"[a-z0-9_-]{1,32}")
 _REPORT_PATH_RE = re.compile(r"(?P<dir>.+)/report-(?P<peer>[^/]+)\.md")
 _UNSAFE_IN_DOUBLE_QUOTES = frozenset('"$`\\\n')
-# cli.rs:691-696: a lone argv string holding one of these runs as a shell line, not as a program name.
-_SHELL_SIGNS = frozenset(";|&<>$`*?(){}~'\"")
 
 Runner = Callable[..., "subprocess.CompletedProcess[str]"]
 
 
 def resolve_binary(home: Path) -> str:
     """~/.local/bin/herdr-core when it is an executable file, else `hc` on PATH (design section 4)."""
-    candidate = home / ".local" / "bin" / "herdr-core"
+    candidate = home / ".local" / "bin" / BINARY_NAME
     return str(candidate) if candidate.is_file() and os.access(candidate, os.X_OK) else FALLBACK_BINARY
 
 
@@ -113,9 +112,10 @@ def _seat(terminal: Mapping[str, Any]) -> backend.Seat:
 class Adapter(backend.Backend):
     name = "hc"
 
-    def __init__(self, environ: Mapping[str, str], runner: Runner | None = None) -> None:
+    def __init__(self, environ: Mapping[str, str], runner: Runner | None = None, binary: str | None = None) -> None:
         super().__init__(environ)
-        self._runner = runner or functools.partial(run, resolve_binary(Path.home()))
+        self._binary = binary or resolve_binary(Path.home())
+        self._runner = runner or functools.partial(run, self._binary)
         socket = environ.get("HC_TERMINAL_SOCKET")
         self._env = {**environ, "HC_SOCKET": socket} if socket else None
 
@@ -183,9 +183,18 @@ class Adapter(backend.Backend):
     def wait_state(self, ref: str, states: Sequence[str], timeout_ms: int) -> str:
         if not states or any(state not in backend.STATES for state in states):
             raise ValueError(f"wait states must be a non-empty subset of {backend.STATES}")
-        seconds = max(1, math.ceil(timeout_ms / 1000))
-        result = self._json(["wait", "--json", "--timeout", str(seconds), _target(ref)], timeout=seconds + 10)
-        reason = result.get("reason")
+        deadline = time.monotonic() + timeout_ms / 1000
+        while True:
+            seconds = max(1, math.ceil(deadline - time.monotonic()))
+            result = self._json(["wait", "--json", "--timeout", str(seconds), _target(ref)], timeout=seconds + 10)
+            reason = result.get("reason")
+            # A message typed into this caller ends the wait; it is already in the caller's input and
+            # hc removes it as it returns, so the same wait is issued again for the time that is left.
+            if reason == "message" and time.monotonic() < deadline:
+                continue
+            if reason == "message":
+                raise backend.BackendError(f"hc wait {ref} timed out after {timeout_ms} ms", code="timeout")
+            break
         if reason == "exit":
             reached = _state({"state": "finished", "exit_code": result.get("exit_code")})
         elif reason == "status":
@@ -205,40 +214,11 @@ class Adapter(backend.Backend):
             raise backend.BackendError(f"hc get {handle} returned a malformed foreground record")
         return [{**foreground, "argv0": argv[0]} if argv else dict(foreground)]
 
-    def spawn(self, name: str, kind: str, argv: Sequence[str], cwd: str) -> str:
-        """Start argv in a new terminal with no parent and return its address; `kind` is not passed (hc has none)."""
-        if _NAME_RE.fullmatch(name) is None:
-            raise ValueError(f"hc names are 1-32 of a-z 0-9 - _: {name!r}")
-        if not argv or not all(isinstance(arg, str) and arg for arg in argv):
-            raise ValueError("spawn needs a non-empty argv of non-empty strings")
-        if len(argv) == 1 and any(c.isspace() or c in _SHELL_SIGNS for c in argv[0]):
-            raise ValueError("a lone argv string with spaces or shell signs would run as a shell line, not a program")
-        if not os.path.isabs(cwd):
-            raise ValueError(f"cwd must be absolute: {cwd!r}")
-        address = self._json(["run", "--bg", "--json", "--no-parent", "--name", name, "--cwd", cwd, "--", *argv]).get("address")
-        if not isinstance(address, str) or not address:
-            raise backend.BackendError("hc run returned no address")
-        return address
-
-    def interrupt(self, ref: str) -> str:
-        """The outcome word hc reports after pressing the stop key (stopped, exited, still_working, unknown)."""
-        outcome = self._json(["interrupt", "--json", _target(ref)]).get("outcome")
-        if not isinstance(outcome, str):
-            raise backend.BackendError(f"hc interrupt {ref} returned no outcome")
-        return outcome
-
-    def close(self, ref: str) -> None:
-        """kill, then rm (hc rm refuses a live terminal); only for terminals this run started."""
-        self._json(["kill", "--json", _target(ref)])
-        self._json(["rm", "--json", ref])
-
-    def notify(self, title: str, body: str) -> None:
-        raise self._unsupported("notify")
-
     def send_block(self, lead_handle: str, report_path: str) -> str:
         if backend.HANDLE_RE.fullmatch(lead_handle) is None:
             raise ValueError(f"not a seat handle: {lead_handle!r}")
         match = _REPORT_PATH_RE.fullmatch(report_path)
         if match is None or _UNSAFE_IN_DOUBLE_QUOTES & set(report_path):
             raise ValueError(f"report path must be <run-dir>/report-<peer>.md without shell metacharacters: {report_path!r}")
-        return f'hc send {lead_handle} "$(cat {match["dir"]}/send-{match["peer"]}.txt)"'
+        command = FALLBACK_BINARY if self._binary == FALLBACK_BINARY else f'"$HOME/.local/bin/{BINARY_NAME}"'
+        return f'{command} send {lead_handle} "$(cat {match["dir"]}/send-{match["peer"]}.txt)"'
