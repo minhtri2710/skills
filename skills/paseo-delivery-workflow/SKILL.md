@@ -347,8 +347,9 @@ list, never remove one. Dangerous:
 - a merge whose delivery changes CI config or the checks that decide green, or whose merge
   deploys or publishes;
 - an edit to `~/.paseo/config.json`, a Claude settings file, or tier policy; installing or
-  reinstalling a skill or a shared helper (a script or binary outside a repository that
-  more than one seat or project uses); changing another agent's mode or provider;
+  reinstalling a skill or a shared helper (a script or binary that more than one seat or
+  project uses, installed outside its repository); changing another agent's mode or
+  provider;
 - a restart, degradation, or deletion of infrastructure another project's production also
   runs on (a shared host, container runtime, VM, or database host), routed with what each
   affected project's record shows it interrupts;
