@@ -4,14 +4,14 @@ from __future__ import annotations
 
 import argparse
 import json
-import re
+import os
 import shlex
 import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping
 
-import herdr_cli
+import backend
 import gate_row
 
 
@@ -32,13 +32,11 @@ def _unpushed_commits(repo: Path, gate_tips: list[str]) -> list[str]:
     return gate_row.git(repo, "rev-list", head, "--not", *exclude, *gate_tips).splitlines()
 
 
-_HANDLE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$")
 _ROLE_RE = {"Engineer", "Reviewer"}
 _PERSISTENT_ROLES = {"Lead", "Human Supervisor"}
 _PERSISTENT_ROLE_ERROR = (
     "persistent must record exactly one Lead and at most one Human Supervisor"
 )
-_ABSENT_STATUSES = {"absent", "closed", "not_found", "pane_not_found"}
 _SERVER_MARKERS = (
     "astro",
     "flask run",
@@ -63,18 +61,6 @@ _INTERPRETER_SUBCOMMANDS = frozenset({"run"})
 _INLINE_CODE_FLAGS = frozenset({"-c", "-e", "-m", "-r", "--eval"})
 
 
-def _status(value: Any) -> str | None:
-    if isinstance(value, str):
-        return value.strip().lower()
-    if not isinstance(value, Mapping):
-        return None
-    for key in ("status", "code", "error", "kind"):
-        candidate = value.get(key)
-        if isinstance(candidate, str):
-            return candidate.strip().lower()
-    return None
-
-
 def _record_from_input(staffing_record: Mapping[str, Any] | str | Path) -> Mapping[str, Any]:
     if isinstance(staffing_record, Mapping):
         return staffing_record
@@ -89,8 +75,8 @@ def _record_from_input(staffing_record: Mapping[str, Any] | str | Path) -> Mappi
 
 
 def _validate_handle(value: Any, label: str) -> str:
-    if not isinstance(value, str) or not _HANDLE_RE.fullmatch(value):
-        raise ValueError(f"{label} is not a valid opaque Herdr handle")
+    if not isinstance(value, str) or not backend.HANDLE_RE.fullmatch(value):
+        raise ValueError(f"{label} is not a valid opaque seat handle")
     return value
 
 
@@ -163,25 +149,6 @@ def _validate_record(
     return canonical.resolve(strict=False), validated, ledger_path.resolve(strict=False)
 
 
-def _pane_state(value: Any) -> tuple[str, str | None]:
-    if not isinstance(value, Mapping):
-        return "unknown", None
-    status = _status(value)
-    pane_id = value.get("pane_id")
-    if status in _ABSENT_STATUSES:
-        return "absent", None
-    if status in {"open", "present"} and isinstance(pane_id, str):
-        return "open", pane_id
-    if isinstance(pane_id, str) and pane_id:
-        return "open", pane_id
-    return "unknown", None
-
-
-def _agent_is_not_found(value: Any) -> bool:
-    status = _status(value)
-    return status in {"agent_not_found", "not_found", "agent-missing"}
-
-
 def _path_in_checkout(value: Any, canonical: Path) -> bool:
     if not isinstance(value, str) or not value or "\x00" in value:
         return False
@@ -239,31 +206,20 @@ def _runs_server_script(argv: list[str]) -> bool:
     return False
 
 
-def _process_list(evidence: Mapping[str, Any]) -> list[Any] | None:
-    processes = evidence.get("foreground_processes")
-    if processes is None:
-        processes = evidence.get("processes")
-    return processes if isinstance(processes, list) else None
-
-
 def check_closeout(
     staffing_record: Mapping[str, Any] | str | Path,
-    herdr: _SubprocessHerdr,
+    seats: backend.Backend,
 ) -> CloseoutResult:
-    """Inspect exactly the recorded peer panes through a read-only Herdr boundary.
+    """Inspect exactly the recorded peer panes through a read-only backend.
 
     The closeout staffing record is JSON with ``canonical_checkout``, ``persistent``,
     ``peers`` and ``gates_ledger`` fields. Each peer has ``issue``,
-    ``role`` (Engineer or Reviewer), ``name`` and opaque ``pane`` fields.  Boundary methods return normalized
-    mappings: ``read_pane`` returns ``{"status": "open", "pane_id": ...,
-    "cwd": ...}`` or ``{"status": "absent"}``; ``read_agent`` returns an
-    agent mapping or ``{"status": "agent_not_found"}``; and
-    ``read_processes`` returns ``{"foreground_processes": [...]}``.
+    ``role`` (Engineer or Reviewer), ``name`` and opaque ``pane`` fields. Per peer the
+    backend answers ``get_terminal(pane)`` (the pane is open, or ``SeatError`` not_found
+    when it is gone), ``get_seat(name)`` (the agent, or not_found) and
+    ``processes(pane)`` (its foreground process mappings).
     """
     findings: list[str] = []
-    herd_path = Path.home() / ".herd"
-    if herd_path.exists():
-        findings.append(f"unexpected {herd_path} exists; likely typo of ~/.herdr")
     try:
         record = _record_from_input(staffing_record)
         canonical, peers, ledger_path = _validate_record(record)
@@ -290,31 +246,29 @@ def check_closeout(
         name = peer["name"]
         checked.append(pane_id)
         try:
-            pane = herdr.read_pane(pane_id)
+            pane = seats.get_terminal(pane_id)
         except Exception as exc:  # Boundary failures are evidence failures, not passes.
+            if isinstance(exc, backend.SeatError) and exc.kind == "not_found":
+                # The recorded teardown target is gone.  Agent lookup is not used as
+                # an alternate teardown proof, so agent_not_found is harmless here.
+                continue
             findings.append(f"{peer['role']} {name} pane {pane_id}: pane read failed: {exc}")
             continue
 
-        state, returned_pane = _pane_state(pane)
-        if state == "unknown":
-            findings.append(f"{peer['role']} {name} pane {pane_id}: unknown or missing pane evidence")
-            continue
-        if state == "absent":
-            # The recorded teardown target is gone.  Agent lookup is not used as
-            # an alternate teardown proof, so agent_not_found is harmless here.
-            continue
-        if returned_pane != pane_id:
+        if pane.handle != pane_id:
             findings.append(
-                f"{peer['role']} {name} pane {pane_id}: Herdr returned mismatched pane evidence"
+                f"{peer['role']} {name} pane {pane_id}: backend returned mismatched pane evidence"
             )
             continue
 
+        agent_not_found = False
         try:
-            agent = herdr.read_agent(name)
+            seats.get_seat(name)
         except Exception as exc:
-            findings.append(f"{peer['role']} {name} pane {pane_id}: agent read failed: {exc}")
-            agent = {"status": "unknown"}
-        if _agent_is_not_found(agent):
+            agent_not_found = isinstance(exc, backend.SeatError) and exc.kind == "not_found"
+            if not agent_not_found:
+                findings.append(f"{peer['role']} {name} pane {pane_id}: agent read failed: {exc}")
+        if agent_not_found:
             findings.append(
                 f"{peer['role']} {name} pane {pane_id} remains open despite agent_not_found"
             )
@@ -322,23 +276,17 @@ def check_closeout(
             findings.append(f"{peer['role']} {name} pane {pane_id} remains open")
 
         try:
-            process_evidence = herdr.read_processes(pane_id)
+            processes = seats.processes(pane_id)
         except Exception as exc:
             findings.append(f"{peer['role']} {name} pane {pane_id}: process read failed: {exc}")
             continue
-        processes = _process_list(process_evidence)
-        if processes is None:
-            findings.append(f"{peer['role']} {name} pane {pane_id}: unknown or missing process evidence")
-            continue
-        pane_cwd = pane.get("cwd") if isinstance(pane, Mapping) else None
-        process_cwd = process_evidence.get("cwd") if isinstance(process_evidence, Mapping) else None
         for process in processes:
             if not isinstance(process, Mapping):
                 findings.append(f"{peer['role']} {name} pane {pane_id}: malformed process evidence")
                 continue
             if process.get("alive") is False or process.get("status") in {"exited", "dead"}:
                 continue
-            cwd = process.get("cwd", process_cwd or pane_cwd)
+            cwd = process.get("cwd", pane.cwd)
             if cwd is None:
                 findings.append(f"{peer['role']} {name} pane {pane_id}: process evidence has no cwd")
                 continue
@@ -351,59 +299,19 @@ def check_closeout(
     return CloseoutResult(not findings, tuple(findings), tuple(checked))
 
 
-class _SubprocessHerdr:
-    def _run(self, args: list[str]) -> Mapping[str, Any]:
-        completed = herdr_cli.run(args)
-        text = completed.stdout.strip() or completed.stderr.strip()
-        try:
-            value = json.loads(text)
-        except (json.JSONDecodeError, TypeError):
-            return {"status": "read_error", "detail": text or "no JSON response"}
-        if not isinstance(value, Mapping):
-            return {"status": "read_error", "detail": "non-object Herdr response"}
-        if completed.returncode:
-            raw = json.dumps(value).lower()
-            if "agent_not_found" in raw or "agent not found" in raw:
-                return {"status": "agent_not_found"}
-            if "pane_not_found" in raw or "pane not found" in raw:
-                return {"status": "pane_not_found"}
-            return {"status": "read_error", "detail": raw}
-        return value
-
-    def read_pane(self, pane_id: str) -> Mapping[str, Any]:
-        raw = self._run(["pane", "get", pane_id])
-        if _status(raw) in _ABSENT_STATUSES:
-            return {"status": "absent"}
-        result = raw.get("result")
-        pane = result.get("pane") if isinstance(result, Mapping) else None
-        if not isinstance(pane, Mapping) or not isinstance(pane.get("pane_id"), str):
-            return {"status": "unknown"}
-        return {"status": "open", "pane_id": pane["pane_id"], "cwd": pane.get("cwd")}
-
-    def read_agent(self, agent_name: str) -> Mapping[str, Any]:
-        raw = self._run(["agent", "get", agent_name])
-        if _status(raw) == "agent_not_found":
-            return {"status": "agent_not_found"}
-        result = raw.get("result")
-        agent = result.get("agent") if isinstance(result, Mapping) else None
-        return agent if isinstance(agent, Mapping) else {"status": "unknown"}
-
-    def read_processes(self, pane_id: str) -> Mapping[str, Any]:
-        raw = self._run(["pane", "process-info", "--pane", pane_id])
-        result = raw.get("result")
-        process_info = result.get("process_info") if isinstance(result, Mapping) else None
-        if not isinstance(process_info, Mapping):
-            return {"status": "unknown"}
-        return process_info
-
-
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--staffing", required=True, type=Path, help="JSON closeout staffing record"
     )
+    backend.add_backend_option(parser)
     args = parser.parse_args(argv)
-    result = check_closeout(args.staffing, _SubprocessHerdr())
+    try:
+        seats = backend.open_backend(os.environ, args.backend)
+    except backend.BackendError as exc:
+        print(f"FAIL: {exc}", file=sys.stderr)
+        return 1
+    result = check_closeout(args.staffing, seats)
     if result.passed:
         print(f"PASS: checked {len(result.checked_panes)} recorded peer pane(s)")
         return 0

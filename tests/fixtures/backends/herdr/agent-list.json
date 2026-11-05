@@ -1,0 +1,8 @@
+{"result": {"agents": [
+  {"pane_id": "w1:p1", "name": "lead", "agent": "claude", "agent_status": "working", "workspace_id": "w1", "cwd": "/work/checkout",
+   "agent_session": {"source": "herdr:claude", "agent": "claude", "kind": "id", "value": "6f1b7c52-0a4e-4d52-9d1e-3b1f6a7c9e10"}},
+  {"pane_id": "w1:p2", "name": "eng", "agent_status": "unknown", "workspace_id": "w1"},
+  {"pane_id": "w2:p1", "agent": "agy", "agent_status": "idle", "workspace_id": "w2"},
+  {"pane_id": "w1:p3", "name": "rev", "agent": "pi", "agent_status": "done", "workspace_id": "w1",
+   "agent_session": {"source": "herdr:pi", "agent": "pi", "kind": "path", "value": "/home/u/.pi/agent/sessions/2026-11-06_ab12.jsonl"}}
+]}}

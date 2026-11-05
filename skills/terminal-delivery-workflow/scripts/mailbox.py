@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import json
 import os
 import re
 import subprocess
@@ -11,9 +10,9 @@ import sys
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Iterable
+from typing import Callable, Iterable
 
-import herdr_cli
+import backend
 import state_root
 
 HEADER_RE = re.compile(
@@ -26,9 +25,8 @@ ISO_RE = re.compile(
 
 SEAT_RE = re.compile(r"[a-z][a-z0-9_-]{0,31}")
 SHA_RE = re.compile(r"[0-9a-f]{40}")
-# One line: the Supervisor's $HERDR_PANE_ID, written after every rename
-# (supervisor.md) so a cleared seat name can still be woken by pane.
-SUPERVISOR_PANE_RECORD = Path.home() / ".herdr" / "supervisor-pane"
+# One line "<backend> <handle>" in the project's state directory: the Supervisor's own seat.
+SUPERVISOR_SEAT_RECORD = "supervisor-seat"
 
 
 @dataclass(frozen=True)
@@ -164,34 +162,22 @@ def append_entry(
     return header
 
 
-def run_wake(seat: str, wake_text: str) -> subprocess.CompletedProcess[str]:
-    return herdr_cli.run(["agent", "prompt", seat, wake_text])
-
-
 def _default_wake_text(seat: str, mailbox_path: str, header: str) -> str:
     return f"Seat {seat}: read project mailbox {mailbox_path} for the latest entry ({header})."
 
 
-def _supervisor_pane() -> str:
+def _supervisor_record(mailbox_path: str) -> backend.Explicit:
+    slug = Path(mailbox_path).resolve().parent.name
+    path = state_root.STATE_ROOT / slug / SUPERVISOR_SEAT_RECORD
     try:
-        pane = SUPERVISOR_PANE_RECORD.read_text(encoding="utf-8").strip()
-    except OSError as exc:
-        raise ValueError(f"no pane record: {exc}") from exc
-    if not pane or "\n" in pane:
-        raise ValueError(f"pane record {SUPERVISOR_PANE_RECORD} is not one pane id")
-    got = herdr_cli.run(["agent", "get", pane])
-    try:
-        agent = json.loads(got.stdout)["result"]["agent"]
-    except (ValueError, KeyError, TypeError):
-        agent = None
-    if got.returncode or not isinstance(agent, dict):
-        raise ValueError(f"recorded pane {pane} shows no agent")
-    return pane
+        return backend.read_seat_record(path)
+    except (OSError, ValueError) as exc:
+        raise ValueError(f"no usable supervisor seat record: {exc}") from exc
 
 
-def wake(seat: str, mailbox_path: str) -> int:
-    """Read back the last header, then wake the seat once; a cleared supervisor
-    name gets one retry at its recorded pane."""
+def wake(seat: str, mailbox_path: str, open_backend: Callable[[], backend.Backend]) -> int:
+    """Read back the last header, then wake the seat once. The Supervisor is woken at the
+    handle in its seat record; any other seat by the name the caller passes."""
     _require_project_mailbox(mailbox_path, "--wake")
     text = Path(mailbox_path).read_text(encoding="utf-8")
     output = select_entries(text, last=1, headers=True)
@@ -201,28 +187,21 @@ def wake(seat: str, mailbox_path: str) -> int:
     wake_text = _default_wake_text(seat, mailbox_path, output[0])
     target = seat
     try:
-        result = run_wake(target, wake_text)
-        if (seat == "supervisor" and result.returncode
-                and "agent_not_found" in result.stdout + result.stderr):
-            try:
-                target = _supervisor_pane()
-            except ValueError as exc:
-                print(f"mailbox: wake failed: agent_not_found for supervisor; "
-                      f"pane fallback refused: {exc}", file=sys.stderr)
-            else:
-                print(f"mailbox: supervisor agent_not_found; retrying pane {target}",
-                      file=sys.stderr)
-                result = run_wake(target, wake_text)
-    except herdr_cli.HerdrUnavailable as exc:
-        print(f"mailbox: ran herdr agent prompt {target}", file=sys.stderr)
+        recorded = _supervisor_record(mailbox_path) if seat == "supervisor" else None
+        if recorded is not None:
+            target = recorded.handle
+        seats = open_backend()
+        if recorded is not None and recorded.name != seats.name:
+            raise ValueError(
+                f"supervisor seat record names {recorded.name}, this seat runs under {seats.name}; "
+                "no cross-backend wake"
+            )
+        seats.prompt(target, wake_text)
+    except (backend.BackendError, ValueError) as exc:
         print(f"mailbox: wake failed: {exc}", file=sys.stderr)
         return 1
-    print(f"mailbox: ran herdr agent prompt {target}", file=sys.stderr)
-    if result.stdout:
-        sys.stdout.write(result.stdout)
-    if result.stderr:
-        sys.stderr.write(result.stderr)
-    return result.returncode
+    print(f"mailbox: prompted {target} on {seats.name}", file=sys.stderr)
+    return 0
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -241,7 +220,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--event", metavar="LINE", help="the header's one-line event or answer")
     parser.add_argument("--attention", metavar="EVENT_KIND", help="make the header an ATTENTION event of this kind")
     parser.add_argument("--stdin", action="store_true", help="read the entry body from stdin")
+    backend.add_backend_option(parser)
     args = parser.parse_args(argv)
+    open_backend = lambda: backend.open_backend(os.environ, args.backend)  # noqa: E731
 
     append_args = (args.sender, args.recipient, args.repo, args.event)
     if args.append:
@@ -262,11 +243,11 @@ def main(argv: list[str] | None = None) -> int:
                 body=sys.stdin.read() if args.stdin else None,
             )
             print(header)
-            return wake(args.recipient, args.file)
+            return wake(args.recipient, args.file, open_backend)
         if args.wake is not None:
             if args.since is not None or args.last is not None or args.headers:
                 raise ValueError("--wake cannot be combined with mailbox selectors")
-            return wake(args.wake, args.file)
+            return wake(args.wake, args.file, open_backend)
         text = Path(args.file).read_text(encoding="utf-8")
 
         if args.since is None and args.last is None and not args.headers:
