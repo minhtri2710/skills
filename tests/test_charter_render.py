@@ -81,7 +81,7 @@ class CharterRenderTest(unittest.TestCase):
         self.staffing.write_text(
             f"{seats}HEAD: {self.head}\nREVIEWER: review-x kind=claude model=m posture=allowlisted "
             "dialog=absent dialog-tools=none dialog-deny=none dialog-source=inventory skills=none "
-            f"extensions=none fence=none(test) pane=w7:p3 workspace=w7 head={self.head}\n",
+            f"extensions=none fence=none(test) seat=w7:p3 workspace=w7 head={self.head}\n",
             encoding="utf-8",
         )
 
@@ -108,7 +108,7 @@ class CharterRenderTest(unittest.TestCase):
             "Mode: solo-Lead. Declared source scope: é/AGENTS.md, é/b.py.",
             f"Scope authors (staffing record): {LEAD} (claude claude-opus-5-5).",
             f"Governing contracts: {self.repo}/AGENTS.md, {self.repo}/é/AGENTS.md;",
-            "pane w7:p3",
+            "seat w7:p3",
             self.fake.send_block(LEAD, f"{self.run_dir}/report-review-{self.head[:12]}.md"),
             "1. git diff --check",
             f"`python3 {SCRIPTS / 'bounded_run.py'} --seconds N -- CMD`",
@@ -185,8 +185,8 @@ class CharterRenderTest(unittest.TestCase):
     def partitioned(self, owned: str) -> None:
         self.write_staffing(
             "MODE: partitioned\nLEAD: kind=claude model=claude-opus-5-5 workspace=w7\n"
-            f"ENGINEER: eng-a kind=claude model=claude-haiku-5-5 posture=bypassed pane=w7:p4 owned={owned} extensions=none\n"
-            "ENGINEER: eng-b kind=pi model=luna posture=bypassed pane=w7:p5 owned=docs/ extensions=none\n"
+            f"ENGINEER: eng-a kind=claude model=claude-haiku-5-5 posture=bypassed seat=w7:p4 owned={owned} extensions=none\n"
+            "ENGINEER: eng-b kind=pi model=luna posture=bypassed seat=w7:p5 owned=docs/ extensions=none\n"
         )
 
     def test_partitioned_authors_are_the_engineers_owning_the_changed_paths(self):
