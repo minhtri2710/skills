@@ -116,7 +116,7 @@ class AmbiguousTest(unittest.TestCase):
             self.assertEqual(backend.detect(environ, explicit("hc@t7")), "hc")
 
     def test_explicit_for_a_matched_but_unregistered_backend_is_unsupported(self) -> None:
-        with self.assertRaises(backend.Unsupported):
+        with mock.patch.dict(backend.ADAPTERS, {"herdr": "backends.herdr"}, clear=True), self.assertRaises(backend.Unsupported):
             backend.detect({**HC, **HERDR}, explicit("hc@t7"))
 
     def test_explicit_naming_a_backend_whose_signature_does_not_hold_fails_closed(self) -> None:
