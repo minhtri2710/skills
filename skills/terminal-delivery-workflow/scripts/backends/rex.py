@@ -221,4 +221,6 @@ class Adapter(backend.Backend):
             raise ValueError(f"report path must be <run-dir>/report-<peer>.md without shell metacharacters: {report_path!r}")
         send_path = f"{match['dir']}/send-{match['peer']}.txt"
         target = f"-s {session} -b {block}"
-        return f'rex send {target} -- "$(cat {send_path})" && rex send-key {target} enter'
+        # Rex exports REX_BIN_DIR into every block but a shell's startup files often reset PATH, so a bare `rex` may not resolve.
+        binary = '"$REX_BIN_DIR/rex"'
+        return f'{binary} send {target} -- "$(cat {send_path})" && {binary} send-key {target} enter'

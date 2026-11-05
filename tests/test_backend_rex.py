@@ -507,10 +507,16 @@ class SendBlockTest(unittest.TestCase):
         a, runner = adapter()
         self.assertEqual(
             a.send_block(LEAD, REPORT),
-            'rex send -s session:aaaa -b block:a1 -- "$(cat /state/projects/demo/runs/r1/send-eng-a.txt)"'
-            " && rex send-key -s session:aaaa -b block:a1 enter",
+            '"$REX_BIN_DIR/rex" send -s session:aaaa -b block:a1 -- "$(cat /state/projects/demo/runs/r1/send-eng-a.txt)"'
+            ' && "$REX_BIN_DIR/rex" send-key -s session:aaaa -b block:a1 enter',
         )
         self.assertEqual(runner.calls, [])
+
+    def test_block_never_relies_on_a_bare_rex_on_the_peers_path(self) -> None:
+        a, _ = adapter()
+        block = a.send_block(LEAD, REPORT)
+        self.assertEqual(block.count('"$REX_BIN_DIR/rex"'), 2)
+        self.assertNotRegex(block, r"(^|&& )rex ")
 
     def test_block_refuses_unsafe_or_misshapen_inputs(self) -> None:
         a, _ = adapter()
@@ -597,7 +603,7 @@ class ContractTest(unittest.TestCase):
         block = a.send_block(LEAD, REPORT)
         for part in block.split(" && "):
             tokens = shlex.split(part)
-            self.assertEqual(tokens[0], "rex")
+            self.assertEqual(tokens[0], "$REX_BIN_DIR/rex")
             self.assertTrue(is_allowed(normalized(tokens[1:], ('$(cat /state/projects/demo/runs/r1/send-eng-a.txt)', "<text>"))), part)
 
     def test_error_kinds_are_the_shared_ones(self) -> None:
