@@ -74,13 +74,26 @@ class SkillFrontmatterTest(unittest.TestCase):
     def test_terminal_delivery_doctrine_names_no_tool_command(self):
         skill = Path(__file__).resolve().parents[1] / "skills" / "terminal-delivery-workflow"
         references = skill / "references"
+        # Each backend reference defines its own commands: the tool word plus the first subcommand of every fenced command line.
+        commands = {}
+        for backend_doc in sorted(references.glob("backend-*.md")):
+            tool = backend_doc.stem.removeprefix("backend-")
+            fenced = re.findall(r"^```[a-z]*\n(.*?)^```", backend_doc.read_text(encoding="utf-8"), re.M | re.S)
+            subcommands = {
+                match.group(1)
+                for block in fenced
+                for match in re.finditer(rf"^\s*{re.escape(tool)} ([a-z][a-z-]*)\b", block, re.M)
+            }
+            self.assertTrue(subcommands, backend_doc.name)
+            commands[tool] = re.compile(rf"\b{re.escape(tool)} (?:{'|'.join(sorted(subcommands))})\b")
         paths = [skill / "SKILL.md", *sorted((skill / "templates").iterdir())]
         paths += [references / f"{name}.md" for name in (
-            "lead", "supervisor", "charters", "closeout", "relaunch", "project-config", "seat-operations")]
-        command = re.compile(r"\bherdr (?:agent|pane|tab|workspace|notification|server|worktree)\b")
+            "lead", "supervisor", "charters", "closeout", "relaunch", "project-config",
+            "structural-misfit-policy", "seat-operations")]
         for path in paths:
-            with self.subTest(path=path.name):
-                self.assertIsNone(command.search(path.read_text(encoding="utf-8")))
+            for tool, command in commands.items():
+                with self.subTest(path=path.name, tool=tool):
+                    self.assertIsNone(command.search(path.read_text(encoding="utf-8")))
 
 
 if __name__ == "__main__":

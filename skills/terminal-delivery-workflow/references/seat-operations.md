@@ -20,7 +20,7 @@ Errors have five kinds. `not_found`: the seat is gone or never existed. `blocked
 
 ## Names
 
-A handle routes; a name is a label. Prompt, read, and close a seat by its handle. A name matches `[a-z][a-z0-9_-]{0,31}`, may be absent or cleared by the tool, and routes nothing in this workflow.
+A handle routes; a name is a label. Prompt, read, and close a seat by its handle. A name may be absent, follows each tool's own naming rule (`backend-<tool>.md`, `identify`), may be cleared by the tool, and routes nothing in this workflow.
 
 ## Addressing
 
@@ -28,7 +28,7 @@ Address a Peer only as the seat this run staffed it: the handle its staffing rec
 
 ## Seat records
 
-`<state root>/<project-slug>/lead-seat` and `supervisor-seat` each hold one line, `<backend> <handle>`. A seat writes its own record from its own environment with `scripts/backend.py whoami [--backend <name>@<own handle>] > <path>`, at start and again after a relaunch or re-staffing. The Lead finds the Supervisor from `supervisor-seat` and the Supervisor finds the Lead from `lead-seat`; no route depends on a name. The `--backend` flag is for a seat whose environment matched several tools (`SKILL.md`, "Detection"). `scripts/mailbox.py` fails closed when the recorded backend differs from the detected one.
+`<state root>/<project-slug>/lead-seat` and `supervisor-seat` each hold one line, `<backend> <handle>`. A seat writes its own record from its own environment, only after `whoami` succeeds: `r=$(scripts/backend.py whoami [--backend <name>@<own handle>]) && printf '%s\n' "$r" > <record path>`, at start and again after a relaunch or re-staffing; a failed `whoami` leaves any existing record untouched. The Lead finds the Supervisor from `supervisor-seat` and the Supervisor finds the Lead from `lead-seat`; no route depends on a name. The `--backend` flag is for a seat whose environment matched several tools (`SKILL.md`, "Detection"). `scripts/mailbox.py` fails closed when the recorded backend differs from the detected one.
 
 ## Operations
 
@@ -50,7 +50,7 @@ Report to the Lead by prompt: the Peer's report-send block belongs to `charters.
 
 ### `read`
 
-Returns a seat's recent output. Inputs: handle, line count. Method `read_output`, which returns recent output with soft wraps joined; prefer that view for logs, transcripts, and reports, and the visible viewport for a seat that is `working` or `blocked`. History beyond the viewport is reliable only for an `idle` or `done` seat; for a `working` or `blocked` seat a request past the viewport returns only the viewport, or fails, depending on the tool. A larger line count is never the fix: read the viewport now, or the same read once the seat settles, and do not take a large line count as proof of a complete read. If raising the line count reveals no more of a completed response, the agent is probably on the terminal's alternate screen and no line count recovers the rest. Only then, ask the agent to write its complete response as Markdown in a temporary directory and reply with the path, then read that file directly. Do not request file output in the initial prompt. `scripts/waker.py` infers waiting from a footer layout in the read text; on another tool's text it can miss, which only costs extra wakes.
+Returns a seat's recent output. Inputs: handle, line count. Method `read_output`, which returns recent output with soft wraps joined; prefer that view for logs, transcripts, and reports, and the visible viewport for a seat that is `working` or `blocked`. History beyond the viewport is reliable only for an `idle` or `done` seat; for a `working` or `blocked` seat a request past the viewport returns only the viewport, or fails, depending on the tool. A larger line count is never the fix: read the viewport now, or the same read once the seat settles, and do not take a large line count as proof of a complete read. If raising the line count reveals no more of a completed response, the agent is probably on the terminal's alternate screen and no line count recovers the rest. Only then, ask the agent to write its complete response as Markdown in a temporary directory and reply with the path, then read that file directly. Do not request file output in the initial prompt. A seat whose agent may be gone (a retired predecessor, an agent that exited) is read as a terminal, not as an agent; the backend file names that read. `scripts/waker.py` infers waiting from a footer layout in the read text; on another tool's text it can miss, which only costs extra wakes.
 
 ### `state`
 

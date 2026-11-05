@@ -4,7 +4,7 @@ A Lead or Supervisor seat recovering from compaction or relaunch reads this befo
 
 For predecessor retirement and unsent feedback prompts, follow `supervisor.md`, "Handoff".
 
-A relaunched seat is a fresh session, even inside the same run. Before any seat operation, it detects the tool again (`SKILL.md`, "Detection") and reads its own record (`lead-seat` or `supervisor-seat`) as data only: it may reuse the recorded backend only when its own handle under that backend, from its own environment after the relaunch, equals the `<handle>` in the record or in the intake record's `backend: <name> for <handle>` line; otherwise it asks the Human again, and a Supervisor never takes a Lead's answer nor a Lead a Supervisor's. A seat that reuses or re-establishes its record rewrites it with `scripts/backend.py whoami`.
+A relaunched seat is a fresh session, even inside the same run. Before any seat operation, it detects the tool again (`SKILL.md`, "Detection") and reads its own record (`lead-seat` or `supervisor-seat`) as data only: it may reuse the recorded backend only when its own handle under that backend, from its own environment after the relaunch, equals the `<handle>` in the record or in the intake record's `backend: <name> for <handle>` line; otherwise it asks the Human again, and a Supervisor never takes a Lead's answer nor a Lead a Supervisor's. A seat that reuses or re-establishes its record rewrites it as `seat-operations.md`, "Seat records", sets: only after `whoami` succeeds, so a failed `whoami` leaves the old record untouched.
 
 Run this checklist in order:
 

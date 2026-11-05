@@ -1,6 +1,6 @@
 Lane: tiny | normal | high-risk
 Reason: <material reason for the lane>
-Lead: lead-<project-slug>
+Lead: <handle>
 Supervisor: <handle from supervisor-seat> | none
 backend: <name> for <handle> (only when detection needed a Human answer; otherwise omit the line)
 Owners: <Lead, Engineer/Reviewer owners, governing contracts>

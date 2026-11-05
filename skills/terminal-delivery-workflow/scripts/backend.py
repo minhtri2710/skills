@@ -30,7 +30,10 @@ Seat records (one line "<backend> <handle>", the lead-seat and supervisor-seat f
   parse_explicit(text) -> Explicit          raises ValueError.
   read_seat_record(path) -> Explicit        raises OSError or ValueError.
   `backend.py whoami [--backend NAME@HANDLE]` prints this seat's "<backend> <handle>" after identify;
-  a seat writes its record with `backend.py whoami > <path>`.
+  a seat writes its record only after whoami succeeds:
+  `r=$(backend.py whoami) && printf '%s\\n' "$r" > <path>`.
+  `backend.py send-block --lead <lead handle> --report <run-dir>/report-<peer>.md [--backend NAME@HANDLE]`
+  prints the backend's send block, the text `send_block` returns; every charter carries it.
 
 Backend (the adapter base; every operation raises Unsupported until an adapter implements it):
   identify() -> str                         this seat's own handle, confirmed with the tool.
@@ -257,12 +260,19 @@ def main(argv: Sequence[str] | None = None, environ: Mapping[str, str] | None = 
     modes = parser.add_subparsers(dest="mode", required=True)
     whoami = modes.add_parser("whoami", help="print this seat's '<backend> <handle>' after identify")
     add_backend_option(whoami)
+    send_block = modes.add_parser("send-block", help="print the report-by-prompt send block for one Peer report")
+    send_block.add_argument("--lead", required=True, help="Lead seat handle the report is sent to")
+    send_block.add_argument("--report", required=True, help="<run-dir>/report-<peer>.md")
+    add_backend_option(send_block)
     args = parser.parse_args(argv)
     environ = os.environ if environ is None else environ
     try:
         adapter = open_backend(environ, args.backend)
-        print(f"{adapter.name} {adapter.handle}")
-    except BackendError as exc:
+        if args.mode == "whoami":
+            print(f"{adapter.name} {adapter.handle}")
+        else:
+            print(adapter.send_block(args.lead, args.report))
+    except (BackendError, ValueError) as exc:
         print(f"backend: {exc}", file=sys.stderr)
         return 1
     return 0

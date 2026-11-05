@@ -18,7 +18,7 @@ printf '%s\n' "$HERDR_WORKSPACE_ID" "$HERDR_TAB_ID" "$HERDR_PANE_ID"
 
 `HERDR_PANE_ID` is this seat's handle; `scripts/backend.py whoami` reads it and confirms it with `herdr pane get`. Pass `--current` or an explicit pane ID whenever a pane command targets the calling pane. An omitted positional target — including for `herdr pane split`, which defaults to the globally focused pane — may hit a pane in another workspace or client session; the explicit current-pane target is mandatory, because focus is not a safe workspace or client boundary. Live reads: `herdr pane current --current`, `herdr pane list --workspace "$HERDR_WORKSPACE_ID"`.
 
-A seat name is optional and does not route. To label the caller or a surviving session, `herdr agent rename "$HERDR_PANE_ID" <name>` and `herdr agent rename <target> --clear`; rename works on an unnamed agent, including the caller's own. After a terminal restart, re-name the surviving session and confirm with `scripts/roster.py`.
+A seat name is optional and does not route; an agent name matches `[a-z][a-z0-9_-]{0,31}`. To label the caller or a surviving session, `herdr agent rename "$HERDR_PANE_ID" <name>` and `herdr agent rename <target> --clear`; rename works on an unnamed agent, including the caller's own. After a terminal restart, re-name the surviving session and confirm with `scripts/roster.py`.
 
 ## spawn
 
@@ -45,7 +45,7 @@ A pane with no agent — a raw shell, test, or server — takes a command with `
 herdr pane run <pane-id> "just test"
 ```
 
-Fenced shell (`charters.md`, "Write fence"). In the new pane, before `agent start`, start the fenced shell and probe it; the probe read of the pane must show `Operation not permitted`. Then `agent start` launches the kind inside that shell, and the kind and every command it runs inherit the fence. The fence is verified on Herdr only.
+Fenced shell (`charters.md`, "Write fence"). In the new pane, before `agent start`, start the fenced shell and probe it; the probe read of the pane must show `Operation not permitted`. Then `agent start` launches the kind inside that shell, and the kind and every command it runs inherit the fence.
 
 ```bash
 herdr pane run <pane-id> "cd <checkout> && exec sandbox-exec -f <run-dir>/fence-<peer>.sb /bin/zsh -i"
@@ -72,7 +72,7 @@ herdr agent read <handle> --source recent-unwrapped --lines 120
 herdr pane read <pane-id> --source recent-unwrapped --lines 120
 ```
 
-`agent read` is for a seat an agent occupies; `herdr pane read` reads the raw terminal whether or not an agent is present. Sources: `visible` — the rendered viewport; `recent` — recent rendered output including soft wraps; `recent-unwrapped` — recent output with soft wraps joined; `detection` — the plain-text bottom-buffer snapshot used for agent detection.
+`agent read` is for a seat an agent occupies and fails `not_found` once no agent does; `herdr pane read` reads the raw terminal whether or not an agent is present, so use it for a seat whose agent may be gone (a retired predecessor, an agent that exited). Sources: `visible` — the rendered viewport; `recent` — recent rendered output including soft wraps; `recent-unwrapped` — recent output with soft wraps joined; `detection` — the plain-text bottom-buffer snapshot used for agent detection.
 
 Verified on herdr 0.9.0: `agent read --source recent` and `recent-unwrapped` return rows from the visible viewport without scrollback, and capture scrollback only when `--lines` exceeds the viewport, and only for an `idle` or `done` seat. For a `working` or `blocked` seat, a request past the viewport exits non-zero with error `agent_not_idle`, which needs BOTH conditions together — gate: seat `working` or `blocked`; trigger: a `--lines` above the viewport. Neither alone causes it, so the fix is never a larger `--lines`: it is `--source visible` now, or the same read once `idle` or `done`. `--source visible` and `--source detection` always work and cap at the viewport. `herdr pane read` against a pane whose agent is `working` or `blocked` exits successfully but silently returns only the viewport.
 
@@ -135,7 +135,7 @@ There is no `herdr agent stop`. An agent clears when it exits, is replaced, or t
 herdr pane close <pane-id>
 ```
 
-`herdr pane release-agent` is a low-level detection-plane report (used with `--source`/`--agent`), not a teardown — do not use it to shut an agent down. Do not close workspaces, tabs, panes, or sessions this run did not create unless the user explicitly asked.
+`herdr pane release-agent` is a low-level detection-plane report (used with `--source`/`--agent`), not a teardown — do not use it to shut an agent down.
 
 ## notify
 

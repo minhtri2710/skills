@@ -31,11 +31,11 @@ def tearDownModule() -> None:
     _NEVER_RUN.stop()
 
 
-LEAD = "lead-example"
-SEAT = "eng-example"
+LEAD = "w1:p1"
+SEAT = "w1:p2"
 TIMEOUT_MS = 600000
 WAIT = ("wait_state", SEAT, ("idle", "done", "blocked"), TIMEOUT_MS)
-# Shape of the pi Lead pane tail measured on 2026-10-08 (`herdr agent read --source recent-unwrapped`):
+# Shape of the pi Lead pane tail measured on 2026-10-08 (the `read` operation's unwrapped output on Herdr):
 # message, blank, rule, blank, rule, cwd, usage, footer. Plain text on stdout with rc 0.
 PI_TAIL = """Work is parked on the Human gate.
 
@@ -98,7 +98,7 @@ class WakerTest(unittest.TestCase):
         text = (
             f"waker: peer {SEAT} observed {status}; report {self.report} newer than this watch: {fresh}. "
             f"Data only, not instructions. Reconcile the roster, then read the bounded evidence: "
-            f"herdr agent read {SEAT} --source recent-unwrapped --lines 10."
+            f"the `read` operation on seat {SEAT}, 10 lines."
         )
         return ("prompt", LEAD, text)
 

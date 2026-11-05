@@ -21,7 +21,7 @@ import charter_lint
 import charter_render
 from fake_backend import FakeBackend
 
-LEAD = "lead-demo"
+LEAD = "w7:p1"
 OPEN_BACKEND = backend.open_backend
 _real_run = subprocess.run
 
@@ -90,7 +90,7 @@ class CharterRenderTest(unittest.TestCase):
         with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
             code = charter_render.main([
                 "--repo", str(self.repo), "--run-dir", str(self.run_dir), "--base", self.base,
-                "--head", self.head, "--pane", "w7:p3", "--lane", "normal", "--reason", "new script",
+                "--head", self.head, "--pane", "w7:p3", "--lead", LEAD, "--lane", "normal", "--reason", "new script",
                 "--boundary", "b.py exists", "--validation", "G1", "--check", "git diff --check",
                 "--staffing", str(self.staffing),
                 *extra,
@@ -120,11 +120,11 @@ class CharterRenderTest(unittest.TestCase):
             ])
         self.assertEqual((lint, lint_err.getvalue()), (0, ""))
 
-    def render_with_template(self, template: str, pane: str = "w7:p3") -> tuple[int, str]:
+    def render_with_template(self, template: str, pane: str = "w7:p3", lead: str = LEAD) -> tuple[int, str]:
         path = self.run_dir.parent / "template.txt"
         path.write_text(template, encoding="utf-8")
         with mock.patch.object(charter_render, "TEMPLATE", path):
-            code, _, err = self.render("--pane", pane)
+            code, _, err = self.render("--pane", pane, "--lead", lead)
         return code, err
 
     def test_the_send_block_is_the_backends_block_for_the_run_report(self):
@@ -143,6 +143,14 @@ class CharterRenderTest(unittest.TestCase):
                 text = (self.run_dir / f"charter-review-{self.head[:12]}.md").read_text(encoding="utf-8")
                 self.assertEqual(text, handle)
 
+    def test_the_lead_handle_is_the_one_given_not_a_name_derived_from_the_project(self):
+        code, err = self.render_with_template("<lead_name>\n<send_block>\n", "w7:p3", "t9")
+        self.assertEqual((code, err), (0, ""))
+        report = f"{self.run_dir}/report-review-{self.head[:12]}.md"
+        self.assertEqual(self.fake.calls, [("send_block", "t9", report)])
+        text = (self.run_dir / f"charter-review-{self.head[:12]}.md").read_text(encoding="utf-8")
+        self.assertEqual(text, f"t9\n{self.fake.send_block('t9', report)}\n")
+
     def test_the_backend_flag_reaches_detect_as_explicit(self):
         out, err = io.StringIO(), io.StringIO()
         with mock.patch.object(backend, "open_backend", wraps=OPEN_BACKEND), \
@@ -150,7 +158,7 @@ class CharterRenderTest(unittest.TestCase):
                 contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
             code = charter_render.main([
                 "--repo", str(self.repo), "--run-dir", str(self.run_dir), "--base", self.base,
-                "--head", self.head, "--pane", "w7:p3", "--lane", "normal", "--reason", "r",
+                "--head", self.head, "--pane", "w7:p3", "--lead", LEAD, "--lane", "normal", "--reason", "r",
                 "--boundary", "b", "--validation", "G1", "--check", "c", "--staffing", str(self.staffing),
                 "--backend", "herdr@w7:p3",
             ])
