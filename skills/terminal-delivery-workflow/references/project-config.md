@@ -3,7 +3,7 @@
 A project may keep standing delivery preferences in a Human-owned config file:
 
 ```text
-~/.herdr/projects/<project-slug>/config.json
+~/.terminal-delivery/projects/<project-slug>/config.json
 ```
 
 `<project-slug>` is the basename of the checkout's repository root (`basename "$(git rev-parse --show-toplevel)"`), lowercased; the same checkout always resolves to the same directory, which is what lets the gate ledger and this config survive a pane restart. The same directory holds the project's gate ledger (`gates.md`, defined in `lead.md`, "Gates and ledger"). This file is shared and cited, not copied.

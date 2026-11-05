@@ -15,7 +15,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 
-SCRIPTS = Path(__file__).parents[1] / "skills" / "herdr-delivery-workflow" / "scripts"
+SCRIPTS = Path(__file__).parents[1] / "skills" / "terminal-delivery-workflow" / "scripts"
 REFERENCES = SCRIPTS.parent / "references"
 SCRIPT = SCRIPTS / "compaction_reprime.py"
 sys.path.insert(0, str(SCRIPTS))
@@ -122,7 +122,7 @@ class ReprimeCase(unittest.TestCase):
         }]
 
     def records_dir(self) -> Path:
-        return self.home / ".herdr" / "projects" / "project"
+        return self.home / ".terminal-delivery" / "projects" / "project"
 
     def write_pointer_files(self, *, run_files: tuple[str, ...] = ("intake-record.md", "plan.md", "specification.md", "slices.json")) -> None:
         records = self.records_dir()
