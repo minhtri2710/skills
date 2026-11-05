@@ -21,6 +21,7 @@ from pathlib import Path
 from typing import Any, Sequence
 
 import herdr_cli
+from state_root import STATE_ROOT_REL
 
 
 THRESHOLD = 4
@@ -133,7 +134,7 @@ def _count_claude(records: list[dict[str, Any]], session_id: str) -> int:
 
 
 def _block(run_id: str, seat: str, threshold: int, slug: str, home: Path) -> str:
-    records = home / ".herdr" / "projects" / slug
+    records = home / STATE_ROOT_REL / slug
     run_dir = records / "runs" / run_id
     required = [records / "context-pack.md", records / "gates.md", records / "supervisor-notebook.md"]
     if not run_dir.is_dir() or not all(p.is_file() for p in required):
@@ -158,7 +159,7 @@ def _block(run_id: str, seat: str, threshold: int, slug: str, home: Path) -> str
 
 def _state_dir(home: Path, slug: str) -> Path:
     """The coordination directory, created if missing; no component below projects/ may be a symlink."""
-    current = home / ".herdr" / "projects"
+    current = home / STATE_ROOT_REL
     current.mkdir(parents=True, exist_ok=True)
     for part in (slug, "runs", "coordination"):
         current /= part

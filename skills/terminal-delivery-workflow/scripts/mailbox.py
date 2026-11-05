@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Iterable
 
 import herdr_cli
+import state_root
 
 HEADER_RE = re.compile(
     r"^## [^|\r\n]+ -> [^|\r\n]+ \| "
@@ -23,10 +24,6 @@ ISO_RE = re.compile(
     r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z"
 )
 
-# The only mailbox that may drive a live seat is a real project mailbox under
-# this root. A scratch or test file resolving elsewhere is refused before any
-# wake so a test context can never prompt the production supervisor.
-HERDR_PROJECTS_ROOT = Path.home() / ".herdr" / "projects"
 SEAT_RE = re.compile(r"[a-z][a-z0-9_-]{0,31}")
 SHA_RE = re.compile(r"[0-9a-f]{40}")
 # One line: the Supervisor's $HERDR_PANE_ID, written after every rename
@@ -93,7 +90,10 @@ def select_entries(
 
 
 def _require_project_mailbox(path: str, flag: str) -> None:
-    root = HERDR_PROJECTS_ROOT.resolve()
+    # The only mailbox that may drive a live seat is a real project mailbox under
+    # the state root. A scratch or test file resolving elsewhere is refused before
+    # any wake so a test context can never prompt the production supervisor.
+    root = state_root.STATE_ROOT.resolve()
     if root not in Path(path).resolve().parents:
         raise ValueError(
             f"{flag} refused: {path} is not under {root}; a scratch "

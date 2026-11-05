@@ -1295,7 +1295,7 @@ def main(argv: list[str] | None = None) -> int:
         if not args.ledger.is_absolute():
             raise RowError(
                 f"--ledger {args.ledger} is not absolute; the live ledger is "
-                "~/.herdr/projects/<slug>/gates.md and a relative path resolves "
+                "~/.terminal-delivery/projects/<slug>/gates.md and a relative path resolves "
                 "against the shell cwd, silently starting a stray G1"
             )
         if args.deployed_head:

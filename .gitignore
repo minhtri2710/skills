@@ -8,7 +8,7 @@ skills-lock.json
 
 # skill-creator workspaces
 skills/*-workspace/
-# /runs/ is the local Herdr run directory.
+# /runs/ is the local terminal delivery run directory.
 /runs/
 
 # tasks-axi backlog archive artifact

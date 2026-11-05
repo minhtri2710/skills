@@ -11,19 +11,20 @@ from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from unittest import mock
 
-SCRIPTS = Path(__file__).resolve().parents[1] / "skills" / "herdr-delivery-workflow" / "scripts"
+SCRIPTS = Path(__file__).resolve().parents[1] / "skills" / "terminal-delivery-workflow" / "scripts"
 import sys
 
 sys.path.insert(0, str(SCRIPTS))
 
 import recall  # noqa: E402
+import state_root  # noqa: E402
 
 
 class RecallTest(unittest.TestCase):
     def setUp(self):
         self.tempdir = tempfile.TemporaryDirectory()
         self.root = Path(self.tempdir.name)
-        self.patch_root = mock.patch.object(recall, "PROJECTS_ROOT", str(self.root))
+        self.patch_root = mock.patch.object(state_root, "STATE_ROOT", self.root)
         self.patch_root.start()
 
     def tearDown(self):

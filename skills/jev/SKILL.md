@@ -1,6 +1,6 @@
 ---
 name: jev
-description: "Run optional advisory triage through TypeSafe's Jev model for a structured finding or a bounded Lead-facing fork, such as herdr-delivery-workflow's fork routing, returning a bounded judgment or an unavailable result. Use when a finding or fork needs machine-assisted triage before a deterministic rule or Human gate decides it. Do not use it to resolve a Human gate itself, authorize an action, or replace source review or deterministic rules; the judgment is advisory only."
+description: "Run optional advisory triage through TypeSafe's Jev model for a structured finding or a bounded Lead-facing fork, such as terminal-delivery-workflow's fork routing, returning a bounded judgment or an unavailable result. Use when a finding or fork needs machine-assisted triage before a deterministic rule or Human gate decides it. Do not use it to resolve a Human gate itself, authorize an action, or replace source review or deterministic rules; the judgment is advisory only."
 ---
 
 # Jev

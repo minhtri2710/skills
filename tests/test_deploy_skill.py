@@ -13,7 +13,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-SCRIPTS = Path(__file__).resolve().parents[1] / "skills" / "herdr-delivery-workflow" / "scripts"
+SCRIPTS = Path(__file__).resolve().parents[1] / "skills" / "terminal-delivery-workflow" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 
 import deploy_skill  # noqa: E402
@@ -59,10 +59,10 @@ class DeploySkillTest(unittest.TestCase):
         self.git("config", "user.email", "t@example.invalid")
         self.git("config", "user.name", "t")
         self.skills = self.repo / "skills"
-        self.source = self.skills / "herdr-delivery-workflow"
+        self.source = self.skills / "terminal-delivery-workflow"
         self.source.mkdir(parents=True)
         (self.source / "SKILL.md").write_text(
-            "---\nname: herdr-delivery-workflow\ndescription: test skill\n---\ntracked skill\n",
+            "---\nname: terminal-delivery-workflow\ndescription: test skill\n---\ntracked skill\n",
             encoding="utf-8",
         )
         self.git("add", "skills")
@@ -157,22 +157,22 @@ class DeploySkillTest(unittest.TestCase):
         result = self.run_deploy(self.deploy_args(ledger))
 
         self.assertEqual(result, 0)
-        self.assert_install_matches_head("herdr-delivery-workflow", head)
+        self.assert_install_matches_head("terminal-delivery-workflow", head)
         calls = json.loads(self.cli_log.read_text(encoding="utf-8"))
         self.assertEqual(len(calls), 1)
         call = calls[0]
         self.assertEqual(call["argv"], [
             "add", call["source"], "-g", "-a", "cline", "-s",
-            "herdr-delivery-workflow", "-y", "--copy",
+            "terminal-delivery-workflow", "-y", "--copy",
         ])
         self.assertEqual(call["do_not_track"], "1")
         self.assertFalse(call["stdin_isatty"])
         self.assertIn("deploy-skill-", call["source"])
         self.assertFalse(Path(call["source"]).exists())
-        self.assertTrue((self.home / ".agents" / "skills" / "herdr-delivery-workflow").is_dir())
+        self.assertTrue((self.home / ".agents" / "skills" / "terminal-delivery-workflow").is_dir())
         rows = gate_row.ledger_rows(ledger.read_text(encoding="utf-8"))
         self.assertEqual(len(rows), 1)
-        self.assertIn("skills=herdr-delivery-workflow", rows[0])
+        self.assertIn("skills=terminal-delivery-workflow", rows[0])
 
     def test_dirty_worktree_installs_head_blob_and_mode(self):
         (self.source / "run.sh").write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
@@ -186,10 +186,10 @@ class DeploySkillTest(unittest.TestCase):
         result = self.run_deploy(self.deploy_args(self.tmp / "gates.md"))
 
         self.assertEqual(result, 0)
-        installed = self.home / ".agents" / "skills" / "herdr-delivery-workflow"
+        installed = self.home / ".agents" / "skills" / "terminal-delivery-workflow"
         self.assertTrue((installed / "SKILL.md").read_text(encoding="utf-8").endswith("tracked skill\n"))
         self.assertEqual(stat.S_IMODE((installed / "run.sh").stat().st_mode), 0o755)
-        self.assert_install_matches_head("herdr-delivery-workflow", head)
+        self.assert_install_matches_head("terminal-delivery-workflow", head)
 
     def test_unsupported_git_mode_is_refused_before_any_cli_write(self):
         second = self.skills / "second-skill"
@@ -261,7 +261,7 @@ class DeploySkillTest(unittest.TestCase):
         self.assertEqual(result, 0)
         root = self.home / ".agents" / "skills"
         self.assertTrue((root / "second-skill" / "SKILL.md").is_file())
-        self.assertFalse((root / "herdr-delivery-workflow").exists())
+        self.assertFalse((root / "terminal-delivery-workflow").exists())
         with self.assertRaises(deploy_skill.DeployError):
             deploy_skill.selected_skills(self.repo, self.head(), ["../outside"])
 
@@ -282,12 +282,12 @@ class DeploySkillTest(unittest.TestCase):
         self.assertEqual(result, 0)
         self.assertEqual(
             {path.name for path in (self.home / ".agents" / "skills").iterdir()},
-            {"herdr-delivery-workflow", "second-skill"},
+            {"terminal-delivery-workflow", "second-skill"},
         )
         calls = json.loads(self.cli_log.read_text(encoding="utf-8"))
         self.assertEqual(len(calls), 2)
         self.assertEqual({Path(call["source"]).name for call in calls}, {
-            "herdr-delivery-workflow", "second-skill",
+            "terminal-delivery-workflow", "second-skill",
         })
         self.assertTrue(all(call["do_not_track"] == "1" for call in calls))
         for call in calls:
@@ -296,7 +296,7 @@ class DeploySkillTest(unittest.TestCase):
 
     def test_verify_rejects_extra_files_and_ignores_pycache(self):
         head = self.head()
-        entries = deploy_skill.tracked_files(self.repo, head, "skills/herdr-delivery-workflow")
+        entries = deploy_skill.tracked_files(self.repo, head, "skills/terminal-delivery-workflow")
         install = self.tmp / "install"
         install.mkdir()
         (install / "SKILL.md").write_bytes((self.source / "SKILL.md").read_bytes())
@@ -305,19 +305,19 @@ class DeploySkillTest(unittest.TestCase):
         (cache / "artifact.pyc").write_bytes(b"runtime artifact")
 
         deploy_skill.verify_install(
-            self.repo, install, entries, "skills/herdr-delivery-workflow"
+            self.repo, install, entries, "skills/terminal-delivery-workflow"
         )
         (install / "extra.txt").write_text("not tracked\n", encoding="utf-8")
         with self.assertRaises(deploy_skill.DeployError):
             deploy_skill.verify_install(
-                self.repo, install, entries, "skills/herdr-delivery-workflow"
+                self.repo, install, entries, "skills/terminal-delivery-workflow"
             )
 
     def test_head_equal_to_or_ancestor_of_origin_main_is_admitted(self):
         ancestor = self.head()
         ancestor_content = (self.source / "SKILL.md").read_bytes()
         (self.source / "SKILL.md").write_text(
-            "---\nname: herdr-delivery-workflow\ndescription: test skill\n---\nnew tracked skill\n",
+            "---\nname: terminal-delivery-workflow\ndescription: test skill\n---\nnew tracked skill\n",
             encoding="utf-8",
         )
         self.git("add", "skills")
@@ -325,7 +325,7 @@ class DeploySkillTest(unittest.TestCase):
         descendant = self.head()
         self.origin(descendant)
 
-        installed = self.home / ".agents/skills/herdr-delivery-workflow/SKILL.md"
+        installed = self.home / ".agents/skills/terminal-delivery-workflow/SKILL.md"
         below = self.run_deploy(self.deploy_args(self.tmp / "below-gates.md", ancestor))
         self.assertEqual(below, 0)
         self.assertEqual(installed.read_bytes(), ancestor_content)
@@ -337,7 +337,7 @@ class DeploySkillTest(unittest.TestCase):
         accepted = self.head()
         self.git("checkout", "-qb", "offline", accepted)
         (self.source / "SKILL.md").write_text(
-            "---\nname: herdr-delivery-workflow\ndescription: test skill\n---\noffline content\n",
+            "---\nname: terminal-delivery-workflow\ndescription: test skill\n---\noffline content\n",
             encoding="utf-8",
         )
         self.git("add", "skills")

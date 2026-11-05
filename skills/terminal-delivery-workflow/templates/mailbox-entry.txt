@@ -1,5 +1,5 @@
 Append with (the append always wakes the --to seat and exits with the wake's code):
-scripts/mailbox.py --file ~/.herdr/projects/<project-slug>/supervisor-mailbox.md --append --from <lead> --to supervisor --repo <checkout> --event "<one line naming the gate id or PR>" [--attention <event-kind>]
+scripts/mailbox.py --file ~/.terminal-delivery/projects/<project-slug>/supervisor-mailbox.md --append --from <lead> --to supervisor --repo <checkout> --event "<one line naming the gate id or PR>" [--attention <event-kind>]
 Only for what no ledger row holds, add --stdin with a quoted heredoc (the body is data):
   ... --stdin <<'EOF'
 <a few lines>

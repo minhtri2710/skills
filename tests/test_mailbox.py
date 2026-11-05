@@ -12,11 +12,12 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-SCRIPTS = Path(__file__).resolve().parents[1] / "skills" / "herdr-delivery-workflow" / "scripts"
+SCRIPTS = Path(__file__).resolve().parents[1] / "skills" / "terminal-delivery-workflow" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 
 import mailbox  # noqa: E402
 import gate_row  # noqa: E402
+import state_root  # noqa: E402
 
 
 SAMPLE = """---
@@ -35,22 +36,22 @@ class MailboxTest(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory(dir=os.path.realpath("/tmp"))
         # A live wake is only allowed from a real project mailbox, so the
-        # fixture lives under a fake herdr projects root and the module
+        # fixture lives under a fake state root and the module
         # constant is pointed at it for the duration of the test.
-        root = Path(self.tmp.name) / ".herdr" / "projects"
+        root = Path(self.tmp.name) / ".terminal-delivery" / "projects"
         project = root / "beo-skills"
         project.mkdir(parents=True)
         self.path = project / "mailbox.md"
         self.path.write_text(SAMPLE, encoding="utf-8")
-        prev_root = mailbox.HERDR_PROJECTS_ROOT
-        mailbox.HERDR_PROJECTS_ROOT = root
+        root_patch = mock.patch.object(state_root, "STATE_ROOT", root)
+        root_patch.start()
         self._stdout_patch = mock.patch.object(sys, "stdout", io.StringIO())
         self._stderr_patch = mock.patch.object(sys, "stderr", io.StringIO())
         self._stdout_patch.start()
         self._stderr_patch.start()
         self.addCleanup(self._stderr_patch.stop)
         self.addCleanup(self._stdout_patch.stop)
-        self.addCleanup(setattr, mailbox, "HERDR_PROJECTS_ROOT", prev_root)
+        self.addCleanup(root_patch.stop)
         self.addCleanup(self.tmp.cleanup)
         self.pane_record = Path(self.tmp.name) / "supervisor-pane"
         for target, value in (
@@ -331,7 +332,7 @@ class MailboxAppendTest(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory(dir=os.path.realpath("/tmp"))
         self.addCleanup(self.tmp.cleanup)
-        root = Path(self.tmp.name) / ".herdr" / "projects"
+        root = Path(self.tmp.name) / ".terminal-delivery" / "projects"
         (root / "beo-skills").mkdir(parents=True)
         self.path = root / "beo-skills" / "supervisor-mailbox.md"
         self.repo = Path(self.tmp.name) / "repo"
@@ -346,13 +347,15 @@ class MailboxAppendTest(unittest.TestCase):
         self.wakes = []
         self.wake_rc = 0
         for target, value in (
-            ("HERDR_PROJECTS_ROOT", root),
             ("_now", lambda: mailbox.datetime(2026, 9, 24, 3, 4, 5, 678, mailbox.timezone.utc)),
             ("run_wake", self.fake_wake),
         ):
             patcher = mock.patch.object(mailbox, target, value)
             patcher.start()
             self.addCleanup(patcher.stop)
+        root_patch = mock.patch.object(state_root, "STATE_ROOT", root)
+        root_patch.start()
+        self.addCleanup(root_patch.stop)
         self.stdout = io.StringIO()
         self.stderr = io.StringIO()
         for stream, value in (("stdout", self.stdout), ("stderr", self.stderr)):

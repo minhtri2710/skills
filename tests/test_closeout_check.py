@@ -13,7 +13,7 @@ import sys
 from typing import Any
 from unittest import mock
 
-SCRIPTS = Path(__file__).resolve().parents[1] / "skills" / "herdr-delivery-workflow" / "scripts"
+SCRIPTS = Path(__file__).resolve().parents[1] / "skills" / "terminal-delivery-workflow" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 
 import closeout_check  # noqa: E402
@@ -392,7 +392,7 @@ class CloseoutCheckTest(unittest.TestCase):
         template = (
             Path(__file__).resolve().parents[1]
             / "skills"
-            / "herdr-delivery-workflow"
+            / "terminal-delivery-workflow"
             / "templates"
             / "staffing-closeout.json"
         )

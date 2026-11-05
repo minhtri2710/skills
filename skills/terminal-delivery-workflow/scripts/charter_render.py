@@ -84,7 +84,7 @@ def render(args: argparse.Namespace) -> tuple[str, str]:
     repo = args.repo.resolve()
     run_dir = args.run_dir.resolve()
     if len(run_dir.parts) < 5 or run_dir.parent.name != "runs" or run_dir.parents[2].name != "projects":
-        raise ValueError(f"run dir {run_dir} is not <herdr home>/projects/<slug>/runs/<run>")
+        raise ValueError(f"run dir {run_dir} is not ~/.terminal-delivery/projects/<slug>/runs/<run>")
     config = project_config.load(run_dir.parents[1] / "config.json")
     lead = f"lead-{run_dir.parents[1].name}"
     head = _git(repo, "rev-parse", "--verify", f"{args.head}^{{commit}}").strip()
@@ -148,7 +148,7 @@ def render(args: argparse.Namespace) -> tuple[str, str]:
         "quality_floor_dir": str(QUALITY_FLOOR),
         "bounded_run": str(SKILL / "scripts" / "bounded_run.py"),
         "peer_name": peer,
-        "herdr_home": str(run_dir.parents[3]),
+        "state_root": str(run_dir.parents[2]),
     }
     return peer, SLOT_RE.sub(lambda match: values[match.group(1)], TEMPLATE.read_text(encoding="utf-8"))
 
@@ -156,7 +156,7 @@ def render(args: argparse.Namespace) -> tuple[str, str]:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo", required=True, type=Path, help="checkout holding the head")
-    parser.add_argument("--run-dir", required=True, type=Path, help="~/.herdr/projects/<slug>/runs/<run>")
+    parser.add_argument("--run-dir", required=True, type=Path, help="~/.terminal-delivery/projects/<slug>/runs/<run>")
     parser.add_argument("--base", required=True, help="full SHA the reviewed unit starts from")
     parser.add_argument("--head", required=True, help="full SHA under review")
     parser.add_argument("--pane", required=True, help="Reviewer pane id, <workspace>:<pane>")

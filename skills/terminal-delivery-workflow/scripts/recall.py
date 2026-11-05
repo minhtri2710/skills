@@ -12,7 +12,8 @@ import tempfile
 import unicodedata
 from dataclasses import dataclass
 
-PROJECTS_ROOT = os.path.expanduser("~/.herdr/projects")
+import state_root
+
 STOP = set(
     "the did what why about was were how when who does not have has with of and is are to for in on at it this that vi sao khong duoc toi la va cua".split()
 )
@@ -30,7 +31,7 @@ def terms(variant):
 
 
 def project_root(parser, project):
-    root = os.path.abspath(PROJECTS_ROOT)
+    root = os.path.abspath(state_root.STATE_ROOT)
     if project is not None:
         if (
             not project
@@ -48,7 +49,7 @@ def build_index(index_root):
     db.execute(
         "create virtual table r using fts5(path, line, text, tokenize='unicode61 remove_diacritics 2')"
     )
-    root = os.path.abspath(PROJECTS_ROOT)
+    root = os.path.abspath(state_root.STATE_ROOT)
     for path in glob.glob(os.path.join(index_root, "**", "*.md"), recursive=True):
         with open(path, encoding="utf-8", errors="ignore") as handle:
             lines = handle.read().splitlines()
@@ -217,7 +218,7 @@ def lesson_result_path(relative):
     parts = os.path.normpath(relative).split(os.sep)
     if "lessons" not in parts or parts[-1] in {"", ".", ".."}:
         return None
-    root = os.path.realpath(os.path.abspath(PROJECTS_ROOT))
+    root = os.path.realpath(os.path.abspath(state_root.STATE_ROOT))
     path = os.path.realpath(os.path.join(root, relative))
     try:
         inside_root = os.path.commonpath((root, path)) == root
@@ -248,7 +249,7 @@ def span_target(parser, spec):
         parser.error("--get must be PATH:FROM:COUNT")
     if not path or os.path.isabs(path) or start < 1 or count < 1:
         parser.error("--get must use a relative path and positive FROM and COUNT")
-    root = os.path.realpath(os.path.abspath(PROJECTS_ROOT))
+    root = os.path.realpath(os.path.abspath(state_root.STATE_ROOT))
     target = os.path.realpath(os.path.join(root, path))
     try:
         inside = os.path.commonpath((root, target)) == root

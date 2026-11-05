@@ -1,6 +1,6 @@
 ---
 name: devops-pipeline
-description: Route repository quality checks across local pre-commit, pre-push, and lean CI lanes from observed project evidence. Use when designing or auditing where checks belong without duplicating the quality floor, security setup, dependency intake, or Herdr delivery contracts.
+description: Route repository quality checks across local pre-commit, pre-push, and lean CI lanes from observed project evidence. Use when designing or auditing where checks belong without duplicating the quality floor, security setup, dependency intake, or terminal delivery contracts.
 ---
 
 # DevOps Pipeline
@@ -49,7 +49,7 @@ contract:
 - `dependency-intake-audit` owns package acceptance, lifecycle-script controls,
   installation boundaries, and advisory triage. This skill never installs
   `pre-commit` or any project dependency as a setup shortcut.
-- `herdr-delivery-workflow` owns agent orchestration and the Human-gate ledger.
+- `terminal-delivery-workflow` owns agent orchestration and the Human-gate ledger.
   This skill states its action boundary but does not create a competing delivery
   workflow or scheduler path.
 

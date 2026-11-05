@@ -14,7 +14,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-SKILL = Path(__file__).resolve().parents[1] / "skills" / "herdr-delivery-workflow"
+SKILL = Path(__file__).resolve().parents[1] / "skills" / "terminal-delivery-workflow"
 sys.path.insert(0, str(SKILL / "scripts"))
 
 import charter_lint  # noqa: E402
@@ -196,7 +196,7 @@ class ReviewerCharterTemplateTest(unittest.TestCase):
             root = Path(outside)
             # A kind's runtime-state-paths: a directory and a file it writes beside it.
             state_paths = [f"{root}/state", f"{root}/kind.json"]
-            values = {"run_dir": f"{root}/.herdr/projects/p/runs/2026-09-30", "peer_name": "review-45fa5929e7c1"}
+            values = {"run_dir": f"{root}/.terminal-delivery/projects/p/runs/2026-09-30", "peer_name": "review-45fa5929e7c1"}
             run_dir, name = Path(values["run_dir"]), values["peer_name"]
             # As a Lead fills it: a "." in a slot value becomes "\." on the regex lines.
             fill = lambda line: SLOT_RE.sub(
@@ -209,16 +209,16 @@ class ReviewerCharterTemplateTest(unittest.TestCase):
                 else "".join(fill(l.replace("<kind_state_path>", p.replace(".", "\\."))) for p in state_paths)
                 if "<kind_state_path>" in l else fill(l)
                 for l in lines))
-            for d in (run_dir, root / "state", root / "Xherdr/projects/p/runs/2026-09-30"):
+            for d in (run_dir, root / "state", root / "Xterminal-delivery/projects/p/runs/2026-09-30"):
                 d.mkdir(parents=True)
             report, send = run_dir / f"report-{name}.md", run_dir / f"send-{name}.txt"
             allowed = [report, send, Path(f"{report}.tmp.17614.7a0e172e9fe4"), Path(f"{send}.tmp.1.0"),
                        root / "state/session", root / "kind.json", Path(f"{root}/kind.json.tmp.1.a"),
                        self.tmp / "scratch"]
             denied = [run_dir / "other.md", run_dir / "report-review-other.md", run_dir / f"send-{name}.md",
-                      root / ".herdr/gates.md",
+                      root / ".terminal-delivery/gates.md",
                       root / "checkout-file", root / "stateX", root / "kind.jsonX", root / "kind.json.bak",
-                      root / f"Xherdr/projects/p/runs/2026-09-30/report-{name}.md",
+                      root / f"Xterminal-delivery/projects/p/runs/2026-09-30/report-{name}.md",
                       Path(str(report).replace("45fa5929e7c1.md", "45fa5929e7c1Xmd")),
                       *(Path(f"{report}{s}") for s in (".tmp", ".bak", "x", ".tmp.1.0.x", ".tmp.1.g", ".tmp..a", ".tmp.1.", ".tmpX1.0", ".tmp.1X0", ".tmp.1.d/x"))]
             Path(f"{report}.tmp.1.d").mkdir()
