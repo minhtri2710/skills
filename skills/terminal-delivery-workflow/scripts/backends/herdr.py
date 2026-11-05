@@ -16,6 +16,8 @@ import backend
 BINARY = "herdr"
 DEFAULT_TIMEOUT = 30.0
 _CODE_KINDS = {"agent_not_found": "not_found", "pane_not_found": "not_found", "agent_blocked": "blocked"}
+# A pane call says "gone" only with pane_not_found; agent_not_found there is not evidence the pane is gone.
+_PANE_KINDS = {"pane_not_found": "not_found"}
 _REPORT_PATH_RE = re.compile(r"(?P<dir>.+)/report-(?P<peer>[^/]+)\.md")
 _UNSAFE_IN_DOUBLE_QUOTES = frozenset('"$`\\\n')
 
@@ -86,18 +88,20 @@ class Adapter(backend.Backend):
         super().__init__(environ)
         self._runner = runner or run
 
-    def _ok(self, args: list[str], *, timeout: float = DEFAULT_TIMEOUT) -> subprocess.CompletedProcess[str]:
+    def _ok(
+        self, args: list[str], *, timeout: float = DEFAULT_TIMEOUT, kinds: Mapping[str, str] = _CODE_KINDS
+    ) -> subprocess.CompletedProcess[str]:
         completed = self._runner(args, timeout=timeout)
         if completed.returncode:
             code = _error_code(completed)
             message = f"{BINARY} {' '.join(args[:3])} failed: {code}"
-            if code in _CODE_KINDS:
-                raise backend.SeatError(_CODE_KINDS[code], message)
+            if code in kinds:
+                raise backend.SeatError(kinds[code], message)
             raise backend.BackendError(message, code=code)
         return completed
 
-    def _result(self, args: list[str], key: str) -> Any:
-        payload = _object(self._ok(args).stdout)
+    def _result(self, args: list[str], key: str, kinds: Mapping[str, str] = _CODE_KINDS) -> Any:
+        payload = _object(self._ok(args, kinds=kinds).stdout)
         result = payload.get("result")
         if not isinstance(result, dict) or key not in result:
             raise backend.BackendError(f"{BINARY} {' '.join(args[:3])} returned no result.{key}")
@@ -135,7 +139,7 @@ class Adapter(backend.Backend):
         return _seat(agent, strict=False, fallback_handle=ref)
 
     def get_terminal(self, handle: str) -> backend.Seat:
-        pane = self._result(["pane", "get", handle], "pane")
+        pane = self._result(["pane", "get", handle], "pane", _PANE_KINDS)
         if not isinstance(pane, dict) or not isinstance(pane.get("pane_id"), str):
             raise backend.BackendError(f"pane get {handle} returned no pane_id")
         return backend.Seat(handle=pane["pane_id"], cwd=pane.get("cwd"))
@@ -162,7 +166,7 @@ class Adapter(backend.Backend):
         return status
 
     def processes(self, handle: str) -> list[Any]:
-        info = self._result(["pane", "process-info", "--pane", handle], "process_info")
+        info = self._result(["pane", "process-info", "--pane", handle], "process_info", _PANE_KINDS)
         processes = info.get("foreground_processes") if isinstance(info, dict) else None
         if not isinstance(processes, list):
             raise backend.BackendError(f"process-info JSON for {handle} lacks foreground_processes")

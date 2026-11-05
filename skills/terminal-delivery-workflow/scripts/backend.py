@@ -29,8 +29,8 @@ Opening a backend:
 Seat records (one line "<backend> <handle>", the lead-seat and supervisor-seat files):
   parse_explicit(text) -> Explicit          raises ValueError.
   read_seat_record(path) -> Explicit        raises OSError or ValueError.
-  write_seat_record(path, name, handle)     validates, then replaces the file by temp + rename.
-  `backend.py whoami [--backend NAME@HANDLE]` prints this seat's "<backend> <handle>" after identify.
+  `backend.py whoami [--backend NAME@HANDLE]` prints this seat's "<backend> <handle>" after identify;
+  a seat writes its record with `backend.py whoami > <path>`.
 
 Backend (the adapter base; every operation raises Unsupported until an adapter implements it):
   identify() -> str                         this seat's own handle, confirmed with the tool.
@@ -250,13 +250,6 @@ def read_seat_record(path: Path) -> Explicit:
         return parse_explicit(f"{name}@{handle}")
     except ValueError as exc:
         raise ValueError(f"seat record {path} is not '<backend> <handle>'") from exc
-
-
-def write_seat_record(path: Path, name: str, handle: str) -> None:
-    parse_explicit(f"{name}@{handle}")
-    temporary = path.with_name(f".{path.name}.tmp")
-    temporary.write_text(f"{name} {handle}\n", encoding="utf-8")
-    os.replace(temporary, path)
 
 
 def main(argv: Sequence[str] | None = None, environ: Mapping[str, str] | None = None) -> int:

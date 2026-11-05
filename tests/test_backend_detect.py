@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import contextlib
 import io
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -16,6 +17,17 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import backend  # noqa: E402
 from fake_backend import FakeBackend  # noqa: E402
+
+_NEVER_RUN = mock.patch.object(subprocess, "run", side_effect=AssertionError("tests never run a terminal tool"))
+
+
+def setUpModule() -> None:
+    _NEVER_RUN.start()
+
+
+def tearDownModule() -> None:
+    _NEVER_RUN.stop()
+
 
 HERDR = {"HERDR_ENV": "1", "HERDR_PANE_ID": "w1:p1"}
 HC = {"HC_TERMINAL_ID": "t7", "HC_TERMINAL_SOCKET": "/run/hc.sock"}
@@ -172,7 +184,7 @@ class RelaunchTest(unittest.TestCase):
     def test_record_file_feeds_detect(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             record = Path(directory) / "lead-seat"
-            backend.write_seat_record(record, "herdr", "w1:p1")
+            record.write_text("herdr w1:p1\n", encoding="utf-8")
             recorded = backend.read_seat_record(record)
             self.assertEqual(backend.detect({**HERDR, **HC}, recorded), "herdr")
             with self.assertRaises(backend.DetectionError):
@@ -186,15 +198,11 @@ class ParseAndRecordTest(unittest.TestCase):
             with self.subTest(bad), self.assertRaises(ValueError):
                 backend.parse_explicit(bad)
 
-    def test_record_round_trip_is_one_line(self) -> None:
+    def test_a_record_is_one_backend_handle_line(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "supervisor-seat"
-            backend.write_seat_record(path, "rex", REX_HANDLE)
-            self.assertEqual(path.read_text(encoding="utf-8"), f"rex {REX_HANDLE}\n")
+            path.write_text(f"rex {REX_HANDLE}\n", encoding="utf-8")
             self.assertEqual(backend.read_seat_record(path), ("rex", REX_HANDLE))
-            backend.write_seat_record(path, "herdr", "w1:p2")
-            self.assertEqual(path.read_text(encoding="utf-8"), "herdr w1:p2\n")
-            self.assertEqual(sorted(entry.name for entry in path.parent.iterdir()), ["supervisor-seat"])
 
     def test_bad_records_are_refused(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -205,15 +213,6 @@ class ParseAndRecordTest(unittest.TestCase):
                     backend.read_seat_record(path)
             with self.assertRaises(OSError):
                 backend.read_seat_record(Path(directory) / "missing")
-
-    def test_write_refuses_bad_values_and_leaves_the_file_alone(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            path = Path(directory) / "lead-seat"
-            backend.write_seat_record(path, "herdr", "w1:p1")
-            for name, handle in (("tmux", "w1:p1"), ("herdr", "w1:p1\nx"), ("herdr", "")):
-                with self.subTest(name, handle=handle), self.assertRaises(ValueError):
-                    backend.write_seat_record(path, name, handle)
-            self.assertEqual(path.read_text(encoding="utf-8"), "herdr w1:p1\n")
 
 
 class OpenAndCliTest(unittest.TestCase):
@@ -268,6 +267,10 @@ class OpenAndCliTest(unittest.TestCase):
             fake.handle = "w1:p1"
             code = backend.main(["whoami", "--backend", "herdr@w1:p1"], HERDR)
         self.assertEqual((code, out.getvalue(), err.getvalue()), (0, "herdr w1:p1\n", ""))
+        with tempfile.TemporaryDirectory() as directory:  # `whoami > <path>` writes a readable record
+            record = Path(directory) / "lead-seat"
+            record.write_text(out.getvalue(), encoding="utf-8")
+            self.assertEqual(backend.read_seat_record(record), ("herdr", "w1:p1"))
         opened.assert_called_once_with(HERDR, ("herdr", "w1:p1"))
 
     def test_whoami_fails_closed_on_ambiguity_without_printing_the_environment(self) -> None:

@@ -186,6 +186,16 @@ class ListAndGetTest(unittest.TestCase):
             a.get_terminal("w1:p9")
         self.assertEqual(caught.exception.kind, "not_found")
 
+    def test_agent_not_found_from_a_pane_call_is_not_a_missing_pane(self) -> None:
+        for call in (lambda a: a.get_terminal("w1:p3"), lambda a: a.processes("w1:p3")):
+            for stderr in (fixture("error-agent-not-found.stderr.json"), "agent_not_found\n"):
+                with self.subTest(stderr):
+                    a, _ = adapter(reply(returncode=1, stderr=stderr))
+                    with self.assertRaises(backend.BackendError) as caught:
+                        call(a)
+                    self.assertNotIsInstance(caught.exception, backend.SeatError)
+                    self.assertEqual(caught.exception.code, "agent_not_found")
+
     def test_get_terminal_without_a_pane_id_is_malformed(self) -> None:
         for stdout in ('{"result": {"pane": {}}}', '{"result": {"pane": {"pane_id": 3}}}', "{}"):
             with self.subTest(stdout):
