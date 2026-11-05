@@ -33,6 +33,7 @@ def tearDownModule() -> None:
 
 LEAD = "w1:p1"
 SEAT = "w1:p2"
+PEER = "eng-example"
 TIMEOUT_MS = 600000
 WAIT = ("wait_state", SEAT, ("idle", "done", "blocked"), TIMEOUT_MS)
 # Shape of the pi Lead pane tail measured on 2026-10-08 (the `read` operation's unwrapped output on Herdr):
@@ -79,7 +80,7 @@ def failed_wait(code: str) -> backend.BackendError:
 class WakerTest(unittest.TestCase):
     def setUp(self) -> None:
         self.run_dir = Path(self.enterContext(tempfile.TemporaryDirectory()))
-        self.report = self.run_dir / f"report-{SEAT}.md"
+        self.report = self.run_dir / f"report-{PEER}.md"
 
     def run_waker(self, fake: Scripted, argv: list[str]) -> int:
         stderr = io.StringIO()
@@ -89,7 +90,7 @@ class WakerTest(unittest.TestCase):
         return code
 
     def peer_argv(self) -> list[str]:
-        return ["peer", "--lead", LEAD, "--seat", SEAT, "--run-dir", str(self.run_dir), "--timeout-ms", str(TIMEOUT_MS)]
+        return ["peer", "--lead", LEAD, "--seat", SEAT, "--report", str(self.report), "--timeout-ms", str(TIMEOUT_MS)]
 
     def lead_argv(self) -> list[str]:
         return ["lead", "--lead", LEAD, "--timeout-ms", str(TIMEOUT_MS)]

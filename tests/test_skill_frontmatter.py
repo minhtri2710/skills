@@ -74,18 +74,26 @@ class SkillFrontmatterTest(unittest.TestCase):
     def test_terminal_delivery_doctrine_names_no_tool_command(self):
         skill = Path(__file__).resolve().parents[1] / "skills" / "terminal-delivery-workflow"
         references = skill / "references"
-        # Each backend reference defines its own commands: the tool word plus the first subcommand of every fenced command line.
+        # Each backend reference defines its own commands: the tool word plus the first subcommand of every
+        # command it shows, on a fenced line (a leading NAME=value may precede the tool) or in an inline code span.
         commands = {}
         for backend_doc in sorted(references.glob("backend-*.md")):
             tool = backend_doc.stem.removeprefix("backend-")
-            fenced = re.findall(r"^```[a-z]*\n(.*?)^```", backend_doc.read_text(encoding="utf-8"), re.M | re.S)
+            body = backend_doc.read_text(encoding="utf-8")
+            fenced = re.findall(r"^```[a-z]*\n(.*?)^```", body, re.M | re.S)
+            prose = re.sub(r"^```[a-z]*\n.*?^```", "", body, flags=re.M | re.S)
+            shown = rf"(?:[A-Za-z_][A-Za-z0-9_]*=\S+\s+)*{re.escape(tool)} ([a-z][a-z-]*)\b"
             subcommands = {
                 match.group(1)
-                for block in fenced
-                for match in re.finditer(rf"^\s*{re.escape(tool)} ([a-z][a-z-]*)\b", block, re.M)
+                for text, pattern in (("\n".join(fenced), rf"^\s*{shown}"), (prose, rf"`{shown}"))
+                for match in re.finditer(pattern, text, re.M)
             }
             self.assertTrue(subcommands, backend_doc.name)
             commands[tool] = re.compile(rf"\b{re.escape(tool)} (?:{'|'.join(sorted(subcommands))})\b")
+        self.assertTrue(
+            all(commands["herdr"].search(f"herdr {sub} x") for sub in ("workspace", "server", "worktree")),
+            "a subcommand backend-herdr.md shows only inline is forbidden too",
+        )
         paths = [skill / "SKILL.md", *sorted((skill / "templates").iterdir())]
         paths += [references / f"{name}.md" for name in (
             "lead", "supervisor", "charters", "closeout", "relaunch", "project-config",

@@ -2,7 +2,8 @@
 """One-shot, non-LLM waker for one active-run seat.
 
 Each mode makes one bounded wait for a terminal state, then sends the Lead at most one fixed prompt and exits.
-The prompt carries no pane or report text, and the waker never reports success or retries.
+The prompt carries no seat output or report text, and the waker never reports success or retries.
+`peer` routes by `--seat`, a seat handle, and judges freshness only from the mtime of `--report`, a path named for the Peer.
 
 Owner preconditions, not enforced here:
 - peer mode: dispatch with the `prompt` operation and wait for `working` or `blocked`, and start the waker
@@ -90,8 +91,7 @@ def _mtime(path: Path) -> int | None:
         return None
 
 
-def watch_peer(seat_backend: backend.Backend, lead: str, seat: str, run_dir: Path, timeout_ms: int) -> int:
-    report = run_dir / f"report-{seat}.md"
+def watch_peer(seat_backend: backend.Backend, lead: str, seat: str, report: Path, timeout_ms: int) -> int:
     before = _mtime(report)
     status = seat_backend.wait_state(seat, TERMINAL, timeout_ms)
     after = _mtime(report)
@@ -133,14 +133,14 @@ def main(argv: list[str] | None = None) -> int:
         mode.add_argument("--lead", required=True, type=_handle, help="Lead seat handle; the wait target in lead mode")
         mode.add_argument("--timeout-ms", required=True, type=_positive, help="bound on the single wait")
     peer_mode.add_argument("--seat", required=True, type=_handle, help="Peer seat handle to wait on")
-    peer_mode.add_argument("--run-dir", required=True, type=Path, help="run directory holding report-<seat>.md")
+    peer_mode.add_argument("--report", required=True, type=Path, help="<run-dir>/report-<peer-name>.md; only its freshness is read")
     args = parser.parse_args(argv)
 
     try:
         seat_backend = backend.open_backend(os.environ, args.backend)
         if args.mode == "lead":
             return watch_lead(seat_backend, args.lead, args.timeout_ms)
-        return watch_peer(seat_backend, args.lead, args.seat, args.run_dir, args.timeout_ms)
+        return watch_peer(seat_backend, args.lead, args.seat, args.report, args.timeout_ms)
     except backend.BackendError as exc:
         print(f"waker: {exc}", file=sys.stderr)
         return 1
