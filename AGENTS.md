@@ -20,7 +20,7 @@ The suite needs Python 3.11 or newer; if `python3` resolves older, use a 3.11+ i
 
 These commands are the repository's CI of record; there is no hosted CI. A change is complete only when they pass.
 
-On Linux, `test_floor_guard` and `test_gate_row` run scripts under `LC_ALL=en_US.ISO8859-1`, which needs that locale: `sudo localedef -i en_US -f ISO-8859-1 en_US.ISO8859-1`.
+On Linux, `test_floor_guard` and `test_gate_row` run scripts under `LC_ALL=en_US.ISO8859-1`, which needs that locale; on Debian or Ubuntu, first run `sudo apt-get update && sudo apt-get install -y locales`, then `sudo localedef -i en_US -f ISO-8859-1 en_US.ISO8859-1`.
 
 ```bash
 python3 -c 'import sys; sys.exit(sys.version_info < (3, 11) and sys.version)' && python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt

@@ -201,8 +201,8 @@ acknowledgement other than the ack below:
   merge that no condition in `grants.md` already accounts for, or CI on a merged head
   failed; a CI state a `grants.md` condition already accounts for goes in the record and the
   `closed-out` event instead;
-- `collision`: a container, process, port, or host resource another project started or
-  holds;
+- `collision`: a container, process, port, or host resource the agent did not start and may
+  not signal (another project's, or an orphan of an earlier run);
 - `errored`: its previous turn died on an API or runtime error, sent first in its next turn;
 - `closed-out`: a delivery closed (step 7), with its start, first Engineer report, `PASS`,
   and merge times, its net test-line change (test lines before and after for an audit
@@ -238,20 +238,21 @@ Lead's permission request for that act.
   wait sized to the work (a bounded tracked wait is not a poll); its expiry, a runtime exit,
   or a "background command was stopped" notice makes you check that agent's status at once,
   since an agent that ended its turn waiting on a background task the exit killed never gets
-  its completion notice. After the check, a wait still owed is re-armed as a new bounded
-  wait, until the report arrives or you restaff the agent. An agent you staffed that is
-  idle, closed, or errored with its report still owed has stalled: read its `paseo logs`,
-  then re-prompt it; restaff the same scope only when it cannot resume. The Supervisor, to
-  whom a Lead owes events and no report, learns a Lead stalled from an `errored` event, a
-  watched answer's notification, or the Human's Paseo attention list, and never polls for
-  it. A send that returned success proves nothing: check that the agent then runs a turn
-  rather than waiting on a permission or dialog request, and count the work done only when
-  the report arrives.
+  its completion notice. After the check, the wait for a report still owed is re-armed as a
+  new bounded wait, until the report arrives or you restaff the agent. An agent you
+  staffed that is idle, closed, or errored with its report still owed has stalled: read its
+  `paseo logs`, then re-prompt it; restaff the same scope only when it cannot resume. The
+  Supervisor, to whom a Lead owes events and no report, learns a Lead stalled from an
+  `errored` event, a watched answer's notification, or the Human's Paseo attention list,
+  and never polls for it. A send that returned success proves nothing: check that the agent
+  then runs a turn rather than waiting on a permission or dialog request, and count the
+  work done only when the report arrives.
 - Agents share one machine. Never stop, remove, or take over a container, process, or port
   another agent, delivery, or project started; report the collision to the agent that
   staffed you. Replace a file a process may be using (a script it runs, an installed file)
-  by writing the new bytes to a temp path beside it, verifying their hash, and moving them
-  in with `mv`, or wait for the run to end: a write straight to the live path can truncate
+  by writing the new bytes to a temp path beside it, verifying their hash against the hash
+  of their source (for an installed file, the reviewed commit's blob), and moving them in
+  with `mv`, or wait for the run to end: a write straight to the live path can truncate
   it in use, and a shell reads a script incrementally, so the process can execute new bytes
   at its old offset. Signal only a pid or process group you recorded when you started it,
   never by `pkill`, `pkill -f`, `killall`, or a pid found by searching command lines; every
@@ -345,9 +346,9 @@ list, never remove one. Dangerous:
   own origin; publishing a package, release, or tag;
 - a merge whose delivery changes CI config or the checks that decide green, or whose merge
   deploys or publishes;
-- an edit to `~/.paseo/config.json`, a Claude settings file, tier policy, an installed
-  skill, or an installed shared helper (a script or binary outside a repository that more
-  than one seat or project uses); reinstalling one; changing another agent's mode or
+- an edit to `~/.paseo/config.json`, a Claude settings file, or tier policy; installing or
+  reinstalling a skill or a shared helper (a script or binary that more than one seat or
+  project uses, installed outside its repository); changing another agent's mode or
   provider;
 - a restart, degradation, or deletion of infrastructure another project's production also
   runs on (a shared host, container runtime, VM, or database host), routed with what each
