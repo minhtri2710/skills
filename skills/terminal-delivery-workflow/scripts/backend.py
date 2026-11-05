@@ -69,6 +69,7 @@ HANDLE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$")
 # One line per backend. Each module defines `Adapter`; S4 and S5 add the hc and rex lines.
 ADAPTERS = {
     "herdr": "backends.herdr",
+    "rex": "backends.rex",
 }
 
 

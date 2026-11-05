@@ -1,0 +1,39 @@
+These fixtures are partly verified. The delivery-3 live runs (2026-11-05: run 2 on main 65ba6a5, run 3 on main
+faa1286) read a private rex server with stub agents. The CLI reported version 0.0.1793377904-ge6592f (Rex Beta build
+1696). Field names and nesting follow what those runs printed; ids, pids, paths and the user are placeholders.
+
+Verified live:
+  ls.json, ls_empty.json   `rex ls --json` -> .sessions[].{session_id,label}
+  view_a/view_b.json       `rex api call -s S session.view` -> windows -> layers{layer_id,kind,bounds,layout} ->
+                           blocks{block_id,label,creator_name,flavor,host_id,owner?}. Each layer holds one block and
+                           a one-block layout (layout.block_id).
+  view_split.json          run 3: a layer holding two blocks, its layout a split{split_id,direction,ratio,before,after}
+                           with a block_id in each half. The backend ignores layout and reads every entry of a layer's
+                           blocks list; rex_spec routes this view to pin that.
+  process_claude/codex/shell.json
+                           `rex block call ... process` -> {last_exit,child,foreground,home}. foreground is
+                           {pid,user_id,user,name,path,invoked_path,argv0,cwd}; there is no `ancestors`. A stub run
+                           through bash reported name "bash" and argv0 "claude"; name "2.1.308" for a real Claude
+                           Code block is firstmate's finding, not seen live.
+  process_bad.json         a deliberately malformed reply (string pid), not a rex shape.
+  status_empty.json        `rex block call ... program_status` -> {"records":[]}
+  `rex send -- TEXT` without Enter
+                           run 3 (faa1286): the driver sent text with no newline. After send, both blocks showed the
+                           text and no `got:` line; after submit, each showed exactly one `got: <text>`. So send does
+                           not press Enter.
+  `whoami` and `api call server.stop` worked as the live script uses them (the backend calls neither). The `split` and
+  `focus` flags from `--help` worked as the backend uses them.
+
+Still unverified:
+  rediscovery of a two-block layer
+                           the shape was seen live; discovery over it is pinned by the spec only.
+  status_working/blocked/blocked_other.json
+                           a non-empty program_status. Blocked: no stub could raise a record. The record fields
+                           {state,kind,app,msg,owner.pid} are firstmate's findings on rex API revision 5
+                           (~/Work/firstmate/docs/verification/runtime-backends.md, section Rex). status_bad.json is
+                           malformed on purpose.
+  process_none.json        the process reply of a block with no foreground. The live run never saw one, so the
+                           missing `foreground` key and the {"code":0} shape of last_exit are guesses.
+  split.json               the raw `rex split --json` reply. The live run only parsed it (start succeeded and read
+                           .block_ids[0]); it was never dumped. The key holding the original block is not known and
+                           is left out.
