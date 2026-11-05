@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check pane-level teardown and canonical-tree squatting servers for one run."""
+"""Check seat-level teardown and canonical-tree squatting servers for one run."""
 from __future__ import annotations
 
 import argparse
@@ -19,7 +19,7 @@ import gate_row
 class CloseoutResult:
     passed: bool
     findings: tuple[str, ...]
-    checked_panes: tuple[str, ...] = ()
+    checked_seats: tuple[str, ...] = ()
 
 def _unpushed_commits(repo: Path, gate_tips: list[str]) -> list[str]:
     head = gate_row.git(repo, "rev-parse", "HEAD")
@@ -93,7 +93,7 @@ def _validate_record(
     persistent = record.get("persistent")
     if not isinstance(persistent, list):
         raise ValueError("persistent must be a list")
-    persistent_panes: set[str] = set()
+    persistent_seats: set[str] = set()
     persistent_names: set[str] = set()
     persistent_roles: set[str] = set()
     for index, seat in enumerate(persistent):
@@ -102,15 +102,15 @@ def _validate_record(
         role = seat.get("role")
         if role not in _PERSISTENT_ROLES:
             raise ValueError(_PERSISTENT_ROLE_ERROR)
-        pane = _validate_handle(seat.get("pane"), f"persistent[{index}].pane")
+        handle = _validate_handle(seat.get("seat"), f"persistent[{index}].seat")
         name = _validate_handle(seat.get("name"), f"persistent[{index}].name")
-        if pane in persistent_panes:
-            raise ValueError(f"persistent pane {pane!r} is duplicated")
+        if handle in persistent_seats:
+            raise ValueError(f"persistent seat {handle!r} is duplicated")
         if name in persistent_names:
             raise ValueError(f"persistent name {name!r} is duplicated")
         if role in persistent_roles:
             raise ValueError(_PERSISTENT_ROLE_ERROR)
-        persistent_panes.add(pane)
+        persistent_seats.add(handle)
         persistent_names.add(name)
         persistent_roles.add(role)
     if "Lead" not in persistent_roles:
@@ -120,7 +120,7 @@ def _validate_record(
     if not isinstance(peers, list):
         raise ValueError("peers must be a list")
     validated: list[dict[str, str]] = []
-    seen_panes = set(persistent_panes)
+    seen_seats = set(persistent_seats)
     seen_names: set[str] = set(persistent_names)
     for index, peer in enumerate(peers):
         if not isinstance(peer, Mapping):
@@ -131,15 +131,15 @@ def _validate_record(
         issue = peer.get("issue")
         if not isinstance(issue, str) or not issue or "\x00" in issue:
             raise ValueError(f"peers[{index}].issue must be non-empty text")
-        pane = _validate_handle(peer.get("pane"), f"peers[{index}].pane")
+        handle = _validate_handle(peer.get("seat"), f"peers[{index}].seat")
         name = _validate_handle(peer.get("name"), f"peers[{index}].name")
-        if pane in seen_panes:
-            raise ValueError(f"recorded pane {pane!r} is duplicated")
+        if handle in seen_seats:
+            raise ValueError(f"recorded seat {handle!r} is duplicated")
         if name in seen_names:
             raise ValueError(f"recorded peer name {name!r} is duplicated")
-        seen_panes.add(pane)
+        seen_seats.add(handle)
         seen_names.add(name)
-        validated.append({"issue": issue, "role": role, "pane": pane, "name": name})
+        validated.append({"issue": issue, "role": role, "seat": handle, "name": name})
     ledger_value = record.get("gates_ledger")
     if not isinstance(ledger_value, str) or not ledger_value or "\x00" in ledger_value:
         raise ValueError("gates_ledger must be a non-empty path")
@@ -210,14 +210,14 @@ def check_closeout(
     staffing_record: Mapping[str, Any] | str | Path,
     seats: backend.Backend,
 ) -> CloseoutResult:
-    """Inspect exactly the recorded peer panes through a read-only backend.
+    """Inspect exactly the recorded peer seats through a read-only backend.
 
     The closeout staffing record is JSON with ``canonical_checkout``, ``persistent``,
     ``peers`` and ``gates_ledger`` fields. Each peer has ``issue``,
-    ``role`` (Engineer or Reviewer), ``name`` and opaque ``pane`` fields. Per peer the
-    backend answers ``get_terminal(pane)`` (the pane is open, or ``SeatError`` not_found
+    ``role`` (Engineer or Reviewer), ``name`` and opaque ``seat`` fields. Per peer the
+    backend answers ``get_terminal(seat)`` (the seat's terminal is open, or ``SeatError`` not_found
     when it is gone), ``get_seat(name)`` (the agent, or not_found) and
-    ``processes(pane)`` (its foreground process mappings).
+    ``processes(seat)`` (its foreground process mappings).
     """
     findings: list[str] = []
     try:
@@ -242,22 +242,22 @@ def check_closeout(
 
     checked: list[str] = []
     for peer in peers:
-        pane_id = peer["pane"]
+        seat_id = peer["seat"]
         name = peer["name"]
-        checked.append(pane_id)
+        checked.append(seat_id)
         try:
-            pane = seats.get_terminal(pane_id)
+            terminal = seats.get_terminal(seat_id)
         except Exception as exc:  # Boundary failures are evidence failures, not passes.
             if isinstance(exc, backend.SeatError) and exc.kind == "not_found":
                 # The recorded teardown target is gone.  Agent lookup is not used as
                 # an alternate teardown proof, so agent_not_found is harmless here.
                 continue
-            findings.append(f"{peer['role']} {name} pane {pane_id}: pane read failed: {exc}")
+            findings.append(f"{peer['role']} {name} seat {seat_id}: terminal read failed: {exc}")
             continue
 
-        if pane.handle != pane_id:
+        if terminal.handle != seat_id:
             findings.append(
-                f"{peer['role']} {name} pane {pane_id}: backend returned mismatched pane evidence"
+                f"{peer['role']} {name} seat {seat_id}: backend returned mismatched terminal evidence"
             )
             continue
 
@@ -267,32 +267,32 @@ def check_closeout(
         except Exception as exc:
             agent_not_found = isinstance(exc, backend.SeatError) and exc.kind == "not_found"
             if not agent_not_found:
-                findings.append(f"{peer['role']} {name} pane {pane_id}: agent read failed: {exc}")
+                findings.append(f"{peer['role']} {name} seat {seat_id}: agent read failed: {exc}")
         if agent_not_found:
             findings.append(
-                f"{peer['role']} {name} pane {pane_id} remains open despite agent_not_found"
+                f"{peer['role']} {name} seat {seat_id} remains open despite agent_not_found"
             )
         else:
-            findings.append(f"{peer['role']} {name} pane {pane_id} remains open")
+            findings.append(f"{peer['role']} {name} seat {seat_id} remains open")
 
         try:
-            processes = seats.processes(pane_id)
+            processes = seats.processes(seat_id)
         except Exception as exc:
-            findings.append(f"{peer['role']} {name} pane {pane_id}: process read failed: {exc}")
+            findings.append(f"{peer['role']} {name} seat {seat_id}: process read failed: {exc}")
             continue
         for process in processes:
             if not isinstance(process, Mapping):
-                findings.append(f"{peer['role']} {name} pane {pane_id}: malformed process evidence")
+                findings.append(f"{peer['role']} {name} seat {seat_id}: malformed process evidence")
                 continue
             if process.get("alive") is False or process.get("status") in {"exited", "dead"}:
                 continue
-            cwd = process.get("cwd", pane.cwd)
+            cwd = process.get("cwd", terminal.cwd)
             if cwd is None:
-                findings.append(f"{peer['role']} {name} pane {pane_id}: process evidence has no cwd")
+                findings.append(f"{peer['role']} {name} seat {seat_id}: process evidence has no cwd")
                 continue
             if _is_server_process(process) and _path_in_checkout(cwd, canonical):
                 findings.append(
-                    f"{peer['role']} {name} pane {pane_id}: squatting-server anti-pattern; "
+                    f"{peer['role']} {name} seat {seat_id}: squatting-server anti-pattern; "
                     f"live server/dev/preview process in canonical checkout {canonical}"
                 )
 
@@ -313,7 +313,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     result = check_closeout(args.staffing, seats)
     if result.passed:
-        print(f"PASS: checked {len(result.checked_panes)} recorded peer pane(s)")
+        print(f"PASS: checked {len(result.checked_seats)} recorded peer seat(s)")
         return 0
     for finding in result.findings:
         print(f"FAIL: {finding}", file=sys.stderr)

@@ -1,4 +1,4 @@
-Observation: <what was seen, with the pane, head, or ledger line>
+Observation: <what was seen, with the seat, head, or ledger line>
 Evidence: <file/line, command output, ledger entry, or transcript excerpt>
 Suspected mechanism: <why this is happening, marked as hypothesis until confirmed>
 Impact: <what it costs the delivery or the record if it continues>
