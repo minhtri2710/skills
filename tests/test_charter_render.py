@@ -12,7 +12,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-SCRIPTS = Path(__file__).resolve().parents[1] / "skills" / "terminal-delivery-workflow" / "scripts"
+SCRIPTS = Path(__file__).resolve().parents[1] / "skills" / "agent-delivery-workflow" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 sys.path.insert(0, str(Path(__file__).parent))
 
@@ -49,7 +49,7 @@ class CharterRenderTest(unittest.TestCase):
         self.addCleanup(tmp.cleanup)
         root = Path(tmp.name)
         self.repo = root / "repo"
-        self.run_dir = root / ".terminal-delivery" / "projects" / "demo" / "runs" / "demo-run"
+        self.run_dir = root / ".agent-delivery" / "projects" / "demo" / "runs" / "demo-run"
         self.run_dir.mkdir(parents=True)
         (self.run_dir.parents[1] / "config.json").write_text(json.dumps({
             "lead-kind": "claude", "lead-args": ["--model", "claude-opus-5-5"],

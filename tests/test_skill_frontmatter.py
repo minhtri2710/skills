@@ -49,8 +49,8 @@ class SkillFrontmatterTest(unittest.TestCase):
         self.assertEqual(inventory, skill_dirs)
 
 
-    def test_terminal_delivery_backends_cover_every_seat_operation(self):
-        skill = Path(__file__).resolve().parents[1] / "skills" / "terminal-delivery-workflow"
+    def test_agent_delivery_backends_cover_every_seat_operation(self):
+        skill = Path(__file__).resolve().parents[1] / "skills" / "agent-delivery-workflow"
         references = skill / "references"
         text = (references / "seat-operations.md").read_text(encoding="utf-8")
         section = text.split("\n## Operations\n", 1)[1].split("\n## ", 1)[0]
@@ -71,8 +71,8 @@ class SkillFrontmatterTest(unittest.TestCase):
                     entry = body[heading.end():].split("\n## ", 1)[0]
                     self.assertTrue(entry.strip())
 
-    def test_terminal_delivery_doctrine_names_no_tool_command(self):
-        skill = Path(__file__).resolve().parents[1] / "skills" / "terminal-delivery-workflow"
+    def test_agent_delivery_doctrine_names_no_tool_command(self):
+        skill = Path(__file__).resolve().parents[1] / "skills" / "agent-delivery-workflow"
         references = skill / "references"
         # Each backend reference defines its own commands: the tool word plus the first subcommand of every
         # command it shows, on a fenced line (a leading NAME=value may precede the tool) or in an inline code span.

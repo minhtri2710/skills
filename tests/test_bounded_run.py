@@ -11,7 +11,7 @@ import time
 import unittest
 from pathlib import Path
 
-SCRIPT = Path(__file__).resolve().parents[1] / "skills" / "terminal-delivery-workflow" / "scripts" / "bounded_run.py"
+SCRIPT = Path(__file__).resolve().parents[1] / "skills" / "agent-delivery-workflow" / "scripts" / "bounded_run.py"
 
 
 def _gone(pid: int, within: float = 3.0) -> bool:
