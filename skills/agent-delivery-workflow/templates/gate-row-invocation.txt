@@ -4,7 +4,8 @@ local-ops:
 scripts/gate_row.py --ledger ~/.agent-delivery/projects/<project-slug>/gates.md --kind local-ops --status recorded:local-ops --record timely --op "<one named command>" --after <branch>@<exact head the merge landed> --words seat --note "<why this local op ran>" --quote "<the named command>"
 
 standing-delegation (offer these prefilled values in one question; the Lead is the default delegate, as who=supervisor adds a relay hop to every merge):
-scripts/gate_row.py --ledger ~/.agent-delivery/projects/<project-slug>/gates.md --kind standing-delegation --status recorded:standing-delegation --record timely --who lead-<project-slug> --scope "<delegated scope>" --conditions "independent review PASS on the exact SHA; CI green on that SHA" --expiry "<the Human's verbatim expiry text>" --words human --note "<note>" --quote "<the Human's verbatim grant>"
+scripts/gate_row.py --ledger ~/.agent-delivery/projects/<project-slug>/gates.md --kind standing-delegation --status recorded:standing-delegation --record timely --who lead-<project-slug> --scope "<delegated scope>" --conditions "independent review PASS on the exact SHA; CI green on that SHA" --expiry "<ISO-8601 UTC time or named event>" --words human --note "<note>" --brief "<Agent brief: the grant restated>" --quote ""
+# --brief is required, with an empty quote, on every words=human or words=selected row and refused on any other (lead.md, "Attribution").
 # CI green holds where the project's ci trigger runs: under pr only on a PR, so work reaches the target line by PR merge, never a direct push;
 # under push on the pushed head's run; with no ci the clause is dropped.
 

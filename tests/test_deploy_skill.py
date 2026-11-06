@@ -174,6 +174,35 @@ class DeploySkillTest(unittest.TestCase):
         self.assertEqual(len(rows), 1)
         self.assertIn("skills=agent-delivery-workflow", rows[0])
 
+    def human_deploy_args(self, ledger: Path, *extra: str) -> list[str]:
+        return [
+            "--repo", str(self.repo), "--ledger", str(ledger), "--status", "resolved:human",
+            "--words", "human", "--note", "installed the skill", *extra,
+        ]
+
+    def test_human_words_deploy_passes_the_brief_and_stores_no_quote(self):
+        self.origin(self.head())
+        ledger = self.tmp / "gates.md"
+        brief = "Deploy the merged head. In scope: this skill only."
+
+        self.assertEqual(self.run_deploy(self.human_deploy_args(ledger, "--brief", brief)), 0)
+
+        row = gate_row.ledger_rows(ledger.read_text(encoding="utf-8"))[0]
+        self.assertIn(f" | words=human | brief={brief} | note=installed the skill | ", row)
+        self.assertTrue(row.endswith(' | quote=""'))
+
+    def test_human_words_deploy_without_a_brief_or_with_a_quote_appends_no_row(self):
+        self.origin(self.head())
+        ledger = self.tmp / "gates.md"
+        for extra, message in (
+            ((), "brief= is required"),
+            (("--brief", "Deploy the merged head.", "--quote", "said"), "stores no Human text"),
+        ):
+            with self.subTest(extra=extra):
+                self.assertEqual(self.run_deploy(self.human_deploy_args(ledger, *extra)), 1)
+                self.assertIn(message, sys.stderr.getvalue())
+                self.assertEqual(gate_row.text_rows(ledger.read_text(encoding="utf-8")), [])
+
     def test_dirty_worktree_installs_head_blob_and_mode(self):
         (self.source / "run.sh").write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
         (self.source / "run.sh").chmod(0o755)

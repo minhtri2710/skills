@@ -17,11 +17,13 @@ Row shape, one line, ` | ` between fields:
       [| finding=<identity>] [| archive=<64 lowercase hex genesis marker>]
       [| skills=<sorted, unique top-level deploy targets>] [| prev_hash=<64 lowercase hex>]
       | words=<seat|human|selected|none>
-      | note=<one line> | quote="<verbatim>"
+      [| brief=<one line>] | note=<one line> | quote="<seat text>"
 
-`quote=` is terminal and holds verbatim text — the Human's words on a gate row,
-the refused command on a denial row — so a `|` inside it is data, not a
-separator. `note=` is the seat's own words and refuses `|` and `"`.
+`quote=` is terminal and holds the seat's own verbatim text — the act, the refused
+command on a denial row — so a `|` inside it is data, not a separator. The Human's words
+are never stored: a `words=human` or `words=selected` row carries `brief=`, the Agent
+brief restating them, and an empty `quote=`. Every other row has no `brief=`. `note=`
+and `brief=` are the seat's own words and refuse `|` and `"`.
 """
 from __future__ import annotations
 
@@ -39,6 +41,7 @@ from pathlib import Path
 from bounded_run import stop_group
 
 NOTE_MAX = 200
+BRIEF_MAX = 500
 KIND_RE = re.compile(r"^[a-z][a-z-]*$")
 STATUS_RE = re.compile(r"^(open|(resolved|recorded):[a-z0-9-]+)$")
 CHANNEL_RE = re.compile(r"^(direct-seat-pane|supervisor-relay):(typed|dialog)$")
@@ -66,8 +69,8 @@ LOCAL_ID_RE = re.compile(r"^G([0-9]+)$")
 RESOLVE_ID_RE = re.compile(r'^[^,\s|"]+$')
 RECORD_VALUES = ("timely", "reconstruction")
 WORDS_VALUES = ("seat", "human", "selected", "none")
-# A standing delegation is the Human's words typed in the pane, or the option the Human picked from a dialog.
-STANDING_DELEGATION_WORDS = ("human", "selected")
+# The Human's words: typed in the pane, or the option the Human picked from a dialog.
+HUMAN_WORDS = ("human", "selected")
 LOCAL_OPS_STATUS = "recorded:local-ops"
 STANDING_DELEGATION_STATUS = "recorded:standing-delegation"
 HANDOFF_STATUS = "recorded:handoff"
@@ -93,8 +96,9 @@ class RowError(Exception):
 
 def validate_row_encodings(
     *, kind: str, status: str, channel: str, words: str, quote: str, note: str,
+    brief: str | None,
 ) -> None:
-    """Enforce the note, words, quote, channel and denial encodings on both append and check."""
+    """Enforce the note, brief, words, quote, channel and denial encodings on both append and check."""
     if not note.strip():
         raise RowError("note= is required and is the row's one-line finding")
     if len(note) > NOTE_MAX:
@@ -104,10 +108,28 @@ def validate_row_encodings(
         )
     if "|" in note or '"' in note:
         raise RowError('note= refuses | and " — they are the row\'s delimiters')
-    if (words == "none") != (quote == ""):
+    if words in HUMAN_WORDS:
+        if brief is None or not brief.strip():
+            raise RowError(
+                f"brief= is required with words={words} — the Human's words are "
+                "recorded as an Agent brief"
+            )
+        if len(brief) > BRIEF_MAX:
+            raise RowError(f"brief= is {len(brief)} chars, over the {BRIEF_MAX} cap")
+        if "|" in brief or '"' in brief:
+            raise RowError('brief= refuses | and " — they are the row\'s delimiters')
+    elif brief is not None:
+        raise RowError(f"brief= is only on words=human or words=selected rows, not words={words}")
+    if words in HUMAN_WORDS:
+        if quote:
+            raise RowError(
+                f"words={words} stores no Human text: quote= must be empty, "
+                "the Agent brief is brief="
+            )
+    elif (words == "none") != (quote == ""):
         raise RowError("words=none iff quote= is empty")
-    if not quote and status != "open":
-        raise RowError("quote= is required unless status=open")
+    if not quote and brief is None and status != "open":
+        raise RowError("quote= or brief= is required unless status=open")
     if channel.endswith(":dialog") and words != "selected":
         raise RowError(
             f"channel={channel} requires words=selected, not words={words}"
@@ -804,6 +826,7 @@ def build(args: argparse.Namespace, repo: Path, state: LedgerState,
     if getattr(args, "under", None) and args.words is None:
         args.words = "seat"
     note = args.note.strip()
+    brief = None if args.brief is None else args.brief.strip()
     if args.quote and args.quote_file:
         raise RowError("--quote and --quote-file are mutually exclusive")
     if args.quote_file:
@@ -820,7 +843,7 @@ def build(args: argparse.Namespace, repo: Path, state: LedgerState,
         quote = args.quote
     validate_row_encodings(
         kind=args.kind, status=args.status, channel=args.channel or "",
-        words=args.words, quote=quote, note=note,
+        words=args.words, quote=quote, note=note, brief=brief,
     )
     record = args.record or "timely"
     branch, head = target
@@ -848,8 +871,8 @@ def build(args: argparse.Namespace, repo: Path, state: LedgerState,
             if getattr(args, name, ""):
                 special_fields.append(f"{name}={field_text(name, getattr(args, name))}")
     elif kind == "standing-delegation":
-        if args.words not in STANDING_DELEGATION_WORDS:
-            raise RowError("kind=standing-delegation requires words=human or words=selected for the Human's quote")
+        if args.words not in HUMAN_WORDS:
+            raise RowError("kind=standing-delegation requires words=human or words=selected for the Human's grant")
         for name in ("who", "scope", "conditions", "expiry"):
             if getattr(args, name, ""):
                 special_fields.append(f"{name}={field_text(name, getattr(args, name))}")
@@ -947,6 +970,8 @@ def build(args: argparse.Namespace, repo: Path, state: LedgerState,
     if state.rows:
         fields.append(f"prev_hash={row_hash(state.rows[-1])}")
     fields.append(f"words={args.words}")
+    if brief is not None:
+        fields.append(f"brief={brief}")
     fields.append(f"note={note}")
     fields.append(f'quote="{quote}"')
     row = " | ".join(fields)
@@ -980,7 +1005,7 @@ def check(row: str, repo: Path, state: LedgerState | None = None) -> None:
 
     known = (
         "channel=", "writer=", "record=", "push=", "review=", "resolves=", "under=", "void=", "op=", "after=", "skills=",
-        "who=", "scope=", "conditions=", "expiry=", "finding=", "archive=", "prev_hash=", "words=", "note=",
+        "who=", "scope=", "conditions=", "expiry=", "finding=", "archive=", "prev_hash=", "words=", "brief=", "note=",
     )
     for field in rest:
         if not field.startswith(known):
@@ -1128,8 +1153,13 @@ def check(row: str, repo: Path, state: LedgerState | None = None) -> None:
         state.require_in_force(under, when)
     if row_kind == "repair-grant":
         state.require_repair_progress(current_finding)
-    if row_kind == "standing-delegation" and words not in STANDING_DELEGATION_WORDS:
+    if row_kind == "standing-delegation" and words not in HUMAN_WORDS:
         raise RowError("kind=standing-delegation requires words=human or words=selected")
+
+    brief = None
+    if index < len(rest) and rest[index].startswith("brief="):
+        brief = rest[index][len("brief="):]
+        index += 1
 
     if index >= len(rest) or not rest[index].startswith("note="):
         raise RowError("note= is missing or out of order")
@@ -1140,7 +1170,7 @@ def check(row: str, repo: Path, state: LedgerState | None = None) -> None:
     status_value = status.split("=", 1)[1]
     validate_row_encodings(
         kind=row_kind, status=status_value, channel=channel,
-        words=words, quote=quote, note=note,
+        words=words, quote=quote, note=note, brief=brief,
     )
 
     if push is not None:
@@ -1277,17 +1307,21 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--under", help="the in-force kind=standing-delegation id a row answered "
                         "under it names; the row records the seat's decision, words=seat")
     parser.add_argument("--words", choices=WORDS_VALUES,
-                        help="who authored quote=; required when appending")
+                        help="whose words the row records; required when appending")
     parser.add_argument("--note", default="")
+    parser.add_argument("--brief",
+                        help="the English Agent brief restating the Human's words; required with "
+                        "--words human or selected, refused otherwise")
     parser.add_argument("--quote", default="")
     parser.add_argument("--quote-file", default="",
-                        help="read the verbatim quote from a UTF-8 file")
+                        help="read the seat's verbatim text from a UTF-8 file")
     args = parser.parse_args(argv)
     append_args = (
         args.kind, args.status, args.channel, args.writer, args.op, args.after,
         args.who, args.scope, args.conditions, args.expiry, args.finding, args.void, args.skill,
         args.record, args.head, args.push_base, args.review_base, args.boundary, args.resolves,
-        args.push, args.under, args.words, args.note, args.quote, args.quote_file, args.mailbox,
+        args.push, args.under, args.words, args.note, args.brief, args.quote, args.quote_file,
+        args.mailbox,
     )
     pushed = ""
 

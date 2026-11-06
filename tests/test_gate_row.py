@@ -22,6 +22,18 @@ sys.path.insert(0, str(SCRIPTS))
 import gate_row  # noqa: E402
 
 
+BRIEF = "Merge the reviewed head. In scope: the merge only. Done when: the merge lands."
+
+
+def brief_for(default_words: str, extra: tuple[str, ...]) -> list[str]:
+    """`--brief` for a CLI call whose effective --words is the Human's, nothing otherwise."""
+    words = default_words
+    for flag, value in zip(extra, extra[1:]):
+        if flag == "--words":
+            words = value
+    return ["--brief", BRIEF] if words in gate_row.HUMAN_WORDS and "--brief" not in extra else []
+
+
 def make_repo(tmp: Path) -> Path:
     repo = tmp / "repo"
     repo.mkdir()
@@ -61,15 +73,16 @@ class GateRowTest(unittest.TestCase):
         return self.run_main([
             "--ledger", str(self.ledger), "--repo", str(self.repo),
             "--kind", "merge", "--status", "resolved:human",
-            "--words", "human", "--note", "merged the reviewed head", "--quote", "merge it", *extra,
+            "--words", "human", "--note", "merged the reviewed head", "--quote", "",
+            *brief_for("human", extra), *extra,
         ])
 
-    def append_repair_grant(self, finding: str = "F-1", quote: str = "repair grant") -> int:
+    def append_repair_grant(self, finding: str = "F-1") -> int:
         return self.run_main([
             "--ledger", str(self.ledger), "--repo", str(self.repo),
             "--kind", "repair-grant", "--status", "recorded:granted",
             "--finding", finding, "--words", "selected", "--note", "repair grant",
-            "--quote", quote,
+            "--quote", "", "--brief", BRIEF,
         ])
 
     def append_review_pass(self, base: str | None = None) -> int:
@@ -112,7 +125,7 @@ class GateRowTest(unittest.TestCase):
             "--who", "lead-beo-skills", "--scope", "scripts only",
             "--conditions", "after review", "--expiry", "until the Human's next message",
             "--words", "human", "--note", "delegation recorded",
-            "--quote", "I grant this delegation | verbatim", *extra,
+            "--quote", "", *brief_for("human", extra), *extra,
         ])
 
     def append_handoff(self, *extra: str) -> int:
@@ -154,12 +167,15 @@ class GateRowTest(unittest.TestCase):
         self.assertFalse((scratch / "gates.md").exists())
 
     def fixture_row(self, gid: str, status: str, words: str = "human",
-                    quote: str = "fixture", resolves: str | None = None,
+                    quote: str | None = None, resolves: str | None = None,
                     note: str = "fixture", kind: str = "merge") -> str:
         target = f" | resolves={resolves}" if resolves else ""
+        human = words in gate_row.HUMAN_WORDS
+        brief = f" | brief={BRIEF}" if human else ""
+        quote = ("" if human else "fixture") if quote is None else quote
         return (f"{gid} | 2026-09-06T00:00:00Z | kind={kind} | "
                 f"main@{self.rev('HEAD')} | status={status} | record=timely"
-                f"{target} | words={words} | note={note} | quote=\"{quote}\"")
+                f"{target} | words={words}{brief} | note={note} | quote=\"{quote}\"")
 
     def chained(self, rows: list[str]) -> list[str]:
         out = rows[:1]
@@ -177,7 +193,7 @@ class GateRowTest(unittest.TestCase):
         before = self.ledger.read_text()
         self.assertEqual(self.append(
             "--status", "open", "--channel", "supervisor-relay:dialog",
-            "--words", "human", "--quote", "human",
+            "--words", "human",
         ), 1)
         self.assertIn("channel=supervisor-relay:dialog", self.err.getvalue())
         self.assertIn("words=selected", self.err.getvalue())
@@ -185,11 +201,9 @@ class GateRowTest(unittest.TestCase):
 
         self.assertEqual(self.append(
             "--status", "open", "--channel", "supervisor-relay:dialog",
-            "--words", "selected", "--quote", "selected",
+            "--words", "selected",
         ), 0)
-        row = self.last_row().replace(
-            "words=selected", "words=human"
-        ).replace('quote="selected"', 'quote="human"')
+        row = self.last_row().replace("words=selected", "words=human")
         self.ledger.write_text(row + "\n", encoding="utf-8")
         self.assertEqual(self.run_main([
             "--ledger", str(self.ledger), "--repo", str(self.repo), "--check",
@@ -201,8 +215,7 @@ class GateRowTest(unittest.TestCase):
         before = self.ledger.read_text()
         self.assertEqual(self.append(
             "--kind", "merge-gate", "--status", "open",
-            "--words", "human", "--quote", "human",
-            "--note", "blocked:seat-permission",
+            "--words", "human", "--note", "blocked:seat-permission",
         ), 1)
         self.assertIn("blocked:seat-permission", self.err.getvalue())
         self.assertIn("words=none", self.err.getvalue())
@@ -332,7 +345,8 @@ class GateRowTest(unittest.TestCase):
         self.assertEqual(self.run_main([
             "--ledger", str(self.ledger), "--repo", str(self.repo),
             "--kind", "repair-grant", "--status", "recorded:granted",
-            "--words", "selected", "--note", "repair grant", "--quote", "grant",
+            "--words", "selected", "--note", "repair grant", "--quote", "",
+            "--brief", BRIEF,
         ]), 1)
         self.assertIn("requires finding= field", self.err.getvalue())
 
@@ -371,7 +385,8 @@ class GateRowTest(unittest.TestCase):
             "--kind", "standing-delegation", "--status", "recorded:standing-delegation",
             "--who", "lead-beo-skills", "--scope", "scripts only",
             "--conditions", "after review", "--words", "human",
-            "--note", "delegation recorded", "--quote", "I grant this delegation",
+            "--note", "delegation recorded", "--quote", "",
+            "--brief", BRIEF,
         ]), 1)
         self.assertIn("requires expiry= field", self.err.getvalue())
         self.assertEqual(self.append_standing_delegation(), 0)
@@ -381,7 +396,7 @@ class GateRowTest(unittest.TestCase):
         for field in ("who=lead-beo-skills", "scope=scripts only",
                       "conditions=after review", "expiry=until the Human's next message"):
             self.assertIn(field, row)
-        self.assertTrue(row.endswith('quote="I grant this delegation | verbatim"'))
+        self.assertTrue(row.endswith(f"| brief={BRIEF} | note=delegation recorded | quote=\"\""))
         self.assertEqual(self.run_main([
             "--ledger", str(self.ledger), "--repo", str(self.repo), "--check",
         ]), 0)
@@ -396,10 +411,9 @@ class GateRowTest(unittest.TestCase):
         ]), 1)
         self.assertIn("requires expiry= field", self.err.getvalue())
 
-    def test_standing_delegation_accepts_a_dialog_selected_option_quote(self):
+    def test_standing_delegation_accepts_a_dialog_selected_option(self):
         self.assertEqual(self.append_standing_delegation(
             "--channel", "supervisor-relay:dialog", "--words", "selected",
-            "--quote", "Yes, delegate it",
         ), 0, self.err.getvalue())
         row = self.last_row()
         self.assertIn("words=selected", row)
@@ -421,7 +435,7 @@ class GateRowTest(unittest.TestCase):
             (["--under", "G2"], "under=G2 is not an earlier kind=standing-delegation row"),
             (["--under", "G3"], "under=G3 refused: the delegation expired at 2020-01-01T00:00:00Z"),
             (["--under", "G1"], "under=G1 refused: the delegation is revoked"),
-            (["--under", "G4", "--words", "human"], "requires words=seat"),
+            (["--under", "G4", "--words", "human", "--quote", "", "--brief", BRIEF], "requires words=seat"),
         ):
             with self.subTest(extra=extra):
                 before = self.ledger.read_bytes()
@@ -431,7 +445,7 @@ class GateRowTest(unittest.TestCase):
 
     def test_standing_delegation_rejects_words_outside_human_and_selected(self):
         before = self.ledger.read_bytes()
-        self.assertEqual(self.append_standing_delegation("--words", "seat"), 1)
+        self.assertEqual(self.append_standing_delegation("--words", "seat", "--quote", "act"), 1)
         self.assertIn("requires words=human or words=selected", self.err.getvalue())
         self.assertEqual(self.ledger.read_bytes(), before)
         self.assertEqual(self.append_standing_delegation(), 0, self.err.getvalue())
@@ -535,7 +549,7 @@ class GateRowTest(unittest.TestCase):
                 quote_file.write_bytes(data)
                 before = self.ledger.read_bytes()
                 self.assertEqual(
-                    self.append("--quote", "", "--quote-file", str(quote_file), *extra), rc,
+                    self.append("--words", "seat", "--quote", "", "--quote-file", str(quote_file), *extra), rc,
                     self.err.getvalue())
                 if rc:
                     self.assertIn(expected, self.err.getvalue())
@@ -550,7 +564,7 @@ class GateRowTest(unittest.TestCase):
         self.assertEqual(self.run_main([
             "--ledger", str(self.ledger), "--repo", str(self.repo),
             "--kind", "merge", "--status", "resolved:human",
-            "--words", "human", "--note", "merged the reviewed head",
+            "--words", "human", "--brief", BRIEF, "--note", "merged the reviewed head",
             "--quote", "argument quote", "--quote-file", str(quote_file),
         ]), 1)
         self.assertIn("--quote", self.err.getvalue())
@@ -675,12 +689,99 @@ class GateRowTest(unittest.TestCase):
 
     def test_words_values_require_the_matching_quote_presence(self):
         self.assertEqual(self.append("--status", "open", "--words", "none", "--quote", ""), 0)
-        for words in ("seat", "human", "selected"):
-            self.assertEqual(self.append("--words", words, "--quote", words), 0)
+        self.assertEqual(self.append("--words", "seat", "--quote", "seat text"), 0)
+        for words in gate_row.HUMAN_WORDS:
+            self.assertEqual(self.append("--words", words), 0, self.err.getvalue())
+            self.assertEqual(self.check_last(), 0, self.err.getvalue())
         self.assertEqual(self.append("--words", "none", "--quote", "not empty"), 1)
         self.assertIn("words=none", self.err.getvalue())
         self.assertEqual(self.append("--words", "seat", "--quote", ""), 1)
         self.assertIn("words=none", self.err.getvalue())
+
+    def test_human_words_row_stores_a_brief_and_no_quote(self):
+        for words in gate_row.HUMAN_WORDS:
+            with self.subTest(words=words):
+                before = self.ledger.read_bytes()
+                self.assertEqual(self.append("--words", words, "--quote", "Human text"), 1)
+                self.assertIn(f"words={words} stores no Human text", self.err.getvalue())
+                self.assertEqual(self.append("--words", words, "--quote-file", str(self.tmp / "q")), 1)
+                self.assertEqual(self.ledger.read_bytes(), before)
+                self.assertEqual(self.append("--words", words), 0, self.err.getvalue())
+                row = self.last_row()
+                self.assertIn(f" | words={words} | brief={BRIEF} | note=", row)
+                self.assertTrue(row.endswith(' | quote=""'))
+                self.assertEqual(self.check_last(), 0, self.err.getvalue())
+
+    def test_human_words_row_without_a_brief_is_refused_on_append_and_check(self):
+        base = ["--ledger", str(self.ledger), "--repo", str(self.repo), "--kind", "merge",
+                "--status", "resolved:human", "--note", "merged", "--quote", ""]
+        for words in gate_row.HUMAN_WORDS:
+            with self.subTest(words=words):
+                before = self.ledger.read_bytes()
+                for brief in ([], ["--brief", ""], ["--brief", "  "]):
+                    self.assertEqual(self.run_main([*base, "--words", words, *brief]), 1)
+                    self.assertIn(f"brief= is required with words={words}", self.err.getvalue())
+                self.assertEqual(self.ledger.read_bytes(), before)
+        self.assertEqual(self.append(), 0, self.err.getvalue())
+        briefless = self.last_row().replace(f" | brief={BRIEF}", "")
+        self.ledger.write_text(briefless + "\n", encoding="utf-8")
+        self.assertEqual(self.check_last(), 1)
+        self.assertIn("brief= is required", self.err.getvalue())
+        emptied = briefless.replace(" | note=", " | brief= | note=", 1)
+        self.ledger.write_text(emptied + "\n", encoding="utf-8")
+        self.assertEqual(self.check_last(), 1)
+        self.assertIn("brief= is required", self.err.getvalue())
+        quoted = briefless.replace(" | note=", f" | brief={BRIEF} | note=", 1).replace('quote=""', 'quote="said"')
+        self.ledger.write_text(quoted + "\n", encoding="utf-8")
+        self.assertEqual(self.check_last(), 1)
+        self.assertIn("stores no Human text", self.err.getvalue())
+
+    def test_a_brief_on_a_seat_or_none_row_is_refused_on_append_and_check(self):
+        for words, quote in (("seat", "act"), ("none", "")):
+            with self.subTest(words=words):
+                before = self.ledger.read_bytes()
+                self.assertEqual(self.append(
+                    "--status", "open", "--words", words, "--quote", quote, "--brief", BRIEF), 1)
+                self.assertIn(f"brief= is only on words=human or words=selected rows, not words={words}",
+                              self.err.getvalue())
+                self.assertEqual(self.ledger.read_bytes(), before)
+                row = self.fixture_row("G1", "open", words=words, quote=quote).replace(
+                    " | note=", f" | brief={BRIEF} | note=", 1)
+                self.ledger.write_text(row + "\n", encoding="utf-8")
+                self.assertEqual(self.check_last(), 1)
+                self.assertIn("brief= is only on", self.err.getvalue())
+                self.ledger.write_bytes(before)
+
+    def test_a_non_open_row_needs_a_brief_or_a_quote(self):
+        self.assertEqual(self.append("--words", "none", "--quote", ""), 1)
+        self.assertIn("quote= or brief= is required unless status=open", self.err.getvalue())
+        row = self.fixture_row("G1", "resolved:x", words="none", quote="")
+        self.ledger.write_text(row + "\n", encoding="utf-8")
+        self.assertEqual(self.check_last(), 1)
+        self.assertIn("quote= or brief= is required unless status=open", self.err.getvalue())
+
+    def test_a_malformed_brief_is_refused_on_append_and_check(self):
+        over = "x" * (gate_row.BRIEF_MAX + 1)
+        cases = [("|", "brief= refuses"), ('"', "brief= refuses"),
+                 (over, f"over the {gate_row.BRIEF_MAX} cap")]
+        for brief, message in cases:
+            with self.subTest(brief=brief[:12]):
+                before = self.ledger.read_bytes()
+                bad = f"a{brief}" if len(brief) == 1 else brief
+                self.assertEqual(self.append("--brief", bad), 1)
+                self.assertIn(message, self.err.getvalue())
+                self.assertEqual(self.ledger.read_bytes(), before)
+        for sep in gate_row.LINE_BREAKS:
+            with self.subTest(sep=sep):
+                self.assertEqual(self.append("--brief", f"a{sep}b"), 1)
+                self.assertIn("is one line", self.err.getvalue())
+        self.assertEqual(self.append("--brief", "x" * gate_row.BRIEF_MAX), 0, self.err.getvalue())
+        self.assertEqual(self.check_last(), 0, self.err.getvalue())
+        row = self.last_row()
+        for bad in (f"a{chr(34)}b", over):
+            self.ledger.write_text(row.replace("x" * gate_row.BRIEF_MAX, bad) + "\n", encoding="utf-8")
+            self.assertEqual(self.check_last(), 1)
+            self.assertIn("brief=", self.err.getvalue())
 
     def test_a_failed_check_never_writes_a_row(self):
         before = self.ledger.read_bytes()
@@ -816,13 +917,13 @@ class GateRowTest(unittest.TestCase):
         ]), 1)
         self.assertIn("note= refuses", self.err.getvalue())
 
-    def test_quote_marker_text_is_kept_verbatim(self):
+    def test_seat_quote_marker_text_is_kept_verbatim(self):
         for human in (
             'literal | quote=" text',
             "à cho các lead revert lại model từ abc-tunnel về cliproxy gpt luna|zai/glm 5.3 flash đi",
         ):
             with self.subTest(human):
-                self.assertEqual(self.append("--quote", human), 0)
+                self.assertEqual(self.append("--words", "seat", "--quote", human), 0)
                 self.assertTrue(self.last_row().endswith(f'quote="{human}"'))
                 self.assertEqual(self.run_main(
                     ["--ledger", str(self.ledger), "--repo", str(self.repo), "--check"]), 0)
@@ -890,7 +991,7 @@ class GateRowTest(unittest.TestCase):
                 'boundary-check=""',
             ),
             "record": ("record=timely", "record=bogus", "not one of"),
-            "quote": ('quote="merge it"', 'quote=""', "words=none iff quote= is empty"),
+            "quote": ('quote=""', 'quote="said"', "stores no Human text"),
             "head": (
                 f"main@{self.rev('HEAD')}", f"main@{'0' * 40}",
                 "git rev-parse --verify",
@@ -1255,7 +1356,7 @@ class GateRowTest(unittest.TestCase):
 
         chained = cli(
             "--kind", "merge", "--status", "resolved:human", "--words", "human",
-            "--note", "continue ledger", "--quote", "merge",
+            "--brief", BRIEF, "--note", "continue ledger", "--quote", "",
         )
         self.assertEqual(chained.returncode, 0, chained.stderr)
         rows = gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))
@@ -1340,7 +1441,8 @@ class GateRowTest(unittest.TestCase):
         with contextlib.chdir(self.repo):
             self.assertEqual(self.run_main([
                 "--ledger", str(self.ledger), "--kind", "merge", "--status", "resolved:human",
-                "--words", "human", "--note", "merged the reviewed head", "--quote", "merge it",
+                "--words", "human", "--brief", BRIEF, "--note", "merged the reviewed head",
+                "--quote", "",
             ]), 0, self.err.getvalue())
         self.assertIn(f" | main@{self.rev('HEAD')} | ", self.last_row())
 
@@ -1533,7 +1635,8 @@ class GateRowTest(unittest.TestCase):
                 self.assertEqual(self.run_main([
                     "--ledger", str(self.ledger), "--repo", str(self.repo),
                     "--kind", "merge", "--status", "resolved:human",
-                    "--words", "human", "--note", "continue genesis chain", "--quote", "continue",
+                    "--words", "human", "--brief", BRIEF, "--note", "continue genesis chain",
+                    "--quote", "",
                 ]), 0, self.err.getvalue())
                 second = self.last_row()
                 self.assertTrue(second.startswith(f"G{int(gid[1:]) + 1} | "))
@@ -1586,7 +1689,7 @@ class GateRowTest(unittest.TestCase):
         re_chained = (
             f'G{int(gid[1:]) + 1} | {timestamp} | kind=merge | {branch}@{head} | '
             f'status=resolved:human | writer={writer} | record=timely | '
-            f'prev_hash={gate_row.row_hash(broken)} | words=human | note=re-chained | quote="continue"'
+            f'prev_hash={gate_row.row_hash(broken)} | words=human | brief={BRIEF} | note=re-chained | quote=""'
         )
         rows = [broken, re_chained]
         self.ledger.write_text("# Gate ledger — test\n\n" + "\n".join(rows) + "\n", encoding="utf-8")
@@ -1728,8 +1831,10 @@ class GateRowTest(unittest.TestCase):
             (merge, "note=merged the reviewed head", "writer=lead-beo-skills"),
             (merge, "note=merged the reviewed head", "note=merged|the reviewed head"),
             (merge, "note=merged the reviewed head", 'note=merged "the" reviewed head'),
-            (merge, 'quote="merge it"', 'quote="merge it'),
-            (merge, 'quote="merge it"', 'quote=merge it"'),
+            (merge, 'quote=""', 'quote="x'),
+            (merge, 'quote=""', 'quote=x"'),
+            (merge, 'quote=""', 'quote="said"', "stores no Human text"),
+            (merge, f"brief={BRIEF} | ", "", "brief= is required"),
             (review, f"main@{head}", f"main@{mid}"),
             (push, f"main@{head}", f"main@{mid}"),
             (review, " | words=", f" | archive={'a' * 64} | words=", "words= is missing or out of order"),
@@ -1797,7 +1902,7 @@ class GateRowTest(unittest.TestCase):
         quote = self.tmp / "quote.txt"
         quote.write_text("café\n", encoding="utf-8")
         proc = self.run_in_locale("en_US.ISO8859-1", "--ledger", str(self.ledger), "--repo", str(self.repo),
-                                  "--kind", "merge", "--status", "resolved:human", "--words", "human",
+                                  "--kind", "merge", "--status", "resolved:human", "--words", "seat",
                                   "--note", "merged", "--quote-file", str(quote))
         self.assertEqual(proc.returncode, 0, proc.stderr)
         self.assertIn('quote="café"'.encode("latin-1"), proc.stdout)
@@ -1822,8 +1927,8 @@ class GateRowTest(unittest.TestCase):
         for sep in (*gate_row.LINE_BREAKS, "\r\n"):
             quote_file.write_bytes(f"a{sep}b".encode("utf-8"))
             for name, extra in (
-                ("quote", ("--quote", f"a{sep}b")),
-                ("quote", ("--quote", "", "--quote-file", str(quote_file))),
+                ("quote", ("--words", "seat", "--quote", f"a{sep}b")),
+                ("quote", ("--words", "seat", "--quote", "", "--quote-file", str(quote_file))),
                 ("note", ("--note", f"a{sep}b")),
             ):
                 with self.subTest(sep=sep, args=extra[::2]):

@@ -1,3 +1,5 @@
+Source: <Human, UTC time, channel>
+Agent brief: <the Human's request restated; lead.md, "Attribution">
 Lane: tiny | normal | high-risk
 Reason: <material reason for the lane>
 Lead: <handle>

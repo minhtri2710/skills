@@ -163,6 +163,8 @@ def append_deploy_row(
         "--words", args.words, "--note", args.note, "--quote", args.quote,
         "--head", row_head,
     ]
+    if args.brief is not None:
+        command.extend(["--brief", args.brief])
     for skill in args.skill:
         command.extend(["--skill", skill])
     if args.channel:
@@ -213,7 +215,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--under")
     parser.add_argument("--words", required=True)
     parser.add_argument("--note", required=True)
-    parser.add_argument("--quote", required=True)
+    parser.add_argument("--brief", help="the Agent brief restating the Human's words; "
+                        "required with --words human or selected")
+    parser.add_argument("--quote", default="", help="the seat's own text; empty for Human words")
     args = parser.parse_args(argv)
 
     try:
