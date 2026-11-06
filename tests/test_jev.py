@@ -60,6 +60,7 @@ KEYCHAIN_FAILURES = {
     "other_nonzero_exit": {"return_value": keychain_reply(FAKE_KEY, 1, FAKE_KEY)},
     "timeout": {"side_effect": subprocess.TimeoutExpired(KEYCHAIN_ARGV, 5.0, FAKE_KEY)},
     "os_error": {"side_effect": FileNotFoundError(FAKE_KEY)},
+    "decode_error": {"side_effect": UnicodeDecodeError("utf-8", b"\xff", 0, 1, FAKE_KEY)},
     "empty_output": {"return_value": keychain_reply("\n")},
 }
 
@@ -578,14 +579,14 @@ class JevCliTest(unittest.TestCase):
             ) as urlopen:
                 code, out, err = self.run_main(["finding", "--stdin"], json.dumps(FINDING))
 
-            self.assertEqual(code, 0)
-            self.assertEqual(err, KEYCHAIN_LINE)
-            self.assertEqual(
-                json.loads(out),
-                {"status": "unavailable", "reason": "missing_api_key"},
-            )
-            self.assertNotIn(FAKE_KEY, out)
-            urlopen.assert_not_called()
+                self.assertEqual(code, 0)
+                self.assertEqual(err, KEYCHAIN_LINE)
+                self.assertEqual(
+                    json.loads(out),
+                    {"status": "unavailable", "reason": "missing_api_key"},
+                )
+                self.assertNotIn(FAKE_KEY, out)
+                urlopen.assert_not_called()
 
     def test_cli_usage_and_input_errors_exit_two_without_output_or_key(self) -> None:
         cases = (
