@@ -6,7 +6,7 @@ import argparse
 import copy
 import json
 import math
-import os
+import subprocess
 import sys
 import urllib.error
 import urllib.request
@@ -16,6 +16,9 @@ from typing import Literal, Mapping, Sequence, TypeAlias
 API_URL = "https://api.typesafe.ai/v1/systemone"
 MODEL = "jev-latest"
 API_TIMEOUT_SECONDS = 10.0
+KEYCHAIN_SERVICE = "typesafe-api"
+KEYCHAIN_ACCOUNT = "beowulf"
+KEYCHAIN_TIMEOUT_SECONDS = 5.0
 REQUIRED_FINDING_FIELDS = (
     "severity",
     "project",
@@ -222,11 +225,47 @@ def _score(answer: object, levels: Sequence[str]) -> ScoreJudgment | None:
     )
 
 
+def _read_api_key() -> str | None:
+    """Read the TypeSafe key from the macOS Keychain; None on any failure.
+
+    The captured output is returned only on success and never printed, logged,
+    or placed in an exception; the failure line names the item, not its value.
+    """
+    try:
+        done = subprocess.run(
+            [
+                "/usr/bin/security",
+                "find-generic-password",
+                "-s",
+                KEYCHAIN_SERVICE,
+                "-a",
+                KEYCHAIN_ACCOUNT,
+                "-w",
+            ],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            timeout=KEYCHAIN_TIMEOUT_SECONDS,
+            check=False,
+        )
+        key = done.stdout.strip() if done.returncode == 0 else ""
+    except (OSError, subprocess.SubprocessError, ValueError):
+        key = ""
+    if not key:
+        print(
+            "jev: no TypeSafe key in the macOS Keychain "
+            f"(service {KEYCHAIN_SERVICE}, account {KEYCHAIN_ACCOUNT})",
+            file=sys.stderr,
+        )
+        return None
+    return key
+
+
 def _request_answers(
     state: Mapping[str, object], questions: Mapping[str, object]
 ) -> tuple[object | None, str | None]:
-    key = os.environ.get("TYPESAFE_API_KEY", "")
-    if not key.strip():
+    key = _read_api_key()
+    if key is None:
         return None, "missing_api_key"
 
     try:

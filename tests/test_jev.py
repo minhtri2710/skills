@@ -4,6 +4,7 @@ from __future__ import annotations
 import contextlib
 import io
 import json
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -15,6 +16,53 @@ SCRIPTS = Path(__file__).resolve().parents[1] / "skills" / "jev" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 
 import jev  # noqa: E402
+
+
+FAKE_KEY = "sk-fake-jev-probe-7f3a9-non-disclosure"
+KEYCHAIN_ARGV = [
+    "/usr/bin/security",
+    "find-generic-password",
+    "-s",
+    jev.KEYCHAIN_SERVICE,
+    "-a",
+    jev.KEYCHAIN_ACCOUNT,
+    "-w",
+]
+KEYCHAIN_LINE = (
+    "jev: no TypeSafe key in the macOS Keychain "
+    f"(service {jev.KEYCHAIN_SERVICE}, account {jev.KEYCHAIN_ACCOUNT})\n"
+)
+
+
+def setUpModule() -> None:
+    guard = mock.patch.object(
+        jev.subprocess, "run", side_effect=AssertionError("real Keychain access")
+    )
+    guard.start()
+    unittest.addModuleCleanup(guard.stop)
+
+
+def keychain_reply(stdout: str = "", returncode: int = 0, stderr: str = "") -> subprocess.CompletedProcess:
+    return subprocess.CompletedProcess(KEYCHAIN_ARGV, returncode, stdout, stderr)
+
+
+def start_keychain(test: unittest.TestCase, **reply: object) -> mock.Mock:
+    patcher = mock.patch.object(
+        jev.subprocess, "run", return_value=keychain_reply(f"{FAKE_KEY}\n", **reply)
+    )
+    test.addCleanup(patcher.stop)
+    return patcher.start()
+
+
+# Each failure leaks the fake key through every channel the reader could echo.
+KEYCHAIN_FAILURES = {
+    "item_missing": {"return_value": keychain_reply(FAKE_KEY, 44, FAKE_KEY)},
+    "other_nonzero_exit": {"return_value": keychain_reply(FAKE_KEY, 1, FAKE_KEY)},
+    "timeout": {"side_effect": subprocess.TimeoutExpired(KEYCHAIN_ARGV, 5.0, FAKE_KEY)},
+    "os_error": {"side_effect": FileNotFoundError(FAKE_KEY)},
+    "decode_error": {"side_effect": UnicodeDecodeError("utf-8", b"\xff", 0, 1, FAKE_KEY)},
+    "empty_output": {"return_value": keychain_reply("\n")},
+}
 
 
 FINDING = {
@@ -93,27 +141,50 @@ class Response:
 
 class JevTest(unittest.TestCase):
     def setUp(self) -> None:
-        self.env = mock.patch.dict(jev.os.environ, {"TYPESAFE_API_KEY": "test-key"}, clear=True)
-        self.env.start()
-        self.addCleanup(self.env.stop)
+        self.keychain = start_keychain(self)
 
     def assert_unavailable(self, result: jev.JevResult, reason: str) -> None:
         self.assertIsInstance(result, jev.UnavailableResult)
         self.assertEqual(result.status, "unavailable")
         self.assertEqual(result.reason, reason)
 
-    def test_missing_and_empty_api_key_are_unavailable_without_http(self) -> None:
-        for value in (None, "", "   "):
-            with self.subTest(value=value):
-                patcher = mock.patch.dict(jev.os.environ, {}, clear=True)
-                if value is not None:
-                    patcher = mock.patch.dict(
-                        jev.os.environ, {"TYPESAFE_API_KEY": value}, clear=True
-                    )
-                with patcher, mock.patch.object(jev.urllib.request, "urlopen") as urlopen:
+    def test_key_comes_from_one_keychain_read_made_at_request_time(self) -> None:
+        self.keychain.assert_not_called()
+        payload = {"answers": finding_answers()}
+        with mock.patch.object(
+            jev.urllib.request, "urlopen", return_value=Response(payload)
+        ) as urlopen:
+            result = jev.triage_finding(FINDING)
+
+        self.assertIsInstance(result, jev.AdvisoryResult)
+        self.keychain.assert_called_once_with(
+            KEYCHAIN_ARGV,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            timeout=jev.KEYCHAIN_TIMEOUT_SECONDS,
+            check=False,
+        )
+        self.assertEqual(
+            urlopen.call_args.args[0].get_header("Authorization"), f"Bearer {FAKE_KEY}"
+        )
+
+    def test_keychain_failures_are_unavailable_without_http_or_key_leak(self) -> None:
+        for name, behavior in KEYCHAIN_FAILURES.items():
+            self.keychain.reset_mock(return_value=True, side_effect=True)
+            self.keychain.configure_mock(**behavior)
+            with self.subTest(failure=name), mock.patch.object(
+                jev.urllib.request, "urlopen"
+            ) as urlopen:
+                stdout, stderr = io.StringIO(), io.StringIO()
+                with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
                     result = jev.triage_finding(FINDING)
                 self.assert_unavailable(result, "missing_api_key")
                 urlopen.assert_not_called()
+                self.keychain.assert_called_once()
+                self.assertEqual(stderr.getvalue(), KEYCHAIN_LINE)
+                self.assertEqual(stdout.getvalue(), "")
+                self.assertNotIn(FAKE_KEY, repr(result))
 
     def test_network_timeout_and_http_failures_fail_open(self) -> None:
         failures = (
@@ -192,7 +263,7 @@ class JevTest(unittest.TestCase):
         request = urlopen.call_args.args[0]
         self.assertEqual(request.full_url, jev.API_URL)
         self.assertEqual(request.method, "POST")
-        self.assertEqual(request.get_header("Authorization"), "Bearer test-key")
+        self.assertEqual(request.get_header("Authorization"), f"Bearer {FAKE_KEY}")
         body = json.loads(request.data)
         self.assertEqual(body["state"], FINDING)
         self.assertEqual(body["model"], "jev-latest")
@@ -251,9 +322,7 @@ class JevTest(unittest.TestCase):
             )
 
     def test_fork_deterministic_human_gate_without_api_key(self):
-        with mock.patch.dict(jev.os.environ, {}, clear=True), mock.patch.object(
-            jev.urllib.request, "urlopen"
-        ) as urlopen:
+        with mock.patch.object(jev.urllib.request, "urlopen") as urlopen:
             for fork, delegation in (
                 ({**FORK, "hard_gate": True}, DELEGATION),
                 (FORK, None),
@@ -272,6 +341,7 @@ class JevTest(unittest.TestCase):
                         "human_gate": 1.0,
                     })
         urlopen.assert_not_called()
+        self.keychain.assert_not_called()
 
     def test_fork_choice_request_and_available_result_retain_objective_state(self):
         payload = {
@@ -316,7 +386,7 @@ class JevTest(unittest.TestCase):
         })
         self.assertIn("delegated Supervisor", question["instructions"])
         self.assertIn("Human routing", question["instructions"])
-        self.assertNotIn("test-key", request.data.decode("utf-8"))
+        self.assertNotIn(FAKE_KEY, request.data.decode("utf-8"))
 
     def test_fork_confidence_floor_only_brakes_and_keeps_jev_choice(self):
         for choice, confidence, expected in (
@@ -410,7 +480,7 @@ class JevTest(unittest.TestCase):
                 result = jev.route_fork(FORK, DELEGATION)
             self.assertIsInstance(result, jev.UnavailableResult)
             self.assertEqual(result.reason, "invalid_answers")
-            self.assertNotIn("test-key", repr(result))
+            self.assertNotIn(FAKE_KEY, repr(result))
 
 
 CLI_AVAILABLE_PAYLOADS = {
@@ -447,14 +517,8 @@ CLI_MODE_INPUTS = {
 
 
 class JevCliTest(unittest.TestCase):
-    FAKE_KEY = "sk-fake-jev-probe-7f3a9-non-disclosure"
-
     def setUp(self) -> None:
-        self.env = mock.patch.dict(
-            jev.os.environ, {"TYPESAFE_API_KEY": self.FAKE_KEY}, clear=True
-        )
-        self.env.start()
-        self.addCleanup(self.env.stop)
+        self.keychain = start_keychain(self)
 
     def run_main(
         self, argv: list[str], stdin_text: str | None = None
@@ -487,9 +551,10 @@ class JevCliTest(unittest.TestCase):
                 (hard, {"status": "available", "route": "human_gate", "deterministic": True}),
                 (soft, {"status": "unavailable", "reason": "missing_api_key"}),
             ):
-                with self.subTest(input=path.name), mock.patch.dict(
-                    jev.os.environ, {}, clear=True
-                ), mock.patch.object(jev.urllib.request, "urlopen") as urlopen:
+                self.keychain.return_value = keychain_reply("", 44)
+                with self.subTest(input=path.name), mock.patch.object(
+                    jev.urllib.request, "urlopen"
+                ) as urlopen:
                     code, out, err = self.run_main(["fork", "--file", str(path)])
 
                 self.assertEqual(code, 0)
@@ -505,19 +570,23 @@ class JevCliTest(unittest.TestCase):
                     )
         urlopen.assert_not_called()
 
-    def test_cli_finding_without_key_is_unavailable_with_exit_zero(self) -> None:
-        with mock.patch.dict(jev.os.environ, {}, clear=True), mock.patch.object(
-            jev.urllib.request, "urlopen"
-        ) as urlopen:
-            code, out, err = self.run_main(["finding", "--stdin"], json.dumps(FINDING))
+    def test_cli_keychain_failures_are_unavailable_with_exit_zero_and_no_key(self) -> None:
+        for name, behavior in KEYCHAIN_FAILURES.items():
+            self.keychain.reset_mock(return_value=True, side_effect=True)
+            self.keychain.configure_mock(**behavior)
+            with self.subTest(failure=name), mock.patch.object(
+                jev.urllib.request, "urlopen"
+            ) as urlopen:
+                code, out, err = self.run_main(["finding", "--stdin"], json.dumps(FINDING))
 
-        self.assertEqual(code, 0)
-        self.assertEqual(err, "")
-        self.assertEqual(
-            json.loads(out),
-            {"status": "unavailable", "reason": "missing_api_key"},
-        )
-        urlopen.assert_not_called()
+                self.assertEqual(code, 0)
+                self.assertEqual(err, KEYCHAIN_LINE)
+                self.assertEqual(
+                    json.loads(out),
+                    {"status": "unavailable", "reason": "missing_api_key"},
+                )
+                self.assertNotIn(FAKE_KEY, out)
+                urlopen.assert_not_called()
 
     def test_cli_usage_and_input_errors_exit_two_without_output_or_key(self) -> None:
         cases = (
@@ -541,15 +610,15 @@ class JevCliTest(unittest.TestCase):
                 self.assertEqual(code, 2)
                 self.assertEqual(out, "")
                 self.assertTrue(err.strip())
-                self.assertNotIn(self.FAKE_KEY, out)
-                self.assertNotIn(self.FAKE_KEY, err)
+                self.assertNotIn(FAKE_KEY, out)
+                self.assertNotIn(FAKE_KEY, err)
 
     def test_cli_never_prints_the_key_across_modes_and_failures(self) -> None:
         http_error = urllib.error.HTTPError(
-            jev.API_URL, 503, "upstream", {}, io.BytesIO(self.FAKE_KEY.encode("utf-8"))
+            jev.API_URL, 503, "upstream", {}, io.BytesIO(FAKE_KEY.encode("utf-8"))
         )
         transport_error = urllib.error.URLError(
-            f"dns resolution failed for {self.FAKE_KEY}"
+            f"dns resolution failed for {FAKE_KEY}"
         )
         for mode in ("finding", "fork"):
             scenarios = (
@@ -571,8 +640,8 @@ class JevCliTest(unittest.TestCase):
                     code, out, err = self.run_main(argv, stdin_text)
 
                 self.assertEqual(code, expected_code)
-                self.assertNotIn(self.FAKE_KEY, out)
-                self.assertNotIn(self.FAKE_KEY, err)
+                self.assertNotIn(FAKE_KEY, out)
+                self.assertNotIn(FAKE_KEY, err)
                 if scenario == "available":
                     self.assertEqual(json.loads(out), CLI_AVAILABLE_OUTPUTS[mode])
                     self.assertEqual(err, "")
