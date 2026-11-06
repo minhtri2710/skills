@@ -142,7 +142,8 @@ class CloseoutCheckTest(unittest.TestCase):
             "--words", "seat", "--note", "review passed", "--quote", "PASS")
         row("--kind", "push", "--status", "resolved:push", "--push-base", base,
             "--boundary", "tracked.txt",
-            "--words", "human", "--note", "push landed", "--quote", "pushed")
+            "--words", "human", "--brief", "Record that the push landed.",
+            "--note", "push landed", "--quote", "")
 
         rows = gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))
         miscounted = rows[-1].replace(" count=1 ", " count=2 ", 1)

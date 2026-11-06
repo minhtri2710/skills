@@ -1,3 +1,5 @@
+Source: <Human, UTC time, channel>
+Agent brief: <the Human's request restated; lead.md, "Attribution">
 Light-coordination: yes — the four conditions and the evidence each holds on
 Qualifies: single-owner=<solo-Lead | one Engineer>; localized=<owned paths, no contract surface>; settled=<human-specified-diff | trivially-verifiable: the check that decides it>; no-hard-gate=<confirmed>
 Lane: tiny | normal
