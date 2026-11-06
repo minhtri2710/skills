@@ -12,7 +12,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-SCRIPTS = Path(__file__).resolve().parents[1] / "skills" / "terminal-delivery-workflow" / "scripts"
+SCRIPTS = Path(__file__).resolve().parents[1] / "skills" / "agent-delivery-workflow" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
@@ -70,7 +70,7 @@ class MailboxTest(unittest.TestCase):
         # A live wake is only allowed from a real project mailbox, so the
         # fixture lives under a fake state root and the module
         # constant is pointed at it for the duration of the test.
-        root = Path(self.tmp.name) / ".terminal-delivery" / "projects"
+        root = Path(self.tmp.name) / ".agent-delivery" / "projects"
         project = root / "beo-skills"
         project.mkdir(parents=True)
         self.path = project / "mailbox.md"
@@ -312,7 +312,7 @@ class MailboxAppendTest(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory(dir=os.path.realpath("/tmp"))
         self.addCleanup(self.tmp.cleanup)
-        root = Path(self.tmp.name) / ".terminal-delivery" / "projects"
+        root = Path(self.tmp.name) / ".agent-delivery" / "projects"
         (root / "beo-skills").mkdir(parents=True)
         self.path = root / "beo-skills" / "supervisor-mailbox.md"
         self.repo = Path(self.tmp.name) / "repo"

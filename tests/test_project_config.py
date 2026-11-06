@@ -9,7 +9,7 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SKILL = ROOT / "skills" / "terminal-delivery-workflow"
+SKILL = ROOT / "skills" / "agent-delivery-workflow"
 SCRIPT = SKILL / "scripts" / "project_config.py"
 sys.path.insert(0, str(SKILL / "scripts"))
 

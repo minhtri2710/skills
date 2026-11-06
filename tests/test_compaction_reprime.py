@@ -16,7 +16,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 
-SCRIPTS = Path(__file__).parents[1] / "skills" / "terminal-delivery-workflow" / "scripts"
+SCRIPTS = Path(__file__).parents[1] / "skills" / "agent-delivery-workflow" / "scripts"
 REFERENCES = SCRIPTS.parent / "references"
 SCRIPT = SCRIPTS / "compaction_reprime.py"
 sys.path.insert(0, str(SCRIPTS))
@@ -248,7 +248,7 @@ class SeatResolutionTest(ReprimeCase):
         self.assertEqual(self.run_cli(), 0)
         (state_file,) = self.state_files()
         self.assertTrue(state_file.is_relative_to(self.state))
-        self.assertFalse((self.home / ".terminal-delivery").exists())
+        self.assertFalse((self.home / ".agent-delivery").exists())
 
     def test_roster_cwd_may_be_a_subdirectory_of_the_project_root(self) -> None:
         self.write_pointer_files()

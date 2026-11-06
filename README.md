@@ -59,7 +59,7 @@ skills/<name>/
 | `source-grounded-implementation` | Ground framework- or library-specific code in the docs for the installed version, with citations. |
 | `spec-conformance-review` | Review a diff against the spec it claims to implement, quoting the spec line per finding. |
 | `telemetry-questions-first` | Instrument a path from the on-call questions and prove the telemetry by diagnosing an induced failure. |
-| `terminal-delivery-workflow` | Run bounded delivery with a Supervisor, Lead, and Peers in the terminal tool the user is in (Herdr, Rex, or herdr core `hc`). |
+| `agent-delivery-workflow` | Run bounded delivery with a Supervisor, Lead, and Peers in the terminal tool the user is in (Herdr, Rex, or herdr core `hc`). |
 | `test-first-seams` | Build a feature or fix a bug test-first in red-green vertical slices at agreed seams. |
 | `test-proof-debt-audit` | Audit one behavioral claim and the test or gate cited as its proof, or a named test set for redundant tests. |
 | `throwaway-prototype` | Build throwaway code that answers one design question: a logic demo or structurally different UI variants. |
@@ -67,7 +67,7 @@ skills/<name>/
 
 ## Checks
 
-Scripts with test coverage in `tests/` are `terminal-delivery-workflow`, `jev/scripts/jev.py`, `quality-floor/scripts/floor_guard.py`, `destructive-path-guard/scripts/safe_target.py`, `human-step-wizard/scripts/wizard-template.sh`, `prompt-leverage/scripts/augment_prompt.py`, `security-setup/scripts/security_check.py`, and `bug-diagnosis/scripts/hitl-loop.sh`. These local checks are the CI of record; there is no hosted CI. Run:
+Scripts with test coverage in `tests/` are `agent-delivery-workflow`, `jev/scripts/jev.py`, `quality-floor/scripts/floor_guard.py`, `destructive-path-guard/scripts/safe_target.py`, `human-step-wizard/scripts/wizard-template.sh`, `prompt-leverage/scripts/augment_prompt.py`, `security-setup/scripts/security_check.py`, and `bug-diagnosis/scripts/hitl-loop.sh`. These local checks are the CI of record; there is no hosted CI. Run:
 
 ```bash
 .venv/bin/python -m unittest discover -s tests

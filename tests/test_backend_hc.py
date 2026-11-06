@@ -17,7 +17,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-SCRIPTS = Path(__file__).resolve().parents[1] / "skills" / "terminal-delivery-workflow" / "scripts"
+SCRIPTS = Path(__file__).resolve().parents[1] / "skills" / "agent-delivery-workflow" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
@@ -35,7 +35,7 @@ def tearDownModule() -> None:
     _NEVER_RUN.stop()
 
 
-ROOT = Path(__file__).resolve().parents[1] / "skills" / "terminal-delivery-workflow"
+ROOT = Path(__file__).resolve().parents[1] / "skills" / "agent-delivery-workflow"
 FIXTURES = Path(__file__).resolve().parent / "fixtures" / "backends" / "hc"
 REFERENCE = ROOT / "references" / "backend-hc.md"
 SOCKET = "/run/user/501/herdr-core/default.sock"

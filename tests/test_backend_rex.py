@@ -16,7 +16,7 @@ from pathlib import Path
 from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
-SCRIPTS = ROOT / "skills" / "terminal-delivery-workflow" / "scripts"
+SCRIPTS = ROOT / "skills" / "agent-delivery-workflow" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
@@ -35,7 +35,7 @@ def tearDownModule() -> None:
 
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures" / "backends" / "rex"
-REFERENCE = ROOT / "skills" / "terminal-delivery-workflow" / "references" / "backend-rex.md"
+REFERENCE = ROOT / "skills" / "agent-delivery-workflow" / "references" / "backend-rex.md"
 SESSION = "session:aaaa"
 LEAD = f"{SESSION}.block:a1"
 ENG_A = f"{SESSION}.block:a2"

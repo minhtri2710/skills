@@ -16,7 +16,7 @@ from datetime import datetime, timezone
 from unittest import mock
 from pathlib import Path
 
-SCRIPTS = Path(__file__).resolve().parents[1] / "skills" / "terminal-delivery-workflow" / "scripts"
+SCRIPTS = Path(__file__).resolve().parents[1] / "skills" / "agent-delivery-workflow" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 
 import gate_row  # noqa: E402
