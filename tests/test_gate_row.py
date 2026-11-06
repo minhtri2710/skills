@@ -158,7 +158,7 @@ class GateRowTest(unittest.TestCase):
             rc = self.run_main([
                 "--ledger", "gates.md", "--repo", str(self.repo),
                 "--kind", "merge", "--status", "resolved:human",
-                "--words", "human", "--note", "n", "--quote", "q",
+                "--words", "human", "--brief", BRIEF, "--note", "n", "--quote", "",
             ])
         finally:
             os.chdir(prev)
@@ -704,7 +704,10 @@ class GateRowTest(unittest.TestCase):
                 before = self.ledger.read_bytes()
                 self.assertEqual(self.append("--words", words, "--quote", "Human text"), 1)
                 self.assertIn(f"words={words} stores no Human text", self.err.getvalue())
-                self.assertEqual(self.append("--words", words, "--quote-file", str(self.tmp / "q")), 1)
+                said = self.tmp / "said.txt"
+                said.write_text("Human text", encoding="utf-8")
+                self.assertEqual(self.append("--words", words, "--quote-file", str(said)), 1)
+                self.assertIn(f"words={words} stores no Human text", self.err.getvalue())
                 self.assertEqual(self.ledger.read_bytes(), before)
                 self.assertEqual(self.append("--words", words), 0, self.err.getvalue())
                 row = self.last_row()
@@ -1450,9 +1453,9 @@ class GateRowTest(unittest.TestCase):
         before = self.ledger.read_bytes()
         base = ["--ledger", str(self.ledger), "--repo", str(self.repo)]
         for extra, message in (
-            (["--kind", "merge", "--note", "n", "--words", "human", "--quote", "q"],
+            (["--kind", "merge", "--note", "n", "--words", "human", "--brief", BRIEF, "--quote", ""],
              "--kind and --status are required"),
-            (["--kind", "merge", "--status", "open", "--words", "human", "--quote", "q"],
+            (["--kind", "merge", "--status", "open", "--words", "human", "--brief", BRIEF, "--quote", ""],
              "note= is required"),
             (["--kind", "merge", "--status", "resolved:human",
               "--note", "merged the reviewed head", "--quote", "merge it"],
