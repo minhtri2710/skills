@@ -19,6 +19,10 @@ def setUpModule() -> None:
     support.never_run(sys.executable)
 
 
+def _primary(config, role):
+    return project_config.role_routes(config, role)[0]
+
+
 _FULL = {
     "lead-kind": "pi",
     "lead-args": ["--model", "lead-model"],
@@ -143,7 +147,7 @@ class ProjectConfigTests(unittest.TestCase):
             }},
         }
         result = project_config.expand_launch(
-            config, role="reviewer", kind="pi", role_args=["--model", "reviewer"],
+            config, role="reviewer", route=_primary(config, "reviewer"),
             seat="rev", lead="lead", run_dir="/run", installed_skill_dir="/skill",
             settings_file="/run/settings.json",
         )
@@ -153,26 +157,20 @@ class ProjectConfigTests(unittest.TestCase):
             "settings_json": {"seat": "rev", "run": "/run"},
             "runtime_state_paths": ["/tmp/state", "/tmp/kind.json"],
         })
-        with self.assertRaisesRegex(ValueError, "must come from config"):
-            project_config.expand_launch(
-                config, role="reviewer", kind="pi", role_args=["--model", "wrong"],
-                seat="rev", lead="lead", run_dir="/run", installed_skill_dir="/skill",
-                settings_file="/run/settings.json",
-            )
         engineer = project_config.expand_launch(
-            config, role="engineer", kind="pi", role_args=["--approve"],
+            config, role="engineer", route=_primary(config, "engineer"),
             seat="eng", lead="lead", run_dir="/run", installed_skill_dir="/skill",
             settings_file="/run/settings.json",
         )
         self.assertIsNone(engineer["runtime_state_paths"])
         architect = project_config.expand_launch(
-            config, role="architect", kind="pi", role_args=["--model", "reviewer"],
+            config, role="architect", route=_primary(config, "architect"),
             seat="arch", lead="lead", run_dir="/run", installed_skill_dir="/skill",
             settings_file="/run/settings.json",
         )
         self.assertEqual(architect["runtime_state_paths"], ["/tmp/state", "/tmp/kind.json"])
         lead = project_config.expand_launch(
-            config, role="lead", kind="pi", role_args=["--model", "lead"], seat="lead", lead="lead",
+            config, role="lead", route=_primary(config, "lead"), seat="lead", lead="lead",
             run_dir="/run", installed_skill_dir="/skill", settings_file="/run/settings.json",
         )
         self.assertIsNone(lead["runtime_state_paths"])
@@ -186,7 +184,7 @@ class ProjectConfigTests(unittest.TestCase):
                 }
                 with self.assertRaisesRegex(ValueError, f"{role} role args are missing"):
                     project_config.expand_launch(
-                        config, role=role, kind="pi", role_args=[], seat="peer", lead="lead",
+                        config, role=role, route=_primary(config, role), seat="peer", lead="lead",
                         run_dir="/run", installed_skill_dir="/skill", settings_file="/run/settings.json",
                     )
 
@@ -197,7 +195,7 @@ class ProjectConfigTests(unittest.TestCase):
             "launch-profiles": {"pi": {"seat-argv": [], "peer-argv": []}},
         }
         result = project_config.expand_launch(
-            config, role="engineer", kind="pi", role_args=["--model", "fallback"],
+            config, role="engineer", route=project_config.role_routes(config, "engineer")[1],
             seat="peer", lead="lead", run_dir="/run", installed_skill_dir="/skill",
             settings_file="/run/settings.json",
         )

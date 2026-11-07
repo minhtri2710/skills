@@ -212,11 +212,11 @@ def model_of(argv: list[str]) -> str | None:
 
 
 def expand_launch(
-    config: dict[str, Any], *, role: str, kind: str, role_args: list[str], seat: str,
+    config: dict[str, Any], *, role: str, route: Route, seat: str,
     lead: str, run_dir: str, installed_skill_dir: str, settings_file: str,
 ) -> dict[str, Any]:
-    """Return argv and settings data for launching one seat; execute nothing."""
-    routes = [route for route in role_routes(config, role) if route.kind == kind]
+    """Return argv and settings data for launching one seat on the `route` chosen from `role_routes`; execute nothing."""
+    kind = route.kind
     profile = config.get("launch-profiles", {}).get(kind)
     if profile is None:
         raise ValueError(f"launch-profiles lacks configured kind {kind!r}")
@@ -225,13 +225,8 @@ def expand_launch(
         raise ValueError(f"launch-profiles.{kind} requires seat-argv")
     if peer and "peer-argv" not in profile:
         raise ValueError(f"launch-profiles.{kind} requires peer-argv for {role}")
-    if not routes:
-        raise ValueError(f"{role} kind {kind!r} is not configured for that role")
-    allowed_args = [route.args for route in routes if route.args is not None]
-    if not allowed_args:
+    if route.args is None:
         raise ValueError(f"{role} role args are missing")
-    if role_args not in allowed_args:
-        raise ValueError(f"{role} role args must come from config")
     values = dict(zip(_PLACEHOLDERS, (seat, lead, run_dir, installed_skill_dir, settings_file)))
     profile_values = [profile["seat-argv"]]
     if peer:
@@ -240,7 +235,7 @@ def expand_launch(
     missing = sorted(name for name in used if not values[name])
     if missing:
         raise ValueError(f"launch context lacks values for {', '.join(missing)}")
-    argv = [*role_args]
+    argv = [*route.args]
     argv.extend(_substitute(profile["seat-argv"], values))
     if peer:
         argv.extend(_substitute(profile["peer-argv"], values))
@@ -285,10 +280,9 @@ def main(argv: list[str] | None = None) -> int:
         route = next((r for r in role_routes(config, args.role) if (r.slot, r.kind) == (slot, args.kind)), None)
         if route is None:
             raise ValueError(f"{args.kind!r} is not the configured {slot} kind for {args.role}")
-        role_args = route.args or []
         run_dir = str(Path(args.run_dir).expanduser().resolve())
         result = expand_launch(
-            config, role=args.role, kind=args.kind, role_args=role_args, seat=args.seat,
+            config, role=args.role, route=route, seat=args.seat,
             lead=args.lead, run_dir=run_dir, installed_skill_dir=str(Path(args.installed_skill_dir).expanduser()),
             settings_file=str(peer_settings_path(run_dir, args.seat)),
         )

@@ -141,15 +141,15 @@ def format_stalled_roster(
     return lines
 
 
-def _expected(config: dict[str, Any], role: str) -> list[tuple[str, str | None, list[str]]]:
+def _expected(config: dict[str, Any], role: str) -> list[tuple[project_config.Route, str | None]]:
     routes = project_config.role_routes(config, role)
     if not routes or routes[0].slot != "primary":
         raise ValueError(f"config names no primary kind for {role}")
-    return [(route.kind, project_config.model_of(route.args or []), route.args or []) for route in routes]
+    return [(route, project_config.model_of(route.args or [])) for route in routes]
 
 
-def _want(expected: list[tuple[str, str | None, list[str]]]) -> str:
-    return " or ".join(f"{kind} --model {model or '-'}" for kind, model, _ in expected)
+def _want(expected: list[tuple[project_config.Route, str | None]]) -> str:
+    return " or ".join(f"{route.kind} --model {model or '-'}" for route, model in expected)
 
 
 def _has_block(argv: list[str], block: list[str]) -> bool:
@@ -205,7 +205,7 @@ def format_drift_roster(
         want = _want(expected)
         launch_args, argv0_process = _launch_args(seat_backend, handle, kind)
         model = project_config.model_of(launch_args) if launch_args is not None else None
-        matching_kinds = [route for route in expected if route[0] == kind]
+        matching_kinds = [match for match in expected if match[0].kind == kind]
         session_model = bool(matching_kinds and argv0_process is not None and kind in runtimes.SESSION_MODEL_KINDS)
         if session_model:
             model, reason = runtimes.session_model(seat, argv0_process)
@@ -218,16 +218,16 @@ def format_drift_roster(
             unverifiable = True
             continue
         route_matches = [
-            (k, m, b) for k, m, b in expected if k == kind and (
+            (r, m) for r, m in expected if r.kind == kind and (
                 runtimes.model_matches(m, model) if session_model and m is not None
                 else m is None or m == model
             )
         ]
         if not session_model and launch_args is not None and len(route_matches) > 1:
-            argv_matches = [route for route in route_matches if _has_block(launch_args, route[2])]
+            argv_matches = [match for match in route_matches if _has_block(launch_args, match[0].args or [])]
             if argv_matches:
                 route_matches = argv_matches
-        if session_model and sum(m is not None and runtimes.model_matches(m, model) for _, m, _ in matching_kinds) > 1:
+        if session_model and sum(m is not None and runtimes.model_matches(m, model) for _, m in matching_kinds) > 1:
             lines.append(f"{label} UNVERIFIABLE role={role} reason=route-ambiguous expected={want}")
             unverifiable = True
             continue
@@ -238,7 +238,7 @@ def format_drift_roster(
                 continue
             try:
                 expanded = project_config.expand_launch(
-                    config, role=role, kind=kind, role_args=route_matches[0][2], seat=name,
+                    config, role=role, route=route_matches[0][0], seat=name,
                     lead=lead, run_dir=run_dir, installed_skill_dir=installed_skill_dir,
                     settings_file=(
                         str(project_config.peer_settings_path(run_dir, name)) if run_dir else ""

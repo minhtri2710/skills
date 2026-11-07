@@ -513,14 +513,22 @@ class CharterLintTest(unittest.TestCase):
              f"Reviewed unit: the range {base}..{mid}\n"
              + f"Prior review: report-review-{head[:12]}.md FAIL (F1)\n",
              f"repair re-review range {base}..{mid} {keep_base}"),
+            ("a short head is no Reviewed unit range",
+             f"Reviewed unit: the range {base}..{mid[:12]}\n"
+             + f"Prior review: report-review-{head[:12]}.md FAIL (F1)\n",
+             "repair re-review has no Reviewed unit range"),
+            ("an upper-case head reads as the lower-case one",
+             f"Reviewed unit: the range {base}..{mid.upper()}\n"
+             + f"Prior review: report-review-{head[:12]}.md FAIL (F1)\n",
+             f"repair re-review range {base}..{mid} {keep_base}"),
             ("no prior review", narrowed + f"Prior review: none {gloss}\n", None),
             ("prior FAIL named mid-line in prose", f"Scope note. Prior reviews: report-review-{mid[:12]}.md FAIL\n",
              None),
             ("FAIL naming no commit", narrowed + "Prior review: report-review-deadbeefcafe.md FAIL\n",
              "repair re-review Prior review names a FAIL but no commit in --repo"),
             ("no Reviewed unit range", failed, "repair re-review has no Reviewed unit range"),
-            ("unresolvable range", f"Reviewed unit: the range abcdef0..{head[:7]}\n" + failed,
-             f"repair re-review range abcdef0..{head[:7]} does not resolve in {self.repo}"),
+            ("unresolvable range", f"Reviewed unit: the range {gitops.NULL_OID}..{head}\n" + failed,
+             f"repair re-review range {gitops.NULL_OID}..{head} does not resolve in {self.repo}"),
         )
         for label, charter_lines, problem in cases:
             with self.subTest(label):

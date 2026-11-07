@@ -459,7 +459,8 @@ class GateRowTest(unittest.TestCase):
 
     def test_under_names_an_in_force_delegation_and_records_the_seats_words(self):
         merge = ["--ledger", str(self.ledger), "--repo", str(self.repo), "--kind", "merge",
-                 "--status", "resolved:standing-delegation", "--note", "merged under delegation",
+                 "--status", "resolved:standing-delegation", "--words", "seat",
+                 "--note", "merged under delegation",
                  "--quote", "merged PR#1 at the reviewed head"]
         self.assertEqual(self.append_standing_delegation(), 0, self.err.getvalue())
         self.assertEqual(self.run_main([*merge, "--under", "G1"]), 0, self.err.getvalue())
@@ -634,7 +635,7 @@ class GateRowTest(unittest.TestCase):
         self.assertIn("--open-gates cannot be combined with append arguments", self.err.getvalue())
         self.assertNotIn("could not be read", self.err.getvalue())
 
-    def test_the_read_modes_exclude_each_other_and_deployed_head_excludes_append_arguments(self):
+    def test_the_read_modes_exclude_each_other_and_every_read_mode_excludes_append_arguments(self):
         for modes in (
             ("--check", "--open-gates"),
             ("--check", "--deployed-head", "example"),
@@ -648,6 +649,17 @@ class GateRowTest(unittest.TestCase):
             "--deployed-head", "example", "--kind", "merge",
         ]), 1)
         self.assertIn("--deployed-head cannot be combined with append arguments", self.err.getvalue())
+        self.assertEqual(self.append_handoff(), 0, self.err.getvalue())
+        before = self.ledger.read_bytes()
+        for mode, extra in (
+            ("--check", ["--kind", "merge", "--note", "x"]),
+            ("--open-gates", ["--mailbox", str(self.tmp / "mailbox.md")]),
+        ):
+            with self.subTest(mode=mode, extra=extra):
+                self.assertEqual(self.run_main([
+                    "--ledger", str(self.ledger), "--repo", str(self.repo), mode, *extra]), 1)
+                self.assertIn(f"{mode} cannot be combined with append arguments", self.err.getvalue())
+                self.assertEqual(self.ledger.read_bytes(), before)
 
     def test_resolves_refuses_never_open_and_already_closed_ids_and_accepts_open_id(self):
         self.assertEqual(self.append("--resolves", "G404"), 1)
@@ -1214,7 +1226,7 @@ class GateRowTest(unittest.TestCase):
 
     def test_push_is_refused_with_check(self):
         self.assertEqual(self.run_main(["--ledger", str(self.ledger), "--repo", str(self.repo), "--check", "--push"]), 1)
-        self.assertIn("--push cannot be combined with --check", self.err.getvalue())
+        self.assertIn("--check cannot be combined with append arguments", self.err.getvalue())
 
     def test_a_clean_merge_of_landed_main_is_covered_by_its_parents(self):
         base = self.merged_branch(land_main=True, edit_merge=False)

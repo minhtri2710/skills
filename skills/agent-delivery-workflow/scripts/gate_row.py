@@ -572,8 +572,6 @@ def reviewed_unpushed(state: "LedgerState", repo: Path) -> set[str]:
 
 
 def select_deployed_head(ledger: Path, skill: str, repo: Path) -> tuple[str, str, str]:
-    if not ledger.is_absolute():
-        raise RowError(f"ledger path must be absolute: {ledger}")
     return deployed_head(read_ledger_state(ledger, repo), skill, repo)
 
 
@@ -974,10 +972,9 @@ def request_words(request: RowRequest) -> str:
     """The row's words, refusing a request too incomplete to build a row from."""
     if not request.kind or not request.status:
         raise RowError("--kind and --status are required to append a row")
-    words = request.words if request.words is not None else ("seat" if request.under else None)
-    if words is None:
+    if request.words is None:
         raise RowError("--words is required when appending a row")
-    return words
+    return request.words
 
 
 def build(request: RowRequest, repo: Path, state: LedgerState,
@@ -1091,8 +1088,18 @@ def check_mailbox_for_open_gate(row: Row, mailbox: Path | None) -> None:
     require_mailbox_attention(row.gid, row.head, mailbox)
 
 
+def require_absolute(ledger: Path) -> None:
+    if not ledger.is_absolute():
+        raise RowError(
+            f"--ledger {ledger} is not absolute; the live ledger is "
+            f"{state_root.STATE_ROOT}/<slug>/{state_root.LEDGER} and a relative path resolves "
+            "against the shell cwd, silently starting a stray G1"
+        )
+
+
 @contextmanager
 def locked_ledger(ledger: Path, exclusive: bool):
+    require_absolute(ledger)
     if not exclusive and not ledger.exists():
         raise RowError(f"{ledger} holds no gate ledger")
     mode = "a+" if exclusive else "r"
@@ -1122,6 +1129,7 @@ def preview_row(ledger: Path, repo: Path, request: RowRequest) -> str:
         with locked_ledger(ledger, exclusive=False) as handle:
             state = validate_ledger(ledger_rows(handle_text(handle)), repo)
     else:
+        require_absolute(ledger)
         state = LedgerState()
     return build(request, repo, state, resolve_row_head(request, repo))
 
@@ -1205,7 +1213,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--resolves", action="append", default=[],
                         help="an open gate id to resolve; repeatable and comma-separated")
     parser.add_argument("--under", help="the in-force kind=standing-delegation id a row answered "
-                        "under it names; the row records the seat's decision, words=seat")
+                        "under it names; the row requires --words seat")
     parser.add_argument("--words", choices=WORDS_VALUES,
                         help="whose words the row records; required when appending")
     parser.add_argument("--note", default="")
@@ -1217,31 +1225,23 @@ def main(argv: list[str] | None = None) -> int:
                         help="read the seat's verbatim text from a UTF-8 file")
     args = parser.parse_args(argv)
     request = RowRequest(**{f.name: getattr(args, f.name) for f in dataclasses.fields(RowRequest)})
-    appending = any(vars(request).values()) or args.push or args.mailbox is not None
 
     try:
-        if not args.ledger.is_absolute():
-            raise RowError(
-                f"--ledger {args.ledger} is not absolute; the live ledger is "
-                f"{state_root.STATE_ROOT}/<slug>/{state_root.LEDGER} and a relative path resolves "
-                "against the shell cwd, silently starting a stray G1"
-            )
+        read_mode = ("--check" if args.check else "--open-gates" if args.open_gates
+                     else "--deployed-head" if args.deployed_head else None)
+        if read_mode and (any(vars(request).values()) or args.push
+                          or (args.mailbox is not None and not args.check)):
+            raise RowError(f"{read_mode} cannot be combined with append arguments")
         if args.deployed_head:
-            if appending:
-                raise RowError("--deployed-head cannot be combined with append arguments")
             branch, head, source_row = select_deployed_head(args.ledger, args.deployed_head, args.repo)
             print(f"{branch}@{head}\n{source_row}")
             return 0
         if args.open_gates:
-            if appending:
-                raise RowError("--open-gates cannot be combined with append arguments")
             ids = read_ledger_state(args.ledger, args.repo).open_gate_ids()
             sys.stdout.write("".join(f"{gid}\n" for gid in ids))
             return 0
 
         if args.check:
-            if args.push:
-                raise RowError("--push cannot be combined with --check")
             state = read_ledger_state(args.ledger, args.repo)
             if not state.rows:
                 raise RowError(f"{args.ledger} holds no gate row")

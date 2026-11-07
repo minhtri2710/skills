@@ -30,7 +30,7 @@ SPLICE_PREFIX = 7
 PRIOR_RE = re.compile(r"^\W*Prior reviews?\W*:?[ \t]*(.*)$", re.IGNORECASE | re.MULTILINE)
 PRIOR_GLOSS_RE = re.compile(r"\(`none`, or the prior FAIL report[^)]*\)")
 UNIT_RANGE_RE = re.compile(
-    r"^\W*Reviewed unit\W*:?.*?(?<![0-9a-f])([0-9a-f]{7,40})\.\.\.?([0-9a-f]{7,40})(?![0-9a-f])",
+    rf"^\W*Reviewed unit\W*:?.*?(?<![0-9a-f])({gitops.FULL_SHA})\.\.\.?({gitops.FULL_SHA})(?![0-9a-f])",
     re.IGNORECASE | re.MULTILINE,
 )
 SHORT_SHA_RE = re.compile(r"(?<![0-9a-f])[0-9a-f]{7,40}(?![0-9a-f])", re.IGNORECASE)
@@ -326,7 +326,7 @@ def _repair_range_problems(repo: Path, charter: str) -> list[str]:
     unit = UNIT_RANGE_RE.search(charter)
     if unit is None:
         return ["repair re-review has no Reviewed unit range"]
-    base, head = unit.groups()
+    base, head = (sha.lower() for sha in unit.groups())
     names = "".join(f"{sha}^{{commit}}\n" for sha in SHORT_SHA_RE.findall(line))
     named = {out.split()[0] for out in gitops.git(repo, "cat-file", "--batch-check", stdin=names).splitlines()
              if out.split()[1:2] == ["commit"]}
