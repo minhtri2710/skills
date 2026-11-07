@@ -205,6 +205,23 @@ class FloorGuardRepoTest(unittest.TestCase):
         self.write("app/setup.cfg", cfg.replace("= 80", "= 80.0"))
         self.assertEqual(self.run_guard(), (0, ""))
 
+    def test_constraints_renamed_out_of_its_name_is_flagged_as_removed(self) -> None:
+        (self.repo / "docs").mkdir()
+        support.git(self.repo, "mv", "CONSTRAINTS.md", "docs/floor.md")
+        code, err = self.run_guard()
+        self.assertEqual(code, 1)
+        self.assertIn("[floor-rule-removed] CONSTRAINTS.md:5", err)
+        self.assertIn("[constraint-removed] CONSTRAINTS.md:13", err)
+
+    def test_a_coverage_config_renamed_out_of_its_name_with_a_lower_threshold_is_flagged(self) -> None:
+        cfg = "[metadata]\nname = demo\nversion = 1\nauthor = a\n[report]\nfail_under = 80\n"
+        self.commit_then_edit("pkg/setup.cfg", cfg, cfg)
+        support.git(self.repo, "mv", "pkg/setup.cfg", "pkg/setup.cfg.old")
+        self.write("pkg/setup.cfg.old", cfg.replace("= 80", "= 70"))
+        code, err = self.run_guard()
+        self.assertEqual(code, 1)
+        self.assertIn("[threshold-loosened] pkg/setup.cfg:6", err)
+
     def test_test_file_renamed_out_of_a_test_path_is_a_deletion(self) -> None:
         support.git(self.repo, "mv", "tests/test_old.py", "src/old.py")
         code, err = self.run_guard()

@@ -63,6 +63,11 @@ QUOTED = re.compile(r"[\"']([^\"']+)[\"']")
 HUNK = re.compile(r"^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@")
 CONSTRAINTS = "CONSTRAINTS.md"
 EXCEPTION_ID = re.compile(r"E\d+")
+# Files whose removed lines raise findings. Lint configs are not here: deleting one is not flagged either.
+WATCHED_REMOVALS = (
+    lambda path: Path(path).name == CONSTRAINTS,
+    *(files.search for files, _ in COVERAGE_CONFIGS),
+)
 
 
 @dataclass(frozen=True)
@@ -358,11 +363,21 @@ def _fs_path(repo: Path, name: str) -> Path:
     return repo / os.fsdecode(name.encode())
 
 
+def _leaves_watch(old: str, new: str) -> bool:
+    return any(watched(old) and not watched(new) for watched in WATCHED_REMOVALS)
+
+
 def collect(repo: Path, base: str) -> tuple[list[Line], list[Line], list[str], str, dict[str, list[str]]]:
     merge_base = _git(repo, "merge-base", base, "HEAD").strip()
     added, removed = parse_diff(_git(repo, "diff", "--no-color", "--unified=0", "-M", merge_base, "--"))
     deleted, renames = _name_status(_git(repo, "diff", "--name-status", "-z", "-M", merge_base, "--"))
-    removed = [Line(renames.get(line.path, line.path), line.number, line.text) for line in removed]
+    leaving = {old for old, new in renames.items() if _leaves_watch(old, new)}
+    stays = {old: new for old, new in renames.items() if old not in leaving}
+    removed = [Line(stays.get(line.path, line.path), line.number, line.text) for line in removed if line.path not in leaving]
+    for old in sorted(leaving):
+        removed.extend(
+            Line(old, i, t) for i, t in enumerate(_git(repo, "show", f"{merge_base}:{old}").splitlines(), start=1)
+        )
     for name in _git(repo, "ls-files", "--others", "--exclude-standard", "-z").split("\0"):
         if not name:
             continue

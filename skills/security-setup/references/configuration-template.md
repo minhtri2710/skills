@@ -28,13 +28,14 @@ established.
 
 ## Tool configuration
 
-The runner accepts JSON; its fields, and each check's, are what `validate_config`
-in `scripts/security_check.py` accepts. The command must be an argv array, not a
-shell string; `{output}` is replaced with a temporary per-check JSON output path. Omitted
-fields take the script's values: `fail_on`, `trip_all_paths`
-(`DEFAULT_TRIP_ALL_PATHS`), and the per-scanner triggers are defined in
-`scripts/security_check.py`, as is the built-in `DEFAULT_CONFIG` used when no
-configuration file exists. Read them there and set a field only to differ.
+The runner accepts JSON; its fields, and each check's, are validated in
+`validate_config` and read in `run_check`, both in `scripts/security_check.py`.
+The command must be an argv array, not a shell string; `{output}` is replaced
+with a temporary per-check JSON output path. Omitted fields take the script's
+values: `fail_on`, `trip_all_paths` (`DEFAULT_TRIP_ALL_PATHS`), and the
+per-scanner triggers are defined in `scripts/security_check.py`, as is the
+built-in `DEFAULT_CONFIG` used when no configuration file exists. Read them
+there and set a field only to differ.
 
 ```json
 {
@@ -63,12 +64,12 @@ runner may create their parent directory and the two report files; it must not
 write a backup, configuration, hook, CI workflow, security policy, lockfile, or
 any path outside the explicitly selected report outputs and temporary files.
 
-The JSON report's top-level keys are the payload `main` in
-`scripts/security_check.py` writes. Each check records whether it ran, its scope reason, executable
-name, return code, and any tool error; the reviewed configuration remains the
-source of the full argv. Missing tools and unusable reports are visible as
-`Not-Assessed` findings. Reports must not copy raw tool stdout/stderr because
-scanner output may contain sensitive values.
+The JSON report's top-level keys are those of the payload `main` writes in
+`scripts/security_check.py`. Each check records whether it ran, its scope
+reason, executable name, return code, and any tool error; the reviewed
+configuration remains the source of the full argv. Missing tools and unusable
+reports are visible as `Not-Assessed` findings. Reports must not copy raw tool
+stdout/stderr because scanner output may contain sensitive values.
 
 A report can be clean only for the checks that actually ran and produced usable
 results. A full report with skipped or unavailable categories remains partial.
