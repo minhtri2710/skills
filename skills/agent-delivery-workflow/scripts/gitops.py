@@ -33,8 +33,6 @@ Runner = Callable[..., str]
 
 
 def is_ancestor(repo: Path, ancestor: str, descendant: str) -> bool:
-    if ancestor == NULL_OID:
-        return True
     try:
         git(repo, "merge-base", "--is-ancestor", ancestor, descendant)
     except GitError:

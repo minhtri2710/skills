@@ -346,7 +346,7 @@ def _repair_range_problems(repo: Path, charter: str) -> list[str]:
             continue
         if merge_base in {commit, head}:
             continue
-        if gitops.is_ancestor(repo, base, merge_base):
+        if base == gitops.NULL_OID or gitops.is_ancestor(repo, base, merge_base):
             return []
     return [
         f"repair re-review range {base}..{head} must keep the slice base: "
