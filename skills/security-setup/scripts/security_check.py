@@ -29,8 +29,6 @@ DEFAULT_TRIP_ALL_PATHS = (
     ".pre-commit-config.yaml",
     "security/**",
     ".github/workflows/**",
-    "Dockerfile",
-    "Dockerfile.*",
     "**/Dockerfile",
     "**/Dockerfile.*",
     ".dockerignore",
@@ -40,11 +38,6 @@ DEFAULT_TRIGGERS = {
     "gitleaks": {"always": True},
     "trivy": {
         "paths": [
-            "package.json", "package-lock.json", "pnpm-lock.yaml", "yarn.lock",
-            "Cargo.lock", "Cargo.toml", "go.mod", "go.sum",
-            "requirements*.txt", "Pipfile", "Pipfile.lock", "pyproject.toml",
-            "poetry.lock", "composer.json", "composer.lock", "Gemfile",
-            "Gemfile.lock", "pom.xml", "build.gradle", "build.gradle.kts",
             "**/package.json", "**/package-lock.json", "**/pnpm-lock.yaml",
             "**/yarn.lock", "**/Cargo.lock", "**/Cargo.toml", "**/go.mod",
             "**/go.sum", "**/requirements*.txt", "**/Pipfile",
@@ -65,10 +58,11 @@ DEFAULT_TRIGGERS = {
         ],
     },
     "bandit": {"paths": ["**/*.py"]},
-    "cargo-audit": {"paths": ["Cargo.lock", "Cargo.toml", "**/Cargo.lock", "**/Cargo.toml"]},
+    "cargo-audit": {"paths": ["**/Cargo.lock", "**/Cargo.toml"]},
 }
+DEFAULT_FAIL_ON = ["CRITICAL", "HIGH"]
 DEFAULT_CONFIG = {
-    "fail_on": ["CRITICAL", "HIGH"],
+    "fail_on": DEFAULT_FAIL_ON,
     "checks": [
         {
             "name": "gitleaks",
@@ -99,13 +93,7 @@ DEFAULT_CONFIG = {
         },
     ],
 }
-EXPECTED_RETURNCODES = {
-    "gitleaks": (0, 1),
-    "trivy": (0, 1),
-    "semgrep": (0, 1),
-    "bandit": (0, 1),
-    "cargo-audit": (0, 1),
-}
+SEMGREP_SEVERITIES = {"ERROR": "HIGH", "WARNING": "MEDIUM"}
 
 
 class ConfigurationError(Exception):
@@ -120,10 +108,6 @@ def normalize_severity(value: Any) -> str:
     if value is None:
         return "INFO"
     text = str(value).upper()
-    if text == "ERROR":
-        return "HIGH"
-    if text == "WARNING":
-        return "MEDIUM"
     return text if text in SEVERITIES else "INFO"
 
 
@@ -131,7 +115,6 @@ def load_config(path: Optional[Path]) -> Dict[str, Any]:
     if path is None:
         path = Path("security/security-tools.json")
         if not path.exists():
-            validate_config(DEFAULT_CONFIG)
             return DEFAULT_CONFIG
     elif not path.exists():
         raise ConfigurationError("configuration file not found: " + str(path))
@@ -143,16 +126,22 @@ def load_config(path: Optional[Path]) -> Dict[str, Any]:
     return value
 
 
+def is_glob_list(value: Any) -> bool:
+    return isinstance(value, list) and all(isinstance(item, str) for item in value)
+
+
 def validate_config(config: Any) -> None:
     if not isinstance(config, dict):
         raise ConfigurationError("configuration must be a JSON object")
-    fail_on = config.get("fail_on", ["CRITICAL", "HIGH"])
+    fail_on = config.get("fail_on", DEFAULT_FAIL_ON)
     if (
         not isinstance(fail_on, list)
         or not fail_on
         or any(not isinstance(item, str) or item.upper() not in SEVERITIES for item in fail_on)
     ):
         raise ConfigurationError("fail_on must be a non-empty list of known severities")
+    if not is_glob_list(config.get("trip_all_paths", [])):
+        raise ConfigurationError("trip_all_paths must be a list of globs")
     checks = config.get("checks")
     if not isinstance(checks, list) or not checks:
         raise ConfigurationError("checks must be a non-empty list")
@@ -169,8 +158,11 @@ def validate_config(config: Any) -> None:
         names.add(name)
         if not isinstance(command, list) or not command or any(not isinstance(part, str) for part in command):
             raise ConfigurationError("each check command must be a non-empty argv list")
-        if "triggers" in check and not isinstance(check["triggers"], dict):
-            raise ConfigurationError("check triggers must be an object")
+        if "triggers" in check:
+            if not isinstance(check["triggers"], dict):
+                raise ConfigurationError("check triggers must be an object")
+            if not is_glob_list(check["triggers"].get("paths", [])):
+                raise ConfigurationError("check trigger paths must be a list of globs")
         if check.get("category") == "secrets" and "triggers" in check and not check["triggers"].get("always"):
             raise ConfigurationError("secret checks must be always-on")
         if "timeout_seconds" in check:
@@ -180,6 +172,9 @@ def validate_config(config: Any) -> None:
                 raise ConfigurationError("timeout_seconds must be an integer") from exc
             if timeout <= 0:
                 raise ConfigurationError("timeout_seconds must be positive")
+        expected = check.get("expected_returncodes", [])
+        if not isinstance(expected, list) or any(not isinstance(item, int) for item in expected):
+            raise ConfigurationError("expected_returncodes must be a list of integers")
 
 
 def command_exists(command: Sequence[str]) -> bool:
@@ -218,19 +213,15 @@ def matches_any(path: str, patterns: Sequence[str]) -> bool:
 
 def evaluate_scope(
     config: Dict[str, Any], files: Optional[List[str]]
-) -> Tuple[List[str], Dict[str, Dict[str, Any]]]:
+) -> Dict[str, Dict[str, Any]]:
     decisions: Dict[str, Dict[str, Any]] = {}
     full_scan = files is None or not files
     trip_paths = config.get("trip_all_paths", list(DEFAULT_TRIP_ALL_PATHS))
-    if not isinstance(trip_paths, list) or any(not isinstance(item, str) for item in trip_paths):
-        raise ConfigurationError("trip_all_paths must be a list of globs")
     tripped = [] if full_scan else [item for item in files or [] if matches_any(item, trip_paths)]
 
     for check in config["checks"]:
         name = check["name"]
         triggers = check.get("triggers", DEFAULT_TRIGGERS.get(name, {"always": True}))
-        if not isinstance(triggers, dict):
-            raise ConfigurationError("check triggers must be an object")
         if full_scan:
             decisions[name] = {
                 "run": True,
@@ -250,10 +241,7 @@ def evaluate_scope(
                 "matched_paths": tripped,
             }
         else:
-            patterns = triggers.get("paths", [])
-            if not isinstance(patterns, list) or any(not isinstance(item, str) for item in patterns):
-                raise ConfigurationError("check trigger paths must be a list of globs")
-            matched = [item for item in files or [] if matches_any(item, patterns)]
+            matched = [item for item in files or [] if matches_any(item, triggers.get("paths", []))]
             decisions[name] = {
                 "run": bool(matched),
                 "reason": (
@@ -262,7 +250,7 @@ def evaluate_scope(
                 ),
                 "matched_paths": matched,
             }
-    return list(files or []), decisions
+    return decisions
 
 
 def make_finding(
@@ -328,9 +316,10 @@ def parse_semgrep(raw: Any, category: str, tool: str) -> List[Dict[str, str]]:
         extra = item.get("extra", {})
         if not isinstance(extra, dict):
             extra = {}
+        severity = extra.get("severity")
         findings.append(make_finding(
             category,
-            extra.get("severity", "INFO"),
+            SEMGREP_SEVERITIES.get(str(severity).upper(), severity),
             tool,
             extra.get("message") or item.get("check_id", "Static-analysis finding"),
             item.get("path", ""),
@@ -399,26 +388,16 @@ def read_json_output(output_path: Path, stdout: bytes) -> Any:
     raise JsonOutputError("scanner produced no JSON report")
 
 
-def unavailable_result(check: Dict[str, Any], decision: Dict[str, Any], title: str) -> Dict[str, Any]:
-    required = bool(check.get("required", False))
-    result: Dict[str, Any] = {
-        "name": check["name"],
-        "category": check.get("category", "other"),
-        "required": required,
+def not_assessed(base: Dict[str, Any], title: str, hint: str, missing_tool: bool = False) -> Dict[str, Any]:
+    base.update({
         "status": "Not-Assessed",
-        "skipped": False,
-        "scope_reason": decision["reason"],
-        "matched_paths": decision.get("matched_paths", []),
-        "returncode": None,
         "tool_error": title,
-        "findings": [make_finding(
-            "tool-errors", "INFO", check["name"], title, "",
-            "Provide the missing executable or record the operator prerequisite.",
-            "Not-Assessed",
-        )],
-    }
-    result["required_failure"] = required
-    return result
+        "missing_tool": missing_tool,
+        "operational_error": not missing_tool,
+        "required_failure": base["required"],
+        "findings": [make_finding("tool-errors", "INFO", base["name"], title, "", hint, "Not-Assessed")],
+    })
+    return base
 
 
 def run_check(check: Dict[str, Any], tempdir: Path, decision: Dict[str, Any]) -> Dict[str, Any]:
@@ -426,7 +405,6 @@ def run_check(check: Dict[str, Any], tempdir: Path, decision: Dict[str, Any]) ->
         "name": check["name"],
         "category": check.get("category", "other"),
         "required": bool(check.get("required", False)),
-        "status": "Skipped" if not decision["run"] else "Pending",
         "skipped": not decision["run"],
         "scope_reason": decision["reason"],
         "matched_paths": decision.get("matched_paths", []),
@@ -434,12 +412,17 @@ def run_check(check: Dict[str, Any], tempdir: Path, decision: Dict[str, Any]) ->
         "findings": [],
     }
     if not decision["run"]:
+        base["status"] = "Skipped"
         return base
 
-    command = materialize_command(check["command"], tempdir / (check["name"] + ".json"))
+    output_path = tempdir / (check["name"] + ".json")
+    command = materialize_command(check["command"], output_path)
     base["command_name"] = command[0]
     if not command_exists(command):
-        return unavailable_result(check, decision, "missing executable: " + command[0])
+        return not_assessed(
+            base, "missing executable: " + command[0],
+            "Provide the missing executable or record the operator prerequisite.", missing_tool=True,
+        )
 
     timeout = int(check.get("timeout_seconds", DEFAULT_TIMEOUT_SECONDS))
     try:
@@ -450,81 +433,41 @@ def run_check(check: Dict[str, Any], tempdir: Path, decision: Dict[str, Any]) ->
             timeout=timeout,
         )
     except subprocess.TimeoutExpired:
-        base.update({
-            "status": "Not-Assessed",
-            "tool_error": "scanner timed out after %ss" % timeout,
-            "operational_error": True,
-            "findings": [make_finding(
-                "tool-errors", "INFO", check["name"],
-                "scanner timed out after %ss" % timeout, "",
-                "Reduce scope or resolve the scanner timeout before claiming coverage.",
-                "Not-Assessed",
-            )],
-        })
-        base["required_failure"] = bool(check.get("required", False))
-        return base
+        return not_assessed(
+            base, "scanner timed out after %ss" % timeout,
+            "Reduce scope or resolve the scanner timeout before claiming coverage.",
+        )
     except OSError:
-        base.update({
-            "status": "Not-Assessed",
-            "tool_error": "scanner could not be started",
-            "operational_error": True,
-            "findings": [make_finding(
-                "tool-errors", "INFO", check["name"], "scanner could not be started", "",
-                "Check the local executable and operator prerequisites.", "Not-Assessed",
-            )],
-        })
-        base["required_failure"] = bool(check.get("required", False))
-        return base
+        return not_assessed(
+            base, "scanner could not be started",
+            "Check the local executable and operator prerequisites.",
+        )
 
     base["returncode"] = proc.returncode
-    output_path = tempdir / (check["name"] + ".json")
     try:
         raw = read_json_output(output_path, proc.stdout)
     except JsonOutputError as exc:
-        base.update({
-            "status": "Not-Assessed",
-            "tool_error": str(exc),
-            "operational_error": True,
-            "findings": [make_finding(
-                "tool-errors", "INFO", check["name"], str(exc), "",
-                "Make the configured scanner produce usable JSON before claiming coverage.",
-                "Not-Assessed",
-            )],
-        })
-        base["required_failure"] = bool(check.get("required", False))
-        return base
+        return not_assessed(
+            base, str(exc), "Make the configured scanner produce usable JSON before claiming coverage."
+        )
 
     parser = PARSERS.get(check["name"])
     if parser is None:
-        base.update({
-            "status": "Not-Assessed",
-            "tool_error": "no parser registered for scanner output",
-            "operational_error": True,
-            "findings": [make_finding(
-                "tool-errors", "INFO", check["name"],
-                "no parser registered for scanner output", "",
-                "Use a supported scanner name or add a reviewed parser.", "Not-Assessed",
-            )],
-        })
-        base["required_failure"] = bool(check.get("required", False))
-        return base
+        return not_assessed(
+            base, "no parser registered for scanner output",
+            "Use a supported scanner name or add a reviewed parser.",
+        )
 
-    expected = check.get("expected_returncodes", EXPECTED_RETURNCODES.get(check["name"], (0, 1)))
-    if not isinstance(expected, (list, tuple)) or any(not isinstance(item, int) for item in expected):
-        raise ConfigurationError("expected_returncodes must be a list of integers")
-    findings = parser(raw, check.get("category", "other"), check["name"])
+    findings = parser(raw, base["category"], check["name"])
+    if proc.returncode not in check.get("expected_returncodes", (0, 1)):
+        result = not_assessed(
+            base, "scanner exited with unexpected code %s" % proc.returncode,
+            "Resolve the scanner failure before claiming coverage.",
+        )
+        result["findings"] = findings + result["findings"]
+        return result
     base["status"] = "Assessed"
     base["findings"] = findings
-    if proc.returncode not in tuple(expected):
-        base["status"] = "Not-Assessed"
-        base["tool_error"] = "scanner exited with unexpected code %s" % proc.returncode
-        base["operational_error"] = True
-        base["findings"].append(make_finding(
-            "tool-errors", "INFO", check["name"],
-            "scanner exited with unexpected code %s" % proc.returncode, "",
-            "Resolve the scanner failure before claiming coverage.", "Not-Assessed",
-        ))
-        base["required_failure"] = bool(check.get("required", False))
     return base
 
 
@@ -561,37 +504,37 @@ def confirm_force() -> bool:
     return answer == "YES"
 
 
-def format_counter(counter: Dict[str, int]) -> str:
+def format_counter(counter: Dict[str, int], order: Sequence[str]) -> str:
     if not counter:
         return "none"
-    ordered = ["%s=%s" % (level, counter[level]) for level in SEVERITIES if level in counter]
-    return ", ".join(ordered)
+    return ", ".join("%s=%s" % (key, counter[key]) for key in order if key in counter)
 
 
-def format_categories(counter: Dict[str, int]) -> str:
-    if not counter:
-        return "none"
-    return ", ".join("%s=%s" % (name, counter[name]) for name in sorted(counter))
+def summary_lines(payload: Dict[str, Any]) -> List[Tuple[str, str]]:
+    summary = payload["summary"]
+    return [
+        ("Mode", payload["scope"]["mode"]),
+        ("Staged files considered", str(len(payload["scope"]["files"]))),
+        ("Checks run", "%s of %s (skipped: %s)" % (
+            summary["checks_run"], summary["checks_configured"], summary["checks_skipped"])),
+        ("Checks assessed", str(summary["checks_assessed"])),
+        ("Not-Assessed checks", str(summary["not_assessed"])),
+        ("Findings", str(summary["finding_count"])),
+        ("Severity", format_counter(summary["severity_counts"], SEVERITIES)),
+        ("Categories", format_counter(summary["category_counts"], sorted(summary["category_counts"]))),
+        ("Bypass", payload["bypass"]["status"]),
+    ]
+
+
+def finding_line(item: Dict[str, str]) -> str:
+    path = " (%s)" % item["path"] if item.get("path") else ""
+    return "[%s/%s, %s] %s%s" % (item["category"], item["tool"], item["assessment"], item["title"], path)
 
 
 def render_markdown(payload: Dict[str, Any]) -> str:
-    summary = payload["summary"]
-    scope = payload["scope"]
-    bypass = payload["bypass"]
-    lines = [
-        "# Security Check Report", "", "Generated: " + payload["generated_at"], "",
-        "## Summary", "",
-        "- Mode: " + scope["mode"],
-        "- Staged files considered: %s" % len(scope.get("files", [])),
-        "- Checks run: %s of %s (skipped: %s)" % (
-            summary["checks_run"], summary["checks_configured"], summary["checks_skipped"]),
-        "- Checks assessed: %s" % summary["checks_assessed"],
-        "- Not-Assessed checks: %s" % summary["not_assessed"],
-        "- Findings: %s" % summary["finding_count"],
-        "- Severity: " + format_counter(summary["severity_counts"]),
-        "- Categories: " + format_categories(summary["category_counts"]),
-        "- Bypass: " + bypass["status"], "", "## Scope Decisions", "",
-    ]
+    lines = ["# Security Check Report", "", "Generated: " + payload["generated_at"], "", "## Summary", ""]
+    lines.extend("- %s: %s" % line for line in summary_lines(payload))
+    lines.extend(["", "## Scope Decisions", ""])
     for check in payload["checks"]:
         lines.append("- **%s**: %s — %s" % (
             check["name"], check["status"], check.get("scope_reason", "")))
@@ -599,10 +542,7 @@ def render_markdown(payload: Dict[str, Any]) -> str:
     if not payload["findings"]:
         lines.append("No findings.")
     for item in payload["findings"]:
-        path = " (%s)" % item["path"] if item.get("path") else ""
-        lines.append("- **%s** [%s/%s, %s] %s%s" % (
-            item["severity"], item["category"], item["tool"],
-            item["assessment"], item["title"], path))
+        lines.append("- **%s** %s" % (item["severity"], finding_line(item)))
         if item.get("hint"):
             lines.append("  - Hint: " + item["hint"])
     lines.append("")
@@ -619,29 +559,16 @@ def write_reports(json_path: Path, markdown_path: Path, payload: Dict[str, Any])
 
 
 def print_summary(payload: Dict[str, Any], json_path: Path, markdown_path: Path) -> None:
-    summary = payload["summary"]
     print("Security Check Summary")
     print("======================")
-    print("Mode: " + payload["scope"]["mode"])
-    if payload["scope"]["mode"] == "staged":
-        print("Staged files: %s" % len(payload["scope"]["files"]))
-    print("Checks run: %s of %s (skipped: %s)" % (
-        summary["checks_run"], summary["checks_configured"], summary["checks_skipped"]))
-    print("Checks assessed: %s; Not-Assessed: %s" % (
-        summary["checks_assessed"], summary["not_assessed"]))
-    print("Findings: %s" % summary["finding_count"])
-    print("Severity: " + format_counter(summary["severity_counts"]))
-    print("Categories: " + format_categories(summary["category_counts"]))
-    print("Bypass: " + payload["bypass"]["status"])
+    for line in summary_lines(payload):
+        print("%s: %s" % line)
     print("JSON report: " + str(json_path))
     print("Markdown report: " + str(markdown_path))
     if payload["findings"]:
         print("\nTop findings:")
         for item in payload["findings"][:10]:
-            path = " (%s)" % item["path"] if item.get("path") else ""
-            print("- %s [%s/%s, %s] %s%s" % (
-                item["severity"], item["category"], item["tool"],
-                item["assessment"], item["title"], path))
+            print("- %s %s" % (item["severity"], finding_line(item)))
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -678,7 +605,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         else:
             files = staged_files()
             mode = "staged" if files else "full"
-        _, decisions = evaluate_scope(config, files if mode == "staged" else None)
+        decisions = evaluate_scope(config, files if mode == "staged" else None)
         with tempfile.TemporaryDirectory(prefix="security-check-") as temp:
             results = [
                 run_check(check, Path(temp), decisions[check["name"]])
@@ -689,12 +616,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         return 2
 
     findings, summary = summarize(results)
-    blocking = should_fail(findings, config.get("fail_on", ["CRITICAL", "HIGH"]))
-    missing_tools = [
-        result for result in results
-        if result.get("status") == "Not-Assessed"
-        and result.get("tool_error", "").startswith("missing executable:")
-    ]
+    blocking = should_fail(findings, config.get("fail_on", DEFAULT_FAIL_ON))
+    missing_tool = any(result.get("missing_tool") for result in results)
     required_failure = any(result.get("required_failure") for result in results)
     operational_failure = any(result.get("operational_error") for result in results)
     bypass = {"requested": bool(args.force), "accepted": False, "status": "not-requested"}
@@ -722,7 +645,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     print_summary(payload, json_path, markdown_path)
 
     if required_failure or operational_failure:
-        if args.allow_missing_tools and missing_tools and not operational_failure and not blocking:
+        if args.allow_missing_tools and missing_tool and not operational_failure and not blocking:
             print("Required executables are missing; report is partial and Not-Assessed.", file=sys.stderr)
             return 0
         print("Security assessment incomplete; resolve Not-Assessed prerequisites.", file=sys.stderr)

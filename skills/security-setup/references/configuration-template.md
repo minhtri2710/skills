@@ -31,26 +31,21 @@ established.
 The runner accepts JSON with `fail_on`, optional `trip_all_paths`, and a `checks`
 array. Each check names a category, executable command, and optional `required`
 and `triggers` fields. The command must be an argv array, not a shell string;
-`{output}` is replaced with a temporary per-check JSON output path.
+`{output}` is replaced with a temporary per-check JSON output path. Omitted
+fields take the script's values: `fail_on`, `trip_all_paths`
+(`DEFAULT_TRIP_ALL_PATHS`), and the per-scanner triggers are defined in
+`scripts/security_check.py`, as is the built-in `DEFAULT_CONFIG` used when no
+configuration file exists. Read them there and set a field only to differ.
 
 ```json
 {
-  "fail_on": ["CRITICAL", "HIGH"],
-  "trip_all_paths": [
-    ".pre-commit-config.yaml",
-    "security/**",
-    ".github/workflows/**",
-    "Dockerfile*",
-    ".dockerignore",
-    "scripts/security_check.py"
-  ],
   "checks": [
     {
       "name": "gitleaks",
       "category": "secrets",
       "required": true,
       "triggers": {"always": true},
-      "command": ["gitleaks", "git", ".", "--redact", "--report-format", "json", "--report-path", "{output}"]
+      "command": ["gitleaks", "<observed offline subcommand and flags>", "--report-path", "{output}"]
     }
   ]
 }
@@ -63,8 +58,8 @@ network-accessible ruleset is `Not-Assessed`, not a successful check.
 
 ## Reports
 
-The default output paths are `security/security-report.json` and
-`security/security-report.md`. They are declared reporting artifacts only. The
+The default output paths are the `--output` and `--markdown` defaults in
+`scripts/security_check.py`. They are declared reporting artifacts only. The
 runner may create their parent directory and the two report files; it must not
 write a backup, configuration, hook, CI workflow, security policy, lockfile, or
 any path outside the explicitly selected report outputs and temporary files.

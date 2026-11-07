@@ -10,10 +10,15 @@ current. Record unavailable tools, rules, databases, and platform support as
 | Repository evidence | Secrets | Dependencies | Static analysis |
 |---|---|---|---|
 | Any Git repository | An available local secret scanner | Only when a matching manifest/lockfile is present and local advisory data is available | A local ruleset for languages actually present |
-| Python manifest or lockfile | Existing local `detect-secrets`, otherwise an available secret scanner | A local filesystem scanner, if its database is present | `bandit` only when available; local rules for observed Python |
+| Python manifest or lockfile | An available secret scanner | A local filesystem scanner, if its database is present | `bandit` only when available; local rules for observed Python |
 | JavaScript lockfile | An available local secret scanner | A local filesystem scanner with its database present | Local rules for observed JavaScript/TypeScript |
 | `Cargo.lock` | An available local secret scanner | `cargo-audit` or a local filesystem scanner, only when available and current enough for the task | Existing Cargo linting plus local rules where evidenced |
 | `go.mod`/`go.sum` | An available local secret scanner | A local filesystem scanner with its database present | Local rules for observed Go |
+
+The runner parses the output of only the scanners in `PARSERS` in
+`scripts/security_check.py`; select from those. A check named for any other
+scanner ends `Not-Assessed` ("no parser registered"), so adding one is a
+reviewed script change, not a configuration choice.
 
 Prefer one tool that covers the evidenced category over several overlapping
 scanners. Do not add a dependency or install a tool just because this matrix
