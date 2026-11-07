@@ -268,7 +268,18 @@ class CharterRenderTest(unittest.TestCase):
             ("app/[id].tsx", "app/[id].tsx", True), ("app/[id].tsx", "app/i.tsx", False),
         ):
             with self.subTest(entry=entry, path=path):
-                self.assertEqual(charter_render._owns(entry, path), owned)
+                support.git(self.repo, "checkout", "-q", "-B", "case", self.base)
+                (self.repo / path).parent.mkdir(parents=True, exist_ok=True)
+                (self.repo / path).write_text("x\n", encoding="utf-8")
+                support.git(self.repo, "add", "-A")
+                support.git(self.repo, "commit", "-q", "-m", "case")
+                self.partitioned(entry)
+                code, _, err = self.render("--head", support.git(self.repo, "rev-parse", "HEAD"))
+                if owned:
+                    self.assertEqual((code, err), (0, ""))
+                else:
+                    self.assertEqual(code, 1)
+                    self.assertIn(f"{path} has no ENGINEER owner", err)
 
     def test_a_base_that_is_not_an_ancestor_of_the_head_is_refused(self):
         unrelated = support.git(self.repo, "commit-tree", f"{self.head}^{{tree}}", "-m", "unrelated")

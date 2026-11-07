@@ -5,6 +5,7 @@ import contextlib
 import hashlib
 import io
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -43,6 +44,9 @@ class CharterLintTest(unittest.TestCase):
         self._tmp = tempfile.TemporaryDirectory(dir=os.path.realpath("/tmp"))
         self.tmp = Path(self._tmp.name)
         self.addCleanup(self._tmp.cleanup)
+        self.bin = self.tmp / "bin"
+        self.bin.mkdir()
+        (self.bin / "git").symlink_to(shutil.which("git"))
 
     def lint_main(self, argv: list[str], seats: backend.Backend | None = None) -> int:
         opened = unittest.mock.patch.object(
@@ -56,7 +60,13 @@ class CharterLintTest(unittest.TestCase):
         charter: str,
         staffing: str | None = None,
         seats: backend.Backend | None = None,
+        fence_tool: bool = True,
     ) -> tuple[int, str, str]:
+        fence = self.bin / "sandbox-exec"
+        fence.unlink(missing_ok=True)
+        if fence_tool:
+            fence.write_text("#!/bin/sh\n", encoding="utf-8")
+            fence.chmod(0o755)
         charter_path = self.tmp / "charter.md"
         charter_path.write_text(charter, encoding="utf-8")
         argv = ["--charter", str(charter_path), "--lead", LEAD, "--repo", str(self.repo)]
@@ -67,7 +77,7 @@ class CharterLintTest(unittest.TestCase):
 
         stdout = io.StringIO()
         stderr = io.StringIO()
-        with unittest.mock.patch.object(charter_lint, "_sandbox_exec_available", return_value=True), \
+        with unittest.mock.patch.dict(os.environ, {"PATH": str(self.bin)}), \
                 contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
             code = self.lint_main(argv, seats)
         return code, stdout.getvalue(), stderr.getvalue()
@@ -267,6 +277,14 @@ class CharterLintTest(unittest.TestCase):
         code, _, error = self.run_lint(self.reviewer_charter(), staffing)
         self.assertEqual(code, 1)
         self.assertIn("REVIEWER fence=none is not allowed", error)
+
+    def test_reviewer_fence_none_with_a_reason_is_accepted_without_sandbox_exec(self):
+        staffing = self.staffing_record().replace(
+            self.fence_evidence(), "fence=none(no OS fence available)", 1
+        )
+        code, output, error = self.run_lint(self.reviewer_charter(), staffing, fence_tool=False)
+        self.assertEqual((code, error), (0, ""))
+        self.assertIn("OK:", output)
 
     def test_reviewer_balanced_parentheses_in_fence_evidence_are_accepted(self):
         staffing = self.staffing_record().replace(

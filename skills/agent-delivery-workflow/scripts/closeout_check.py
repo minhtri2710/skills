@@ -50,17 +50,12 @@ _INTERPRETER_SUBCOMMANDS = frozenset({"run"})
 _INLINE_CODE_FLAGS = frozenset({"-c", "-e", "-m", "-r", "--eval"})
 
 
-def _record_from_input(staffing_record: Mapping[str, Any] | str | Path) -> Mapping[str, Any]:
-    if isinstance(staffing_record, Mapping):
-        return staffing_record
-    if isinstance(staffing_record, (str, Path)):
-        path = Path(staffing_record)
-        with path.open("r", encoding="utf-8") as handle:
-            value = json.load(handle)
-        if not isinstance(value, Mapping):
-            raise ValueError("staffing record must contain a JSON object")
-        return value
-    raise ValueError("staffing record must be a mapping or a JSON file path")
+def _record_from_input(path: str | Path) -> Mapping[str, Any]:
+    with Path(path).open("r", encoding="utf-8") as handle:
+        value = json.load(handle)
+    if not isinstance(value, Mapping):
+        raise ValueError("staffing record must contain a JSON object")
+    return value
 
 
 def _validate_handle(value: Any, label: str) -> str:
@@ -184,10 +179,7 @@ def _runs_server_script(argv: list[str]) -> bool:
     return False
 
 
-def check_closeout(
-    staffing_record: Mapping[str, Any] | str | Path,
-    seats: backend.Backend,
-) -> CloseoutResult:
+def check_closeout(staffing_record: str | Path, seats: backend.Backend) -> CloseoutResult:
     """Inspect exactly the recorded peer seats through a read-only backend."""
     findings: list[str] = []
     try:
