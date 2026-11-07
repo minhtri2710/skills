@@ -41,7 +41,7 @@ requires, report it with the addition you suggest; edit no config and take no ot
 | Engineer (one per owned path set) | the implementation inside its owned paths | edit outside owned paths, commit, staff any agent beyond its own subagents |
 | Reviewer | `PASS` / `FAIL` / `BLOCKED` on one exact SHA | write anything, review a moving tree |
 | Heartbeat | nothing; reports one bounded snapshot | start work, run tests, edit |
-| Watcher (not a Heartbeat: it runs on a recurring self-heartbeat and judges activity against the rules) | nothing; reports rule violations to the Supervisor only, P0 at once, P1 batched at most hourly | act on, prompt, stop, or archive another agent, answer a permission, write outside its record dir, message anyone but the Supervisor |
+| Watcher (not a Heartbeat: it runs on a recurring self-heartbeat and judges activity against the rules) | nothing; reports rule violations to the Supervisor only, P0 and a permission waiting over 15 minutes at once, other P1 batched at most hourly | act on, prompt, stop, or archive another agent, answer a permission, write outside its record dir, message anyone but the Supervisor |
 
 Tiers are guardrails, not a security boundary: policy is resolved by provider id alone,
 agent-targeting tools take any `agentId` with no ownership check (only heartbeat tools

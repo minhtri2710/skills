@@ -65,8 +65,10 @@ Read only `<approval-record>`, `<project-records>`, and your own `<record-dir>`;
 - `findings.md`: one dated entry per finding: agent id and title, the rule broken, the exact
   tool call or command (redacted), why it matters.
 - `state.md`: your start time, the start time of your last check, per agent its title,
-  project, and read-up-to time, the time of your last P1 send, the P1 lines not yet sent,
-  and the command of a sent `blocked` report.
+  project, and read-up-to time, the time of your last P1 batch, the P1 lines not yet sent,
+  per pending permission request id the start of the check that first listed it and whether
+  its line was sent (dropped once `paseo permit ls --json` stops listing it; the 15 minutes
+  and `<min>` count from that start), and the command of a sent `blocked` report.
 
 ## Report line
 
@@ -77,6 +79,10 @@ One line per P0 finding to `<supervisor-id>` and no one else:
 A P1 batch is one send of one line, at most one per hour:
 
 `watcher P1: <count> findings — evidence: <record-dir>/findings.md#<anchor>, #<anchor>, ...`
+
+A permission request's line, outside the batch:
+
+`watcher P1: <agent id first 8> <project> permission waiting <min> min — evidence: <record-dir>/findings.md#<anchor>`
 
 ## P0: send at once
 
@@ -118,7 +124,8 @@ A P1 batch is one send of one line, at most one per hour:
 
 ## P1: queue, send at most one batch per hour
 
-- A permission request waiting more than 15 minutes.
+- A permission request waiting more than 15 minutes: not queued;
+  sent at once, once per request id.
 - An agent in an error state.
 - A Reviewer or Engineer that finished without sending its verdict or report to its Lead.
 - The same hook block three or more times for one agent.
