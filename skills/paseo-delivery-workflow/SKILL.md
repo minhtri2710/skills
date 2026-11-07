@@ -114,8 +114,8 @@ other tier gains a shell `paseo` use from this exception.
    on their own SHA. The Reviewer reviews the diff while the lanes run, runs no lane itself,
    and reports `PASS` / `FAIL` / `BLOCKED` only after reading every lane's output file,
    quoting what it saw; the Lead sends it each file's path as its lane ends, and a Reviewer
-   waiting on one is not stalled. A lane's output shows the SHA it ran at, before and after
-   it, and for a worktree snapshot an empty `git status --porcelain` there. A lane is green
+   waiting on one is not stalled. A lane's output shows, before and after it, the SHA it ran
+   at and, for a worktree snapshot, an empty `git status --porcelain` there. A lane is green
    at a SHA when its output shows it passing there, or at an earlier SHA whose diff to this
    one touches no path the lane reads; a read path that is solely a build input may change
    when the product artifact built there (build-VCS stamping off) has the same hash at both
