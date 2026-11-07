@@ -211,7 +211,7 @@ def _launch_args(
     for process in seat_backend.processes(handle):
         for i, arg in enumerate(process.argv):
             if Path(arg).name == kind:
-                return (None, process) if len(process.argv) == 1 else (list(process.argv[i + 1:]), None)
+                return (list(process.argv[i + 1:]), None) if process.argv_reported else (None, process)
     raise ValueError(f"no {kind} process in seat {handle}")
 
 

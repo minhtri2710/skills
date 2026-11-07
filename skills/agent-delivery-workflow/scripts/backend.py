@@ -85,20 +85,22 @@ class Seat:
 
 @dataclass(frozen=True)
 class Process:
-    """A foreground process of a seat; argv falls back to (argv0,) or (name,) when the tool hides argv."""
+    """A foreground process of a seat. argv_reported is False when the tool hid argv and argv is the (argv0,) or (name,) fallback."""
 
     argv: tuple[str, ...]
     pid: int | None = None
     cwd: str | None = None
+    argv_reported: bool = True
 
     @classmethod
     def from_record(cls, record: Mapping[str, Any]) -> Process:
         argv = record.get("argv")
-        if not (isinstance(argv, list) and all(isinstance(arg, str) for arg in argv)):
+        reported = isinstance(argv, list) and bool(argv) and all(isinstance(arg, str) for arg in argv)
+        if not reported:
             word = record.get("argv0") or record.get("name")
             argv = [word] if isinstance(word, str) else []
         pid, cwd = record.get("pid"), record.get("cwd")
-        return cls(tuple(argv), pid if isinstance(pid, int) else None, cwd if isinstance(cwd, str) else None)
+        return cls(tuple(argv), pid if isinstance(pid, int) else None, cwd if isinstance(cwd, str) else None, reported)
 
 
 class SendBlock(NamedTuple):

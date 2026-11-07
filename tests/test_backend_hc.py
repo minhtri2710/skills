@@ -390,6 +390,15 @@ class ProcessesTest(unittest.TestCase):
         self.assertEqual(a.processes("t3"), [backend.Process(("npm", "run", "dev"), 777, "/work/checkout/app")])
         self.assertEqual(runner.argv, [["get", "t7", "--json"], ["get", "t3", "--json"]])
 
+    def test_a_reported_one_word_argv_is_reported_and_a_missing_one_falls_back_to_the_name(self) -> None:
+        for foreground, expected in (
+            ('{"pid": 5, "name": "pi", "argv": ["pi"]}', backend.Process(("pi",), 5)),
+            ('{"pid": 6, "name": "node", "argv": []}', backend.Process(("node",), 6, argv_reported=False)),
+        ):
+            with self.subTest(foreground):
+                a, _ = adapter(reply('{"address": "t1", "state": "live", "foreground": %s}' % foreground))
+                self.assertEqual(a.processes("t1"), [expected])
+
     def test_a_finished_terminal_has_no_process(self) -> None:
         a, _ = adapter(reply(fixture("get-finished-ok.json")))
         self.assertEqual(a.processes("t9"), [])

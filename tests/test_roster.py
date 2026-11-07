@@ -524,6 +524,21 @@ class RosterTest(unittest.TestCase):
         rc, lines, error = self._drift([agent], process, ["eng:engineer"], config)
         self.assertEqual((rc, lines, error), (0, [], ""))
 
+    def test_drift_compares_a_visible_one_word_argv_against_the_route(self):
+        agent = {"pane_id": "w1:p1", "name": "eng", "agent": "claude", "agent_status": "idle"}
+        process = {"w1:p1": ["claude"]}
+        bare = {
+            "engineer-kind": "claude", "engineer-args": [],
+            "launch-profiles": {"claude": {"seat-argv": [], "peer-argv": []}},
+        }
+        self.assertEqual(self._drift([agent], process, ["eng:engineer"], bare), (0, [], ""))
+        flagged = dict(bare, **{"engineer-args": ["--model", "m1"]})
+        rc, lines, error = self._drift([agent], process, ["eng:engineer"], flagged)
+        self.assertEqual((rc, error), (0, ""))
+        self.assertEqual(lines, [
+            "w1:p1 eng claude DRIFT role=engineer running=claude --model - expected=claude --model m1",
+        ])
+
     def test_drift_marks_ambiguous_model_alias_unverifiable(self):
         config = {
             "engineer-kind": "pi", "engineer-args": ["--model", "luna"],

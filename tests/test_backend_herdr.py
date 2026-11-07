@@ -257,8 +257,9 @@ class ReadPromptWaitTest(unittest.TestCase):
                 backend.Process(("caffeinate", "-i")),
                 backend.Process(("/usr/local/bin/claude", "--model", "opus"), 4242, "/work/checkout"),
                 backend.Process(("npm", "run", "dev"), 4343, "/work/checkout/app"),
-                backend.Process(("node",), 4444),
-                backend.Process(("zsh",)),
+                backend.Process(("pi",), 4545),
+                backend.Process(("node",), 4444, argv_reported=False),
+                backend.Process(("zsh",), argv_reported=False),
             ],
         )
         self.assertEqual(runner.argv, [["pane", "process-info", "--pane", "w1:p3"]])

@@ -448,12 +448,12 @@ class ProcessesTest(unittest.TestCase):
         a, runner = adapter(reply(fixture("process_claude.json")))
         processes = a.processes(ENG_A)
         self.assertEqual(runner.argv, [block_call("block:a2", "process")])
-        self.assertEqual(processes, [backend.Process(("claude",), 4242, "/tmp/sku-proj-a")])
+        self.assertEqual(processes, [backend.Process(("claude",), 4242, "/tmp/sku-proj-a", argv_reported=False)])
 
     def test_other_foregrounds_and_none(self) -> None:
         a, _ = adapter(reply(fixture("process_codex.json")), reply(fixture("process_shell.json")), reply(fixture("process_none.json")))
-        self.assertEqual(a.processes(ENG_A), [backend.Process(("node",), 4242, "/tmp/sku-proj-b")])
-        self.assertEqual(a.processes(ENG_A), [backend.Process(("-zsh",), 4242, "/tmp/sku-proj-a")])
+        self.assertEqual(a.processes(ENG_A), [backend.Process(("node",), 4242, "/tmp/sku-proj-b", argv_reported=False)])
+        self.assertEqual(a.processes(ENG_A), [backend.Process(("-zsh",), 4242, "/tmp/sku-proj-a", argv_reported=False)])
         self.assertEqual(a.processes(ENG_A), [])
 
     def test_malformed_replies_fail_closed(self) -> None:
