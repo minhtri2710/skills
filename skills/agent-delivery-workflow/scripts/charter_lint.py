@@ -10,6 +10,7 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
+from typing import NamedTuple
 
 import backend
 
@@ -35,7 +36,11 @@ UNIT_RANGE_RE = re.compile(
 )
 SHORT_SHA_RE = re.compile(r"(?<![0-9a-f])[0-9a-f]{7,40}(?![0-9a-f])", re.IGNORECASE)
 REPORT_FILE_RE = re.compile(r"/[^\s\"'`$\\]*/report-[^\s/\"'`$\\]+\.md")
-SEAT_RE = re.compile(r"^\s*(ENGINEER|REVIEWER|ARCHITECT):.*$", re.IGNORECASE | re.MULTILINE)
+STAFFING_TEMPLATE = Path(__file__).resolve().parents[1] / "templates" / "reviewer-staffing-record.txt"
+SEAT_RE = re.compile(r"^[ \t]*(ENGINEER|REVIEWER|ARCHITECT):(.*)$", re.IGNORECASE | re.MULTILINE)
+_FIELD = r"(?:^|\s)([a-z][a-z-]*)=(\S*)"
+# The keys that identify a seat; every other key all seat lines of the template share is evidence checked here.
+IDENTITY_KEYS = ("kind", "model", "seat", "workspace")
 PLACEHOLDER_RE = re.compile(r"<[^>\r\n]+>")
 WAKE_GUARD_RE = re.compile(
     r"never\s+run\s+`?mailbox\.py\s+--wake`?\s+against\s+a\s+real\s+seat",
@@ -56,6 +61,41 @@ REVIEW_ORDER_RE = re.compile(
 TIME_LIMIT_RE = re.compile(
     r"^\s*time\s+limit:[^\n]*BLOCKED\s+\(time\s+limit\)", re.IGNORECASE | re.MULTILINE
 )
+
+
+class StaffedSeat(NamedTuple):
+    role: str  # ENGINEER, REVIEWER or ARCHITECT
+    name: str
+    fields: dict[str, str]  # lowercase key -> value, first occurrence
+    line: str
+
+
+def fields_of(text: str) -> dict[str, str]:
+    """The `key=value` tokens of a staffing-record line, keys lowercased, the first occurrence of a key kept."""
+    fields: dict[str, str] = {}
+    for key, value in re.findall(_FIELD, text, re.IGNORECASE):
+        fields.setdefault(key.lower(), value)
+    return fields
+
+
+def staffed_seats(text: str) -> list[StaffedSeat]:
+    """Every ENGINEER, REVIEWER and ARCHITECT line of a staffing record, in order."""
+    return [
+        StaffedSeat(match.group(1).upper(), (match.group(2).split() or [""])[0],
+                    fields_of(match.group(2)), match.group(0))
+        for match in SEAT_RE.finditer(text)
+    ]
+
+
+def _required_keys() -> tuple[str, ...]:
+    seats = staffed_seats(STAFFING_TEMPLATE.read_text(encoding="utf-8"))
+    return tuple(
+        key for key in seats[0].fields
+        if key not in IDENTITY_KEYS and all(key in seat.fields for seat in seats)
+    )
+
+
+REQUIRED_KEYS = _required_keys()
 
 
 def _read(path: Path, label: str) -> tuple[str, bytes]:
@@ -82,14 +122,16 @@ def _send_block_problems(text: str, lead: str, seats: backend.Backend) -> list[s
     return [f"missing report-by-prompt block, as {seats.name} renders it:\n{blocks[0].text}"]
 
 
+def _disposition(text: str) -> str | None:
+    match = DISPOSITION_RE.search(text)
+    return match.group(1).lower() if match else None
+
+
 def _charter_problems(text: str, lead: str, seats: backend.Backend) -> list[str]:
     problems: list[str] = []
-    disposition_match = DISPOSITION_RE.search(text)
-    if disposition_match is None:
+    disposition = _disposition(text)
+    if disposition is None:
         problems.append("missing Disposition: Engineer / Reviewer / Architect line")
-        disposition = None
-    else:
-        disposition = disposition_match.group(1).lower()
 
     if disposition == "engineer" and not re.search(r"owned paths", text, re.IGNORECASE):
         problems.append("missing owned paths section")
@@ -152,34 +194,25 @@ def _charter_allows_docker(charter: str) -> bool:
 def _staffing_problems(
     text: str, disposition: str | None, staffing_path: Path, charter: str
 ) -> list[str]:
-    seats = SEAT_RE.findall(text)
-    if not seats:
+    staffed = staffed_seats(text)
+    if not staffed:
         return ["staffing record has no ENGINEER, REVIEWER, or ARCHITECT seat lines"]
 
     problems: list[str] = []
-    for line in text.splitlines():
-        match = re.match(r"^\s*(ENGINEER|REVIEWER|ARCHITECT):", line, re.IGNORECASE)
-        if match is None:
-            continue
-        seat = match.group(1).upper()
-        for key in (
-            "posture=", "dialog=", "dialog-tools=", "dialog-deny=", "dialog-source=",
-            "skills=", "extensions=",
-        ):
-            if key not in line:
-                problems.append(f"{seat} seat missing {key}")
-        dialog_match = re.search(r"(?:^|\s)dialog=([^\s]+)", line, re.IGNORECASE)
-        evidence = {
-            key: re.search(rf"(?:^|\s){key}=([^\s]+)", line, re.IGNORECASE)
-            for key in ("dialog-tools", "dialog-deny", "dialog-source")
-        }
-        if dialog_match is not None and dialog_match.group(1).lower() not in {"denied", "absent"}:
-            problems.append(f"{seat} seat cannot have dialog={dialog_match.group(1)}")
-        elif dialog_match is not None and all(evidence.values()):
-            tool_names, deny, source = (evidence[key].group(1) for key in evidence)
+    for seat_line in staffed:
+        seat, line, fields = seat_line.role, seat_line.line, seat_line.fields
+        for key in REQUIRED_KEYS:
+            if key not in fields:
+                problems.append(f"{seat} seat missing {key}=")
+        dialog = fields.get("dialog")
+        evidence = [fields.get(key) for key in ("dialog-tools", "dialog-deny", "dialog-source")]
+        if dialog and dialog.lower() not in {"denied", "absent"}:
+            problems.append(f"{seat} seat cannot have dialog={dialog}")
+        elif dialog and all(evidence):
+            tool_names, deny, source = evidence
             if source.lower() == "none":
                 problems.append(f"{seat} seat dialog-source must identify inventory evidence")
-            if dialog_match.group(1).lower() == "absent":
+            if dialog.lower() == "absent":
                 if tool_names.lower() != "none" or deny.lower() != "none":
                     problems.append(f"{seat} dialog=absent requires dialog-tools=none and dialog-deny=none")
             elif tool_names.lower() == "none" or deny.lower() == "none":
@@ -236,11 +269,9 @@ def _staffing_problems(
                 if evidence is None or not evidence.strip():
                     problems.append(f"{seat} fence=none requires a reason in parentheses")
                     continue
-                kind = re.search(r"(?:^|\s)kind=([^\s]+)", line, re.IGNORECASE)
-                posture = re.search(r"(?:^|\s)posture=([^\s]+)", line, re.IGNORECASE)
                 needs_fence = (
-                    (kind is not None and kind.group(1).lower() == "pi")
-                    or (posture is not None and posture.group(1).lower() in {"bypassed", "none"})
+                    fields.get("kind", "").lower() == "pi"
+                    or fields.get("posture", "").lower() in {"bypassed", "none"}
                 )
                 if needs_fence and _sandbox_exec_available():
                     problems.append(
@@ -305,7 +336,6 @@ def _sha_problems(repo: Path, texts: dict[str, str]) -> list[str]:
 
 
 def _repair_range_problems(repo: Path, charter: str) -> list[str]:
-    """A repair re-review keeps the slice base: a commit its Prior review names lies in the unit, or was rewritten and the unit starts at or below where the head diverged from it."""
     prior = PRIOR_RE.search(charter)
     line = PRIOR_GLOSS_RE.sub("", prior.group(1)) if prior else ""
     if not re.search(r"\bFAIL", line):
@@ -358,8 +388,7 @@ def main(argv: list[str] | None = None) -> int:
         seats = backend.open_backend(os.environ, args.backend)
         charter, charter_bytes = _read(args.charter, "charter")
         problems = _charter_problems(charter, args.lead, seats)
-        disposition_match = DISPOSITION_RE.search(charter)
-        disposition = disposition_match.group(1).lower() if disposition_match else None
+        disposition = _disposition(charter)
         if disposition in ("engineer", "reviewer", "architect") and args.staffing is None:
             problems.append(
                 "staffing record is required for an Engineer/Reviewer/Architect disposition"

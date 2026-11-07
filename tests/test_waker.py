@@ -12,6 +12,7 @@ from unittest import mock
 
 import support
 import backend
+import runtimes
 import waker
 from fake_backend import FakeBackend
 
@@ -248,8 +249,8 @@ class WakerTest(unittest.TestCase):
 
     def test_measured_pi_layout_fits_the_read_window(self):
         # The read returns only TAIL_LINES lines, so the measured footer and marker must fit inside that window.
-        window = "\n".join(PI_TAIL.rstrip("\n").split("\n")[-waker.TAIL_LINES:])
-        self.assertTrue(waker.has_awaiting_marker(window))
+        window = "\n".join(PI_TAIL.rstrip("\n").split("\n")[-runtimes.TAIL_LINES:])
+        self.assertTrue(runtimes.has_awaiting_marker(window))
 
     def test_empty_tail_is_not_established(self):
         fake = Scripted(status="idle", tail="")

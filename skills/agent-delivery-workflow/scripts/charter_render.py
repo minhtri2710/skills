@@ -11,6 +11,7 @@ import sys
 from pathlib import Path
 
 import backend
+import charter_lint
 import project_config
 import state_root
 from gate_row import RowError, clean_merge_parents, landed_commits
@@ -34,21 +35,16 @@ def _git(repo: Path, *args: str) -> str:
 
 
 def _model(argv: list[str], key: str) -> str:
-    if "--model" not in argv[:-1]:
+    model = project_config.model_of(argv)
+    if not model:
         raise ValueError(f"config {key} has no --model")
-    return argv[argv.index("--model") + 1]
-
-
-def _seat(line: str) -> tuple[str, dict[str, str]]:
-    name, _, rest = line.partition(" ")
-    return name, dict(re.findall(r"([a-z-]+)=(\S*)", rest))
+    return model
 
 
 GLOB_TOKEN_RE = re.compile(r"\*\*/|\*\*|\*|\?|[^*?]+")
 
 
 def _glob_re(entry: str) -> re.Pattern[str]:
-    """`*` and `?` stay inside one directory, `**/` spans zero or more, `**` anything; the rest is literal."""
     parts = {"**/": "(?:.*/)?", "**": ".*", "*": "[^/]*", "?": "[^/]"}
     return re.compile("".join(parts.get(token, re.escape(token)) for token in GLOB_TOKEN_RE.findall(entry)))
 
@@ -59,7 +55,6 @@ def _owns(entry: str, path: str) -> bool:
 
 
 def scope_authors(staffing: Path, lead: str, paths: list[str]) -> tuple[str, list[str]]:
-    """The mode and each scope author `seat (kind model)` from the staffing record; refuses an unowned path."""
     text = staffing.read_text(encoding="utf-8")
     mode = re.search(r"^MODE: (\S+)", text, re.MULTILINE)
     if mode is None or mode.group(1) not in ("solo-Lead", "partitioned"):
@@ -68,11 +63,11 @@ def scope_authors(staffing: Path, lead: str, paths: list[str]) -> tuple[str, lis
         line = re.search(r"^LEAD: (.*)$", text, re.MULTILINE)
         if line is None:
             raise ValueError(f"{staffing} has no LEAD line")
-        fields = _seat(f"{lead} {line.group(1)}")[1]
+        fields = charter_lint.fields_of(line.group(1))
         if not fields.get("kind") or not fields.get("model"):
             raise ValueError(f"{staffing} LEAD line lacks kind= or model=")
         return "solo-Lead", [f"{lead} ({fields.get('kind')} {fields.get('model')})"]
-    engineers = [_seat(line) for line in re.findall(r"^ENGINEER: (.*)$", text, re.MULTILINE)]
+    engineers = [(seat.name, seat.fields) for seat in charter_lint.staffed_seats(text) if seat.role == "ENGINEER"]
     authors: dict[str, None] = {}
     for path in paths:
         owners = [(name, fields) for name, fields in engineers
@@ -163,7 +158,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--head", required=True, help="full SHA under review")
     parser.add_argument("--pane", required=True, help="Reviewer seat handle")
     parser.add_argument("--lead", required=True, help="Lead seat handle; the report send block routes to it")
-    parser.add_argument("--lane", required=True, choices=("tiny", "normal", "high-risk"))
+    parser.add_argument("--lane", required=True, choices=project_config.LANES)
     parser.add_argument("--reason", required=True, help="material reason for the lane")
     parser.add_argument("--boundary", required=True, help="acceptance boundary")
     parser.add_argument("--validation", required=True, help="validation claims or gate ids")

@@ -9,7 +9,7 @@ import os
 import re
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, NamedTuple
 
 _STRINGS = ("lead-kind", "engineer-kind", "reviewer-kind", "engineer-fallback", "reviewer-fallback", "target-line")
 _ARGV = ("lead-args", "engineer-args", "reviewer-args", "engineer-fallback-args", "reviewer-fallback-args")
@@ -17,8 +17,9 @@ _LISTS = ("checks-light", "checks-heavy", "local-ops", "always-gate")
 _PROFILE_KEYS = frozenset({"seat-argv", "peer-argv", "peer-settings-json", "runtime-state-paths"})
 _KEYS = frozenset((*_STRINGS, *_ARGV, *_LISTS, "launch-profiles", "ci", "lane-defaults", "worker-cap", "provenance"))
 _TRIGGERS = ("none", "pr", "push")
-_LANES = ("tiny", "normal", "high-risk")
-_PLACEHOLDERS = frozenset({"seat", "lead", "run_dir", "installed_skill_dir", "settings_file"})
+LANES = ("tiny", "normal", "high-risk")
+ROLES = ("lead", "engineer", "reviewer", "architect")
+_PLACEHOLDERS = ("seat", "lead", "run_dir", "installed_skill_dir", "settings_file")
 _PLACEHOLDER_RE = re.compile(r"\{([^{}]*)\}")
 # The write fence writes each runtime-state-paths entry literally into a regex, escaping only ".",
 # so an entry takes no placeholder and no other regex metacharacter.
@@ -125,8 +126,8 @@ def _validate(config: dict[str, Any]) -> None:
         if not isinstance(lanes, dict):
             raise ValueError("lane-defaults: must be an object")
         for pattern, lane in lanes.items():
-            if not _text(pattern) or lane not in _LANES:
-                raise ValueError(f"lane-defaults.{pattern}: must map to one of {', '.join(_LANES)}")
+            if not _text(pattern) or lane not in LANES:
+                raise ValueError(f"lane-defaults.{pattern}: must map to one of {', '.join(LANES)}")
     if "worker-cap" in config:
         cap = config["worker-cap"]
         if isinstance(cap, bool) or not isinstance(cap, int) or cap < 1:
@@ -181,14 +182,41 @@ def _substitute(value: Any, values: dict[str, str]) -> Any:
     return value
 
 
+class Route(NamedTuple):
+    slot: str  # "primary" or "fallback"
+    kind: str
+    args: list[str] | None  # None: the config names the primary kind without its args
+
+
+def role_routes(config: dict[str, Any], role: str) -> list[Route]:
+    """The launch routes `config` names for `role`, primary first; the architect uses the reviewer's, the Lead has no fallback."""
+    if role not in ROLES:
+        raise ValueError(f"role {role!r} does not use a launch profile")
+    key = "reviewer" if role == "architect" else role
+    routes = []
+    if f"{key}-kind" in config:
+        routes.append(Route("primary", config[f"{key}-kind"], config.get(f"{key}-args")))
+    if role != "lead" and f"{key}-fallback" in config:
+        routes.append(Route("fallback", config[f"{key}-fallback"], config[f"{key}-fallback-args"]))
+    return routes
+
+
+def model_of(argv: list[str]) -> str | None:
+    """The value of the first `--model X` or `--model=X` in `argv`, or None."""
+    for index, arg in enumerate(argv):
+        if arg == "--model" and index + 1 < len(argv):
+            return argv[index + 1]
+        if arg.startswith("--model="):
+            return arg.split("=", 1)[1]
+    return None
+
+
 def expand_launch(
     config: dict[str, Any], *, role: str, kind: str, role_args: list[str], seat: str,
     lead: str, run_dir: str, installed_skill_dir: str, settings_file: str,
 ) -> dict[str, Any]:
-    """Return argv and settings data for the existing Herdr start command; execute nothing."""
-    _validate(config)
-    if role not in {"lead", "engineer", "reviewer", "architect"}:
-        raise ValueError(f"role {role!r} does not use a launch profile")
+    """Return argv and settings data for launching one seat; execute nothing."""
+    routes = [route for route in role_routes(config, role) if route.kind == kind]
     profile = config.get("launch-profiles", {}).get(kind)
     if profile is None:
         raise ValueError(f"launch-profiles lacks configured kind {kind!r}")
@@ -197,46 +225,33 @@ def expand_launch(
         raise ValueError(f"launch-profiles.{kind} requires seat-argv")
     if peer and "peer-argv" not in profile:
         raise ValueError(f"launch-profiles.{kind} requires peer-argv for {role}")
-    config_role = "reviewer" if role == "architect" else role
-    if role == "lead":
-        if kind != config.get("lead-kind") or "lead-args" not in config:
-            raise ValueError("Lead expansion requires the explicit lead-kind and lead-args pair")
-        allowed_args = [config["lead-args"]]
-    else:
-        allowed_args = []
-        if kind == config.get(f"{config_role}-kind") and f"{config_role}-args" in config:
-            allowed_args.append(config[f"{config_role}-args"])
-        if kind == config.get(f"{config_role}-fallback"):
-            allowed_args.append(config.get(f"{config_role}-fallback-args", []))
-        if not allowed_args:
-            if kind == config.get(f"{config_role}-kind"):
-                raise ValueError(f"{role} role args are missing")
-            raise ValueError(f"{role} kind {kind!r} is not configured for that role")
+    if not routes:
+        raise ValueError(f"{role} kind {kind!r} is not configured for that role")
+    allowed_args = [route.args for route in routes if route.args is not None]
+    if not allowed_args:
+        raise ValueError(f"{role} role args are missing")
     if role_args not in allowed_args:
         raise ValueError(f"{role} role args must come from config")
-    values = {
-        "seat": seat, "lead": lead, "run_dir": run_dir,
-        "installed_skill_dir": installed_skill_dir, "settings_file": settings_file,
-    }
-    profile_values = [profile.get("seat-argv", [])]
+    values = dict(zip(_PLACEHOLDERS, (seat, lead, run_dir, installed_skill_dir, settings_file)))
+    profile_values = [profile["seat-argv"]]
     if peer:
-        profile_values.extend((profile.get("peer-argv", []), profile.get("peer-settings-json", {})))
+        profile_values.extend((profile["peer-argv"], profile.get("peer-settings-json", {})))
     used = set().union(*(_all_placeholders(value) for value in profile_values))
     missing = sorted(name for name in used if not values[name])
     if missing:
         raise ValueError(f"launch context lacks values for {', '.join(missing)}")
     argv = [*role_args]
-    argv.extend(_substitute(profile.get("seat-argv", []), values))
+    argv.extend(_substitute(profile["seat-argv"], values))
     if peer:
-        argv.extend(_substitute(profile.get("peer-argv", []), values))
-    settings = profile.get("peer-settings-json") if role in {"engineer", "reviewer", "architect"} else None
+        argv.extend(_substitute(profile["peer-argv"], values))
+    settings = profile.get("peer-settings-json") if peer else None
     return {
         "argv": argv,
         "settings_file": settings_file if settings is not None else None,
         "settings_json": _substitute(settings, values) if settings is not None else None,
         "runtime_state_paths": (
             profile["runtime-state-paths"]
-            if role in {"reviewer", "architect"} and "runtime-state-paths" in profile
+            if role in ("reviewer", "architect") and "runtime-state-paths" in profile
             else None
         ),
     }
@@ -247,7 +262,7 @@ def main(argv: list[str] | None = None) -> int:
     modes = parser.add_mutually_exclusive_group(required=True)
     modes.add_argument("--check", metavar="PATH", help="load PATH strictly")
     modes.add_argument("--expand", metavar="PATH", help="emit JSON launch expansion")
-    parser.add_argument("--role", choices=("lead", "engineer", "reviewer", "architect"))
+    parser.add_argument("--role", choices=ROLES)
     parser.add_argument("--kind")
     parser.add_argument("--seat")
     parser.add_argument("--lead")
@@ -266,20 +281,11 @@ def main(argv: list[str] | None = None) -> int:
         required = (args.role, args.kind, args.seat, args.lead, args.run_dir, args.installed_skill_dir)
         if not all(required):
             raise ValueError("--expand requires --role, --kind, --seat, --lead, --run-dir, and --installed-skill-dir")
-        route = "fallback" if args.fallback else "primary"
-        config_role = "reviewer" if args.role == "architect" else args.role
-        if args.role == "lead":
-            if args.fallback:
-                raise ValueError("Lead has no fallback route")
-            role_args = config.get("lead-args")
-        else:
-            kind_key = f"{config_role}-fallback" if args.fallback else f"{config_role}-kind"
-            args_key = f"{config_role}-fallback-args" if args.fallback else f"{config_role}-args"
-            if config.get(kind_key) != args.kind:
-                raise ValueError(f"{args.kind!r} is not the configured {route} kind for {args.role}")
-            role_args = config.get(args_key, [])
-        if not isinstance(role_args, list):
-            raise ValueError(f"{args.role} role args are missing")
+        slot = "fallback" if args.fallback else "primary"
+        route = next((r for r in role_routes(config, args.role) if (r.slot, r.kind) == (slot, args.kind)), None)
+        if route is None:
+            raise ValueError(f"{args.kind!r} is not the configured {slot} kind for {args.role}")
+        role_args = route.args or []
         run_dir = str(Path(args.run_dir).expanduser().resolve())
         result = expand_launch(
             config, role=args.role, kind=args.kind, role_args=role_args, seat=args.seat,

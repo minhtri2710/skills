@@ -15,6 +15,7 @@ from unittest.mock import patch
 import support
 import backend
 import compaction_reprime
+import runtimes
 import state_root
 from fake_backend import FakeBackend
 
@@ -102,7 +103,7 @@ class ReprimeCase(unittest.TestCase):
         )]
 
     def claude_path(self, session_id: str = CLAUDE_SESSION) -> Path:
-        key = "-" + str(self.project).lstrip("/").replace("/", "-")
+        key = re.sub(r"[^A-Za-z0-9]", "-", str(self.project))
         return self.home / ".claude" / "projects" / key / f"{session_id}.jsonl"
 
     def claude_records(self, pairs: int) -> list[dict[str, object]]:
@@ -126,7 +127,7 @@ class ReprimeCase(unittest.TestCase):
         )]
 
     def records_dir(self) -> Path:
-        return self.state / "project"
+        return self.state / state_root.slug_for(self.project)
 
     def write_pointer_files(self, *, run_files: tuple[str, ...] = ("intake-record.md", "plan.md", "specification.md", "slices.json")) -> None:
         records = self.records_dir()
@@ -175,6 +176,24 @@ class CliContractTest(ReprimeCase):
                 os.chdir(original)
         self.assertEqual(len(self.prompts), 1)
         self.assertIn(f"prompted {SEAT} at threshold 4", self.stdout.getvalue())
+
+
+class ClaudeStorageKeyTest(unittest.TestCase):
+    """Claude Code files a project's sessions under its path with every non-alphanumeric as `-`; names seen in ~/.claude/projects."""
+
+    def test_the_session_file_is_filed_under_the_observed_key(self) -> None:
+        cases = {
+            "/a/my_proj.v2": "-a-my-proj-v2",
+            "/Users/beowulf/.cache/f31-live-AMkmC2": "-Users-beowulf--cache-f31-live-AMkmC2",
+        }
+        for project, key in cases.items():
+            with self.subTest(project=project), tempfile.TemporaryDirectory() as directory:
+                home = Path(directory)
+                session = home / ".claude" / "projects" / key / f"{CLAUDE_SESSION}.jsonl"
+                session.parent.mkdir(parents=True)
+                session.write_text("", encoding="utf-8")
+                seat = backend.Seat(handle="h", kind="claude", session=backend.Session("id", CLAUDE_SESSION))
+                self.assertEqual(runtimes.compactions(seat, Path(project), home), (0, CLAUDE_SESSION))
 
 
 class SeatResolutionTest(ReprimeCase):
@@ -324,6 +343,16 @@ class MarkerCountingTest(ReprimeCase):
                 self.assertEqual(self.run_cli(), 1)
                 self.assertEqual(self.state_files(), [])
         self.assertEqual(self.prompts, [])
+
+    def test_claude_storage_key_replaces_every_non_alphanumeric_of_the_project_path(self) -> None:
+        self.project = self.root / "my_proj.v2"
+        self.project.mkdir()
+        self.write_pointer_files()
+        self.set_claude(self.claude_records(0))
+        self.assertEqual(self.run_cli(), 0)
+        self.set_claude(self.claude_records(4))
+        self.assertEqual(self.run_cli(), 0)
+        self.assertEqual(len(self.prompts), 1)
 
     def test_claude_session_id_cannot_escape_the_project_directory(self) -> None:
         self.write_pointer_files()
