@@ -352,23 +352,24 @@ def check(
     return findings + check_constraints(added, removed)
 
 
-def _raw_changes(raw: str) -> tuple[list[str], dict[str, str], dict[str, str], set[str]]:
+def _raw_changes(raw: str) -> tuple[list[str], dict[str, str], dict[str, str]]:
     tokens = raw.split("\0")
     gone: list[str] = []
     renames: dict[str, str] = {}
     base_blobs: dict[str, str] = {}
-    links: set[str] = set()
     index = 0
     while index < len(tokens) and tokens[index]:
-        old_mode, new_mode, old_blob, _, status = tokens[index][1:].split()
+        old_mode, _, old_blob, _, status = tokens[index][1:].split()
         kind = status[0]
-        if old_mode not in ("000000", "160000"):
+        has_blob = old_mode not in ("000000", "160000")
+        if has_blob:
             base_blobs[tokens[index + 1]] = old_blob
         if kind in "RC":
             old, new = tokens[index + 1], tokens[index + 2]
             if kind == "R":
                 renames[old] = new
-                base_blobs[new] = old_blob
+                if has_blob:
+                    base_blobs[new] = old_blob
                 if TEST_PATH.search(old) and not TEST_PATH.search(new):
                     gone.append(old)
             index += 3
@@ -376,9 +377,7 @@ def _raw_changes(raw: str) -> tuple[list[str], dict[str, str], dict[str, str], s
             if kind == "D" and TEST_PATH.search(tokens[index + 1]):
                 gone.append(tokens[index + 1])
             index += 2
-        if new_mode == "120000":
-            links.add(tokens[index - 1])
-    return gone, renames, base_blobs, links
+    return gone, renames, base_blobs
 
 
 def _is_binary(data: bytes) -> bool:
@@ -399,11 +398,12 @@ def _blobs(repo: Path, ids: set[str]) -> dict[str, bytes]:
     return blobs
 
 
-def _worktree_binary(repo: Path, path: str, links: set[str]) -> bool:
-    if path in links:
-        return False
+def _worktree_binary(repo: Path, path: str) -> bool:
+    full = _fs_path(repo, path)
     try:
-        with open(_fs_path(repo, path), "rb") as handle:
+        if full.is_symlink():
+            return False
+        with open(full, "rb") as handle:
             return _is_binary(handle.read(8000))
     except OSError:
         return False
@@ -421,18 +421,19 @@ def collect(repo: Path, base: str) -> tuple[list[Line], list[Line], list[str], s
     merge_base = _git(repo, "merge-base", base, "HEAD").strip()
     # ponytail: --text makes git diff a real binary as text before the guard drops it; cost is time and memory on very large binaries.
     added, removed = parse_diff(_git(repo, "diff-index", "-p", "--text", "--unified=0", "-M", merge_base, "--"))
-    deleted, renames, base_blobs, links = _raw_changes(_git(repo, "diff-index", "--raw", "-z", "-M", merge_base, "--"))
-    blobs = _blobs(repo, set(base_blobs.values()))
+    deleted, renames, base_blobs = _raw_changes(_git(repo, "diff-index", "--raw", "-z", "-M", merge_base, "--"))
+    leaving = {old for old, new in renames.items() if _leaves_watch(old, new)}
+    stays = {old: new for old, new in renames.items() if old not in leaving}
+    named = {l.path for l in added + removed}
+    blobs = _blobs(repo, {base_blobs[path] for path in named | leaving if path in base_blobs})
     binary = {
         path
-        for path in {l.path for l in added + removed}
-        if _worktree_binary(repo, path, links) or _is_binary(blobs.get(base_blobs.get(path, ""), b""))
+        for path in named
+        if _worktree_binary(repo, path) or _is_binary(blobs.get(base_blobs.get(path, ""), b""))
     }
     binary |= {old for old, new in renames.items() if new in binary}
     added = [l for l in added if l.path not in binary]
     removed = [l for l in removed if l.path not in binary]
-    leaving = {old for old, new in renames.items() if _leaves_watch(old, new)}
-    stays = {old: new for old, new in renames.items() if old not in leaving}
     removed = [Line(stays.get(line.path, line.path), line.number, line.text) for line in removed if line.path not in leaving]
     for old in sorted(leaving):
         removed.extend(Line(old, i, t) for i, t in enumerate(_lines(_decode(blobs[base_blobs[old]])), start=1))

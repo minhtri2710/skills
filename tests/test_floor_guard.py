@@ -214,6 +214,27 @@ class FloorGuardRepoTest(unittest.TestCase):
         (self.repo / "src" / "link.py").symlink_to(target)
         self.assertEqual(self.run_guard(), (0, ""))
 
+    def test_moved_submodule_pointer_is_not_read_as_a_blob(self) -> None:
+        support.git(self.repo, "update-index", "--add", "--cacheinfo", "160000," + "1" * 40 + ",sub")
+        support.git(self.repo, "commit", "-q", "-m", "submodule")
+        support.git(self.repo, "update-index", "--add", "--cacheinfo", "160000," + "1" * 40 + ",moved")
+        support.git(self.repo, "rm", "-q", "--cached", "sub")
+        (self.repo / "moved").mkdir()
+        self.assertEqual(self.run_guard(), (0, ""))
+
+    def test_untracked_symlink_at_a_deleted_path_does_not_hide_its_removed_lines(self) -> None:
+        outside = tempfile.TemporaryDirectory()
+        self.addCleanup(outside.cleanup)
+        target = Path(outside.name) / "data.bin"
+        target.write_bytes(b"\0\xff\n")
+        self.write("pyproject.toml", "[tool.coverage.report]\nfail_under = 80\n")
+        support.git(self.repo, "add", ".")
+        support.git(self.repo, "commit", "-q", "-m", "coverage")
+        support.git(self.repo, "rm", "-q", "--cached", "pyproject.toml")
+        (self.repo / "pyproject.toml").unlink()
+        (self.repo / "pyproject.toml").symlink_to(target)
+        self.assertEqual(self.run_guard(), (1, "floor-guard: 1 violation(s)\n  [threshold-loosened] pyproject.toml:2\n"))
+
     def test_tracked_crlf_file_is_flagged_at_the_right_line(self) -> None:
         crlf = self.repo / "src" / "crlf.py"
         crlf.write_bytes(b"a = 1\r\nb = 2\r\n")
