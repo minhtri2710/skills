@@ -22,7 +22,6 @@ class LessonParseError(ValueError):
 @dataclass
 class LessonRecord:
     lines: list[str]
-    end: int
     fields: dict[str, tuple[int, str]]
 
 
@@ -86,4 +85,4 @@ def lesson_record_lines(text):
         datetime.date.fromisoformat(fields["last_used"][1])
     except ValueError as exc:
         raise LessonParseError("added and last_used must be ISO dates") from exc
-    return LessonRecord(lines, end, fields)
+    return LessonRecord(lines, fields)

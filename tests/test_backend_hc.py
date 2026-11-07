@@ -147,7 +147,6 @@ class NormalizeTest(unittest.TestCase):
                 state="working",
                 kind="claude",
                 cwd="/work/checkout",
-                argv=("/usr/local/bin/claude", "--model", "opus"),
                 session=None,
                 workspace=None,
             ),
@@ -156,7 +155,7 @@ class NormalizeTest(unittest.TestCase):
     def test_a_program_that_reports_no_status_is_unknown(self) -> None:
         a, _ = adapter(reply(fixture("get-live-no-status.json")))
         seat = a.get_seat("t3")
-        self.assertEqual((seat.handle, seat.name, seat.state, seat.kind, seat.argv), ("t3", None, "unknown", "zsh", ("zsh",)))
+        self.assertEqual((seat.handle, seat.name, seat.state, seat.kind), ("t3", None, "unknown", "zsh"))
 
     def test_a_finished_terminal_is_done_on_exit_zero_and_error_otherwise(self) -> None:
         for name, state in (("get-finished-ok.json", "done"), ("get-finished-failed.json", "error"), ("kill.json", "error")):
@@ -182,7 +181,7 @@ class NormalizeTest(unittest.TestCase):
         self.assertEqual([seat.state for seat in seats], ["working", "unknown", "done", "blocked"])
         self.assertEqual([seat.kind for seat in seats], ["claude", "zsh", "pi", "claude"])
         self.assertEqual([seat.name for seat in seats], ["eng-a", None, "eng-b", "rev"])
-        self.assertTrue(all(seat.argv == () and seat.session is None and seat.workspace is None for seat in seats))
+        self.assertTrue(all(seat.session is None and seat.workspace is None for seat in seats))
 
     def test_list_refuses_malformed_output(self) -> None:
         rows = {

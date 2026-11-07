@@ -182,6 +182,34 @@ class RecallTest(unittest.TestCase):
         self.assertIn("last_used: " + datetime.now(timezone.utc).date().isoformat(), lesson.read_text())
         self.assertEqual(other.read_bytes(), before_other)
 
+    def test_stamp_leaves_a_lesson_shaped_file_outside_the_lesson_store(self):
+        text = "---\nid: lesson\nadded: 2020-01-01\nsource_run: runs/issue\napproved_by: human\nstatus: active\nlast_used: 2020-01-01\n---\n\nlesson guidance\n"
+        for relative in ("demo/runs/run-1/lessons/x.md", "lessons/x.md", "demo/lessons/x.md"):
+            with self.subTest(relative=relative):
+                self.write(relative, text)
+
+                code, output = self.run_recall(["--stamp", "lesson", "guidance"])
+
+                self.assertEqual(code, 0)
+                self.assertIn(relative, output)
+                self.assertEqual((self.root / relative).read_text(), text)
+                (self.root / relative).unlink()
+
+    def test_stamp_leaves_a_lesson_whose_store_is_a_symlink_out_of_the_state_root(self):
+        text = "---\nid: lesson\nadded: 2020-01-01\nsource_run: runs/issue\napproved_by: human\nstatus: active\nlast_used: 2020-01-01\n---\n\nlesson guidance\n"
+        with tempfile.TemporaryDirectory() as elsewhere:
+            outside = Path(elsewhere).resolve() / "x.md"
+            outside.write_text(text, encoding="utf-8")
+            store = self.root / "demo/runs/coordination/lessons"
+            store.parent.mkdir(parents=True)
+            store.symlink_to(outside.parent, target_is_directory=True)
+
+            code, output = self.run_recall(["--project", "demo", "--stamp", "lesson", "guidance"])
+
+            self.assertEqual(code, 0)
+            self.assertIn("demo/runs/coordination/lessons/x.md", output)
+            self.assertEqual(outside.read_text(), text)
+
     def test_query_without_stamp_does_not_modify_records(self):
         self.write(
             "demo/runs/coordination/lessons/lesson.md",

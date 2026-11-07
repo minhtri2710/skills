@@ -67,7 +67,6 @@ def _seat(terminal: Mapping[str, Any]) -> backend.Seat:
         state=_state(terminal),
         kind=terminal.get("agent") or app or (Path(argv[0]).name if argv else None) or None,
         cwd=terminal.get("cwd"),
-        argv=argv,
     )
 
 

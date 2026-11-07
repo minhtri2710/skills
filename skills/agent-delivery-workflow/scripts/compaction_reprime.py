@@ -34,8 +34,8 @@ _DOCTRINE = Path(__file__).resolve().parents[1] / "references"
 def _live_agent(seats: backend.Backend, seat: str) -> backend.Seat:
     try:
         roster = seats.list_seats()
-    except backend.BackendError:
-        raise runtimes.Unavailable("live roster unavailable")
+    except backend.BackendError as exc:
+        raise runtimes.Unavailable(f"live roster unavailable: {exc}")
     matches = [a for a in roster if seat in (a.name, a.handle)]
     if len(matches) != 1:
         raise runtimes.Unavailable(f"{seat} is not exactly one live roster seat")
