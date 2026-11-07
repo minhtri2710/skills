@@ -6,34 +6,27 @@ import argparse
 import json
 import os
 import shlex
-import subprocess
 import sys
 import time
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 import backend
 import project_config
+import runtimes
 
 
 _SETTLED_STATES = frozenset({"idle", "done"})
 _ROLES = ("engineer", "reviewer", "architect")
 
 
-def format_roster(seats: list[backend.Seat], workspace: str | None = None) -> list[str]:
-    return [
-        f"{seat.handle} {seat.name or '-'} {seat.kind or '-'} {seat.state}"
-        for seat in seats
-        if workspace is None or seat.workspace == workspace
-    ]
+def format_roster(seats: list[backend.Seat]) -> list[str]:
+    return [f"{seat.handle} {seat.name or '-'} {seat.kind or '-'} {seat.state}" for seat in seats]
 
 
 def _load_previous_sample(path: str) -> dict[str, dict[str, Any]]:
     try:
         raw = json.loads(Path(path).read_text(encoding="utf-8"))
-    except OSError as exc:
-        raise RuntimeError(f"could not read previous sample: {exc}") from exc
     except json.JSONDecodeError as exc:
         raise ValueError(f"previous sample is not valid JSON: {exc}") from exc
 
@@ -74,11 +67,21 @@ def _peer_specs(raw_peers: list[str] | None) -> dict[str, tuple[Path, Path]]:
     return specs
 
 
+def _absent(path: Path) -> bool:
+    """True only when `path` is confirmed missing; an existing or unreadable path is not absent."""
+    try:
+        path.stat()
+    except FileNotFoundError:
+        return True
+    except OSError:
+        return False
+    return False
+
+
 def format_never_started_roster(
     seats: list[backend.Seat],
     peer_specs: dict[str, tuple[Path, Path]],
     never_started: set[str],
-    workspace: str | None = None,
 ) -> list[str]:
     """Return explicitly identified never-prompted peers.
 
@@ -87,8 +90,6 @@ def format_never_started_roster(
     """
     lines = []
     for seat in seats:
-        if workspace is not None and seat.workspace != workspace:
-            continue
         name = seat.name
         if name is None or name not in never_started:
             continue
@@ -97,23 +98,8 @@ def format_never_started_roster(
         if seat.state not in _SETTLED_STATES:
             continue
         report_path, progress_path = peer_specs[name]
-        try:
-            report_path.stat()
-        except FileNotFoundError:
-            pass
-        except OSError:
-            continue
-        else:
-            continue
-        try:
-            progress_path.stat()
-        except FileNotFoundError:
-            pass
-        except OSError:
-            continue
-        else:
-            continue
-        lines.append(f"{seat.handle} {name} {seat.kind or '-'} NEVER-STARTED")
+        if _absent(report_path) and _absent(progress_path):
+            lines.append(f"{seat.handle} {name} {seat.kind or '-'} NEVER-STARTED")
     return lines
 
 
@@ -122,7 +108,6 @@ def format_stalled_roster(
     peer_specs: dict[str, tuple[Path, Path]],
     previous_sample: dict[str, dict[str, Any]],
     stale_after: float,
-    workspace: str | None = None,
     now: float | None = None,
 ) -> list[str]:
     if stale_after < 0:
@@ -132,8 +117,6 @@ def format_stalled_roster(
 
     lines = []
     for seat in seats:
-        if workspace is not None and seat.workspace != workspace:
-            continue
         name = seat.name
         if name is None or name not in peer_specs:
             continue
@@ -144,13 +127,7 @@ def format_stalled_roster(
         if prior is None or prior["state"] in _SETTLED_STATES:
             continue
         report_path, progress_path = peer_specs[name]
-        try:
-            report_path.stat()
-        except FileNotFoundError:
-            pass
-        except OSError:
-            continue
-        else:
+        if not _absent(report_path):
             continue
         try:
             current_mtime = progress_path.stat().st_mtime
@@ -164,28 +141,15 @@ def format_stalled_roster(
     return lines
 
 
-def _model(args: list[str]) -> str | None:
-    for i, arg in enumerate(args):
-        if arg == "--model" and i + 1 < len(args):
-            return args[i + 1]
-        if arg.startswith("--model="):
-            return arg.split("=", 1)[1]
-    return None
+def _expected(config: dict[str, Any], role: str) -> list[tuple[str, str | None, list[str]]]:
+    routes = project_config.role_routes(config, role)
+    if not routes or routes[0].slot != "primary":
+        raise ValueError(f"config names no primary kind for {role}")
+    return [(route.kind, project_config.model_of(route.args or []), route.args or []) for route in routes]
 
 
-def _expected(keys: dict[str, Any], role: str) -> list[tuple[str, str | None, list[str]]]:
-    if role == "architect":
-        role = "reviewer"
-    kind = keys.get(f"{role}-kind")
-    if not kind:
-        raise ValueError(f"config lacks {role}-kind")
-    block = keys.get(f"{role}-args", [])
-    expected = [(kind, _model(block), block)]
-    fallback = keys.get(f"{role}-fallback")
-    if fallback:
-        block = keys.get(f"{role}-fallback-args", [])
-        expected.append((fallback, _model(block), block))
-    return expected
+def _want(expected: list[tuple[str, str | None, list[str]]]) -> str:
+    return " or ".join(f"{kind} --model {model or '-'}" for kind, model, _ in expected)
 
 
 def _has_block(argv: list[str], block: list[str]) -> bool:
@@ -215,122 +179,11 @@ def _launch_args(
     raise ValueError(f"no {kind} process in seat {handle}")
 
 
-def _pi_process_start(pid: int | None) -> datetime:
-    try:
-        proc = subprocess.run(
-            ["ps", "-o", "lstart=", "-p", str(pid)],
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            check=False,
-            timeout=10,
-            env={**os.environ, "LC_ALL": "C"},
-        )
-    except (OSError, subprocess.SubprocessError) as exc:
-        raise RuntimeError(f"could not read pi process start for pid {pid}: {exc}") from exc
-    if proc.returncode:
-        detail = proc.stderr.strip() or proc.stdout.strip() or str(proc.returncode)
-        raise RuntimeError(f"could not read pi process start for pid {pid}: {detail}")
-    try:
-        return datetime.strptime(proc.stdout.strip(), "%a %b %d %H:%M:%S %Y").astimezone()
-    except ValueError as exc:
-        raise RuntimeError(
-            f"could not read pi process start for pid {pid}: invalid ps timestamp"
-        ) from exc
-
-
-def _pi_session_dir(cwd: str) -> Path:
-    agent_dir = os.path.expanduser(os.environ.get("PI_CODING_AGENT_DIR") or "~/.pi/agent")
-    slug = cwd.removeprefix("/").replace("/", "-").replace(":", "-")
-    return Path(agent_dir) / "sessions" / f"--{slug}--"
-
-
-def _pi_session_is_named(path: Path, name: str, process_start: datetime) -> bool:
-    try:
-        with path.open(encoding="utf-8") as session:
-            first = json.loads(next(session))
-            if not isinstance(first, dict) or first.get("type") != "session":
-                return False
-            raw_timestamp = first.get("timestamp")
-            if not isinstance(raw_timestamp, str):
-                return False
-            timestamp = datetime.fromisoformat(raw_timestamp.replace("Z", "+00:00"))
-            if timestamp.tzinfo is None or timestamp < process_start.astimezone(timezone.utc):
-                return False
-            named = False
-            for line in session:
-                try:
-                    entry = json.loads(line)
-                except (json.JSONDecodeError, UnicodeDecodeError):
-                    return False
-                if not isinstance(entry, dict):
-                    return False
-                if entry.get("type") in {"message", "model_change"}:
-                    return named
-                if entry.get("type") == "session_info" and entry.get("name") == name:
-                    named = True
-            return named
-    except (OSError, StopIteration, KeyError, TypeError, ValueError, UnicodeDecodeError):
-        return False
-
-
-def _pi_running_model(name: str, process: backend.Process) -> tuple[str | None, str | None]:
-    process_start = _pi_process_start(process.pid)
-    if process.cwd is None:
-        return None, "no-named-session"
-    session_dir = _pi_session_dir(process.cwd)
-    try:
-        candidates = [
-            path for path in session_dir.glob("*.jsonl")
-            if _pi_session_is_named(path, name, process_start)
-        ]
-    except OSError:
-        candidates = []
-    if not candidates:
-        return None, "no-named-session"
-    if len(candidates) != 1:
-        return None, "ambiguous-session"
-    model = None
-    try:
-        with candidates[0].open(encoding="utf-8") as session:
-            for line in session:
-                try:
-                    entry = json.loads(line)
-                except (json.JSONDecodeError, UnicodeDecodeError):
-                    return None, "no-named-session"
-                if isinstance(entry, dict) and entry.get("type") == "model_change":
-                    provider, model_id = entry.get("provider"), entry.get("modelId")
-                    valid_model = (
-                        isinstance(provider, str)
-                        and provider
-                        and isinstance(model_id, str)
-                        and model_id
-                    )
-                    model = f"{provider}/{model_id}" if valid_model else None
-    except (OSError, UnicodeDecodeError):
-        return None, "no-named-session"
-    return (model, None) if model is not None else (None, "no-named-session")
-
-
-def _route_matches_model(route_model: str | None, running_model: str) -> bool:
-    return route_model == running_model or (
-        route_model is not None
-        and "/" not in route_model
-        and running_model.rpartition("/")[2] == route_model
-    )
-
-
-def _route_match_count(routes: list[tuple[str, str | None, list[str]]], model: str) -> int:
-    return sum(route_model is not None and _route_matches_model(route_model, model)
-               for _, route_model, _ in routes)
-
-
 def format_drift_roster(
     seat_backend: backend.Backend,
     live: list[backend.Seat],
-    keys: dict[str, Any],
+    config: dict[str, Any],
     seats: dict[str, str],
-    workspace: str | None = None,
     *,
     lead: str = "",
     run_dir: str = "",
@@ -340,8 +193,6 @@ def format_drift_roster(
     unverifiable = False
     unseen = set(seats)
     for seat in live:
-        if workspace is not None and seat.workspace != workspace:
-            continue
         name = seat.name
         if name is None or name not in seats:
             continue
@@ -349,105 +200,82 @@ def format_drift_roster(
         handle = seat.handle
         kind = seat.kind or "-"
         role = seats[name]
-        expected = _expected(keys, role)
+        label = f"{handle} {name} {kind}"
+        expected = _expected(config, role)
+        want = _want(expected)
         launch_args, argv0_process = _launch_args(seat_backend, handle, kind)
-        model = _model(launch_args) if launch_args is not None else None
+        model = project_config.model_of(launch_args) if launch_args is not None else None
         matching_kinds = [route for route in expected if route[0] == kind]
-        pi_session_model = bool(matching_kinds and argv0_process is not None and kind == "pi")
-        if pi_session_model:
-            model, reason = _pi_running_model(name, argv0_process)
+        session_model = bool(matching_kinds and argv0_process is not None and kind in runtimes.SESSION_MODEL_KINDS)
+        if session_model:
+            model, reason = runtimes.session_model(seat, argv0_process)
             if reason is not None:
-                want = " or ".join(f"{k} --model {m or '-'}" for k, m, _ in expected)
-                lines.append(
-                    f"{handle} {name} {kind} UNVERIFIABLE role={role} "
-                    f"reason={reason} expected={want}"
-                )
+                lines.append(f"{label} UNVERIFIABLE role={role} reason={reason} expected={want}")
                 unverifiable = True
                 continue
         elif matching_kinds and launch_args is None:
-            want = " or ".join(f"{k} --model {m or '-'}" for k, m, _ in expected)
-            lines.append(
-                f"{handle} {name} {kind} UNVERIFIABLE role={role} "
-                f"reason=model-unavailable expected={want}"
-            )
+            lines.append(f"{label} UNVERIFIABLE role={role} reason=model-unavailable expected={want}")
             unverifiable = True
             continue
         route_matches = [
             (k, m, b) for k, m, b in expected if k == kind and (
-                _route_matches_model(m, model) if pi_session_model and m is not None
+                runtimes.model_matches(m, model) if session_model and m is not None
                 else m is None or m == model
             )
         ]
-        if not pi_session_model and launch_args is not None and len(route_matches) > 1:
+        if not session_model and launch_args is not None and len(route_matches) > 1:
             argv_matches = [route for route in route_matches if _has_block(launch_args, route[2])]
             if argv_matches:
                 route_matches = argv_matches
-        if pi_session_model and _route_match_count(matching_kinds, model) > 1:
-            want = " or ".join(f"{k} --model {m or '-'}" for k, m, _ in expected)
-            lines.append(
-                f"{handle} {name} {kind} UNVERIFIABLE role={role} reason=route-ambiguous expected={want}"
-            )
+        if session_model and sum(m is not None and runtimes.model_matches(m, model) for _, m, _ in matching_kinds) > 1:
+            lines.append(f"{label} UNVERIFIABLE role={role} reason=route-ambiguous expected={want}")
             unverifiable = True
             continue
         if route_matches:
             if launch_args is None:
-                lines.append(
-                    f"{handle} {name} {kind} UNVERIFIABLE role={role} "
-                    f"reason=launch-argv-hidden expected="
-                    + " or ".join(f"{k} --model {m or '-'}" for k, m, _ in expected)
-                )
+                lines.append(f"{label} UNVERIFIABLE role={role} reason=launch-argv-hidden expected={want}")
                 unverifiable = True
                 continue
-            matched = route_matches
             try:
                 expanded = project_config.expand_launch(
-                    keys, role=role, kind=kind, role_args=matched[0][2], seat=name,
+                    config, role=role, kind=kind, role_args=route_matches[0][2], seat=name,
                     lead=lead, run_dir=run_dir, installed_skill_dir=installed_skill_dir,
                     settings_file=(
                         str(project_config.peer_settings_path(run_dir, name)) if run_dir else ""
                     ),
                 )
             except ValueError as exc:
-                lines.append(f"{handle} {name} {kind} UNVERIFIABLE role={role} reason={exc}")
+                lines.append(f"{label} UNVERIFIABLE role={role} reason={exc}")
                 unverifiable = True
                 continue
-            blocks = [expanded["argv"]]
-            if any(_has_block(launch_args, block) for block in blocks):
+            if _has_block(launch_args, expanded["argv"]):
                 if expanded["settings_file"]:
                     settings_path = Path(expanded["settings_file"])
                     if settings_path.is_symlink() or not settings_path.is_file():
-                        lines.append(f"{handle} {name} {kind} UNVERIFIABLE role={role} reason=settings-file-unreadable")
+                        lines.append(f"{label} UNVERIFIABLE role={role} reason=settings-file-unreadable")
                         unverifiable = True
                         continue
                     try:
                         actual_settings = json.loads(settings_path.read_text(encoding="utf-8"))
                     except (OSError, UnicodeError, json.JSONDecodeError):
-                        lines.append(f"{handle} {name} {kind} UNVERIFIABLE role={role} reason=settings-file-unreadable")
+                        lines.append(f"{label} UNVERIFIABLE role={role} reason=settings-file-unreadable")
                         unverifiable = True
                         continue
                     if actual_settings != expanded["settings_json"]:
-                        lines.append(f"{handle} {name} {kind} UNVERIFIABLE role={role} reason=settings-mismatch")
+                        lines.append(f"{label} UNVERIFIABLE role={role} reason=settings-mismatch")
                         unverifiable = True
                         continue
                 continue
-            missing = " or ".join(shlex.join(b) for b in blocks)
-            want = " or ".join(f"{k} --model {m or '-'}" for k, m, _ in expected)
             lines.append(
-                f"{handle} {name} {kind} DRIFT role={role} running={kind} --model {model or '-'} "
-                f"expected={want} missing={missing}"
+                f"{label} DRIFT role={role} running={kind} --model {model or '-'} "
+                f"expected={want} missing={shlex.join(expanded['argv'])}"
             )
             continue
-        if pi_session_model:
-            lines.append(
-                f"{handle} {name} {kind} UNVERIFIABLE role={role} reason=launch-argv-hidden "
-                f"expected=" + " or ".join(f"{k} --model {m or '-'}" for k, m, _ in expected)
-            )
+        if session_model:
+            lines.append(f"{label} UNVERIFIABLE role={role} reason=launch-argv-hidden expected={want}")
             unverifiable = True
             continue
-        want = " or ".join(f"{k} --model {m or '-'}" for k, m, _ in expected)
-        lines.append(
-            f"{handle} {name} {kind} DRIFT role={role} running={kind} --model {model or '-'} expected={want}"
-        )
+        lines.append(f"{label} DRIFT role={role} running={kind} --model {model or '-'} expected={want}")
     if unseen:
         raise ValueError(f"no live seat named {', '.join(sorted(unseen))}")
     return lines, unverifiable
@@ -505,14 +333,17 @@ def main(argv: list[str] | None = None) -> int:
     exit_code = 0
     try:
         seat_backend = backend.open_backend(os.environ, args.backend)
-        live = seat_backend.list_seats()
         if sum(map(bool, (args.stalled, args.never_started, args.drift))) > 1:
             raise ValueError("--stalled, --never-started and --drift are mutually exclusive")
+        live = [
+            seat for seat in seat_backend.list_seats()
+            if args.workspace is None or seat.workspace == args.workspace
+        ]
         if args.drift:
             if not args.seat:
                 raise ValueError("--drift requires at least one --seat")
             lines, unverifiable = format_drift_roster(
-                seat_backend, live, project_config.load(args.drift), _seat_specs(args.seat), args.workspace,
+                seat_backend, live, project_config.load(args.drift), _seat_specs(args.seat),
                 lead=args.lead, run_dir=args.run_dir,
                 installed_skill_dir=args.installed_skill_dir,
             )
@@ -524,7 +355,6 @@ def main(argv: list[str] | None = None) -> int:
                 live,
                 _peer_specs(args.peer),
                 set(args.never_started),
-                args.workspace,
             )
         elif args.stalled:
             if not args.peer:
@@ -536,11 +366,10 @@ def main(argv: list[str] | None = None) -> int:
                 _peer_specs(args.peer),
                 _load_previous_sample(args.previous_sample),
                 args.stale_after,
-                args.workspace,
             )
         else:
-            lines = format_roster(live, args.workspace)
-    except (backend.BackendError, json.JSONDecodeError, ValueError, RuntimeError) as exc:
+            lines = format_roster(live)
+    except (backend.BackendError, ValueError, OSError, runtimes.Unavailable) as exc:
         print(f"roster: {exc}", file=sys.stderr)
         return 1
 

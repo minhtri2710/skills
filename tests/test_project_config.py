@@ -284,6 +284,27 @@ class ProjectConfigTests(unittest.TestCase):
         self.assertIn("already exists with different contents", conflict.stderr)
         self.assertEqual(json.loads(first_path.read_text(encoding="utf-8")), {"seat": "peer-one"})
 
+    def test_role_routes_are_primary_then_fallback_and_the_architect_takes_the_reviewers(self):
+        routes = lambda role: [tuple(route) for route in project_config.role_routes(_FULL, role)]
+        self.assertEqual(routes("lead"), [("primary", "pi", ["--model", "lead-model"])])
+        self.assertEqual(routes("engineer"), [
+            ("primary", "claude", _FULL["engineer-args"]), ("fallback", "pi", ["--approve"])])
+        self.assertEqual(routes("architect"), routes("reviewer"))
+        self.assertEqual(routes("reviewer")[1], ("fallback", "pi", []))
+        self.assertEqual(project_config.role_routes({"engineer-kind": "pi"}, "engineer"),
+                         [("primary", "pi", None)])
+        self.assertEqual(project_config.role_routes({}, "reviewer"), [])
+        with self.assertRaisesRegex(ValueError, "does not use a launch profile"):
+            project_config.role_routes(_FULL, "peer")
+
+    def test_model_of_reads_both_forms_and_the_first_model(self):
+        for argv, model in (
+            (["--model", "a"], "a"), (["--x", "--model=b", "--model", "c"], "b"),
+            (["--model"], None), ([], None), (["--model="], ""),
+        ):
+            with self.subTest(argv=argv):
+                self.assertEqual(project_config.model_of(argv), model)
+
     def test_the_shipped_template_loads(self):
         project_config.load(SKILL / "templates" / "config.json")
 

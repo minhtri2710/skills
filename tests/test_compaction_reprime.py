@@ -102,7 +102,7 @@ class ReprimeCase(unittest.TestCase):
         )]
 
     def claude_path(self, session_id: str = CLAUDE_SESSION) -> Path:
-        key = "-" + str(self.project).lstrip("/").replace("/", "-")
+        key = re.sub(r"[^A-Za-z0-9]", "-", str(self.project))
         return self.home / ".claude" / "projects" / key / f"{session_id}.jsonl"
 
     def claude_records(self, pairs: int) -> list[dict[str, object]]:
@@ -126,7 +126,7 @@ class ReprimeCase(unittest.TestCase):
         )]
 
     def records_dir(self) -> Path:
-        return self.state / "project"
+        return self.state / self.project.name.lower()
 
     def write_pointer_files(self, *, run_files: tuple[str, ...] = ("intake-record.md", "plan.md", "specification.md", "slices.json")) -> None:
         records = self.records_dir()
@@ -324,6 +324,16 @@ class MarkerCountingTest(ReprimeCase):
                 self.assertEqual(self.run_cli(), 1)
                 self.assertEqual(self.state_files(), [])
         self.assertEqual(self.prompts, [])
+
+    def test_claude_storage_key_replaces_every_non_alphanumeric_of_the_project_path(self) -> None:
+        self.project = self.root / "my_proj.v2"
+        self.project.mkdir()
+        self.write_pointer_files()
+        self.set_claude(self.claude_records(0))
+        self.assertEqual(self.run_cli(), 0)
+        self.set_claude(self.claude_records(4))
+        self.assertEqual(self.run_cli(), 0)
+        self.assertEqual(len(self.prompts), 1)
 
     def test_claude_session_id_cannot_escape_the_project_directory(self) -> None:
         self.write_pointer_files()

@@ -15,6 +15,7 @@ from unittest import mock
 import support
 import backend
 import roster
+import runtimes
 from fake_backend import FakeBackend
 
 
@@ -50,18 +51,18 @@ def run_main(fake, argv):
 
 class RosterTest(unittest.TestCase):
     def test_formats_agents_and_filters_workspace(self):
-        seats = [
-            backend.Seat("w1:p1", name="lead", kind="claude", state="working", workspace="w1"),
-            backend.Seat("w1:p2", name="eng", workspace="w1"),
-            backend.Seat("w2:p1", kind="agy", state="idle", workspace="w2"),
+        agents = [
+            {"pane_id": "w1:p1", "name": "lead", "agent": "claude", "agent_status": "working", "workspace_id": "w1"},
+            {"pane_id": "w1:p2", "name": "eng", "agent_status": "unknown", "workspace_id": "w1"},
+            {"pane_id": "w2:p1", "agent": "agy", "agent_status": "idle", "workspace_id": "w2"},
         ]
         self.assertEqual(
-            roster.format_roster(seats),
-            ["w1:p1 lead claude working", "w1:p2 eng - unknown", "w2:p1 - agy idle"],
+            run_main(fake_of(agents), [])[1],
+            "w1:p1 lead claude working\nw1:p2 eng - unknown\nw2:p1 - agy idle\n",
         )
         self.assertEqual(
-            roster.format_roster(seats, workspace="w1"),
-            ["w1:p1 lead claude working", "w1:p2 eng - unknown"],
+            run_main(fake_of(agents), ["--workspace", "w1"])[1],
+            "w1:p1 lead claude working\nw1:p2 eng - unknown\n",
         )
 
     _AGENTS = [{"pane_id": "w1:p1", "name": "lead", "agent": "claude", "agent_status": "working", "workspace_id": "w1"}]
@@ -256,24 +257,23 @@ class RosterTest(unittest.TestCase):
             root = Path(directory)
             config_path = root / "config.json"
             config_path.write_text(json.dumps(config), encoding="utf-8")
-            agent_dir = root / "pi-agent"
-            for pane, files in (pi_sessions or {}).items():
-                process = argv_by_pane[pane]
-                cwd = process.get("cwd", "/workspace") if isinstance(process, dict) else "/workspace"
-                slug = cwd.removeprefix("/").replace("/", "-").replace(":", "-")
-                session_dir = agent_dir / "sessions" / f"--{slug}--"
-                session_dir.mkdir(parents=True, exist_ok=True)
-                for index, entries in enumerate(files):
-                    path = session_dir / f"{pane.replace(':', '-')}-{index}.jsonl"
-                    if isinstance(entries, str):
-                        path.write_text(entries, encoding="utf-8")
-                    else:
-                        path.write_text("".join(json.dumps(entry) + "\n" for entry in entries), encoding="utf-8")
-            argv = ["--drift", str(config_path), *extra_argv]
-            for seat in seats:
-                argv += ["--seat", seat]
-            with mock.patch.object(roster.subprocess, "run", side_effect=run), \
-                    mock.patch.dict(os.environ, {"PI_CODING_AGENT_DIR": str(agent_dir)}):
+            with mock.patch.object(runtimes.subprocess, "run", side_effect=run), \
+                    mock.patch.dict(os.environ, {"PI_CODING_AGENT_DIR": str(root / "pi-agent")}):
+                for pane, files in (pi_sessions or {}).items():
+                    process = argv_by_pane[pane]
+                    cwd = process.get("cwd", "/workspace") if isinstance(process, dict) else "/workspace"
+                    session_dir = runtimes.pi_session_dir(cwd)
+                    self.assertTrue(session_dir.is_relative_to(root))
+                    session_dir.mkdir(parents=True, exist_ok=True)
+                    for index, entries in enumerate(files):
+                        path = session_dir / f"{pane.replace(':', '-')}-{index}.jsonl"
+                        if isinstance(entries, str):
+                            path.write_text(entries, encoding="utf-8")
+                        else:
+                            path.write_text("".join(json.dumps(entry) + "\n" for entry in entries), encoding="utf-8")
+                argv = ["--drift", str(config_path), *extra_argv]
+                for seat in seats:
+                    argv += ["--seat", seat]
                 rc, output, error = run_main(fake, argv)
         return rc, output.splitlines(), error
 
@@ -563,11 +563,37 @@ class RosterTest(unittest.TestCase):
         self.assertEqual((rc, error), (1, ""))
         self.assertIn("UNVERIFIABLE role=engineer reason=route-ambiguous", lines[0])
 
+    def test_drift_reads_the_model_from_the_session_path_the_backend_reports(self):
+        config = {
+            "engineer-kind": "pi", "engineer-args": ["--model", "luna"],
+            "engineer-fallback": "pi", "engineer-fallback-args": ["--model", "prov/luna"],
+            "launch-profiles": {"pi": {"seat-argv": [], "peer-argv": []}},
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            session = root / "2026-11-06_ab12.jsonl"
+            session.write_text(json.dumps({"type": "model_change", "provider": "prov", "modelId": "luna"}) + "\n", encoding="utf-8")
+            config_path = root / "config.json"
+            config_path.write_text(json.dumps(config), encoding="utf-8")
+            fake = FakeBackend()
+            fake.add_seat(
+                "w1:p1", name="eng", state="idle", kind="pi", session=backend.Session("path", str(session)),
+                processes=[backend.Process.from_record({"argv0": "pi", "cwd": "/workspace", "pid": 1})],
+            )
+            with mock.patch.dict(os.environ, {"PI_CODING_AGENT_DIR": str(root / "pi-agent")}):
+                rc, output, error = run_main(fake, ["--drift", str(config_path), "--seat", "eng:engineer"])
+        self.assertEqual((rc, error), (1, ""))
+        self.assertIn("UNVERIFIABLE role=engineer reason=route-ambiguous", output)
+
+    def test_pi_sessions_are_filed_under_the_cwd_with_slashes_and_colons_as_dashes(self):
+        with mock.patch.dict(os.environ, {"PI_CODING_AGENT_DIR": "/pi"}):
+            self.assertEqual(runtimes.pi_session_dir("/work/proj:a"), Path("/pi/sessions/--work-proj-a--"))
+
     def test_drift_fails_closed_without_the_role_key_the_seat_process_or_the_seat(self):
         seat = [{"pane_id": "w1:p1", "name": "eng", "agent": "pi", "agent_status": "idle"}]
         pi, claude = {"w1:p1": ["pi"]}, {"w1:p1": ["claude", "--model", "x"]}
         cases = [
-            ({"reviewer-kind": "agy"}, pi, "eng:engineer", (), "config lacks engineer-kind"),
+            ({"reviewer-kind": "agy"}, pi, "eng:engineer", (), "config names no primary kind for engineer"),
             (self._DRIFT_CONFIG, claude, "eng:engineer", (), "no pi process in seat w1:p1"),
             (self._DRIFT_CONFIG, pi, "gone:engineer", (), "no live seat named gone"),
             (self._DRIFT_CONFIG, pi, "eng:engineer", ("--workspace", "w2"), "no live seat named eng"),
