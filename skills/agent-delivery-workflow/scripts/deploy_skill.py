@@ -34,10 +34,7 @@ def selected_skills(repo: Path, head: str, requested: list[str]) -> list[str]:
         return available
     if len(requested) != len(set(requested)):
         raise DeployError("--skill names a skill more than once")
-    invalid = [
-        skill for skill in requested
-        if not gate_row.SKILL_NAME_RE.fullmatch(skill) or skill not in available
-    ]
+    invalid = [skill for skill in requested if skill not in available]
     if invalid:
         raise DeployError(
             f"unknown or unsafe skill selection: {', '.join(invalid)}"
@@ -135,7 +132,7 @@ def install_drift(repo: Path, install_dir: Path, entries: list[tuple[str, int, s
         dirs[:] = [name for name in dirs if not (root_path / name).is_symlink()]
         untracked.extend(
             f"installed path is not tracked: {root_path / name}" for name in files
-            if name != "__pycache__" and (root_path / name).relative_to(install_dir) not in tracked
+            if (root_path / name).relative_to(install_dir) not in tracked
         )
     return drift, untracked
 
@@ -188,8 +185,6 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     try:
-        if not args.ledger.is_absolute():
-            raise DeployError(f"--ledger must be absolute: {args.ledger}")
         repo = args.repo.resolve()
         head = git(repo, "rev-parse", args.head)
         try:

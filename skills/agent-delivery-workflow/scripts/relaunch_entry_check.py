@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import argparse
 import re
-import subprocess
 import sys
 from pathlib import Path
 
@@ -75,8 +74,6 @@ def _require_count_args(args: argparse.Namespace) -> tuple[Path, Path, str, str,
     ]
     if missing:
         raise CheckError(f"--count requires {', '.join(missing)}")
-    if not args.ledger.is_absolute():
-        raise CheckError("--ledger must be an absolute path")
     if Path(args.skill_path).name != args.skill:
         raise CheckError("--skill-path must name the selected top-level skill")
     return (Path(args.repo).resolve(), args.ledger, args.skill, args.skill_path,
@@ -126,7 +123,7 @@ def main(argv: list[str] | None = None) -> int:
         else:
             block_file, source_file = _require_verify_args(args)
             print(" ".join(verify_block(block_file, source_file)))
-    except (CheckError, OSError, subprocess.SubprocessError) as exc:
+    except (CheckError, OSError) as exc:
         print(f"relaunch_entry_check: {exc}", file=sys.stderr)
         return 1
     return 0

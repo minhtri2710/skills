@@ -256,6 +256,16 @@ class DeploySkillTest(unittest.TestCase):
         self.assertFalse(ledger.exists())
         self.assertFalse((self.home / ".agents").exists())
 
+    def test_relative_ledger_is_refused_before_staging_or_installing(self):
+        with patch.object(
+            deploy_skill.tempfile, "TemporaryDirectory", side_effect=AssertionError("staging started")
+        ):
+            result = self.run_deploy(self.deploy_args(Path("gates.md")))
+
+        self.assertEqual(result, 1)
+        self.assertIn("not absolute", sys.stderr.getvalue())
+        self.assertFalse((self.home / ".agents").exists())
+
     def test_nonzero_cli_exit_refuses_without_row_and_cleans_staging(self):
         ledger = self.tmp / "gates.md"
 

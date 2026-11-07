@@ -92,6 +92,12 @@ class RelaunchEntryCheckTest(unittest.TestCase):
             "--installed-path", str(self.install),
         ])
 
+    def test_count_refuses_a_relative_ledger(self):
+        self.ledger = Path("gates.md")
+        refused = self.count()
+        self.assertEqual(refused[0], 1)
+        self.assertIn("not absolute", refused[2])
+
     def test_count_requires_latest_target_row_and_checks_file_parity(self):
         absent = self.count()
         self.assertEqual(absent[0], 1)
