@@ -461,7 +461,7 @@ class CharterLintTest(unittest.TestCase):
                 "--charter", str(charter_path), "--lead", LEAD, "--repo", str(self.repo),
             ])
         self.assertEqual(code, 1)
-        self.assertIn("could not run git: ", stderr.getvalue())
+        self.assertIn(f"charter_lint: could not read repo {self.repo}: could not run git: ", stderr.getvalue())
 
     def test_repair_re_review_range_must_hold_a_commit_its_prior_fail_review_names(self):
         base, mid, head = self.base, self.mid, self.head

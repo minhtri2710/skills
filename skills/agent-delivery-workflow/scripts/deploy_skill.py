@@ -99,8 +99,9 @@ def install_drift(repo: Path, install_dir: Path, entries: list[tuple[str, int, s
 
     Returns (missing_or_mismatched, untracked): (message, file is installed)
     for each tracked file that is absent or differs, and a message for each
-    installed path no entry names. A symlink is never followed and never
-    counts as installed; __pycache__ is ignored.
+    installed path no entry names. A tracked file that is itself a symlink
+    counts as missing; a symlinked directory is reported untracked and not
+    walked; __pycache__ is ignored.
     """
     drift: list[tuple[str, bool]] = []
     for tracked_path, expected_mode, expected in entries:
