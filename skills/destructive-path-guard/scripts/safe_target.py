@@ -22,7 +22,7 @@ class Refused(Exception):
 
 
 class CannotCheck(Exception):
-    """The check itself could not run, so nothing is proven either way."""
+    pass
 
 
 def _resolve(candidate: Path) -> Path:
@@ -48,6 +48,8 @@ def resolve_target(
         raise CannotCheck("no allowlisted root given")
     if min_depth < 1:
         raise CannotCheck("min_depth below 1 would let a root be the target")
+    if owner_file and expect_owner is None:
+        raise CannotCheck("owner_file requires expect_owner")
     target = _resolve(Path(candidate))
     resolved_roots = []
     for raw in roots:
@@ -105,15 +107,11 @@ def _is_contained(candidate: Path, root: Path) -> bool:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("target", help="path the destructive operation would act on")
-    parser.add_argument("--root", action="append", default=[], required=True, help="allowlisted root (repeatable)")
+    parser.add_argument("--root", action="append", required=True, help="allowlisted root (repeatable)")
     parser.add_argument("--min-depth", type=int, default=1, help="levels the target must sit below a root (default: 1, minimum: 1)")
     parser.add_argument("--owner-file", help="file inside the target holding ownership evidence")
     parser.add_argument("--expect-owner", help="value that file must contain")
     args = parser.parse_args(argv)
-    if args.owner_file and args.expect_owner is None:
-        parser.error("--owner-file requires --expect-owner")
-    if args.min_depth < 1:
-        parser.error("--min-depth must be at least 1")
     try:
         target = resolve_target(args.target, args.root, args.min_depth, args.owner_file, args.expect_owner)
     except Refused as exc:

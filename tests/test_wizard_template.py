@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -31,10 +32,10 @@ class WizardTemplateTest(unittest.TestCase):
     def tearDown(self) -> None:
         self._tmp.cleanup()
 
-    def run_bash(self, body: str, stdin: str = "") -> subprocess.CompletedProcess[str]:
+    def run_bash(self, body: str, stdin: str = "", path: str = "/usr/bin:/bin") -> subprocess.CompletedProcess[str]:
         script = f"source {self.lib}\n{body}\n"
         return subprocess.run(
-            ["bash", "-c", script], cwd=self.dir, input=stdin, capture_output=True, text=True, env={"PATH": "/usr/bin:/bin", "ENV_FILE": ".env"}
+            [shutil.which("bash", path="/usr/bin:/bin") or "bash", "-c", script], cwd=self.dir, input=stdin, capture_output=True, text=True, env={"PATH": path, "ENV_FILE": ".env"}
         )
 
     def test_library_parses(self) -> None:
@@ -74,6 +75,23 @@ class WizardTemplateTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("GitHub secret NAME", result.stdout)
         self.assertNotIn("value", result.stdout.split("GitHub secret NAME")[-1])
+
+    def test_open_url_warns_when_no_opener_exists(self) -> None:
+        empty_bin = self.dir / "no-opener"
+        empty_bin.mkdir()
+        result = self.run_bash('open_url "https://example.test/keys"', path=str(empty_bin))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("visit it manually: https://example.test/keys", result.stdout)
+
+    def test_banner_counts_the_stage_lines_of_its_script(self) -> None:
+        script = self.dir / "wizard.sh"
+        script.write_text(library() + 'banner "Demo"\nstage "One"\nstage "Two"\n')
+        result = subprocess.run(
+            [shutil.which("bash", path="/usr/bin:/bin") or "bash", str(script)], cwd=self.dir, input="\n", capture_output=True, text=True, env={"PATH": "/usr/bin:/bin"}
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("2 stages", result.stdout)
+        self.assertIn("Stage 2/2", result.stdout)
 
 
 if __name__ == "__main__":

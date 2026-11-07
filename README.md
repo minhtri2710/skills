@@ -67,9 +67,4 @@ skills/<name>/
 
 ## Checks
 
-Scripts with test coverage in `tests/` are `agent-delivery-workflow`, `jev/scripts/jev.py`, `quality-floor/scripts/floor_guard.py`, `destructive-path-guard/scripts/safe_target.py`, `human-step-wizard/scripts/wizard-template.sh`, `prompt-leverage/scripts/augment_prompt.py`, `security-setup/scripts/security_check.py`, and `bug-diagnosis/scripts/hitl-loop.sh`. These local checks are the CI of record; there is no hosted CI. Run:
-
-```bash
-.venv/bin/python -m unittest discover -s tests
-git diff --check
-```
+The repository's checks, and the commands that run them, are in the "Checks" section of [`AGENTS.md`](AGENTS.md). They are the CI of record; there is no hosted CI.
