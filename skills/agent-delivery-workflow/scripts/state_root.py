@@ -105,7 +105,7 @@ def parse_run_dir(path: Path) -> tuple[str, str]:
 
 
 def mailbox_slug(path: str | Path) -> str:
-    """The slug of a project mailbox: the path must be `mailbox(slug)` for a valid slug."""
+    """The slug of a project mailbox: the path must be `project_dir(slug) / MAILBOX` for a valid slug."""
     parts = _under_root(Path(path))
     if len(parts) != 2 or parts[1] != MAILBOX or not SLUG_RE.fullmatch(parts[0]):
         raise ValueError(f"{path} is not {STATE_ROOT}/<slug>/{MAILBOX}")

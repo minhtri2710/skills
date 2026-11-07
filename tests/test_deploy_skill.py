@@ -407,6 +407,14 @@ class DeploySkillTest(unittest.TestCase):
         self.assertFalse((self.home / ".agents" / "skills").exists())
         self.assertFalse(ledger.exists())
 
+    def test_null_head_is_refused_at_the_origin_main_admission_check(self):
+        ledger = self.tmp / "gates.md"
+        self.assertEqual(self.run_deploy(self.deploy_args(ledger, "0" * 40)), 1)
+        self.assertIn(f"--head {'0' * 40} is not contained in refs/remotes/origin/main", sys.stderr.getvalue())
+        self.assertFalse(self.cli_log.exists(), "refused head must not invoke skills")
+        self.assertFalse((self.home / ".agents" / "skills").exists())
+        self.assertFalse(ledger.exists())
+
     def test_deploy_resolves_open_gate_in_same_invocation(self):
         gate_row_script = SCRIPTS / "gate_row.py"
         append = [

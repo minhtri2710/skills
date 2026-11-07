@@ -333,10 +333,10 @@ def _repair_range_problems(repo: Path, charter: str) -> list[str]:
     if not named:
         return ["repair re-review Prior review names a FAIL but no commit in --repo"]
     try:
-        listed = gitops.git(repo, "rev-list", f"{base}..{head}")
+        listed = gitops.range_commits(repo, base, head)
     except gitops.GitError:
         return [f"repair re-review range {base}..{head} does not resolve in {repo}"]
-    below_head = set(listed.split()[1:])  # rev-list lists the head first; naming it proves nothing
+    below_head = set(listed[1:])  # rev-list lists the head first; naming it proves nothing
     if not named.isdisjoint(below_head):
         return []
     for commit in named:
@@ -346,7 +346,7 @@ def _repair_range_problems(repo: Path, charter: str) -> list[str]:
             continue
         if merge_base in {commit, head}:
             continue
-        if gitops.is_ancestor(repo, base, merge_base):
+        if base == gitops.NULL_OID or gitops.is_ancestor(repo, base, merge_base):
             return []
     return [
         f"repair re-review range {base}..{head} must keep the slice base: "

@@ -658,7 +658,9 @@ class GateRowTest(unittest.TestCase):
             with self.subTest(mode=mode, extra=extra):
                 self.assertEqual(self.run_main([
                     "--ledger", str(self.ledger), "--repo", str(self.repo), mode, *extra]), 1)
-                self.assertIn(f"{mode} cannot be combined with append arguments", self.err.getvalue())
+                self.assertIn(
+                    "--mailbox requires --check" if "--mailbox" in extra
+                    else f"{mode} cannot be combined with append arguments", self.err.getvalue())
                 self.assertEqual(self.ledger.read_bytes(), before)
 
     def test_resolves_refuses_never_open_and_already_closed_ids_and_accepts_open_id(self):

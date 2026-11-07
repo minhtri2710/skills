@@ -1229,8 +1229,9 @@ def main(argv: list[str] | None = None) -> int:
     try:
         read_mode = ("--check" if args.check else "--open-gates" if args.open_gates
                      else "--deployed-head" if args.deployed_head else None)
-        if read_mode and (any(vars(request).values()) or args.push
-                          or (args.mailbox is not None and not args.check)):
+        if args.mailbox is not None and not args.check:
+            raise RowError("--mailbox requires --check")
+        if read_mode and (any(vars(request).values()) or args.push):
             raise RowError(f"{read_mode} cannot be combined with append arguments")
         if args.deployed_head:
             branch, head, source_row = select_deployed_head(args.ledger, args.deployed_head, args.repo)
@@ -1249,8 +1250,6 @@ def main(argv: list[str] | None = None) -> int:
             print(f"ok: {state.parsed[-1].gid} checks out")
             return 0
 
-        if args.mailbox is not None:
-            raise RowError("--mailbox requires --check")
         print(append_row(args.ledger, args.repo, request, push=args.push))
         return 0
     except RowError as exc:

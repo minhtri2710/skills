@@ -67,7 +67,7 @@ Provisional: L1 (a program that never reports status normally waits for exit, `H
 
 Command: `hc ls --json`
 
-Source: `CMD:304-316`; the JSON is `{"terminals": [...], "hidden_finished": n}` with one short row per terminal: address, name, state, turn, cwd, `status` as the bare word, `agent` (`cli.rs:420-436`; `cli/output.rs:142-155`). The rows carry no argv, so list seats have an empty `argv`; `hc get` has it. `hc ls` lists every live terminal on the core, not only this run's (`HCM:56,203`): the caller keeps the seats the staffing record names. Finished terminals are listed only with `--all`, which the adapter does not pass.
+Source: `CMD:304-316`; the JSON is `{"terminals": [...], "hidden_finished": n}` with one short row per terminal: address, name, state, turn, cwd, `status` as the bare word, `agent` (`cli.rs:420-436`; `cli/output.rs:142-155`). The rows carry no argv, so a listed seat's `kind` comes from `agent` alone; `hc get` has argv, and its first word is the last `kind` fallback. `hc ls` lists every live terminal on the core, not only this run's (`HCM:56,203`): the caller keeps the seats the staffing record names. Finished terminals are listed only with `--all`, which the adapter does not pass.
 
 Provisional: L1 (state of each seat). Test: `NormalizeTest`.
 

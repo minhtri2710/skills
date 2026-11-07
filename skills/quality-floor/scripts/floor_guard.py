@@ -99,6 +99,7 @@ def _git(repo: Path, *args: str) -> str:
             capture_output=True,
             text=True,
             encoding="utf-8",
+            errors="surrogateescape",
         )
     except OSError as exc:
         raise GuardError(f"git unavailable: {exc}") from exc
@@ -118,7 +119,7 @@ def _decode_git_path(raw: str) -> str:
     while index < len(encoded):
         char = encoded[index]
         if char != "\\":
-            decoded.extend(char.encode())
+            decoded.extend(char.encode(errors="surrogateescape"))
             index += 1
             continue
         index += 1
@@ -136,9 +137,9 @@ def _decode_git_path(raw: str) -> str:
             decoded.append(int(encoded[index:end], 8))
             index = end
         else:
-            decoded.extend(char.encode())
+            decoded.extend(char.encode(errors="surrogateescape"))
             index += 1
-    return decoded.decode()
+    return decoded.decode(errors="surrogateescape")
 
 
 def _header_path(raw: str, prefix: str) -> str:
@@ -360,7 +361,7 @@ def _name_status(status: str) -> tuple[list[str], dict[str, str]]:
 
 
 def _fs_path(repo: Path, name: str) -> Path:
-    return repo / os.fsdecode(name.encode())
+    return repo / os.fsdecode(name.encode(errors="surrogateescape"))
 
 
 def _leaves_watch(old: str, new: str) -> bool:
@@ -387,7 +388,7 @@ def collect(repo: Path, base: str) -> tuple[list[Line], list[Line], list[str], s
             continue
         added.extend(Line(name, i, t) for i, t in enumerate(text.splitlines(), start=1))
     try:
-        constraints = (repo / CONSTRAINTS).read_text(encoding="utf-8")
+        constraints = (repo / CONSTRAINTS).read_text(encoding="utf-8", errors="surrogateescape")
     except OSError:
         constraints = ""
     toml: dict[str, list[str]] = {}
