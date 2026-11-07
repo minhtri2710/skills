@@ -39,7 +39,7 @@ Select the level with `--intensity` (the script lists the levels and the default
 
 ## Task Classification
 
-The script classifies locally by case-insensitive whole-word keyword matches; categories, their order, and the fallback are its `TASKS` table. `--task` explicitly overrides the inferred category.
+The script classifies locally by case-insensitive whole-word keyword matches; categories and their order are its `TASKS` table, the fallback is in `detect_task`. `--task` explicitly overrides the inferred category.
 
 ## Task-Type Adjustments
 

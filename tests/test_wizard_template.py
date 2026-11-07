@@ -35,7 +35,7 @@ class WizardTemplateTest(unittest.TestCase):
     def run_bash(self, body: str, stdin: str = "", path: str = "/usr/bin:/bin") -> subprocess.CompletedProcess[str]:
         script = f"source {self.lib}\n{body}\n"
         return subprocess.run(
-            [shutil.which("bash") or "bash", "-c", script], cwd=self.dir, input=stdin, capture_output=True, text=True, env={"PATH": path, "ENV_FILE": ".env"}
+            [shutil.which("bash", path="/usr/bin:/bin") or "bash", "-c", script], cwd=self.dir, input=stdin, capture_output=True, text=True, env={"PATH": path, "ENV_FILE": ".env"}
         )
 
     def test_library_parses(self) -> None:
@@ -87,7 +87,7 @@ class WizardTemplateTest(unittest.TestCase):
         script = self.dir / "wizard.sh"
         script.write_text(library() + 'banner "Demo"\nstage "One"\nstage "Two"\n')
         result = subprocess.run(
-            [shutil.which("bash") or "bash", str(script)], cwd=self.dir, input="\n", capture_output=True, text=True, env={"PATH": "/usr/bin:/bin"}
+            [shutil.which("bash", path="/usr/bin:/bin") or "bash", str(script)], cwd=self.dir, input="\n", capture_output=True, text=True, env={"PATH": "/usr/bin:/bin"}
         )
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("2 stages", result.stdout)
