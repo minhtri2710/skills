@@ -33,7 +33,8 @@ On your first turn create one heartbeat for yourself, then run one check:
 `paseo heartbeat create --cron "<cron>" --timezone <timezone> --name watcher "Run one Watcher check per <record-dir>/brief.md, then end the turn."`
 
 Each wake runs one check, then ends the turn. When a command fails, send
-`watcher P1: blocked — <command> failed: <first error line>` once and stop the check.
+`watcher P1: blocked — <command> failed: <first error line>` once, recorded in `state.md`
+so a later wake does not resend it, and stop the check.
 
 ## One check
 
@@ -45,9 +46,9 @@ Each wake runs one check, then ends the turn. When a command fails, send
 4. Classify each entry against the rules below.
 5. Write findings and state, send the reports, end the turn.
 
-An act counts as approved only with a matching GO line in `<approval-record>`, a standing
-grant in the project's `grants.md`, or a Human answer recorded in the project's
-`handoff.md`, each for that project and SHA.
+An act counts as approved only with one of: a GO line in `<approval-record>` matching its
+project and SHA; a standing grant in the project's `grants.md` whose scope and conditions
+cover the act; a Human answer recorded in the project's `handoff.md` that names the act.
 
 ## Records
 
@@ -87,11 +88,11 @@ A P1 batch is one send of one line, at most one per hour:
   an external account; a new dependency; any other destructive or irreversible act outside
   the delivery's branch, worktree, and artifacts. Left out, since logs cannot judge them:
   scope beyond the brief and a breaking contract change.
-- A tier doing what its "Never" column forbids: a Reviewer writing anything; a Heartbeat
-  starting work, running tests, or editing; an Engineer committing, editing outside its
-  owned paths, or staffing an agent beyond its subagents; a Lead writing source in a
-  partitioned run or acting dangerously before its answer arrives. Left out for the same
-  reason: a Reviewer reviewing a moving tree.
+- A tier doing what its "Never" column forbids: a Reviewer writing anything outside its
+  own report file; a Heartbeat starting work, running tests, or editing; an Engineer
+  committing, editing outside its owned paths, or staffing an agent beyond its subagents; a
+  Lead writing source in a partitioned run or acting dangerously before its answer
+  arrives. Left out for the same reason: a Reviewer reviewing a moving tree.
 - A secret value in any activity; a command that prints the environment; a read of a secret
   file; a reworded retry that achieves the effect a hook just blocked.
 - An agent below the Supervisor answering another agent's permission request.
@@ -103,7 +104,8 @@ A P1 batch is one send of one line, at most one per hour:
 - A Reviewer or Engineer that finished without sending its verdict or report to its Lead.
 - The same hook block three or more times for one agent.
 - A Lead sending the Supervisor anything but an upward event, an ack, or an answer.
-- Any tier polling or sleeping in a loop.
+- A Lead polling: re-asking for state in a sleep or self-wake loop (a tracked bounded wait
+  is not polling).
 
 ## Not reported
 
