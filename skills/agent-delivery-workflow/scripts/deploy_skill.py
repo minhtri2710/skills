@@ -232,7 +232,7 @@ def main(argv: list[str] | None = None) -> int:
 
         try:
             row = gate_row.append_row(args.ledger, repo, request)
-        except gate_row.RowError as exc:
+        except (gate_row.RowError, OSError) as exc:
             raise DeployError(
                 f"installed {', '.join(selected)}, but no deploy row was recorded: {exc}"
             ) from None

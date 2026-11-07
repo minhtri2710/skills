@@ -972,6 +972,7 @@ def flag_values(request: RowRequest) -> dict[str, str]:
             parse_resolves(f"resolves={raw}")
         elif entry.name == "void":
             raw = raw[0]
+            parse_void(f"void={raw}")
         supplied[entry.name] = field_text(entry.name, raw)
     return supplied
 

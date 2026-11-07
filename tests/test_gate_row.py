@@ -1545,6 +1545,12 @@ class GateRowTest(unittest.TestCase):
                 self.assertEqual(self.append(*extra), 1)
                 self.assertEqual(self.ledger.read_bytes(), before)
 
+    def test_a_correction_refuses_a_padded_void_id(self):
+        self.assertEqual(self.append_review_pass(), 0, self.err.getvalue())
+        before = self.ledger.read_bytes()
+        self.assertEqual(self.append_correction(" G1"), 1)
+        self.assertEqual(self.ledger.read_bytes(), before)
+
     def test_a_structured_field_refuses_the_row_delimiters(self):
         before = self.ledger.read_bytes()
         for op in ("git|status", 'git "status"', "git\nstatus"):
