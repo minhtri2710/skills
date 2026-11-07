@@ -15,6 +15,7 @@ from pathlib import Path
 import support
 import backend
 import charter_lint
+import gitops
 from backends import herdr
 from fake_backend import FakeBackend
 
@@ -415,7 +416,7 @@ class CharterLintTest(unittest.TestCase):
         self.assertEqual(proc.returncode, 0, proc.stderr)
 
     def test_range_endpoints_staffed_heads_and_their_splices_must_resolve(self):
-        base, head, null = self.base, self.head, "0" * 40
+        base, head, null = self.base, self.head, gitops.NULL_OID
         spliced_base = base[:12] + head[12:]
         spliced_echo = head[:7] + ("0" if head[7] != "0" else "1") + base[8:]
         null_prefixed_pin = "0" * 7 + "d" * 33
@@ -454,13 +455,13 @@ class CharterLintTest(unittest.TestCase):
         self.assertIn(f"charter_lint: could not read repo {self.tmp}: ", stderr.getvalue())
         stderr = io.StringIO()
         missing_git = FileNotFoundError(2, "No such file or directory", "git")
-        with unittest.mock.patch.object(charter_lint.subprocess, "run", side_effect=missing_git), \
+        with unittest.mock.patch.object(gitops.subprocess, "run", side_effect=missing_git), \
                 contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(stderr):
             code = self.lint_main([
                 "--charter", str(charter_path), "--lead", LEAD, "--repo", str(self.repo),
             ])
         self.assertEqual(code, 1)
-        self.assertIn("charter_lint: could not run git: ", stderr.getvalue())
+        self.assertIn(f"charter_lint: could not read repo {self.repo}: could not run git: ", stderr.getvalue())
 
     def test_repair_re_review_range_must_hold_a_commit_its_prior_fail_review_names(self):
         base, mid, head = self.base, self.mid, self.head

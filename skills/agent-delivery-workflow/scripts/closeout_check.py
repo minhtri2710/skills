@@ -20,16 +20,6 @@ class CloseoutResult:
     findings: tuple[str, ...]
     checked_seats: tuple[str, ...] = ()
 
-def _unpushed_commits(repo: Path, gate_tips: list[str]) -> list[str]:
-    head = gate_row.git(repo, "rev-parse", "HEAD")
-    try:
-        upstream = gate_row.git(repo, "rev-parse", "--verify", "@{upstream}")
-    except gate_row.RowError:
-        exclude = ["--remotes"]
-    else:
-        exclude = [upstream]
-    return gate_row.git(repo, "rev-list", head, "--not", *exclude, *gate_tips).splitlines()
-
 
 _PEER_ROLES = {"Engineer", "Reviewer"}
 _PERSISTENT_ROLES = {"Lead", "Human Supervisor"}
@@ -207,12 +197,8 @@ def check_closeout(
         return CloseoutResult(False, (f"malformed staffing record: {exc}",))
 
     try:
-        with gate_row.locked_ledger(ledger_path, exclusive=False) as handle:
-            rows = gate_row.ledger_rows(gate_row.handle_text(handle))
-            state = gate_row.validate_ledger(rows, canonical)
-        gate_tips = gate_row.open_push_gate_tips(state, canonical)
-        unpushed = _unpushed_commits(canonical, gate_tips)
-        reviewed = state.covered_by_reviews(canonical, set(unpushed)) & set(unpushed)
+        state = gate_row.read_ledger_state(ledger_path, canonical)
+        reviewed = gate_row.reviewed_unpushed(state, canonical)
         if reviewed:
             findings.append(
                 f"reviewed unpushed commit(s) {' '.join(sorted(reviewed))} have no open push-gate row"

@@ -38,6 +38,7 @@ from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 
+import gitops
 import state_root
 from bounded_run import stop_group
 from mailbox import parse_header
@@ -49,7 +50,7 @@ STATUS_RE = re.compile(r"^(open|(resolved|recorded):[a-z0-9-]+)$")
 CHANNEL_RE = re.compile(r"^(direct-seat-pane|supervisor-relay):(typed|dialog)$")
 WRITER_RE = re.compile(r"^[a-z][a-z0-9_-]*$")
 HEAD_RE = re.compile(r"^(?P<branch>[^ |@]+)@(?P<head>[0-9a-f]{7,40})$")
-HEAD_ARG_RE = re.compile(r"^(?P<branch>[^ |@]+)@(?P<head>[0-9a-f]{40})$")
+HEAD_ARG_RE = re.compile(rf"^(?P<branch>[^ |@]+)@(?P<head>{gitops.FULL_SHA})$")
 # One feature-branch push lands in seconds; two minutes covers a slow link or a large first
 # pack, and bounds how long a hung push can hold the ledger lock against every other writer.
 PUSH_TIMEOUT_S = 120
@@ -90,6 +91,10 @@ LINE_BREAKS = "\n\r\x0b\x0c\x1c\x1d\x1e\x85\u2028\u2029"
 
 class RowError(Exception):
     pass
+
+
+class GitRowError(RowError, gitops.GitError):
+    """A failed git question inside a ledger operation: a RowError to gate_row's callers, a GitError to gitops."""
 
 
 def validate_row_encodings(
@@ -187,29 +192,39 @@ def memoized_git():
         GIT_MEMO = outer
 
 
+def memo_key(repo: Path, args: tuple[str, ...], stdin: str | None = None) -> tuple[str, tuple[str, ...], str | None]:
+    return (str(repo), args, stdin)
+
+
 def git(repo: Path, *args: str, stdin: str | None = None) -> str:
-    key = (str(repo), args, stdin)
+    key = memo_key(repo, args, stdin)
     if GIT_MEMO is not None and key in GIT_MEMO:
         ok, text = GIT_MEMO[key]
     else:
-        proc = subprocess.run(
-            ["git", "-C", str(repo), *args],
-            input=stdin, capture_output=True, text=True, encoding="utf-8", check=False,
-        )
-        ok = proc.returncode == 0
-        text = proc.stdout.strip() if ok else proc.stderr.strip()
+        try:
+            ok, text = True, gitops.git(repo, *args, stdin=stdin)
+        except gitops.GitError as exc:
+            ok, text = False, str(exc)
         if GIT_MEMO is not None:
             GIT_MEMO[key] = (ok, text)
     if not ok:
-        raise RowError(f"git {' '.join(args)} failed: {text}")
+        raise GitRowError(text)
     return text
+
+
+def commit_query(name: str) -> tuple[str, ...]:
+    return ("rev-parse", "--verify", f"{name}^{{commit}}")
+
+
+def commit_of(repo: Path, name: str) -> str:
+    return git(repo, *commit_query(name))
 
 
 def warm_head_commits(repo: Path, rows: list[str]) -> None:
     """Resolve every row's head in one cat-file call, memoizing the hits only.
 
     Only a commit answer is memoized. A miss, an ambiguous name, or a failed call
-    stays out of the memo, so the git() call that asks for that head runs
+    stays out of the memo, so the commit_of() call that asks for that head runs
     rev-parse and raises the message it always raised.
     """
     names = []
@@ -221,18 +236,17 @@ def warm_head_commits(repo: Path, rows: list[str]) -> None:
     names = list(dict.fromkeys(names))
     if not names:
         return
-    proc = subprocess.run(
-        ["git", "-C", str(repo), "cat-file", "--batch-check"],
-        input="".join(f"{name}^{{commit}}\n" for name in names),
-        capture_output=True, text=True, encoding="utf-8", check=False,
-    )
-    lines = proc.stdout.splitlines()
+    try:
+        out = gitops.git(repo, "cat-file", "--batch-check", stdin="".join(f"{name}^{{commit}}\n" for name in names))
+    except gitops.GitError:
+        return
+    lines = out.splitlines()
     if len(lines) != len(names):
         return
     for name, line in zip(names, lines):
         fields = line.split()
         if len(fields) == 3 and fields[1] == "commit":
-            GIT_MEMO[(str(repo), ("rev-parse", "--verify", f"{name}^{{commit}}"), None)] = (True, fields[0])
+            GIT_MEMO[memo_key(repo, commit_query(name))] = (True, fields[0])
 
 
 PREV_HASH_RE = re.compile(r"^[0-9a-f]{64}$")
@@ -296,7 +310,7 @@ def deployed_head(rows: list[str], skill: str, repo: Path) -> tuple[str, str, st
     if not candidates:
         raise RowError(f"no completed target-bearing deploy row for skill {skill!r}")
     branch, head, row = candidates[-1]
-    full_head = git(repo, "rev-parse", "--verify", f"{head}^{{commit}}")
+    full_head = commit_of(repo, head)
     return branch, full_head, row
 
 
@@ -315,16 +329,32 @@ def validate_ledger(rows: list[str], repo: Path) -> "LedgerState":
     return state
 
 
+def read_ledger_state(ledger: Path, repo: Path) -> LedgerState:
+    """Read the whole hash-chained ledger under a shared lock and validate it against `repo`."""
+    with locked_ledger(ledger, exclusive=False) as handle:
+        return validate_ledger(ledger_rows(handle_text(handle)), repo)
+
+
+def reviewed_unpushed(state: LedgerState, repo: Path) -> set[str]:
+    """Commits in `repo` that are not pushed, are covered by a review PASS, and no open push-gate row names."""
+    tips = open_push_gate_tips(state, repo)
+    head = git(repo, "rev-parse", "HEAD")
+    try:
+        exclude = [git(repo, "rev-parse", "--verify", "@{upstream}")]
+    except gitops.GitError:
+        exclude = ["--remotes"]
+    unpushed = set(git(repo, "rev-list", head, "--not", *exclude, *tips).splitlines())
+    return state.covered_by_reviews(repo, unpushed) & unpushed
+
+
 def select_deployed_head(ledger: Path, skill: str, repo: Path) -> tuple[str, str, str]:
     """Read and validate the entire hash-chained ledger before selecting a deployed head."""
     if not ledger.is_absolute():
         raise RowError(f"ledger path must be absolute: {ledger}")
-    with locked_ledger(ledger, exclusive=False) as handle:
-        rows = ledger_rows(handle_text(handle))
-        if not rows:
-            raise RowError(f"no completed target-bearing deploy row for skill {skill!r}")
-        validate_ledger(rows, repo)
-        return deployed_head(rows, skill, repo)
+    state = read_ledger_state(ledger, repo)
+    if not state.rows:
+        raise RowError(f"no completed target-bearing deploy row for skill {skill!r}")
+    return deployed_head(state.rows, skill, repo)
 
 
 def split_row(row: str) -> tuple[list[str], str]:
@@ -405,14 +435,6 @@ def row_field(fields: list[str], name: str) -> str | None:
     return None
 
 
-def is_ancestor(repo: Path, ancestor: str, descendant: str) -> bool:
-    try:
-        git(repo, "merge-base", "--is-ancestor", ancestor, descendant)
-    except RowError:
-        return False
-    return True
-
-
 def field_text(name: str, value: str | None) -> str:
     value = (value or "").strip()
     if not value:
@@ -470,7 +492,7 @@ def validate_after(value: str, repo: Path) -> None:
     match = HEAD_RE.fullmatch(value)
     if not match:
         raise RowError(f"after={value!r} is not <branch>@<head>")
-    git(repo, "rev-parse", "--verify", f"{match.group('head')}^{{commit}}")
+    commit_of(repo, match.group("head"))
 
 
 def refuse_repair_cap(finding: str) -> None:
@@ -646,12 +668,12 @@ class LedgerState:
         a merge whose tree differs from its parents' automatic merge stays uncovered.
         """
         pushed = set(range_commits(repo, base, head))
-        covered = self.covered_by_reviews(repo, pushed) | landed_commits(repo, head, pushed)
+        covered = self.covered_by_reviews(repo, pushed) | gitops.landed_commits(repo, head, pushed, run=git)
         grew = True
         while grew:
             grew = False
             for sha in pushed - covered:
-                parents = clean_merge_parents(repo, sha)
+                parents = gitops.clean_merge_parents(repo, sha, run=git)
                 if parents and all(p in covered or p not in pushed for p in parents):
                     covered.add(sha)
                     grew = True
@@ -678,45 +700,14 @@ def open_push_gate_rows(state: LedgerState) -> list[str]:
 
 def open_push_gate_tips(state: LedgerState, repo: Path) -> list[str]:
     heads = [split_row(row)[0][3].split("@") for row in open_push_gate_rows(state)]
-    return [git(repo, "rev-parse", "--verify", f"{sha}^{{commit}}")
-            for _, sha in heads]
-
-
-def landed_commits(repo: Path, head: str, commits: set[str]) -> set[str]:
-    """The commits already reachable from origin/HEAD, the remote's product line; none without it."""
-    try:
-        tip = git(repo, "rev-parse", "--verify", "refs/remotes/origin/HEAD^{commit}")
-    except RowError:
-        return set()
-    return commits - set(git(repo, "rev-list", head, "--not", tip).split())
-
-
-def clean_merge_parents(repo: Path, sha: str) -> list[str] | None:
-    """The two parents of a merge commit whose tree is exactly their automatic merge, else None."""
-    parents = git(repo, "rev-list", "--parents", "-n", "1", sha).split()[1:]
-    if len(parents) != 2:
-        return None
-    try:
-        merged = git(repo, "merge-tree", "--write-tree", *parents).split()[0]
-    except RowError:
-        return None
-    return parents if merged == git(repo, "rev-parse", f"{sha}^{{tree}}") else None
+    return [commit_of(repo, sha) for _, sha in heads]
 
 
 def range_commits(repo: Path, base: str, head: str) -> list[str]:
-    """The commits in base..head, newest first; the one range derivation both blocks share.
-
-    A zero base means the whole history of head, including its root commit. Other
-    bases must be ancestors of head, and every range must carry at least one commit.
-    """
-    if base == "0" * 40:
-        commits = git(repo, "rev-list", head).splitlines()
-    else:
-        git(repo, "merge-base", "--is-ancestor", base, head)
-        commits = git(repo, "rev-list", f"{base}..{head}").splitlines()
-    if not commits:
-        raise RowError(f"range {base}..{head} carries no commit")
-    return commits
+    try:
+        return gitops.range_commits(repo, base, head, run=git)
+    except gitops.GitError as exc:
+        raise RowError(str(exc)) from None
 
 
 def derive_push(repo: Path, base: str, head: str, boundary: list[str]) -> tuple[str, list[str]]:
@@ -766,11 +757,11 @@ def resolve_row_head(args: argparse.Namespace, repo: Path, record: str) -> tuple
             f"--head {requested!r} is not <branch>@<full 40-hex commit SHA>"
         )
     branch, head = match.group("branch"), match.group("head")
-    git(repo, "rev-parse", "--verify", f"{head}^{{commit}}")
+    commit_of(repo, head)
     if head != current_head:
         timely_at_ancestor = (
             getattr(args, "kind", "") in {"review", "deploy", "deploy-gate", "handoff", "push"}
-            and is_ancestor(repo, head, current_head)
+            and gitops.is_ancestor(repo, head, current_head)
         )
         if not timely_at_ancestor and record != "reconstruction":
             raise RowError(
@@ -788,7 +779,7 @@ def push_head(repo: Path, branch: str, head: str) -> str:
     """
     try:
         product = git(repo, "symbolic-ref", "--short", "refs/remotes/origin/HEAD")
-    except RowError:
+    except gitops.GitError:
         raise RowError(
             "--push refused: origin/HEAD is unset, so the product line is unknown; "
             "run git remote set-head origin --auto"
@@ -910,19 +901,17 @@ def build(args: argparse.Namespace, repo: Path, state: LedgerState,
                 )
             remote_tip = remote[0]
             try:
-                git(repo, "rev-parse", "--verify", f"{remote_tip}^{{commit}}")
-            except RowError:
+                commit_of(repo, remote_tip)
+            except gitops.GitError:
                 raise RowError(
                     f"origin/{branch} points to {remote_tip}, which is not present locally — "
                     "the Lead must git fetch it; gate_row never fetches"
                 ) from None
-            try:
-                git(repo, "merge-base", "--is-ancestor", head, remote_tip)
-            except RowError:
+            if not gitops.is_ancestor(repo, head, remote_tip):
                 raise RowError(
                     f"origin/{branch} is {remote_tip}, but {head} is not an ancestor of "
                     "the remote tip — the push this row claims has not landed"
-                ) from None
+                )
         if not args.boundary:
             raise RowError(
                 "a push row needs --boundary: the declared paths the push was judged "
@@ -999,7 +988,7 @@ def check(row: str, repo: Path, state: LedgerState | None = None) -> None:
         raise RowError(f"field {head_field!r} is not <branch>@<head>")
     # The object, not the ref: a merge that deletes the branch must not make a
     # landed row permanently uncheckable. Retrievability belongs to the object.
-    git(repo, "rev-parse", "--verify", f"{m.group('head')}^{{commit}}")
+    commit_of(repo, m.group("head"))
 
     known = (
         "channel=", "writer=", "record=", "push=", "review=", "resolves=", "under=", "void=", "op=", "after=", "skills=",
@@ -1339,9 +1328,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.open_gates:
             if any(append_args):
                 raise RowError("--open-gates cannot be combined with append arguments")
-            with locked_ledger(args.ledger, exclusive=False) as handle:
-                rows = ledger_rows(handle_text(handle))
-                ids = validate_ledger(rows, args.repo).open_gate_ids()
+            ids = read_ledger_state(args.ledger, args.repo).open_gate_ids()
             sys.stdout.write("".join(f"{gid}\n" for gid in ids))
             return 0
 

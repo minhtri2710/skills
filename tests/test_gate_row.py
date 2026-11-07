@@ -18,6 +18,7 @@ from pathlib import Path
 
 import support
 import gate_row
+import gitops
 
 SCRIPTS = support.ADW / "scripts"
 
@@ -835,7 +836,7 @@ class GateRowTest(unittest.TestCase):
         self.assertIn("--record reconstruction", self.err.getvalue())
 
     def test_zero_base_push_requires_whole_history_review_coverage(self):
-        zero = "0" * 40
+        zero = gitops.NULL_OID
         self.add_remote("HEAD")
         before = self.ledger.read_bytes()
         self.assertEqual(self.append(
@@ -852,7 +853,7 @@ class GateRowTest(unittest.TestCase):
         self.assertIn(f"push={zero}..{self.rev('HEAD')} count=3", self.last_row())
 
     def test_a_past_head_is_landed_when_a_newer_remote_tip_is_on_top(self):
-        zero = "0" * 40
+        zero = gitops.NULL_OID
         past = self.rev("HEAD")
         self.assertEqual(self.append_review_pass(zero), 0)
         self.add_remote("HEAD")
@@ -867,7 +868,7 @@ class GateRowTest(unittest.TestCase):
         self.assertIn(f"main@{past}", self.last_row())
 
     def test_a_remote_tip_not_present_locally_is_refused_with_fetch_action(self):
-        zero = "0" * 40
+        zero = gitops.NULL_OID
         self.assertEqual(self.append_review_pass(zero), 0)
         self.add_remote("HEAD")
         other = self.tmp / "other"
@@ -1552,7 +1553,7 @@ class GateRowTest(unittest.TestCase):
         self.assertEqual(self.check_last(), 0, self.err.getvalue())
 
     def test_the_touched_set_counts_the_root_commit_merges_and_both_rename_sides(self):
-        self.assertEqual(gate_row.derive_push(self.repo, "0" * 40, self.rev("HEAD"), ["f1.txt", "f2.txt"]),
+        self.assertEqual(gate_row.derive_push(self.repo, gitops.NULL_OID, self.rev("HEAD"), ["f1.txt", "f2.txt"]),
                          ("3", ["f0.txt"]))
         base = self.rev("HEAD")
         support.git(self.repo, "checkout", "-qb", "side")

@@ -119,6 +119,16 @@ class RelaunchEntryCheckTest(unittest.TestCase):
         self.assertEqual(self.count(), (0, "tracked=2 installed=2 drifted=0\n", ""))
         self.assertNotEqual(deployed, support.git(self.repo, "rev-parse", "HEAD"))
 
+    def test_count_refuses_a_symlinked_subdirectory_in_the_installed_tree(self):
+        self.deploy_row("example")
+        outside = self.tmp / "outside"
+        outside.mkdir()
+        (outside / "payload.py").write_text("elsewhere\n", encoding="utf-8")
+        (self.install / "linked").symlink_to(outside, target_is_directory=True)
+        result = self.count()
+        self.assertEqual(result[0], 1)
+        self.assertEqual(result[1], "tracked=2 installed=3 drifted=0\n")
+
     def test_count_flags_installed_mode_drift(self):
         (self.skill / "script.py").chmod(0o755)
         support.git(self.repo, "add", "skills/example")

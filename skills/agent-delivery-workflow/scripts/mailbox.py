@@ -5,7 +5,6 @@ from __future__ import annotations
 import argparse
 import os
 import re
-import subprocess
 import sys
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -13,6 +12,7 @@ from pathlib import Path
 from typing import Callable
 
 import backend
+import gitops
 import state_root
 
 ISO_RE = re.compile(
@@ -26,7 +26,6 @@ HEADER_RE = re.compile(
 ATTENTION = "ATTENTION "
 
 SEAT_RE = re.compile(r"[a-z][a-z0-9_-]{0,31}")
-SHA_RE = re.compile(r"[0-9a-f]{40}")
 
 
 @dataclass(frozen=True)
@@ -159,13 +158,12 @@ def append_entry(
         # Every "## " line a script writes is a header; readers fail closed on any other.
         if line.startswith("## "):
             raise ValueError("stdin body must not contain a line starting '## '")
-    proc = subprocess.run(
-        ["git", "-C", repo, "rev-parse", "HEAD"],
-        capture_output=True, text=True, encoding="utf-8", check=False,
-    )
-    head = proc.stdout.strip()
-    if proc.returncode != 0 or SHA_RE.fullmatch(head) is None:
-        raise ValueError(f"--repo {repo}: git rev-parse HEAD failed: {proc.stderr.strip()}")
+    try:
+        head = gitops.git(Path(repo), "rev-parse", "HEAD")
+    except gitops.GitError as exc:
+        raise ValueError(f"--repo {repo}: {exc}") from None
+    if gitops.SHA_RE.fullmatch(head) is None:
+        raise ValueError(f"--repo {repo}: git rev-parse HEAD returned {head!r}, not a full SHA")
     stamp = _now().strftime("%Y-%m-%dT%H:%M:%SZ")
     header = f"## {sender} -> {recipient} | {stamp} | {text} | HEAD {head}"
     data = f"---\n{header}\n" + ("" if body is None else f"{body}\n")
