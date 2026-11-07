@@ -16,7 +16,7 @@ import security_check
 
 
 def setUpModule() -> None:
-    support.never_run("git", "gitleaks", "trivy", "semgrep")
+    support.never_run("git", "gitleaks", "trivy", "semgrep", "bandit", "cargo-audit")
 
 
 class InteractiveInput(io.StringIO):
@@ -133,33 +133,45 @@ class SecurityCheckTest(unittest.TestCase):
         self.assertFalse(output.exists())
         self.assertFalse(markdown.exists())
 
-    def test_category_formatter_is_sorted_and_has_none_case(self) -> None:
-        self.assertEqual(security_check.format_categories({}), "none")
-        self.assertEqual(
-            security_check.format_categories({"static": 2, "secrets": 1}),
-            "secrets=1, static=2",
+    def test_categories_are_sorted_and_none_when_empty(self) -> None:
+        self.write_fake(
+            "semgrep",
+            "printf '%s\\n' '{\"results\":[{\"path\":\"src/app.py\",\"extra\":{\"severity\":\"INFO\"}}]}'\n",
         )
-
-    def test_scope_triggers_and_trip_all_paths(self) -> None:
-        _, docs = security_check.evaluate_scope(security_check.DEFAULT_CONFIG, ["README.md"])
-        self.assertTrue(docs["gitleaks"]["run"])
-        self.assertFalse(docs["trivy"]["run"])
-        self.assertFalse(docs["semgrep"]["run"])
-
-        _, lockfile = security_check.evaluate_scope(security_check.DEFAULT_CONFIG, ["package-lock.json"])
-        self.assertTrue(lockfile["trivy"]["run"])
-        self.assertFalse(lockfile["semgrep"]["run"])
-
-        _, source = security_check.evaluate_scope(security_check.DEFAULT_CONFIG, ["src/app.py"])
-        self.assertTrue(source["semgrep"]["run"])
-
-        _, workflow = security_check.evaluate_scope(
-            security_check.DEFAULT_CONFIG, [".github/workflows/check.yml"]
+        self.write_fake("gitleaks", "printf '%s\\n' '[{\"Description\":\"Synthetic\"}]'\n")
+        config = self.write_config(
+            [self.one_check(name="semgrep", category="static"), self.one_check()], fail_on=["CRITICAL"]
         )
-        self.assertTrue(all(decision["run"] for decision in workflow.values()))
+        _, stdout, _, _ = self.run_with_reports(config)
+        self.assertIn("Categories: secrets=1, static=1\n", stdout)
 
-        _, full = security_check.evaluate_scope(security_check.DEFAULT_CONFIG, None)
-        self.assertTrue(all(decision["run"] for decision in full.values()))
+        self.clean_fakes()
+        config = self.write_config([self.one_check()])
+        _, stdout, _, _ = self.run_with_reports(config)
+        self.assertIn("Categories: none\n", stdout)
+
+    def test_staged_scope_triggers_and_trip_all_paths(self) -> None:
+        self.clean_fakes()
+        self.init_git()
+        config = self.write_config([
+            self.one_check(),
+            self.one_check(name="trivy", category="dependencies"),
+            self.one_check(name="semgrep", category="static"),
+        ])
+        cases = {
+            "README.md": {"gitleaks"},
+            "package-lock.json": {"gitleaks", "trivy"},
+            "src/app.py": {"gitleaks", "semgrep"},
+            ".github/workflows/check.yml": {"gitleaks", "trivy", "semgrep"},
+            "docker/Dockerfile.dev": {"gitleaks", "trivy", "semgrep"},
+        }
+        for path, expected_to_run in cases.items():
+            with self.subTest(path=path):
+                self.stage(path, "synthetic\n")
+                _, _, _, payload = self.run_with_reports(config, "--staged-only")
+                support.git(self.root, "rm", "-q", "--cached", path)
+                ran = {check["name"] for check in payload["checks"] if not check["skipped"]}
+                self.assertEqual(ran, expected_to_run)
 
     def test_all_and_staged_only_are_mutually_exclusive(self) -> None:
         with self.assertRaises(SystemExit) as exclusive_exit:
@@ -207,6 +219,41 @@ class SecurityCheckTest(unittest.TestCase):
         self.assertIn("report is partial", stderr)
         self.assertEqual(payload["summary"]["not_assessed"], 1)
         self.assertEqual(payload["checks"][0]["status"], "Not-Assessed")
+
+    def test_missing_executable_record_names_its_command(self) -> None:
+        config = self.write_config([self.one_check(command=["missing-synthetic-scanner", "--flag"])])
+        _, _, _, payload = self.run_with_reports(config)
+        self.assertEqual(payload["checks"][0]["command_name"], "missing-synthetic-scanner")
+
+    def test_malformed_config_exits_two_before_any_scanner_runs(self) -> None:
+        marker = self.root / "gitleaks-ran"
+        self.write_fake("gitleaks", "touch " + str(marker) + "\nprintf '%s\\n' '[]'\n")
+        self.write_fake("semgrep", "printf '%s\\n' '{\"results\":[]}'\n")
+        first = self.one_check()
+        second = self.one_check(name="semgrep", category="static")
+        cases = {
+            "expected_returncodes must be a list of integers": ({"expected_returncodes": ["0"]}, {}),
+            "trip_all_paths must be a list of globs": ({}, {"trip_all_paths": "security/**"}),
+            "check trigger paths must be a list of globs": ({"triggers": {"paths": "**/*.py"}}, {}),
+        }
+        for message, (second_extra, top_level) in cases.items():
+            with self.subTest(message=message):
+                marker.unlink(missing_ok=True)
+                config = self.write_config([first, {**second, **second_extra}])
+                config.write_text(
+                    json.dumps({**json.loads(config.read_text(encoding="utf-8")), **top_level}),
+                    encoding="utf-8",
+                )
+                output, markdown = self.report_paths("malformed")
+                code, stdout, stderr = support.run_main(
+                    security_check.main,
+                    ["--config", str(config), "--output", str(output), "--markdown", str(markdown), "--all"],
+                )
+                self.assertEqual(code, 2)
+                self.assertEqual(stdout, "")
+                self.assertEqual(stderr, "Configuration error: " + message + "\n")
+                self.assertFalse(marker.exists())
+                self.assertFalse(output.exists())
 
     def test_malformed_output_and_timeout_are_not_green(self) -> None:
         self.write_fake("gitleaks", "printf '%s\\n' 'RAW-SCANNER-OUTPUT'\n")
@@ -267,46 +314,45 @@ class SecurityCheckTest(unittest.TestCase):
         self.assertEqual(payload["summary"]["checks_run"], 3)
         self.assertTrue(all(check["status"] == "Assessed" for check in payload["checks"]))
 
-    def test_parsers_map_scanner_severities(self) -> None:
-        gitleaks = security_check.parse_gitleaks(
-            [{"Description": "Synthetic secret-like finding", "File": "docs/example.md"}],
-            "secrets",
-            "gitleaks",
-        )
-        self.assertEqual(gitleaks[0]["severity"], "HIGH")
+    def test_scanner_severities_map_to_report_severities(self) -> None:
+        def emit(body: str) -> str:
+            return "printf '%s\\n' '" + body + "'\n"
 
-        trivy = security_check.parse_trivy(
-            {"Results": [{"Target": "package-lock.json", "Vulnerabilities": [
-                {"VulnerabilityID": "SYNTHETIC-1", "PkgName": "fixture", "Severity": "CRITICAL"}
-            ]}]},
-            "dependencies",
-            "trivy",
+        self.write_fake("gitleaks", emit('[{"Description":"Synthetic secret-like finding","File":"docs/example.md"}]'))
+        self.write_fake("trivy", emit(
+            '{"Results":[{"Target":"package-lock.json","Vulnerabilities":'
+            '[{"VulnerabilityID":"SYNTHETIC-1","PkgName":"fixture","Severity":"CRITICAL"}]}]}'
+        ))
+        self.write_fake("semgrep", emit(
+            '{"results":[{"path":"a.py","extra":{"severity":"ERROR","message":"error rule"}},'
+            '{"path":"b.py","extra":{"severity":"WARNING","message":"warning rule"}},'
+            '{"path":"c.py","extra":{"severity":"INFO","message":"info rule"}}]}'
+        ))
+        self.write_fake("bandit", emit('{"results":[{"filename":"a.py","issue_severity":"MEDIUM","issue_text":"bandit rule"}]}'))
+        self.write_fake("cargo-audit", emit(
+            '{"vulnerabilities":{"list":[{"advisory":{"id":"SYNTHETIC-RUST-1","severity":"low"},"package":{"name":"fixture"}}]}}'
+        ))
+        config = self.write_config(
+            [
+                self.one_check(),
+                self.one_check(name="trivy", category="dependencies"),
+                self.one_check(name="semgrep", category="static"),
+                self.one_check(name="bandit", category="static"),
+                self.one_check(name="cargo-audit", category="dependencies"),
+            ],
+            fail_on=["CRITICAL"],
         )
-        self.assertEqual(trivy[0]["severity"], "CRITICAL")
-
-        semgrep = security_check.parse_semgrep(
-            {"results": [{"path": "src/app.py", "extra": {"severity": "ERROR"}}]},
-            "static",
-            "semgrep",
-        )
-        self.assertEqual(semgrep[0]["severity"], "HIGH")
-
-        bandit = security_check.parse_bandit(
-            {"results": [{"filename": "src/app.py", "issue_severity": "WARNING"}]},
-            "static",
-            "bandit",
-        )
-        self.assertEqual(bandit[0]["severity"], "MEDIUM")
-
-        cargo = security_check.parse_cargo_audit(
-            {"vulnerabilities": {"list": [{
-                "advisory": {"id": "SYNTHETIC-RUST-1", "severity": "low"},
-                "package": {"name": "fixture"},
-            }]}},
-            "dependencies",
-            "cargo-audit",
-        )
-        self.assertEqual(cargo[0]["severity"], "LOW")
+        _, _, _, payload = self.run_with_reports(config)
+        severities = {item["title"]: item["severity"] for item in payload["findings"]}
+        self.assertEqual(severities, {
+            "Synthetic secret-like finding": "HIGH",
+            "SYNTHETIC-1 in fixture": "CRITICAL",
+            "error rule": "HIGH",
+            "warning rule": "MEDIUM",
+            "info rule": "INFO",
+            "bandit rule": "MEDIUM",
+            "SYNTHETIC-RUST-1 in fixture": "LOW",
+        })
 
     def test_fail_on_hit_exits_one_and_below_threshold_exits_zero(self) -> None:
         self.write_fake(
