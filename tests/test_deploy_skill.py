@@ -228,6 +228,18 @@ class DeploySkillTest(unittest.TestCase):
         self.assertIn("installed hash mismatch", sys.stderr.getvalue())
         self.assertFalse(ledger.exists())
 
+    def test_append_refused_after_install_says_installed_and_no_row(self):
+        ledger = self.tmp / "gates.md"
+        with patch.object(gate_row, "append_row", side_effect=gate_row.RowError("ledger moved")):
+            result = self.run_deploy(self.deploy_args(ledger))
+
+        self.assertEqual(result, 1)
+        message = sys.stderr.getvalue()
+        for token in ("installed agent-delivery-workflow", "no deploy row was recorded", "ledger moved"):
+            self.assertIn(token, message)
+        self.assertTrue((self.home / ".agents" / "skills" / "agent-delivery-workflow").is_dir())
+        self.assertFalse(ledger.exists())
+
     def test_cli_absent_refuses_before_staging_or_writing(self):
         ledger = self.tmp / "gates.md"
         with patch.object(deploy_skill.shutil, "which", return_value=None), patch.object(

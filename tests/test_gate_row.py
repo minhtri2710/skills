@@ -227,9 +227,11 @@ class GateRowTest(unittest.TestCase):
         self.assertIn(f"prev_hash={gate_row.row_hash(self.last_row())}", row)
         self.assertEqual(gate_row.append_row(self.ledger, self.repo, request).split(" | ")[0], "G2")
         briefless = gate_row.RowRequest(kind="merge", status="resolved:human", words="human", note="n")
+        written = self.ledger.read_bytes()
         with self.assertRaisesRegex(gate_row.RowError, "brief= is required"):
             gate_row.preview_row(self.ledger, self.repo, briefless)
-        self.assertNotEqual(self.ledger.read_bytes(), before)
+        self.assertEqual(self.ledger.read_bytes(), written)
+        self.assertNotEqual(written, before)
         self.assertEqual(len(gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))), 2)
 
     def test_a_read_of_an_absent_ledger_names_the_ledger_not_a_deploy_row(self):
@@ -1529,6 +1531,18 @@ class GateRowTest(unittest.TestCase):
             with self.subTest(extra):
                 self.assertEqual(self.append(*extra), 1)
                 self.assertIn(message, self.err.getvalue())
+                self.assertEqual(self.ledger.read_bytes(), before)
+
+    def test_a_supplied_list_flag_is_a_value_even_when_its_item_is_empty_or_padded(self):
+        self.assertEqual(self.append("--status", "open", "--words", "none", "--quote", ""), 0, self.err.getvalue())
+        before = self.ledger.read_bytes()
+        for extra in (
+            ("--resolves", ""), ("--resolves", " G1"), ("--resolves", "G1,"),
+            ("--void", ""), ("--void", " G1"),
+            ("--kind", "correction", "--status", "recorded:correction", "--void", ""),
+        ):
+            with self.subTest(extra):
+                self.assertEqual(self.append(*extra), 1)
                 self.assertEqual(self.ledger.read_bytes(), before)
 
     def test_a_structured_field_refuses_the_row_delimiters(self):

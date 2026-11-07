@@ -230,7 +230,13 @@ def main(argv: list[str] | None = None) -> int:
             for skill, prefix, entries in deployments:
                 verify_install(repo, install_root / skill, entries, prefix)
 
-        print(gate_row.append_row(args.ledger, repo, request))
+        try:
+            row = gate_row.append_row(args.ledger, repo, request)
+        except gate_row.RowError as exc:
+            raise DeployError(
+                f"installed {', '.join(selected)}, but no deploy row was recorded: {exc}"
+            ) from None
+        print(row)
     except (DeployError, GitError, gate_row.RowError, OSError) as exc:
         print(f"deploy_skill: {exc}", file=sys.stderr)
         return 1

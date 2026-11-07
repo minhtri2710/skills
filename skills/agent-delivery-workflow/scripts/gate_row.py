@@ -5,19 +5,8 @@ Every number in a row is derived here from git, never typed by a seat, and every
 row this script appends is re-read from disk and re-derived before the command
 exits. `--check` applies the same derivation to a row that already exists.
 
-Row shape, one line, ` | ` between fields:
-
-    <id> | <ISO time> | kind=<kind> | <branch>@<head> | status=<status>
-      [| channel=<channel>] [| writer=<seat>] | record=<timely|reconstruction>
-      [| push=<base>..<head> count=<n> boundary="<declared paths>"
-         boundary-check="<paths outside the boundary>"]
-      [| resolves=<id>[,<id>...]] [| under=<standing-delegation id>] [| void=<id>]
-      [| op=<command> | after=<branch>@<head>]
-      [| who=<delegate> | scope=<scope> | conditions=<conditions> | expiry=<expiry>
-      [| finding=<identity>] [| archive=<64 lowercase hex genesis marker>]
-      [| skills=<sorted, unique top-level deploy targets>] [| prev_hash=<64 lowercase hex>]
-      | words=<seat|human|selected|none>
-      [| brief=<one line>] | note=<one line> | quote="<seat text>"
+Row shape, one line, ` | ` between fields: `<id> | <ISO time> | kind=<kind> | <branch>@<head> |
+status=<status>`, then the fields of FIELDS in table order, then the terminal `quote="<seat text>"`.
 
 `quote=` is terminal and holds the seat's own verbatim text — the act, the refused
 command on a denial row — so a `|` inside it is data, not a separator. The Human's words
@@ -234,9 +223,10 @@ def parse_void(field: str) -> str:
 
 
 def parse_after(field: str) -> str:
-    if not BRANCH_HEAD_RE.fullmatch(value_of(field)):
-        raise RowError(f"after={value_of(field)!r} is not <branch>@<head>")
-    return value_of(field)
+    value = field_text("after", value_of(field))
+    if not BRANCH_HEAD_RE.fullmatch(value):
+        raise RowError(f"after={value!r} is not <branch>@<head>")
+    return value
 
 
 def parse_finding(field: str) -> str:
@@ -966,21 +956,22 @@ def flag_values(request: RowRequest) -> dict[str, str]:
     supplied: dict[str, str] = {}
     for entry in (entry for entry in FIELDS if entry.name in FLAG_FIELDS):
         raw = getattr(request, entry.name)
-        if entry.name == "skills":
-            for skill in raw:
-                if not SKILL_NAME_RE.fullmatch(skill):
-                    raise RowError(f"--skill {skill!r} is not a top-level skill name")
-            raw = " ".join(sorted(raw))
-        elif entry.name == "resolves":
-            raw = ",".join(raw) if raw else None
-        elif entry.name == "void":
-            raw = raw[0] if raw else None
         if not raw:
             continue
         flag = FLAG_NAMES.get(entry.name, f"--{entry.name}")
         if entry.kinds is not None and request.kind not in entry.kinds:
             raise RowError(
                 f"{flag} is only meaningful on kind={'/'.join(sorted(entry.kinds))}, not kind={request.kind}")
+        if entry.name == "skills":
+            for skill in raw:
+                if not SKILL_NAME_RE.fullmatch(skill):
+                    raise RowError(f"--skill {skill!r} is not a top-level skill name")
+            raw = " ".join(sorted(raw))
+        elif entry.name == "resolves":
+            raw = ",".join(raw)
+            parse_resolves(f"resolves={raw}")
+        elif entry.name == "void":
+            raw = raw[0]
         supplied[entry.name] = field_text(entry.name, raw)
     return supplied
 
