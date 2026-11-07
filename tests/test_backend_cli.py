@@ -106,13 +106,12 @@ class SendBlockTest(unittest.TestCase):
                 backend.report_send_file(report)
 
     def test_the_template_file_names_are_the_ones_report_send_file_derives(self) -> None:
-        for template in ("report-by-prompt.txt",):
-            text = (support.ADW / "templates" / template).read_text(encoding="utf-8")
-            named = re.findall(r"[^\s`\"]+/report-<[a-z_-]+>\.md", text)
-            self.assertTrue(named, template)
-            for report in named:
-                with self.subTest(template=template, report=report):
-                    self.assertIn(backend.report_send_file(report)[1], text)
+        text = (support.ADW / "templates" / "report-by-prompt.txt").read_text(encoding="utf-8")
+        named = re.findall(r"[^\s`\"]+/report-<[a-z_-]+>\.md", text)
+        self.assertTrue(named)
+        for report in named:
+            with self.subTest(report=report):
+                self.assertIn(backend.report_send_file(report)[1], text)
 
     def test_a_backend_without_a_send_block_fails_closed(self) -> None:
         fake = FakeBackend()

@@ -58,7 +58,7 @@ def _clause(name: str, patterns: tuple[str, ...], dispositions: tuple[str, ...] 
 # The clauses a charter must carry; templates/reviewer-charter.txt words each Reviewer clause.
 REQUIRED_CLAUSES = (
     _clause("owned paths", (r"owned paths",), ("engineer",), "missing owned paths section"),
-    _clause("exact head", (HEAD_RE.pattern,), ("reviewer",), "missing exact-head 40-hex SHA"),
+    Clause("exact head", (HEAD_RE,), ("reviewer",), "missing exact-head 40-hex SHA"),
     _clause("live-wake guard", (r"never\s+run\s+`?mailbox\.py\s+--wake`?\s+against\s+a\s+real\s+seat",), ("reviewer",),
             "missing live-wake guard: Never run `mailbox.py --wake` against a real seat"),
     _clause("OCR delegate step", (r"ocr\s+delegate\s+preview", r"ocr\s+delegate\s+rule"), ("reviewer",),

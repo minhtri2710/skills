@@ -271,6 +271,12 @@ class ReviewerCharterTemplateTest(unittest.TestCase):
             if clause.dispositions is None or "reviewer" in clause.dispositions
             for i, pattern in enumerate(clause.patterns)
         ]
+        removals += [
+            ("disposition", lambda t: charter_lint.DISPOSITION_RE.sub("", t),
+             "charter_lint: missing Disposition: Engineer / Reviewer / Architect line"),
+            ("report file path", lambda t: charter_lint.REPORT_FILE_RE.sub("", t),
+             "charter_lint: missing report-by-prompt block: absolute <run-dir>/report-<peer>.md path"),
+        ]
         removals.append(("send command", lambda t: t.replace(block.send_command, ""),
                          "charter_lint: missing report-by-prompt block, as fake renders it:"))
         for name, remove, message in removals:
