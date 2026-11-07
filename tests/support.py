@@ -90,7 +90,6 @@ def never_run(*allowed: str) -> None:
 
 
 def git(repo: Path, *args: str) -> str:
-    """Run git in repo and return its stripped stdout."""
     return _REAL_RUN(
         ["git", "-C", str(repo), *args],
         check=True,
@@ -132,7 +131,7 @@ def reply(tool: str, stdout: str = "", returncode: int = 0, stderr: str = "") ->
 
 
 class Recorder:
-    """The runner injected into an adapter: records (args, timeout) and answers the queued replies in order."""
+    """The runner injected into an adapter: records (args, timeout) in `calls`, env in `envs`, and answers the queued replies in order."""
 
     def __init__(self, *replies: subprocess.CompletedProcess[str]) -> None:
         self.replies = list(replies)

@@ -24,7 +24,6 @@ def setUpModule() -> None:
     support.never_run("git", "skills", sys.executable)
 
 
-
 FAKE_SKILLS = f'''#!{sys.executable}
 import json
 import os

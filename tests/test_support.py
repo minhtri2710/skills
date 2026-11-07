@@ -54,6 +54,20 @@ class TempGitRepoTest(unittest.TestCase):
             log = support.git(repo, "log", "--format=%an <%ae>")
         self.assertEqual(log, "test <test@example.invalid>")
 
+    def test_git_run_by_a_script_under_the_guard_ignores_the_users_global_git_config(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = support.temp_git_repo(Path(tmp) / "repo")
+            user_config = Path(tmp) / "gitconfig"
+            user_config.write_text(
+                "[commit]\n\tgpgsign = true\n[gpg]\n\tprogram = /nonexistent/gpg\n", encoding="utf-8"
+            )
+            with mock.patch.dict(os.environ, {"GIT_CONFIG_GLOBAL": str(user_config), "HOME": tmp}), \
+                    support.guarded("git"):
+                subprocess.run(
+                    ["git", "-C", str(repo), "commit", "--allow-empty", "-q", "-m", "one"],
+                    check=True, capture_output=True, stdin=subprocess.DEVNULL,
+                )
+
 
 class RunMainTest(unittest.TestCase):
     def test_returns_the_code_and_what_main_wrote_and_read(self) -> None:
