@@ -5,17 +5,14 @@ import contextlib
 import io
 import json
 import subprocess
-import sys
 import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
 import urllib.error
 
-SCRIPTS = Path(__file__).resolve().parents[1] / "skills" / "jev" / "scripts"
-sys.path.insert(0, str(SCRIPTS))
-
-import jev  # noqa: E402
+import support
+import jev
 
 
 FAKE_KEY = "sk-fake-jev-probe-7f3a9-non-disclosure"
@@ -35,11 +32,7 @@ KEYCHAIN_LINE = (
 
 
 def setUpModule() -> None:
-    guard = mock.patch.object(
-        jev.subprocess, "run", side_effect=AssertionError("real Keychain access")
-    )
-    guard.start()
-    unittest.addModuleCleanup(guard.stop)
+    support.never_run()
 
 
 def keychain_reply(stdout: str = "", returncode: int = 0, stderr: str = "") -> subprocess.CompletedProcess:
@@ -520,18 +513,6 @@ class JevCliTest(unittest.TestCase):
     def setUp(self) -> None:
         self.keychain = start_keychain(self)
 
-    def run_main(
-        self, argv: list[str], stdin_text: str | None = None
-    ) -> tuple[int, str, str]:
-        stdout, stderr = io.StringIO(), io.StringIO()
-        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
-            if stdin_text is not None:
-                with mock.patch.object(sys, "stdin", io.StringIO(stdin_text)):
-                    code = jev.main(argv)
-            else:
-                code = jev.main(argv)
-        return code, stdout.getvalue(), stderr.getvalue()
-
     def test_cli_source_never_gates_on_isatty(self) -> None:
         source = Path(jev.__file__).read_text(encoding="utf-8")
         self.assertNotIn("isatty", source)
@@ -555,7 +536,7 @@ class JevCliTest(unittest.TestCase):
                 with self.subTest(input=path.name), mock.patch.object(
                     jev.urllib.request, "urlopen"
                 ) as urlopen:
-                    code, out, err = self.run_main(["fork", "--file", str(path)])
+                    code, out, err = support.run_main(jev.main, ["fork", "--file", str(path)])
 
                 self.assertEqual(code, 0)
                 output = json.loads(out)
@@ -577,7 +558,7 @@ class JevCliTest(unittest.TestCase):
             with self.subTest(failure=name), mock.patch.object(
                 jev.urllib.request, "urlopen"
             ) as urlopen:
-                code, out, err = self.run_main(["finding", "--stdin"], json.dumps(FINDING))
+                code, out, err = support.run_main(jev.main, ["finding", "--stdin"], json.dumps(FINDING))
 
                 self.assertEqual(code, 0)
                 self.assertEqual(err, KEYCHAIN_LINE)
@@ -605,7 +586,7 @@ class JevCliTest(unittest.TestCase):
         }
         for index, argv in enumerate(cases):
             with self.subTest(argv=argv):
-                code, out, err = self.run_main(argv, stdin_by_index.get(index))
+                code, out, err = support.run_main(jev.main, argv, stdin_by_index.get(index))
 
                 self.assertEqual(code, 2)
                 self.assertEqual(out, "")
@@ -637,7 +618,7 @@ class JevCliTest(unittest.TestCase):
                 with self.subTest(mode=mode, scenario=scenario), mock.patch.object(
                     jev.urllib.request, "urlopen", **patch_kwargs
                 ) as urlopen:
-                    code, out, err = self.run_main(argv, stdin_text)
+                    code, out, err = support.run_main(jev.main, argv, stdin_text)
 
                 self.assertEqual(code, expected_code)
                 self.assertNotIn(FAKE_KEY, out)

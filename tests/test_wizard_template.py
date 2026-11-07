@@ -6,7 +6,13 @@ import tempfile
 import unittest
 from pathlib import Path
 
-TEMPLATE = Path(__file__).resolve().parents[1] / "skills" / "human-step-wizard" / "scripts" / "wizard-template.sh"
+import support
+
+TEMPLATE = support.ROOT / "skills" / "human-step-wizard" / "scripts" / "wizard-template.sh"
+
+
+def setUpModule() -> None:
+    support.never_run("bash")
 
 
 def library() -> str:

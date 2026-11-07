@@ -6,41 +6,23 @@ import contextlib
 import io
 import os
 import sys
-import subprocess
 import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
 
-SCRIPTS = Path(__file__).resolve().parents[1] / "skills" / "agent-delivery-workflow" / "scripts"
-sys.path.insert(0, str(SCRIPTS))
-sys.path.insert(0, str(Path(__file__).resolve().parent))
+import support
+import backend
+import mailbox
+import gate_row
+import state_root
+from fake_backend import FakeBackend
 
-import backend  # noqa: E402
-import mailbox  # noqa: E402
-import gate_row  # noqa: E402
-import state_root  # noqa: E402
-from fake_backend import FakeBackend  # noqa: E402
-
-_real_run = subprocess.run
 _real_open_backend = backend.open_backend
 
 
-def _only_git(args, *rest, **kwargs):
-    if args[0] != "git":
-        raise AssertionError(f"tests run only git, not {args[0]}")
-    return _real_run(args, *rest, **kwargs)
-
-
-_NEVER_RUN = mock.patch.object(subprocess, "run", side_effect=_only_git)
-
-
 def setUpModule() -> None:
-    _NEVER_RUN.start()
-
-
-def tearDownModule() -> None:
-    _NEVER_RUN.stop()
+    support.never_run("git")
 
 
 def seats_under_test(handles: dict[str, str | None]) -> FakeBackend:
@@ -315,14 +297,8 @@ class MailboxAppendTest(unittest.TestCase):
         root = Path(self.tmp.name) / ".agent-delivery" / "projects"
         (root / "beo-skills").mkdir(parents=True)
         self.path = root / "beo-skills" / "supervisor-mailbox.md"
-        self.repo = Path(self.tmp.name) / "repo"
-        self.repo.mkdir()
-        for args in (
-            ["init", "-q"],
-            ["-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q",
-             "--allow-empty", "-m", "base"],
-        ):
-            subprocess.run(["git", "-C", str(self.repo), *args], check=True, stdin=subprocess.DEVNULL)
+        self.repo = support.temp_git_repo(Path(self.tmp.name) / "repo")
+        support.git(self.repo, "commit", "-q", "--allow-empty", "-m", "base")
         self.head = gate_row.git(self.repo, "rev-parse", "HEAD")
         (root / "beo-skills" / "supervisor-seat").write_text("herdr w1:p7\n", encoding="utf-8")
         self.fake = seats_under_test({"w1:p7": "supervisor"})

@@ -2,11 +2,9 @@
 """Tests for the compact roster read helper."""
 from __future__ import annotations
 
-import io
 import json
 import os
 import subprocess
-import sys
 import tempfile
 import time
 import unittest
@@ -14,23 +12,14 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest import mock
 
-SCRIPTS = Path(__file__).resolve().parents[1] / "skills" / "agent-delivery-workflow" / "scripts"
-sys.path.insert(0, str(SCRIPTS))
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-
-import backend  # noqa: E402
-import roster  # noqa: E402
-from fake_backend import FakeBackend  # noqa: E402
-
-_NEVER_RUN = mock.patch.object(subprocess, "run", side_effect=AssertionError("tests never run a terminal tool"))
+import support
+import backend
+import roster
+from fake_backend import FakeBackend
 
 
 def setUpModule() -> None:
-    _NEVER_RUN.start()
-
-
-def tearDownModule() -> None:
-    _NEVER_RUN.stop()
+    support.never_run()
 
 
 def seats_of(agents):
@@ -55,22 +44,11 @@ def fake_of(agents, processes=None):
 
 
 def run_main(fake, argv):
-    output, error = io.StringIO(), io.StringIO()
-    with mock.patch.object(roster.backend, "open_backend", return_value=fake), \
-            mock.patch("sys.stdout", output), mock.patch("sys.stderr", error):
-        rc = roster.main(argv)
-    return rc, output.getvalue(), error.getvalue()
+    with mock.patch.object(roster.backend, "open_backend", return_value=fake):
+        return support.run_main(roster.main, argv)
 
 
 class RosterTest(unittest.TestCase):
-    def setUp(self) -> None:
-        self._stdout_patch = mock.patch.object(sys, "stdout", io.StringIO())
-        self._stderr_patch = mock.patch.object(sys, "stderr", io.StringIO())
-        self._stdout_patch.start()
-        self._stderr_patch.start()
-        self.addCleanup(self._stderr_patch.stop)
-        self.addCleanup(self._stdout_patch.stop)
-
     def test_formats_agents_and_filters_workspace(self):
         seats = [
             backend.Seat("w1:p1", name="lead", kind="claude", state="working", workspace="w1"),
@@ -102,9 +80,8 @@ class RosterTest(unittest.TestCase):
         self.assertIn("roster: herdr agent list timed out", error)
 
     def test_backend_flag_reaches_detect_as_explicit(self):
-        with mock.patch.object(backend, "detect", side_effect=backend.DetectionError("no match")) as detect, \
-                mock.patch("sys.stdout", io.StringIO()), mock.patch("sys.stderr", io.StringIO()):
-            rc = roster.main(["--backend", "herdr@w1:p1"])
+        with mock.patch.object(backend, "detect", side_effect=backend.DetectionError("no match")) as detect:
+            rc, _, _ = support.run_main(roster.main, ["--backend", "herdr@w1:p1"])
         self.assertEqual(rc, 1)
         detect.assert_called_once_with(mock.ANY, backend.Explicit("herdr", "w1:p1"))
 
@@ -491,7 +468,6 @@ class RosterTest(unittest.TestCase):
             process = {"w1:p1": ["pi", "--model", "review-model", "--settings", str(settings)]}
             settings.write_text('{"mode":"drifted"}', encoding="utf-8")
             fake = fake_of([seat], {"w1:p1": [{"argv": process["w1:p1"]}]})
-            config["launch-profiles"]["pi"]["peer-settings-json"] = {"mode": "configured"}
             config_path = Path(directory) / "config.json"
             config_path.write_text(json.dumps(config), encoding="utf-8")
             rc, output, error = run_main(fake, [

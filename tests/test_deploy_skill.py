@@ -13,11 +13,16 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-SCRIPTS = Path(__file__).resolve().parents[1] / "skills" / "agent-delivery-workflow" / "scripts"
-sys.path.insert(0, str(SCRIPTS))
+import support
+import deploy_skill
+import gate_row
 
-import deploy_skill  # noqa: E402
-import gate_row  # noqa: E402
+SCRIPTS = support.ADW / "scripts"
+
+
+def setUpModule() -> None:
+    support.never_run("git", "skills", sys.executable)
+
 
 
 FAKE_SKILLS = f'''#!{sys.executable}
@@ -53,11 +58,7 @@ class DeploySkillTest(unittest.TestCase):
     def setUp(self):
         self._tmp = tempfile.TemporaryDirectory(dir=os.path.realpath("/tmp"))
         self.tmp = Path(self._tmp.name)
-        self.repo = self.tmp / "repo"
-        self.repo.mkdir()
-        self.git("init", "-q", "-b", "main")
-        self.git("config", "user.email", "t@example.invalid")
-        self.git("config", "user.name", "t")
+        self.repo = support.temp_git_repo(self.tmp / "repo")
         self.skills = self.repo / "skills"
         self.source = self.skills / "agent-delivery-workflow"
         self.source.mkdir(parents=True)
@@ -65,8 +66,8 @@ class DeploySkillTest(unittest.TestCase):
             "---\nname: agent-delivery-workflow\ndescription: test skill\n---\ntracked skill\n",
             encoding="utf-8",
         )
-        self.git("add", "skills")
-        self.git("commit", "-qm", "skill")
+        support.git(self.repo, "add", "skills")
+        support.git(self.repo, "commit", "-qm", "skill")
         self.origin(self.head())
         self.home = self.tmp / "home"
         self.home.mkdir()
@@ -84,35 +85,14 @@ class DeploySkillTest(unittest.TestCase):
         self.addCleanup(self._stdout_patch.stop)
         self.addCleanup(self._tmp.cleanup)
 
-    def git(self, *args: str) -> None:
-        subprocess.run(
-            ["git", "-C", str(self.repo), *args],
-            check=True,
-            capture_output=True,
-            text=True,
-            stdin=subprocess.DEVNULL,
-        )
-
     def head(self) -> str:
         return deploy_skill.git(self.repo, "rev-parse", "HEAD")
 
     def origin(self, head: str | None) -> None:
         if head is None:
-            subprocess.run(
-                ["git", "-C", str(self.repo), "update-ref", "-d", "refs/remotes/origin/main"],
-                check=True,
-                capture_output=True,
-                text=True,
-                stdin=subprocess.DEVNULL,
-            )
+            support.git(self.repo, "update-ref", "-d", "refs/remotes/origin/main")
         else:
-            subprocess.run(
-                ["git", "-C", str(self.repo), "update-ref", "refs/remotes/origin/main", head],
-                check=True,
-                capture_output=True,
-                text=True,
-                stdin=subprocess.DEVNULL,
-            )
+            support.git(self.repo, "update-ref", "refs/remotes/origin/main", head)
 
     def deploy_args(self, ledger: Path, head: str = "HEAD") -> list[str]:
         return [
@@ -148,8 +128,8 @@ class DeploySkillTest(unittest.TestCase):
 
     def test_local_staged_cli_gets_fixed_argv_and_head_contents(self):
         (self.source / "runtime.py").write_text("tracked runtime\n", encoding="utf-8")
-        self.git("add", "skills")
-        self.git("commit", "-qm", "runtime file")
+        support.git(self.repo, "add", "skills")
+        support.git(self.repo, "commit", "-qm", "runtime file")
         head = self.head()
         self.origin(head)
         ledger = self.tmp / "gates.md"
@@ -206,8 +186,8 @@ class DeploySkillTest(unittest.TestCase):
     def test_dirty_worktree_installs_head_blob_and_mode(self):
         (self.source / "run.sh").write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
         (self.source / "run.sh").chmod(0o755)
-        self.git("add", "skills")
-        self.git("commit", "-qm", "executable script")
+        support.git(self.repo, "add", "skills")
+        support.git(self.repo, "commit", "-qm", "executable script")
         head = self.head()
         self.origin(head)
         (self.source / "SKILL.md").write_text("dirty working tree\n", encoding="utf-8")
@@ -224,8 +204,8 @@ class DeploySkillTest(unittest.TestCase):
         second = self.skills / "second-skill"
         second.mkdir()
         (second / "SKILL.md").symlink_to(self.source / "SKILL.md")
-        self.git("add", "skills")
-        self.git("commit", "-qm", "add symlink")
+        support.git(self.repo, "add", "skills")
+        support.git(self.repo, "commit", "-qm", "add symlink")
         head = self.head()
         self.origin(head)
 
@@ -279,8 +259,8 @@ class DeploySkillTest(unittest.TestCase):
             "---\nname: second-skill\ndescription: second test skill\n---\nsecond\n",
             encoding="utf-8",
         )
-        self.git("add", "skills")
-        self.git("commit", "-qm", "add second skill")
+        support.git(self.repo, "add", "skills")
+        support.git(self.repo, "commit", "-qm", "add second skill")
         self.origin(self.head())
 
         result = self.run_deploy(
@@ -301,8 +281,8 @@ class DeploySkillTest(unittest.TestCase):
             "---\nname: second-skill\ndescription: second test skill\n---\nsecond\n",
             encoding="utf-8",
         )
-        self.git("add", "skills")
-        self.git("commit", "-qm", "add second skill")
+        support.git(self.repo, "add", "skills")
+        support.git(self.repo, "commit", "-qm", "add second skill")
         self.origin(self.head())
         ledger = self.tmp / "gates.md"
 
@@ -349,8 +329,8 @@ class DeploySkillTest(unittest.TestCase):
             "---\nname: agent-delivery-workflow\ndescription: test skill\n---\nnew tracked skill\n",
             encoding="utf-8",
         )
-        self.git("add", "skills")
-        self.git("commit", "-qm", "new skill content")
+        support.git(self.repo, "add", "skills")
+        support.git(self.repo, "commit", "-qm", "new skill content")
         descendant = self.head()
         self.origin(descendant)
 
@@ -364,15 +344,15 @@ class DeploySkillTest(unittest.TestCase):
 
     def test_head_outside_origin_main_and_missing_origin_ref_are_refused(self):
         accepted = self.head()
-        self.git("checkout", "-qb", "offline", accepted)
+        support.git(self.repo, "checkout", "-qb", "offline", accepted)
         (self.source / "SKILL.md").write_text(
             "---\nname: agent-delivery-workflow\ndescription: test skill\n---\noffline content\n",
             encoding="utf-8",
         )
-        self.git("add", "skills")
-        self.git("commit", "-qm", "offline head")
+        support.git(self.repo, "add", "skills")
+        support.git(self.repo, "commit", "-qm", "offline head")
         offline = self.head()
-        self.git("checkout", "-q", "main")
+        support.git(self.repo, "checkout", "-q", "main")
         ledger = self.tmp / "gates.md"
 
         refused = self.run_deploy(self.deploy_args(ledger, offline))

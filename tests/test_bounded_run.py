@@ -11,7 +11,13 @@ import time
 import unittest
 from pathlib import Path
 
-SCRIPT = Path(__file__).resolve().parents[1] / "skills" / "agent-delivery-workflow" / "scripts" / "bounded_run.py"
+import support
+
+SCRIPT = support.ADW / "scripts" / "bounded_run.py"
+
+
+def setUpModule() -> None:
+    support.never_run(sys.executable)
 
 
 def _gone(pid: int, within: float = 3.0) -> bool:

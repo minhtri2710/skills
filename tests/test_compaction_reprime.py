@@ -1,13 +1,11 @@
 from __future__ import annotations
 
 import hashlib
-import importlib.util
 import io
 import json
 import os
 import re
 import shutil
-import subprocess
 import sys
 import tempfile
 import unittest
@@ -15,33 +13,19 @@ from dataclasses import replace
 from pathlib import Path
 from unittest.mock import patch
 
+import support
+import backend
+import compaction_reprime
+import state_root
+from fake_backend import FakeBackend
 
-SCRIPTS = Path(__file__).parents[1] / "skills" / "agent-delivery-workflow" / "scripts"
-REFERENCES = SCRIPTS.parent / "references"
-SCRIPT = SCRIPTS / "compaction_reprime.py"
-sys.path.insert(0, str(SCRIPTS))
-sys.path.insert(0, str(Path(__file__).parent))
-import backend  # noqa: E402
-import state_root  # noqa: E402
-from fake_backend import FakeBackend  # noqa: E402
+REFERENCES = support.ADW / "references"
 
 OPEN_BACKEND = backend.open_backend
 
-SPEC = importlib.util.spec_from_file_location("compaction_reprime", SCRIPT)
-assert SPEC is not None and SPEC.loader is not None
-compaction_reprime = importlib.util.module_from_spec(SPEC)
-sys.modules[SPEC.name] = compaction_reprime
-SPEC.loader.exec_module(compaction_reprime)
-
-_PATCH = patch.object(subprocess, "run", side_effect=AssertionError("tests never run a terminal tool"))
-
 
 def setUpModule() -> None:
-    _PATCH.start()
-
-
-def tearDownModule() -> None:
-    _PATCH.stop()
+    support.never_run()
 
 
 SEAT = "lead-beo-skills"

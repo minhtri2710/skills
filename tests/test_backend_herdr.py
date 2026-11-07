@@ -7,62 +7,31 @@ from __future__ import annotations
 
 import json
 import subprocess
-import sys
 import unittest
-from pathlib import Path
+from functools import partial
 from unittest import mock
 
-SCRIPTS = Path(__file__).resolve().parents[1] / "skills" / "agent-delivery-workflow" / "scripts"
-sys.path.insert(0, str(SCRIPTS))
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-
-import backend  # noqa: E402
-from backends import herdr  # noqa: E402
-
-_NEVER_RUN = mock.patch.object(subprocess, "run", side_effect=AssertionError("tests never run herdr"))
+import support
+import backend
+from backends import herdr
+from support import Recorder
 
 
 def setUpModule() -> None:
-    _NEVER_RUN.start()
+    support.never_run()
 
 
-def tearDownModule() -> None:
-    _NEVER_RUN.stop()
-
-
-FIXTURES = Path(__file__).resolve().parent / "fixtures" / "backends" / "herdr"
 ENVIRON = {"HERDR_ENV": "1", "HERDR_PANE_ID": "w1:p3"}
 LEAD = "lead-demo"
 REPORT = "/state/projects/demo/runs/r1/report-eng-a.md"
 
 
-def fixture(name: str) -> str:
-    return (FIXTURES / name).read_text(encoding="utf-8")
-
-
-def reply(stdout: str = "", returncode: int = 0, stderr: str = "") -> subprocess.CompletedProcess[str]:
-    return subprocess.CompletedProcess(["herdr"], returncode, stdout, stderr)
-
-
-class Recorder:
-    """The injected runner: records (args, timeout) and answers the queued replies in order."""
-
-    def __init__(self, *replies: subprocess.CompletedProcess[str]) -> None:
-        self.replies = list(replies)
-        self.calls: list[tuple[list[str], float]] = []
-
-    def __call__(self, args: list[str], *, timeout: float = 30.0) -> subprocess.CompletedProcess[str]:
-        self.calls.append((list(args), timeout))
-        return self.replies.pop(0)
-
-    @property
-    def argv(self) -> list[list[str]]:
-        return [args for args, _ in self.calls]
+fixture = partial(support.fixture, "herdr")
+reply = partial(support.reply, "herdr")
 
 
 def adapter(*replies: subprocess.CompletedProcess[str]) -> tuple[herdr.Adapter, Recorder]:
-    runner = Recorder(*replies)
-    return herdr.Adapter(ENVIRON, runner=runner), runner
+    return support.adapter(herdr, ENVIRON, *replies)
 
 
 class RunnerTest(unittest.TestCase):

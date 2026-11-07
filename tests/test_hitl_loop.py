@@ -6,9 +6,14 @@ import select
 import subprocess
 import time
 import unittest
-from pathlib import Path
 
-SCRIPT = Path(__file__).resolve().parents[1] / "skills" / "bug-diagnosis" / "scripts" / "hitl-loop.sh"
+import support
+
+SCRIPT = support.ROOT / "skills" / "bug-diagnosis" / "scripts" / "hitl-loop.sh"
+
+
+def setUpModule() -> None:
+    support.never_run(str(SCRIPT))
 
 
 class HitlLoopTest(unittest.TestCase):

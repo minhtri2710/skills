@@ -6,41 +6,24 @@ import io
 import json
 import os
 import subprocess
-import sys
 import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
 
-SCRIPTS = Path(__file__).resolve().parents[1] / "skills" / "agent-delivery-workflow" / "scripts"
-sys.path.insert(0, str(SCRIPTS))
-sys.path.insert(0, str(Path(__file__).parent))
-
+import support
 import backend
 import charter_lint
 import charter_render
 from fake_backend import FakeBackend
 
+SCRIPTS = support.ADW / "scripts"
 LEAD = "w7:p1"
 OPEN_BACKEND = backend.open_backend
-_real_run = subprocess.run
-
-
-def _git_only(command, *args, **kwargs):
-    if command[0] != "git":
-        raise AssertionError(f"tests run only git, not {command[0]}")
-    return _real_run(command, *args, **kwargs)
-
-
-_PATCH = mock.patch.object(subprocess, "run", side_effect=_git_only)
 
 
 def setUpModule() -> None:
-    _PATCH.start()
-
-
-def tearDownModule() -> None:
-    _PATCH.stop()
+    support.never_run("git")
 
 
 class CharterRenderTest(unittest.TestCase):
@@ -57,19 +40,14 @@ class CharterRenderTest(unittest.TestCase):
             "target-line": "main",
         }), encoding="utf-8")
         (self.run_dir / "evidence-x.log").write_text("Ran 1 OK\n", encoding="utf-8")
-        git = ["git", "-C", str(self.repo), "-c", "user.name=t", "-c", "user.email=t@example.com"]
-        self.repo.mkdir()
-        subprocess.run([*git, "init", "-q"], check=True, stdin=subprocess.DEVNULL)
+        support.temp_git_repo(self.repo)
         for names, subject in ((("AGENTS.md",), "docs: guidance"), (("é/AGENTS.md", "é/b.py"), "feat(é): add b")):
             for name in names:
                 (self.repo / name).parent.mkdir(exist_ok=True)
                 (self.repo / name).write_text("x\n", encoding="utf-8")
-            subprocess.run([*git, "add", *names], check=True, stdin=subprocess.DEVNULL)
-            subprocess.run([*git, "commit", "-q", "-m", subject], check=True, stdin=subprocess.DEVNULL)
-        self.base, self.head = subprocess.run(
-            [*git, "rev-parse", "HEAD~1", "HEAD"], check=True, capture_output=True, text=True,
-            stdin=subprocess.DEVNULL,
-        ).stdout.split()
+            support.git(self.repo, "add", *names)
+            support.git(self.repo, "commit", "-q", "-m", subject)
+        self.base, self.head = support.git(self.repo, "rev-parse", "HEAD~1", "HEAD").split()
         self.staffing = self.run_dir / "staffing.txt"
         self.write_staffing("MODE: solo-Lead\nLEAD: kind=claude model=claude-opus-5-5 workspace=w7\n")
         self.fake = FakeBackend()
@@ -173,11 +151,8 @@ class CharterRenderTest(unittest.TestCase):
 
     def merge_main(self, land: bool) -> str:
         """Merge a later main commit into the head; origin/HEAD is origin/main. Returns the merge."""
-        git = lambda *a: subprocess.run(["git", "-C", str(self.repo), "-c", "user.name=t", "-c",
-                                         "user.email=t@example.com", *a], check=True, capture_output=True,
-                                        text=True, stdin=subprocess.DEVNULL).stdout.strip()
-        bare = self.repo.parent / "origin.git"
-        subprocess.run(["git", "init", "-q", "--bare", "-b", "main", str(bare)], check=True, stdin=subprocess.DEVNULL)
+        git = lambda *a: support.git(self.repo, *a)
+        bare = support.temp_git_repo(self.repo.parent / "origin.git", bare=True)
         git("remote", "add", "origin", str(bare))
         git("checkout", "-q", "-b", "trunk", self.base)
         (self.repo / "main.txt").write_text("main\n", encoding="utf-8")
@@ -232,22 +207,21 @@ class CharterRenderTest(unittest.TestCase):
         self.assertIn("main.txt has no ENGINEER owner", err)
 
     def test_a_conflict_resolving_merge_owner_checks_its_own_content(self):
-        git = lambda *a: subprocess.run(["git", "-C", str(self.repo), "-c", "user.name=t", "-c",
-                                         "user.email=t@example.com", *a], capture_output=True, text=True,
-                                        stdin=subprocess.DEVNULL)
+        git = lambda *a: support.git(self.repo, *a)
         git("checkout", "-q", "-b", "side", self.head)
         (self.repo / "é" / "b.py").write_text("side\n", encoding="utf-8")
         git("commit", "-q", "-am", "side")
         git("checkout", "-q", "-B", "work", self.head)
         (self.repo / "é" / "b.py").write_text("work\n", encoding="utf-8")
         git("commit", "-q", "-am", "work")
-        self.assertNotEqual(git("merge", "-q", "side").returncode, 0)
+        with self.assertRaises(subprocess.CalledProcessError):
+            git("merge", "-q", "side")
         (self.repo / "é" / "b.py").write_text("resolved\n", encoding="utf-8")
         (self.repo / "evil.txt").write_text("evil\n", encoding="utf-8")
         git("add", "-A")
         git("commit", "-q", "-m", "merge side")
         self.partitioned("é/")
-        code, _, err = self.render("--head", git("rev-parse", "HEAD").stdout.strip())
+        code, _, err = self.render("--head", git("rev-parse", "HEAD"))
         self.assertEqual(code, 1)
         self.assertIn("evil.txt has no ENGINEER owner", err)
 

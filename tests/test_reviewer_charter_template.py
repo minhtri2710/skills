@@ -15,35 +15,18 @@ import unittest
 import unittest.mock
 from pathlib import Path
 
-SKILL = Path(__file__).resolve().parents[1] / "skills" / "agent-delivery-workflow"
-sys.path.insert(0, str(SKILL / "scripts"))
-sys.path.insert(0, str(Path(__file__).parent))
+import support
+import backend
+import charter_lint
+from backends import herdr
+from fake_backend import FakeBackend
 
-import backend  # noqa: E402
-import charter_lint  # noqa: E402
-from backends import herdr  # noqa: E402
-from fake_backend import FakeBackend  # noqa: E402
-
-_real_run = subprocess.run
-# git and the interpreter are the scripts' own; bash and sandbox-exec run the report-block and fence tests.
-_ALLOWED_COMMANDS = ("git", sys.executable, "bash", "sandbox-exec")
-
-
-def _guarded_run(command, *args, **kwargs):
-    if command[0] not in _ALLOWED_COMMANDS:
-        raise AssertionError(f"tests never run a terminal tool, only {_ALLOWED_COMMANDS}: {command[0]}")
-    return _real_run(command, *args, **kwargs)
-
-
-_PATCH = unittest.mock.patch.object(subprocess, "run", side_effect=_guarded_run)
+SKILL = support.ADW
 
 
 def setUpModule() -> None:
-    _PATCH.start()
-
-
-def tearDownModule() -> None:
-    _PATCH.stop()
+    # git and the interpreter are the scripts' own; bash and sandbox-exec run the report-block and fence tests.
+    support.never_run("git", sys.executable, "bash", "sandbox-exec")
 
 
 TEMPLATE = SKILL / "templates" / "reviewer-charter.txt"
@@ -112,13 +95,10 @@ class ReviewerCharterTemplateTest(unittest.TestCase):
         cls._repo_tmp = tempfile.TemporaryDirectory(dir=os.path.realpath("/tmp"))
         cls.repo = Path(cls._repo_tmp.name)
         cls.addClassCleanup(cls._repo_tmp.cleanup)
-        git = ["git", "-C", str(cls.repo), "-c", "user.name=t", "-c", "user.email=t@example.com"]
-        subprocess.run([*git, "init", "-q"], check=True, stdin=subprocess.DEVNULL)
+        support.temp_git_repo(cls.repo)
         for message in ("base", "head"):
-            subprocess.run([*git, "commit", "-q", "--allow-empty", "-m", message], check=True, stdin=subprocess.DEVNULL)
-        cls.base, cls.head = subprocess.run(
-            [*git, "rev-parse", "HEAD~1", "HEAD"], check=True, capture_output=True, text=True, stdin=subprocess.DEVNULL
-        ).stdout.split()
+            support.git(cls.repo, "commit", "-q", "--allow-empty", "-m", message)
+        cls.base, cls.head = support.git(cls.repo, "rev-parse", "HEAD~1", "HEAD").split()
 
     def setUp(self):
         self._tmp = tempfile.TemporaryDirectory(dir=os.path.realpath("/tmp"))

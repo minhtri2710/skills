@@ -2,8 +2,6 @@
 """Unit tests for relaunch_entry_check.py's CLI paths."""
 from __future__ import annotations
 
-import contextlib
-import io
 import os
 import subprocess
 import sys
@@ -11,32 +9,27 @@ import tempfile
 import unittest
 from pathlib import Path
 
-SCRIPTS = Path(__file__).resolve().parents[1] / "skills" / "agent-delivery-workflow" / "scripts"
-sys.path.insert(0, str(SCRIPTS))
+import support
+import relaunch_entry_check
 
-import relaunch_entry_check  # noqa: E402
+SCRIPTS = support.ADW / "scripts"
 
 
-def git(repo: Path, *args: str) -> None:
-    subprocess.run(["git", "-C", str(repo), *args], check=True,
-                   capture_output=True, text=True, stdin=subprocess.DEVNULL)
+def setUpModule() -> None:
+    support.never_run("git", sys.executable)
 
 
 class RelaunchEntryCheckTest(unittest.TestCase):
     def setUp(self):
         self._tmp = tempfile.TemporaryDirectory(dir=os.path.realpath("/tmp"))
         self.tmp = Path(self._tmp.name)
-        self.repo = self.tmp / "repo"
-        self.repo.mkdir()
-        git(self.repo, "init", "-q", "-b", "main")
-        git(self.repo, "config", "user.email", "t@example.invalid")
-        git(self.repo, "config", "user.name", "test")
+        self.repo = support.temp_git_repo(self.tmp / "repo")
         self.skill = self.repo / "skills" / "example"
         self.skill.mkdir(parents=True)
         (self.skill / "SKILL.md").write_text("skill\n", encoding="utf-8")
         (self.skill / "script.py").write_text("print('ok')\n", encoding="utf-8")
-        git(self.repo, "add", "skills/example")
-        git(self.repo, "commit", "-qm", "skill")
+        support.git(self.repo, "add", "skills/example")
+        support.git(self.repo, "commit", "-qm", "skill")
         self.ledger = self.tmp / "gates.md"
         self.install = self.tmp / "installed"
         self.install.mkdir()
@@ -56,13 +49,6 @@ class RelaunchEntryCheckTest(unittest.TestCase):
             args.extend(["--skill", skill])
         subprocess.run(args, check=True, capture_output=True, text=True, stdin=subprocess.DEVNULL)
 
-    def run_main(self, argv: list[str]) -> tuple[int, str, str]:
-        stdout = io.StringIO()
-        stderr = io.StringIO()
-        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
-            code = relaunch_entry_check.main(argv)
-        return code, stdout.getvalue(), stderr.getvalue()
-
     def test_verify_passes_for_verbatim_next_item_block(self):
         source = self.tmp / "staffing.md"
         source.write_text(
@@ -76,7 +62,7 @@ class RelaunchEntryCheckTest(unittest.TestCase):
             "## R4 — Shared contact form + minor items (NEXT; scope ratified G167, G168)",
             encoding="utf-8",
         )
-        code, stdout, stderr = self.run_main([
+        code, stdout, stderr = support.run_main(relaunch_entry_check.main, [
             "--verify", "--block-file", str(block), "--source-file", str(source),
         ])
         self.assertEqual(code, 0)
@@ -92,7 +78,7 @@ class RelaunchEntryCheckTest(unittest.TestCase):
         )
         altered = self.tmp / "next-item.txt"
         altered.write_text("## R4 — BĐS services page [G164]", encoding="utf-8")
-        code, stdout, stderr = self.run_main([
+        code, stdout, stderr = support.run_main(relaunch_entry_check.main, [
             "--verify", "--block-file", str(altered), "--source-file", str(source),
         ])
         self.assertNotEqual(code, 0)
@@ -100,7 +86,7 @@ class RelaunchEntryCheckTest(unittest.TestCase):
         self.assertIn("not a verbatim contiguous block", stderr)
 
     def count(self) -> tuple[int, str, str]:
-        return self.run_main([
+        return support.run_main(relaunch_entry_check.main, [
             "--count", "--repo", str(self.repo), "--ledger", str(self.ledger),
             "--skill", "example", "--skill-path", "skills/example",
             "--installed-path", str(self.install),
@@ -126,17 +112,17 @@ class RelaunchEntryCheckTest(unittest.TestCase):
 
     def test_count_uses_selected_deploy_head_instead_of_checkout_head(self):
         self.deploy_row("example")
-        deployed = git_output(self.repo, "rev-parse", "HEAD")
+        deployed = support.git(self.repo, "rev-parse", "HEAD")
         (self.skill / "script.py").write_text("new checkout\n", encoding="utf-8")
-        git(self.repo, "add", "skills/example/script.py")
-        git(self.repo, "commit", "-qm", "new checkout head")
+        support.git(self.repo, "add", "skills/example/script.py")
+        support.git(self.repo, "commit", "-qm", "new checkout head")
         self.assertEqual(self.count(), (0, "tracked=2 installed=2 drifted=0\n", ""))
-        self.assertNotEqual(deployed, git_output(self.repo, "rev-parse", "HEAD"))
+        self.assertNotEqual(deployed, support.git(self.repo, "rev-parse", "HEAD"))
 
     def test_count_flags_installed_mode_drift(self):
         (self.skill / "script.py").chmod(0o755)
-        git(self.repo, "add", "skills/example")
-        git(self.repo, "commit", "-qm", "executable script")
+        support.git(self.repo, "add", "skills/example")
+        support.git(self.repo, "commit", "-qm", "executable script")
         (self.install / "script.py").chmod(0o755)
         self.deploy_row("example")
         self.assertEqual(self.count(), (0, "tracked=2 installed=2 drifted=0\n", ""))
@@ -144,11 +130,6 @@ class RelaunchEntryCheckTest(unittest.TestCase):
         result = self.count()
         self.assertEqual(result[0], 1)
         self.assertEqual(result[1], "tracked=2 installed=2 drifted=1\n")
-
-
-def git_output(repo: Path, *args: str) -> str:
-    return subprocess.run(["git", "-C", str(repo), *args], check=True,
-                          capture_output=True, text=True, stdin=subprocess.DEVNULL).stdout.strip()
 
 
 if __name__ == "__main__":

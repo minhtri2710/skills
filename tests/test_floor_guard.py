@@ -10,10 +10,15 @@ import unittest
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 
-SCRIPTS = Path(__file__).resolve().parents[1] / "skills" / "quality-floor" / "scripts"
-sys.path.insert(0, str(SCRIPTS))
+import support
+import floor_guard
 
-import floor_guard  # noqa: E402
+SCRIPTS = support.ROOT / "skills" / "quality-floor" / "scripts"
+
+
+def setUpModule() -> None:
+    support.never_run("git", sys.executable)
+
 
 CONSTRAINTS = """# Constraints
 
@@ -39,8 +44,7 @@ CONSTRAINTS = """# Constraints
 class FloorGuardRepoTest(unittest.TestCase):
     def setUp(self) -> None:
         self._tmp = tempfile.TemporaryDirectory()
-        self.repo = Path(self._tmp.name)
-        self.git("init", "-q", "-b", "main")
+        self.repo = support.temp_git_repo(Path(self._tmp.name))
         self.write("src/app.py", "def total(items):\n    return sum(items)\n")
         self.write(
             "tests/test_app.py",
@@ -50,20 +54,11 @@ class FloorGuardRepoTest(unittest.TestCase):
         self.write("tests/test_é.py", "def test_non_ascii():\n    assert True\n")
         self.write("src é.py", "value = 1\n")
         self.write("CONSTRAINTS.md", CONSTRAINTS)
-        self.git("add", ".")
-        self.git("commit", "-q", "-m", "base")
+        support.git(self.repo, "add", ".")
+        support.git(self.repo, "commit", "-q", "-m", "base")
 
     def tearDown(self) -> None:
         self._tmp.cleanup()
-
-    def git(self, *args: str) -> None:
-        subprocess.run(
-            ["git", "-c", "user.name=t", "-c", "user.email=t@example.com", *args],
-            cwd=self.repo,
-            check=True,
-            capture_output=True,
-            stdin=subprocess.DEVNULL,
-        )
 
     def write(self, name: str, text: str) -> None:
         path = self.repo / name
@@ -196,11 +191,11 @@ class FloorGuardRepoTest(unittest.TestCase):
         self.assertEqual(self.run_guard(), (0, ""))
 
     def test_renamed_test_file_is_not_a_deletion(self) -> None:
-        self.git("mv", "tests/test_old.py", "tests/test_older.py")
+        support.git(self.repo, "mv", "tests/test_old.py", "tests/test_older.py")
         self.assertEqual(self.run_guard(), (0, ""))
 
     def test_test_file_renamed_out_of_a_test_path_is_a_deletion(self) -> None:
-        self.git("mv", "tests/test_old.py", "src/old.py")
+        support.git(self.repo, "mv", "tests/test_old.py", "src/old.py")
         code, err = self.run_guard()
         self.assertEqual(code, 1)
         self.assertIn("[test-deleted] tests/test_old.py", err)
@@ -232,8 +227,8 @@ class FloorGuardRepoTest(unittest.TestCase):
 
     def commit_then_edit(self, name: str, before: str, after: str) -> None:
         self.write(name, before)
-        self.git("add", ".")
-        self.git("commit", "-q", "--allow-empty", "-m", "config")
+        support.git(self.repo, "add", ".")
+        support.git(self.repo, "commit", "-q", "--allow-empty", "-m", "config")
         self.write(name, after)
 
     def assert_config_rows(self, rows: list[tuple[str, str, str, str | None]]) -> None:
@@ -246,7 +241,7 @@ class FloorGuardRepoTest(unittest.TestCase):
                 else:
                     self.assertEqual(code, 1)
                     self.assertIn(expected, err)
-                self.git("reset", "-q", "--hard")
+                support.git(self.repo, "reset", "-q", "--hard")
 
     def test_loosened_coverage_thresholds_in_tool_configs_are_flagged(self) -> None:
         loose = "[threshold-loosened] "

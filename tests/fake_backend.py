@@ -14,16 +14,12 @@ otherwise it answers from the seats. A missing seat raises SeatError("not_found"
 """
 from __future__ import annotations
 
-import sys
 from collections import defaultdict, deque
 from collections.abc import Mapping, Sequence
-from pathlib import Path
 from typing import Any
 
-SCRIPTS = Path(__file__).resolve().parents[1] / "skills" / "agent-delivery-workflow" / "scripts"
-sys.path.insert(0, str(SCRIPTS))
-
-import backend  # noqa: E402
+import support  # noqa: F401  (puts the scripts on sys.path)
+import backend
 
 
 class FakeBackend(backend.Backend):

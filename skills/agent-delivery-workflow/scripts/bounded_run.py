@@ -31,7 +31,6 @@ def _group_alive(pgid: int) -> bool:
 
 
 def stop_group(proc: subprocess.Popen, grace: float) -> None:
-    """SIGTERM the group, reap the leader, and SIGKILL whatever remains after `grace` seconds."""
     try:
         os.killpg(proc.pid, signal.SIGTERM)
     except (ProcessLookupError, PermissionError):

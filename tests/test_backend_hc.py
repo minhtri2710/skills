@@ -11,66 +11,35 @@ import os
 import re
 import stat
 import subprocess
-import sys
 import tempfile
 import unittest
+from functools import partial
 from pathlib import Path
 from unittest import mock
 
-SCRIPTS = Path(__file__).resolve().parents[1] / "skills" / "agent-delivery-workflow" / "scripts"
-sys.path.insert(0, str(SCRIPTS))
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-
-import backend  # noqa: E402
-from backends import hc  # noqa: E402
-
-_NEVER_RUN = mock.patch.object(subprocess, "run", side_effect=AssertionError("tests never run hc"))
+import support
+import backend
+from backends import hc
+from support import Recorder
 
 
 def setUpModule() -> None:
-    _NEVER_RUN.start()
+    support.never_run()
 
 
-def tearDownModule() -> None:
-    _NEVER_RUN.stop()
-
-
-ROOT = Path(__file__).resolve().parents[1] / "skills" / "agent-delivery-workflow"
-FIXTURES = Path(__file__).resolve().parent / "fixtures" / "backends" / "hc"
-REFERENCE = ROOT / "references" / "backend-hc.md"
+REFERENCE = support.ADW / "references" / "backend-hc.md"
 SOCKET = "/run/user/501/herdr-core/default.sock"
 ENVIRON = {"HC_TERMINAL_ID": "t7", "HC_TERMINAL_SOCKET": SOCKET, "PATH": "/usr/bin", "HOME": "/home/u"}
 LEAD = "t3"
 REPORT = "/state/projects/demo/runs/r1/report-eng-a.md"
 
 
-def fixture(name: str) -> str:
-    return (FIXTURES / name).read_text(encoding="utf-8")
-
-
-def reply(stdout: str = "", returncode: int = 0, stderr: str = "") -> subprocess.CompletedProcess[str]:
-    return subprocess.CompletedProcess(["hc"], returncode, stdout, stderr)
-
-
-class Recorder:
-    """The injected runner: records (args, timeout, env) and answers the queued replies in order."""
-
-    def __init__(self, *replies: subprocess.CompletedProcess[str]) -> None:
-        self.replies = list(replies)
-        self.calls: list[tuple[list[str], float, dict[str, str]]] = []
-
-    def __call__(self, args: list[str], *, timeout: float = 30.0, env: dict[str, str]) -> subprocess.CompletedProcess[str]:
-        self.calls.append((list(args), timeout, env))
-        return self.replies.pop(0)
-
-    @property
-    def argv(self) -> list[list[str]]:
-        return [args for args, _, _ in self.calls]
+fixture = partial(support.fixture, "hc")
+reply = partial(support.reply, "hc")
 
 
 def adapter(*replies: subprocess.CompletedProcess[str]) -> tuple[hc.Adapter, Recorder]:
-    runner = Recorder(*replies)
-    return hc.Adapter(ENVIRON, runner=runner, binary="hc"), runner
+    return support.adapter(hc, ENVIRON, *replies, binary="hc")
 
 
 # The whole command surface the adapter may use: verb -> flags it may pass (design 9.3 allow-list).
@@ -179,7 +148,7 @@ class CorePinTest(unittest.TestCase):
         a.get_seat("t7")
         a.processes("t7")
         a.identify()
-        for _, _, env in runner.calls:
+        for env in runner.envs:
             self.assertEqual(env["HC_SOCKET"], SOCKET)
             self.assertEqual({k: v for k, v in env.items() if k != "HC_SOCKET"}, {k: v for k, v in stale.items() if k != "HC_SOCKET"})
         self.assertEqual(stale["HC_SOCKET"], "/elsewhere/other.sock")  # the caller's mapping is not mutated
