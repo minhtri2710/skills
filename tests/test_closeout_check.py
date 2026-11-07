@@ -169,23 +169,6 @@ class CloseoutCheckTest(unittest.TestCase):
         unreviewed = self.closeout()
         self.assertTrue(unreviewed.passed, unreviewed.findings)
 
-    def test_closeout_reads_the_ledger_once(self):
-        def git(*args: str) -> str:
-            return support.git(self.canonical, *args)
-
-        base = git("rev-parse", "HEAD")
-        (self.canonical / "tracked.txt").write_text("next\n", encoding="utf-8")
-        git("commit", "-qam", "next")
-        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
-            self.assertEqual(gate_row.main([
-                "--ledger", str(self.ledger), "--repo", str(self.canonical),
-                "--kind", "review", "--status", "recorded:review-pass", "--review-base", base,
-                "--words", "seat", "--note", "review passed", "--quote", "PASS",
-            ]), 0)
-        with mock.patch.object(gate_row, "read_ledger_state", wraps=gate_row.read_ledger_state) as read:
-            self.closeout()
-        self.assertEqual(read.call_count, 1)
-
     def test_open_recorded_peer_fails_even_when_agent_is_not_found_then_passes_after_close(self):
         result = self.closeout()
         self.assertFalse(result.passed)

@@ -514,25 +514,34 @@ class GateRowTest(unittest.TestCase):
             gate_row.validate_ledger(rows, self.repo)
         return collections.Counter(call.args[0][3] for call in popen.call_args_list)
 
-    def test_validation_spends_the_same_git_processes_whatever_the_row_count(self):
+    def fixture_rows_on(self, heads: list[str], after: list[str] = ()) -> list[str]:
+        """`after` plus one chained fixture merge row per head, ids and timestamps continuing it."""
+        rows = list(after)
+        stamp = rows[-1].split(" | ")[1] if rows else "2026-09-06T00:00:00Z"
+        for gid, head in enumerate(heads, len(rows) + 1):
+            row = self.fixture_row(f"G{gid}", "resolved:human").replace(
+                "2026-09-06T00:00:00Z", stamp).replace(f"main@{self.rev('HEAD')}", f"main@{head}")
+            if rows:
+                row = row.replace(" | words=", f" | prev_hash={gate_row.row_hash(rows[-1])} | words=", 1)
+            rows.append(row)
+        return rows
+
+    def test_validation_spends_a_fixed_number_of_git_processes_whatever_the_row_count(self):
         self.assertEqual(self.append_review_pass(), 0, self.err.getvalue())
         self.add_remote("HEAD")
         self.assertEqual(self.append(
             "--kind", "push", "--push-base", self.rev("HEAD~2"), "--boundary", "."), 0, self.err.getvalue())
-        short = gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))
+        review_and_push = gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))
         for n in range(29):
             support.git(self.repo, "commit", "--allow-empty", "-qm", f"e{n}")
-        # 30 more rows on 30 distinct heads, one of them the head the review and push rows share.
-        long = list(short)
-        stamp = short[-1].split(" | ")[1]
-        for gid, head in enumerate((self.rev(f"HEAD~{n}") for n in range(30)), len(short) + 1):
-            row = self.fixture_row(f"G{gid}", "resolved:human").replace(
-                "2026-09-06T00:00:00Z", stamp).replace(f"main@{self.rev('HEAD')}", f"main@{head}")
-            long.append(row.replace(" | words=", f" | prev_hash={gate_row.row_hash(long[-1])} | words=", 1))
-        verbs = self.git_verbs(long)
-        self.assertEqual(verbs["cat-file"], 1)
-        self.assertEqual(verbs["diff-tree"], 1)
-        self.assertEqual(verbs, self.git_verbs(short))
+        # 30 distinct heads, one of them the head the review and push rows share.
+        heads = [self.rev(f"HEAD~{n}") for n in range(30)]
+        self.assertEqual(self.git_verbs(self.fixture_rows_on(heads)), collections.Counter({"cat-file": 1}))
+        pair = self.git_verbs(review_and_push)
+        # merge-base and rev-list read the shared range once; rev-parse asks for origin/HEAD once.
+        self.assertEqual(pair, collections.Counter(
+            {"cat-file": 1, "diff-tree": 1, "merge-base": 1, "rev-list": 1, "rev-parse": 1}))
+        self.assertEqual(self.git_verbs(self.fixture_rows_on(heads, after=review_and_push)), pair)
 
     def test_a_read_state_holds_each_ledger_row_once_and_answers_reviewed_unpushed_alone(self):
         self.assertEqual(self.append_review_pass(), 0, self.err.getvalue())
