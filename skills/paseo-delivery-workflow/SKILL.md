@@ -90,13 +90,17 @@ other tier gains a shell `paseo` use from this exception.
    when the work does not split does the Lead write it itself, under owned paths and a
    report, as an Engineer would, and the plan records why. Each Engineer's prompt names its
    owned paths, its delivery's branch and checkout, and its reporting target, and relays
-   what the Human said per "Human words" in Every agent. Replace a Lead only after its
-   `handoff.md` is current; for a Lead that cannot write it, the new Lead writes it from the
-   old Lead's `paseo logs` before other work. The new Lead first checks that record against
-   each delivery's tree and writes each mismatch into it, and reads `grants.md` unchanged.
-   The plan names the fast lane, each acceptance lane with the paths it reads, and the
-   project's refusal and acceptance table, or none. Done when every writer's owned paths are
-   disjoint and written down.
+   what the Human said per "Human words" in Every agent; when the work changes or removes a
+   guard in a function, the prompt also names every spec and test that calls it, not only
+   those in the Engineer's owned paths. Replace a Lead only after its `handoff.md` is
+   current; for a Lead that cannot write it, the new Lead writes it from the old Lead's
+   `paseo logs` before other work. The new Lead first checks that record against each
+   delivery's tree and writes each mismatch into it, and reads `grants.md` unchanged. The
+   plan names the fast lane, each acceptance lane with the paths it reads, and the project's
+   refusal and acceptance table, or none. A tool a lane runs or downloads (a pinned binary
+   or other artifact) lives in a repo-local gitignored directory or a persistent cache,
+   never `/tmp`, which a reboot clears, and is checked against a recorded checksum. Done
+   when every writer's owned paths are disjoint and written down.
 3. **Implement.** Engineers write inside owned paths; before reporting, each runs the plan's
    fast lane with the same race or sanitizer flags as the acceptance lanes (for example a
    race detector), so a data race is caught before hand-in, and checks its change against
@@ -120,38 +124,39 @@ other tier gains a shell `paseo` use from this exception.
    one touches no path the lane reads; a read path that is solely a build input may change
    when the product artifact built there (build-VCS stamping off) has the same hash at both
    SHAs. A lane is not green at a SHA while any run of it there failed and that failure has
-   no diagnosis in the record: a lane or test that fails intermittently is diagnosed from
-   the failing run's own logs, a green rerun never closes it, and the failing run's output
-   goes to the Reviewer with the rest. The Reviewer checks and states these conditions in
-   its verdict, and a lane that fails them runs again. A `PASS` needs every lane green at
-   its SHA. A lane that checks terminal output meant for a human runs under a real pty with
-   explicit columns and color profile, and its output carries the captured screens. A lane
-   run on a second host holds that host's run lock, which the project's record names (one
-   run at a time, taken before the run and released after it), never receives real secrets,
-   and with that host unreachable fails with no local fallback; on an interrupt it stops the
-   remote run it recorded and confirms it gone before releasing the lock. A second-host run
-   dies with its runner: the remote wrapper kills its whole process group on every exit; a
-   periodic heartbeat over the connection turns a dead connection into SIGPIPE, since a
-   dropped ssh connection with no pty sends no HUP; and, under the run lock before starting,
-   the runner checks the recorded remote process group for an orphan; with a live orphan it
-   does not start, the agent running the lane reports the orphan as a `collision`, and the
-   lane is not green. A SIGKILL of the local runner mid-run proves the whole; it runs once
-   per change to the remote wrapper, with its output in the project's record. A delete,
-   move, or overwrite in the change whose path comes from stored state is a `FAIL` until it
-   has a containment guard in the same delivery, never an accepted risk. A new test the
-   change does not need, or one that duplicates an existing proof, is a finding. A `FAIL`
-   lists every finding at its SHA and goes back to the owning writer; the same Reviewer then
-   re-reviews the fix's diff at the new SHA, and only the lanes that fail the carry rule at
-   the new SHA run again. Every finding carries a severity (High, Medium, Low, or Info),
-   and only High and Medium block; a Low or Info finding reported with a `PASS` does not
-   reopen the review, and the head goes on to step 6. A Low that is a correctness or
-   user-visible defect goes into the next queued delivery touching its area, else into the
-   record's next work; style, wording, and doc Lows join the next delivery that touches the
-   same file, or wait for the next trial or usage pass (a round of running the product to
-   find defects). This delivery's record and the receiving delivery's plan name each such
-   finding. A delivery that only fixes Lows opens no further delivery for a Low its review
-   finds, unless that Low is a correctness defect. Done when a `PASS` names the SHA it
-   covers.
+   no diagnosis in the record: an intermittent failure, or one in a test the change did not
+   cause, is diagnosed from the failing run's own logs, a green rerun closes nothing, the
+   fix for a failure the change did not cause is split into a delivery of its own, and the
+   failing run's output goes to the Reviewer with the rest. The Reviewer checks and states
+   these conditions in its verdict, and a lane that fails them runs again. A `PASS` needs
+   every lane green at its SHA. A lane that checks terminal output meant for a human runs
+   under a real pty with explicit columns and color profile, and its output carries the
+   captured screens. A lane run on a second host holds that host's run lock, which the
+   project's record names (one run at a time, taken before the run and released after it),
+   never receives real secrets, and with that host unreachable fails with no local fallback;
+   on an interrupt it stops the remote run it recorded and confirms it gone before releasing
+   the lock. A second-host run dies with its runner: the remote wrapper kills its whole
+   process group on every exit; a periodic heartbeat over the connection turns a dead
+   connection into SIGPIPE, since a dropped ssh connection with no pty sends no HUP; and,
+   under the run lock before starting, the runner checks the recorded remote process group
+   for an orphan; with a live orphan it does not start, the agent running the lane reports
+   the orphan as a `collision`, and the lane is not green. A SIGKILL of the local runner
+   mid-run proves the whole; it runs once per change to the remote wrapper, with its output
+   in the project's record. A delete, move, or overwrite in the change whose path comes from
+   stored state is a `FAIL` until it has a containment guard in the same delivery, never an
+   accepted risk. A new test the change does not need, or one that duplicates an existing
+   proof, is a finding. A `FAIL` lists every finding at its SHA and goes back to the owning
+   writer; the same Reviewer then re-reviews the fix's diff at the new SHA, and only the
+   lanes that fail the carry rule at the new SHA run again. Every finding carries a severity
+   (High, Medium, Low, or Info), and only High and Medium block; a Low or Info finding
+   reported with a `PASS` does not reopen the review, and the head goes on to step 6. A Low
+   that is a correctness or user-visible defect goes into the next queued delivery touching
+   its area, else into the record's next work; style, wording, and doc Lows join the next
+   delivery that touches the same file, or wait for the next trial or usage pass (a round of
+   running the product to find defects). This delivery's record and the receiving delivery's
+   plan name each such finding. A delivery that only fixes Lows opens no further delivery
+   for a Low its review finds, unless that Low is a correctness defect. Done when a `PASS`
+   names the SHA it covers.
 6. **Merge.** The Lead pushes the delivery's branch, opens or updates its PR, and
    squash-merges it once a `PASS` names that PR's head or a head with the same tree, CI is
    green on that head where the project runs CI, and the head contains the product line's
@@ -276,16 +281,19 @@ acting. Step 7 never archives the Watcher; it lives as long as the Supervisor.
   staffed you. Replace a file a process may be using (a script it runs, an installed file)
   by writing the new bytes to a temp path beside it, verifying their hash against the hash
   of their source (for an installed file, the reviewed commit's blob), and moving them in
-  with `mv`, or wait for the run to end: a write straight to the live path can truncate
-  it in use, and a shell reads a script incrementally, so the process can execute new bytes
-  at its old offset. Signal only a pid or process group you recorded when you started it,
-  never by `pkill`, `pkill -f`, `killall`, or a pid found by searching command lines; every
+  with `mv`, or wait for the run to end: a write straight to the live path can truncate it
+  in use, and a shell reads a script incrementally, so the process can execute new bytes at
+  its old offset. Signal only a pid or process group you recorded when you started it, never
+  by `pkill`, `pkill -f`, `killall`, or a pid found by searching command lines; every
   staffing prompt carries this ban. Run every heavy command under a wall-clock bound and
   name each such command and its bound in your report; never run two heavy suites of one
   project at once, across its deliveries; the project's Lead says whether another runs. A
   bound that fires, or a check that did not run, is a failed check. A command that outlasts
   your tool timeout runs as your runtime's tracked background task whose completion wakes
-  you, never under `nohup` or detached before you end the turn.
+  you, its pid recorded, never under `nohup` or detached before you end the turn; a command
+  that holds a shared lock (a scratch database, a shared container runtime) finishes under
+  the timeout or runs so, since a timeout that cuts it skips its cleanup and leaves the lock
+  stuck for every project that shares it.
 - Engineers and Reviewers whose runtime has subagents use them for disjoint sub-work, such
   as reading or an Engineer's independent test lanes, and work alone only when the work does
   not split. An Engineer's writing subagent stays inside paths the Engineer assigns it from
