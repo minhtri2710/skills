@@ -69,6 +69,25 @@ class TempGitRepoTest(unittest.TestCase):
                 )
 
 
+class RunInLocaleTest(unittest.TestCase):
+    REPORT = "import codecs, sys; print(sys.flags.utf8_mode, codecs.lookup(sys.stdout.encoding).name)"
+
+    def test_a_missing_locale_and_the_c_locale_leave_the_child_in_ascii_not_utf8_mode(self) -> None:
+        for locale in ("C", "xx_XX.NOPE"):
+            with self.subTest(locale=locale):
+                proc = support.run_in_locale(locale, self.REPORT)
+                self.assertEqual((proc.returncode, proc.stdout), (0, b"0 ascii\n"), proc.stderr)
+
+    def test_the_child_ignores_the_callers_utf8_and_io_encoding_settings(self) -> None:
+        with mock.patch.dict(os.environ, {"PYTHONUTF8": "1", "PYTHONIOENCODING": "utf-8"}):
+            proc = support.run_in_locale("C", self.REPORT)
+        self.assertEqual((proc.returncode, proc.stdout), (0, b"0 ascii\n"), proc.stderr)
+
+    def test_the_child_gets_the_code_then_the_arguments_and_its_output_is_bytes(self) -> None:
+        proc = support.run_in_locale("C", "import sys; print(sys.argv[1:]); sys.exit(3)", "a", "b")
+        self.assertEqual((proc.returncode, proc.stdout), (3, b"['a', 'b']\n"))
+
+
 class RunMainTest(unittest.TestCase):
     def test_returns_the_code_and_what_main_wrote_and_read(self) -> None:
         def main(argv: list[str]) -> int:

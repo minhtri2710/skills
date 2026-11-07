@@ -2,8 +2,6 @@
 from __future__ import annotations
 
 import io
-import os
-import subprocess
 import sys
 import tempfile
 import unittest
@@ -96,16 +94,10 @@ class FloorGuardRepoTest(unittest.TestCase):
 
     def test_non_ascii_untracked_violation_is_reported_under_legacy_locale(self) -> None:
         self.write("src/new_é.py", "def later():\n    pass  # TODO\n")
-        env = {
-            key: value for key, value in os.environ.items()
-            if key not in ("PYTHONUTF8", "PYTHONIOENCODING", "LANG")
-        }
-        proc = subprocess.run(
-            [sys.executable, str(SCRIPTS / "floor_guard.py"), "--base", "main",
-             "--repo", str(self.repo)],
-            capture_output=True,
-            env={**env, "LC_ALL": "en_US.ISO8859-1"},
-            stdin=subprocess.DEVNULL,
+        proc = support.run_in_locale(
+            "en_US.ISO8859-1",
+            "import sys; sys.path.insert(0, sys.argv[1]); import floor_guard; sys.exit(floor_guard.main(sys.argv[2:]))",
+            str(SCRIPTS), "--base", "main", "--repo", str(self.repo),
         )
         self.assertEqual(proc.returncode, 1, proc.stderr)
         self.assertIn(
@@ -195,6 +187,22 @@ class FloorGuardRepoTest(unittest.TestCase):
     def test_renamed_test_file_is_not_a_deletion_when_the_repo_disables_rename_detection(self) -> None:
         support.git(self.repo, "config", "diff.renames", "false")
         support.git(self.repo, "mv", "tests/test_old.py", "tests/test_older.py")
+        self.assertEqual(self.run_guard(), (0, ""))
+
+    def test_a_renamed_file_with_an_edited_watched_line_is_compared_with_its_old_path(self) -> None:
+        eslint = '{\n  "name": "demo",\n  "rules": {\n    "no-console": "off",\n    "eqeqeq": "error"\n  }\n}\n'
+        cfg = "[metadata]\nname = demo\nversion = 1\nauthor = a\n[report]\nfail_under = 80\n"
+        self.write("pkg/.eslintrc.json", eslint)
+        self.write("pkg/setup.cfg", cfg)
+        support.git(self.repo, "add", ".")
+        support.git(self.repo, "commit", "-q", "-m", "configs")
+        for old, new in (("tests/test_app.py", "tests/test_apps.py"), ("pkg/.eslintrc.json", "app/.eslintrc.json"),
+                         ("pkg/setup.cfg", "app/setup.cfg")):
+            (self.repo / new).parent.mkdir(exist_ok=True)
+            support.git(self.repo, "mv", old, new)
+        self.write("tests/test_apps.py", (self.repo / "tests/test_apps.py").read_text().replace("== 0", "== 0, 'empty'"))
+        self.write("app/.eslintrc.json", eslint.replace('"no-console": "off"', '"no-console": 0'))
+        self.write("app/setup.cfg", cfg.replace("= 80", "= 80.0"))
         self.assertEqual(self.run_guard(), (0, ""))
 
     def test_test_file_renamed_out_of_a_test_path_is_a_deletion(self) -> None:

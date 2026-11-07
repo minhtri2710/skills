@@ -28,10 +28,9 @@ established.
 
 ## Tool configuration
 
-The runner accepts JSON with `fail_on`, optional `trip_all_paths`, and a `checks`
-array. Each check names a category, executable command, and optional `required`
-and `triggers` fields. The command must be an argv array, not a shell string;
-`{output}` is replaced with a temporary per-check JSON output path. Omitted
+The runner accepts JSON; its fields, and each check's, are what `validate_config`
+in `scripts/security_check.py` accepts. The command must be an argv array, not a
+shell string; `{output}` is replaced with a temporary per-check JSON output path. Omitted
 fields take the script's values: `fail_on`, `trip_all_paths`
 (`DEFAULT_TRIP_ALL_PATHS`), and the per-scanner triggers are defined in
 `scripts/security_check.py`, as is the built-in `DEFAULT_CONFIG` used when no
@@ -64,8 +63,8 @@ runner may create their parent directory and the two report files; it must not
 write a backup, configuration, hook, CI workflow, security policy, lockfile, or
 any path outside the explicitly selected report outputs and temporary files.
 
-The JSON report has a top-level `summary`, `scope`, `checks`, `findings`, and
-`generated_at`. Each check records whether it ran, its scope reason, executable
+The JSON report's top-level keys are the payload `main` in
+`scripts/security_check.py` writes. Each check records whether it ran, its scope reason, executable
 name, return code, and any tool error; the reviewed configuration remains the
 source of the full argv. Missing tools and unusable reports are visible as
 `Not-Assessed` findings. Reports must not copy raw tool stdout/stderr because
