@@ -195,6 +195,21 @@ class RecallTest(unittest.TestCase):
                 self.assertEqual((self.root / relative).read_text(), text)
                 (self.root / relative).unlink()
 
+    def test_stamp_leaves_a_lesson_whose_store_is_a_symlink_out_of_the_state_root(self):
+        text = "---\nid: lesson\nadded: 2020-01-01\nsource_run: runs/issue\napproved_by: human\nstatus: active\nlast_used: 2020-01-01\n---\n\nlesson guidance\n"
+        with tempfile.TemporaryDirectory() as elsewhere:
+            outside = Path(elsewhere).resolve() / "x.md"
+            outside.write_text(text, encoding="utf-8")
+            store = self.root / "demo/runs/coordination/lessons"
+            store.parent.mkdir(parents=True)
+            store.symlink_to(outside.parent, target_is_directory=True)
+
+            code, output = self.run_recall(["--project", "demo", "--stamp", "lesson", "guidance"])
+
+            self.assertEqual(code, 0)
+            self.assertIn("demo/runs/coordination/lessons/x.md", output)
+            self.assertEqual(outside.read_text(), text)
+
     def test_query_without_stamp_does_not_modify_records(self):
         self.write(
             "demo/runs/coordination/lessons/lesson.md",

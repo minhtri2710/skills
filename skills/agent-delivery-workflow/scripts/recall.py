@@ -128,7 +128,8 @@ def lesson_result_path(relative):
     except ValueError:
         return None
     path = os.path.realpath(os.path.join(state_root.STATE_ROOT, relative))
-    return path if path.startswith(os.path.realpath(store) + os.sep) else None
+    in_store = path.startswith(os.path.realpath(store) + os.sep)
+    return path if in_store and state_root.inside_state_root(path) else None
 
 
 def stamp_results(results):
