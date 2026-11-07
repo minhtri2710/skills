@@ -34,7 +34,8 @@ On your first turn create one heartbeat for yourself, then run one check:
 
 Each wake runs one check, then ends the turn. When a command fails, send
 `watcher P1: blocked — <command> failed: <first error line>` once, recorded in `state.md`
-so a later wake does not resend it, and stop the check.
+so a later wake does not resend it, and stop the check. That record clears once the command
+succeeds in a later check, so a new failure is reported again.
 
 ## One check
 
@@ -58,8 +59,8 @@ Read only `<approval-record>`, `<project-records>`, and your own `<record-dir>`;
 - `findings.md`: one dated entry per finding: agent id and title, the rule broken, the exact
   tool call or command (redacted), why it matters.
 - `state.md`: your start time, the time of your last check, per agent the newest activity
-  you examined (so nothing is reported twice), the time of your last P1 send, and the P1
-  lines not yet sent.
+  you examined (so nothing is reported twice), the time of your last P1 send, the P1
+  lines not yet sent, and the command of a sent `blocked` report.
 
 ## Report line
 
