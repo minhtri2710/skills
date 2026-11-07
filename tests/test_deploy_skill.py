@@ -180,7 +180,9 @@ class DeploySkillTest(unittest.TestCase):
             with self.subTest(extra=extra):
                 self.assertEqual(self.run_deploy(self.human_deploy_args(ledger, *extra)), 1)
                 self.assertIn(message, sys.stderr.getvalue())
-                self.assertEqual(gate_row.text_rows(ledger.read_text(encoding="utf-8")), [])
+                self.assertFalse(ledger.exists())
+                self.assertFalse(self.cli_log.exists(), "refused row must not invoke skills")
+                self.assertFalse((self.home / ".agents").exists())
 
     def test_dirty_worktree_installs_head_blob_and_mode(self):
         (self.source / "run.sh").write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
@@ -225,6 +227,22 @@ class DeploySkillTest(unittest.TestCase):
         self.assertEqual(result, 1)
         self.assertIn("installed hash mismatch", sys.stderr.getvalue())
         self.assertFalse(ledger.exists())
+
+    def test_append_refused_after_install_says_installed_and_no_row(self):
+        ledger = self.tmp / "gates.md"
+        for error in (gate_row.RowError("ledger moved"), OSError("ledger moved")):
+            with self.subTest(error=type(error).__name__):
+                sys.stderr.truncate(0)
+                sys.stderr.seek(0)
+                with patch.object(gate_row, "append_row", side_effect=error):
+                    result = self.run_deploy(self.deploy_args(ledger))
+
+                self.assertEqual(result, 1)
+                message = sys.stderr.getvalue()
+                for token in ("installed agent-delivery-workflow", "no deploy row was recorded", "ledger moved"):
+                    self.assertIn(token, message)
+                self.assertTrue((self.home / ".agents" / "skills" / "agent-delivery-workflow").is_dir())
+                self.assertFalse(ledger.exists())
 
     def test_cli_absent_refuses_before_staging_or_writing(self):
         ledger = self.tmp / "gates.md"

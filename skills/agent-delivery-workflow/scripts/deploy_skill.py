@@ -11,6 +11,7 @@ import sys
 import tempfile
 from pathlib import Path
 
+import gate_row
 from gitops import GitError, git, is_ancestor
 
 
@@ -22,7 +23,7 @@ def tracked_skills(repo: Path, head: str) -> list[str]:
     skills = git(repo, "ls-tree", "-d", "--name-only", f"{head}:skills").splitlines()
     if not skills:
         raise DeployError(f"head {head} has no tracked top-level skills")
-    if any(not skill or Path(skill).parts != (skill,) for skill in skills):
+    if any(not gate_row.SKILL_NAME_RE.fullmatch(skill) for skill in skills):
         raise DeployError("git ls-tree returned a non-top-level skill")
     return skills
 
@@ -35,7 +36,7 @@ def selected_skills(repo: Path, head: str, requested: list[str]) -> list[str]:
         raise DeployError("--skill names a skill more than once")
     invalid = [
         skill for skill in requested
-        if Path(skill).parts != (skill,) or skill not in available
+        if not gate_row.SKILL_NAME_RE.fullmatch(skill) or skill not in available
     ]
     if invalid:
         raise DeployError(
@@ -150,37 +151,6 @@ def verify_install(repo: Path, install_dir: Path, entries: list[tuple[str, int, 
         raise DeployError(problems[0])
 
 
-def append_deploy_row(
-    args: argparse.Namespace, repo: Path, script: Path, row_head: str,
-) -> None:
-    command = [
-        sys.executable, str(script),
-        "--repo", str(repo), "--ledger", str(args.ledger),
-        "--kind", "deploy", "--status", args.status,
-        "--words", args.words, "--note", args.note, "--quote", args.quote,
-        "--head", row_head,
-    ]
-    if args.brief is not None:
-        command.extend(["--brief", args.brief])
-    for skill in args.skill:
-        command.extend(["--skill", skill])
-    if args.channel:
-        command.extend(["--channel", args.channel])
-    for gate_id in args.resolves:
-        command.extend(["--resolves", gate_id])
-    if args.under:
-        command.extend(["--under", args.under])
-    result = subprocess.run(
-        command, capture_output=True, text=True, encoding="utf-8", check=False,
-        stdin=subprocess.DEVNULL
-    )
-    if result.returncode:
-        raise DeployError(
-            f"gate_row.py refused deploy row: {result.stderr.strip() or result.stdout.strip()}"
-        )
-    sys.stdout.write(result.stdout)
-
-
 def _install_with_skills(cli: str, source: Path, skill: str) -> None:
     command = [cli, "add", str(source), "-g", "-a", "cline", "-s", skill, "-y", "--copy"]
     environment = os.environ.copy()
@@ -234,6 +204,12 @@ def main(argv: list[str] | None = None) -> int:
 
         branch = git(repo, "rev-parse", "--abbrev-ref", "HEAD")
         selected = selected_skills(repo, head, args.skill)
+        request = gate_row.RowRequest(
+            kind="deploy", status=args.status, channel=args.channel or None, skills=selected,
+            resolves=args.resolves, under=args.under or None, words=args.words, note=args.note,
+            brief=args.brief, quote=args.quote, head=f"{branch}@{head}",
+        )
+        gate_row.preview_row(args.ledger, repo, request)
         deployments = []
         for skill in selected:
             prefix = f"skills/{skill}/"
@@ -254,12 +230,14 @@ def main(argv: list[str] | None = None) -> int:
             for skill, prefix, entries in deployments:
                 verify_install(repo, install_root / skill, entries, prefix)
 
-        args.skill = selected
-        append_deploy_row(
-            args, repo, Path(__file__).resolve().with_name("gate_row.py"),
-            f"{branch}@{head}",
-        )
-    except (DeployError, GitError, OSError) as exc:
+        try:
+            row = gate_row.append_row(args.ledger, repo, request)
+        except (gate_row.RowError, OSError) as exc:
+            raise DeployError(
+                f"installed {', '.join(selected)}, but no deploy row was recorded: {exc}"
+            ) from None
+        print(row)
+    except (DeployError, GitError, gate_row.RowError, OSError) as exc:
         print(f"deploy_skill: {exc}", file=sys.stderr)
         return 1
     return 0

@@ -14,7 +14,7 @@ scripts/gate_row.py --ledger ~/.agent-delivery/projects/<project-slug>/gates.md 
 
 Human-gate mailbox check:
 scripts/gate_row.py --ledger ~/.agent-delivery/projects/<project-slug>/gates.md --check --mailbox ~/.agent-delivery/projects/<project-slug>/supervisor-mailbox.md
-# For an open push, merge, deploy, push-gate, merge-gate, or deploy-gate row, the mailbox must contain
+# For an open row of a kind marked human_gate in gate_row.py's KINDS table, the mailbox must contain
 # an entry to supervisor that `scripts/mailbox.py --append --attention` wrote before its wake (templates/mailbox-entry.txt),
 # and its attention text must name the row's gate id or exact full head SHA as a complete token.
 # The header's HEAD field alone does not match. Without --mailbox, --check is unchanged.

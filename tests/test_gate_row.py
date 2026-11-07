@@ -162,7 +162,9 @@ class GateRowTest(unittest.TestCase):
     def fixture_row(self, gid: str, status: str, words: str = "human",
                     quote: str | None = None, resolves: str | None = None,
                     note: str = "fixture", kind: str = "merge") -> str:
-        target = f" | resolves={resolves}" if resolves else ""
+        head = self.rev("HEAD")
+        block = f" | review={head}..{head} count=0" if kind == "review" else ""
+        target = block + (f" | resolves={resolves}" if resolves else "")
         human = words in gate_row.HUMAN_WORDS
         brief = f" | brief={BRIEF}" if human else ""
         quote = ("" if human else "fixture") if quote is None else quote
@@ -193,9 +195,9 @@ class GateRowTest(unittest.TestCase):
         self.assertEqual(self.ledger.read_text(), before)
 
         self.assertEqual(self.append(
-            "--status", "open", "--channel", "supervisor-relay:dialog",
+            "--status", "recorded:merge", "--channel", "supervisor-relay:dialog",
             "--words", "selected",
-        ), 0)
+        ), 0, self.err.getvalue())
         row = self.last_row().replace("words=selected", "words=human")
         self.ledger.write_text(row + "\n", encoding="utf-8")
         self.assertEqual(self.run_main([
@@ -203,6 +205,48 @@ class GateRowTest(unittest.TestCase):
         ]), 1)
         self.assertIn("channel=supervisor-relay:dialog", self.err.getvalue())
         self.assertIn("words=selected", self.err.getvalue())
+
+    def test_a_dialog_row_requires_a_recorded_status(self):
+        before = self.ledger.read_bytes()
+        self.assertEqual(self.append(
+            "--status", "open", "--channel", "supervisor-relay:dialog", "--words", "selected",
+        ), 1)
+        self.assertIn("channel=supervisor-relay:dialog requires status=recorded:<kind>", self.err.getvalue())
+        self.assertEqual(self.ledger.read_bytes(), before)
+
+    def test_preview_row_builds_and_checks_the_next_row_without_writing_it(self):
+        request = gate_row.RowRequest(
+            kind="merge", status="resolved:human", words="human", brief=BRIEF, note="merged the reviewed head")
+        absent = self.tmp / "absent" / "gates.md"
+        self.assertTrue(gate_row.preview_row(absent, self.repo, request).startswith("G1 | "))
+        self.assertFalse(absent.exists())
+        self.assertEqual(self.append(), 0, self.err.getvalue())
+        before = self.ledger.read_bytes()
+        row = gate_row.preview_row(self.ledger, self.repo, request)
+        self.assertTrue(row.startswith("G2 | "))
+        self.assertIn(f"prev_hash={gate_row.row_hash(self.last_row())}", row)
+        self.assertEqual(gate_row.append_row(self.ledger, self.repo, request).split(" | ")[0], "G2")
+        briefless = gate_row.RowRequest(kind="merge", status="resolved:human", words="human", note="n")
+        written = self.ledger.read_bytes()
+        with self.assertRaisesRegex(gate_row.RowError, "brief= is required"):
+            gate_row.preview_row(self.ledger, self.repo, briefless)
+        self.assertEqual(self.ledger.read_bytes(), written)
+        self.assertNotEqual(written, before)
+        self.assertEqual(len(gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))), 2)
+
+    def test_a_read_of_an_absent_ledger_names_the_ledger_not_a_deploy_row(self):
+        absent = self.tmp / "absent" / "gates.md"
+        for mode in ("--check", "--open-gates"):
+            with self.subTest(mode):
+                self.assertEqual(self.run_main(
+                    ["--ledger", str(absent), "--repo", str(self.repo), mode]), 1)
+                self.assertIn(f"{absent} holds no gate ledger", self.err.getvalue())
+                self.assertNotIn("deploy", self.err.getvalue())
+
+    def test_the_first_row_of_a_ledger_is_g1(self):
+        self.ledger.write_text(self.fixture_row("G7", "resolved:human") + "\n", encoding="utf-8")
+        self.assertEqual(self.check_last(), 1)
+        self.assertIn("gate id G7 is not the next local id G1", self.err.getvalue())
 
     def test_seat_permission_denial_requires_system_words_shape_on_append_and_check(self):
         before = self.ledger.read_text()
@@ -618,7 +662,7 @@ class GateRowTest(unittest.TestCase):
         for args, reason in (
             (("--kind", "correction", "--status", "recorded:wrong", "--void", review_id),
              "requires status=recorded:correction"),
-            (("--kind", "correction", "--status", "recorded:correction"), "requires --void"),
+            (("--kind", "correction", "--status", "recorded:correction"), "requires exactly one void="),
             (("--kind", "correction", "--status", "recorded:correction",
               "--void", review_id, "--void", review_id), "exactly one --void"),
             (("--void", review_id), "only meaningful on kind=correction"),
@@ -638,7 +682,7 @@ class GateRowTest(unittest.TestCase):
             (self.fixture_row("G2", "recorded:correction", kind="correction").replace(
                 " | words=", " | void=G404 | words=", 1), "not an earlier row of this ledger"),
             (self.fixture_row("G2", "recorded:correction", kind="correction").replace(
-                " | words=", " | void=G1 | void=G1 | words=", 1), "more than one void="),
+                " | words=", " | void=G1 | void=G1 | words=", 1), "field 'void' is out of order or duplicated"),
         ]
         for row, reason in bad_rows:
             row = row.replace(" | words=", f" | prev_hash={gate_row.row_hash(prior)} | words=", 1)
@@ -669,15 +713,15 @@ class GateRowTest(unittest.TestCase):
 
     def test_open_gate_mode_uses_last_rows_and_structured_resolves_only(self):
         rows = [
-            self.fixture_row("G26", "open", "none", ""),
-            self.fixture_row("G27", "open", "none", "", note="prose says resolves=G27"),
-            self.fixture_row("G28", "open", "none", ""),
-            self.fixture_row("G29", "resolved:done", resolves="G28"),
-            self.fixture_row("G30", "open", "none", ""),
-            self.fixture_row("G31", "resolved:done"),
+            self.fixture_row("G1", "open", "none", ""),
+            self.fixture_row("G2", "open", "none", "", note="prose says resolves=G2"),
+            self.fixture_row("G3", "open", "none", ""),
+            self.fixture_row("G4", "resolved:done", resolves="G3"),
+            self.fixture_row("G5", "open", "none", ""),
+            self.fixture_row("G6", "resolved:done"),
         ]
         self.ledger.write_text("# fixture\n" + "\n".join(self.chained(rows)) + "\n")
-        self.assertEqual(self.open_gates(), ["G26", "G27", "G30"])
+        self.assertEqual(self.open_gates(), ["G1", "G2", "G5"])
 
     def test_words_values_require_the_matching_quote_presence(self):
         self.assertEqual(self.append("--status", "open", "--words", "none", "--quote", ""), 0)
@@ -1324,9 +1368,9 @@ class GateRowTest(unittest.TestCase):
         for extra, error in (
             (("--status", "open"), "kind=deploy requires a completed deploy status"),
             (("--status", "resolved:deploy", "--skill", "example", "--skill", "example"),
-             "kind=deploy --skill names a skill more than once"),
+             "skills= must contain sorted, unique top-level skill names"),
             (("--status", "resolved:deploy", "--skill", "../example"),
-             "kind=deploy --skill names a malformed top-level skill"),
+             "--skill '../example' is not a top-level skill name"),
         ):
             with self.subTest(extra=extra):
                 rejected = cli(*common, *extra)
@@ -1488,6 +1532,24 @@ class GateRowTest(unittest.TestCase):
                 self.assertEqual(self.append(*extra), 1)
                 self.assertIn(message, self.err.getvalue())
                 self.assertEqual(self.ledger.read_bytes(), before)
+
+    def test_a_supplied_list_flag_is_a_value_even_when_its_item_is_empty_or_padded(self):
+        self.assertEqual(self.append("--status", "open", "--words", "none", "--quote", ""), 0, self.err.getvalue())
+        before = self.ledger.read_bytes()
+        for extra in (
+            ("--resolves", ""), ("--resolves", " G1"), ("--resolves", "G1,"),
+            ("--void", ""), ("--void", " G1"),
+            ("--kind", "correction", "--status", "recorded:correction", "--void", ""),
+        ):
+            with self.subTest(extra):
+                self.assertEqual(self.append(*extra), 1)
+                self.assertEqual(self.ledger.read_bytes(), before)
+
+    def test_a_correction_refuses_a_padded_void_id(self):
+        self.assertEqual(self.append_review_pass(), 0, self.err.getvalue())
+        before = self.ledger.read_bytes()
+        self.assertEqual(self.append_correction(" G1"), 1)
+        self.assertEqual(self.ledger.read_bytes(), before)
 
     def test_a_structured_field_refuses_the_row_delimiters(self):
         before = self.ledger.read_bytes()

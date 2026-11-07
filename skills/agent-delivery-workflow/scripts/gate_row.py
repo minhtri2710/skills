@@ -5,30 +5,25 @@ Every number in a row is derived here from git, never typed by a seat, and every
 row this script appends is re-read from disk and re-derived before the command
 exits. `--check` applies the same derivation to a row that already exists.
 
-Row shape, one line, ` | ` between fields:
-
-    <id> | <ISO time> | kind=<kind> | <branch>@<head> | status=<status>
-      [| channel=<channel>] [| writer=<seat>] | record=<timely|reconstruction>
-      [| push=<base>..<head> count=<n> boundary="<declared paths>"
-         boundary-check="<paths outside the boundary>"]
-      [| resolves=<id>[,<id>...]] [| under=<standing-delegation id>] [| void=<id>]
-      [| op=<command> | after=<branch>@<head>]
-      [| who=<delegate> | scope=<scope> | conditions=<conditions> | expiry=<expiry>
-      [| finding=<identity>] [| archive=<64 lowercase hex genesis marker>]
-      [| skills=<sorted, unique top-level deploy targets>] [| prev_hash=<64 lowercase hex>]
-      | words=<seat|human|selected|none>
-      [| brief=<one line>] | note=<one line> | quote="<seat text>"
+Row shape, one line, ` | ` between fields: `<id> | <ISO time> | kind=<kind> | <branch>@<head> |
+status=<status>`, then the fields of FIELDS in table order, then the terminal `quote="<seat text>"`.
 
 `quote=` is terminal and holds the seat's own verbatim text — the act, the refused
 command on a denial row — so a `|` inside it is data, not a separator. The Human's words
 are never stored: a `words=human` or `words=selected` row carries `brief=`, the Agent
 brief restating them, and an empty `quote=`. Every other row has no `brief=`. `note=`
 and `brief=` are the seat's own words and refuse `|` and `"`.
+
+FIELDS is the ordered field table and KINDS the per-kind table; `parse_row` reads a
+stored row by them, `build` writes one by them, and `check` applies the rules that need
+git or the rows before it.
 """
 from __future__ import annotations
 
 import argparse
+import dataclasses
 import fcntl
+import functools
 import hashlib
 import os
 import re
@@ -37,6 +32,7 @@ import sys
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Callable, NamedTuple
 
 import gitops
 import state_root
@@ -49,24 +45,21 @@ KIND_RE = re.compile(r"^[a-z][a-z-]*$")
 STATUS_RE = re.compile(r"^(open|(resolved|recorded):[a-z0-9-]+)$")
 CHANNEL_RE = re.compile(r"^(direct-seat-pane|supervisor-relay):(typed|dialog)$")
 WRITER_RE = re.compile(r"^[a-z][a-z0-9_-]*$")
-HEAD_RE = re.compile(r"^(?P<branch>[^ |@]+)@(?P<head>[0-9a-f]{7,40})$")
-HEAD_ARG_RE = re.compile(rf"^(?P<branch>[^ |@]+)@(?P<head>{gitops.FULL_SHA})$")
+SKILL_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
+BRANCH_HEAD_RE = re.compile(rf"^(?P<branch>[^ |@]+)@(?P<head>{gitops.FULL_SHA})$")
 # One feature-branch push lands in seconds; two minutes covers a slow link or a large first
 # pack, and bounds how long a hung push can hold the ledger lock against every other writer.
 PUSH_TIMEOUT_S = 120
 PUSH_RE = re.compile(
-    r'^push=(?P<base>[0-9a-f]{7,40})\.\.(?P<head>[0-9a-f]{7,40}) '
+    rf'^push=(?P<base>{gitops.FULL_SHA})\.\.(?P<head>{gitops.FULL_SHA}) '
     r'count=(?P<count>\d+) boundary="(?P<declared>[^"]*)" '
     r'boundary-check="(?P<boundary>[^"]*)"$'
 )
 REVIEW_RE = re.compile(
-    r'^review=(?P<base>[0-9a-f]{7,40})\.\.(?P<head>[0-9a-f]{7,40}) '
+    rf'^review=(?P<base>{gitops.FULL_SHA})\.\.(?P<head>{gitops.FULL_SHA}) '
     r'count=(?P<count>\d+)$'
 )
 ID_RE = re.compile(r"^(?P<id>G[0-9]+) \|")
-# Row discovery is shape-only: any `<non-space token> |` line is a row, so a
-# foreign or tampered non-G id is validated (refused) by split_row instead of
-# being skipped as not-a-row. ID_RE (G ids only) stays for validation.
 ROW_RE = re.compile(r"^(?P<id>\S+) \|")
 LOCAL_ID_RE = re.compile(r"^G([0-9]+)$")
 RESOLVE_ID_RE = re.compile(r'^[^,\s|"]+$')
@@ -76,17 +69,12 @@ WORDS_VALUES = ("seat", "human", "selected", "none")
 HUMAN_WORDS = ("human", "selected")
 LOCAL_OPS_STATUS = "recorded:local-ops"
 STANDING_DELEGATION_STATUS = "recorded:standing-delegation"
-HANDOFF_STATUS = "recorded:handoff"
 CUTOVER_STATUS = "recorded:cutover"
-ARCHIVE_RE = re.compile(r"^[0-9a-f]{64}$")
+SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 FINDING_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]*$")
-HUMAN_GATE_KINDS = frozenset({
-    "push", "merge", "deploy", "push-gate", "merge-gate", "deploy-gate",
-})
-SEAT_PERMISSION_GATE_KINDS = frozenset({"push-gate", "merge-gate", "deploy-gate"})
 ISO_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
 # Every character str.splitlines() splits on; a row is one line, so no field holds one.
-LINE_BREAKS = "\n\r\x0b\x0c\x1c\x1d\x1e\x85\u2028\u2029"
+LINE_BREAKS = "\n\r\x0b\x0c\x1c\x1d\x1e\x85  "
 
 
 class RowError(Exception):
@@ -95,6 +83,262 @@ class RowError(Exception):
 
 class GitRowError(RowError, gitops.GitError):
     """A failed git question inside a ledger operation: a RowError to gate_row's callers, a GitError to gitops."""
+
+
+@dataclasses.dataclass
+class RowRequest:
+    """The values a row is built from; the CLI flags of the same names fill it."""
+    kind: str | None = None
+    status: str | None = None
+    channel: str | None = None
+    writer: str | None = None
+    op: str | None = None
+    after: str | None = None
+    who: str | None = None
+    scope: str | None = None
+    conditions: str | None = None
+    expiry: str | None = None
+    finding: str | None = None
+    skills: list[str] = dataclasses.field(default_factory=list)
+    void: list[str] = dataclasses.field(default_factory=list)
+    record: str | None = None
+    head: str | None = None
+    push_base: str | None = None
+    review_base: str | None = None
+    boundary: list[str] = dataclasses.field(default_factory=list)
+    resolves: list[str] = dataclasses.field(default_factory=list)
+    under: str | None = None
+    words: str | None = None
+    note: str = ""
+    brief: str | None = None
+    quote: str = ""
+    quote_file: str = ""
+
+
+class KindRule(NamedTuple):
+    statuses: frozenset[str] = frozenset()  # the statuses the kind may carry; empty: any
+    human_gate: bool = False  # an open row needs a supervisor ATTENTION mailbox entry
+    seat_permission: bool = False  # a runtime-denial row: words=none, empty quote
+    timely_at_ancestor: bool = False  # a past head is timely when it is an ancestor of HEAD
+    human_words: bool = False  # words must be the Human's
+    genesis: bool = False  # valid only as the stored first row, and then with any G<n> id
+
+
+COMPLETED_DEPLOY = frozenset({"recorded:deploy", "resolved:deploy", "resolved:human"})
+KINDS = {
+    "push": KindRule(human_gate=True, timely_at_ancestor=True),
+    "merge": KindRule(human_gate=True),
+    "deploy": KindRule(COMPLETED_DEPLOY, human_gate=True, timely_at_ancestor=True),
+    "push-gate": KindRule(human_gate=True, seat_permission=True),
+    "merge-gate": KindRule(human_gate=True, seat_permission=True),
+    "deploy-gate": KindRule(human_gate=True, seat_permission=True, timely_at_ancestor=True),
+    "review": KindRule(timely_at_ancestor=True),
+    "handoff": KindRule(frozenset({"recorded:handoff"}), timely_at_ancestor=True),
+    "correction": KindRule(frozenset({"recorded:correction"})),
+    "local-ops": KindRule(frozenset({LOCAL_OPS_STATUS})),
+    "standing-delegation": KindRule(frozenset({STANDING_DELEGATION_STATUS}), human_words=True),
+    "cutover": KindRule(frozenset({CUTOVER_STATUS}), genesis=True),
+}
+
+
+def kind_rule(kind: str | None) -> KindRule:
+    return KINDS.get(kind, KindRule())
+
+
+class PushBlock(NamedTuple):
+    base: str
+    head: str
+    count: str
+    declared: tuple[str, ...]
+    boundary: str
+
+
+class ReviewBlock(NamedTuple):
+    base: str
+    head: str
+    count: str
+
+
+def value_of(field: str) -> str:
+    return field.split("=", 1)[1]
+
+
+def tagged(field: str, name: str, pattern: re.Pattern[str]) -> str:
+    if not field.startswith(f"{name}=") or not pattern.fullmatch(value_of(field)):
+        raise RowError(f"field {field!r} is not a valid {name}=")
+    return value_of(field)
+
+
+def shaped(pattern: re.Pattern[str], noun: str) -> Callable[[str], str]:
+    def parse(field: str) -> str:
+        if not pattern.fullmatch(value_of(field)):
+            raise RowError(f"field {field!r} is not {noun}")
+        return value_of(field)
+    return parse
+
+
+def one_of(values: tuple[str, ...]) -> Callable[[str], str]:
+    def parse(field: str) -> str:
+        if value_of(field) not in values:
+            raise RowError(f"field {field!r} is not one of {values}")
+        return value_of(field)
+    return parse
+
+
+def text_of(name: str) -> Callable[[str], str]:
+    return lambda field: field_text(name, value_of(field))
+
+
+def field_text(name: str, value: str | None) -> str:
+    value = (value or "").strip()
+    if not value:
+        raise RowError(f"{name}= is required")
+    if "|" in value or '"' in value:
+        raise RowError(f"{name}= refuses | and \" — it is a structured row field")
+    return value
+
+
+def parse_resolves(field: str) -> tuple[str, ...]:
+    value = value_of(field)
+    ids = value.split(",")
+    if not value or any(not RESOLVE_ID_RE.fullmatch(gid) for gid in ids):
+        raise RowError(f"resolves={value!r} contains an empty or malformed id")
+    if len(ids) != len(set(ids)):
+        raise RowError(f"resolves={value!r} names an id more than once")
+    return tuple(ids)
+
+
+def parse_skills(field: str) -> tuple[str, ...]:
+    targets = value_of(field).split()
+    if (not targets or targets != sorted(set(targets))
+            or any(not SKILL_NAME_RE.fullmatch(item) for item in targets)):
+        raise RowError("skills= must contain sorted, unique top-level skill names")
+    return tuple(targets)
+
+
+def parse_void(field: str) -> str:
+    if not RESOLVE_ID_RE.fullmatch(value_of(field)):
+        raise RowError(f"void={value_of(field)!r} is an empty or malformed id")
+    return value_of(field)
+
+
+def parse_after(field: str) -> str:
+    value = field_text("after", value_of(field))
+    if not BRANCH_HEAD_RE.fullmatch(value):
+        raise RowError(f"after={value!r} is not <branch>@<head>")
+    return value
+
+
+def parse_finding(field: str) -> str:
+    value = field_text("finding", value_of(field))
+    if not FINDING_RE.fullmatch(value):
+        raise RowError(
+            f"finding={value!r} is not an identity token; use letters, digits, '.', '_', ':' or '-'")
+    return value
+
+
+def parse_push(field: str) -> PushBlock:
+    match = PUSH_RE.fullmatch(field)
+    if not match:
+        raise RowError(f"push block {field!r} is malformed")
+    declared = tuple(match.group("declared").split())
+    if not declared:
+        raise RowError(
+            'this row declares boundary="" — an empty boundary puts every touched '
+            "path outside it, which passes any row claiming the whole changed set"
+        )
+    return PushBlock(match.group("base"), match.group("head"), match.group("count"),
+                     declared, match.group("boundary"))
+
+
+def parse_review(field: str) -> ReviewBlock:
+    match = REVIEW_RE.fullmatch(field)
+    if not match:
+        raise RowError(f"review block {field!r} is malformed")
+    return ReviewBlock(match.group("base"), match.group("head"), match.group("count"))
+
+
+class Field(NamedTuple):
+    name: str
+    parse: Callable[[str], object]
+    kinds: frozenset[str] | None = None  # the kinds that carry it; None: every kind
+    required: bool = False  # required wherever it is carried
+    missing: str | None = None
+
+
+def only(kind: str) -> frozenset[str]:
+    return frozenset({kind})
+
+
+# The ordered trailing fields of a row, after id, time, kind, branch@head and status.
+FIELDS = (
+    Field("channel", shaped(CHANNEL_RE, "a valid channel=")),
+    Field("writer", shaped(WRITER_RE, "a valid writer=")),
+    Field("record", one_of(RECORD_VALUES), required=True),
+    Field("skills", parse_skills, only("deploy")),
+    Field("push", parse_push, only("push"), True,
+          "this row is kind=push and carries no push block — the range, count and "
+          "boundary-check are the whole of what a push row is checked against, so a "
+          "row without them is checked against nothing and passes vacuously"),
+    Field("review", parse_review, only("review"), True,
+          "this row is kind=review and carries no review block — the range it covers "
+          "is what a stacked push is checked against, so a review row without it "
+          "contributes no coverage and leaves its commits unverified"),
+    Field("resolves", parse_resolves),
+    Field("under", value_of),
+    Field("void", parse_void, only("correction"), True,
+          "kind=correction requires exactly one void= field after resolves="),
+    Field("op", text_of("op"), only("local-ops"), True),
+    Field("after", parse_after, only("local-ops"), True),
+    Field("who", text_of("who"), only("standing-delegation"), True),
+    Field("scope", text_of("scope"), only("standing-delegation"), True),
+    Field("conditions", text_of("conditions"), only("standing-delegation"), True),
+    Field("expiry", text_of("expiry"), only("standing-delegation"), True),
+    Field("finding", parse_finding, only("repair-grant"), True),
+    Field("archive", shaped(SHA256_RE, "a 64-character lowercase hex archive="), only("cutover"), True),
+    Field("prev_hash", shaped(SHA256_RE, "a 64-character lowercase hex prev_hash=")),
+    Field("words", one_of(WORDS_VALUES), required=True),
+    Field("brief", value_of),
+    Field("note", value_of, required=True),
+)
+FIELD_NAMES = tuple(entry.name for entry in FIELDS)
+FLAG_FIELDS = ("channel", "writer", "skills", "resolves", "under", "void",
+               "op", "after", "who", "scope", "conditions", "expiry", "finding")
+FLAG_NAMES = {"skills": "--skill"}
+
+
+@dataclasses.dataclass(frozen=True)
+class Row:
+    """A stored row read by the field table; absent optional fields are None or empty."""
+    text: str
+    gid: str
+    when: str
+    kind: str
+    branch: str
+    head: str
+    status: str
+    quote: str
+    record: str
+    words: str
+    note: str
+    channel: str | None = None
+    writer: str | None = None
+    skills: tuple[str, ...] = ()
+    push: PushBlock | None = None
+    review: ReviewBlock | None = None
+    resolves: tuple[str, ...] = ()
+    under: str | None = None
+    void: str | None = None
+    op: str | None = None
+    after: str | None = None
+    who: str | None = None
+    scope: str | None = None
+    conditions: str | None = None
+    expiry: str | None = None
+    finding: str | None = None
+    archive: str | None = None
+    prev_hash: str | None = None
+    brief: str | None = None
 
 
 def validate_row_encodings(
@@ -133,12 +377,17 @@ def validate_row_encodings(
         raise RowError("words=none iff quote= is empty")
     if not quote and brief is None and status != "open":
         raise RowError("quote= or brief= is required unless status=open")
-    if channel.endswith(":dialog") and words != "selected":
-        raise RowError(
-            f"channel={channel} requires words=selected, not words={words}"
-        )
+    if channel.endswith(":dialog"):
+        if words != "selected":
+            raise RowError(
+                f"channel={channel} requires words=selected, not words={words}"
+            )
+        if not status.startswith("recorded:"):
+            raise RowError(
+                f"channel={channel} requires status=recorded:<kind>, not status={status}"
+            )
     if (
-        kind in SEAT_PERMISSION_GATE_KINDS
+        kind_rule(kind).seat_permission
         and status == "open"
         and "blocked:seat-permission" in note
         and (words != "none" or quote != "")
@@ -176,9 +425,6 @@ def require_mailbox_attention(gid: str, head: str, mailbox: Path) -> None:
     )
 
 
-# Git answers memoized for one validate_ledger pass. Every query is over immutable
-# object ids, so an answer cannot change inside the pass; a failure is memoized as
-# its message and re-raised identically. Outside a pass the memo is None: no caching.
 GIT_MEMO: dict[tuple[str, tuple[str, ...], str | None], tuple[bool, str]] | None = None
 
 
@@ -227,13 +473,7 @@ def warm_head_commits(repo: Path, rows: list[str]) -> None:
     stays out of the memo, so the commit_of() call that asks for that head runs
     rev-parse and raises the message it always raised.
     """
-    names = []
-    for row in rows:
-        parts = row.split(" | ")
-        match = HEAD_RE.fullmatch(parts[3]) if len(parts) > 3 else None
-        if match:
-            names.append(match.group("head"))
-    names = list(dict.fromkeys(names))
+    names = list(dict.fromkeys(parse_row(row).head for row in rows))
     if not names:
         return
     try:
@@ -249,14 +489,12 @@ def warm_head_commits(repo: Path, rows: list[str]) -> None:
             GIT_MEMO[memo_key(repo, commit_query(name))] = (True, fields[0])
 
 
-PREV_HASH_RE = re.compile(r"^[0-9a-f]{64}$")
-
-
 def row_hash(row: str) -> str:
     return hashlib.sha256(row.encode("utf-8")).hexdigest()
 
 
 def verify_chain(rows: list[str]) -> None:
+    parse_prev_hash = next(entry.parse for entry in FIELDS if entry.name == "prev_hash")
     for index, row in enumerate(rows):
         fields, _ = split_row(row)
         hashes = [field for field in fields if field.startswith("prev_hash=")]
@@ -268,9 +506,7 @@ def verify_chain(rows: list[str]) -> None:
             continue
         if not hashes:
             raise RowError(f"row {fields[0]!r} is missing prev_hash=; every row after the first is chained")
-        value = hashes[0].split("=", 1)[1]
-        if not PREV_HASH_RE.fullmatch(value):
-            raise RowError(f"field {hashes[0]!r} is not a 64-character lowercase hex prev_hash=")
+        value = parse_prev_hash(hashes[0])
         expected = row_hash(rows[index - 1])
         if value != expected:
             raise RowError(
@@ -294,30 +530,18 @@ def ledger_rows(text: str) -> list[str]:
     return rows
 
 
-def deployed_head(rows: list[str], skill: str, repo: Path) -> tuple[str, str, str]:
-    """Select the newest completed target-bearing deploy row after validating the ledger."""
-    candidates = []
-    for row in rows:
-        fields, _ = split_row(row)
-        kind, head, status = row_evidence(row)
-        if kind != "deploy" or status not in {"recorded:deploy", "resolved:deploy", "resolved:human"}:
-            continue
-        targets = [field.split("=", 1)[1] for field in fields if field.startswith("skills=")]
-        if not targets or skill not in targets[0].split():
-            continue
-        branch = fields[3].split("@", 1)[0]
-        candidates.append((branch, head, row))
+def deployed_head(state: "LedgerState", skill: str, repo: Path) -> tuple[str, str, str]:
+    """Select the newest deploy row of a validated ledger that names `skill`."""
+    candidates = [row for row in state.parsed if row.kind == "deploy" and skill in row.skills]
     if not candidates:
         raise RowError(f"no completed target-bearing deploy row for skill {skill!r}")
-    branch, head, row = candidates[-1]
-    full_head = commit_of(repo, head)
-    return branch, full_head, row
+    row = candidates[-1]
+    return row.branch, commit_of(repo, row.head), row.text
 
 
 def validate_ledger(rows: list[str], repo: Path) -> "LedgerState":
-    """Validate every row against only its predecessors, in one pass; return the state they leave."""
     cutovers = [index for index, row in enumerate(rows)
-                if split_row(row)[0][2] == "kind=cutover"]
+                if kind_rule(split_row(row)[0][2].removeprefix("kind=")).genesis]
     if cutovers and cutovers != [0]:
         raise RowError("kind=cutover is only valid as the first row")
     state = LedgerState()
@@ -329,13 +553,13 @@ def validate_ledger(rows: list[str], repo: Path) -> "LedgerState":
     return state
 
 
-def read_ledger_state(ledger: Path, repo: Path) -> LedgerState:
+def read_ledger_state(ledger: Path, repo: Path) -> "LedgerState":
     """Read the whole hash-chained ledger under a shared lock and validate it against `repo`."""
     with locked_ledger(ledger, exclusive=False) as handle:
         return validate_ledger(ledger_rows(handle_text(handle)), repo)
 
 
-def reviewed_unpushed(state: LedgerState, repo: Path) -> set[str]:
+def reviewed_unpushed(state: "LedgerState", repo: Path) -> set[str]:
     """Commits in `repo` that are not pushed, are covered by a review PASS, and no open push-gate row names."""
     tips = open_push_gate_tips(state, repo)
     head = git(repo, "rev-parse", "HEAD")
@@ -348,17 +572,12 @@ def reviewed_unpushed(state: LedgerState, repo: Path) -> set[str]:
 
 
 def select_deployed_head(ledger: Path, skill: str, repo: Path) -> tuple[str, str, str]:
-    """Read and validate the entire hash-chained ledger before selecting a deployed head."""
     if not ledger.is_absolute():
         raise RowError(f"ledger path must be absolute: {ledger}")
-    state = read_ledger_state(ledger, repo)
-    if not state.rows:
-        raise RowError(f"no completed target-bearing deploy row for skill {skill!r}")
-    return deployed_head(state.rows, skill, repo)
+    return deployed_head(read_ledger_state(ledger, repo), skill, repo)
 
 
 def split_row(row: str) -> tuple[list[str], str]:
-    """Split fields while preserving every character in terminal quote=."""
     prefix, marker, quoted = row.partition(" | quote=")
     if (not marker or not quoted.startswith('"') or not quoted.endswith('"')
             or not ID_RE.match(row)):
@@ -381,162 +600,69 @@ def split_row(row: str) -> tuple[list[str], str]:
     return fields, quote
 
 
-def parse_resolves(value: str) -> list[str]:
-    ids = value.split(",")
-    if not value or any(not RESOLVE_ID_RE.fullmatch(gid) for gid in ids):
-        raise RowError(f"resolves={value!r} contains an empty or malformed id")
-    if len(ids) != len(set(ids)):
-        raise RowError(f"resolves={value!r} names an id more than once")
-    return ids
+@functools.lru_cache(maxsize=None)
+def parse_row(text: str) -> Row:
+    """Read a stored row by FIELDS and KINDS; every refusal here needs neither git nor the rows before it."""
+    fields, quote = split_row(text)
+    gid, when, kind_field, head_field, status_field, *rest = fields
+    kind = tagged(kind_field, "kind", KIND_RE)
+    status = tagged(status_field, "status", STATUS_RE)
+    if not ISO_RE.fullmatch(when):
+        raise RowError(f"time {when!r} is not an ISO UTC timestamp")
+    head = BRANCH_HEAD_RE.fullmatch(head_field)
+    if not head:
+        raise RowError(f"field {head_field!r} is not <branch>@<head>")
+    for field in rest:
+        if not field.startswith(tuple(f"{name}=" for name in FIELD_NAMES)):
+            raise RowError(f"field {field.split('=')[0]!r} is not in the row schema")
 
+    values: dict[str, object] = {}
+    position = 0
+    for entry in FIELDS:
+        present = position < len(rest) and rest[position].startswith(f"{entry.name}=")
+        carried = entry.kinds is None or kind in entry.kinds
+        if present and not carried:
+            raise RowError(f"{entry.name}= is only on a kind={'/'.join(sorted(entry.kinds))} row, not kind={kind}")
+        if present:
+            values[entry.name] = entry.parse(rest[position])
+            position += 1
+        elif entry.required and carried:
+            if position < len(rest) and rest[position].split("=")[0] in values:
+                raise RowError(f"field {rest[position].split('=')[0]!r} is out of order or duplicated")
+            raise RowError(entry.missing or (
+                f"{entry.name}= is missing or out of order" if entry.kinds is None
+                else f"kind={kind} requires {entry.name}= field"))
+    if position != len(rest):
+        raise RowError(f"field {rest[position].split('=')[0]!r} is out of order or duplicated")
 
-def resolve_ids(values: list[str]) -> list[str]:
-    ids: list[str] = []
-    for value in values:
-        ids.extend(parse_resolves(value))
-    if len(ids) != len(set(ids)):
-        raise RowError("--resolves names an id more than once")
-    return ids
-
-
-def row_evidence(row: str) -> tuple[str, str, str]:
-    fields, _ = split_row(row)
-    kind = fields[2]
-    head = fields[3]
-    status = fields[4]
-    if not kind.startswith("kind="):
-        raise RowError(f"ledger row has no kind=: {row}")
-    if not HEAD_RE.fullmatch(head):
-        raise RowError(f"ledger row has no valid branch@sha: {row}")
-    if not status.startswith("status="):
-        raise RowError(f"ledger row has no status=: {row}")
-    return kind.split("=", 1)[1], head.split("@", 1)[1], status.split("=", 1)[1]
-
-
-def review_range(row: str) -> tuple[str, str] | None:
-    fields, _ = split_row(row)
-    for field in fields:
-        if field.startswith("review="):
-            m = REVIEW_RE.fullmatch(field)
-            if not m:
-                raise RowError(f"review block {field!r} is malformed")
-            return m.group("base"), m.group("head")
-    return None
-
-
-def review_field(base: str, head: str, count: str) -> str:
-    return f"review={base}..{head} count={count}"
-
-
-def row_field(fields: list[str], name: str) -> str | None:
-    for field in fields:
-        if field.startswith(f"{name}="):
-            return field.split("=", 1)[1]
-    return None
-
-
-def field_text(name: str, value: str | None) -> str:
-    value = (value or "").strip()
-    if not value:
-        raise RowError(f"{name}= is required")
-    if "|" in value or '"' in value:
-        raise RowError(f"{name}= refuses | and \" — it is a structured row field")
-    return value
-
-
-def finding_value(value: str) -> str:
-    value = field_text("finding", value)
-    if not FINDING_RE.fullmatch(value):
-        raise RowError(
-            f"finding={value!r} is not an identity token; use letters, digits, '.', '_', ':' or '-'")
-    return value
-
-
-def required_fields(rest: list[str], index: int, names: tuple[str, ...], kind: str) -> tuple[dict[str, str], int]:
-    values: dict[str, str] = {}
-    for name in names:
-        if index >= len(rest) or not rest[index].startswith(f"{name}="):
-            raise RowError(f"kind={kind} requires {name}= field")
-        field = rest[index]
-        values[name] = field_text(name, field.split("=", 1)[1])
-        index += 1
-    return values, index
-
-
-def reject_special_fields(args: argparse.Namespace, kind: str) -> None:
-    allowed = {
-        "correction": {"--void"},
-        "local-ops": {"--op", "--after"},
-        "standing-delegation": {"--who", "--scope", "--conditions", "--expiry"},
-        "repair-grant": {"--finding"},
-        "deploy": {"--skill"},
-    }.get(kind, set())
-    supplied = (
-        ("--op", getattr(args, "op", "")), ("--after", getattr(args, "after", "")),
-        ("--who", getattr(args, "who", "")), ("--scope", getattr(args, "scope", "")),
-        ("--conditions", getattr(args, "conditions", "")),
-        ("--expiry", getattr(args, "expiry", "")),
-        ("--finding", getattr(args, "finding", "")),
-        ("--void", getattr(args, "void", [])),
-        ("--skill", getattr(args, "skill", [])),
+    rule = kind_rule(kind)
+    if rule.statuses and status not in rule.statuses:
+        if len(rule.statuses) == 1:
+            raise RowError(f"kind={kind} requires status={next(iter(rule.statuses))}")
+        raise RowError(f"kind={kind} requires a completed {kind} status")
+    if rule.human_words and values["words"] not in HUMAN_WORDS:
+        raise RowError(f"kind={kind} requires words=human or words=selected")
+    validate_row_encodings(
+        kind=kind, status=status, channel=values.get("channel") or "",
+        words=values["words"], quote=quote, note=values["note"], brief=values.get("brief"),
     )
-    for flag, value in supplied:
-        if flag in {"--void", "--skill"} and value and flag not in allowed:
-            use = "kind=correction" if flag == "--void" else "kind=deploy"
-            raise RowError(f"{flag} is only meaningful on {use}, not kind={kind}")
-        if value and flag not in allowed:
-            raise RowError(f"{flag} is only meaningful on its corresponding special row, not kind={kind}")
-
-
-def validate_after(value: str, repo: Path) -> None:
-    match = HEAD_RE.fullmatch(value)
-    if not match:
-        raise RowError(f"after={value!r} is not <branch>@<head>")
-    commit_of(repo, match.group("head"))
-
-
-def refuse_repair_cap(finding: str) -> None:
-    raise RowError(
-        f"repair cap reached (finding={finding} repeated since the last progress "
-        "boundary): record kind=repair-cap-gate and route the Human instead of "
-        "another kind=repair-grant"
+    return Row(
+        text=text, gid=gid, when=when, kind=kind, branch=head.group("branch"), head=head.group("head"),
+        status=status, quote=quote, **values,
     )
 
 
-def structured_row(row: str) -> tuple[str, str, list[str], str, str | None]:
-    fields, _ = split_row(row)
-    status_fields = [field for field in fields if field.startswith("status=")]
-    if len(status_fields) != 1:
-        raise RowError(f"row {fields[0]!r} does not carry exactly one status=")
-    status = status_fields[0].split("=", 1)[1]
-    if not STATUS_RE.fullmatch(status):
-        raise RowError(f"field {status_fields[0]!r} is not a valid status=")
-    resolve_fields = [field for field in fields if field.startswith("resolves=")]
-    if len(resolve_fields) > 1:
-        raise RowError(f"row {fields[0]!r} carries more than one resolves=")
-    resolves = parse_resolves(resolve_fields[0].split("=", 1)[1]) if resolve_fields else []
-    kind = fields[2].split("=", 1)[1] if fields[2].startswith("kind=") else ""
-    void_fields = [field for field in fields if field.startswith("void=")]
-    if len(void_fields) > 1:
-        raise RowError(f"row {fields[0]!r} carries more than one void=")
-    if void_fields and kind != "correction":
-        raise RowError(f"void= is only on a kind=correction row, not kind={kind}")
-    void = void_fields[0].split("=", 1)[1] if void_fields else None
-    if void is not None and (status != "recorded:correction" or not RESOLVE_ID_RE.fullmatch(void)):
-        raise RowError(f"kind=correction has an invalid status= or void= field: {fields[0]!r}")
-    return fields[0], status, resolves, kind, void
+def range_commits(repo: Path, base: str, head: str) -> list[str]:
+    try:
+        return gitops.range_commits(repo, base, head, run=git)
+    except gitops.GitError as exc:
+        raise RowError(str(exc)) from None
 
 
 class LedgerState:
-    """The facts a row is checked against, folded in one row at a time.
-
-    `add` takes a row once it has passed `check`, so one pass over a ledger costs one
-    state update per row and every question a later row asks is a dict or set probe,
-    never a rescan of its predecessors.
-    """
-
     def __init__(self) -> None:
         self.rows: list[str] = []
+        self.parsed: list[Row] = []
         self.last_when = ""
         self.max_id = 0
         self.latest: dict[str, tuple[int, str]] = {}  # gid -> (index, status) of its row
@@ -560,48 +686,36 @@ class LedgerState:
     def next_id(self) -> int:
         return self.max_id + 1
 
-    def add(self, row: str) -> None:
-        fields, _ = split_row(row)
-        gid, status, resolves, kind, void = structured_row(row)
+    def add(self, text: str) -> None:
+        row = parse_row(text)
         index = len(self.rows)
-        if void is not None:
-            self.validate_void(void)
-        self.rows.append(row)
-        self.last_when = fields[1]
-        local = LOCAL_ID_RE.fullmatch(gid)
+        self.rows.append(text)
+        self.parsed.append(row)
+        self.last_when = row.when
+        local = LOCAL_ID_RE.fullmatch(row.gid)
         if local:
             self.max_id = max(self.max_id, int(local.group(1)))
-        self.latest[gid] = (index, status)
-        self.kinds[gid] = kind
-        if status == "open":
-            self.ever_open.add(gid)
-        if kind == "standing-delegation":
-            self.standing[gid] = index
-        for target in resolves:
-            self.close(target, index)
-        if void is not None:
-            self.voided_by[void] = gid
-            self.close(void, index)
-        if kind == "review" and status == "recorded:review-pass":
-            rng = review_range(row)
-            if rng is not None:
-                self.reviews.setdefault(rng[1], []).append((index, gid, rng[0]))
-        if (status == "recorded:review-pass" or kind == "push"
-                or (kind == "merge" and status.startswith("resolved:"))
-                or kind == "repair-cap-gate"):
+        self.latest[row.gid] = (index, row.status)
+        self.kinds[row.gid] = row.kind
+        if row.status == "open":
+            self.ever_open.add(row.gid)
+        if row.kind == "standing-delegation":
+            self.standing[row.gid] = index
+        for target in row.resolves:
+            self.resolved_at[target] = index
+        if row.void is not None:
+            self.voided_by[row.void] = row.gid
+            self.resolved_at[row.void] = index
+        if row.kind == "review" and row.status == "recorded:review-pass":
+            self.reviews.setdefault(row.review.head, []).append((index, row.gid, row.review.base))
+        if (row.status == "recorded:review-pass" or row.kind == "push"
+                or (row.kind == "merge" and row.status.startswith("resolved:"))
+                or row.kind == "repair-cap-gate"):
             self.repair_findings.clear()
-        elif kind == "repair-grant":
-            matching = [field for field in fields if field.startswith("finding=")]
-            if len(matching) != 1:
-                raise RowError("kind=repair-grant requires exactly one finding= field")
-            self.repair_findings.add(finding_value(matching[0].split("=", 1)[1]))
-
-    def close(self, gid: str, index: int) -> None:
-        self.resolved_at[gid] = index
+        elif row.kind == "repair-grant":
+            self.repair_findings.add(row.finding)
 
     def validate_void(self, target: str) -> None:
-        if not target or not RESOLVE_ID_RE.fullmatch(target):
-            raise RowError(f"void={target!r} is an empty or malformed id")
         if target not in self.latest:
             raise RowError(f"void={target} refused: target is not an earlier row of this ledger")
         kind, status = self.kinds[target], self.latest[target][1]
@@ -612,7 +726,7 @@ class LedgerState:
         if target in self.voided_by:
             raise RowError(f"void={target} refused: already voided by {self.voided_by[target]}")
 
-    def require_open(self, targets: list[str]) -> None:
+    def require_open(self, targets: tuple[str, ...]) -> None:
         for target in targets:
             if target in self.standing:
                 if self.resolved_at.get(target, -1) > self.standing[target]:
@@ -625,19 +739,22 @@ class LedgerState:
                 raise RowError(f"resolves={target} refused: already-closed")
 
     def require_in_force(self, target: str, when: str) -> None:
-        """A row answered under a standing delegation names it; it must be unrevoked and unexpired."""
         if self.kinds.get(target) != "standing-delegation":
             raise RowError(f"under={target} is not an earlier kind=standing-delegation row")
         index = self.standing[target]
         if self.resolved_at.get(target, -1) > index:
             raise RowError(f"under={target} refused: the delegation is revoked")
-        expiry = row_field(split_row(self.rows[index])[0], "expiry") or ""
+        expiry = self.parsed[index].expiry
         if ISO_RE.fullmatch(expiry) and when >= expiry:
             raise RowError(f"under={target} refused: the delegation expired at {expiry}")
 
     def require_repair_progress(self, finding: str) -> None:
         if finding in self.repair_findings:
-            refuse_repair_cap(finding)
+            raise RowError(
+                f"repair cap reached (finding={finding} repeated since the last progress "
+                "boundary): record kind=repair-cap-gate and route the Human instead of "
+                "another kind=repair-grant"
+            )
 
     def open_gate_ids(self) -> list[str]:
         open_rows = [
@@ -656,17 +773,6 @@ class LedgerState:
         return covered
 
     def require_review_coverage(self, repo: Path, base: str, head: str) -> None:
-        """Require every commit in the pushed range to be covered by a review PASS range.
-
-        A single review covers its whole range, so a delivery's intra-run intermediates
-        (one commit per scope, `lead.md` "Quiesce and commit") ride their reviewed head
-        without their own rows. Stacked deliveries tile the range with one row each; a
-        gap — an unreviewed delivery riding a reviewed tip's push — leaves its commits
-        uncovered and is refused. A commit already on origin/HEAD landed through its own
-        review and merge. A clean merge commit is covered when each parent is covered or
-        precedes the range, so merging the product line into a branch needs no new review;
-        a merge whose tree differs from its parents' automatic merge stays uncovered.
-        """
         pushed = set(range_commits(repo, base, head))
         covered = self.covered_by_reviews(repo, pushed) | gitops.landed_commits(repo, head, pushed, run=git)
         grew = True
@@ -692,33 +798,13 @@ class LedgerState:
             )
 
 
-def open_push_gate_rows(state: LedgerState) -> list[str]:
-    open_ids = set(state.open_gate_ids())
-    return [row for row in state.rows if row.split(" | ", 1)[0] in open_ids
-            and row_evidence(row)[0] == "push-gate"]
-
-
 def open_push_gate_tips(state: LedgerState, repo: Path) -> list[str]:
-    heads = [split_row(row)[0][3].split("@") for row in open_push_gate_rows(state)]
-    return [commit_of(repo, sha) for _, sha in heads]
-
-
-def range_commits(repo: Path, base: str, head: str) -> list[str]:
-    try:
-        return gitops.range_commits(repo, base, head, run=git)
-    except gitops.GitError as exc:
-        raise RowError(str(exc)) from None
+    open_ids = set(state.open_gate_ids())
+    return [commit_of(repo, row.head) for row in state.parsed
+            if row.gid in open_ids and row.kind == "push-gate"]
 
 
 def derive_push(repo: Path, base: str, head: str, boundary: list[str]) -> tuple[str, list[str]]:
-    """The push block's two derived values, for whichever path asks: build or check.
-
-    `outside` is the union of paths touched by every commit in the range, merge
-    commits included, minus the declared boundary — not the diff of the two end
-    trees, which misses a path added by one commit in the range and deleted by
-    another. `lead.md` ("Gates and ledger") specifies the union; one derivation
-    serves both callers so neither can drift from it alone.
-    """
     for b in boundary:
         if not b or b.split() != [b]:
             raise RowError(
@@ -739,19 +825,13 @@ def derive_push(repo: Path, base: str, head: str, boundary: list[str]) -> tuple[
     return count, outside
 
 
-def push_field(base: str, head: str, count: str,
-               boundary: list[str], outside: list[str]) -> str:
-    return (f'push={base}..{head} count={count} '
-            f'boundary="{" ".join(boundary)}" boundary-check="{" ".join(outside)}"')
-
-
-def resolve_row_head(args: argparse.Namespace, repo: Path, record: str) -> tuple[str, str]:
+def resolve_row_head(request: RowRequest, repo: Path) -> tuple[str, str]:
     current_branch = git(repo, "rev-parse", "--abbrev-ref", "HEAD")
     current_head = git(repo, "rev-parse", "HEAD")
-    requested = args.head
+    requested = request.head
     if not requested:
         return current_branch, current_head
-    match = HEAD_ARG_RE.fullmatch(requested)
+    match = BRANCH_HEAD_RE.fullmatch(requested)
     if not match:
         raise RowError(
             f"--head {requested!r} is not <branch>@<full 40-hex commit SHA>"
@@ -760,10 +840,10 @@ def resolve_row_head(args: argparse.Namespace, repo: Path, record: str) -> tuple
     commit_of(repo, head)
     if head != current_head:
         timely_at_ancestor = (
-            getattr(args, "kind", "") in {"review", "deploy", "deploy-gate", "handoff", "push"}
+            kind_rule(request.kind).timely_at_ancestor
             and gitops.is_ancestor(repo, head, current_head)
         )
-        if not timely_at_ancestor and record != "reconstruction":
+        if not timely_at_ancestor and request.record != "reconstruction":
             raise RowError(
                 f"--head {requested} differs from repository HEAD {current_head}; "
                 "use --record reconstruction to record a past head"
@@ -772,11 +852,6 @@ def resolve_row_head(args: argparse.Namespace, repo: Path, record: str) -> tuple
 
 
 def push_head(repo: Path, branch: str, head: str) -> str:
-    """Push exactly <head> to origin/<branch>, never forced and never to the product line; return the refspec.
-
-    The push runs in its own session under PUSH_TIMEOUT_S, with no terminal prompt; at the limit
-    its whole process group (git, ssh, credential helpers, hooks) is killed and no row is written.
-    """
     try:
         product = git(repo, "symbolic-ref", "--short", "refs/remotes/origin/HEAD")
     except gitops.GitError:
@@ -809,85 +884,11 @@ def push_head(repo: Path, branch: str, head: str) -> str:
     return refspec
 
 
-def build(args: argparse.Namespace, repo: Path, state: LedgerState,
-          target: tuple[str, str], landed: bool = True) -> str:
-    """The row for `target`, the (branch, head) resolve_row_head returned for these args, checked as a stored row."""
-    if getattr(args, "under", None) and args.words is None:
-        args.words = "seat"
-    note = args.note.strip()
-    brief = None if args.brief is None else args.brief.strip()
-    if args.quote and args.quote_file:
-        raise RowError("--quote and --quote-file are mutually exclusive")
-    if args.quote_file:
-        try:
-            with Path(args.quote_file).open("r", encoding="utf-8", newline="") as handle:
-                quote = handle.read()
-        except (OSError, UnicodeError) as exc:
-            raise RowError(f"--quote-file {args.quote_file!r} could not be read: {exc}") from None
-        if quote.endswith("\r\n"):
-            quote = quote[:-2]
-        elif quote.endswith("\n"):
-            quote = quote[:-1]
-    else:
-        quote = args.quote
-    validate_row_encodings(
-        kind=args.kind, status=args.status, channel=args.channel or "",
-        words=args.words, quote=quote, note=note, brief=brief,
-    )
-    record = args.record or "timely"
-    branch, head = target
-
-    kind = args.kind
-    if kind == "cutover":
-        raise RowError("kind=cutover is valid only as a stored first-row genesis and cannot be appended")
-    reject_special_fields(args, kind)
-    special_fields: list[str] = []
-    if kind == "deploy":
-        skills = getattr(args, "skill", None) or []
-        if len(skills) != len(set(skills)):
-            raise RowError("kind=deploy --skill names a skill more than once")
-        if any(not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", skill) for skill in skills):
-            raise RowError("kind=deploy --skill names a malformed top-level skill")
-    elif kind == "correction":
-        void_values = getattr(args, "void", None) or []
-        if not void_values:
-            raise RowError("kind=correction requires --void <id>")
-        if len(void_values) != 1:
-            raise RowError("kind=correction requires exactly one --void <id>")
-        special_fields.append(f"void={void_values[0]}")
-    elif kind == "local-ops":
-        for name in ("op", "after"):
-            if getattr(args, name, ""):
-                special_fields.append(f"{name}={field_text(name, getattr(args, name))}")
-    elif kind == "standing-delegation":
-        if args.words not in HUMAN_WORDS:
-            raise RowError("kind=standing-delegation requires words=human or words=selected for the Human's grant")
-        for name in ("who", "scope", "conditions", "expiry"):
-            if getattr(args, name, ""):
-                special_fields.append(f"{name}={field_text(name, getattr(args, name))}")
-    elif kind == "repair-grant":
-        if getattr(args, "finding", ""):
-            special_fields.append(f"finding={finding_value(args.finding)}")
-
-    gid = f"G{state.next_id}"
-    targets = resolve_ids(args.resolves)
-    if targets:
-        state.require_open(targets)
-
-    fields = [
-        gid,
-        datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-        f"kind={args.kind}",
-        f"{branch}@{head}",
-        f"status={args.status}",
-    ]
-    if args.channel:
-        fields.append(f"channel={args.channel}")
-    if args.writer:
-        fields.append(f"writer={args.writer}")
-    fields.append(f"record={record}")
-    if args.kind == "push":
-        if not args.push_base:
+def derived_blocks(request: RowRequest, repo: Path, branch: str, head: str,
+                   landed: bool) -> tuple[str | None, str | None]:
+    """The push= and review= values a push or review row derives from its range flags."""
+    if request.kind == "push":
+        if not request.push_base:
             raise RowError(
                 "a push row needs --push-base: the range, count and boundary-check are "
                 "derived from it, and a push row carrying none of them asserts that a "
@@ -912,317 +913,196 @@ def build(args: argparse.Namespace, repo: Path, state: LedgerState,
                     f"origin/{branch} is {remote_tip}, but {head} is not an ancestor of "
                     "the remote tip — the push this row claims has not landed"
                 )
-        if not args.boundary:
+        if not request.boundary:
             raise RowError(
                 "a push row needs --boundary: the declared paths the push was judged "
                 "against are part of the row, and refusing here keeps the bad row out "
                 "of an append-only file rather than rejecting it after it lands"
             )
-        count, outside = derive_push(repo, args.push_base, head, args.boundary)
-        fields.append(push_field(args.push_base, head, count, args.boundary, outside))
-        state.require_review_coverage(repo, args.push_base, head)
-    elif args.kind == "review":
-        if not args.review_base:
+        count, outside = derive_push(repo, request.push_base, head, request.boundary)
+        return (f'{request.push_base}..{head} count={count} boundary="{" ".join(request.boundary)}" '
+                f'boundary-check="{" ".join(outside)}"'), None
+    if request.kind == "review":
+        if not request.review_base:
             raise RowError(
                 "a review row needs --review-base: the range it covers is the whole of "
                 "what a stacked push is checked against, so a review row naming no range "
                 "leaves the commits it reviewed uncovered when the push walks the stack"
             )
-        if args.push_base or args.boundary:
+        if request.push_base or request.boundary:
             raise RowError("--push-base and --boundary are only meaningful on a push row")
-        reviewed = head
-        commits = range_commits(repo, args.review_base, reviewed)
-        fields.append(review_field(args.review_base, reviewed, str(len(commits))))
-    elif args.review_base:
+        commits = range_commits(repo, request.review_base, head)
+        return None, f"{request.review_base}..{head} count={len(commits)}"
+    if request.review_base:
         raise RowError(
             f"--review-base is only meaningful on a review row, and this row is "
-            f"kind={args.kind} — an argument accepted and silently dropped is how a row "
+            f"kind={request.kind} — an argument accepted and silently dropped is how a row "
             "loses the evidence it claims to carry"
         )
-    elif args.push_base or args.boundary:
-        flag = "--push-base" if args.push_base else "--boundary"
+    if request.push_base or request.boundary:
+        flag = "--push-base" if request.push_base else "--boundary"
         raise RowError(
-            f"{flag} is only meaningful on a push row, and this row is kind={args.kind} "
+            f"{flag} is only meaningful on a push row, and this row is kind={request.kind} "
             "— an argument accepted and silently dropped is how a row loses the evidence "
             "it claims to carry"
         )
-    if args.kind == "deploy" and args.skill:
-        fields.append(f"skills={' '.join(sorted(args.skill))}")
-    if targets:
-        fields.append(f"resolves={','.join(targets)}")
-    if getattr(args, "under", None):
-        fields.append(f"under={args.under}")
-    if special_fields:
-        fields.extend(special_fields)
+    return None, None
+
+
+def flag_values(request: RowRequest) -> dict[str, str]:
+    """The field values the request's flags name, refused on a kind that does not carry the field."""
+    if len(request.void) > 1:
+        raise RowError("kind=correction takes exactly one --void <id>")
+    supplied: dict[str, str] = {}
+    for entry in (entry for entry in FIELDS if entry.name in FLAG_FIELDS):
+        raw = getattr(request, entry.name)
+        if not raw:
+            continue
+        flag = FLAG_NAMES.get(entry.name, f"--{entry.name}")
+        if entry.kinds is not None and request.kind not in entry.kinds:
+            raise RowError(
+                f"{flag} is only meaningful on kind={'/'.join(sorted(entry.kinds))}, not kind={request.kind}")
+        if entry.name == "skills":
+            for skill in raw:
+                if not SKILL_NAME_RE.fullmatch(skill):
+                    raise RowError(f"--skill {skill!r} is not a top-level skill name")
+            raw = " ".join(sorted(raw))
+        elif entry.name == "resolves":
+            raw = ",".join(raw)
+            parse_resolves(f"resolves={raw}")
+        elif entry.name == "void":
+            raw = raw[0]
+            parse_void(f"void={raw}")
+        supplied[entry.name] = field_text(entry.name, raw)
+    return supplied
+
+
+def request_words(request: RowRequest) -> str:
+    """The row's words, refusing a request too incomplete to build a row from."""
+    if not request.kind or not request.status:
+        raise RowError("--kind and --status are required to append a row")
+    words = request.words if request.words is not None else ("seat" if request.under else None)
+    if words is None:
+        raise RowError("--words is required when appending a row")
+    return words
+
+
+def build(request: RowRequest, repo: Path, state: LedgerState,
+          target: tuple[str, str], landed: bool = True) -> str:
+    words = request_words(request)
+    note = request.note.strip()
+    brief = None if request.brief is None else request.brief.strip()
+    if request.quote and request.quote_file:
+        raise RowError("--quote and --quote-file are mutually exclusive")
+    if request.quote_file:
+        try:
+            with Path(request.quote_file).open("r", encoding="utf-8", newline="") as handle:
+                quote = handle.read()
+        except (OSError, UnicodeError) as exc:
+            raise RowError(f"--quote-file {request.quote_file!r} could not be read: {exc}") from None
+        if quote.endswith("\r\n"):
+            quote = quote[:-2]
+        elif quote.endswith("\n"):
+            quote = quote[:-1]
+    else:
+        quote = request.quote
+    # note, brief and quote are serialized below, so their delimiters are refused before they can reshape the row.
+    validate_row_encodings(
+        kind=request.kind, status=request.status, channel=request.channel or "",
+        words=words, quote=quote, note=note, brief=brief,
+    )
+    if kind_rule(request.kind).genesis:
+        raise RowError("kind=cutover is valid only as a stored first-row genesis and cannot be appended")
+    branch, head = target
+    values = flag_values(request)
+    values["record"] = request.record or "timely"
+    values["push"], values["review"] = derived_blocks(request, repo, branch, head, landed)
     if state.rows:
-        fields.append(f"prev_hash={row_hash(state.rows[-1])}")
-    fields.append(f"words={args.words}")
-    if brief is not None:
-        fields.append(f"brief={brief}")
-    fields.append(f"note={note}")
-    fields.append(f'quote="{quote}"')
+        values["prev_hash"] = row_hash(state.rows[-1])
+    values.update(words=words, brief=brief, note=note)
+    fields = [
+        f"G{state.next_id}",
+        datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        f"kind={request.kind}",
+        f"{branch}@{head}",
+        f"status={request.status}",
+        *(f"{name}={values[name]}" for name in FIELD_NAMES if values.get(name) is not None),
+        f'quote="{quote}"',
+    ]
     row = " | ".join(fields)
     check(row, repo, state)
     return row
 
 
-def check(row: str, repo: Path, state: LedgerState | None = None) -> None:
-    """Check one row against the state its predecessors leave; `state` is not advanced."""
+def check(text: str, repo: Path, state: LedgerState | None = None) -> None:
     if state is None:
         state = LedgerState()
-    fields, quote = split_row(row)
-    gid, when, kind, head_field, status, *rest = fields
-    for name, value, pattern in (
-        ("kind", kind, KIND_RE), ("status", status, STATUS_RE),
-    ):
-        if not value.startswith(f"{name}=") or not pattern.fullmatch(value.split("=", 1)[1]):
-            raise RowError(f"field {value!r} is not a valid {name}=")
-    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z", when):
-        raise RowError(f"time {when!r} is not an ISO UTC timestamp")
-    if state.rows and when < state.last_when:
+    row = parse_row(text)
+    if state.rows and row.when < state.last_when:
         raise RowError(
-            f"timestamp regression: predecessor {state.last_when} -> this row {when}"
+            f"timestamp regression: predecessor {state.last_when} -> this row {row.when}"
         )
-    m = HEAD_RE.fullmatch(head_field)
-    if not m:
-        raise RowError(f"field {head_field!r} is not <branch>@<head>")
     # The object, not the ref: a merge that deletes the branch must not make a
     # landed row permanently uncheckable. Retrievability belongs to the object.
-    commit_of(repo, m.group("head"))
-
-    known = (
-        "channel=", "writer=", "record=", "push=", "review=", "resolves=", "under=", "void=", "op=", "after=", "skills=",
-        "who=", "scope=", "conditions=", "expiry=", "finding=", "archive=", "prev_hash=", "words=", "brief=", "note=",
-    )
-    for field in rest:
-        if not field.startswith(known):
-            raise RowError(f"field {field.split('=')[0]!r} is not in the row schema")
-
-    index = 0
-    channel = ""
-    if index < len(rest) and rest[index].startswith("channel="):
-        channel = rest[index].split("=", 1)[1]
-        if not CHANNEL_RE.fullmatch(channel):
-            raise RowError(f"field {rest[index]!r} is not a valid channel=")
-        index += 1
-    if index < len(rest) and rest[index].startswith("writer="):
-        value = rest[index].split("=", 1)[1]
-        if not WRITER_RE.fullmatch(value):
-            raise RowError(f"field {rest[index]!r} is not a valid writer=")
-        index += 1
-    if index >= len(rest) or not rest[index].startswith("record="):
-        raise RowError("record= is missing or out of order")
-    if rest[index].split("=", 1)[1] not in RECORD_VALUES:
-        raise RowError(f"field {rest[index]!r} is not one of {RECORD_VALUES}")
-    index += 1
-
-    row_kind = kind.split("=", 1)[1]
-    target_fields = [field for field in rest if field.startswith("skills=")]
-    if len(target_fields) > 1:
-        raise RowError(f"row {gid!r} carries more than one skills=")
-    if target_fields and row_kind != "deploy":
-        raise RowError(f"skills= is only on a kind=deploy row, not kind={row_kind}")
-    if row_kind == "deploy" and status.split("=", 1)[1] not in {"recorded:deploy", "resolved:deploy", "resolved:human"}:
-        raise RowError("kind=deploy requires a completed deploy status")
-    if row_kind == "deploy" and index < len(rest) and rest[index].startswith("skills="):
-        targets = rest[index].split("=", 1)[1].split()
-        if (not targets or targets != sorted(set(targets))
-                or any(not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", item) for item in targets)):
-            raise RowError("skills= must contain sorted, unique top-level skill names")
-        deployed_skills = git(repo, "ls-tree", "-d", "--name-only", f"{m.group('head')}:skills").splitlines()
-        if not set(targets) <= set(deployed_skills):
-            raise RowError("skills= contains a target absent from the deploy row head")
-        index += 1
-    push = None
-    if index < len(rest) and rest[index].startswith("push="):
-        push = rest[index]
-        index += 1
-    review = None
-    if index < len(rest) and rest[index].startswith("review="):
-        review = rest[index]
-        index += 1
-    if row_kind == "push" and push is None:
-        raise RowError(
-            "this row is kind=push and carries no push block — the range, count and "
-            "boundary-check are the whole of what a push row is checked against, so a "
-            "row without them is checked against nothing and passes vacuously"
-        )
-    if row_kind == "review" and review is None:
-        raise RowError(
-            "this row is kind=review and carries no review block — the range it covers "
-            "is what a stacked push is checked against, so a review row without it "
-            "contributes no coverage and leaves its commits unverified"
-        )
-    if push is not None and row_kind != "push":
-        raise RowError(f"push= is only on a kind=push row, not kind={row_kind}")
-    if review is not None and row_kind != "review":
-        raise RowError(f"review= is only on a kind=review row, not kind={row_kind}")
-
-    resolves: list[str] = []
-    if index < len(rest) and rest[index].startswith("resolves="):
-        resolves = parse_resolves(rest[index].split("=", 1)[1])
-        index += 1
-    under = None
-    if index < len(rest) and rest[index].startswith("under="):
-        under = rest[index].split("=", 1)[1]
-        index += 1
-
-    void_fields = [field for field in rest if field.startswith("void=")]
-    if len(void_fields) > 1:
-        raise RowError(f"row {gid!r} carries more than one void=")
-    void_target = None
-    if index < len(rest) and rest[index].startswith("void="):
-        void_target = rest[index].split("=", 1)[1]
-        index += 1
-    if row_kind == "correction":
-        if status != "status=recorded:correction":
-            raise RowError("kind=correction requires status=recorded:correction")
-        if void_target is None:
-            raise RowError("kind=correction requires exactly one void= field after resolves=")
-        state.validate_void(void_target)
-    elif void_fields:
-        raise RowError(f"void= is only on a kind=correction row, not kind={row_kind}")
-
-    if row_kind == "local-ops":
-        values, index = required_fields(rest, index, ("op", "after"), row_kind)
-        validate_after(values["after"], repo)
-        if status != f"status={LOCAL_OPS_STATUS}":
-            raise RowError(f"kind=local-ops requires status={LOCAL_OPS_STATUS}")
-    elif row_kind == "standing-delegation":
-        values, index = required_fields(
-            rest, index, ("who", "scope", "conditions", "expiry"), row_kind
-        )
-        if status != f"status={STANDING_DELEGATION_STATUS}":
-            raise RowError(f"kind=standing-delegation requires status={STANDING_DELEGATION_STATUS}")
-    elif row_kind == "deploy":
-        if index < len(rest) and rest[index].startswith("skills="):
-            raise RowError("skills= is missing or out of order")
-    elif row_kind == "handoff":
-        if status != f"status={HANDOFF_STATUS}":
-            raise RowError(f"kind=handoff requires status={HANDOFF_STATUS}")
-    elif row_kind == "repair-grant":
-        if index >= len(rest) or not rest[index].startswith("finding="):
-            raise RowError("kind=repair-grant requires finding= field")
-        current_finding = finding_value(rest[index].split("=", 1)[1])
-        index += 1
-    elif row_kind == "cutover":
-        if status != f"status={CUTOVER_STATUS}":
-            raise RowError(f"kind=cutover requires status={CUTOVER_STATUS}")
-        local_id = LOCAL_ID_RE.fullmatch(gid)
+    commit_of(repo, row.head)
+    if kind_rule(row.kind).genesis and not state.rows:
+        local_id = LOCAL_ID_RE.fullmatch(row.gid)
         if local_id is None or int(local_id.group(1)) < 1:
             raise RowError("kind=cutover genesis id must be G<n> with n at least 1")
-        if index >= len(rest) or not rest[index].startswith("archive="):
-            raise RowError("kind=cutover requires archive= field")
-        archive = rest[index].split("=", 1)[1]
-        if not ARCHIVE_RE.fullmatch(archive):
-            raise RowError(f"field {rest[index]!r} is not a 64-character lowercase hex archive=")
-        index += 1
-        current_finding = None
-    else:
-        current_finding = None
+    elif row.gid != f"G{state.next_id}":
+        raise RowError(f"gate id {row.gid} is not the next local id G{state.next_id}")
+    if row.skills:
+        deployed_skills = git(repo, "ls-tree", "-d", "--name-only", f"{row.head}:skills").splitlines()
+        if not set(row.skills) <= set(deployed_skills):
+            raise RowError("skills= contains a target absent from the deploy row head")
+    if row.void is not None:
+        state.validate_void(row.void)
+    if row.after is not None:
+        commit_of(repo, row.after.split("@", 1)[1])
+    if row.under is not None:
+        if row.words != "seat":
+            raise RowError(f"under={row.under} records the seat's own decision and requires words=seat")
+        state.require_in_force(row.under, row.when)
+    if row.finding is not None:
+        state.require_repair_progress(row.finding)
 
-    if state.rows and gid != f"G{state.next_id}":
-        raise RowError(f"gate id {gid} is not the next local id G{state.next_id}")
-
-    if index < len(rest) and rest[index].startswith("prev_hash="):
-        index += 1
-
-    if index >= len(rest) or not rest[index].startswith("words="):
-        raise RowError("words= is missing or out of order")
-    words = rest[index].split("=", 1)[1]
-    if words not in WORDS_VALUES:
-        raise RowError(f"field {rest[index]!r} is not one of {WORDS_VALUES}")
-    index += 1
-
-    if under is not None:
-        if words != "seat":
-            raise RowError(f"under={under} records the seat's own decision and requires words=seat")
-        state.require_in_force(under, when)
-    if row_kind == "repair-grant":
-        state.require_repair_progress(current_finding)
-    if row_kind == "standing-delegation" and words not in HUMAN_WORDS:
-        raise RowError("kind=standing-delegation requires words=human or words=selected")
-
-    brief = None
-    if index < len(rest) and rest[index].startswith("brief="):
-        brief = rest[index][len("brief="):]
-        index += 1
-
-    if index >= len(rest) or not rest[index].startswith("note="):
-        raise RowError("note= is missing or out of order")
-    note = rest[index][len("note="):]
-    index += 1
-    if index != len(rest):
-        raise RowError(f"field {rest[index].split('=')[0]!r} is out of order or duplicated")
-    status_value = status.split("=", 1)[1]
-    validate_row_encodings(
-        kind=row_kind, status=status_value, channel=channel,
-        words=words, quote=quote, note=note, brief=brief,
-    )
-
-    if push is not None:
-        p = PUSH_RE.fullmatch(push)
-        if not p:
-            raise RowError(f"push block {push!r} is malformed")
-        base, phead = p.group("base"), p.group("head")
-        boundary = p.group("declared").split()
-        if not boundary:
+    if row.push is not None:
+        push = row.push
+        count, outside = derive_push(repo, push.base, push.head, list(push.declared))
+        if push.head != row.head:
+            raise RowError(f"push head {push.head} does not match row head {row.head}")
+        if count != push.count:
+            raise RowError(f"count={push.count} but {push.base}..{push.head} carries {count} commits")
+        if " ".join(outside) != push.boundary:
             raise RowError(
-                'this row declares boundary="" — an empty boundary puts every touched '
-                "path outside it, which passes any row claiming the whole changed set"
-            )
-        count, outside = derive_push(repo, base, phead, boundary)
-        if phead != m.group("head"):
-            raise RowError(
-                f"push head {phead} does not match row head {m.group('head')}"
-            )
-        if count != p.group("count"):
-            raise RowError(
-                f"count={p.group('count')} but {base}..{phead} carries {count} commits"
-            )
-        if " ".join(outside) != p.group("boundary"):
-            raise RowError(
-                f'boundary-check="{p.group("boundary")}" but the union over {base}..{phead} '
+                f'boundary-check="{push.boundary}" but the union over {push.base}..{push.head} '
                 f'outside the declared boundary is "{" ".join(outside)}"'
             )
-        if row_kind == "push":
-            state.require_review_coverage(repo, base, m.group("head"))
+        state.require_review_coverage(repo, push.base, row.head)
 
-    if review is not None:
-        r = REVIEW_RE.fullmatch(review)
-        if not r:
-            raise RowError(f"review block {review!r} is malformed")
-        rbase, rhead = r.group("base"), r.group("head")
-        commits = range_commits(repo, rbase, rhead)
-        if rhead != m.group("head"):
+    if row.review is not None:
+        review = row.review
+        commits = range_commits(repo, review.base, review.head)
+        if review.head != row.head:
+            raise RowError(f"review head {review.head} does not match row head {row.head}")
+        if str(len(commits)) != review.count:
             raise RowError(
-                f"review head {rhead} does not match row head {m.group('head')}"
-            )
-        if str(len(commits)) != r.group("count"):
-            raise RowError(
-                f"count={r.group('count')} but {rbase}..{rhead} carries {len(commits)} commits"
+                f"count={review.count} but {review.base}..{review.head} carries {len(commits)} commits"
             )
 
-    if resolves:
-        state.require_open(resolves)
+    if row.resolves:
+        state.require_open(row.resolves)
 
 
-def check_mailbox_for_open_gate(row: str, mailbox: Path | None) -> None:
-    if mailbox is None:
+def check_mailbox_for_open_gate(row: Row, mailbox: Path | None) -> None:
+    if mailbox is None or not kind_rule(row.kind).human_gate or row.status != "open":
         return
-    kind, head, status = row_evidence(row)
-    if kind not in HUMAN_GATE_KINDS or status != "open":
-        return
-    fields, _ = split_row(row)
-    gid = fields[0]
-    require_mailbox_attention(gid, head, mailbox)
+    require_mailbox_attention(row.gid, row.head, mailbox)
 
 
 @contextmanager
 def locked_ledger(ledger: Path, exclusive: bool):
     if not exclusive and not ledger.exists():
-        if getattr(ledger, "name", "") == "gates.md":
-            raise RowError(f"no completed target-bearing deploy row for skill; ledger {ledger} is absent")
         raise RowError(f"{ledger} holds no gate ledger")
     mode = "a+" if exclusive else "r"
     try:
@@ -1244,6 +1124,48 @@ def handle_text(handle) -> str:
         raise RowError(f"ledger is not UTF-8: {exc}") from None
 
 
+def preview_row(ledger: Path, repo: Path, request: RowRequest) -> str:
+    """The row `request` would append to `ledger`, built and checked against it; nothing is written."""
+    request_words(request)
+    if ledger.exists():
+        with locked_ledger(ledger, exclusive=False) as handle:
+            state = validate_ledger(ledger_rows(handle_text(handle)), repo)
+    else:
+        state = LedgerState()
+    return build(request, repo, state, resolve_row_head(request, repo))
+
+
+def append_row(ledger: Path, repo: Path, request: RowRequest, push: bool = False) -> str:
+    """Build, check, append and read back the row for `request`; `push` pushes the row's head first."""
+    request_words(request)
+    pushed = ""
+    with locked_ledger(ledger, exclusive=True) as handle:
+        before = handle_text(handle)
+        state = validate_ledger(ledger_rows(before), repo)
+        target = resolve_row_head(request, repo)
+        try:
+            if push:
+                if request.kind != "push":
+                    raise RowError(f"--push is only meaningful on kind=push, not kind={request.kind}")
+                build(request, repo, state, target, landed=False)
+                pushed = push_head(repo, *target)
+            row = build(request, repo, state, target)
+            if before and not before.endswith("\n"):
+                handle.seek(0, 2)
+                handle.write("\n")
+            handle.seek(0, 2)
+            handle.write(row + "\n")
+            handle.flush()
+            stored_rows = ledger_rows(handle_text(handle))
+            if not stored_rows or stored_rows[-1] != row:
+                raise RowError("the row read back from disk is not the row written")
+        except RowError as exc:
+            if pushed:
+                raise RowError(f"git push origin {pushed} ran, but {exc}") from None
+            raise
+    return row
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--ledger", required=True, type=Path,
@@ -1251,7 +1173,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--repo", type=Path, default=Path.cwd())
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--check", action="store_true",
-                      help="check the ledger's last row instead of appending one")
+                      help="check every row of the ledger against its predecessors, then report the last")
     parser.add_argument("--mailbox", type=Path,
                         help="with --check, require a matching open-gate ATTENTION header")
     mode.add_argument("--open-gates", action="store_true",
@@ -1270,14 +1192,14 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--expiry", help="the granting Human's expiry; an ISO-8601 UTC timestamp "
                         "is enforced by --under")
     parser.add_argument("--finding", help="the repair-grant finding identity")
-    parser.add_argument("--skill", action="append", default=[],
+    parser.add_argument("--skill", dest="skills", action="append", default=[],
                         help="top-level skill deployed; repeat for each exact target")
     parser.add_argument("--void", action="append", default=[],
                         help="the earlier review-pass row a correction voids")
     parser.add_argument("--record", choices=RECORD_VALUES)
     parser.add_argument("--head", help="the row head as <branch>@<full 40-hex commit SHA>; "
-                        "a past review, deploy, deploy-gate, handoff or push head is timely when "
-                        "it is an ancestor of HEAD, otherwise use --record reconstruction")
+                        "a past head is timely when its kind is marked timely_at_ancestor in "
+                        "KINDS and it is an ancestor of HEAD, otherwise use --record reconstruction")
     parser.add_argument("--push-base", help="the push base — the remote tip the stack lands on "
                         "under batching, not the intake merge-base; the head is derived")
     parser.add_argument("--review-base", help="the base of the reviewed range on a kind=review "
@@ -1303,14 +1225,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--quote-file", default="",
                         help="read the seat's verbatim text from a UTF-8 file")
     args = parser.parse_args(argv)
-    append_args = (
-        args.kind, args.status, args.channel, args.writer, args.op, args.after,
-        args.who, args.scope, args.conditions, args.expiry, args.finding, args.void, args.skill,
-        args.record, args.head, args.push_base, args.review_base, args.boundary, args.resolves,
-        args.push, args.under, args.words, args.note, args.brief, args.quote, args.quote_file,
-        args.mailbox,
-    )
-    pushed = ""
+    request = RowRequest(**{f.name: getattr(args, f.name) for f in dataclasses.fields(RowRequest)})
+    appending = any(vars(request).values()) or args.push or args.mailbox is not None
 
     try:
         if not args.ledger.is_absolute():
@@ -1320,13 +1236,13 @@ def main(argv: list[str] | None = None) -> int:
                 "against the shell cwd, silently starting a stray G1"
             )
         if args.deployed_head:
-            if any(append_args):
+            if appending:
                 raise RowError("--deployed-head cannot be combined with append arguments")
             branch, head, source_row = select_deployed_head(args.ledger, args.deployed_head, args.repo)
             print(f"{branch}@{head}\n{source_row}")
             return 0
         if args.open_gates:
-            if any(append_args):
+            if appending:
                 raise RowError("--open-gates cannot be combined with append arguments")
             ids = read_ledger_state(args.ledger, args.repo).open_gate_ids()
             sys.stdout.write("".join(f"{gid}\n" for gid in ids))
@@ -1335,46 +1251,19 @@ def main(argv: list[str] | None = None) -> int:
         if args.check:
             if args.push:
                 raise RowError("--push cannot be combined with --check")
-            with locked_ledger(args.ledger, exclusive=False) as handle:
-                rows = ledger_rows(handle_text(handle))
-                if not rows:
-                    raise RowError(f"{args.ledger} holds no gate row")
-                validate_ledger(rows, args.repo)
-                check_mailbox_for_open_gate(rows[-1], args.mailbox)
-                print(f"ok: {rows[-1].split(' | ')[0]} checks out")
+            state = read_ledger_state(args.ledger, args.repo)
+            if not state.rows:
+                raise RowError(f"{args.ledger} holds no gate row")
+            check_mailbox_for_open_gate(state.parsed[-1], args.mailbox)
+            print(f"ok: {state.parsed[-1].gid} checks out")
             return 0
 
         if args.mailbox is not None:
             raise RowError("--mailbox requires --check")
-        if not args.kind or not args.status:
-            raise RowError("--kind and --status are required to append a row")
-        if args.words is None and not args.under:
-            raise RowError("--words is required when appending a row")
-
-        with locked_ledger(args.ledger, exclusive=True) as handle:
-            before = handle_text(handle)
-            state = validate_ledger(ledger_rows(before), args.repo)
-            target = resolve_row_head(args, args.repo, args.record or "timely")
-            if args.push:
-                if args.kind != "push":
-                    raise RowError(f"--push is only meaningful on kind=push, not kind={args.kind}")
-                build(args, args.repo, state, target, landed=False)
-                pushed = push_head(args.repo, *target)
-            row = build(args, args.repo, state, target)
-            if before and not before.endswith("\n"):
-                handle.seek(0, 2)
-                handle.write("\n")
-            handle.seek(0, 2)
-            handle.write(row + "\n")
-            handle.flush()
-            stored_rows = ledger_rows(handle_text(handle))
-            if not stored_rows or stored_rows[-1] != row:
-                raise RowError("the row read back from disk is not the row written")
-        print(row)
+        print(append_row(args.ledger, args.repo, request, push=args.push))
         return 0
     except RowError as exc:
-        landed = f"git push origin {pushed} ran, but " if pushed else ""
-        print(f"gate_row: {landed}{exc}", file=sys.stderr)
+        print(f"gate_row: {exc}", file=sys.stderr)
         return 1
 
 
