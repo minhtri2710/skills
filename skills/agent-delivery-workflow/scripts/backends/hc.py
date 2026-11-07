@@ -7,12 +7,11 @@ seat's HC_TERMINAL_ID (HC_SOCKET = HC_TERMINAL_SOCKET) and is never printed or l
 from __future__ import annotations
 
 import functools
-import json
 import math
 import os
 import subprocess
 import time
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -20,53 +19,21 @@ import backend
 
 BINARY_NAME = "herdr-core"
 FALLBACK_BINARY = "hc"
-DEFAULT_TIMEOUT = 30.0
-# Error kind -> seat error kind; hc's other kinds (needs_target, status_mismatch, finished, unavailable...) stay BackendError codes.
-_SEAT_KINDS = {"not_found": "not_found", "blocked": "blocked"}
-# Exit codes of `hc` when stderr carries no JSON (SKILL.md:214-215).
+_SEAT_KINDS = {"not_found", "blocked"}
+# Exit codes of `hc` when stderr carries no JSON (herdr-core's crates/herdr-core/src/SKILL.md:214-215, `HCM` in references/backend-hc.md).
 _EXIT_KINDS = {3: "not_found", 7: "needs_target", 9: "blocked", 10: "status_mismatch", 11: "finished"}
-
-Runner = Callable[..., "subprocess.CompletedProcess[str]"]
 
 
 def resolve_binary(home: Path) -> str:
-    """~/.local/bin/herdr-core when it is an executable file, else `hc` on PATH (design section 4)."""
+    """~/.local/bin/herdr-core when it is an executable file, else `hc` on PATH."""
     candidate = home / ".local" / "bin" / BINARY_NAME
     return str(candidate) if candidate.is_file() and os.access(candidate, os.X_OK) else FALLBACK_BINARY
-
-
-def run(
-    binary: str, args: list[str], *, timeout: float = DEFAULT_TIMEOUT, env: Mapping[str, str] | None = None
-) -> subprocess.CompletedProcess[str]:
-    label = f"hc {args[0]}" if args else "hc"
-    try:
-        return subprocess.run(
-            [binary, *args],
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            check=False,
-            timeout=timeout,
-            env=env,
-        )
-    except subprocess.TimeoutExpired as exc:
-        raise backend.BackendUnavailable(f"{label} timed out after {timeout} seconds") from exc
-    except OSError as exc:
-        raise backend.BackendUnavailable(f"{label} unavailable: {exc}") from exc
-
-
-def _object(text: str) -> dict[str, Any]:
-    try:
-        value = json.loads(text)
-    except json.JSONDecodeError:
-        return {}
-    return value if isinstance(value, dict) else {}
 
 
 def _error_kind(completed: subprocess.CompletedProcess[str]) -> str:
     # hc prints {"error": {"kind", "message", "hint"}} on stderr (cli.rs fail()).
     for text in (completed.stderr, completed.stdout):
-        error = _object(text).get("error")
+        error = backend.json_object(text).get("error")
         kind = error.get("kind") if isinstance(error, dict) else None
         if isinstance(kind, str) and kind:
             return kind
@@ -75,9 +42,7 @@ def _error_kind(completed: subprocess.CompletedProcess[str]) -> str:
 
 def _target(ref: str) -> str:
     # A ref is an argv word: it must not start with '-', so it is never read as an option.
-    if backend.HANDLE_RE.fullmatch(ref) is None:
-        raise ValueError(f"not a terminal address or name: {ref!r}")
-    return ref
+    return backend.require_handle(ref)
 
 
 def _state(terminal: Mapping[str, Any]) -> str:
@@ -109,14 +74,22 @@ def _seat(terminal: Mapping[str, Any]) -> backend.Seat:
 class Adapter(backend.Backend):
     name = "hc"
 
-    def __init__(self, environ: Mapping[str, str], runner: Runner | None = None, binary: str | None = None) -> None:
+    def __init__(self, environ: Mapping[str, str], runner: backend.Runner | None = None, binary: str | None = None) -> None:
         super().__init__(environ)
         self._binary = binary or resolve_binary(Path.home())
-        self._runner = runner or functools.partial(run, self._binary)
+        self._runner = runner or functools.partial(backend.run_tool, self._binary)
         socket = environ.get("HC_TERMINAL_SOCKET")
         self._env = {**environ, "HC_SOCKET": socket} if socket else None
 
-    def _ok(self, args: list[str], *, timeout: float = DEFAULT_TIMEOUT) -> subprocess.CompletedProcess[str]:
+    @staticmethod
+    def matches(environ: Mapping[str, str]) -> bool:
+        return bool(environ.get("HC_TERMINAL_ID") and environ.get("HC_TERMINAL_SOCKET"))
+
+    @staticmethod
+    def own_handle(environ: Mapping[str, str]) -> str | None:
+        return environ.get("HC_TERMINAL_ID") or None
+
+    def _ok(self, args: list[str], *, timeout: float = backend.DEFAULT_TIMEOUT) -> subprocess.CompletedProcess[str]:
         if self._env is None:
             raise backend.BackendUnavailable("hc: no HC_TERMINAL_SOCKET in the environment to pin the core")
         completed = self._runner(args, timeout=timeout, env=self._env)
@@ -124,12 +97,12 @@ class Adapter(backend.Backend):
             kind = _error_kind(completed)
             message = f"hc {args[0]} failed: {kind}"
             if kind in _SEAT_KINDS:
-                raise backend.SeatError(_SEAT_KINDS[kind], message)
+                raise backend.SeatError(kind, message)
             raise backend.BackendError(message, code=kind)
         return completed
 
-    def _json(self, args: list[str], *, timeout: float = DEFAULT_TIMEOUT) -> dict[str, Any]:
-        payload = _object(self._ok(args, timeout=timeout).stdout)
+    def _json(self, args: list[str], *, timeout: float = backend.DEFAULT_TIMEOUT) -> dict[str, Any]:
+        payload = backend.json_object(self._ok(args, timeout=timeout).stdout)
         if not payload:
             raise backend.BackendError(f"hc {args[0]} returned no JSON object")
         return payload
@@ -138,17 +111,12 @@ class Adapter(backend.Backend):
         return self._json(["get", _target(ref), "--json"])
 
     def identify(self) -> str:
-        terminal = backend.own_handle("hc", self.environ)
+        terminal = self.own_handle(self.environ)
         if terminal is None:
             raise backend.BackendUnavailable("hc identify: no HC_TERMINAL_ID in the environment")
-        try:
-            record = self._get(terminal)
-        except backend.BackendUnavailable:
-            raise
-        except (backend.BackendError, ValueError) as exc:
-            raise backend.BackendUnavailable(f"hc identify failed: {exc}") from exc
+        record = self._get(terminal)
         if record.get("address") != terminal or record.get("state") != "live":
-            raise backend.BackendUnavailable("hc identify: get did not return this live terminal")
+            raise backend.BackendError("get did not return this live terminal")
         return terminal
 
     def list_seats(self) -> list[backend.Seat]:
@@ -178,8 +146,7 @@ class Adapter(backend.Backend):
             raise backend.SeatError("not_started", f"hc send {ref}: typed, but the program did not start working; read it before resending")
 
     def wait_state(self, ref: str, states: Sequence[str], timeout_ms: int) -> str:
-        if not states or any(state not in backend.STATES for state in states):
-            raise ValueError(f"wait states must be a non-empty subset of {backend.STATES}")
+        backend.require_states(states)
         deadline = time.monotonic() + timeout_ms / 1000
         while True:
             seconds = max(1, math.ceil(deadline - time.monotonic()))
@@ -198,22 +165,17 @@ class Adapter(backend.Backend):
             reached = _state({"status": result.get("status")})
         else:
             raise backend.BackendError(f"hc wait {ref} ended without a state: {reason}", code=str(reason))
-        if reached not in states:
-            raise backend.BackendError(f"hc wait {ref} reached {reached}, not one of {', '.join(states)}", code="state_not_requested")
-        return reached
+        return backend.require_reached(f"hc wait {ref}", reached, states)
 
-    def processes(self, handle: str) -> list[Any]:
+    def processes(self, handle: str) -> list[backend.Process]:
         foreground = self._get(handle).get("foreground")
         if foreground is None:
             return []
         argv = foreground.get("argv") if isinstance(foreground, dict) else None
         if not isinstance(argv, list) or not all(isinstance(arg, str) for arg in argv):
             raise backend.BackendError(f"hc get {handle} returned a malformed foreground record")
-        return [{**foreground, "argv0": argv[0]} if argv else dict(foreground)]
+        return [backend.Process.from_record(foreground)]
 
-    def send_block(self, lead_handle: str, report_path: str) -> str:
-        if backend.HANDLE_RE.fullmatch(lead_handle) is None:
-            raise ValueError(f"not a seat handle: {lead_handle!r}")
-        _, send_path = backend.report_send_file(report_path)
+    def _render_send_block(self, lead_handle: str, peer: str, send_path: str, report_path: str) -> backend.SendBlock:
         command = FALLBACK_BINARY if self._binary == FALLBACK_BINARY else f'"$HOME/.local/bin/{BINARY_NAME}"'
-        return f'{command} send {lead_handle} "$(cat {send_path})"'
+        return backend.SendBlock(f'{command} send {lead_handle} "$(cat {send_path})"')

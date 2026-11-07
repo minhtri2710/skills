@@ -1,28 +1,24 @@
 """Rex adapter: pure argv builders and parsers over one injected runner (provisional, see references/backend-rex.md).
 
 A seat handle is `<session-id>.<block-id>`. Every call that targets a block passes `-s` and `-b`;
-after identify, every call also passes `-S <endpoint>` from `rex whoami --json`. The runner takes
-(args, timeout) and returns a subprocess.CompletedProcess; `wait_state` stays Unsupported (design 3.2).
+after identify, every call also passes `-S <endpoint>` from `rex whoami --json`, and a call made before
+identify is refused. `wait_state` stays Unsupported.
 """
 from __future__ import annotations
 
 import functools
-import json
 import os
 import subprocess
-from collections.abc import Callable, Mapping
+from collections.abc import Mapping
 from typing import Any
 
 import backend
 
 BINARY = "rex"
-DEFAULT_TIMEOUT = 30.0
 EXIT_NOT_FOUND = 3
 EXIT_UNREACHABLE = 4
 # The seat reports its most urgent program_status record (Rex gives no single seat state).
 _STATE_ORDER = ("blocked", "error", "working", "done")
-
-Runner = Callable[..., "subprocess.CompletedProcess[str]"]
 
 
 def _binary(environ: Mapping[str, str]) -> str:
@@ -30,32 +26,6 @@ def _binary(environ: Mapping[str, str]) -> str:
     bin_dir = environ.get("REX_BIN_DIR")
     candidate = os.path.join(bin_dir, BINARY) if bin_dir else None
     return candidate if candidate and os.access(candidate, os.X_OK) else BINARY
-
-
-def run(args: list[str], *, timeout: float = DEFAULT_TIMEOUT, binary: str = BINARY) -> subprocess.CompletedProcess[str]:
-    command = [binary, *args]
-    label = BINARY + (" " + " ".join(args[:3]) if args else "")
-    try:
-        return subprocess.run(
-            command,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            check=False,
-            timeout=timeout,
-        )
-    except subprocess.TimeoutExpired as exc:
-        raise backend.BackendUnavailable(f"{label} timed out after {timeout} seconds") from exc
-    except OSError as exc:
-        raise backend.BackendUnavailable(f"{label} unavailable: {exc}") from exc
-
-
-def _object(text: str) -> dict[str, Any]:
-    try:
-        value = json.loads(text)
-    except json.JSONDecodeError:
-        return {}
-    return value if isinstance(value, dict) else {}
 
 
 def _split(handle: str) -> tuple[str, str]:
@@ -68,14 +38,25 @@ def _split(handle: str) -> tuple[str, str]:
 class Adapter(backend.Backend):
     name = "rex"
 
-    def __init__(self, environ: Mapping[str, str], runner: Runner | None = None) -> None:
+    def __init__(self, environ: Mapping[str, str], runner: backend.Runner | None = None) -> None:
         super().__init__(environ)
-        self._runner = runner or functools.partial(run, binary=_binary(environ))
-        self._endpoint: str | None = None  # set by identify from `rex whoami --json`
+        self._runner = runner or functools.partial(backend.run_tool, _binary(environ))
+        self._endpoint: str | None = None
 
-    def _call(self, args: list[str]) -> subprocess.CompletedProcess[str]:
-        pin = ["-S", self._endpoint] if self._endpoint else []
-        completed = self._runner(["--autostart=false", *pin, *args], timeout=DEFAULT_TIMEOUT)
+    @staticmethod
+    def matches(environ: Mapping[str, str]) -> bool:
+        return environ.get("TERM_PROGRAM") == "rex" and bool(environ.get("REX_BLOCK") and environ.get("REX_SESSION"))
+
+    @staticmethod
+    def own_handle(environ: Mapping[str, str]) -> str | None:
+        session, block = environ.get("REX_SESSION"), environ.get("REX_BLOCK")
+        return f"{session}.{block}" if session and block else None
+
+    def _call(self, args: list[str], *, pinned: bool = True) -> subprocess.CompletedProcess[str]:
+        if pinned and self._endpoint is None:
+            raise backend.BackendUnavailable("rex: call before identify; it would run without the server pin")
+        pin = ["-S", self._endpoint] if pinned else []
+        completed = self._runner(["--autostart=false", *pin, *args], timeout=backend.DEFAULT_TIMEOUT)
         code = completed.returncode
         if code:
             message = f"{BINARY} {' '.join(args[:3])} failed: exit {code}"
@@ -86,11 +67,11 @@ class Adapter(backend.Backend):
             raise backend.BackendError(message, code=f"exit_{code}")
         return completed
 
-    def _json(self, args: list[str]) -> dict[str, Any]:
-        return _object(self._call(args).stdout)
+    def _json(self, args: list[str], *, pinned: bool = True) -> dict[str, Any]:
+        return backend.json_object(self._call(args, pinned=pinned).stdout)
 
     def _own(self) -> tuple[str, str]:
-        handle = backend.own_handle("rex", self.environ)
+        handle = self.own_handle(self.environ)
         if handle is None:
             raise backend.BackendUnavailable("rex: no own handle in the environment")
         try:
@@ -114,7 +95,6 @@ class Adapter(backend.Backend):
         return next((state for state in _STATE_ORDER if state in states), "unknown")
 
     def _lookup(self, ref: str) -> tuple[str, dict[str, Any]]:
-        """A handle names its block; a bare name is a block label in this seat's own session."""
         if "." in ref:
             session, block = _split(ref)
             entries = [entry for entry in self._blocks(session) if entry["block_id"] == block]
@@ -144,18 +124,12 @@ class Adapter(backend.Backend):
 
     def identify(self) -> str:
         session, block = self._own()
-        try:
-            endpoint = self._json(["whoami", "--json"]).get("endpoint")
-            if not isinstance(endpoint, str) or not endpoint:
-                raise backend.BackendError("rex whoami returned no endpoint")
-            self._endpoint = endpoint
-            known = {entry["block_id"] for entry in self._blocks(session)}
-        except backend.BackendUnavailable:
-            raise
-        except backend.BackendError as exc:
-            raise backend.BackendUnavailable(f"rex identify failed: {exc}") from exc
-        if block not in known:
-            raise backend.BackendUnavailable("rex identify: own block is not in its own session")
+        endpoint = self._json(["whoami", "--json"], pinned=False).get("endpoint")
+        if not isinstance(endpoint, str) or not endpoint:
+            raise backend.BackendError("rex whoami returned no endpoint")
+        self._endpoint = endpoint
+        if block not in {entry["block_id"] for entry in self._blocks(session)}:
+            raise backend.BackendError("own block is not in its own session")
         return f"{session}.{block}"
 
     def list_seats(self) -> list[backend.Seat]:
@@ -193,13 +167,13 @@ class Adapter(backend.Backend):
         except (backend.SeatError, backend.BackendUnavailable):
             raise
         except backend.BackendError:
-            state = "unknown"  # unreadable status: send anyway (design 3.1); the send is unacknowledged
+            state = "unknown"  # unreadable status: send anyway; the send is unacknowledged
         if state == "blocked":
             raise backend.SeatError("blocked", f"rex seat {ref} is blocked")
         self._call(["send", "-s", session, "-b", block, "--", text])
         self._call(["send-key", "-s", session, "-b", block, "enter"])
 
-    def processes(self, handle: str) -> list[Any]:
+    def processes(self, handle: str) -> list[backend.Process]:
         session, block = _split(handle)
         payload = self._json(["block", "call", "-s", session, "-b", block, "process"])
         if "foreground" not in payload and "last_exit" not in payload:
@@ -209,12 +183,11 @@ class Adapter(backend.Backend):
             return []
         if not isinstance(foreground, dict) or not isinstance(foreground.get("pid"), int):
             raise backend.BackendError(f"rex process reply for {handle} has a malformed foreground")
-        return [foreground]
+        return [backend.Process.from_record(foreground)]
 
-    def send_block(self, lead_handle: str, report_path: str) -> str:
+    def _render_send_block(self, lead_handle: str, peer: str, send_path: str, report_path: str) -> backend.SendBlock:
         session, block = _split(lead_handle)
-        _, send_path = backend.report_send_file(report_path)
         target = f"-s {session} -b {block}"
         # Rex exports REX_BIN_DIR into every block but a shell's startup files often reset PATH, so a bare `rex` may not resolve.
         binary = '"$REX_BIN_DIR/rex"'
-        return f'{binary} send {target} -- "$(cat {send_path})" && {binary} send-key {target} enter'
+        return backend.SendBlock(f'{binary} send {target} -- "$(cat {send_path})" && {binary} send-key {target} enter')

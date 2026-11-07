@@ -149,7 +149,7 @@ def render(args: argparse.Namespace, seats: backend.Backend) -> tuple[str, str]:
         "quality_floor_dir": str(QUALITY_FLOOR),
         "bounded_run": str(SKILL / "scripts" / "bounded_run.py"),
         "peer_name": peer,
-        "send_block": seats.send_block(lead, f"{run_dir}/report-{peer}.md"),
+        "send_block": seats.send_block(lead, f"{run_dir}/report-{peer}.md").text,
         "state_root": str(state_root.STATE_ROOT),
     }
     return peer, SLOT_RE.sub(lambda match: values[match.group(1)], TEMPLATE.read_text(encoding="utf-8"))

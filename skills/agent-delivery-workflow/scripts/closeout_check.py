@@ -5,7 +5,6 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import shlex
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -32,7 +31,7 @@ def _unpushed_commits(repo: Path, gate_tips: list[str]) -> list[str]:
     return gate_row.git(repo, "rev-list", head, "--not", *exclude, *gate_tips).splitlines()
 
 
-_ROLE_RE = {"Engineer", "Reviewer"}
+_PEER_ROLES = {"Engineer", "Reviewer"}
 _PERSISTENT_ROLES = {"Lead", "Human Supervisor"}
 _PERSISTENT_ROLE_ERROR = (
     "persistent must record exactly one Lead and at most one Human Supervisor"
@@ -75,9 +74,12 @@ def _record_from_input(staffing_record: Mapping[str, Any] | str | Path) -> Mappi
 
 
 def _validate_handle(value: Any, label: str) -> str:
-    if not isinstance(value, str) or not backend.HANDLE_RE.fullmatch(value):
-        raise ValueError(f"{label} is not a valid opaque seat handle")
-    return value
+    if not isinstance(value, str):
+        raise ValueError(f"{label} must be text")
+    try:
+        return backend.require_handle(value)
+    except ValueError as exc:
+        raise ValueError(f"{label}: {exc}") from exc
 
 
 def _validate_record(
@@ -126,7 +128,7 @@ def _validate_record(
         if not isinstance(peer, Mapping):
             raise ValueError(f"peers[{index}] must be an object")
         role = peer.get("role")
-        if role not in _ROLE_RE:
+        if role not in _PEER_ROLES:
             raise ValueError(f"peers[{index}] must be an Engineer or Reviewer")
         issue = peer.get("issue")
         if not isinstance(issue, str) or not issue or "\x00" in issue:
@@ -162,22 +164,8 @@ def _path_in_checkout(value: Any, canonical: Path) -> bool:
     return True
 
 
-def _process_argv(process: Mapping[str, Any]) -> list[str]:
-    values: list[str] = []
-    for key in ("argv0", "name", "command", "cmdline"):
-        value = process.get(key)
-        if isinstance(value, list) and all(isinstance(item, str) for item in value):
-            values.extend(item.lower() for item in value)
-        elif isinstance(value, str):
-            try:
-                values.extend(item.lower() for item in shlex.split(value))
-            except ValueError:
-                values.extend(value.lower().split())
-    return values
-
-
-def _is_server_process(process: Mapping[str, Any]) -> bool:
-    argv = _process_argv(process)
+def _is_server_process(process: backend.Process) -> bool:
+    argv = [token.lower() for token in process.argv]
     tokens = set(argv)
     basenames = {Path(token).name for token in argv}
     for marker in _SERVER_MARKERS:
@@ -210,15 +198,7 @@ def check_closeout(
     staffing_record: Mapping[str, Any] | str | Path,
     seats: backend.Backend,
 ) -> CloseoutResult:
-    """Inspect exactly the recorded peer seats through a read-only backend.
-
-    The closeout staffing record is JSON with ``canonical_checkout``, ``persistent``,
-    ``peers`` and ``gates_ledger`` fields. Each peer has ``issue``,
-    ``role`` (Engineer or Reviewer), ``name`` and opaque ``seat`` fields. Per peer the
-    backend answers ``get_terminal(seat)`` (the seat's terminal is open, or ``SeatError`` not_found
-    when it is gone), ``get_seat(name)`` (the agent, or not_found) and
-    ``processes(seat)`` (its foreground process mappings).
-    """
+    """Inspect exactly the recorded peer seats through a read-only backend."""
     findings: list[str] = []
     try:
         record = _record_from_input(staffing_record)
@@ -247,10 +227,8 @@ def check_closeout(
         checked.append(seat_id)
         try:
             terminal = seats.get_terminal(seat_id)
-        except Exception as exc:  # Boundary failures are evidence failures, not passes.
+        except Exception as exc:
             if isinstance(exc, backend.SeatError) and exc.kind == "not_found":
-                # The recorded teardown target is gone.  Agent lookup is not used as
-                # an alternate teardown proof, so agent_not_found is harmless here.
                 continue
             findings.append(f"{peer['role']} {name} seat {seat_id}: terminal read failed: {exc}")
             continue
@@ -281,12 +259,7 @@ def check_closeout(
             findings.append(f"{peer['role']} {name} seat {seat_id}: process read failed: {exc}")
             continue
         for process in processes:
-            if not isinstance(process, Mapping):
-                findings.append(f"{peer['role']} {name} seat {seat_id}: malformed process evidence")
-                continue
-            if process.get("alive") is False or process.get("status") in {"exited", "dead"}:
-                continue
-            cwd = process.get("cwd", terminal.cwd)
+            cwd = process.cwd if process.cwd is not None else terminal.cwd
             if cwd is None:
                 findings.append(f"{peer['role']} {name} seat {seat_id}: process evidence has no cwd")
                 continue

@@ -83,7 +83,7 @@ herdr agent get <handle>
 herdr agent explain <handle>
 ```
 
-`agent get` returns `agent_status`: `idle` (ready for input, its tab seen in the focused UI), `working`, `done` (the same idle state after unseen background work finishes), `blocked` (Herdr recognized an approval or question UI), `unknown`. Focusing the tab, or targeting the pane or agent with a focus command, marks it seen; CLI reads do not. `agent list` and `agent get` can disagree seconds apart.
+`agent get` returns `agent_status`, a `backend.STATES` word; herdr never reports `error`. `idle` is ready for input, its tab seen in the focused UI; `done` is the same idle state after unseen background work finishes; `blocked` means Herdr recognized an approval or question UI. Focusing the tab, or targeting the pane or agent with a focus command, marks it seen; CLI reads do not. `agent list` and `agent get` can disagree seconds apart.
 
 These states are inferred from the pane, not reported by the agent: Herdr matches the terminal title and recent screen text against a per-kind rule table under `~/.local/state/herdr/agent-detection/remote/<kind>.toml`, and `agent explain` prints the rule id, region, priority, and exact evidence behind the current state. `agent list` gives the label; `agent explain` gives the checkable reason. Derive a seat's state with `agent explain` and read the rule that fired rather than assume one.
 
@@ -98,7 +98,7 @@ herdr agent wait <handle> --until idle --until done --until blocked --timeout 30
 herdr pane wait-output <pane-id> --match "test result" --timeout 120000
 ```
 
-`agent wait` takes `--until` once per state. Herdr has no `error` state to wait for, so the adapter drops a requested `error` from the argv and refuses the call (`ValueError`) when nothing else remains. The `120000` and `30000` are illustrative values, never defaults to borrow; every `--timeout` is sized to the command's real worst case, and `pane wait-output` waits indefinitely without it. `pane wait-output` is for a pane with no agent: it searches the selected snapshot immediately, so existing output can match; use `--match <text>` for a literal substring or `--regex <pattern>` for a Rust regex.
+`agent wait` takes `--until` once per state. The adapter builds the `--until` list from `REPORTABLE` in `scripts/backends/herdr.py`, which drops the states herdr cannot wait for, and refuses the call (`ValueError`) when nothing else remains. The `120000` and `30000` are illustrative values, never defaults to borrow; every `--timeout` is sized to the command's real worst case, and `pane wait-output` waits indefinitely without it. `pane wait-output` is for a pane with no agent: it searches the selected snapshot immediately, so existing output can match; use `--match <text>` for a literal substring or `--regex <pattern>` for a Rust regex.
 
 ## list
 

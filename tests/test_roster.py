@@ -38,7 +38,7 @@ def fake_of(agents, processes=None):
         fake.add_seat(
             agent["pane_id"], name=agent.get("name"), state=agent["agent_status"],
             kind=agent.get("agent"), workspace=agent.get("workspace_id"),
-            processes=(processes or {}).get(agent["pane_id"]),
+            processes=[backend.Process.from_record(record) for record in (processes or {}).get(agent["pane_id"], [])],
         )
     return fake
 
@@ -553,7 +553,7 @@ class RosterTest(unittest.TestCase):
         pi, claude = {"w1:p1": ["pi"]}, {"w1:p1": ["claude", "--model", "x"]}
         cases = [
             ({"reviewer-kind": "agy"}, pi, "eng:engineer", (), "config lacks engineer-kind"),
-            (self._DRIFT_CONFIG, claude, "eng:engineer", (), "no pi process in pane w1:p1"),
+            (self._DRIFT_CONFIG, claude, "eng:engineer", (), "no pi process in seat w1:p1"),
             (self._DRIFT_CONFIG, pi, "gone:engineer", (), "no live seat named gone"),
             (self._DRIFT_CONFIG, pi, "eng:engineer", ("--workspace", "w2"), "no live seat named eng"),
             (self._DRIFT_CONFIG, {"w1:p1": (1, "")}, "eng:engineer", (), "process-info w1:p1 failed"),

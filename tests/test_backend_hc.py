@@ -69,38 +69,6 @@ def violation(args: list[str]) -> str | None:
 
 
 class RunnerTest(unittest.TestCase):
-    def test_run_uses_the_shared_subprocess_contract(self) -> None:
-        completed = subprocess.CompletedProcess(["hc", "ls"], 0, stdout="{}", stderr="")
-        env = {"HC_SOCKET": SOCKET}
-        with mock.patch.object(hc.subprocess, "run", return_value=completed) as run:
-            result = hc.run("/bin/hc-x", ["ls", "--json"], timeout=4.5, env=env)
-        self.assertIs(result, completed)
-        run.assert_called_once_with(
-            ["/bin/hc-x", "ls", "--json"],
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            check=False,
-            timeout=4.5,
-            env=env,
-        )
-
-    def test_default_timeout_is_thirty_seconds(self) -> None:
-        with mock.patch.object(hc.subprocess, "run", return_value=reply("{}")) as run:
-            hc.run("hc", ["ls"])
-        self.assertEqual(run.call_args.kwargs["timeout"], 30.0)
-
-    def test_oserror_and_timeout_become_unavailable_and_name_only_the_command(self) -> None:
-        secret = "text-that-must-not-leak"
-        with mock.patch.object(hc.subprocess, "run", side_effect=OSError("binary not found")):
-            with self.assertRaisesRegex(backend.BackendUnavailable, r"hc send unavailable: binary not found") as caught:
-                hc.run("hc", ["send", "t7", secret])
-        self.assertNotIn(secret, str(caught.exception))
-        timeout = subprocess.TimeoutExpired(["hc", "wait"], 30.0)
-        with mock.patch.object(hc.subprocess, "run", side_effect=timeout):
-            with self.assertRaisesRegex(backend.BackendUnavailable, r"hc wait timed out"):
-                hc.run("hc", ["wait", "t7"])
-
     def test_binary_is_herdr_core_when_executable_else_hc_on_path(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             home = Path(tmp)
@@ -124,20 +92,16 @@ class RunnerTest(unittest.TestCase):
             binary.chmod(stat.S_IRWXU)
             with mock.patch.object(hc.Path, "home", return_value=Path(tmp)):
                 bound = hc.Adapter(ENVIRON)
-            with mock.patch.object(hc.subprocess, "run", return_value=reply(fixture("ls.json"))) as run:
+            with mock.patch.object(backend.subprocess, "run", return_value=reply(fixture("ls.json"))) as run:
                 bound.list_seats()
         self.assertEqual(run.call_args.args[0], [str(binary), "ls", "--json"])
 
     def test_default_runner_propagates_unavailable(self) -> None:
         with tempfile.TemporaryDirectory() as tmp, mock.patch.object(hc.Path, "home", return_value=Path(tmp)):
             bound = hc.Adapter(ENVIRON)
-        with mock.patch.object(hc.subprocess, "run", side_effect=OSError("gone")):
+        with mock.patch.object(backend.subprocess, "run", side_effect=OSError("gone")):
             with self.assertRaises(backend.BackendUnavailable):
                 bound.list_seats()
-
-    def test_adapter_is_the_registered_hc_adapter(self) -> None:
-        self.assertEqual(backend.ADAPTERS["hc"], "backends.hc")
-        self.assertEqual(hc.Adapter.name, "hc")
 
 
 class CorePinTest(unittest.TestCase):
@@ -421,9 +385,9 @@ class ProcessesTest(unittest.TestCase):
         a, runner = adapter(reply(fixture("get-live.json")), reply(fixture("get-live-no-status.json")))
         self.assertEqual(
             a.processes("t7"),
-            [{"pid": 4242, "name": "claude", "argv": ["/usr/local/bin/claude", "--model", "opus"], "cwd": "/work/checkout", "argv0": "/usr/local/bin/claude"}],
+            [backend.Process(("/usr/local/bin/claude", "--model", "opus"), 4242, "/work/checkout")],
         )
-        self.assertEqual(a.processes("t3")[0]["argv"], ["npm", "run", "dev"])
+        self.assertEqual(a.processes("t3"), [backend.Process(("npm", "run", "dev"), 777, "/work/checkout/app")])
         self.assertEqual(runner.argv, [["get", "t7", "--json"], ["get", "t3", "--json"]])
 
     def test_a_finished_terminal_has_no_process(self) -> None:
@@ -455,7 +419,7 @@ class IdentifyTest(unittest.TestCase):
         for label, answer in rows.items():
             with self.subTest(label):
                 a, _ = adapter(answer)
-                with self.assertRaises(backend.BackendUnavailable):
+                with self.assertRaises(backend.BackendError):
                     a.identify()
 
     def test_identify_without_a_terminal_id_runs_nothing(self) -> None:
@@ -467,13 +431,13 @@ class IdentifyTest(unittest.TestCase):
     def test_identify_propagates_a_missing_binary(self) -> None:
         with tempfile.TemporaryDirectory() as tmp, mock.patch.object(hc.Path, "home", return_value=Path(tmp)):
             bound = hc.Adapter(ENVIRON)
-        with mock.patch.object(hc.subprocess, "run", side_effect=OSError("no hc")):
+        with mock.patch.object(backend.subprocess, "run", side_effect=OSError("no hc")):
             with self.assertRaisesRegex(backend.BackendUnavailable, "no hc"):
                 bound.identify()
 
     def test_open_backend_runs_identify_once_and_keeps_the_handle(self) -> None:
         with tempfile.TemporaryDirectory() as tmp, mock.patch.object(hc.Path, "home", return_value=Path(tmp)):
-            with mock.patch.object(hc.subprocess, "run", return_value=reply(fixture("get-live.json"))) as run:
+            with mock.patch.object(backend.subprocess, "run", return_value=reply(fixture("get-live.json"))) as run:
                 opened = backend.open_backend(ENVIRON)
         self.assertEqual((opened.name, opened.handle), ("hc", "t7"))
         run.assert_called_once()
@@ -492,15 +456,14 @@ class SendBlockTest(unittest.TestCase):
     def test_block_is_the_report_by_prompt_send_with_no_notification_line(self) -> None:
         a, runner = adapter()
         block = a.send_block(LEAD, REPORT)
-        self.assertEqual(block, 'hc send t3 "$(cat /state/projects/demo/runs/r1/send-eng-a.txt)"')
-        self.assertNotIn("\n", block)
-        self.assertNotIn("notif", block)
+        self.assertEqual(block, backend.SendBlock('hc send t3 "$(cat /state/projects/demo/runs/r1/send-eng-a.txt)"'))
+        self.assertIsNone(block.failure_notice)
         self.assertEqual(runner.calls, [])
 
     def test_block_renders_the_binary_the_adapter_resolved(self) -> None:
         resolved = hc.Adapter(ENVIRON, runner=Recorder(), binary="/home/u/.local/bin/herdr-core")
         self.assertEqual(
-            resolved.send_block(LEAD, REPORT),
+            resolved.send_block(LEAD, REPORT).send_command,
             '"$HOME/.local/bin/herdr-core" send t3 "$(cat /state/projects/demo/runs/r1/send-eng-a.txt)"',
         )
 
@@ -518,7 +481,7 @@ class SendBlockTest(unittest.TestCase):
     def test_a_handle_the_other_backends_use_is_accepted(self) -> None:
         a, _ = adapter()
         for handle in ("w1:p1", "t7", "session:s1.block:b1"):
-            self.assertIn(f"hc send {handle} ", a.send_block(handle, REPORT))
+            self.assertIn(f"hc send {handle} ", a.send_block(handle, REPORT).send_command)
 
 
 def template_matches(template: str, args: list[str]) -> bool:

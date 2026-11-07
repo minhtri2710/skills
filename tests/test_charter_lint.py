@@ -512,8 +512,8 @@ class CharterLintTest(unittest.TestCase):
                 self.assertEqual((code, error), expected)
 
     def test_the_charter_must_hold_the_send_block_the_backend_renders(self):
-        rendered = FakeBackend().send_block(LEAD, REPORT)
-        wrong_lead = FakeBackend().send_block("lead-other", REPORT)
+        rendered = FakeBackend().send_block(LEAD, REPORT).text
+        wrong_lead = FakeBackend().send_block("lead-other", REPORT).text
         problem = f"charter_lint: missing report-by-prompt block, as fake renders it:\n{rendered}\n"
         for label, block in (
             ("absent", ""),
@@ -526,14 +526,18 @@ class CharterLintTest(unittest.TestCase):
 
     def test_the_send_block_is_whatever_the_opened_backend_renders(self):
         block = herdr.Adapter({}).send_block(LEAD, REPORT)
-        charter = self.engineer_charter().replace(FakeBackend().send_block(LEAD, REPORT), block)
+        charter = self.engineer_charter().replace(FakeBackend().send_block(LEAD, REPORT).text, block.text)
         self.assertEqual(self.run_lint(charter, self.staffing_record(), herdr.Adapter({}))[::2], (0, ""))
+        without_notice = charter.replace(block.failure_notice, "")
+        code, _, error = self.run_lint(without_notice, self.staffing_record(), herdr.Adapter({}))
+        self.assertEqual(code, 1)
+        self.assertIn("as herdr renders it", error)
         code, _, error = self.run_lint(charter, self.staffing_record())
         self.assertEqual(code, 1)
         self.assertIn("as fake renders it", error)
 
     def test_a_charter_without_an_absolute_report_path_is_named(self):
-        charter = self.engineer_charter().replace(FakeBackend().send_block(LEAD, REPORT), "").replace(REPORT, "report-eng-lint.md")
+        charter = self.engineer_charter().replace(FakeBackend().send_block(LEAD, REPORT).text, "").replace(REPORT, "report-eng-lint.md")
         code, _, error = self.run_lint(charter, self.staffing_record())
         self.assertEqual(code, 1)
         self.assertEqual(error, "charter_lint: missing report-by-prompt block: absolute <run-dir>/report-<peer>.md path\n")
@@ -579,7 +583,7 @@ class CharterLintTest(unittest.TestCase):
 
     @staticmethod
     def send_block_text(block: str | None = None) -> str:
-        block = FakeBackend().send_block(LEAD, REPORT) if block is None else block
+        block = FakeBackend().send_block(LEAD, REPORT).text if block is None else block
         return (
             f"At send time, compose a prompt with the verdict/outcome line, a bounded summary (~200 words max), and full report at {REPORT}; "
             f"send it with exactly this block and NO other flags:\n{block}\n"

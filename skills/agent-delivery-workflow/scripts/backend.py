@@ -1,68 +1,22 @@
 #!/usr/bin/env python3
 """The seat-operation seam: detect the terminal tool, then drive seats through one adapter.
 
-Public names (stdlib only):
-
-Errors, all subclasses of BackendError(message, code="unknown"):
-  BackendUnavailable  binary missing, timeout, or a failed identify; the run stops.
-  Unsupported         the operation, or the whole backend, is not supported.
-  DetectionError      no signature matches, several match, or --backend does not hold; names the matches.
-  SeatError(kind, message)  a per-seat failure; kind is one of SEAT_ERROR_KINDS
-                      ("not_found", "blocked", "not_started"); code equals kind.
-
-Data:
-  Seat(handle, name, state, kind, cwd, argv, session, workspace)  one seat; state is in STATES;
-                      session is Session(kind, value) or None; name, kind, cwd, workspace may be None.
-  Explicit(name, handle)  a parsed NAME@HANDLE: a --backend flag or a seat record line.
-
-Detection (design section 4):
-  own_handle(name, environ) -> str | None   this process's own handle under backend `name`, a pure read.
-  detect(environ, explicit=None) -> str     the one backend name, or raises DetectionError / Unsupported.
-                      A recorded handle that differs from this process's own handle is rejected like
-                      any other foreign --backend value: that is the relaunch rule.
-
-Opening a backend:
-  add_backend_option(parser) -> None        adds --backend NAME@HANDLE; the parsed value is args.backend.
-  open_backend(environ, explicit=None) -> Backend   detect, construct the adapter, run identify (kept in .handle).
-  ADAPTERS            one line per backend: name -> adapter module; each module defines `Adapter`.
-
-Seat records (one line "<backend> <handle>", the lead-seat and supervisor-seat files):
-  parse_explicit(text) -> Explicit          raises ValueError.
-  read_seat_record(path) -> Explicit        raises OSError or ValueError.
-  `backend.py whoami [--backend NAME@HANDLE]` prints this seat's "<backend> <handle>" after identify;
-  a seat writes its record only after whoami succeeds:
-  `r=$(backend.py whoami) && printf '%s\\n' "$r" > <path>`.
-  `backend.py send-block --lead <lead handle> --report <run-dir>/report-<peer>.md [--backend NAME@HANDLE]`
-  prints the backend's send block, the text `send_block` returns; every charter carries it.
-
-Backend (the adapter base; every operation raises Unsupported until an adapter implements it):
-  identify() -> str                         this seat's own handle, confirmed with the tool.
-  list_seats() -> list[Seat]
-  get_seat(ref) -> Seat                     the agent seat by handle or name.
-  get_terminal(handle) -> Seat              the terminal behind a handle, whether or not an agent runs in it.
-  read_output(ref, lines) -> str            recent unwrapped output.
-  prompt(ref, text) -> None                 send text and submit it; raises SeatError blocked / not_found.
-  wait_state(ref, states, timeout_ms) -> str  wait for one of `states`; returns the state reached. A requested state
-                                            the tool never reports is ignored; ValueError only when none remain.
-  processes(handle) -> list[Mapping]        foreground processes of a seat, as the backend reports them
-                                            (keys argv, argv0, pid, cwd where known).
-  send_block(lead_handle, report_path) -> str  the report-by-prompt send block a charter must contain.
-
-Report paths (the adapters' send_block):
-  report_send_file(report_path) -> (peer, send_path)  validates <run-dir>/report-<peer>.md and names the Peer's
-                      send file; raises ValueError.
-
-Spawn, interrupt, close and notify are not part of this surface: no migrated caller needs them yet.
-The environment is read, never printed or logged.
+Each adapter module in ADAPTERS defines `Adapter(Backend)` with its detection signature, own-handle reader and the
+seat operations; the shared tool runner, JSON reader, handle and wait-state checks, process record and report send
+block live here. `backend.py whoami` prints this seat's "<backend> <handle>" after identify, and `backend.py
+send-block --lead <lead handle> --report <run-dir>/report-<peer>.md` prints the backend's report send block. The
+environment is read, never printed or logged.
 """
 from __future__ import annotations
 
 import argparse
 import importlib
+import json
 import os
 import re
+import subprocess
 import sys
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, NamedTuple
@@ -72,8 +26,8 @@ SEAT_ERROR_KINDS = ("not_found", "blocked", "not_started")
 HANDLE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$")
 _REPORT_PATH_RE = re.compile(r"(?P<dir>.+)/report-(?P<peer>[^/]+)\.md")
 _UNSAFE_IN_DOUBLE_QUOTES = frozenset('"$`\\\n')
+DEFAULT_TIMEOUT = 30.0
 
-# One line per backend. Each module defines `Adapter`.
 ADAPTERS = {
     "herdr": "backends.herdr",
     "hc": "backends.hc",
@@ -129,21 +83,81 @@ class Seat:
             raise ValueError(f"unknown seat state: {self.state}")
 
 
+@dataclass(frozen=True)
+class Process:
+    """A foreground process of a seat; argv falls back to (argv0,) or (name,) when the tool hides argv."""
+
+    argv: tuple[str, ...]
+    pid: int | None = None
+    cwd: str | None = None
+
+    @classmethod
+    def from_record(cls, record: Mapping[str, Any]) -> Process:
+        argv = record.get("argv")
+        if not (isinstance(argv, list) and all(isinstance(arg, str) for arg in argv)):
+            word = record.get("argv0") or record.get("name")
+            argv = [word] if isinstance(word, str) else []
+        pid, cwd = record.get("pid"), record.get("cwd")
+        return cls(tuple(argv), pid if isinstance(pid, int) else None, cwd if isinstance(cwd, str) else None)
+
+
+class SendBlock(NamedTuple):
+    """The report-by-prompt block: the command that sends the report and, when the tool has one, the notice run if it fails."""
+
+    send_command: str
+    failure_notice: str | None = None
+
+    @property
+    def text(self) -> str:
+        return self.send_command if self.failure_notice is None else f"{self.send_command}\n{self.failure_notice}"
+
+
 class Explicit(NamedTuple):
     name: str
     handle: str
 
 
-def _all_set(environ: Mapping[str, str], *keys: str) -> bool:
-    return all(environ.get(key) for key in keys)
+Runner = Callable[..., "subprocess.CompletedProcess[str]"]
 
 
-# Section 4 signatures. Every backend is listed so a later slice never edits detection.
-_SIGNATURES = {
-    "herdr": lambda e: e.get("HERDR_ENV") == "1" and _all_set(e, "HERDR_PANE_ID"),
-    "hc": lambda e: _all_set(e, "HC_TERMINAL_ID", "HC_TERMINAL_SOCKET"),
-    "rex": lambda e: e.get("TERM_PROGRAM") == "rex" and _all_set(e, "REX_BLOCK", "REX_SESSION"),
-}
+def run_tool(
+    binary: str, args: list[str], *, timeout: float, env: Mapping[str, str] | None = None
+) -> subprocess.CompletedProcess[str]:
+    words = [arg for arg in args if not arg.startswith("-")][:2]
+    label = " ".join([Path(binary).name, *words])
+    try:
+        return subprocess.run(
+            [binary, *args], capture_output=True, text=True, encoding="utf-8", check=False, timeout=timeout, env=env
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise BackendUnavailable(f"{label} timed out after {timeout} seconds") from exc
+    except OSError as exc:
+        raise BackendUnavailable(f"{label} unavailable: {exc}") from exc
+
+
+def json_object(text: str) -> dict[str, Any]:
+    try:
+        value = json.loads(text)
+    except json.JSONDecodeError:
+        return {}
+    return value if isinstance(value, dict) else {}
+
+
+def require_handle(text: str) -> str:
+    if HANDLE_RE.fullmatch(text) is None:
+        raise ValueError(f"not a seat handle: {text!r}")
+    return text
+
+
+def require_states(states: Sequence[str]) -> None:
+    if not states or any(state not in STATES for state in states):
+        raise ValueError(f"wait states must be a non-empty subset of {STATES}")
+
+
+def require_reached(label: str, reached: str, states: Sequence[str]) -> str:
+    if reached not in states:
+        raise BackendError(f"{label} reached {reached}, not one of {', '.join(states)}", code="state_not_requested")
+    return reached
 
 
 def report_send_file(report_path: str) -> tuple[str, str]:
@@ -153,19 +167,18 @@ def report_send_file(report_path: str) -> tuple[str, str]:
     return match["peer"], f"{match['dir']}/send-{match['peer']}.txt"
 
 
+def adapter_class(name: str) -> type[Backend]:
+    if name not in ADAPTERS:
+        raise ValueError(f"unknown backend: {name}")
+    return importlib.import_module(ADAPTERS[name]).Adapter
+
+
 def own_handle(name: str, environ: Mapping[str, str]) -> str | None:
-    if name == "herdr":
-        return environ.get("HERDR_PANE_ID") or None
-    if name == "hc":
-        return environ.get("HC_TERMINAL_ID") or None
-    if name == "rex":
-        session, block = environ.get("REX_SESSION"), environ.get("REX_BLOCK")
-        return f"{session}.{block}" if session and block else None
-    raise ValueError(f"unknown backend: {name}")
+    return adapter_class(name).own_handle(environ)
 
 
 def detect(environ: Mapping[str, str], explicit: Explicit | None = None) -> str:
-    matched = [name for name, signature in _SIGNATURES.items() if signature(environ)]
+    matched = [name for name in ADAPTERS if adapter_class(name).matches(environ)]
     if not matched:
         raise DetectionError("no supported terminal tool signature matches this environment")
     if explicit is None:
@@ -186,15 +199,13 @@ def detect(environ: Mapping[str, str], explicit: Explicit | None = None) -> str:
                 f"--backend handle is not this seat's own handle under {explicit.name}"
             )
         name = explicit.name
-    if name not in ADAPTERS:
-        raise Unsupported(f"backend {name} matched, but its adapter is not installed in this skill")
     return name
 
 
 def parse_explicit(text: str) -> Explicit:
     name, separator, handle = text.partition("@")
-    if not separator or name not in _SIGNATURES or HANDLE_RE.fullmatch(handle) is None:
-        raise ValueError(f"expected NAME@HANDLE with NAME one of {', '.join(_SIGNATURES)}, got {text!r}")
+    if not separator or name not in ADAPTERS or HANDLE_RE.fullmatch(handle) is None:
+        raise ValueError(f"expected NAME@HANDLE with NAME one of {', '.join(ADAPTERS)}, got {text!r}")
     return Explicit(name, handle)
 
 
@@ -217,7 +228,7 @@ def add_backend_option(parser: argparse.ArgumentParser) -> None:
 
 class Backend:
     name = ""
-    handle: str | None = None  # this seat's own handle; set by open_backend after identify
+    handle: str | None = None
 
     def __init__(self, environ: Mapping[str, str]) -> None:
         self.environ = environ
@@ -246,17 +257,26 @@ class Backend:
     def wait_state(self, ref: str, states: Sequence[str], timeout_ms: int) -> str:
         raise self._unsupported("wait_state")
 
-    def processes(self, handle: str) -> list[Any]:
+    def processes(self, handle: str) -> list[Process]:
         raise self._unsupported("processes")
 
-    def send_block(self, lead_handle: str, report_path: str) -> str:
+    def send_block(self, lead_handle: str, report_path: str) -> SendBlock:
+        peer, send_path = report_send_file(report_path)
+        return self._render_send_block(require_handle(lead_handle), peer, send_path, report_path)
+
+    def _render_send_block(self, lead_handle: str, peer: str, send_path: str, report_path: str) -> SendBlock:
         raise self._unsupported("send_block")
 
 
 def open_backend(environ: Mapping[str, str], explicit: Explicit | None = None) -> Backend:
     name = detect(environ, explicit)
-    adapter = importlib.import_module(ADAPTERS[name]).Adapter(environ)
-    adapter.handle = adapter.identify()
+    adapter = adapter_class(name)(environ)
+    try:
+        adapter.handle = adapter.identify()
+    except BackendUnavailable:
+        raise
+    except (BackendError, ValueError) as exc:
+        raise BackendUnavailable(f"{name} identify failed: {exc}") from exc
     return adapter
 
 
@@ -287,7 +307,7 @@ def main(argv: Sequence[str] | None = None, environ: Mapping[str, str] | None = 
         if args.mode == "whoami":
             print(f"{adapter.name} {adapter.handle}")
         else:
-            print(adapter.send_block(args.lead, args.report))
+            print(adapter.send_block(args.lead, args.report).text)
     except (BackendError, ValueError) as exc:
         print(f"backend: {exc}", file=sys.stderr)
         return 1

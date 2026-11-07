@@ -42,12 +42,20 @@ fixture = partial(support.fixture, "rex")
 reply = partial(support.reply, "rex")
 
 
-def adapter(*replies: subprocess.CompletedProcess[str]) -> tuple[rex.Adapter, Recorder]:
+def fresh(*replies: subprocess.CompletedProcess[str]) -> tuple[rex.Adapter, Recorder]:
     return support.adapter(rex, ENVIRON, *replies)
 
 
+def adapter(*replies: subprocess.CompletedProcess[str]) -> tuple[rex.Adapter, Recorder]:
+    """An identified adapter whose runner has answered only the identify calls; `replies` answer what the test calls next."""
+    a, runner = fresh(reply(fixture("whoami.json")), reply(fixture("block-ls.json")), *replies)
+    a.identify()
+    runner.calls.clear()
+    return a, runner
+
+
 def block_call(block: str, method: str) -> list[str]:
-    return [*BASE, "block", "call", "-s", SESSION, "-b", block, method]
+    return [*PINNED, "block", "call", "-s", SESSION, "-b", block, method]
 
 
 class Scripted:
@@ -102,20 +110,6 @@ def is_allowed(command: str) -> bool:
 
 
 class RunnerTest(unittest.TestCase):
-    def test_run_uses_the_shared_subprocess_contract(self) -> None:
-        completed = subprocess.CompletedProcess(["rex", "ls"], 0, stdout="{}", stderr="")
-        with mock.patch.object(rex.subprocess, "run", return_value=completed) as run:
-            result = rex.run(["--autostart=false", "whoami", "--json"], timeout=4.5)
-        self.assertIs(result, completed)
-        run.assert_called_once_with(
-            ["rex", "--autostart=false", "whoami", "--json"],
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            check=False,
-            timeout=4.5,
-        )
-
     def test_binary_is_rex_bin_dir_when_executable_else_path(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             self.assertEqual(rex._binary({"REX_BIN_DIR": tmp}), "rex")
@@ -131,25 +125,14 @@ class RunnerTest(unittest.TestCase):
         with mock.patch.object(rex.subprocess, "run", return_value=completed) as run:
             built = rex.Adapter({**ENVIRON})
             with self.assertRaises(backend.BackendError):
-                built.get_terminal(LEAD)
+                built.identify()
         self.assertEqual(run.call_args.args[0][:2], ["rex", "--autostart=false"])
-        self.assertEqual(run.call_args.kwargs["timeout"], 30.0)
+        self.assertEqual(run.call_args.kwargs["timeout"], backend.DEFAULT_TIMEOUT)
 
-    def test_oserror_and_timeout_become_unavailable(self) -> None:
-        with mock.patch.object(rex.subprocess, "run", side_effect=OSError("binary not found")):
-            with self.assertRaisesRegex(backend.BackendUnavailable, r"rex --autostart=false whoami.*binary not found"):
-                rex.run(["--autostart=false", "whoami", "--json"])
-        timeout = subprocess.TimeoutExpired(["rex"], 30.0)
-        with mock.patch.object(rex.subprocess, "run", side_effect=timeout):
-            with self.assertRaisesRegex(backend.BackendUnavailable, "timed out"):
-                rex.run(["--autostart=false", "whoami", "--json"])
-        with mock.patch.object(rex.subprocess, "run", side_effect=OSError("gone")):
+    def test_default_runner_propagates_unavailable(self) -> None:
+        with mock.patch.object(backend.subprocess, "run", side_effect=OSError("gone")):
             with self.assertRaises(backend.BackendUnavailable):
-                rex.Adapter(ENVIRON).list_seats()
-
-    def test_adapter_is_the_registered_rex_adapter(self) -> None:
-        self.assertEqual(backend.ADAPTERS["rex"], "backends.rex")
-        self.assertEqual(rex.Adapter.name, "rex")
+                rex.Adapter(ENVIRON).identify()
 
 
 class DetectionTest(unittest.TestCase):
@@ -166,7 +149,7 @@ class DetectionTest(unittest.TestCase):
 
     def test_open_backend_runs_identify_once_and_keeps_the_handle(self) -> None:
         runner = Scripted()
-        with mock.patch.object(rex, "run", runner):
+        with mock.patch.object(backend.subprocess, "run", side_effect=lambda command, **kwargs: runner(command[1:], **kwargs)):
             opened = backend.open_backend(ENVIRON)
         self.assertEqual((opened.name, opened.handle), ("rex", LEAD))
         self.assertEqual([normalized(args) for args in runner.argv], ["whoami --json", "block ls -s <S> --json"])
@@ -174,7 +157,7 @@ class DetectionTest(unittest.TestCase):
 
 class IdentifyTest(unittest.TestCase):
     def test_identify_reads_the_endpoint_then_confirms_the_own_block(self) -> None:
-        a, runner = adapter(reply(fixture("whoami.json")), reply(fixture("block-ls.json")))
+        a, runner = fresh(reply(fixture("whoami.json")), reply(fixture("block-ls.json")))
         self.assertEqual(a.identify(), LEAD)
         self.assertEqual(
             runner.argv,
@@ -182,7 +165,7 @@ class IdentifyTest(unittest.TestCase):
         )
 
     def test_every_call_after_identify_pins_the_server(self) -> None:
-        a, runner = adapter(reply(fixture("whoami.json")), reply(fixture("block-ls.json")), reply(fixture("block-ls.json")))
+        a, runner = fresh(reply(fixture("whoami.json")), reply(fixture("block-ls.json")), reply(fixture("block-ls.json")))
         a.identify()
         a.get_terminal(LEAD)
         self.assertEqual(runner.argv[2][:3], PINNED)
@@ -199,8 +182,8 @@ class IdentifyTest(unittest.TestCase):
         }
         for label, answers in rows.items():
             with self.subTest(label):
-                a, _ = adapter(*answers)
-                with self.assertRaises(backend.BackendUnavailable):
+                a, _ = fresh(*answers)
+                with self.assertRaises(backend.BackendError):
                     a.identify()
 
     def test_identify_without_a_usable_own_handle_runs_nothing(self) -> None:
@@ -210,6 +193,22 @@ class IdentifyTest(unittest.TestCase):
                 with self.assertRaises(backend.BackendUnavailable):
                     rex.Adapter(environ, runner=runner).identify()
                 self.assertEqual(runner.calls, [])
+
+
+    def test_a_call_before_identify_is_refused_and_runs_nothing(self) -> None:
+        a, runner = fresh()
+        calls = (
+            a.list_seats,
+            lambda: a.get_seat(LEAD),
+            lambda: a.get_terminal(LEAD),
+            lambda: a.read_output(ENG_A, 5),
+            lambda: a.prompt(ENG_A, "text"),
+            lambda: a.processes(ENG_A),
+        )
+        for call in calls:
+            with self.assertRaisesRegex(backend.BackendUnavailable, "before identify"):
+                call()
+        self.assertEqual(runner.calls, [])
 
 
 class SeatTest(unittest.TestCase):
@@ -225,7 +224,7 @@ class SeatTest(unittest.TestCase):
         self.assertEqual(
             runner.argv,
             [
-                [*BASE, "block", "ls", "-s", SESSION, "--json"],
+                [*PINNED, "block", "ls", "-s", SESSION, "--json"],
                 block_call("block:a1", "program_status"),
                 block_call("block:a2", "program_status"),
                 block_call("block:a3", "program_status"),
@@ -261,19 +260,19 @@ class SeatTest(unittest.TestCase):
     def test_get_seat_by_handle_lists_the_handles_session(self) -> None:
         a, runner = adapter(reply(fixture("block-ls.json")), reply(fixture("status_working.json")))
         seat = a.get_seat(ENG_A)
-        self.assertEqual(runner.argv[0], [*BASE, "block", "ls", "-s", SESSION, "--json"])
+        self.assertEqual(runner.argv[0], [*PINNED, "block", "ls", "-s", SESSION, "--json"])
         self.assertEqual(runner.argv[1], block_call("block:a2", "program_status"))
         self.assertEqual((seat.handle, seat.name, seat.state), (ENG_A, "eng-a", "working"))
 
     def test_get_seat_by_name_looks_in_the_own_session(self) -> None:
         a, runner = adapter(reply(fixture("block-ls.json")), reply(fixture("status_working.json")))
         self.assertEqual(a.get_seat("eng-a").handle, ENG_A)
-        self.assertEqual(runner.argv[0], [*BASE, "block", "ls", "-s", SESSION, "--json"])
+        self.assertEqual(runner.argv[0], [*PINNED, "block", "ls", "-s", SESSION, "--json"])
 
     def test_get_seat_in_another_session_lists_that_session(self) -> None:
         a, runner = adapter(reply('{"blocks": [{"block_id": "block:b1", "label": "x"}]}'), reply(fixture("status_empty.json")))
         self.assertEqual(a.get_seat("session:bbbb.block:b1").handle, "session:bbbb.block:b1")
-        self.assertEqual(runner.argv[0], [*BASE, "block", "ls", "-s", "session:bbbb", "--json"])
+        self.assertEqual(runner.argv[0], [*PINNED, "block", "ls", "-s", "session:bbbb", "--json"])
 
     def test_missing_seat_is_not_found(self) -> None:
         rows = {
@@ -311,7 +310,7 @@ class SeatTest(unittest.TestCase):
     def test_get_terminal_returns_the_handle_and_label(self) -> None:
         a, runner = adapter(reply(fixture("block-ls.json")))
         seat = a.get_terminal(ENG_A)
-        self.assertEqual(runner.argv, [[*BASE, "block", "ls", "-s", SESSION, "--json"]])
+        self.assertEqual(runner.argv, [[*PINNED, "block", "ls", "-s", SESSION, "--json"]])
         self.assertEqual((seat.handle, seat.name, seat.state), (ENG_A, "eng-a", "unknown"))
 
 
@@ -353,12 +352,12 @@ class ReadTest(unittest.TestCase):
     def test_read_output_argv_and_tail(self) -> None:
         a, runner = adapter(reply(fixture("capture.txt")))
         self.assertEqual(a.read_output(ENG_A, 2), "Awaiting: lead review\n> last visible line\n")
-        self.assertEqual(runner.argv, [[*BASE, "capture", "-s", SESSION, "-b", "block:a2", "--trim"]])
+        self.assertEqual(runner.argv, [[*PINNED, "capture", "-s", SESSION, "-b", "block:a2", "--trim"]])
 
     def test_read_output_by_name_resolves_the_label_first_and_strips_cr(self) -> None:
         a, runner = adapter(reply(fixture("block-ls.json")), reply("one\r\ntwo\r\n"))
         self.assertEqual(a.read_output("eng-a", 10), "one\ntwo\n")
-        self.assertEqual(runner.argv[0][1:3], ["block", "ls"])
+        self.assertEqual(runner.argv[0][3:5], ["block", "ls"])
 
     def test_read_output_rejects_a_non_positive_count_and_maps_exit_3(self) -> None:
         a, runner = adapter()
@@ -379,8 +378,8 @@ class PromptTest(unittest.TestCase):
             runner.argv,
             [
                 block_call("block:a2", "program_status"),
-                [*BASE, "send", "-s", SESSION, "-b", "block:a2", "--", 'line one\nline "two" $HOME'],
-                [*BASE, "send-key", "-s", SESSION, "-b", "block:a2", "enter"],
+                [*PINNED, "send", "-s", SESSION, "-b", "block:a2", "--", 'line one\nline "two" $HOME'],
+                [*PINNED, "send-key", "-s", SESSION, "-b", "block:a2", "enter"],
             ],
         )
 
@@ -401,7 +400,7 @@ class PromptTest(unittest.TestCase):
             with self.subTest(answer.stdout or answer.returncode):
                 a, runner = adapter(answer, reply(), reply())
                 a.prompt(ENG_A, "text")
-                self.assertEqual([args[1] for args in runner.argv], ["block", "send", "send-key"])
+                self.assertEqual([args[3] for args in runner.argv], ["block", "send", "send-key"])
 
     def test_a_gone_or_unreachable_seat_sends_nothing(self) -> None:
         a, runner = adapter(reply(returncode=3))
@@ -431,7 +430,7 @@ class PromptTest(unittest.TestCase):
     def test_prompt_by_name_resolves_the_label_first(self) -> None:
         a, runner = adapter(reply(fixture("block-ls.json")), reply(fixture("status_empty.json")), reply(), reply())
         a.prompt("eng-a", "text")
-        self.assertEqual(runner.argv[0][1:3], ["block", "ls"])
+        self.assertEqual(runner.argv[0][3:5], ["block", "ls"])
         self.assertEqual(runner.argv[1], block_call("block:a2", "program_status"))
 
 
@@ -449,13 +448,12 @@ class ProcessesTest(unittest.TestCase):
         a, runner = adapter(reply(fixture("process_claude.json")))
         processes = a.processes(ENG_A)
         self.assertEqual(runner.argv, [block_call("block:a2", "process")])
-        self.assertEqual(len(processes), 1)
-        self.assertEqual((processes[0]["argv0"], processes[0]["cwd"], processes[0]["pid"]), ("claude", "/tmp/sku-proj-a", 4242))
+        self.assertEqual(processes, [backend.Process(("claude",), 4242, "/tmp/sku-proj-a")])
 
     def test_other_foregrounds_and_none(self) -> None:
         a, _ = adapter(reply(fixture("process_codex.json")), reply(fixture("process_shell.json")), reply(fixture("process_none.json")))
-        self.assertEqual(a.processes(ENG_A)[0]["name"], "codex")
-        self.assertEqual(a.processes(ENG_A)[0]["argv0"], "-zsh")
+        self.assertEqual(a.processes(ENG_A), [backend.Process(("node",), 4242, "/tmp/sku-proj-b")])
+        self.assertEqual(a.processes(ENG_A), [backend.Process(("-zsh",), 4242, "/tmp/sku-proj-a")])
         self.assertEqual(a.processes(ENG_A), [])
 
     def test_malformed_replies_fail_closed(self) -> None:
@@ -476,14 +474,16 @@ class SendBlockTest(unittest.TestCase):
         a, runner = adapter()
         self.assertEqual(
             a.send_block(LEAD, REPORT),
-            '"$REX_BIN_DIR/rex" send -s session:aaaa -b block:a1 -- "$(cat /state/projects/demo/runs/r1/send-eng-a.txt)"'
-            ' && "$REX_BIN_DIR/rex" send-key -s session:aaaa -b block:a1 enter',
+            backend.SendBlock(
+                '"$REX_BIN_DIR/rex" send -s session:aaaa -b block:a1 -- "$(cat /state/projects/demo/runs/r1/send-eng-a.txt)"'
+                ' && "$REX_BIN_DIR/rex" send-key -s session:aaaa -b block:a1 enter'
+            ),
         )
         self.assertEqual(runner.calls, [])
 
     def test_block_never_relies_on_a_bare_rex_on_the_peers_path(self) -> None:
         a, _ = adapter()
-        block = a.send_block(LEAD, REPORT)
+        block = a.send_block(LEAD, REPORT).send_command
         self.assertEqual(block.count('"$REX_BIN_DIR/rex"'), 2)
         self.assertNotRegex(block, r"(^|&& )rex ")
 
@@ -507,7 +507,7 @@ class SendBlockTest(unittest.TestCase):
         self.assertEqual(len(handle), 87)
         self.assertIsNotNone(backend.HANDLE_RE.fullmatch(handle))
         a, _ = adapter()
-        self.assertIn(f"-s session:{uuid} -b block:{uuid}", a.send_block(handle, REPORT))
+        self.assertIn(f"-s session:{uuid} -b block:{uuid}", a.send_block(handle, REPORT).send_command)
 
 
 class ContractTest(unittest.TestCase):
@@ -563,7 +563,7 @@ class ContractTest(unittest.TestCase):
 
     def test_the_send_block_commands_are_in_the_allow_list(self) -> None:
         a, _ = adapter()
-        block = a.send_block(LEAD, REPORT)
+        block = a.send_block(LEAD, REPORT).send_command
         for part in block.split(" && "):
             tokens = shlex.split(part)
             self.assertEqual(tokens[0], "$REX_BIN_DIR/rex")

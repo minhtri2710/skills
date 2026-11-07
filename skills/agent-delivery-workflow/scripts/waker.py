@@ -111,9 +111,10 @@ def watch_lead(seat_backend: backend.Backend, lead: str, timeout_ms: int) -> int
 
 
 def _handle(value: str) -> str:
-    if backend.HANDLE_RE.fullmatch(value) is None:
-        raise argparse.ArgumentTypeError(f"invalid seat handle: {value!r}")
-    return value
+    try:
+        return backend.require_handle(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(str(exc)) from exc
 
 
 def _positive(value: str) -> int:
