@@ -15,9 +15,6 @@ else
   BOLD=""; DIM=""; RESET=""; BLUE=""; GREEN=""; YELLOW=""
 fi
 
-# Author sets this at the top of the stages section.
-TOTAL_STAGES=0
-
 _STAGE_INDEX=0
 ENV_FILE="${ENV_FILE:-.env}"
 WRITTEN_ENV=()
@@ -31,8 +28,10 @@ _clear() {
   if command -v tput >/dev/null 2>&1; then tput clear; else printf '\033[2J\033[3J\033[H'; fi
 }
 
-# banner "Title" shows the opening frame: what this wizard does.
+# banner "Title" shows the opening frame: what this wizard does. It counts the
+# top-level `stage` lines of this script, so keep each stage at column 0.
 banner() {
+  TOTAL_STAGES=$(grep -c '^stage ' "${BASH_SOURCE[0]}" || true)
   _clear
   printf '\n%s%s  %s%s\n' "$BOLD" "$BLUE" "$1" "$RESET"
   printf '%s  %s stages%s\n\n' "$DIM" "$TOTAL_STAGES" "$RESET"
@@ -43,7 +42,6 @@ banner() {
 }
 
 # stage "Name" clears the screen, then announces a stage and shows progress.
-# Clearing keeps only the current step on screen.
 stage() {
   _clear
   _STAGE_INDEX=$((_STAGE_INDEX + 1))
@@ -60,14 +58,14 @@ warn() { printf '  %s⚠ %s%s\n' "$YELLOW" "$1" "$RESET"; }
 
 # open_url URL opens it in the human's browser, cross-platform incl. WSL.
 open_url() {
-  local url="$1"
+  local url="$1" candidate
   printf '  %s↗ opening%s %s\n' "$GREEN" "$RESET" "$url"
-  { if   command -v wslview     >/dev/null 2>&1; then wslview "$url"
-    elif command -v explorer.exe >/dev/null 2>&1; then explorer.exe "$url"
-    elif command -v xdg-open    >/dev/null 2>&1; then xdg-open "$url"
-    elif command -v open        >/dev/null 2>&1; then open "$url"
-    else warn "couldn't open a browser; visit it manually: $url"; fi
-  } >/dev/null 2>&1 || warn "couldn't open a browser, so visit it manually: $url"
+  local opener=""
+  for candidate in wslview explorer.exe xdg-open open; do
+    if command -v "$candidate" >/dev/null 2>&1; then opener="$candidate"; break; fi
+  done
+  if [[ -n "$opener" ]] && "$opener" "$url" >/dev/null 2>&1; then return 0; fi
+  warn "couldn't open a browser; visit it manually: $url"
 }
 
 # pause "msg" waits for the human to confirm they've done the manual part.
@@ -86,25 +84,32 @@ confirm() {
   [[ "$reply" =~ ^[Yy] ]]
 }
 
-# _existing KEY: current value of KEY in ENV_FILE, if any.
 _existing() {
   [[ -f "$ENV_FILE" ]] || return 1
   local line; line=$(grep -E "^${1}=" "$ENV_FILE" | tail -n1) || return 1
   printf '%s' "${line#*=}"
 }
 
-# ask KEY "Prompt" reads a value into $KEY. Offers the existing .env value as
-# a default on re-runs (Enter keeps it). Visible input (non-secret).
-ask() {
-  local key="$1" prompt="$2" current input
+# _read_value KEY "Prompt" SECRET reads a value into $KEY; SECRET=1 hides the
+# input. Offers the existing .env value as a default (Enter keeps it) and
+# re-asks while the answer is empty and no saved value exists.
+_read_value() {
+  local key="$1" prompt="$2" secret="$3" current input eof
   current=$(_existing "$key" || true)
   while :; do
+    eof=0
     if [[ -n "$current" ]]; then
       printf '  %s%s%s %s[Enter keeps current]%s ' "$BOLD" "$prompt" "$RESET" "$DIM" "$RESET"
     else
       printf '  %s%s%s ' "$BOLD" "$prompt" "$RESET"
     fi
-    if ! read -r input; then
+    if [[ "$secret" == 1 ]]; then
+      IFS= read -rs input || eof=1
+      printf '\n'
+    else
+      read -r input || eof=1
+    fi
+    if (( eof )); then
       if [[ -n "$current" ]]; then input="$current"; break; fi
       printf 'wizard: required value %s was not provided\n' "$key" >&2
       return 1
@@ -116,29 +121,11 @@ ask() {
   printf -v "$key" '%s' "$input"
 }
 
+# ask KEY "Prompt" reads a visible value into $KEY.
+ask() { _read_value "$1" "$2" 0; }
+
 # ask_secret KEY "Prompt" is like ask, but input is hidden.
-ask_secret() {
-  local key="$1" prompt="$2" current input
-  current=$(_existing "$key" || true)
-  while :; do
-    if [[ -n "$current" ]]; then
-      printf '  %s%s%s %s[Enter keeps current]%s ' "$BOLD" "$prompt" "$RESET" "$DIM" "$RESET"
-    else
-      printf '  %s%s%s ' "$BOLD" "$prompt" "$RESET"
-    fi
-    if ! IFS= read -rs input; then
-      printf '\n'
-      if [[ -n "$current" ]]; then input="$current"; break; fi
-      printf 'wizard: required value %s was not provided\n' "$key" >&2
-      return 1
-    fi
-    printf '\n'
-    if [[ -n "$input" ]]; then break; fi
-    if [[ -n "$current" ]]; then input="$current"; break; fi
-    printf 'wizard: %s is required; try again\n' "$key" >&2
-  done
-  printf -v "$key" '%s' "$input"
-}
+ask_secret() { _read_value "$1" "$2" 1; }
 
 # write_env KEY VALUE upserts KEY=VALUE into ENV_FILE (creates it; replaces
 # any existing line). Idempotent.
@@ -153,11 +140,14 @@ write_env() {
   printf '  %s✓ wrote%s %s → %s\n' "$GREEN" "$RESET" "$key" "$ENV_FILE"
 }
 
+# _gh_ready succeeds when gh is installed and authenticated.
+_gh_ready() { command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; }
+
 # set_secret NAME VALUE sets a GitHub Actions repo secret via gh. Falls back
 # to a warning (and records it) if gh is unavailable or unauthenticated.
 set_secret() {
   local name="$1" value="$2"
-  if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
+  if _gh_ready; then
     if printf '%s' "$value" | gh secret set "$name" >/dev/null 2>&1; then
       WRITTEN_SECRET+=("$name")
       printf '  %s✓ set%s GitHub secret %s\n' "$GREEN" "$RESET" "$name"
@@ -171,7 +161,7 @@ set_secret() {
 # set_var NAME VALUE sets a GitHub Actions repo variable (non-secret).
 set_var() {
   local name="$1" value="$2"
-  if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
+  if _gh_ready; then
     if gh variable set "$name" --body "$value" >/dev/null 2>&1; then
       printf '  %s✓ set%s GitHub variable %s\n' "$GREEN" "$RESET" "$name"
       return
@@ -196,10 +186,8 @@ finish() {
 
 # ──────────────────────────────────────────────────────────────────────────
 # STAGES: author this section. One stage() per step the human takes.
-# Replace the example below. Set TOTAL_STAGES to match the stages you write.
+# Replace the example below. This line ends the library: the test cuts on it.
 # ──────────────────────────────────────────────────────────────────────────
-
-TOTAL_STAGES=1
 
 banner "Stripe setup"
 

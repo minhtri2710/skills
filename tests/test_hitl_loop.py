@@ -68,6 +68,7 @@ class HitlLoopTest(unittest.TestCase):
         finally:
             os.close(master)
         self.assertEqual(process.returncode, 0, text)
+        self.assertIn("ERRORED=y", text)
         self.assertIn("ERROR_MSG=first line\\nsecond line", text)
         self.assertEqual(text.count("ERROR_MSG="), 1)
 

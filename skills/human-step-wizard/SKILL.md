@@ -44,8 +44,8 @@ question.
 ## 3. Author the stages
 
 Copy the template to a scratch path or `scripts/`, replace the example stage with
-one `stage` per step in dependency order, and set `TOTAL_STAGES`. Use the
-helpers: `stage`, `say`, `step`, `note`, `warn`, `open_url`, `ask`, `ask_secret`,
+one `stage` per step in dependency order, each at column 0 so `banner` counts it.
+Use the helpers: `stage`, `say`, `step`, `note`, `warn`, `open_url`, `ask`, `ask_secret`,
 `write_env`, `set_secret`, `set_var`, `pause`, `confirm`. Open the URL before
 asking for its value, hide anything secret, `write_env` every persisted value,
 `set_secret` only what CI actually reads, and gate anything irreversible on
