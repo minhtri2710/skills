@@ -1,12 +1,12 @@
 """The Reviewer charter template carries every clause charter_lint requires of a Reviewer."""
 from __future__ import annotations
 
-import ast
 import contextlib
-import inspect
 import io
+import json
 import os
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -18,6 +18,8 @@ from pathlib import Path
 import support
 import backend
 import charter_lint
+import charter_render
+import state_root
 from backends import herdr
 from fake_backend import FakeBackend
 
@@ -33,13 +35,6 @@ TEMPLATE = SKILL / "templates" / "reviewer-charter.txt"
 REPORT_BLOCK = SKILL / "templates" / "report-by-prompt.txt"
 FENCE = SKILL / "templates" / "reviewer-write-fence.sb"
 LEAD = "lead-beo-skills"
-PEER = "review-aaaaaaaaaaaa"
-RUN_DIR = "/state/demo/runs/r1"
-SLOT_RE = re.compile(r"<([a-z][a-z0-9_]*)>")
-NOT_CLAUSES = {
-    "SEAT_RE", "PLACEHOLDER_RE", "RANGE_RE", "STAFFED_HEAD_RE",
-    "PRIOR_RE", "PRIOR_GLOSS_RE", "UNIT_RANGE_RE", "SHORT_SHA_RE",
-}
 
 
 def staffing(head: str) -> str:
@@ -51,42 +46,6 @@ def staffing(head: str) -> str:
         f"dialog=denied dialog-tools=ask_user_question dialog-deny=ask_user_question dialog-source=pi-1.0.4-runtime-inventory skills=none extensions=none fence=none(no OS write fence is needed) "
         f"seat=w1:p1 workspace=w1 head={head}\n"
     )
-
-
-def fill(text: str, base: str, head: str, block: backend.SendBlock | None = None) -> str:
-    block = FakeBackend().send_block(LEAD, f"{RUN_DIR}/report-{PEER}.md") if block is None else block
-    values = {
-        "head_sha": head, "base_sha": base, "lead_name": LEAD, "peer_name": PEER,
-        "run_dir": RUN_DIR, "send_block": block.text,
-    }
-    return SLOT_RE.sub(lambda m: values.get(m.group(1), f"filled-{m.group(1)}"), text)
-
-
-def lint_patterns() -> dict[str, re.Pattern[str]]:
-    patterns = {}
-    for name, value in vars(charter_lint).items():
-        if name in NOT_CLAUSES:
-            continue
-        if isinstance(value, re.Pattern):
-            patterns[name] = value
-        elif isinstance(value, tuple) and value and all(isinstance(v, re.Pattern) for v in value):
-            patterns.update({f"{name}[{i}]": v for i, v in enumerate(value)})
-    return patterns
-
-
-def lint_literals() -> list[str]:
-    tree = ast.parse(inspect.getsource(charter_lint._charter_problems))
-    literals = []
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Compare) and isinstance(node.ops[0], ast.NotIn):
-            left = node.left
-            if isinstance(left, ast.Constant):
-                literals.append(left.value)
-            elif isinstance(left, ast.JoinedStr):
-                literals.append(
-                    "".join(v.value if isinstance(v, ast.Constant) else LEAD for v in left.values)
-                )
-    return literals
 
 
 class ReviewerCharterTemplateTest(unittest.TestCase):
@@ -104,44 +63,57 @@ class ReviewerCharterTemplateTest(unittest.TestCase):
         self._tmp = tempfile.TemporaryDirectory(dir=os.path.realpath("/tmp"))
         self.tmp = Path(self._tmp.name)
         self.addCleanup(self._tmp.cleanup)
-        self.filled = fill(TEMPLATE.read_text(encoding="utf-8"), self.base, self.head)
+        patched = unittest.mock.patch.object(state_root, "STATE_ROOT", self.tmp / "state")
+        patched.start()
+        self.addCleanup(patched.stop)
+        self.run_dir = state_root.run_dir("demo", "demo-run")
+        self.run_dir.mkdir(parents=True)
+        state_root.config("demo").write_text(json.dumps({
+            "lead-kind": "claude", "lead-args": ["--model", "claude-opus-5-5"],
+            "reviewer-kind": "claude", "reviewer-args": ["--model", "claude-sonnet-5-5"],
+            "target-line": "main",
+        }), encoding="utf-8")
+        (self.run_dir / "evidence-x.log").write_text("Ran 1 OK\n", encoding="utf-8")
+        self.staffing = self.run_dir / "staffing.txt"
+        self.staffing.write_text(staffing(self.head), encoding="utf-8")
+        self.peer = f"review-{self.head[:12]}"
+        self.filled = self.render(FakeBackend())
+
+    def render(self, seats: backend.Backend) -> str:
+        with unittest.mock.patch.object(backend, "open_backend", return_value=seats), \
+                contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()) as err:
+            code = charter_render.main([
+                "--repo", str(self.repo), "--run-dir", str(self.run_dir), "--base", self.base,
+                "--head", self.head, "--pane", "w1:p1", "--lead", LEAD, "--lane", "normal",
+                "--reason", "r", "--boundary", "b", "--validation", "G1", "--check", "git diff --check",
+                "--staffing", str(self.staffing),
+            ])
+        self.assertEqual((code, err.getvalue()), (0, ""))
+        return (self.run_dir / f"charter-{self.peer}.md").read_text(encoding="utf-8")
 
     def run_lint(self, charter: str, seats: backend.Backend | None = None) -> tuple[int, str]:
         charter_path = self.tmp / "charter.md"
-        staffing_path = self.tmp / "staffing.txt"
         charter_path.write_text(charter, encoding="utf-8")
-        staffing_path.write_text(staffing(self.head), encoding="utf-8")
         stderr = io.StringIO()
         opened = unittest.mock.patch.object(
             charter_lint.backend, "open_backend", return_value=seats or FakeBackend()
         )
         with opened, contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(stderr):
             rc = charter_lint.main(
-                ["--charter", str(charter_path), "--lead", LEAD, "--staffing", str(staffing_path),
+                ["--charter", str(charter_path), "--lead", LEAD, "--staffing", str(self.staffing),
                  "--repo", str(self.repo)]
             )
         return rc, stderr.getvalue()
 
-    def test_placeholders_are_snake_case_and_all_filled(self):
-        # A quoted heredoc opener (<<') in the report block is shell syntax, not a slot.
-        text = TEMPLATE.read_text(encoding="utf-8").replace("<<'", "'")
-        self.assertEqual(
-            charter_lint.PLACEHOLDER_RE.findall(text), [m.group(0) for m in SLOT_RE.finditer(text)]
-        )
-        self.assertIsNone(charter_lint.PLACEHOLDER_RE.search(self.filled.replace("<<'", "'")))
-
-    def test_report_block_matches_report_by_prompt_template(self):
-        # Every line of the shared block appears verbatim in the charter; the commands are the <send_block> slot.
-        template = TEMPLATE.read_text(encoding="utf-8")
-        block = REPORT_BLOCK.read_text(encoding="utf-8")
-        shared = [line for line in block.strip().splitlines() if line != "<send_block>"]
-        self.assertGreaterEqual(len(shared), 5)
-        for line in shared:
-            line = line.replace("<run-dir>", "<run_dir>").replace("<peer-name>", "<peer_name>")
-            with self.subTest(line=line[:60]):
-                self.assertIn(line, template)
-        self.assertEqual(template.count("<send_block>"), 1)
-        self.assertEqual(block.count("<send_block>"), 1)
+    def test_placeholders_are_snake_case_slots(self):
+        for template in (TEMPLATE, REPORT_BLOCK):
+            with self.subTest(template=template.name):
+                # A quoted heredoc opener (<<') in the report block is shell syntax, not a slot.
+                text = template.read_text(encoding="utf-8").replace("<<'", "'")
+                self.assertEqual(
+                    charter_lint.PLACEHOLDER_RE.findall(text),
+                    [m.group(0) for m in charter_render.SLOT_RE.finditer(text)],
+                )
 
     def test_report_block_names_each_part_of_the_send_block(self):
         text = REPORT_BLOCK.read_text(encoding="utf-8")
@@ -150,8 +122,8 @@ class ReviewerCharterTemplateTest(unittest.TestCase):
                 self.assertIn(field.replace("_", " "), text)
 
     def test_the_filled_charter_holds_the_send_block_of_the_backend_that_rendered_it(self):
-        block = herdr.Adapter({}).send_block(LEAD, f"{RUN_DIR}/report-{PEER}.md")
-        filled = fill(TEMPLATE.read_text(encoding="utf-8"), self.base, self.head, block)
+        block = herdr.Adapter({}).send_block(LEAD, f"{self.run_dir}/report-{self.peer}.md")
+        filled = self.render(herdr.Adapter({}))
         self.assertIn(block.text, filled)
         self.assertEqual(self.run_lint(filled, herdr.Adapter({})), (0, ""))
         rc, err = self.run_lint(filled)
@@ -198,7 +170,7 @@ class ReviewerCharterTemplateTest(unittest.TestCase):
 
     def test_report_block_no_write_form_writes_hostile_body_verbatim(self):
         form = re.search(
-            r"`(cat > <run-dir>/report-<peer-name>\.md <<(\S+))`",
+            r"`(cat > <run_dir>/report-<peer_name>\.md <<(\S+))`",
             REPORT_BLOCK.read_text(encoding="utf-8"),
         )
         self.assertIsNotNone(form)
@@ -208,8 +180,8 @@ class ReviewerCharterTemplateTest(unittest.TestCase):
                 f"Verdict: PASS $HOME `id` $(touch {marker}) \"dq\" 'sq' \\n\n"
                 f"EOF\nEND\ntouch {marker}\n"
             )
-            command = form.group(1).replace("<run-dir>", tmp).replace("<peer-name>", "review-x")
-            delimiter = form.group(2).strip("'\"").replace("<peer-name>", "review-x")
+            command = form.group(1).replace("<run_dir>", tmp).replace("<peer_name>", "review-x")
+            delimiter = form.group(2).strip("'\"").replace("<peer_name>", "review-x")
             subprocess.run(["bash", "-c", f"{command}\n{body}{delimiter}\n"], check=True, stdin=subprocess.DEVNULL)
             self.assertEqual((Path(tmp) / "report-review-x.md").read_text(encoding="utf-8"), body)
             self.assertFalse(marker.exists())
@@ -237,7 +209,7 @@ class ReviewerCharterTemplateTest(unittest.TestCase):
             values = {"run_dir": f"{root}/.agent-delivery/projects/p/runs/2026-09-30", "peer_name": "review-45fa5929e7c1"}
             run_dir, name = Path(values["run_dir"]), values["peer_name"]
             # As a Lead fills it: a "." in a slot value becomes "\." on the regex lines.
-            fill = lambda line: SLOT_RE.sub(
+            fill = lambda line: charter_render.SLOT_RE.sub(
                 lambda m: values[m.group(1)].replace(".", "\\.") if "(regex" in line else values[m.group(1)], line)
             profile = root / "fence.sb"
             # Comments stay as written; the <kind_state_path> rule repeats once per runtime-state-paths entry.
@@ -283,25 +255,38 @@ class ReviewerCharterTemplateTest(unittest.TestCase):
             with self.subTest(bound=bound):
                 self.assertIn(bound, contract)
 
-    def test_clause_set_is_derived_from_charter_lint(self):
-        self.assertGreaterEqual(len(lint_patterns()), 7)
-        self.assertIn("REPORT_FILE_RE", lint_patterns())
-        self.assertEqual(lint_literals(), ["SEND-FAILED"])
+    def test_the_rendered_floor_guard_command_runs_under_floor_guards_argparse(self):
+        command = re.search(r"`python3 (\S+/floor_guard\.py [^`]*)`", self.filled)
+        self.assertIsNotNone(command)
+        run = subprocess.run([sys.executable, *shlex.split(command.group(1))],
+                             capture_output=True, text=True, stdin=subprocess.DEVNULL)
+        self.assertEqual((run.returncode, run.stdout, run.stderr), (0, "floor-guard: clean\n", ""))
 
     def test_removing_any_required_clause_fails_naming_it(self):
-        clauses = [(name, lambda t, p=p: p.sub("", t)) for name, p in lint_patterns().items()]
-        clauses += [(lit, lambda t, s=lit: t.replace(s, "")) for lit in lint_literals()]
-        block = FakeBackend().send_block(LEAD, f"{RUN_DIR}/report-{PEER}.md")
-        clauses.append(("send command", lambda t: t.replace(block.send_command, "")))
-        for name, remove in clauses:
+        self.assertEqual(self.run_lint(self.filled), (0, ""))
+        block = FakeBackend().send_block(LEAD, f"{self.run_dir}/report-{self.peer}.md")
+        removals = [
+            (f"{clause.name}[{i}]", lambda t, p=pattern: p.sub("", t), f"charter_lint: {clause.message}")
+            for clause in charter_lint.REQUIRED_CLAUSES
+            if clause.dispositions is None or "reviewer" in clause.dispositions
+            for i, pattern in enumerate(clause.patterns)
+        ]
+        removals += [
+            ("disposition", lambda t: charter_lint.DISPOSITION_RE.sub("", t),
+             "charter_lint: missing Disposition: Engineer / Reviewer / Architect line"),
+            ("report file path", lambda t: charter_lint.REPORT_FILE_RE.sub("", t),
+             "charter_lint: missing report-by-prompt block: absolute <run-dir>/report-<peer>.md path"),
+        ]
+        removals.append(("send command", lambda t: t.replace(block.send_command, ""),
+                         "charter_lint: missing report-by-prompt block, as fake renders it:"))
+        for name, remove, message in removals:
             with self.subTest(clause=name):
                 stripped = remove(self.filled)
                 self.assertNotEqual(stripped, self.filled, f"template lacks {name}")
                 rc, err = self.run_lint(stripped)
                 self.assertEqual(rc, 1)
                 problems = [line for line in err.splitlines() if line.startswith("charter_lint:")]  # the send-block problem spans lines
-                self.assertEqual(len(problems), 1, err)
-                self.assertTrue(problems[0].startswith("charter_lint: missing "), err)
+                self.assertEqual(problems, [message], err)
 
 
 if __name__ == "__main__":

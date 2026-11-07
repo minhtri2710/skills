@@ -13,6 +13,7 @@ from unittest import mock
 
 import support
 import backend
+import bounded_run
 import charter_lint
 import charter_render
 import state_root
@@ -95,6 +96,8 @@ class CharterRenderTest(unittest.TestCase):
             self.fake.send_block(LEAD, f"{self.run_dir}/report-review-{self.head[:12]}.md").text,
             "1. git diff --check",
             f"`python3 {SCRIPTS / 'bounded_run.py'} --seconds N -- CMD`",
+            f"Exit {bounded_run.TIMED_OUT} means the limit killed",
+            f"Write the finished report/verdict to `{self.run_dir}/report-review-{self.head[:12]}.md`",
         ):
             self.assertIn(expected, text)
         with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()) as lint_err:
