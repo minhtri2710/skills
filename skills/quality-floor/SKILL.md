@@ -53,7 +53,8 @@ only in a commit of its own.`
 ## 4. Install and wire
 
 For each chosen dimension, install the de facto tool from the template's tool table
-rather than a hand-rolled checker, and mirror the commands in the project's own
+rather than a hand-rolled checker (the security-setup skill chooses the Secrets,
+Dependencies, and Code-security tools), and mirror the commands in the project's own
 scripts at three costs: after an edit (seconds, changed files), at task end (under
 the agreed budget, diff-scoped), and in CI (everything). `CONSTRAINTS.md` is the
 source of truth; the scripts follow it. Run secret scanners with redaction so a
@@ -79,22 +80,9 @@ python3 <this-skill>/scripts/floor_guard.py --base origin/main
 ```
 
 It compares the working tree, including untracked files, with the merge base and
-reads Git paths unquoted so non-ASCII and spaced names are matched as written. It
-flags, by rule:
-
-- `silenced-checker`: a new suppression comment.
-- `unfinished-work`: a stub, empty `catch`, `TODO`, or `FIXME`.
-- `test-made-easier`: a skipped, focused, or expected-to-fail test, including runtime and module-level skips.
-- `test-deleted`: a test file deleted, or renamed out of a test path.
-- `assertion-removed`: a net loss of assertions in a kept test file.
-- `threshold-loosened`: a loosened or removed bound in `CONSTRAINTS.md`, or a coverage
-  threshold lowered or removed in `pyproject.toml`, `setup.cfg`, `.coveragerc`,
-  `tox.ini`, `pytest.ini`, a jest config, or `package.json`.
-- `floor-rule-removed`, `constraint-removed`: a floor rule or numbered row dropped from `CONSTRAINTS.md`.
-- `lint-rule-disabled`: an eslint rule set to `off` or `0`, or an entry added to a ruff `ignore` or `extend-ignore` list.
-- `exception-incomplete`: an exception row missing its reason or removal condition.
-
-It prints rule and `path:line` only. Exit `0` is clean, `1` is a
+reads Git paths unquoted so non-ASCII and spaced names are matched as written.
+`scripts/floor_guard.py` defines every rule it flags and every coverage and lint
+config it watches. It prints rule and `path:line` only. Exit `0` is clean, `1` is a
 violation, `2` means it could not run and never counts as clean.
 
 Each flag is resolved by fixing the code, or by the user accepting an exception

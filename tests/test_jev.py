@@ -39,6 +39,13 @@ def keychain_reply(stdout: str = "", returncode: int = 0, stderr: str = "") -> s
     return subprocess.CompletedProcess(KEYCHAIN_ARGV, returncode, stdout, stderr)
 
 
+def main_code(argv: list[str]) -> int:
+    try:
+        return jev.main(argv)
+    except SystemExit as exc:
+        return exc.code
+
+
 def start_keychain(test: unittest.TestCase, **reply: object) -> mock.Mock:
     patcher = mock.patch.object(
         jev.subprocess, "run", return_value=keychain_reply(f"{FAKE_KEY}\n", **reply)
@@ -118,8 +125,7 @@ def fork_answer(choice: str, confidence: float) -> dict[str, object]:
 
 
 class Response:
-    def __init__(self, payload: object, status: int = 200) -> None:
-        self.status = status
+    def __init__(self, payload: object) -> None:
         self._body = io.BytesIO(json.dumps(payload).encode("utf-8"))
 
     def __enter__(self) -> "Response":
@@ -138,7 +144,6 @@ class JevTest(unittest.TestCase):
 
     def assert_unavailable(self, result: jev.JevResult, reason: str) -> None:
         self.assertIsInstance(result, jev.UnavailableResult)
-        self.assertEqual(result.status, "unavailable")
         self.assertEqual(result.reason, reason)
 
     def test_key_comes_from_one_keychain_read_made_at_request_time(self) -> None:
@@ -201,7 +206,6 @@ class JevTest(unittest.TestCase):
 
     def test_malformed_json_is_unavailable(self) -> None:
         response = mock.Mock()
-        response.status = 200
         response.__enter__ = mock.Mock(return_value=response)
         response.__exit__ = mock.Mock(return_value=None)
         response.read.return_value = b"{not-json"
@@ -241,8 +245,6 @@ class JevTest(unittest.TestCase):
             result = jev.triage_finding(FINDING)
 
         self.assertIsInstance(result, jev.AdvisoryResult)
-        self.assertEqual(result.status, "available")
-        self.assertTrue(result.available)
         self.assertEqual(result.actionable_misfit, jev.NoulJudgment("actionable", 0.9))
         self.assertEqual(result.cites_artifact, jev.NoulJudgment("cited", 0.85))
         self.assertEqual(
@@ -328,7 +330,6 @@ class JevTest(unittest.TestCase):
                     self.assertIsInstance(result, jev.ForkAdvisoryResult)
                     self.assertEqual(result.route, "human_gate")
                     self.assertIsNone(result.choice)
-                    self.assertTrue(result.deterministic)
                     self.assertEqual(result.probabilities, {
                         "supervisor_decide": 0.0,
                         "human_gate": 1.0,
@@ -359,7 +360,6 @@ class JevTest(unittest.TestCase):
         self.assertIsInstance(result, jev.ForkAdvisoryResult)
         self.assertEqual(result.route, "supervisor_decide")
         self.assertEqual(result.choice, "supervisor_decide")
-        self.assertFalse(result.deterministic)
         self.assertEqual(result.probabilities, {
             "supervisor_decide": 0.95,
             "human_gate": 0.05,
@@ -397,7 +397,6 @@ class JevTest(unittest.TestCase):
             self.assertEqual(result.route, expected)
             self.assertEqual(result.choice, choice)
             self.assertEqual(result.confidence, confidence)
-            self.assertFalse(result.deterministic)
 
     def test_fork_invalid_input_and_optional_data_fail_open(self):
         cases = (
@@ -414,6 +413,16 @@ class JevTest(unittest.TestCase):
                     result = jev.route_fork(fork, delegation)
                     self.assertIsInstance(result, jev.UnavailableResult)
                     self.assertEqual(result.reason, reason)
+        urlopen.assert_not_called()
+
+    def test_fork_too_deeply_nested_is_unavailable_without_http(self):
+        nested: dict[str, object] = {}
+        for _ in range(100_000):
+            nested = {"k": nested}
+        with mock.patch.object(jev.urllib.request, "urlopen") as urlopen:
+            result = jev.route_fork({**FORK, "nested": nested}, DELEGATION)
+        self.assertIsInstance(result, jev.UnavailableResult)
+        self.assertEqual(result.reason, "invalid_fork")
         urlopen.assert_not_called()
 
     def test_fork_invalid_choice_answers_fail_open_without_exception_or_secret(self):
@@ -586,7 +595,7 @@ class JevCliTest(unittest.TestCase):
         }
         for index, argv in enumerate(cases):
             with self.subTest(argv=argv):
-                code, out, err = support.run_main(jev.main, argv, stdin_by_index.get(index))
+                code, out, err = support.run_main(main_code, argv, stdin_by_index.get(index))
 
                 self.assertEqual(code, 2)
                 self.assertEqual(out, "")
