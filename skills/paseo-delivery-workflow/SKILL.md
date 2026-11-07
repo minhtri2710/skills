@@ -106,39 +106,41 @@ other tier gains a shell `paseo` use from this exception.
 4. **Commit.** Only the Lead commits, on the delivery's quiet tree: `git status --porcelain`
    shows only this commit's paths. Done when the commit SHA is named.
 5. **Review.** At the commit, the Lead starts the plan's acceptance lanes and end-to-end
-   runs on a detached snapshot of that SHA (a worktree or archive), never the live checkout,
-   and in parallel staffs a Reviewer there, as a different agent instance from every writer.
-   Engineers may keep editing the branch checkout meanwhile: a new commit gets its own lanes
-   and review, and those running report on their own SHA. The Reviewer reviews the diff
-   while the lanes run, runs no lane itself, and reports `PASS` / `FAIL` / `BLOCKED` only
-   after reading every lane's output file, quoting what it saw; the Lead sends it each
-   file's path as its lane ends, and a Reviewer waiting on one is not stalled. A lane's
-   output shows the SHA it ran at, before and after it. A lane is green at a SHA when its
-   output shows it passing there, or at an earlier SHA whose diff to this one touches no
-   path the lane reads; a read path that is solely a build input may change when the product
-   artifact built there (build-VCS stamping off) has the same hash at both SHAs. A lane is
-   not green at a SHA while any run of it there failed and that failure has no diagnosis in
-   the record: a lane or test that fails intermittently is diagnosed from the failing run's
-   own logs, a green rerun never closes it, and the failing run's output goes to the
-   Reviewer with the rest. The Reviewer checks and states these conditions in its verdict,
-   and a lane that fails them runs again. A `PASS` needs every lane green at its SHA. A lane
-   that checks terminal output meant for a human runs under a real pty with explicit columns
-   and color profile, and its output carries the captured screens. A lane run on a second
-   host holds that host's run lock, which the project's record names (one run at a time,
-   taken before the run and released after it), never receives real secrets, and with that
-   host unreachable fails with no local fallback; on an interrupt it stops the remote run it
-   recorded and confirms it gone before releasing the lock. A second-host run dies with its
-   runner: the remote wrapper kills its whole process group on every exit; a periodic
-   heartbeat over the connection turns a dead connection into SIGPIPE, since a dropped ssh
-   connection with no pty sends no HUP; and, under the run lock before starting, the runner
-   checks the recorded remote process group for an orphan; with a live orphan it does not
-   start, the agent running the lane reports the orphan as a `collision`, and the lane is
-   not green. A SIGKILL of the local runner mid-run proves the whole; it runs once per
-   change to the remote wrapper, with its output in the project's record. A delete, move,
-   or overwrite in the change whose path comes from stored state is a `FAIL` until it has a
-   containment guard in the same delivery, never an accepted risk. A new test the change
-   does not need, or one that duplicates an existing proof, is a finding. A `FAIL` lists
-   every finding at its SHA and goes back to the owning writer; the same Reviewer then
+   runs on a detached snapshot of that SHA (a worktree or archive; a scratch copy comes from
+   `git archive <sha>`, never `cp -R` or rsync, and no agent runs a writing git command in a
+   snapshot or a copy), never the live checkout, and in parallel staffs a Reviewer there, as
+   a different agent instance from every writer. Engineers may keep editing the branch
+   checkout meanwhile: a new commit gets its own lanes and review, and those running report
+   on their own SHA. The Reviewer reviews the diff while the lanes run, runs no lane itself,
+   and reports `PASS` / `FAIL` / `BLOCKED` only after reading every lane's output file,
+   quoting what it saw; the Lead sends it each file's path as its lane ends, and a Reviewer
+   waiting on one is not stalled. A lane's output shows the SHA it ran at, before and after
+   it, and for a worktree snapshot an empty `git status --porcelain` there. A lane is green
+   at a SHA when its output shows it passing there, or at an earlier SHA whose diff to this
+   one touches no path the lane reads; a read path that is solely a build input may change
+   when the product artifact built there (build-VCS stamping off) has the same hash at both
+   SHAs. A lane is not green at a SHA while any run of it there failed and that failure has
+   no diagnosis in the record: a lane or test that fails intermittently is diagnosed from
+   the failing run's own logs, a green rerun never closes it, and the failing run's output
+   goes to the Reviewer with the rest. The Reviewer checks and states these conditions in
+   its verdict, and a lane that fails them runs again. A `PASS` needs every lane green at
+   its SHA. A lane that checks terminal output meant for a human runs under a real pty with
+   explicit columns and color profile, and its output carries the captured screens. A lane
+   run on a second host holds that host's run lock, which the project's record names (one
+   run at a time, taken before the run and released after it), never receives real secrets,
+   and with that host unreachable fails with no local fallback; on an interrupt it stops the
+   remote run it recorded and confirms it gone before releasing the lock. A second-host run
+   dies with its runner: the remote wrapper kills its whole process group on every exit; a
+   periodic heartbeat over the connection turns a dead connection into SIGPIPE, since a
+   dropped ssh connection with no pty sends no HUP; and, under the run lock before starting,
+   the runner checks the recorded remote process group for an orphan; with a live orphan it
+   does not start, the agent running the lane reports the orphan as a `collision`, and the
+   lane is not green. A SIGKILL of the local runner mid-run proves the whole; it runs once
+   per change to the remote wrapper, with its output in the project's record. A delete,
+   move, or overwrite in the change whose path comes from stored state is a `FAIL` until it
+   has a containment guard in the same delivery, never an accepted risk. A new test the
+   change does not need, or one that duplicates an existing proof, is a finding. A `FAIL`
+   lists every finding at its SHA and goes back to the owning writer; the same Reviewer then
    re-reviews the fix's diff at the new SHA, and only the lanes that fail the carry rule at
    the new SHA run again. Every finding carries a severity (High, Medium, Low, or Info),
    and only High and Medium block; a Low or Info finding reported with a `PASS` does not
