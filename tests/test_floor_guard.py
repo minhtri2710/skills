@@ -51,8 +51,6 @@ class FloorGuardRepoTest(unittest.TestCase):
             "from app import total\n\n\ndef test_total():\n    assert total([1, 2]) == 3\n    assert total([]) == 0\n",
         )
         self.write("tests/test_old.py", "def test_old():\n    assert True\n")
-        self.write("tests/test_é.py", "def test_non_ascii():\n    assert True\n")
-        self.write("src é.py", "value = 1\n")
         self.write("CONSTRAINTS.md", CONSTRAINTS)
         support.git(self.repo, "add", ".")
         support.git(self.repo, "commit", "-q", "-m", "base")
@@ -297,6 +295,10 @@ class FloorGuardRepoTest(unittest.TestCase):
         self.assertIn("cannot run", err)
 
     def test_non_ascii_and_spaced_paths_drive_findings_and_exceptions(self) -> None:
+        self.write("tests/test_é.py", "def test_non_ascii():\n    assert True\n")
+        self.write("src é.py", "value = 1\n")
+        support.git(self.repo, "add", ".")
+        support.git(self.repo, "commit", "-q", "-m", "non-ascii")
         self.write("tests/test_é.py", "def test_non_ascii():\n    pass\n")
         self.write("src é.py", "value = 1  # noqa: E501\n")
         self.write(
@@ -310,18 +312,61 @@ class FloorGuardRepoTest(unittest.TestCase):
 
 
 class ParseDiffTest(unittest.TestCase):
-    def test_quoted_paths_are_unescaped_and_strip_trailing_tabs(self) -> None:
+    def test_quoted_paths_are_unescaped_and_unquoted_paths_lose_their_trailing_tab(self) -> None:
         diff = (
-            'diff --git "a/tests/test_\\303\\251.py" "b/src \\303\\251.py"\n'
-            '--- "a/tests/test_\\303\\251.py"\t\n'
-            '+++ "b/src \\303\\251.py"\t\n'
-            "@@ -4,1 +4,1 @@\n"
-            "-    assert True\n"
-            "+    pass\n"
+            'diff --git "a/we\\"ird.py" "b/we\\"ird.py"\n'
+            'index 422c2b7..7898192 100644\n'
+            '--- "a/we\\"ird.py"\n'
+            '+++ "b/we\\"ird.py"\n'
+            "@@ -2 +1,0 @@\n"
+            "-b\n"
+            'diff --git "a/back\\\\slash.py" "b/back\\\\slash.py"\n'
+            'index 587be6b..975fbec 100644\n'
+            '--- "a/back\\\\slash.py"\n'
+            '+++ "b/back\\\\slash.py"\n'
+            "@@ -1 +1 @@\n"
+            "-x\n"
+            "+y\n"
+            'diff --git "a/ctl\\001.py" "b/ctl\\001.py"\n'
+            "index 587be6b..975fbec 100644\n"
+            '--- "a/ctl\\001.py"\n'
+            '+++ "b/ctl\\001.py"\n'
+            "@@ -1 +1 @@\n"
+            "-x\n"
+            "+y\n"
+            'diff --git "a/tab\\there.py" "b/tab\\there.py"\n'
+            "index 422c2b7..7898192 100644\n"
+            '--- "a/tab\\there.py"\n'
+            '+++ "b/tab\\there.py"\n'
+            "@@ -2 +1,0 @@ a\n"
+            "-b\n"
+            "diff --git a/sp ace.py b/sp ace.py\n"
+            "index 1..2 100644\n"
+            "--- a/sp ace.py\t\n"
+            "+++ b/sp ace.py\t\n"
+            "@@ -1 +1 @@\n"
+            "-p\n"
+            "+q\n"
         )
         added, removed = floor_guard.parse_diff(diff)
-        self.assertEqual(removed, [floor_guard.Line("tests/test_é.py", 4, "    assert True")])
-        self.assertEqual(added, [floor_guard.Line("src é.py", 4, "    pass")])
+        self.assertEqual(
+            removed,
+            [
+                floor_guard.Line('we"ird.py', 2, "b"),
+                floor_guard.Line("back\\slash.py", 1, "x"),
+                floor_guard.Line("ctl\x01.py", 1, "x"),
+                floor_guard.Line("tab\there.py", 2, "b"),
+                floor_guard.Line("sp ace.py", 1, "p"),
+            ],
+        )
+        self.assertEqual(
+            added,
+            [
+                floor_guard.Line("back\\slash.py", 1, "y"),
+                floor_guard.Line("ctl\x01.py", 1, "y"),
+                floor_guard.Line("sp ace.py", 1, "q"),
+            ],
+        )
 
     def test_removed_line_starting_with_dashes_is_content(self) -> None:
         diff = (

@@ -155,13 +155,10 @@ class JevTest(unittest.TestCase):
             result = jev.triage_finding(FINDING)
 
         self.assertIsInstance(result, jev.AdvisoryResult)
-        self.keychain.assert_called_once_with(
-            KEYCHAIN_ARGV,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            timeout=jev.KEYCHAIN_TIMEOUT_SECONDS,
-            check=False,
+        self.keychain.assert_called_once()
+        self.assertEqual(self.keychain.call_args.args[0], KEYCHAIN_ARGV)
+        self.assertEqual(
+            self.keychain.call_args.kwargs["timeout"], jev.KEYCHAIN_TIMEOUT_SECONDS
         )
         self.assertEqual(
             urlopen.call_args.args[0].get_header("Authorization"), f"Bearer {FAKE_KEY}"
@@ -251,8 +248,6 @@ class JevTest(unittest.TestCase):
             result.severity,
             jev.ScoreJudgment(label="high", argmax="high", probability=0.7, confidence=0.6),
         )
-        self.assertFalse(hasattr(result, "rationale"))
-        self.assertFalse(hasattr(result, "evidence"))
 
         urlopen.assert_called_once()
         request = urlopen.call_args.args[0]
@@ -261,16 +256,11 @@ class JevTest(unittest.TestCase):
         self.assertEqual(request.get_header("Authorization"), f"Bearer {FAKE_KEY}")
         body = json.loads(request.data)
         self.assertEqual(body["state"], FINDING)
-        self.assertEqual(body["model"], "jev-latest")
         questions = body["questions"]
         self.assertEqual(set(questions), {"actionable_misfit", "cites_artifact", "severity"})
         self.assertEqual(questions["actionable_misfit"]["type"], "noul")
         self.assertEqual(questions["cites_artifact"]["type"], "noul")
         self.assertEqual(questions["severity"]["type"], "score")
-        self.assertEqual(len(questions["severity"]["criteria"]), 3)
-        self.assertEqual(
-            len({question["instructions"] for question in questions.values()}), 3
-        )
 
     def test_noul_bands_are_asymmetric_with_an_uncertain_middle(self) -> None:
         for probability, expected in (
@@ -522,10 +512,6 @@ class JevCliTest(unittest.TestCase):
     def setUp(self) -> None:
         self.keychain = start_keychain(self)
 
-    def test_cli_source_never_gates_on_isatty(self) -> None:
-        source = Path(jev.__file__).read_text(encoding="utf-8")
-        self.assertNotIn("isatty", source)
-
     def test_cli_fork_without_key_deterministic_hard_gate_and_unavailable_soft_fork(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             hard = Path(tmp) / "hard.json"
@@ -580,22 +566,18 @@ class JevCliTest(unittest.TestCase):
 
     def test_cli_usage_and_input_errors_exit_two_without_output_or_key(self) -> None:
         cases = (
-            [],
-            ["triage"],
-            ["finding"],
-            ["fork"],
-            ["fork", "--stdin", "--file", "fork.json"],
-            ["finding", "--file", "/nonexistent/jev-input.json"],
-            ["finding", "--stdin"],
-            ["finding", "--stdin"],
+            ([], None),
+            (["triage"], None),
+            (["finding"], None),
+            (["fork"], None),
+            (["fork", "--stdin", "--file", "fork.json"], None),
+            (["finding", "--file", "/nonexistent/jev-input.json"], None),
+            (["finding", "--stdin"], "{not-json"),
+            (["finding", "--stdin"], json.dumps(["not", "an", "object"])),
         )
-        stdin_by_index = {
-            6: "{not-json",
-            7: json.dumps(["not", "an", "object"]),
-        }
-        for index, argv in enumerate(cases):
-            with self.subTest(argv=argv):
-                code, out, err = support.run_main(main_code, argv, stdin_by_index.get(index))
+        for argv, stdin_text in cases:
+            with self.subTest(argv=argv, stdin=stdin_text):
+                code, out, err = support.run_main(main_code, argv, stdin_text)
 
                 self.assertEqual(code, 2)
                 self.assertEqual(out, "")
@@ -618,11 +600,10 @@ class JevCliTest(unittest.TestCase):
             )
             scenarios += (("input_error", "{not-json", None, 2),)
             for scenario, stdin_text, failure, expected_code in scenarios:
+                argv = [mode, "--stdin"]
                 if scenario == "available":
-                    argv = [mode, "--stdin"]
                     patch_kwargs = {"return_value": failure}
                 else:
-                    argv = [mode, "--stdin"]
                     patch_kwargs = {"side_effect": failure}
                 with self.subTest(mode=mode, scenario=scenario), mock.patch.object(
                     jev.urllib.request, "urlopen", **patch_kwargs

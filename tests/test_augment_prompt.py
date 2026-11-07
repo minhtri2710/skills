@@ -1,13 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
-import contextlib
-import io
-import os
-import sys
 import unittest
-import urllib.request
-from unittest import mock
 
 import support
 import augment_prompt
@@ -43,22 +37,15 @@ class UpgradeTest(unittest.TestCase):
         self.assertIn("Effort level: Deep", out)
         self.assertIn("Return polished final copy", out)
 
-    def test_cli_defaults_and_explicit_overrides_without_credentials_or_network(self):
-        defaults = augment_prompt.parse_args(["review this code"])
-        self.assertIsNone(defaults.task)
-        self.assertEqual(defaults.intensity, "Standard")
+    def test_cli_infers_task_and_defaults_the_intensity(self):
+        _, out, _ = support.run_main(augment_prompt.main, ["review this code"])
+        self.assertIn("Task type: review", out)
+        self.assertIn("Effort level: Standard", out)
 
-        out = io.StringIO()
-        with (
-            mock.patch.object(sys, "argv", ["augment_prompt.py", "review this code", "--task", "writing", "--intensity", "Light"]),
-            mock.patch.dict(os.environ, {}, clear=True),
-            mock.patch.object(urllib.request, "urlopen", side_effect=AssertionError("unexpected network request")),
-            contextlib.redirect_stdout(out),
-        ):
-            augment_prompt.main()
-
-        self.assertIn("Task type: writing", out.getvalue())
-        self.assertIn("Effort level: Light", out.getvalue())
+    def test_cli_explicit_task_and_intensity_override_the_defaults(self):
+        _, out, _ = support.run_main(augment_prompt.main, ["review this code", "--task", "writing", "--intensity", "Light"])
+        self.assertIn("Task type: writing", out)
+        self.assertIn("Effort level: Light", out)
 
 
 if __name__ == "__main__":

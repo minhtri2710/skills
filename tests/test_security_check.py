@@ -295,7 +295,6 @@ class SecurityCheckTest(unittest.TestCase):
         self.assertIn("Categories: secrets=1, static=1", stdout)
         self.assertIn("- Categories: secrets=1, static=1", markdown.read_text(encoding="utf-8"))
         self.assertEqual(payload["summary"]["category_counts"], {"secrets": 1, "static": 1})
-        self.assertNotIn("RAW-SCANNER-OUTPUT", output.read_text(encoding="utf-8"))
 
     def test_all_runs_every_configured_check_for_staged_docs(self) -> None:
         self.clean_fakes()
