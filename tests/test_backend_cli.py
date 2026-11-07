@@ -106,7 +106,7 @@ class SendBlockTest(unittest.TestCase):
                 backend.report_send_file(report)
 
     def test_the_template_file_names_are_the_ones_report_send_file_derives(self) -> None:
-        for template in ("report-by-prompt.txt", "reviewer-charter.txt"):
+        for template in ("report-by-prompt.txt",):
             text = (support.ADW / "templates" / template).read_text(encoding="utf-8")
             named = re.findall(r"[^\s`\"]+/report-<[a-z_-]+>\.md", text)
             self.assertTrue(named, template)

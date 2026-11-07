@@ -10,6 +10,7 @@ import sys
 from pathlib import Path
 
 import backend
+import bounded_run
 import charter_lint
 import gitops
 import project_config
@@ -17,6 +18,7 @@ import state_root
 
 SKILL = Path(__file__).resolve().parents[1]
 TEMPLATE = SKILL / "templates" / "reviewer-charter.txt"
+REPORT_BY_PROMPT = SKILL / "templates" / "report-by-prompt.txt"
 QUALITY_FLOOR = SKILL.parent / "quality-floor"
 SLOT_RE = re.compile(r"<([a-z][a-z0-9_]*)>")
 GUIDANCE = ("AGENTS.md", "CLAUDE.md")
@@ -124,15 +126,17 @@ def render(args: argparse.Namespace, seats: backend.Backend) -> tuple[str, str]:
         "repo": str(repo),
         "branch": config["target-line"],
         "pane_id": args.pane,
-        "reviewable_paths": "(each reviewable path from the preview)",
         "required_checks": "\n".join(f"{n}. {check}" for n, check in enumerate(args.check, 1)),
         "quality_floor_dir": str(QUALITY_FLOOR),
         "bounded_run": str(SKILL / "scripts" / "bounded_run.py"),
+        "timed_out_code": str(bounded_run.TIMED_OUT),
         "peer_name": peer,
         "send_block": seats.send_block(lead, f"{run_dir}/report-{peer}.md").text,
         "state_root": str(state_root.STATE_ROOT),
     }
-    return peer, SLOT_RE.sub(lambda match: values[match.group(1)], TEMPLATE.read_text(encoding="utf-8"))
+    template = TEMPLATE.read_text(encoding="utf-8").replace(
+        "<report_by_prompt>", REPORT_BY_PROMPT.read_text(encoding="utf-8").rstrip("\n"))
+    return peer, SLOT_RE.sub(lambda match: values[match.group(1)], template)
 
 
 def main(argv: list[str] | None = None) -> int:

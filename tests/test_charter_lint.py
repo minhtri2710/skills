@@ -595,8 +595,7 @@ class CharterLintTest(unittest.TestCase):
     def live_wake_guard_sentence() -> str:
         return (
             "No-mutation: the review changes no external state, so Never run `mailbox.py --wake` "
-            "against a real seat; exercise wake only with a patched subprocess or a nonexistent "
-            "seat name (expect `agent_not_found`).\n"
+            "against a real seat: it prompts the seat recorded for the role it names.\n"
         )
 
     @staticmethod

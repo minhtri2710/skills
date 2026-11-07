@@ -36,29 +36,43 @@ UNIT_RANGE_RE = re.compile(
 SHORT_SHA_RE = re.compile(r"(?<![0-9a-f])[0-9a-f]{7,40}(?![0-9a-f])", re.IGNORECASE)
 REPORT_FILE_RE = re.compile(r"/[^\s\"'`$\\]*/report-[^\s/\"'`$\\]+\.md")
 STAFFING_TEMPLATE = Path(__file__).resolve().parents[1] / "templates" / "reviewer-staffing-record.txt"
-SEAT_RE = re.compile(r"^[ \t]*(ENGINEER|REVIEWER|ARCHITECT):(.*)$", re.IGNORECASE | re.MULTILINE)
+STAFFED_SEAT_RE = re.compile(r"^[ \t]*(ENGINEER|REVIEWER|ARCHITECT):(.*)$", re.IGNORECASE | re.MULTILINE)
 _FIELD = r"(?:^|\s)([a-z][a-z-]*)=(\S*)"
 # The keys that identify a seat; every other key all seat lines of the template share is evidence checked here.
 IDENTITY_KEYS = ("kind", "model", "seat", "workspace")
 PLACEHOLDER_RE = re.compile(r"<[^>\r\n]+>")
-WAKE_GUARD_RE = re.compile(
-    r"never\s+run\s+`?mailbox\.py\s+--wake`?\s+against\s+a\s+real\s+seat",
-    re.IGNORECASE,
-)
-OCR_STEP_RES = (
-    re.compile(r"ocr\s+delegate\s+preview", re.IGNORECASE),
-    re.compile(r"ocr\s+delegate\s+rule", re.IGNORECASE),
-)
-KILL_GUARD_RE = re.compile(r"never\s+kill\s+a\s+process\s+by\s+pattern", re.IGNORECASE)
-TAKEOVER_GUARD_RE = re.compile(
-    r"never\s+stop,\s+remove,\s+or\s+take\s+over\s+a\s+container,\s+process,\s+or\s+port",
-    re.IGNORECASE,
-)
-REVIEW_ORDER_RE = re.compile(
-    r"only\s+then\s+read\s+the\s+implementation\s+reports", re.IGNORECASE
-)
-TIME_LIMIT_RE = re.compile(
-    r"^\s*time\s+limit:[^\n]*BLOCKED\s+\(time\s+limit\)", re.IGNORECASE | re.MULTILINE
+
+
+class Clause(NamedTuple):
+    name: str
+    patterns: tuple[re.Pattern[str], ...]  # all must match
+    dispositions: tuple[str, ...] | None  # None: every disposition
+    message: str
+
+
+def _clause(name: str, patterns: tuple[str, ...], dispositions: tuple[str, ...] | None, message: str,
+            flags: int = re.IGNORECASE) -> Clause:
+    return Clause(name, tuple(re.compile(pattern, flags) for pattern in patterns), dispositions, message)
+
+
+# The clauses a charter must carry; templates/reviewer-charter.txt words each Reviewer clause.
+REQUIRED_CLAUSES = (
+    _clause("owned paths", (r"owned paths",), ("engineer",), "missing owned paths section"),
+    _clause("exact head", (HEAD_RE.pattern,), ("reviewer",), "missing exact-head 40-hex SHA"),
+    _clause("live-wake guard", (r"never\s+run\s+`?mailbox\.py\s+--wake`?\s+against\s+a\s+real\s+seat",), ("reviewer",),
+            "missing live-wake guard: Never run `mailbox.py --wake` against a real seat"),
+    _clause("OCR delegate step", (r"ocr\s+delegate\s+preview", r"ocr\s+delegate\s+rule"), ("reviewer",),
+            "missing OCR delegate step: ocr delegate preview and ocr delegate rule"),
+    _clause("review order", (r"only\s+then\s+read\s+the\s+implementation\s+reports",), ("reviewer",),
+            "missing review order: only then read the implementation reports"),
+    _clause("time limit", (r"^\s*time\s+limit:[^\n]*BLOCKED\s+\(time\s+limit\)",), ("reviewer",),
+            "missing time limit: BLOCKED (time limit)", re.IGNORECASE | re.MULTILINE),
+    _clause("pattern-kill guard", (r"never\s+kill\s+a\s+process\s+by\s+pattern",), None,
+            "missing pattern-kill guard: Never kill a process by pattern"),
+    _clause("takeover guard", (r"never\s+stop,\s+remove,\s+or\s+take\s+over\s+a\s+container,\s+process,\s+or\s+port",), None,
+            "missing takeover guard: Never stop, remove, or take over a container, process, or port"),
+    _clause("send-failed fallback", (r"SEND-FAILED",), None,
+            "missing report-by-prompt block: SEND-FAILED fallback", 0),
 )
 
 
@@ -82,7 +96,7 @@ def staffed_seats(text: str) -> list[StaffedSeat]:
     return [
         StaffedSeat(match.group(1).upper(), (match.group(2).split() or [""])[0],
                     fields_of(match.group(2)), match.group(0))
-        for match in SEAT_RE.finditer(text)
+        for match in STAFFED_SEAT_RE.finditer(text)
     ]
 
 
@@ -132,33 +146,12 @@ def _charter_problems(text: str, lead: str, seats: backend.Backend) -> list[str]
     if disposition is None:
         problems.append("missing Disposition: Engineer / Reviewer / Architect line")
 
-    if disposition == "engineer" and not re.search(r"owned paths", text, re.IGNORECASE):
-        problems.append("missing owned paths section")
-    if disposition == "reviewer" and HEAD_RE.search(text) is None:
-        problems.append("missing exact-head 40-hex SHA")
-    if disposition == "reviewer" and WAKE_GUARD_RE.search(text) is None:
-        problems.append(
-            "missing live-wake guard: Never run `mailbox.py --wake` against a real seat"
-        )
-
-    if disposition == "reviewer" and not all(r.search(text) for r in OCR_STEP_RES):
-        problems.append("missing OCR delegate step: ocr delegate preview and ocr delegate rule")
-    if disposition == "reviewer" and REVIEW_ORDER_RE.search(text) is None:
-        problems.append(
-            "missing review order: only then read the implementation reports"
-        )
-    if disposition == "reviewer" and TIME_LIMIT_RE.search(text) is None:
-        problems.append("missing time limit: BLOCKED (time limit)")
-    if KILL_GUARD_RE.search(text) is None:
-        problems.append("missing pattern-kill guard: Never kill a process by pattern")
-    if TAKEOVER_GUARD_RE.search(text) is None:
-        problems.append(
-            "missing takeover guard: Never stop, remove, or take over a container, process, or port"
-        )
-
+    problems.extend(
+        clause.message for clause in REQUIRED_CLAUSES
+        if (clause.dispositions is None or disposition in clause.dispositions)
+        and not all(pattern.search(text) for pattern in clause.patterns)
+    )
     problems.extend(_send_block_problems(text, lead, seats))
-    if "SEND-FAILED" not in text:
-        problems.append("missing report-by-prompt block: SEND-FAILED fallback")
     return problems
 
 
