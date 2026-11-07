@@ -388,7 +388,7 @@ def collect(repo: Path, base: str) -> tuple[list[Line], list[Line], list[str], s
             continue
         added.extend(Line(name, i, t) for i, t in enumerate(text.splitlines(), start=1))
     try:
-        constraints = (repo / CONSTRAINTS).read_text(encoding="utf-8")
+        constraints = (repo / CONSTRAINTS).read_text(encoding="utf-8", errors="surrogateescape")
     except OSError:
         constraints = ""
     toml: dict[str, list[str]] = {}

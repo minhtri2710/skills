@@ -487,6 +487,9 @@ class CharterLintTest(unittest.TestCase):
         rewritten_child = support.git(
             self.repo, "commit-tree", f"{head}^{{tree}}", "-p", rewritten, "-m", "rewritten child"
         )
+        side = support.git(self.repo, "commit-tree", f"{head}^{{tree}}", "-m", "side root")
+        side_child = support.git(self.repo, "commit-tree", f"{head}^{{tree}}", "-p", side, "-m", "side child")
+        merged = support.git(self.repo, "commit-tree", f"{head}^{{tree}}", "-p", mid, "-p", side, "-m", "merge")
         keep_base = (
             "must keep the slice base: no commit named on the Prior review line lies inside it below its head, "
             "or was rewritten with the range starting at or below where the head diverged from it"
@@ -524,6 +527,10 @@ class CharterLintTest(unittest.TestCase):
             ("FAIL naming no commit", narrowed + "Prior review: report-review-deadbeefcafe.md FAIL\n",
              "repair re-review Prior review names a FAIL but no commit in --repo"),
             ("no Reviewed unit range", failed, "repair re-review has no Reviewed unit range"),
+            ("divergence on a merged side branch below the base",
+             f"Reviewed unit: the range {base}..{merged}\n"
+             + f"Prior review: report-review-{side_child[:12]}.md FAIL (F1)\n",
+             f"repair re-review range {base}..{merged} {keep_base}"),
             ("root range kept", f"Reviewed unit: the range {gitops.NULL_OID}..{head}\n" + failed, None),
             ("rewritten sibling of a root range",
              f"Reviewed unit: the range {gitops.NULL_OID}..{rewritten}\n"

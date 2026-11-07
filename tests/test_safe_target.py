@@ -197,7 +197,7 @@ class SafeTargetTest(unittest.TestCase):
         self.assertEqual((code, out), (2, ""))
         self.assertIn("cannot check", err)
 
-    def test_cli_owner_file_outside_the_target_exits_2(self) -> None:
+    def test_cli_owner_file_that_is_not_a_bare_name_exits_2(self) -> None:
         (self.root / ".owner").write_text("worker-7\n")
         for owner_file in ("../.owner", ""):
             with self.subTest(owner_file=owner_file):
