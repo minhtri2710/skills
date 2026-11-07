@@ -370,7 +370,7 @@ def _leaves_watch(old: str, new: str) -> bool:
 
 def collect(repo: Path, base: str) -> tuple[list[Line], list[Line], list[str], str, dict[str, list[str]]]:
     merge_base = _git(repo, "merge-base", base, "HEAD").strip()
-    added, removed = parse_diff(_git(repo, "diff", "--no-color", "--unified=0", "-M", merge_base, "--"))
+    added, removed = parse_diff(_git(repo, "diff", "--no-color", "--no-ext-diff", "--no-textconv", "--src-prefix=a/", "--dst-prefix=b/", "--unified=0", "-M", merge_base, "--"))
     deleted, renames = _name_status(_git(repo, "diff", "--name-status", "-z", "-M", merge_base, "--"))
     leaving = {old for old, new in renames.items() if _leaves_watch(old, new)}
     stays = {old: new for old, new in renames.items() if old not in leaving}

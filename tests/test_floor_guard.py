@@ -120,6 +120,19 @@ class FloorGuardRepoTest(unittest.TestCase):
         (self.repo / "src" / "blob.py").write_bytes(b"\0\xff\n x = 1  # noqa\n")
         self.assertEqual(self.run_guard(), (0, ""))
 
+    def test_external_diff_driver_does_not_hide_a_tracked_change(self) -> None:
+        support.git(self.repo, "config", "diff.external", "true")
+        self.write("src/app.py", "def total(items):\n    return sum(items)  # noqa\n")
+        self.assertEqual(self.run_guard(), (1, "floor-guard: 1 violation(s)\n  [silenced-checker] src/app.py:2\n"))
+
+    def test_noprefix_diff_config_does_not_empty_the_paths(self) -> None:
+        self.write("pyproject.toml", "[tool.coverage.report]\nfail_under = 80\n")
+        support.git(self.repo, "add", ".")
+        support.git(self.repo, "commit", "-q", "-m", "coverage")
+        support.git(self.repo, "config", "diff.noprefix", "true")
+        self.write("pyproject.toml", "[tool.coverage.report]\nfail_under = 70\n")
+        self.assertEqual(self.run_guard(), (1, "floor-guard: 1 violation(s)\n  [threshold-loosened] pyproject.toml:2\n"))
+
     def test_non_utf8_content_of_a_watched_file_renamed_away_is_read(self) -> None:
         cfg = (self.repo / "pkg" / "setup.cfg")
         cfg.parent.mkdir()
