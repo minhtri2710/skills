@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import copy
 import json
 import math
 import subprocess
@@ -34,15 +33,10 @@ REQUIRED_FINDING_FIELDS = (
 # A Score answer is labelled with the highest level whose probability reaches
 # this floor, never below the argmax: a real chance of a worse level escalates.
 SCORE_ESCALATE_FLOOR = 0.2
-# A Noul probability at or above NOUL_HIGH is the positive label, below NOUL_LOW
-# the negative label, and anything between is "uncertain" (read it).
 NOUL_LOW = 0.2
 NOUL_HIGH = 0.8
-# A Jev supervisor_decide choice becomes the route only at this confidence.
 FORK_CONFIDENCE_FLOOR = 0.9
 
-# One dimension per question. Expected status, in-flight work, and benign
-# Human-gate information are not misfits.
 QUESTIONS = {
     "actionable_misfit": {
         "type": "noul",
@@ -82,7 +76,9 @@ QUESTIONS = {
         ],
     },
 }
-SEVERITY_LEVELS = ("low", "medium", "high")
+SEVERITY_LEVELS = tuple(
+    criterion.partition(":")[0].lower() for criterion in QUESTIONS["severity"]["criteria"]
+)
 FORK_QUESTIONS = {
     "route": {
         "type": "choice",
@@ -106,21 +102,17 @@ FORK_QUESTIONS = {
 }
 
 ForkRoute = Literal["supervisor_decide", "human_gate"]
-FORK_ROUTES = ("supervisor_decide", "human_gate")
+FORK_ROUTES = tuple(FORK_QUESTIONS["route"]["criteria"])
 
 
 @dataclass(frozen=True)
 class NoulJudgment:
-    """A Noul probability banded into positive / uncertain / negative."""
-
     label: str
     probability: float
 
 
 @dataclass(frozen=True)
 class ScoreJudgment:
-    """A Score answer labelled from its level probabilities, not its mean."""
-
     label: str
     argmax: str
     probability: float
@@ -135,44 +127,25 @@ class ForkAdvisoryResult:
     ``route`` is the advisory route after the confidence brake.
     """
 
-    status: Literal["available"]
     route: ForkRoute
     choice: ForkRoute | None
     probabilities: Mapping[str, float]
     confidence: float
-    deterministic: bool
-
-    @property
-    def available(self) -> bool:
-        return True
 
 
 @dataclass(frozen=True)
 class AdvisoryResult:
-    status: Literal["available"]
     actionable_misfit: NoulJudgment
     cites_artifact: NoulJudgment
     severity: ScoreJudgment
 
-    @property
-    def available(self) -> bool:
-        return True
-
 
 @dataclass(frozen=True)
 class UnavailableResult:
-    status: Literal["unavailable"]
     reason: str
-
-    @property
-    def available(self) -> bool:
-        return False
 
 
 JevResult: TypeAlias = AdvisoryResult | UnavailableResult
-
-def _unavailable(reason: str) -> UnavailableResult:
-    return UnavailableResult(status="unavailable", reason=reason)
 
 
 def _unit(value: object) -> float | None:
@@ -213,7 +186,6 @@ def _score(answer: object, levels: Sequence[str]) -> ScoreJudgment | None:
     confidence = _unit(answer.get("confidence"))
     if confidence is None or any(value is None for value in values):
         return None
-    # Ties resolve to the higher level, so the label only ever escalates.
     argmax = max(range(len(levels)), key=lambda index: (values[index], index))
     escalated = [index for index, value in enumerate(values) if value >= SCORE_ESCALATE_FLOOR]
     level = max(escalated + [argmax])
@@ -226,11 +198,7 @@ def _score(answer: object, levels: Sequence[str]) -> ScoreJudgment | None:
 
 
 def _read_api_key() -> str | None:
-    """Read the TypeSafe key from the macOS Keychain; None on any failure.
-
-    The captured output is returned only on success and never printed, logged,
-    or placed in an exception; the failure line names the item, not its value.
-    """
+    """Read the TypeSafe key from the macOS Keychain; None on any failure."""
     try:
         done = subprocess.run(
             [
@@ -270,7 +238,7 @@ def _request_answers(
 
     try:
         body = json.dumps(
-            {"state": dict(state), "model": MODEL, "questions": copy.deepcopy(questions)},
+            {"state": dict(state), "model": MODEL, "questions": questions},
             ensure_ascii=False,
         ).encode("utf-8")
         request = urllib.request.Request(
@@ -283,9 +251,6 @@ def _request_answers(
             method="POST",
         )
         with urllib.request.urlopen(request, timeout=API_TIMEOUT_SECONDS) as response:
-            status = getattr(response, "status", None)
-            if status is not None and not 200 <= status < 300:
-                return None, "http_error"
             return json.load(response), None
     except urllib.error.HTTPError as exc:
         exc.close()
@@ -322,18 +287,17 @@ def triage_finding(finding: object) -> JevResult:
     if not isinstance(finding, Mapping) or any(
         field not in finding for field in REQUIRED_FINDING_FIELDS
     ):
-        return _unavailable("invalid_finding")
+        return UnavailableResult("invalid_finding")
 
     answers, error = _ask(finding, QUESTIONS)
     if answers is None:
-        return _unavailable(error)
+        return UnavailableResult(error)
     actionable = _noul(answers.get("actionable_misfit"), "actionable", "noise")
     cites = _noul(answers.get("cites_artifact"), "cited", "uncited")
     severity = _score(answers.get("severity"), SEVERITY_LEVELS)
     if actionable is None or cites is None or severity is None:
-        return _unavailable("invalid_answers")
+        return UnavailableResult("invalid_answers")
     return AdvisoryResult(
-        status="available",
         actionable_misfit=actionable,
         cites_artifact=cites,
         severity=severity,
@@ -359,92 +323,65 @@ def _parse_fork_answer(
 
 
 def _retained_mapping(value: object) -> dict[str, object] | None:
-    if not isinstance(value, Mapping):
-        return None
-    try:
-        copied = copy.deepcopy(dict(value))
-    except Exception:
-        try:
-            copied = dict(value)
-        except Exception:
-            return None
-    return copied if isinstance(copied, dict) else None
+    return dict(value) if isinstance(value, Mapping) else None
 
 
 def _json_safe(value: object) -> bool:
     try:
         json.dumps(value, sort_keys=True, ensure_ascii=False, allow_nan=False)
-    except (TypeError, ValueError, OverflowError, UnicodeError):
-        return False
-    except Exception:
+    except (TypeError, ValueError, OverflowError):
         return False
     return True
 
 
 def route_fork(fork: object, delegation: object = None) -> ForkAdvisoryResult | UnavailableResult:
-    try:
-        retained_fork = _retained_mapping(fork)
-        retained_delegation = (
-            None if delegation is None else _retained_mapping(delegation)
-        )
-        if retained_fork is None or not isinstance(retained_fork.get("hard_gate"), bool):
-            return _unavailable("invalid_fork")
-        if delegation is not None and retained_delegation is None:
-            return _unavailable("invalid_delegation")
-        if retained_delegation is not None and "in_force" in retained_delegation:
-            if not isinstance(retained_delegation["in_force"], bool):
-                return _unavailable("invalid_delegation")
+    retained_fork = _retained_mapping(fork)
+    retained_delegation = None if delegation is None else _retained_mapping(delegation)
+    if retained_fork is None or not isinstance(retained_fork.get("hard_gate"), bool):
+        return UnavailableResult("invalid_fork")
+    if delegation is not None and retained_delegation is None:
+        return UnavailableResult("invalid_delegation")
+    if retained_delegation is not None and "in_force" in retained_delegation:
+        if not isinstance(retained_delegation["in_force"], bool):
+            return UnavailableResult("invalid_delegation")
 
-        if not _json_safe(retained_fork):
-            return _unavailable("invalid_fork")
-        if retained_delegation is not None and not _json_safe(retained_delegation):
-            return _unavailable("invalid_delegation")
+    if not _json_safe(retained_fork):
+        return UnavailableResult("invalid_fork")
+    if retained_delegation is not None and not _json_safe(retained_delegation):
+        return UnavailableResult("invalid_delegation")
 
-        # The deterministic rule runs before the key check: a hard gate or an
-        # absent delegation keeps its human_gate route even when Jev and the
-        # key are unavailable. The rule never depends on Jev being reachable.
-        hard_gate = retained_fork["hard_gate"]
-        delegation_in_force = (
-            retained_delegation is not None
-            and retained_delegation.get("in_force") is True
-        )
-        if hard_gate or not delegation_in_force:
-            return ForkAdvisoryResult(
-                status="available",
-                route="human_gate",
-                choice=None,
-                probabilities={"supervisor_decide": 0.0, "human_gate": 1.0},
-                confidence=1.0,
-                deterministic=True,
-            )
-
-        answers, error = _ask(
-            {"fork": retained_fork, "delegation": retained_delegation},
-            FORK_QUESTIONS,
-        )
-        if answers is None:
-            return _unavailable(error)
-        parsed = _parse_fork_answer(answers.get("route"))
-        if parsed is None:
-            return _unavailable("invalid_answers")
-        choice, probabilities, confidence = parsed
-        # Jev can only brake: anything short of a confident supervisor_decide
-        # stays human_gate.
-        route: ForkRoute = (
-            "supervisor_decide"
-            if choice == "supervisor_decide" and confidence >= FORK_CONFIDENCE_FLOOR
-            else "human_gate"
-        )
+    delegation_in_force = (
+        retained_delegation is not None and retained_delegation.get("in_force") is True
+    )
+    if retained_fork["hard_gate"] or not delegation_in_force:
         return ForkAdvisoryResult(
-            status="available",
-            route=route,
-            choice=choice,
-            probabilities=probabilities,
-            confidence=confidence,
-            deterministic=False,
+            route="human_gate",
+            choice=None,
+            probabilities={"supervisor_decide": 0.0, "human_gate": 1.0},
+            confidence=1.0,
         )
-    except Exception:
-        return _unavailable("api_error")
+
+    answers, error = _ask(
+        {"fork": retained_fork, "delegation": retained_delegation},
+        FORK_QUESTIONS,
+    )
+    if answers is None:
+        return UnavailableResult(error)
+    parsed = _parse_fork_answer(answers.get("route"))
+    if parsed is None:
+        return UnavailableResult("invalid_answers")
+    choice, probabilities, confidence = parsed
+    route: ForkRoute = (
+        "supervisor_decide"
+        if choice == "supervisor_decide" and confidence >= FORK_CONFIDENCE_FLOOR
+        else "human_gate"
+    )
+    return ForkAdvisoryResult(
+        route=route,
+        choice=choice,
+        probabilities=probabilities,
+        confidence=confidence,
+    )
 
 
 class _InputError(Exception):
@@ -495,11 +432,6 @@ def _score_json(judgment: ScoreJudgment) -> dict[str, object]:
 def _advisory_json(
     result: JevResult | ForkAdvisoryResult,
 ) -> dict[str, object]:
-    """Project one advisory result to its CLI JSON shape.
-
-    Raw answers and source state are never printed; unavailable keeps the
-    fixed reason.
-    """
     if isinstance(result, UnavailableResult):
         return {
             "status": "unavailable",
@@ -516,19 +448,17 @@ def _advisory_json(
         "status": "available",
         "route": result.route,
         "choice": result.choice,
-        "deterministic": result.deterministic,
+        "deterministic": result.choice is None,
         "confidence": result.confidence,
         "probabilities": dict(result.probabilities),
     }
 
 
 def _mode_result(args: argparse.Namespace) -> JevResult | ForkAdvisoryResult:
-    if args.mode == "finding":
-        origin = _origin(args.file, args.stdin)
-        finding = _json_object(_read_text(args.file, args.stdin, origin), origin)
-        return triage_finding(finding)
     origin = _origin(args.file, args.stdin)
     payload = _json_object(_read_text(args.file, args.stdin, origin), origin)
+    if args.mode == "finding":
+        return triage_finding(payload)
     return route_fork(payload.get("fork"), payload.get("delegation"))
 
 
@@ -562,10 +492,7 @@ def _build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     parser = _build_parser()
-    try:
-        args = parser.parse_args(argv)
-    except SystemExit as exc:
-        return exc.code if isinstance(exc.code, int) else 2
+    args = parser.parse_args(argv)
     try:
         output = _advisory_json(_mode_result(args))
     except _InputError as exc:

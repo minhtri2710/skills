@@ -194,6 +194,11 @@ class FloorGuardRepoTest(unittest.TestCase):
         support.git(self.repo, "mv", "tests/test_old.py", "tests/test_older.py")
         self.assertEqual(self.run_guard(), (0, ""))
 
+    def test_renamed_test_file_is_not_a_deletion_when_the_repo_disables_rename_detection(self) -> None:
+        support.git(self.repo, "config", "diff.renames", "false")
+        support.git(self.repo, "mv", "tests/test_old.py", "tests/test_older.py")
+        self.assertEqual(self.run_guard(), (0, ""))
+
     def test_test_file_renamed_out_of_a_test_path_is_a_deletion(self) -> None:
         support.git(self.repo, "mv", "tests/test_old.py", "src/old.py")
         code, err = self.run_guard()

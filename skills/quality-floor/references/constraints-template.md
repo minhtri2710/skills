@@ -22,9 +22,9 @@ exception ids as `E<n>`.
 | --- | --- | --- | --- | --- |
 | Types | errors <= 0 | `tsc --noEmit` | edit | type errors are defects |
 | Lint | errors <= 0 | `biome check` | edit | the project config is the style contract |
-| Secrets | findings <= 0 | `gitleaks git --redact --no-banner` | edit | a committed secret is a breach |
+| Secrets | findings <= 0 | the secret check security-setup configures | edit | a committed secret is a breach |
 | Coverage | changed lines >= 80% | lcov report intersected with `git diff` | task end | forces a test, allows a config line |
-| Dependencies | high findings <= 0 | `osv-scanner scan source -r .` | CI | below high is mostly noise |
+| Dependencies | high findings <= 0 | the dependency check security-setup configures | CI | below high is mostly noise |
 | Accessibility | critical+serious <= 0 | `axe $URL --tags wcag2a,wcag2aa,wcag21aa` | preview | moderate and minor are often debatable |
 | Change lines | added + removed <= 400 | `git diff --numstat origin/main...HEAD`, first two columns summed | task end | a diff a reviewer cannot hold in one pass hides defects; split it |
 | Change files | files changed <= 20 | `git diff --name-only origin/main...HEAD`, lines counted | task end | same |
@@ -56,9 +56,9 @@ a reason to lower it.
 | Lint | the existing config | `eslint .`, `biome check`, `ruff check` | any error |
 | Coverage (JS) | the test runner | `vitest run --coverage` | changed-line coverage |
 | Coverage (Python) | pytest-cov | `pytest --cov --cov-report=lcov` | changed-line coverage |
-| Code security | Semgrep | `semgrep scan --config p/default` on changed paths | high findings |
-| Secrets | gitleaks | `gitleaks git --redact --no-banner` | any finding |
-| Dependencies | osv-scanner | `osv-scanner scan source -r .` | high and above |
+| Code security | chosen by security-setup | its configured check on changed paths | high findings |
+| Secrets | chosen by security-setup | its configured check | any finding |
+| Dependencies | chosen by security-setup | its configured check | high and above |
 | Page performance | Lighthouse | `lighthouse $URL --output=json --quiet` | LCP, CLS, score |
 | Bundle size | size-limit | `size-limit --json` | per-entry budget |
 | Accessibility | axe-core CLI | `axe $URL --tags wcag2a,wcag2aa,wcag21aa` | critical or serious |

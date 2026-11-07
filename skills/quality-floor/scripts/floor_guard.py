@@ -33,7 +33,6 @@ STUB = re.compile(
     r"catch\s*(\([^)]*\))?\s*\{\s*\}|except\b[^:]*:\s*pass\b",
     re.IGNORECASE,
 )
-# Only a TODO/FIXME inside a comment marker counts; the words are ordinary vocabulary elsewhere.
 TODO_MARK = re.compile(r"(?:#|//|/\*|<!--|\*|--|;)\s*(?:TODO|FIXME)\b")
 SKIP = re.compile(
     r"\b(it|test|describe|context)\.(skip|todo|only)\(|\bxit\(|\bxdescribe\(|@pytest\.mark\.(skip|xfail)|"
@@ -43,8 +42,6 @@ SKIP = re.compile(
 )
 ASSERTION = re.compile(r"\b(expect|assert\w*|should)\b")
 TEST_PATH = re.compile(r"(^|/)(tests?|__tests__|spec)/|(^|/)test_[^/]*$|_test\.|\.(test|spec)\.")
-# Tool configs the guard reads, matched by file name. Coverage thresholds pair a removed
-# value with an added one per (path, key); lint rules are read per added line.
 COVERAGE_CONFIGS = (
     (
         re.compile(r"(^|/)(pyproject\.toml|setup\.cfg|\.coveragerc|tox\.ini|pytest\.ini)$"),
@@ -63,8 +60,9 @@ RUFF_BARE_ENTRY = re.compile(r"^\s*[\"'][^\"']+[\"']\s*,?\s*(?:#.*)?$")
 TOML_KEY = re.compile(r"^\s*([\w.-]+)\s*=")
 TOML_TABLE = re.compile(r"^\s*\[\[?[\w. -]+\]\]?\s*(?:#.*)?$")
 QUOTED = re.compile(r"[\"']([^\"']+)[\"']")
-HUNK = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@")
+HUNK = re.compile(r"^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@")
 CONSTRAINTS = "CONSTRAINTS.md"
+EXCEPTION_ID = re.compile(r"E\d+")
 
 
 @dataclass(frozen=True)
@@ -160,8 +158,7 @@ def parse_diff(diff: str) -> tuple[list[Line], list[Line]]:
             in_header = False
             match = HUNK.match(raw)
             if match:
-                new_number = int(match.group(1))
-                old_number = int(raw.split()[1].lstrip("-").split(",")[0])
+                old_number, new_number = int(match.group(1)), int(match.group(2))
         elif in_header:
             continue
         elif raw.startswith("+"):
@@ -173,11 +170,13 @@ def parse_diff(diff: str) -> tuple[list[Line], list[Line]]:
     return added, removed
 
 
-def _row_key(text: str) -> str | None:
-    cells = [c.strip() for c in text.strip().strip("|").split("|")]
-    if not text.lstrip().startswith("|") or not cells or not cells[0] or set(cells[0]) <= set("-: "):
+def _row(text: str) -> list[str] | None:
+    if not text.lstrip().startswith("|"):
         return None
-    return cells[0]
+    cells = [c.strip() for c in text.strip().strip("|").split("|")]
+    if not cells[0] or set(cells[0]) <= set("-: "):
+        return None
+    return cells
 
 
 def _bound(text: str) -> tuple[str, float] | None:
@@ -192,17 +191,17 @@ def check_constraints(added: list[Line], removed: list[Line]) -> list[Finding]:
     findings: list[Finding] = []
     new = [line for line in added if Path(line.path).name == CONSTRAINTS]
     old = [line for line in removed if Path(line.path).name == CONSTRAINTS]
-    new_rows = {_row_key(line.text): line for line in new if _row_key(line.text)}
+    new_rows = {cells[0]: line for line in new if (cells := _row(line.text))}
     new_bullets = {line.text.strip() for line in new}
     for line in old:
-        key = _row_key(line.text)
-        if key is None:
+        cells = _row(line.text)
+        if cells is None:
             if line.text.lstrip().startswith("- ") and line.text.strip() not in new_bullets:
                 findings.append(Finding("floor-rule-removed", line.path, line.number))
             continue
-        replacement = new_rows.get(key)
+        replacement = new_rows.get(cells[0])
         if replacement is None:
-            if not re.fullmatch(r"E\d+", key):
+            if not EXCEPTION_ID.fullmatch(cells[0]):
                 findings.append(Finding("constraint-removed", line.path, line.number))
             continue
         before, after = _bound(line.text), _bound(replacement.text)
@@ -217,7 +216,6 @@ def check_constraints(added: list[Line], removed: list[Line]) -> list[Finding]:
 
 
 def check_thresholds(added: list[Line], removed: list[Line]) -> list[Finding]:
-    """A coverage threshold lowered or removed in a tool config (a tightened one is silent)."""
     found: set[tuple[str, int]] = set()
     for files, pattern in COVERAGE_CONFIGS:
         old: dict[tuple[str, str], list[tuple[float, Line]]] = defaultdict(list)
@@ -247,7 +245,6 @@ def _toml_key(lines: list[str], number: int) -> str | None:
 
 
 def check_lint(added: list[Line], removed: list[Line], toml: dict[str, list[str]]) -> list[Finding]:
-    """An eslint rule set off, or an entry added to a ruff ignore list."""
     off: dict[str, set[str]] = defaultdict(set)
     ignored: dict[str, set[str]] = defaultdict(set)
     for line in removed:
@@ -282,18 +279,12 @@ class Exception_:
 
 
 def parse_exceptions(text: str) -> tuple[list[Exception_], list[int]]:
-    """Read ``| E<n> | rule | path | reason | removal condition |`` rows.
-
-    Returns the usable exceptions and the line numbers of rows missing a reason
-    or a removal condition; those rows suppress nothing.
-    """
     usable: list[Exception_] = []
     incomplete: list[int] = []
     for number, raw in enumerate(text.splitlines(), start=1):
-        key = _row_key(raw)
-        if key is None or not re.fullmatch(r"E\d+", key):
+        cells = _row(raw)
+        if cells is None or not EXCEPTION_ID.fullmatch(cells[0]):
             continue
-        cells = [c.strip() for c in raw.strip().strip("|").split("|")]
         if len(cells) < 5 or not cells[3] or not cells[4]:
             incomplete.append(number)
             continue
@@ -312,8 +303,8 @@ def check(
     added: list[Line],
     removed: list[Line],
     deleted: list[str],
-    constraints: str = "",
-    toml: dict[str, list[str]] | None = None,
+    constraints: str,
+    toml: dict[str, list[str]],
 ) -> list[Finding]:
     exceptions, incomplete = parse_exceptions(constraints)
     findings: list[Finding] = []
@@ -327,9 +318,7 @@ def check(
         if SKIP.search(line.text):
             findings.append(Finding("test-made-easier", line.path, line.number))
 
-    for path in deleted:
-        if TEST_PATH.search(path):
-            findings.append(Finding("test-deleted", path, 0))
+    findings += [Finding("test-deleted", path, 0) for path in deleted]
 
     lost = Counter(l.path for l in removed if TEST_PATH.search(l.path) and ASSERTION.search(l.text))
     gained = Counter(l.path for l in added if TEST_PATH.search(l.path) and ASSERTION.search(l.text))
@@ -338,14 +327,13 @@ def check(
             first = next(l for l in removed if l.path == path and ASSERTION.search(l.text))
             findings.append(Finding("assertion-removed", path, first.number))
 
-    findings += check_thresholds(added, removed) + check_lint(added, removed, toml or {})
+    findings += check_thresholds(added, removed) + check_lint(added, removed, toml)
     findings = [f for f in findings if not _excepted(f, exceptions)]
     findings += [Finding("exception-incomplete", CONSTRAINTS, n) for n in incomplete]
     return findings + check_constraints(added, removed)
 
 
 def _deleted_tests(status: str) -> list[str]:
-    """Paths deleted, plus test paths renamed to a non-test path, from ``--name-status -z``."""
     tokens = status.split("\0")
     gone: list[str] = []
     index = 0
@@ -357,7 +345,7 @@ def _deleted_tests(status: str) -> list[str]:
                 gone.append(old)
             index += 3
         else:
-            if kind == "D":
+            if kind == "D" and TEST_PATH.search(tokens[index + 1]):
                 gone.append(tokens[index + 1])
             index += 2
     return gone
@@ -365,7 +353,7 @@ def _deleted_tests(status: str) -> list[str]:
 
 def collect(repo: Path, base: str) -> tuple[list[Line], list[Line], list[str], str, dict[str, list[str]]]:
     merge_base = _git(repo, "merge-base", base, "HEAD").strip()
-    added, removed = parse_diff(_git(repo, "diff", "--no-color", "--unified=0", merge_base, "--"))
+    added, removed = parse_diff(_git(repo, "diff", "--no-color", "--unified=0", "-M", merge_base, "--"))
     deleted = _deleted_tests(_git(repo, "diff", "--name-status", "-z", "-M", merge_base, "--"))
     for name in _git(repo, "ls-files", "--others", "--exclude-standard", "-z").split("\0"):
         if not name:
