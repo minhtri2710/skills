@@ -153,6 +153,38 @@ class FloorGuardRepoTest(unittest.TestCase):
         self.write("pyproject.toml", ruff.replace('  "E",\n', '  "E",\n  "F",\n').replace('  "E501",\n', '  "E501",\n  "E402",\n'))
         self.assertEqual(self.run_guard(), (1, "floor-guard: 1 violation(s)\n  [lint-rule-disabled] pyproject.toml:8\n"))
 
+    def test_big_file_threshold_does_not_hide_a_tracked_change(self) -> None:
+        support.git(self.repo, "config", "core.bigFileThreshold", "1")
+        self.write("src/app.py", "def total(items):\n    return sum(items)  # noqa\n")
+        self.assertEqual(self.run_guard(), (1, "floor-guard: 1 violation(s)\n  [silenced-checker] src/app.py:2\n"))
+
+    def test_diff_attribute_does_not_hide_a_tracked_change(self) -> None:
+        (self.repo / ".git" / "info" / "attributes").write_text("*.py -diff\n")
+        self.write("src/app.py", "def total(items):\n    return sum(items)  # noqa\n")
+        self.assertEqual(self.run_guard(), (1, "floor-guard: 1 violation(s)\n  [silenced-checker] src/app.py:2\n"))
+
+    def test_tracked_binary_file_is_skipped(self) -> None:
+        blob = self.repo / "src" / "blob.py"
+        blob.write_bytes(b"\0\xff\n")
+        support.git(self.repo, "add", ".")
+        support.git(self.repo, "commit", "-q", "-m", "blob")
+        blob.write_bytes(b"\0\xff\nx = 1  # noqa\n")
+        self.assertEqual(self.run_guard(), (0, ""))
+
+    def test_tracked_file_that_was_binary_at_the_base_is_skipped(self) -> None:
+        blob = self.repo / "src" / "blob.py"
+        blob.write_bytes(b"\0\xff\n")
+        support.git(self.repo, "add", ".")
+        support.git(self.repo, "commit", "-q", "-m", "blob")
+        blob.write_bytes(b"x = 1  # noqa\n")
+        self.assertEqual(self.run_guard(), (0, ""))
+
+    def test_removed_submodule_pointer_is_not_read_as_a_blob(self) -> None:
+        support.git(self.repo, "update-index", "--add", "--cacheinfo", "160000," + "1" * 40 + ",sub")
+        support.git(self.repo, "commit", "-q", "-m", "submodule")
+        support.git(self.repo, "rm", "-q", "--cached", "sub")
+        self.assertEqual(self.run_guard(), (0, ""))
+
     def test_touched_tracked_file_with_unchanged_content_is_clean(self) -> None:
         os.utime(self.repo / "src" / "app.py", (1_000_000_000, 1_000_000_000))
         self.assertEqual(self.run_guard(), (0, ""))
@@ -475,6 +507,31 @@ class ParseDiffTest(unittest.TestCase):
         added, removed = floor_guard.parse_diff(diff)
         self.assertEqual(removed, [floor_guard.Line("q.sql", 3, "-- old comment")])
         self.assertEqual(added, [floor_guard.Line("q.sql", 3, "++ new comment")])
+
+    def test_context_lines_advance_both_line_numbers(self) -> None:
+        diff = (
+            "diff --git a/pyproject.toml b/pyproject.toml\n"
+            "index 1..2 100644\n"
+            "--- a/pyproject.toml\n"
+            "+++ b/pyproject.toml\n"
+            "@@ -2,5 +2,5 @@\n"
+            " keep\n"
+            "-old\n"
+            "+new\n"
+            " \n"
+            " keep\n"
+            "-gone\n"
+            "+here\n"
+        )
+        added, removed = floor_guard.parse_diff(diff)
+        self.assertEqual(
+            removed,
+            [floor_guard.Line("pyproject.toml", 3, "old"), floor_guard.Line("pyproject.toml", 6, "gone")],
+        )
+        self.assertEqual(
+            added,
+            [floor_guard.Line("pyproject.toml", 3, "new"), floor_guard.Line("pyproject.toml", 6, "here")],
+        )
 
 
 if __name__ == "__main__":

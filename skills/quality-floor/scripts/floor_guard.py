@@ -91,21 +91,18 @@ class GuardError(Exception):
     pass
 
 
-def _git(repo: Path, *args: str) -> str:
+def _git_bytes(repo: Path, *args: str) -> bytes:
     try:
-        result = subprocess.run(
-            ["git", "-c", "core.quotePath=false", *args],
-            cwd=repo,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="surrogateescape",
-        )
+        result = subprocess.run(["git", "-c", "core.quotePath=false", *args], cwd=repo, capture_output=True)
     except OSError as exc:
         raise GuardError(f"git unavailable: {exc}") from exc
     if result.returncode != 0:
-        raise GuardError(f"git {' '.join(args)} failed: {result.stderr.strip()}")
+        raise GuardError(f"git {' '.join(args)} failed: {result.stderr.decode(errors='replace').strip()}")
     return result.stdout
+
+
+def _git(repo: Path, *args: str) -> str:
+    return _git_bytes(repo, *args).decode("utf-8", errors="surrogateescape")
 
 
 def _decode_git_path(raw: str) -> str:
@@ -173,6 +170,9 @@ def parse_diff(diff: str) -> tuple[list[Line], list[Line]]:
         elif raw.startswith("-"):
             removed.append(Line(old_path, old_number, raw[1:]))
             old_number += 1
+        elif raw.startswith(" "):
+            old_number += 1
+            new_number += 1
     return added, removed
 
 
@@ -339,13 +339,17 @@ def check(
     return findings + check_constraints(added, removed)
 
 
-def _name_status(status: str) -> tuple[list[str], dict[str, str]]:
-    tokens = status.split("\0")
+def _raw_changes(raw: str) -> tuple[list[str], dict[str, str], dict[str, str]]:
+    tokens = raw.split("\0")
     gone: list[str] = []
     renames: dict[str, str] = {}
+    base_blobs: dict[str, str] = {}
     index = 0
     while index < len(tokens) and tokens[index]:
-        kind = tokens[index][0]
+        old_mode, _, old_blob, _, status = tokens[index][1:].split()
+        kind = status[0]
+        if old_mode not in ("000000", "160000"):
+            base_blobs[tokens[index + 1]] = old_blob
         if kind in "RC":
             old, new = tokens[index + 1], tokens[index + 2]
             if kind == "R":
@@ -357,7 +361,21 @@ def _name_status(status: str) -> tuple[list[str], dict[str, str]]:
             if kind == "D" and TEST_PATH.search(tokens[index + 1]):
                 gone.append(tokens[index + 1])
             index += 2
-    return gone, renames
+    return gone, renames, base_blobs
+
+
+def _is_binary(data: bytes) -> bool:
+    return b"\0" in data[:8000]
+
+
+def _is_binary_path(repo: Path, path: str, base_blobs: dict[str, str]) -> bool:
+    """The one binary rule: either side of a tracked path has a NUL in its first 8000 bytes."""
+    try:
+        if _is_binary(_fs_path(repo, path).read_bytes()):
+            return True
+    except OSError:
+        pass
+    return path in base_blobs and _is_binary(_git_bytes(repo, "cat-file", "blob", base_blobs[path]))
 
 
 def _fs_path(repo: Path, name: str) -> Path:
@@ -370,8 +388,12 @@ def _leaves_watch(old: str, new: str) -> bool:
 
 def collect(repo: Path, base: str) -> tuple[list[Line], list[Line], list[str], str, dict[str, list[str]]]:
     merge_base = _git(repo, "merge-base", base, "HEAD").strip()
-    added, removed = parse_diff(_git(repo, "diff-index", "-p", "--unified=0", "-M", merge_base, "--"))
-    deleted, renames = _name_status(_git(repo, "diff-index", "--name-status", "-z", "-M", merge_base, "--"))
+    # ponytail: --text makes git diff a real binary as text before the guard drops it; cost is time and memory on very large binaries.
+    added, removed = parse_diff(_git(repo, "diff-index", "-p", "--text", "--unified=0", "-M", merge_base, "--"))
+    deleted, renames, base_blobs = _raw_changes(_git(repo, "diff-index", "--raw", "-z", "-M", merge_base, "--"))
+    binary = {path for path in {l.path for l in added + removed} if _is_binary_path(repo, path, base_blobs)}
+    added = [l for l in added if l.path not in binary]
+    removed = [l for l in removed if l.path not in binary]
     leaving = {old for old, new in renames.items() if _leaves_watch(old, new)}
     stays = {old: new for old, new in renames.items() if old not in leaving}
     removed = [Line(stays.get(line.path, line.path), line.number, line.text) for line in removed if line.path not in leaving]
@@ -386,7 +408,7 @@ def collect(repo: Path, base: str) -> tuple[list[Line], list[Line], list[str], s
             data = _fs_path(repo, name).read_bytes()
         except OSError:
             continue
-        if b"\0" in data[:8000]:
+        if _is_binary(data):
             continue
         text = data.decode("utf-8", errors="surrogateescape")
         added.extend(Line(name, i, t) for i, t in enumerate(text.splitlines(), start=1))
