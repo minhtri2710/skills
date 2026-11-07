@@ -92,7 +92,7 @@ class CharterRenderTest(unittest.TestCase):
             f"Scope authors (staffing record): {LEAD} (claude claude-opus-5-5).",
             f"Governing contracts: {self.repo}/AGENTS.md, {self.repo}/é/AGENTS.md;",
             "seat w7:p3",
-            self.fake.send_block(LEAD, f"{self.run_dir}/report-review-{self.head[:12]}.md"),
+            self.fake.send_block(LEAD, f"{self.run_dir}/report-review-{self.head[:12]}.md").text,
             "1. git diff --check",
             f"`python3 {SCRIPTS / 'bounded_run.py'} --seconds N -- CMD`",
         ):
@@ -116,7 +116,7 @@ class CharterRenderTest(unittest.TestCase):
         report = f"{self.run_dir}/report-review-{self.head[:12]}.md"
         self.assertEqual(self.fake.calls, [("send_block", LEAD, report)])
         text = (self.run_dir / f"charter-review-{self.head[:12]}.md").read_text(encoding="utf-8")
-        self.assertEqual(text, f"w7:p3\n{self.fake.send_block(LEAD, report)}\n")
+        self.assertEqual(text, f"w7:p3\n{self.fake.send_block(LEAD, report).text}\n")
 
     def test_the_seat_handle_is_taken_as_given(self):
         for handle in ("t7", "sess.blk", "w7:p3"):
@@ -132,7 +132,7 @@ class CharterRenderTest(unittest.TestCase):
         report = f"{self.run_dir}/report-review-{self.head[:12]}.md"
         self.assertEqual(self.fake.calls, [("send_block", "t9", report)])
         text = (self.run_dir / f"charter-review-{self.head[:12]}.md").read_text(encoding="utf-8")
-        self.assertEqual(text, f"t9\n{self.fake.send_block('t9', report)}\n")
+        self.assertEqual(text, f"t9\n{self.fake.send_block('t9', report).text}\n")
 
     def test_the_backend_flag_reaches_detect_as_explicit(self):
         out, err = io.StringIO(), io.StringIO()

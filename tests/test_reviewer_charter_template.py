@@ -53,11 +53,11 @@ def staffing(head: str) -> str:
     )
 
 
-def fill(text: str, base: str, head: str, block: str | None = None) -> str:
+def fill(text: str, base: str, head: str, block: backend.SendBlock | None = None) -> str:
     block = FakeBackend().send_block(LEAD, f"{RUN_DIR}/report-{PEER}.md") if block is None else block
     values = {
         "head_sha": head, "base_sha": base, "lead_name": LEAD, "peer_name": PEER,
-        "run_dir": RUN_DIR, "send_block": block,
+        "run_dir": RUN_DIR, "send_block": block.text,
     }
     return SLOT_RE.sub(lambda m: values.get(m.group(1), f"filled-{m.group(1)}"), text)
 
@@ -143,10 +143,16 @@ class ReviewerCharterTemplateTest(unittest.TestCase):
         self.assertEqual(template.count("<send_block>"), 1)
         self.assertEqual(block.count("<send_block>"), 1)
 
+    def test_report_block_names_each_part_of_the_send_block(self):
+        text = REPORT_BLOCK.read_text(encoding="utf-8")
+        for field in backend.SendBlock._fields:
+            with self.subTest(field=field):
+                self.assertIn(field.replace("_", " "), text)
+
     def test_the_filled_charter_holds_the_send_block_of_the_backend_that_rendered_it(self):
         block = herdr.Adapter({}).send_block(LEAD, f"{RUN_DIR}/report-{PEER}.md")
         filled = fill(TEMPLATE.read_text(encoding="utf-8"), self.base, self.head, block)
-        self.assertIn(block, filled)
+        self.assertIn(block.text, filled)
         self.assertEqual(self.run_lint(filled, herdr.Adapter({})), (0, ""))
         rc, err = self.run_lint(filled)
         self.assertEqual(rc, 1)
@@ -286,7 +292,7 @@ class ReviewerCharterTemplateTest(unittest.TestCase):
         clauses = [(name, lambda t, p=p: p.sub("", t)) for name, p in lint_patterns().items()]
         clauses += [(lit, lambda t, s=lit: t.replace(s, "")) for lit in lint_literals()]
         block = FakeBackend().send_block(LEAD, f"{RUN_DIR}/report-{PEER}.md")
-        clauses.append(("send block", lambda t: t.replace(block, "")))
+        clauses.append(("send command", lambda t: t.replace(block.send_command, "")))
         for name, remove in clauses:
             with self.subTest(clause=name):
                 stripped = remove(self.filled)

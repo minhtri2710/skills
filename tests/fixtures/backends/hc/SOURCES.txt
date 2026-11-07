@@ -1,5 +1,5 @@
 Every file here is `schema-derived`: written by hand from herdr-core source, never captured from a
-running hc (the Human's live proof, design section 9.4, is pending). Source repository:
+running hc (the Human's live proof is pending). Source repository:
 herdr-core commit 52d7c56 (v0.1.17), read only. Field values are illustrative; only
 the shapes, field names, and the quoted words are from source.
 

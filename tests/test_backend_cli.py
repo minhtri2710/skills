@@ -3,12 +3,13 @@ from __future__ import annotations
 
 import contextlib
 import io
+import re
 import unittest
 from unittest import mock
 
 import support
 import backend
-from backends import herdr
+from backends import hc, herdr, rex
 from fake_backend import FakeBackend
 
 
@@ -39,11 +40,34 @@ class WhoamiTest(unittest.TestCase):
         self.assertEqual(opening.call_args.args[1], backend.Explicit("herdr", "w1:p1"))
 
 
+class SendBlockPartsTest(unittest.TestCase):
+    """Bug A2: the report-by-prompt template names a send command and a failure notice only when the block has one."""
+
+    def test_each_backend_renders_one_send_command_and_a_notice_only_herdr_has(self) -> None:
+        rows = (
+            (herdr.Adapter({}), "w1:p9", "herdr notification show"),
+            (hc.Adapter({}, runner=support.Recorder(), binary="hc"), "t3", None),
+            (rex.Adapter({}, runner=support.Recorder()), "session:s1.block:b1", None),
+        )
+        for adapter, lead, notice in rows:
+            with self.subTest(adapter.name):
+                block = adapter.send_block(lead, REPORT)
+                self.assertIsInstance(block, backend.SendBlock)
+                self.assertNotIn("\n", block.send_command)
+                self.assertIn("/tmp/runs/r1/send-eng-a.txt", block.send_command)
+                if notice is None:
+                    self.assertIsNone(block.failure_notice)
+                    self.assertEqual(block.text, block.send_command)
+                else:
+                    self.assertTrue(block.failure_notice.startswith(notice))
+                    self.assertEqual(block.text, f"{block.send_command}\n{block.failure_notice}")
+
+
 class SendBlockTest(unittest.TestCase):
     def test_prints_the_block_the_backend_renders_for_the_lead_and_report(self) -> None:
         fake = FakeBackend()
         code, out, err = run_main(["send-block", "--lead", LEAD, "--report", REPORT], fake)
-        self.assertEqual((code, out, err), (0, fake.send_block(LEAD, REPORT) + "\n", ""))
+        self.assertEqual((code, out, err), (0, fake.send_block(LEAD, REPORT).text + "\n", ""))
         self.assertEqual(fake.calls[-1], ("send_block", LEAD, REPORT))
 
     def test_the_backend_flag_reaches_open_backend_as_explicit(self) -> None:
@@ -56,7 +80,7 @@ class SendBlockTest(unittest.TestCase):
         with mock.patch.object(herdr.Adapter, "identify", return_value="w1:p1"):
             code, out, err = run_main(["send-block", "--lead", LEAD, "--report", REPORT], environ=HERDR)
         self.assertEqual((code, err), (0, ""))
-        self.assertEqual(out, herdr.Adapter(HERDR).send_block(LEAD, REPORT) + "\n")
+        self.assertEqual(out, herdr.Adapter(HERDR).send_block(LEAD, REPORT).text + "\n")
         self.assertIn(f"agent prompt {LEAD} ", out)
 
     def test_a_value_the_backend_refuses_fails_closed_with_no_output(self) -> None:
@@ -80,6 +104,15 @@ class SendBlockTest(unittest.TestCase):
         ):
             with self.subTest(report=report), self.assertRaises(ValueError):
                 backend.report_send_file(report)
+
+    def test_the_template_file_names_are_the_ones_report_send_file_derives(self) -> None:
+        for template in ("report-by-prompt.txt", "reviewer-charter.txt"):
+            text = (support.ADW / "templates" / template).read_text(encoding="utf-8")
+            named = re.findall(r"[^\s`\"]+/report-<[a-z_-]+>\.md", text)
+            self.assertTrue(named, template)
+            for report in named:
+                with self.subTest(template=template, report=report):
+                    self.assertIn(backend.report_send_file(report)[1], text)
 
     def test_a_backend_without_a_send_block_fails_closed(self) -> None:
         fake = FakeBackend()

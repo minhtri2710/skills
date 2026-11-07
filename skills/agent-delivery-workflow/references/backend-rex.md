@@ -1,14 +1,14 @@
 # Rex backend
 
-Read after detection selects `rex`. Every command here comes from a third-party adapter or an adapter's recorded live run; no Rex-authored document was available and `rex __internal skill` was never run. Nothing below was run by this skill's authors: the whole backend is provisional until the live items L1-L8 (design 9.4) pass.
+Read after detection selects `rex`. Every command here comes from a third-party adapter or an adapter's recorded live run; no Rex-authored document was available and `rex __internal skill` was never run. Nothing below was run by this skill's authors: the whole backend is provisional until the live items L1-L8 pass.
 
 Confidence tags: **CL** confirmed live by a third-party adapter on a Rex build (firstmate 0.0.1792607779..0.0.1792787366, sidekick build 1696); **CD** confirmed in adapter code only; **IS** only a name in the CLI binary's strings; **UV** unverified or conflicting sources. Sources are three third-party repositories, cited as `firstmate/` (`bin/backends/rex.sh` = `rex.sh`, `docs/rex-backend.md`, `docs/verification/runtime-backends.md` = `runtime-backends.md`), `munsu/internal/pane/rex.go`, `sidekick-ultra.nvim/` (`lua/sidekick-ultra/backends/rex.lua`, `tests/fixtures/rex/UNVERIFIED.txt`); `UNVERIFIED.txt` is also copied into `tests/fixtures/backends/rex/`.
 
-A seat handle is `<session-id>.<block-id>`, for example `session:<uuid>.block:<uuid>`; split on the `.`, pass the halves as `-s <S>` and `-b <B>` on every call (without `-s` the CLI defaults to the caller's own `REX_SESSION`, `rex.sh:36-40`). Ids contain colons and, **inferred**, no dot. Exit codes: 0 ok, 2 invalid command line, 3 target not found (also an ambiguous label), 4 server unreachable (CL, `runtime-backends.md:2319-2320`). The adapter runs each command as `rex --autostart=false -S <endpoint> <args>` (`rex.sh:43-47`, `rex.go:52`); the `<endpoint>` is from `identify`. The binary is `$REX_BIN_DIR/rex` when executable, else `rex` on PATH (`rex.sh:87-102`; no `rex` is on PATH on the Human's machine at design time).
+A seat handle is `<session-id>.<block-id>`, for example `session:<uuid>.block:<uuid>`; split on the `.`, pass the halves as `-s <S>` and `-b <B>` on every call (without `-s` the CLI defaults to the caller's own `REX_SESSION`, `rex.sh:36-40`). Ids contain colons and, **inferred**, no dot. Exit codes: 0 ok, 2 invalid command line, 3 target not found (also an ambiguous label), 4 server unreachable (CL, `runtime-backends.md:2319-2320`). The adapter runs each command as `rex --autostart=false -S <endpoint> <args>` (`rex.sh:43-47`, `rex.go:52`); the `<endpoint>` is from `identify`, and a call made before `identify` is refused (`BackendUnavailable`), never run without the pin. The binary is `$REX_BIN_DIR/rex` when executable, else `rex` on PATH (`rex.sh:87-102`; no `rex` is on PATH on the Human's machine at design time).
 
 A seat's name is its block label; the handle, not the name, is authority.
 
-The Peer report send block (`send_block`, from `prompt`) is rendered as `"$REX_BIN_DIR/rex" send -s <S> -b <B> -- "$(cat <run-dir>/send-<peer>.txt)" && "$REX_BIN_DIR/rex" send-key -s <S> -b <B> enter`. It uses `$REX_BIN_DIR/rex` because Rex exports `REX_BIN_DIR` into every block but shell startup files commonly reset `PATH` (CD, `rex-backend.md:19-20`, `rex.sh:81-85`); a bare `rex` may not resolve in a Peer's shell. It omits `-S` and `--autostart=false`: the Peer runs in the same server and `REX_SERVER` is not trusted either way. UV: that `REX_BIN_DIR` is set in a Peer's ordinary shell. Provisional: L2. There is no waker backstop on Rex (`wait`), so a failed send shows only as the `SEND-FAILED` line in the report file.
+The Peer report send block (`send_block` in `scripts/backends/rex.py`, from `prompt`) is one send command, the `send` then `send-key ... enter` pair on one line, and has no failure notice. It uses `$REX_BIN_DIR/rex` because Rex exports `REX_BIN_DIR` into every block but shell startup files commonly reset `PATH` (CD, `rex-backend.md:19-20`, `rex.sh:81-85`); a bare `rex` may not resolve in a Peer's shell. It omits `-S` and `--autostart=false`: the Peer runs in the same server and `REX_SERVER` is not trusted either way. UV: that `REX_BIN_DIR` is set in a Peer's ordinary shell. Provisional: L2. There is no waker backstop on Rex (`wait`), so a failed send shows only as the `SEND-FAILED` line in the report file.
 
 ## identify
 
@@ -39,7 +39,7 @@ rex send -s <S> -b <B> -- <text>
 rex send-key -s <S> -b <B> enter
 ```
 
-`send` types literal text without Enter and refuses empty input; `send-key enter` submits (CL, `rex.sh:546-584`, `UNVERIFIED.txt` run 3). The adapter reads `program_status` first and refuses a `blocked` seat (`SeatError` blocked); if the status is unreadable it sends anyway and the send is unacknowledged. There is no turn-started acknowledgement: it never raises `not_started`, and a prompt is `sent`, not `started`. The status call is CL in firstmate and disputed by sidekick (`UNVERIFIED.txt`). UV: multi-line `send` text submitting once with one `enter`, the turn-start acknowledgement, and the blocked-refusal path (design 3, 3.1).
+`send` types literal text without Enter and refuses empty input; `send-key enter` submits (CL, `rex.sh:546-584`, `UNVERIFIED.txt` run 3). The adapter reads `program_status` first and refuses a `blocked` seat (`SeatError` blocked); if the status is unreadable it sends anyway and the send is unacknowledged. There is no turn-started acknowledgement: it never raises `not_started`, and a prompt is `sent`, not `started`. The status call is CL in firstmate and disputed by sidekick (`UNVERIFIED.txt`). UV: multi-line `send` text submitting once with one `enter`, the turn-start acknowledgement, and the blocked-refusal path.
 Provisional: those three UV items are L2.
 
 ## read
@@ -62,7 +62,7 @@ Provisional: which agent kinds emit OSC 7501 is L1.
 
 ## wait
 
-Unsupported: `rex wait` exists in the binary strings but its semantics, exit codes and JSON are UV (IS, `rex wait -s "$REX_SESSION" "$test_block" --for 30s --json`), and no adapter uses it. The confirmed-live path is a server-side Lua script (`rex --autostart=false do -s <S> --for <N>s <script.lua>` with `rex.on("terminal.program_status_changed", ...)`, CL `runtime-backends.md:2330`), which the adapter does not build (design 3.2). `wait_state` raises `Unsupported`; the waker exits with that reason and the Lead relies on report-by-prompt and the roster.
+Unsupported: `rex wait` exists in the binary strings but its semantics, exit codes and JSON are UV (IS, `rex wait -s "$REX_SESSION" "$test_block" --for 30s --json`), and no adapter uses it. The confirmed-live path is a server-side Lua script (`rex --autostart=false do -s <S> --for <N>s <script.lua>` with `rex.on("terminal.program_status_changed", ...)`, CL `runtime-backends.md:2330`), which the adapter does not build. `wait_state` raises `Unsupported`; the waker exits with that reason and the Lead relies on report-by-prompt and the roster.
 Provisional: L4 decides `rex wait` or the Lua path.
 
 ## list
@@ -72,7 +72,7 @@ rex block ls -s <S> --json
 rex block call -s <S> -b <B> program_status
 ```
 
-One `block ls` for the Lead's own session, then one `program_status` per block (CD, `rex.go:109-112`). A block that closes between the two calls is skipped. Every block is listed, including plain shells; `name` is the label (empty is `None`), `workspace` is the session id; `kind`, `cwd` and `argv` are not set, because no source maps a foreground process to an agent kind (codex's `argv0` is `node`). `roster.py --drift` therefore raises `no - process in pane ...` for every named rex seat and exits 1: model drift is unsupported on Rex until a kind source exists. Plain `roster.py` listing, `--stalled` and `--never-started` do not need `kind`.
+One `block ls` for the Lead's own session, then one `program_status` per block (CD, `rex.go:109-112`). A block that closes between the two calls is skipped. Every block is listed, including plain shells; `name` is the label (empty is `None`), `workspace` is the session id; `kind`, `cwd` and `argv` are not set, because no source maps a foreground process to an agent kind (codex's `argv0` is `node`). `roster.py --drift` therefore refuses every named rex seat (its no-process error, exit 1): model drift is unsupported on Rex until a kind source exists. Plain `roster.py` listing, `--stalled` and `--never-started` do not need `kind`.
 Provisional: `block ls` shape is CD only (see identify).
 
 ## processes
@@ -81,7 +81,7 @@ Provisional: `block ls` shape is CD only (see identify).
 rex block call -s <S> -b <B> process
 ```
 
-Returns the `foreground` object (`pid`, `name`, `argv0`, `cwd`, ...; the recorded builds have no `argv`, which the design matrix assumed) as the single process, or none when the block has no foreground (CL, `runtime-backends.md:2325`, sidekick fixtures `process_*.json`). `ancestors[]` appears in one build and not another and is not used; the no-foreground reply is a guess (`UNVERIFIED.txt`). A reply with neither `foreground` nor `last_exit` fails closed.
+Returns the `foreground` object (`pid`, `name`, `argv0`, `cwd`, ...; the recorded builds have no `argv`, so the `backend.Process` argv is `argv0`) as the single process, or none when the block has no foreground (CL, `runtime-backends.md:2325`, sidekick fixtures `process_*.json`). `ancestors[]` appears in one build and not another and is not used; the no-foreground reply is a guess (`UNVERIFIED.txt`). A reply with neither `foreground` nor `last_exit` fails closed.
 Provisional: none pending an L item; the no-foreground shape is unverified.
 
 ## interrupt

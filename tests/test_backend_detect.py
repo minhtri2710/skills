@@ -22,6 +22,7 @@ HERDR = {"HERDR_ENV": "1", "HERDR_PANE_ID": "w1:p1"}
 HC = {"HC_TERMINAL_ID": "t7", "HC_TERMINAL_SOCKET": "/run/hc.sock"}
 REX = {"TERM_PROGRAM": "rex", "REX_BLOCK": "block:b1", "REX_SESSION": "session:s1"}
 REX_HANDLE = "session:s1.block:b1"
+FAKE = {"FAKE_HANDLE": "f1:p1"}
 
 
 def explicit(text: str) -> backend.Explicit:
@@ -32,28 +33,10 @@ class SingleSignatureTest(unittest.TestCase):
     def test_only_herdr(self) -> None:
         self.assertEqual(backend.detect(HERDR), "herdr")
 
-    def test_each_signature_detects_when_registered_and_is_unsupported_when_not(self) -> None:
+    def test_each_signature_detects_its_backend(self) -> None:
         for name, environ in (("herdr", HERDR), ("hc", HC), ("rex", REX)):
-            with self.subTest(name, table="real"):
-                if name in backend.ADAPTERS:
-                    self.assertEqual(backend.detect(environ), name)
-                else:
-                    with self.assertRaises(backend.Unsupported):
-                        backend.detect(environ)
-            with self.subTest(name, table="registered"), mock.patch.dict(
-                backend.ADAPTERS, {name: f"backends.{name}"}
-            ):
+            with self.subTest(name):
                 self.assertEqual(backend.detect(environ), name)
-            others = {key: value for key, value in backend.ADAPTERS.items() if key != name}
-            with self.subTest(name, table="not registered"), mock.patch.dict(backend.ADAPTERS, others, clear=True):
-                with self.assertRaises(backend.Unsupported) as caught:
-                    backend.detect(environ)
-                self.assertIn(name, str(caught.exception))
-
-    def test_registered_hc_and_rex_adapters_detect(self) -> None:
-        with mock.patch.dict(backend.ADAPTERS, {"hc": "backends.hc", "rex": "backends.rex"}):
-            self.assertEqual(backend.detect(HC), "hc")
-            self.assertEqual(backend.detect(REX), "rex")
 
     def test_incomplete_signatures_do_not_match(self) -> None:
         rows = {
@@ -101,12 +84,7 @@ class AmbiguousTest(unittest.TestCase):
     def test_explicit_equal_to_a_matched_backend_with_its_own_handle_returns_it(self) -> None:
         environ = {**HC, **HERDR}
         self.assertEqual(backend.detect(environ, explicit("herdr@w1:p1")), "herdr")
-        with mock.patch.dict(backend.ADAPTERS, {"hc": "backends.hc"}):
-            self.assertEqual(backend.detect(environ, explicit("hc@t7")), "hc")
-
-    def test_explicit_for_a_matched_but_unregistered_backend_is_unsupported(self) -> None:
-        with mock.patch.dict(backend.ADAPTERS, {"herdr": "backends.herdr"}, clear=True), self.assertRaises(backend.Unsupported):
-            backend.detect({**HC, **HERDR}, explicit("hc@t7"))
+        self.assertEqual(backend.detect(environ, explicit("hc@t7")), "hc")
 
     def test_explicit_naming_a_backend_whose_signature_does_not_hold_fails_closed(self) -> None:
         for label, environ in self.PAIRS.items():
@@ -142,10 +120,9 @@ class OwnHandleTest(unittest.TestCase):
     def test_rex_own_handle_joins_session_and_block(self) -> None:
         environ = {**REX, **HERDR}
         self.assertEqual(backend.own_handle("rex", environ), REX_HANDLE)
-        with mock.patch.dict(backend.ADAPTERS, {"rex": "backends.rex"}):
-            self.assertEqual(backend.detect(environ, explicit(f"rex@{REX_HANDLE}")), "rex")
-            with self.assertRaisesRegex(backend.DetectionError, "own handle"):
-                backend.detect(environ, explicit("rex@session:s1.block:other"))
+        self.assertEqual(backend.detect(environ, explicit(f"rex@{REX_HANDLE}")), "rex")
+        with self.assertRaisesRegex(backend.DetectionError, "own handle"):
+            backend.detect(environ, explicit("rex@session:s1.block:other"))
 
     def test_own_handle_per_backend(self) -> None:
         self.assertEqual(backend.own_handle("herdr", HERDR), "w1:p1")
@@ -225,40 +202,30 @@ class OpenAndCliTest(unittest.TestCase):
     def test_flag_reaches_detect_as_explicit(self) -> None:
         parser = argparse.ArgumentParser()
         backend.add_backend_option(parser)
-        args = parser.parse_args(["--backend", "herdr@w1:p1"])
-        fake = FakeBackend(handle="w1:p1")
-        with mock.patch.object(backend, "detect", return_value="herdr") as detect, mock.patch.object(
-            backend.importlib, "import_module"
-        ) as module:
-            module.return_value.Adapter.return_value = fake
-            opened = backend.open_backend(HERDR, args.backend)
-        detect.assert_called_once_with(HERDR, ("herdr", "w1:p1"))
-        self.assertIs(opened, fake)
-        self.assertEqual(fake.calls, [("identify",)])
-        self.assertEqual(opened.handle, "w1:p1")
+        with mock.patch.dict(backend.ADAPTERS, {"fake": "fake_backend"}):
+            opened = backend.open_backend(FAKE, parser.parse_args(["--backend", "fake@f1:p1"]).backend)
+            self.assertIsInstance(opened, FakeBackend)
+            self.assertEqual((opened.environ, opened.handle, opened.calls), (FAKE, "f1:p1", [("identify",)]))
+            with self.assertRaisesRegex(backend.DetectionError, "own handle"):
+                backend.open_backend(FAKE, parser.parse_args(["--backend", "fake@f1:p9"]).backend)
 
     def test_open_backend_fails_closed_when_identify_fails(self) -> None:
-        fake = FakeBackend()
-        fake.script("identify", backend.BackendUnavailable("herdr identify failed"))
-        with mock.patch.object(backend.importlib, "import_module") as module:
-            module.return_value.Adapter.return_value = fake
-            with self.assertRaises(backend.BackendUnavailable):
-                backend.open_backend(HERDR)
+        failures = {
+            "an adapter error": (backend.BackendError("boom"), "fake identify failed: boom"),
+            "a refused handle": (ValueError("bad id"), "fake identify failed: bad id"),
+            "an unavailable tool": (backend.BackendUnavailable("fake is gone"), "fake is gone"),
+        }
+        for label, (failure, message) in failures.items():
+            with self.subTest(label), mock.patch.dict(backend.ADAPTERS, {"fake": "fake_backend"}), \
+                    mock.patch.object(FakeBackend, "identify", side_effect=failure):
+                with self.assertRaises(backend.BackendUnavailable) as caught:
+                    backend.open_backend(FAKE)
+                self.assertEqual(str(caught.exception), message)
 
-    def test_open_backend_does_not_touch_an_adapter_when_detection_fails(self) -> None:
-        with mock.patch.object(backend.importlib, "import_module") as module:
-            for environ in ({}, {**HC, **HERDR}, {"HC_TERMINAL_ID": "t7"}):
-                with self.subTest(environ=sorted(environ)), self.assertRaises(backend.BackendError):
-                    backend.open_backend(environ)
-        module.assert_not_called()
-
-    def test_adapter_table_names_an_importable_adapter_per_registered_backend(self) -> None:
-        self.assertIn("herdr", backend.ADAPTERS)
-        self.assertLessEqual(set(backend.ADAPTERS), set(backend._SIGNATURES))
-        for name, module in backend.ADAPTERS.items():
-            with self.subTest(name):
-                self.assertEqual(module, f"backends.{name}")
-                self.assertTrue(hasattr(backend.importlib.import_module(module), "Adapter"))
+    def test_open_backend_does_not_identify_when_detection_fails(self) -> None:
+        for environ in ({}, {**HC, **HERDR}, {"HC_TERMINAL_ID": "t7"}):
+            with self.subTest(environ=sorted(environ)), self.assertRaises(backend.BackendError):
+                backend.open_backend(environ)
 
     def test_whoami_prints_backend_and_own_handle(self) -> None:
         fake = FakeBackend(handle="w1:p1")

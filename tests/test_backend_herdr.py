@@ -35,12 +35,13 @@ def adapter(*replies: subprocess.CompletedProcess[str]) -> tuple[herdr.Adapter, 
 
 
 class RunnerTest(unittest.TestCase):
-    """The behavior test_herdr_cli.py pinned, now on the adapter's runner."""
+    """backend.run_tool, the one tool runner the three adapters bind their binary to."""
 
-    def test_run_uses_the_shared_subprocess_contract(self) -> None:
+    def test_run_tool_passes_the_shared_subprocess_contract(self) -> None:
         completed = subprocess.CompletedProcess(["herdr", "agent", "list"], 0, stdout="{}", stderr="")
-        with mock.patch.object(herdr.subprocess, "run", return_value=completed) as run:
-            result = herdr.run(["agent", "list"], timeout=4.5)
+        env = {"X": "1"}
+        with mock.patch.object(backend.subprocess, "run", return_value=completed) as run:
+            result = backend.run_tool("herdr", ["agent", "list"], timeout=4.5, env=env)
         self.assertIs(result, completed)
         run.assert_called_once_with(
             ["herdr", "agent", "list"],
@@ -49,32 +50,32 @@ class RunnerTest(unittest.TestCase):
             encoding="utf-8",
             check=False,
             timeout=4.5,
+            env=env,
         )
 
-    def test_default_timeout_is_thirty_seconds(self) -> None:
-        with mock.patch.object(herdr.subprocess, "run", return_value=reply("{}")) as run:
-            herdr.run(["agent", "list"])
-        self.assertEqual(run.call_args.kwargs["timeout"], 30.0)
-
-    def test_oserror_becomes_named_unavailable_error(self) -> None:
-        with mock.patch.object(herdr.subprocess, "run", side_effect=OSError("binary not found")):
-            with self.assertRaisesRegex(backend.BackendUnavailable, r"herdr agent list.*binary not found"):
-                herdr.run(["agent", "list"])
-
-    def test_timeout_becomes_named_unavailable_error(self) -> None:
-        timeout = subprocess.TimeoutExpired(["herdr", "agent", "prompt", "lead"], 30.0)
-        with mock.patch.object(herdr.subprocess, "run", side_effect=timeout):
-            with self.assertRaisesRegex(backend.BackendUnavailable, r"herdr agent prompt lead.*timed out"):
-                herdr.run(["agent", "prompt", "lead"])
+    def test_a_timeout_or_oserror_is_unavailable_and_names_the_command_not_the_argv(self) -> None:
+        secret = "text-that-must-not-leak"
+        failures = {
+            "timed out": subprocess.TimeoutExpired(["herdr"], 30.0),
+            "binary not found": OSError("binary not found"),
+        }
+        for message, failure in failures.items():
+            for binary, args, label in (
+                ("herdr", ["agent", "prompt", "lead", secret], "herdr agent prompt"),
+                ("/home/u/.local/bin/herdr-core", ["send", "--json", "t7", secret], "herdr-core send t7"),
+                ("rex", ["--autostart=false", "whoami", "--json"], "rex whoami"),
+            ):
+                with self.subTest(message, label=label), mock.patch.object(backend.subprocess, "run", side_effect=failure):
+                    with self.assertRaises(backend.BackendUnavailable) as caught:
+                        backend.run_tool(binary, args, timeout=30.0)
+                    self.assertTrue(str(caught.exception).startswith(label), str(caught.exception))
+                    self.assertIn(message, str(caught.exception))
+                    self.assertNotIn(secret, str(caught.exception))
 
     def test_adapter_defaults_to_the_herdr_runner_and_propagates_unavailable(self) -> None:
-        with mock.patch.object(herdr.subprocess, "run", side_effect=OSError("gone")):
+        with mock.patch.object(backend.subprocess, "run", side_effect=OSError("gone")):
             with self.assertRaises(backend.BackendUnavailable):
                 herdr.Adapter(ENVIRON).list_seats()
-
-    def test_adapter_is_the_registered_herdr_adapter(self) -> None:
-        self.assertEqual(backend.ADAPTERS["herdr"], "backends.herdr")
-        self.assertEqual(herdr.Adapter.name, "herdr")
 
 
 class ListAndGetTest(unittest.TestCase):
@@ -234,6 +235,13 @@ class ReadPromptWaitTest(unittest.TestCase):
         with self.assertRaisesRegex(backend.BackendError, "no agent_status"):
             a.wait_state("eng-a", ["idle"], 1000)
 
+    def test_a_reply_state_outside_the_requested_ones_is_an_error(self) -> None:
+        a, runner = adapter(reply(fixture("agent-wait.json")))
+        with self.assertRaises(backend.BackendError) as caught:
+            a.wait_state("eng-a", ["done", "blocked"], 1000)
+        self.assertEqual(caught.exception.code, "state_not_requested")
+        self.assertEqual(len(runner.calls), 1)
+
     def test_wait_state_refuses_states_outside_the_seat_model(self) -> None:
         a, runner = adapter()
         for states in ([], ["sleeping"], ["idle", "asleep"], ["error"]):
@@ -241,13 +249,25 @@ class ReadPromptWaitTest(unittest.TestCase):
                 a.wait_state("eng-a", states, 1000)
         self.assertEqual(runner.calls, [])
 
-    def test_processes_argv_and_passthrough(self) -> None:
+    def test_processes_argv_and_normalized_records(self) -> None:
         a, runner = adapter(reply(fixture("process-info.json")))
-        processes = a.processes("w1:p3")
+        self.assertEqual(
+            a.processes("w1:p3"),
+            [
+                backend.Process(("caffeinate", "-i")),
+                backend.Process(("/usr/local/bin/claude", "--model", "opus"), 4242, "/work/checkout"),
+                backend.Process(("npm", "run", "dev"), 4343, "/work/checkout/app"),
+                backend.Process(("pi",), 4545),
+                backend.Process(("node",), 4444, argv_reported=False),
+                backend.Process(("zsh",), argv_reported=False),
+            ],
+        )
         self.assertEqual(runner.argv, [["pane", "process-info", "--pane", "w1:p3"]])
-        self.assertEqual(processes[1]["argv0"], "claude")
-        self.assertEqual(processes[2], {"command": "npm run dev", "alive": True})
-        self.assertEqual(len(processes), 3)
+
+    def test_processes_with_a_non_object_entry_is_malformed(self) -> None:
+        a, _ = adapter(reply('{"result": {"process_info": {"foreground_processes": ["npm"]}}}'))
+        with self.assertRaisesRegex(backend.BackendError, "non-object process"):
+            a.processes("w1:p3")
 
     def test_processes_without_foreground_list_is_malformed(self) -> None:
         a, _ = adapter(reply(fixture("process-info-no-foreground.json")))
@@ -275,7 +295,7 @@ class IdentifyTest(unittest.TestCase):
         for label, answer in rows.items():
             with self.subTest(label):
                 a, _ = adapter(answer)
-                with self.assertRaises(backend.BackendUnavailable):
+                with self.assertRaises(backend.BackendError):
                     a.identify()
 
     def test_identify_without_a_pane_in_the_environment_runs_nothing(self) -> None:
@@ -285,16 +305,16 @@ class IdentifyTest(unittest.TestCase):
         self.assertEqual(runner.calls, [])
 
     def test_identify_propagates_a_missing_binary(self) -> None:
-        with mock.patch.object(herdr.subprocess, "run", side_effect=OSError("no herdr")):
+        with mock.patch.object(backend.subprocess, "run", side_effect=OSError("no herdr")):
             with self.assertRaisesRegex(backend.BackendUnavailable, "no herdr"):
                 herdr.Adapter(ENVIRON).identify()
 
     def test_open_backend_runs_identify_once_and_keeps_the_handle(self) -> None:
-        runner = Recorder(reply(fixture("pane-get.json")))
-        with mock.patch.object(herdr, "run", runner):
+        with mock.patch.object(backend.subprocess, "run", return_value=reply(fixture("pane-get.json"))) as run:
             opened = backend.open_backend(ENVIRON)
         self.assertEqual((opened.name, opened.handle), ("herdr", "w1:p3"))
-        self.assertEqual(runner.argv, [["pane", "get", "w1:p3"]])
+        run.assert_called_once()
+        self.assertEqual(run.call_args.args[0], ["herdr", "pane", "get", "w1:p3"])
 
 
 class SendBlockTest(unittest.TestCase):
@@ -302,8 +322,10 @@ class SendBlockTest(unittest.TestCase):
         a, runner = adapter()
         self.assertEqual(
             a.send_block(LEAD, REPORT),
-            'herdr agent prompt lead-demo "$(cat /state/projects/demo/runs/r1/send-eng-a.txt)"\n'
-            'herdr notification show "eng-a: report send failed" --body "/state/projects/demo/runs/r1/report-eng-a.md" --sound request',
+            backend.SendBlock(
+                'herdr agent prompt lead-demo "$(cat /state/projects/demo/runs/r1/send-eng-a.txt)"',
+                'herdr notification show "eng-a: report send failed" --body "/state/projects/demo/runs/r1/report-eng-a.md" --sound request',
+            ),
         )
         self.assertEqual(runner.calls, [])
 
@@ -321,7 +343,7 @@ class SendBlockTest(unittest.TestCase):
     def test_a_handle_the_other_backends_use_is_accepted(self) -> None:
         a, _ = adapter()
         for handle in ("w1:p1", "t7", "session:s1.block:b1"):
-            self.assertIn(f"herdr agent prompt {handle} ", a.send_block(handle, REPORT))
+            self.assertIn(f"herdr agent prompt {handle} ", a.send_block(handle, REPORT).send_command)
 
 
 if __name__ == "__main__":

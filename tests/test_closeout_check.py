@@ -8,7 +8,6 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
-from typing import Any
 from unittest import mock
 
 import support
@@ -23,7 +22,7 @@ def setUpModule() -> None:
 
 
 def add_peer(fake: FakeBackend, canonical: Path, name: str, seat: str, *, agent: bool = True,
-             processes: list[dict[str, Any]] | None = None) -> None:
+             processes: list[backend.Process] | None = None) -> None:
     """An open peer seat; `agent=False` leaves its terminal open with no agent registered for it."""
     if agent:
         fake.add_seat(seat, name=name, state="idle", cwd=str(canonical), processes=processes)
@@ -211,18 +210,6 @@ class CloseoutCheckTest(unittest.TestCase):
         self.assertTrue(result.passed, result.findings)
         self.assertEqual(result.checked_seats, ("w1:p3", "w1:p4"))
 
-    def test_live_server_in_peer_seat_names_squatting_server_anti_pattern(self):
-        add_peer(self.fake, self.canonical, "eng-teardown", "w1:p3", agent=False, processes=[{
-            "argv0": "npm",
-            "command": "npm run dev",
-            "cwd": str(self.canonical),
-            "alive": True,
-        }])
-        result = closeout_check.check_closeout(self.record, self.fake)
-        self.assertFalse(result.passed)
-        self.assertTrue(any("squatting-server anti-pattern" in finding
-                            for finding in result.findings))
-
     def test_server_detection_matches_argv_tokens_not_substrings(self):
         cases = (
             (["node", "vitest"], False),
@@ -246,7 +233,25 @@ class CloseoutCheckTest(unittest.TestCase):
         )
         for argv, expected in cases:
             with self.subTest(argv=argv):
-                self.assertEqual(closeout_check._is_server_process({"cmdline": argv}), expected)
+                add_peer(self.fake, self.canonical, "eng-teardown", "w1:p3", agent=False,
+                         processes=[backend.Process(tuple(argv), cwd=str(self.canonical))])
+                result = closeout_check.check_closeout(self.record, self.fake)
+                self.assertEqual(
+                    any("squatting-server anti-pattern" in finding for finding in result.findings),
+                    expected,
+                )
+
+    def test_a_server_outside_the_canonical_checkout_is_not_squatting(self):
+        add_peer(self.fake, self.canonical, "eng-teardown", "w1:p3", agent=False,
+                 processes=[backend.Process(("npm", "run", "dev"), cwd=str(self.canonical.parent / "elsewhere"))])
+        result = closeout_check.check_closeout(self.record, self.fake)
+        self.assertFalse(any("squatting-server" in finding for finding in result.findings))
+
+    def test_a_process_without_a_cwd_takes_the_terminals(self):
+        add_peer(self.fake, self.canonical, "eng-teardown", "w1:p3", agent=False,
+                 processes=[backend.Process(("npm", "run", "dev"))])
+        result = closeout_check.check_closeout(self.record, self.fake)
+        self.assertTrue(any("squatting-server" in finding for finding in result.findings))
 
     def test_lead_only_persistent_record_passes_validation_and_closeout(self):
         record = dict(self.record)

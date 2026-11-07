@@ -38,7 +38,7 @@ def fake_of(agents, processes=None):
         fake.add_seat(
             agent["pane_id"], name=agent.get("name"), state=agent["agent_status"],
             kind=agent.get("agent"), workspace=agent.get("workspace_id"),
-            processes=(processes or {}).get(agent["pane_id"]),
+            processes=[backend.Process.from_record(record) for record in (processes or {}).get(agent["pane_id"], [])],
         )
     return fake
 
@@ -524,6 +524,21 @@ class RosterTest(unittest.TestCase):
         rc, lines, error = self._drift([agent], process, ["eng:engineer"], config)
         self.assertEqual((rc, lines, error), (0, [], ""))
 
+    def test_drift_compares_a_visible_one_word_argv_against_the_route(self):
+        agent = {"pane_id": "w1:p1", "name": "eng", "agent": "claude", "agent_status": "idle"}
+        process = {"w1:p1": ["claude"]}
+        bare = {
+            "engineer-kind": "claude", "engineer-args": [],
+            "launch-profiles": {"claude": {"seat-argv": [], "peer-argv": []}},
+        }
+        self.assertEqual(self._drift([agent], process, ["eng:engineer"], bare), (0, [], ""))
+        flagged = dict(bare, **{"engineer-args": ["--model", "m1"]})
+        rc, lines, error = self._drift([agent], process, ["eng:engineer"], flagged)
+        self.assertEqual((rc, error), (0, ""))
+        self.assertEqual(lines, [
+            "w1:p1 eng claude DRIFT role=engineer running=claude --model - expected=claude --model m1",
+        ])
+
     def test_drift_marks_ambiguous_model_alias_unverifiable(self):
         config = {
             "engineer-kind": "pi", "engineer-args": ["--model", "luna"],
@@ -553,7 +568,7 @@ class RosterTest(unittest.TestCase):
         pi, claude = {"w1:p1": ["pi"]}, {"w1:p1": ["claude", "--model", "x"]}
         cases = [
             ({"reviewer-kind": "agy"}, pi, "eng:engineer", (), "config lacks engineer-kind"),
-            (self._DRIFT_CONFIG, claude, "eng:engineer", (), "no pi process in pane w1:p1"),
+            (self._DRIFT_CONFIG, claude, "eng:engineer", (), "no pi process in seat w1:p1"),
             (self._DRIFT_CONFIG, pi, "gone:engineer", (), "no live seat named gone"),
             (self._DRIFT_CONFIG, pi, "eng:engineer", ("--workspace", "w2"), "no live seat named eng"),
             (self._DRIFT_CONFIG, {"w1:p1": (1, "")}, "eng:engineer", (), "process-info w1:p1 failed"),

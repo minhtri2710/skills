@@ -67,7 +67,6 @@ def _read(path: Path, label: str) -> tuple[str, bytes]:
 
 
 def _send_block_problems(text: str, lead: str, seats: backend.Backend) -> list[str]:
-    """The charter must hold, byte for byte, the send block the backend renders for one of its report paths."""
     paths = list(dict.fromkeys(REPORT_FILE_RE.findall(text)))
     if not paths:
         return ["missing report-by-prompt block: absolute <run-dir>/report-<peer>.md path"]
@@ -75,9 +74,12 @@ def _send_block_problems(text: str, lead: str, seats: backend.Backend) -> list[s
         blocks = [seats.send_block(lead, path) for path in paths]
     except ValueError as exc:
         return [f"report-by-prompt block cannot be rendered: {exc}"]
-    if any(block in text for block in blocks):
+    if any(
+        block.send_command in text and (block.failure_notice is None or block.failure_notice in text)
+        for block in blocks
+    ):
         return []
-    return [f"missing report-by-prompt block, as {seats.name} renders it:\n{blocks[0]}"]
+    return [f"missing report-by-prompt block, as {seats.name} renders it:\n{blocks[0].text}"]
 
 
 def _charter_problems(text: str, lead: str, seats: backend.Backend) -> list[str]:

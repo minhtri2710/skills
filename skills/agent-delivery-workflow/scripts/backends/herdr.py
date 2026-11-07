@@ -1,58 +1,25 @@
-"""Herdr adapter: pure argv builders and parsers over one injected runner.
-
-Each operation is today's herdr call, argv and parsing unchanged (see the call sites the callers
-used to own). The runner takes (args, timeout) and returns a subprocess.CompletedProcess.
-"""
+"""Herdr adapter: pure argv builders and parsers over one injected runner."""
 from __future__ import annotations
 
-import json
+import functools
 import subprocess
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Mapping, Sequence
 from typing import Any
 
 import backend
 
 BINARY = "herdr"
-DEFAULT_TIMEOUT = 30.0
 _CODE_KINDS = {"agent_not_found": "not_found", "pane_not_found": "not_found", "agent_blocked": "blocked"}
 # A pane call says "gone" only with pane_not_found; agent_not_found there is not evidence the pane is gone.
 _PANE_KINDS = {"pane_not_found": "not_found"}
 # `agent wait --until` has no `error` state (the seat model's one state herdr never reports).
 REPORTABLE = tuple(state for state in backend.STATES if state != "error")
 
-Runner = Callable[..., "subprocess.CompletedProcess[str]"]
-
-
-def run(args: list[str], *, timeout: float = DEFAULT_TIMEOUT) -> subprocess.CompletedProcess[str]:
-    command = [BINARY, *args]
-    label = BINARY + (" " + " ".join(args[:3]) if args else "")
-    try:
-        return subprocess.run(
-            command,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            check=False,
-            timeout=timeout,
-        )
-    except subprocess.TimeoutExpired as exc:
-        raise backend.BackendUnavailable(f"{label} timed out after {timeout} seconds") from exc
-    except OSError as exc:
-        raise backend.BackendUnavailable(f"{label} unavailable: {exc}") from exc
-
-
-def _object(text: str) -> dict[str, Any]:
-    try:
-        value = json.loads(text)
-    except json.JSONDecodeError:
-        return {}
-    return value if isinstance(value, dict) else {}
-
 
 def _error_code(completed: subprocess.CompletedProcess[str]) -> str:
-    # Herdr writes its error JSON to stderr; some callers saw it on stdout or as plain text.
+    # Herdr writes its error JSON to stderr.
     for text in (completed.stderr, completed.stdout):
-        error = _object(text).get("error")
+        error = backend.json_object(text).get("error")
         code = error.get("code") if isinstance(error, dict) else error
         if isinstance(code, str) and code:
             return code
@@ -83,12 +50,20 @@ def _seat(agent: Mapping[str, Any], *, strict: bool, fallback_handle: str = "") 
 class Adapter(backend.Backend):
     name = "herdr"
 
-    def __init__(self, environ: Mapping[str, str], runner: Runner | None = None) -> None:
+    def __init__(self, environ: Mapping[str, str], runner: backend.Runner | None = None) -> None:
         super().__init__(environ)
-        self._runner = runner or run
+        self._runner = runner or functools.partial(backend.run_tool, BINARY)
+
+    @staticmethod
+    def matches(environ: Mapping[str, str]) -> bool:
+        return environ.get("HERDR_ENV") == "1" and bool(environ.get("HERDR_PANE_ID"))
+
+    @staticmethod
+    def own_handle(environ: Mapping[str, str]) -> str | None:
+        return environ.get("HERDR_PANE_ID") or None
 
     def _ok(
-        self, args: list[str], *, timeout: float = DEFAULT_TIMEOUT, kinds: Mapping[str, str] = _CODE_KINDS
+        self, args: list[str], *, timeout: float = backend.DEFAULT_TIMEOUT, kinds: Mapping[str, str] = _CODE_KINDS
     ) -> subprocess.CompletedProcess[str]:
         completed = self._runner(args, timeout=timeout)
         if completed.returncode:
@@ -100,24 +75,19 @@ class Adapter(backend.Backend):
         return completed
 
     def _result(self, args: list[str], key: str, kinds: Mapping[str, str] = _CODE_KINDS) -> Any:
-        payload = _object(self._ok(args, kinds=kinds).stdout)
+        payload = backend.json_object(self._ok(args, kinds=kinds).stdout)
         result = payload.get("result")
         if not isinstance(result, dict) or key not in result:
             raise backend.BackendError(f"{BINARY} {' '.join(args[:3])} returned no result.{key}")
         return result[key]
 
     def identify(self) -> str:
-        pane = backend.own_handle("herdr", self.environ)
+        pane = self.own_handle(self.environ)
         if pane is None:
             raise backend.BackendUnavailable("herdr identify: no own pane handle in the environment")
-        try:
-            seat = self.get_terminal(pane)
-        except backend.BackendUnavailable:
-            raise
-        except backend.BackendError as exc:
-            raise backend.BackendUnavailable(f"herdr identify failed: {exc}") from exc
+        seat = self.get_terminal(pane)
         if seat.handle != pane:
-            raise backend.BackendUnavailable("herdr identify: pane get returned a different pane")
+            raise backend.BackendError("pane get returned a different pane")
         return seat.handle
 
     def list_seats(self) -> list[backend.Seat]:
@@ -150,8 +120,7 @@ class Adapter(backend.Backend):
         self._ok(["agent", "prompt", ref, text])
 
     def wait_state(self, ref: str, states: Sequence[str], timeout_ms: int) -> str:
-        if not states or any(state not in backend.STATES for state in states):
-            raise ValueError(f"wait states must be a non-empty subset of {backend.STATES}")
+        backend.require_states(states)
         until = [state for state in states if state in REPORTABLE]
         if not until:
             raise ValueError(f"herdr reports none of the wait states {list(states)}; it reports {REPORTABLE}")
@@ -159,26 +128,25 @@ class Adapter(backend.Backend):
         for state in until:
             args += ["--until", state]
         args += ["--timeout", str(timeout_ms)]
-        payload = _object(self._ok(args, timeout=timeout_ms / 1000 + 10).stdout)
+        payload = backend.json_object(self._ok(args, timeout=timeout_ms / 1000 + 10).stdout)
         result = payload.get("result")
         agent = result.get("agent") if isinstance(result, dict) else None
         status = agent.get("agent_status") if isinstance(agent, dict) else None
         if status is None:
             raise backend.BackendError(f"herdr agent wait {ref} returned no agent_status")
-        return status
+        return backend.require_reached(f"herdr agent wait {ref}", status, until)
 
-    def processes(self, handle: str) -> list[Any]:
+    def processes(self, handle: str) -> list[backend.Process]:
         info = self._result(["pane", "process-info", "--pane", handle], "process_info", _PANE_KINDS)
         processes = info.get("foreground_processes") if isinstance(info, dict) else None
         if not isinstance(processes, list):
             raise backend.BackendError(f"process-info JSON for {handle} lacks foreground_processes")
-        return processes
+        if not all(isinstance(process, dict) for process in processes):
+            raise backend.BackendError(f"process-info JSON for {handle} contains a non-object process")
+        return [backend.Process.from_record(process) for process in processes]
 
-    def send_block(self, lead_handle: str, report_path: str) -> str:
-        if backend.HANDLE_RE.fullmatch(lead_handle) is None:
-            raise ValueError(f"not a seat handle: {lead_handle!r}")
-        peer, send_path = backend.report_send_file(report_path)
-        return (
-            f'herdr agent prompt {lead_handle} "$(cat {send_path})"\n'
-            f'herdr notification show "{peer}: report send failed" --body "{report_path}" --sound request'
+    def _render_send_block(self, lead_handle: str, peer: str, send_path: str, report_path: str) -> backend.SendBlock:
+        return backend.SendBlock(
+            f'herdr agent prompt {lead_handle} "$(cat {send_path})"',
+            f'herdr notification show "{peer}: report send failed" --body "{report_path}" --sound request',
         )

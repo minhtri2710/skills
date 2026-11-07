@@ -1,5 +1,8 @@
 {"result": {"process_info": {"foreground_processes": [
   {"argv": ["caffeinate", "-i"]},
   {"argv": ["/usr/local/bin/claude", "--model", "opus"], "argv0": "claude", "pid": 4242, "cwd": "/work/checkout"},
-  {"command": "npm run dev", "alive": true}
+  {"argv": ["npm", "run", "dev"], "pid": 4343, "cwd": "/work/checkout/app"},
+  {"argv": ["pi"], "pid": 4545},
+  {"argv0": "node", "pid": 4444},
+  {"name": "zsh"}
 ]}}}

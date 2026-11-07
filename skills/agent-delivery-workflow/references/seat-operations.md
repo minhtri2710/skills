@@ -10,13 +10,13 @@ Every operation returns or takes this normalized record:
 |---|---|
 | `handle` | the routing key: one string that addresses the seat by itself |
 | `name` | an optional label, or none |
-| `state` | `idle`, `working`, `done`, `blocked`, `error`, or `unknown` |
+| `state` | one of `backend.STATES` |
 | `kind` | the agent kind running in the seat, or none |
 | `cwd` | the seat's working directory |
 | `argv` | the launched program's argv, where the tool reports it |
 | `session` | the agent session `kind` and `value`, or none |
 
-Errors have five kinds. `not_found`: the seat is gone or never existed. `blocked`: the seat is at an approval or question dialog. `not_started`: a prompt started no turn. `unavailable`: the tool is missing, timed out, or failed to identify; the run stops, and nothing falls back to another tool. `unsupported`: this tool has no such operation (`Unsupported: <reason>` in its backend file); the caller fails closed or takes the degraded path the doctrine names for that operation.
+Errors are the `BackendError` kinds in `scripts/backend.py` (`SEAT_ERROR_KINDS`, `BackendUnavailable`, `Unsupported`). `not_found`: the seat is gone or never existed. `blocked`: the seat is at an approval or question dialog. `not_started`: a prompt started no turn. `unavailable`: the tool is missing, timed out, or failed to identify; the run stops, and nothing falls back to another tool. `unsupported`: this tool has no such operation (`Unsupported: <reason>` in its backend file); the caller fails closed or takes the degraded path the doctrine names for that operation.
 
 ## Names
 
@@ -56,11 +56,11 @@ Returns a seat's recent output. Inputs: handle, line count. Method `read_output`
 
 Returns a seat's `state`. Input: handle. Method `get_seat` (the `state` field). `idle`: ready for input. `working`: actively processing a turn, not settled, not inspectable as a result. `done`: idle after background work finished. `blocked`: at an approval or question dialog. `error`: the agent reports an error. `unknown`: present but not classifiable, or the tool does not report a state for this seat — never proof of completion. A settled state (`idle`, `done`) means the seat can be inspected, not that the work is complete or accepted. A state is a sample, not a fact that survives the next command. Never alert on a single sample or a single idle label.
 
-A stall verdict is a conjunction re-sampled across an interval: a transition from a prior non-settled state to a settled one (`idle`, `done`), the charter-path report file absent, and the progress-file mtime stale without advancing. The state and its change counter are not trusted as sole liveness signals; the reliable signals are the token counter, owned-file mtime, and progress-file mtime. An `unknown` state never raises a stall by itself. `scripts/roster.py --stalled` encodes this conjunction, using repeatable `--peer NAME:REPORT_PATH:PROGRESS_PATH`, `--previous-sample PATH` containing `{"peers":{"<name>":{"state":"<state>","progress_mtime":<number>}}}`, and `--stale-after SECONDS` (default 60); missing or unreadable progress fails closed and is not a stall. When the Lead has explicit no-prompt evidence, `scripts/roster.py --never-started NAME --peer NAME:REPORT_PATH:PROGRESS_PATH` reports distinct `NEVER-STARTED` only for a settled current seat with both report and progress absent. It replaces no ordinary stall behavior and does not parse arbitrary seat text; a token counter may corroborate the explicit evidence but is never the verdict by itself.
+A stall verdict is a conjunction re-sampled across an interval: a transition from a prior non-settled state to a settled one (`idle`, `done`), the charter-path report file absent, and the progress-file mtime stale without advancing. The state and its change counter are not trusted as sole liveness signals; the reliable signals are the token counter, owned-file mtime, and progress-file mtime. An `unknown` state never raises a stall by itself. `scripts/roster.py --stalled` encodes this conjunction; its flags and the stale default are in `scripts/roster.py --help`, and the previous-sample shape is the one that script's loader reads. Missing or unreadable progress fails closed and is not a stall. When the Lead has explicit no-prompt evidence, `scripts/roster.py --never-started NAME --peer NAME:REPORT_PATH:PROGRESS_PATH` reports distinct `NEVER-STARTED` only for a settled current seat with both report and progress absent. It replaces no ordinary stall behavior and does not parse arbitrary seat text; a token counter may corroborate the explicit evidence but is never the verdict by itself.
 
 ### `wait`
 
-Blocks until a seat reaches one of the given states or the timeout passes, and returns the state reached. Inputs: handle, states, timeout. A requested state the tool never reports (herdr's `error`) is ignored; the call is refused only when none remain. Method `wait_state`. Always pass a timeout sized to the command's real worst case; a value in a command example is never a default to borrow. Only the waker uses it, plus once at the startup settle after a spawn that returned before the agent was ready: `idle` means send the charter, `blocked` means a startup dialog to route as a Human decision. It is never used to recover a Lead-to-Supervisor send (`lead.md`, "Supervisor and attention events") and never by a Peer. A wait returning a settled state does not make the following prompt safe. Where `wait` is unsupported the waker exits with that reason, and the Lead relies on report-by-prompt plus the roster. Peer waker timing is in `lead.md`, "Turn boundaries and roster".
+Blocks until a seat reaches one of the given states or the timeout passes, and returns the state reached. Inputs: handle, states, timeout. A requested state the tool never reports is ignored (herdr's `REPORTABLE` in `scripts/backends/herdr.py`); the call is refused only when none remain. Method `wait_state`. Always pass a timeout sized to the command's real worst case; a value in a command example is never a default to borrow. Only the waker uses it, plus once at the startup settle after a spawn that returned before the agent was ready: `idle` means send the charter, `blocked` means a startup dialog to route as a Human decision. It is never used to recover a Lead-to-Supervisor send (`lead.md`, "Supervisor and attention events") and never by a Peer. A wait returning a settled state does not make the following prompt safe. Where `wait` is unsupported the waker exits with that reason, and the Lead relies on report-by-prompt plus the roster. Peer waker timing is in `lead.md`, "Turn boundaries and roster".
 
 ### `list`
 
@@ -68,7 +68,7 @@ Returns the live seats as seat records. Method `list_seats`. `scripts/roster.py`
 
 ### `processes`
 
-Returns a seat's foreground processes, with `argv`, `argv0`, `pid`, and `cwd` where the tool reports them. Input: handle. Method `processes` (the terminal behind a handle is `get_terminal`). `scripts/roster.py --drift` and `scripts/closeout_check.py` use it. Where the foreground list is unsupported, the seat's launched `argv` covers `--drift`.
+Returns a seat's foreground processes, as `backend.Process` records (`argv`, `pid`, `cwd`). Input: handle. Method `processes` (the terminal behind a handle is `get_terminal`). `scripts/roster.py --drift` and `scripts/closeout_check.py` use it.
 
 ### `interrupt`
 

@@ -1,11 +1,14 @@
 """An in-memory backend for script tests: seats, scripted replies, and recorded operations.
 
     fake = FakeBackend(handle="w1:p1")
-    fake.add_seat("w1:p2", name="eng", state="idle", output="tail text", processes=[{"argv": ["pi"]}])
+    fake.add_seat("w1:p2", name="eng", state="idle", output="tail text", processes=[backend.Process(("pi",))])
     fake.script("prompt", SeatError("blocked", "agent_blocked"))   # next prompt raises; one outcome per call
     fake.script("wait_state", "idle", "blocked")                    # next two waits return these states
     ...
     fake.calls == [("prompt", "w1:p2", "text")]
+
+`Adapter` is the fake as a registered backend: patch `backend.ADAPTERS` with {"fake": "fake_backend"} and an environment
+holding FAKE_HANDLE, and `backend.open_backend` constructs and identifies it.
 
 Surface: the same Backend operations as backend.py, plus add_seat, add_terminal, script and calls.
 Every operation records (operation, *arguments) in `calls` before it answers. An operation with a
@@ -25,13 +28,13 @@ import backend
 class FakeBackend(backend.Backend):
     name = "fake"
 
-    def __init__(self, handle: str = "f1:p1", environ: Mapping[str, str] | None = None) -> None:
+    def __init__(self, environ: Mapping[str, str] | None = None, *, handle: str = "f1:p1") -> None:
         super().__init__(environ or {})
         self.handle = handle
         self.calls: list[tuple[Any, ...]] = []
         self._seats: dict[str, backend.Seat] = {}
         self._output: dict[str, str] = {}
-        self._processes: dict[str, list[Any]] = {}
+        self._processes: dict[str, list[backend.Process]] = {}
         self._terminals: dict[str, backend.Seat] = {}
         self._script: defaultdict[str, deque[Any]] = defaultdict(deque)
 
@@ -40,7 +43,7 @@ class FakeBackend(backend.Backend):
         handle: str,
         *,
         output: str = "",
-        processes: list[Any] | None = None,
+        processes: list[backend.Process] | None = None,
         terminal: bool = True,
         **seat: Any,
     ) -> backend.Seat:
@@ -52,7 +55,7 @@ class FakeBackend(backend.Backend):
             self._terminals[handle] = backend.Seat(handle=handle, cwd=added.cwd)
         return added
 
-    def add_terminal(self, handle: str, *, cwd: str | None = None, processes: list[Any] | None = None) -> None:
+    def add_terminal(self, handle: str, *, cwd: str | None = None, processes: list[backend.Process] | None = None) -> None:
         """A terminal with no agent in it (a shell pane)."""
         self._terminals[handle] = backend.Seat(handle=handle, cwd=cwd)
         self._processes[handle] = processes if processes is not None else []
@@ -73,6 +76,14 @@ class FakeBackend(backend.Backend):
         if isinstance(outcome, BaseException):
             raise outcome
         return True, outcome
+
+    @staticmethod
+    def matches(environ: Mapping[str, str]) -> bool:
+        return bool(environ.get("FAKE_HANDLE"))
+
+    @staticmethod
+    def own_handle(environ: Mapping[str, str]) -> str | None:
+        return environ.get("FAKE_HANDLE") or None
 
     def _find(self, ref: str) -> backend.Seat:
         for seat in self._seats.values():
@@ -113,7 +124,7 @@ class FakeBackend(backend.Backend):
         done, value = self._scripted("wait_state", ref, tuple(states), timeout_ms)
         return value if done else self._find(ref).state
 
-    def processes(self, handle: str) -> list[Any]:
+    def processes(self, handle: str) -> list[backend.Process]:
         done, value = self._scripted("processes", handle)
         if done:
             return value
@@ -121,6 +132,9 @@ class FakeBackend(backend.Backend):
             raise backend.SeatError("not_found", f"fake terminal {handle} not found")
         return self._processes[handle]
 
-    def send_block(self, lead_handle: str, report_path: str) -> str:
+    def send_block(self, lead_handle: str, report_path: str) -> backend.SendBlock:
         done, value = self._scripted("send_block", lead_handle, report_path)
-        return value if done else f"FAKE-SEND {lead_handle} {report_path}"
+        return value if done else backend.SendBlock(f"FAKE-SEND {lead_handle} {report_path}")
+
+
+Adapter = FakeBackend
