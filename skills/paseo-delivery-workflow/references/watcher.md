@@ -45,11 +45,11 @@ succeeds in a later check, so a new failure is reported again.
    those in any form). Keep every other agent.
 2. `paseo permit ls --json`.
 3. For each kept agent: `paseo logs <id> --since <its read-up-to time in state.md>`; for the
-   first check, your own start time; for a new agent (no `state.md` entry), the time of your
-   last check. Its new read-up-to time is the start of this check. An entry seen again at
-   that boundary is not reported twice: check `findings.md`. An agent `state.md` holds, not
-   in `<excluded-ids>`, that step 1 no longer lists was archived since the last check: read
-   it once the same way, then drop it from `state.md`.
+   first check, your own start time; for a new agent (no `state.md` entry), the start of
+   your last check. Its new read-up-to time is the start of this check. An entry seen again
+   at that boundary is not reported twice: check `findings.md`. An agent `state.md` holds,
+   not in `<excluded-ids>`, that step 1 no longer lists was archived since the last check:
+   read it once the same way, then drop it from `state.md`.
 4. Classify each entry against the rules below.
 5. Write findings and state, send the reports, end the turn.
 
@@ -64,9 +64,9 @@ Read only `<approval-record>`, `<project-records>`, and your own `<record-dir>`;
 
 - `findings.md`: one dated entry per finding: agent id and title, the rule broken, the exact
   tool call or command (redacted), why it matters.
-- `state.md`: your start time, the time of your last check, per agent its title, project,
-  and read-up-to time, the time of your last P1 send, the P1 lines not yet sent, and the
-  command of a sent `blocked` report.
+- `state.md`: your start time, the start time of your last check, per agent its title,
+  project, and read-up-to time, the time of your last P1 send, the P1 lines not yet sent,
+  and the command of a sent `blocked` report.
 
 ## Report line
 
