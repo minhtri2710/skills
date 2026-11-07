@@ -82,6 +82,21 @@ class SendBlockTest(unittest.TestCase):
                 self.assertEqual((code, out), (1, ""))
                 self.assertTrue(err.startswith("backend: "), err)
 
+    def test_report_send_file_names_the_peer_and_refuses_unsafe_or_misshapen_paths(self) -> None:
+        self.assertEqual(backend.report_send_file("/state/runs/r1/report-eng-a.md"), ("eng-a", "/state/runs/r1/send-eng-a.txt"))
+        for report in (
+            "report-eng-a.md",
+            "/state/runs/r1/eng-a.md",
+            "/state/runs/r1/report-.md",
+            '/state/runs/"r1"/report-eng-a.md',
+            "/state/runs/$HOME/report-eng-a.md",
+            "/state/runs/`x`/report-eng-a.md",
+            "/state/runs/r1/report-eng-a.md\nrm",
+            "/state/runs/r\\1/report-eng-a.md",
+        ):
+            with self.subTest(report=report), self.assertRaises(ValueError):
+                backend.report_send_file(report)
+
     def test_a_backend_without_a_send_block_fails_closed(self) -> None:
         fake = FakeBackend()
         fake.script("send_block", backend.Unsupported("fake does not support send_block"))

@@ -98,7 +98,7 @@ herdr agent wait <handle> --until idle --until done --until blocked --timeout 30
 herdr pane wait-output <pane-id> --match "test result" --timeout 120000
 ```
 
-`agent wait` takes `--until` once per state. The `120000` and `30000` are illustrative values, never defaults to borrow; every `--timeout` is sized to the command's real worst case, and `pane wait-output` waits indefinitely without it. `pane wait-output` is for a pane with no agent: it searches the selected snapshot immediately, so existing output can match; use `--match <text>` for a literal substring or `--regex <pattern>` for a Rust regex.
+`agent wait` takes `--until` once per state. Herdr has no `error` state to wait for, so the adapter drops a requested `error` from the argv and refuses the call (`ValueError`) when nothing else remains. The `120000` and `30000` are illustrative values, never defaults to borrow; every `--timeout` is sized to the command's real worst case, and `pane wait-output` waits indefinitely without it. `pane wait-output` is for a pane with no agent: it searches the selected snapshot immediately, so existing output can match; use `--match <text>` for a literal substring or `--regex <pattern>` for a Rust regex.
 
 ## list
 

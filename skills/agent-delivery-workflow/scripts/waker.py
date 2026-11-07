@@ -20,7 +20,7 @@ from pathlib import Path
 
 import backend
 
-TERMINAL = ("idle", "done", "blocked")
+TERMINAL = ("idle", "done", "blocked", "error")
 # The measured pi footer needs 8 lines to show its marker, and a read refused a 15-line tail on a working seat (10 succeeded).
 TAIL_LINES = 10
 MARKERS = ("Awaiting:", "Awaiting reports:")

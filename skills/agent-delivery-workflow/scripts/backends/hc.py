@@ -10,7 +10,6 @@ import functools
 import json
 import math
 import os
-import re
 import subprocess
 import time
 from collections.abc import Callable, Mapping, Sequence
@@ -26,8 +25,6 @@ DEFAULT_TIMEOUT = 30.0
 _SEAT_KINDS = {"not_found": "not_found", "blocked": "blocked"}
 # Exit codes of `hc` when stderr carries no JSON (SKILL.md:214-215).
 _EXIT_KINDS = {3: "not_found", 7: "needs_target", 9: "blocked", 10: "status_mismatch", 11: "finished"}
-_REPORT_PATH_RE = re.compile(r"(?P<dir>.+)/report-(?P<peer>[^/]+)\.md")
-_UNSAFE_IN_DOUBLE_QUOTES = frozenset('"$`\\\n')
 
 Runner = Callable[..., "subprocess.CompletedProcess[str]"]
 
@@ -217,8 +214,6 @@ class Adapter(backend.Backend):
     def send_block(self, lead_handle: str, report_path: str) -> str:
         if backend.HANDLE_RE.fullmatch(lead_handle) is None:
             raise ValueError(f"not a seat handle: {lead_handle!r}")
-        match = _REPORT_PATH_RE.fullmatch(report_path)
-        if match is None or _UNSAFE_IN_DOUBLE_QUOTES & set(report_path):
-            raise ValueError(f"report path must be <run-dir>/report-<peer>.md without shell metacharacters: {report_path!r}")
+        _, send_path = backend.report_send_file(report_path)
         command = FALLBACK_BINARY if self._binary == FALLBACK_BINARY else f'"$HOME/.local/bin/{BINARY_NAME}"'
-        return f'{command} send {lead_handle} "$(cat {match["dir"]}/send-{match["peer"]}.txt)"'
+        return f'{command} send {lead_handle} "$(cat {send_path})"'

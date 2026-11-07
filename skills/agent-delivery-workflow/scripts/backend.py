@@ -42,10 +42,15 @@ Backend (the adapter base; every operation raises Unsupported until an adapter i
   get_terminal(handle) -> Seat              the terminal behind a handle, whether or not an agent runs in it.
   read_output(ref, lines) -> str            recent unwrapped output.
   prompt(ref, text) -> None                 send text and submit it; raises SeatError blocked / not_found.
-  wait_state(ref, states, timeout_ms) -> str  wait for one of `states`; returns the state reached.
+  wait_state(ref, states, timeout_ms) -> str  wait for one of `states`; returns the state reached. A requested state
+                                            the tool never reports is ignored; ValueError only when none remain.
   processes(handle) -> list[Mapping]        foreground processes of a seat, as the backend reports them
                                             (keys argv, argv0, pid, cwd where known).
   send_block(lead_handle, report_path) -> str  the report-by-prompt send block a charter must contain.
+
+Report paths (the adapters' send_block):
+  report_send_file(report_path) -> (peer, send_path)  validates <run-dir>/report-<peer>.md and names the Peer's
+                      send file; raises ValueError.
 
 Spawn, interrupt, close and notify are not part of this surface: no migrated caller needs them yet.
 The environment is read, never printed or logged.
@@ -65,6 +70,8 @@ from typing import Any, NamedTuple
 STATES = ("idle", "working", "done", "blocked", "error", "unknown")
 SEAT_ERROR_KINDS = ("not_found", "blocked", "not_started")
 HANDLE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$")
+_REPORT_PATH_RE = re.compile(r"(?P<dir>.+)/report-(?P<peer>[^/]+)\.md")
+_UNSAFE_IN_DOUBLE_QUOTES = frozenset('"$`\\\n')
 
 # One line per backend. Each module defines `Adapter`.
 ADAPTERS = {
@@ -137,6 +144,13 @@ _SIGNATURES = {
     "hc": lambda e: _all_set(e, "HC_TERMINAL_ID", "HC_TERMINAL_SOCKET"),
     "rex": lambda e: e.get("TERM_PROGRAM") == "rex" and _all_set(e, "REX_BLOCK", "REX_SESSION"),
 }
+
+
+def report_send_file(report_path: str) -> tuple[str, str]:
+    match = _REPORT_PATH_RE.fullmatch(report_path)
+    if match is None or _UNSAFE_IN_DOUBLE_QUOTES & set(report_path):
+        raise ValueError(f"report path must be <run-dir>/report-<peer>.md without shell metacharacters: {report_path!r}")
+    return match["peer"], f"{match['dir']}/send-{match['peer']}.txt"
 
 
 def own_handle(name: str, environ: Mapping[str, str]) -> str | None:

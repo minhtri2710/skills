@@ -35,7 +35,7 @@ LEAD = "w1:p1"
 SEAT = "w1:p2"
 PEER = "eng-example"
 TIMEOUT_MS = 600000
-WAIT = ("wait_state", SEAT, ("idle", "done", "blocked"), TIMEOUT_MS)
+WAIT = ("wait_state", SEAT, ("idle", "done", "blocked", "error"), TIMEOUT_MS)
 # Shape of the pi Lead pane tail measured on 2026-10-08 (the `read` operation's unwrapped output on Herdr):
 # message, blank, rule, blank, rule, cwd, usage, footer. Plain text on stdout with rc 0.
 PI_TAIL = """Work is parked on the Human gate.
@@ -125,6 +125,15 @@ class WakerTest(unittest.TestCase):
         self.assertEqual(self.run_waker(fake, self.peer_argv()), 0)
         self.assertEqual(fake.prompts(), [self.peer_prompt("idle", "no")])
 
+    def test_error_is_a_terminal_state_that_prompts_in_both_modes(self):
+        fake = Scripted(status="error")
+        self.assertEqual(self.run_waker(fake, self.peer_argv()), 0)
+        self.assertEqual(fake.calls, [WAIT, self.peer_prompt("error", "no")])
+        fake = Scripted(status="error", tail="no marker\n")
+        self.assertEqual(self.run_waker(fake, self.lead_argv()), 0)
+        self.assertEqual(fake.calls[0], ("wait_state", LEAD, WAIT[2], TIMEOUT_MS))
+        self.assertEqual(fake.prompts(), [self.lead_prompt("error")])
+
     def test_report_older_than_watch_start_is_not_fresh(self):
         self.report.write_text("previous turn")
         os.utime(self.report, ns=(1_000_000_000, 1_000_000_000))
@@ -195,7 +204,7 @@ class WakerTest(unittest.TestCase):
         fake = Scripted(status="idle")
         self.assertEqual(self.run_waker(fake, self.lead_argv()), 0)
         self.assertEqual(fake.prompts(), [])
-        self.assertEqual(fake.calls[0], ("wait_state", LEAD, ("idle", "done", "blocked"), TIMEOUT_MS))
+        self.assertEqual(fake.calls[0], ("wait_state", LEAD, ("idle", "done", "blocked", "error"), TIMEOUT_MS))
         self.assertEqual(fake.calls[1], ("read_output", LEAD, 10))
 
     def test_lead_awaiting_reports_marker_sends_no_prompt(self):

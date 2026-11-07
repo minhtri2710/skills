@@ -528,12 +528,6 @@ class SendBlockTest(unittest.TestCase):
             ("session:aaaa.block:a1;rm", REPORT),
             ("", REPORT),
             (LEAD, "report-eng-a.md"),
-            (LEAD, "/state/runs/r1/eng-a.md"),
-            (LEAD, "/state/runs/r1/report-.md"),
-            (LEAD, '/state/runs/"r1"/report-eng-a.md'),
-            (LEAD, "/state/runs/$HOME/report-eng-a.md"),
-            (LEAD, "/state/runs/`x`/report-eng-a.md"),
-            (LEAD, "/state/runs/r1/report-eng-a.md\nrm"),
         ):
             with self.subTest(lead=lead, report=report), self.assertRaises(ValueError):
                 a.send_block(lead, report)

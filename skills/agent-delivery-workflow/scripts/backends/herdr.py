@@ -6,7 +6,6 @@ used to own). The runner takes (args, timeout) and returns a subprocess.Complete
 from __future__ import annotations
 
 import json
-import re
 import subprocess
 from collections.abc import Callable, Mapping, Sequence
 from typing import Any
@@ -18,8 +17,8 @@ DEFAULT_TIMEOUT = 30.0
 _CODE_KINDS = {"agent_not_found": "not_found", "pane_not_found": "not_found", "agent_blocked": "blocked"}
 # A pane call says "gone" only with pane_not_found; agent_not_found there is not evidence the pane is gone.
 _PANE_KINDS = {"pane_not_found": "not_found"}
-_REPORT_PATH_RE = re.compile(r"(?P<dir>.+)/report-(?P<peer>[^/]+)\.md")
-_UNSAFE_IN_DOUBLE_QUOTES = frozenset('"$`\\\n')
+# `agent wait --until` has no `error` state (the seat model's one state herdr never reports).
+REPORTABLE = tuple(state for state in backend.STATES if state != "error")
 
 Runner = Callable[..., "subprocess.CompletedProcess[str]"]
 
@@ -153,8 +152,11 @@ class Adapter(backend.Backend):
     def wait_state(self, ref: str, states: Sequence[str], timeout_ms: int) -> str:
         if not states or any(state not in backend.STATES for state in states):
             raise ValueError(f"wait states must be a non-empty subset of {backend.STATES}")
+        until = [state for state in states if state in REPORTABLE]
+        if not until:
+            raise ValueError(f"herdr reports none of the wait states {list(states)}; it reports {REPORTABLE}")
         args = ["agent", "wait", ref]
-        for state in states:
+        for state in until:
             args += ["--until", state]
         args += ["--timeout", str(timeout_ms)]
         payload = _object(self._ok(args, timeout=timeout_ms / 1000 + 10).stdout)
@@ -175,10 +177,7 @@ class Adapter(backend.Backend):
     def send_block(self, lead_handle: str, report_path: str) -> str:
         if backend.HANDLE_RE.fullmatch(lead_handle) is None:
             raise ValueError(f"not a seat handle: {lead_handle!r}")
-        match = _REPORT_PATH_RE.fullmatch(report_path)
-        if match is None or _UNSAFE_IN_DOUBLE_QUOTES & set(report_path):
-            raise ValueError(f"report path must be <run-dir>/report-<peer>.md without shell metacharacters: {report_path!r}")
-        peer, send_path = match["peer"], f"{match['dir']}/send-{match['peer']}.txt"
+        peer, send_path = backend.report_send_file(report_path)
         return (
             f'herdr agent prompt {lead_handle} "$(cat {send_path})"\n'
             f'herdr notification show "{peer}: report send failed" --body "{report_path}" --sound request'

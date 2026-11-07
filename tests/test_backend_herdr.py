@@ -251,6 +251,12 @@ class ReadPromptWaitTest(unittest.TestCase):
             [(["agent", "wait", "eng-a", "--until", "idle", "--until", "done", "--until", "blocked", "--timeout", "30000"], 40.0)],
         )
 
+    def test_wait_state_drops_error_which_herdr_never_reports(self) -> None:
+        a, runner = adapter(reply(fixture("agent-wait.json")))
+        self.assertEqual(a.wait_state("eng-a", ["idle", "done", "blocked", "error"], 30000), "idle")
+        self.assertEqual(runner.argv[0].count("--until"), 3)
+        self.assertNotIn("error", runner.argv[0])
+
     def test_wait_state_failures(self) -> None:
         a, _ = adapter(reply(returncode=1, stderr=fixture("error-agent-not-found.stderr.json")))
         with self.assertRaises(backend.SeatError):
@@ -261,7 +267,7 @@ class ReadPromptWaitTest(unittest.TestCase):
 
     def test_wait_state_refuses_states_outside_the_seat_model(self) -> None:
         a, runner = adapter()
-        for states in ([], ["sleeping"], ["idle", "asleep"]):
+        for states in ([], ["sleeping"], ["idle", "asleep"], ["error"]):
             with self.subTest(states), self.assertRaises(ValueError):
                 a.wait_state("eng-a", states, 1000)
         self.assertEqual(runner.calls, [])
@@ -339,12 +345,6 @@ class SendBlockTest(unittest.TestCase):
             ("lead;rm", REPORT),
             ("", REPORT),
             (LEAD, "report-eng-a.md"),
-            (LEAD, "/state/runs/r1/eng-a.md"),
-            (LEAD, "/state/runs/r1/report-.md"),
-            (LEAD, '/state/runs/"r1"/report-eng-a.md'),
-            (LEAD, "/state/runs/$HOME/report-eng-a.md"),
-            (LEAD, "/state/runs/`x`/report-eng-a.md"),
-            (LEAD, "/state/runs/r1/report-eng-a.md\nrm"),
         ):
             with self.subTest(lead=lead, report=report), self.assertRaises(ValueError):
                 a.send_block(lead, report)
