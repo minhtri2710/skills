@@ -146,9 +146,9 @@ def append_entry(
     body: str | None,
 ) -> str:
     slug = _project_slug(path, "--append")
-    for name, seat in (("--from", sender), ("--to", recipient)):
-        if SEAT_RE.fullmatch(seat) is None:
-            raise ValueError(f"{name} {seat!r} is not a seat name: {SEAT_RE.pattern}")
+    if SEAT_RE.fullmatch(sender) is None:
+        raise ValueError(f"--from {sender!r} is not a seat name: {SEAT_RE.pattern}")
+    state_root.seat_record(slug, recipient)
     text = _one_line("--event", event)
     if attention is not None:
         text = attention_text(slug, _one_line("--attention", attention), text)

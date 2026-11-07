@@ -443,6 +443,14 @@ class MailboxAppendTest(unittest.TestCase):
                 self.assertFalse(refused.exists())
         self.assertEqual(self.fake.calls, [])
 
+    def test_append_to_a_seat_that_is_not_a_role_writes_nothing_and_wakes_nothing(self):
+        argv = ["--file", str(self.path), "--append", "--from", "lead-beo-skills", "--to", "lead-x",
+                "--repo", str(self.repo), "--event", "gate opened"]
+        self.assertNotEqual(mailbox.main(argv), 0)
+        self.assertIn("'lead-x' is not a seat role", self.stderr.getvalue())
+        self.assertFalse(self.path.exists())
+        self.assertEqual(self.fake.calls, [])
+
     def test_append_rejects_selectors_and_append_only_flags_need_append(self):
         for extra in (["--headers"], ["--last", "1"], ["--since", "2026-09-24T00:00:00Z"]):
             with self.subTest(extra=extra), self.assertRaises(SystemExit):

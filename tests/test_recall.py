@@ -223,6 +223,14 @@ class RecallTest(unittest.TestCase):
         self.assertEqual(stamp.call_count, 1)
         self.assertEqual(stamp.call_args.args[0], os.path.realpath(lesson))
 
+    def test_project_must_be_a_lowercase_slug(self):
+        self.write("Demo/notes.md", "lesson guidance\n")
+        stderr = io.StringIO()
+        with redirect_stderr(stderr), self.assertRaises(SystemExit) as raised:
+            recall.main(["--project", "Demo", "lesson", "guidance"])
+        self.assertEqual(raised.exception.code, 2)
+        self.assertIn("--project must be a project slug", stderr.getvalue())
+
     def test_invalid_selectors_exit_nonzero(self):
         for argv in ([], ["one"], ["--get", "bad"]):
             with self.subTest(argv=argv), self.assertRaises(SystemExit) as raised:
