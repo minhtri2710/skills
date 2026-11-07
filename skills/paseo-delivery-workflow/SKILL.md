@@ -145,10 +145,13 @@ other tier gains a shell `paseo` use from this exception.
    record. A delete, move, or overwrite in the change whose path comes from stored state is
    a `FAIL` until it has a containment guard in the same delivery, never an accepted risk. A
    new test the change does not need, or one that duplicates an existing proof, is a
-   finding. A `FAIL` lists every finding at its SHA and goes back to the owning writer; the
-   same Reviewer then re-reviews the fix's diff at the new SHA, and only the lanes that fail
-   the carry rule at the new SHA run again. Every finding carries a severity (High, Medium,
-   Low, or Info), and only High and Medium block; a Low or Info finding reported with a
+   finding; a stub that breaks the stub rule in "Extend before adding" (Every agent) is a
+   `FAIL`. A `FAIL` lists every finding at its SHA and goes back to the owning writer; the
+   fix is committed on top of the failed SHA, with no amend, rebase, squash, or force-push
+   before merge, and the same Reviewer re-reviews
+   `git diff <failed SHA> <new SHA>`, its prompt naming both SHAs. Only the lanes that
+   fail the carry rule at the new SHA run again. Every finding carries a severity (High,
+   Medium, Low, or Info), and only High and Medium block; a Low or Info finding reported with a
    `PASS` does not reopen the review, and the head goes on to step 6. A Low that is a
    correctness or user-visible defect goes into the next queued delivery touching its area,
    else into the record's next work; style, wording, and doc Lows join the next delivery
@@ -291,9 +294,9 @@ acting. Step 7 never archives the Watcher; it lives as long as the Supervisor.
   bound that fires, or a check that did not run, is a failed check. A command that outlasts
   your tool timeout runs as your runtime's tracked background task whose completion wakes
   you, its pid recorded, never under `nohup` or detached before you end the turn; a command
-  that holds a shared lock (a scratch database, a shared container runtime) runs so unless
-  it surely finishes under the timeout, since a timeout that cuts it skips its cleanup and
-  leaves the lock stuck for every project that shares it.
+  that holds a shared lock (a scratch database, a shared container runtime) runs in a
+  tracked background call unless it surely finishes under the timeout, since a timeout
+  that cuts it skips its cleanup and leaves the lock stuck for every project that shares it.
 - Engineers and Reviewers whose runtime has subagents use them for disjoint sub-work, such
   as reading or an Engineer's independent test lanes, and work alone only when the work does
   not split. An Engineer's writing subagent stays inside paths the Engineer assigns it from
@@ -310,7 +313,10 @@ acting. Step 7 never archives the Watcher; it lives as long as the Supervisor.
   refusal ids, and key tokens (command, flag, path, SHA), never a whole sentence of prose;
   text that protects data, such as a step telling the user what is kept or lost, is the
   exception. A new or extended test's proof is that it fails before the fix and passes
-  after, run once, plus the acceptance lanes.
+  after, run once, plus the acceptance lanes. A stub for a service that lives inside another
+  host or VM fails as the real service does while that host is down (for example a refused
+  or timed-out connection), never answering: a stub that answers while its host is down
+  makes a passing test prove nothing about that path.
 - Write every text file (brief, report, PR body) with the file-write tool or a quoted
   heredoc (`<<'EOF'`), and send a prompt through the send tool or from such a file; never
   use an unquoted heredoc, an `echo` of prose, or an inline double-quoted shell argument,
