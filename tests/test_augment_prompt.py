@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
-import contextlib
-import io
 import unittest
 
 import support
@@ -39,19 +37,13 @@ class UpgradeTest(unittest.TestCase):
         self.assertIn("Effort level: Deep", out)
         self.assertIn("Return polished final copy", out)
 
-    def run_main(self, *argv: str) -> str:
-        out = io.StringIO()
-        with contextlib.redirect_stdout(out):
-            augment_prompt.main(list(argv))
-        return out.getvalue()
-
     def test_cli_infers_task_and_defaults_the_intensity(self):
-        out = self.run_main("review this code")
+        _, out, _ = support.run_main(augment_prompt.main, ["review this code"])
         self.assertIn("Task type: review", out)
         self.assertIn("Effort level: Standard", out)
 
     def test_cli_explicit_task_and_intensity_override_the_defaults(self):
-        out = self.run_main("review this code", "--task", "writing", "--intensity", "Light")
+        _, out, _ = support.run_main(augment_prompt.main, ["review this code", "--task", "writing", "--intensity", "Light"])
         self.assertIn("Task type: writing", out)
         self.assertIn("Effort level: Light", out)
 

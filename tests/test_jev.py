@@ -158,6 +158,9 @@ class JevTest(unittest.TestCase):
         self.keychain.assert_called_once()
         self.assertEqual(self.keychain.call_args.args[0], KEYCHAIN_ARGV)
         self.assertEqual(
+            self.keychain.call_args.kwargs["timeout"], jev.KEYCHAIN_TIMEOUT_SECONDS
+        )
+        self.assertEqual(
             urlopen.call_args.args[0].get_header("Authorization"), f"Bearer {FAKE_KEY}"
         )
 

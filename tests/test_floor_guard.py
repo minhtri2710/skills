@@ -327,6 +327,19 @@ class ParseDiffTest(unittest.TestCase):
             "@@ -1 +1 @@\n"
             "-x\n"
             "+y\n"
+            'diff --git "a/ctl\\001.py" "b/ctl\\001.py"\n'
+            "index 587be6b..975fbec 100644\n"
+            '--- "a/ctl\\001.py"\n'
+            '+++ "b/ctl\\001.py"\n'
+            "@@ -1 +1 @@\n"
+            "-x\n"
+            "+y\n"
+            'diff --git "a/tab\\there.py" "b/tab\\there.py"\n'
+            "index 422c2b7..7898192 100644\n"
+            '--- "a/tab\\there.py"\n'
+            '+++ "b/tab\\there.py"\n'
+            "@@ -2 +1,0 @@ a\n"
+            "-b\n"
             "diff --git a/sp ace.py b/sp ace.py\n"
             "index 1..2 100644\n"
             "--- a/sp ace.py\t\n"
@@ -341,12 +354,18 @@ class ParseDiffTest(unittest.TestCase):
             [
                 floor_guard.Line('we"ird.py', 2, "b"),
                 floor_guard.Line("back\\slash.py", 1, "x"),
+                floor_guard.Line("ctl\x01.py", 1, "x"),
+                floor_guard.Line("tab\there.py", 2, "b"),
                 floor_guard.Line("sp ace.py", 1, "p"),
             ],
         )
         self.assertEqual(
             added,
-            [floor_guard.Line("back\\slash.py", 1, "y"), floor_guard.Line("sp ace.py", 1, "q")],
+            [
+                floor_guard.Line("back\\slash.py", 1, "y"),
+                floor_guard.Line("ctl\x01.py", 1, "y"),
+                floor_guard.Line("sp ace.py", 1, "q"),
+            ],
         )
 
     def test_removed_line_starting_with_dashes_is_content(self) -> None:
