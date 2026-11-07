@@ -675,13 +675,6 @@ class LedgerState:
         self.reviews: dict[str, list[tuple[int, str, str]]] = {}
         self.repair_findings: set[str] = set()
 
-    @classmethod
-    def of(cls, rows: list[str]) -> "LedgerState":
-        state = cls()
-        for row in rows:
-            state.add(row)
-        return state
-
     @property
     def next_id(self) -> int:
         return self.max_id + 1
@@ -1034,9 +1027,7 @@ def build(request: RowRequest, repo: Path, state: LedgerState,
     return row
 
 
-def check(text: str, repo: Path, state: LedgerState | None = None) -> None:
-    if state is None:
-        state = LedgerState()
+def check(text: str, repo: Path, state: LedgerState) -> None:
     row = parse_row(text)
     if state.rows and row.when < state.last_when:
         raise RowError(

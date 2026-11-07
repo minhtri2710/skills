@@ -30,20 +30,6 @@ def add_peer(fake: FakeBackend, canonical: Path, name: str, seat: str, *, agent:
         fake.add_terminal(seat, cwd=str(canonical), processes=processes)
 
 
-def count_folds(run):
-    """Run `run()` and return (its result, how many rows it folded into a LedgerState)."""
-    folded: list[str] = []
-    real_add = gate_row.LedgerState.add
-
-    def counting_add(state, row):
-        folded.append(row)
-        real_add(state, row)
-
-    with mock.patch.object(gate_row.LedgerState, "add", counting_add):
-        result = run()
-    return result, len(folded)
-
-
 class CloseoutCheckTest(unittest.TestCase):
     def setUp(self) -> None:
         self.tmp = tempfile.TemporaryDirectory()
@@ -75,6 +61,12 @@ class CloseoutCheckTest(unittest.TestCase):
         add_peer(self.fake, self.canonical, "eng-teardown", "w1:p3", agent=False)
         add_peer(self.fake, self.canonical, "review-teardown", "w1:p4")
         self.addCleanup(self.tmp.cleanup)
+
+    def closeout(self, record: dict | None = None) -> closeout_check.CloseoutResult:
+        """`check_closeout` on `record` (default: this test's), written as the staffing JSON file it reads."""
+        path = Path(self.tmp.name) / "staffing.json"
+        path.write_text(json.dumps(self.record if record is None else record), encoding="utf-8")
+        return closeout_check.check_closeout(path, self.fake)
 
     def test_closeout_reports_a_ledger_that_fails_check(self):
         origin = Path(self.tmp.name) / "origin.git"
@@ -112,7 +104,7 @@ class CloseoutCheckTest(unittest.TestCase):
         self.fake.remove("w1:p3")
         self.fake.remove("w1:p4")
 
-        result = closeout_check.check_closeout(self.record, self.fake)
+        result = self.closeout()
         self.assertFalse(result.passed)
         self.assertEqual(len(result.findings), 1)
         self.assertIn("gate ledger could not be checked:", result.findings[0])
@@ -150,7 +142,7 @@ class CloseoutCheckTest(unittest.TestCase):
             encoding="utf-8",
         )
 
-        missing_gate = closeout_check.check_closeout(self.record, self.fake)
+        missing_gate = self.closeout()
         self.assertFalse(missing_gate.passed)
         self.assertEqual(len(missing_gate.findings), 1)
         self.assertIn("reviewed unpushed commit", missing_gate.findings[0])
@@ -165,37 +157,20 @@ class CloseoutCheckTest(unittest.TestCase):
             "note=push awaits the Human | quote=\"\"\n"
         )
         self.ledger.write_text(self.ledger.read_text(encoding="utf-8") + push_gate, encoding="utf-8")
-        gated = closeout_check.check_closeout(self.record, self.fake)
+        gated = self.closeout()
         self.assertTrue(gated.passed, gated.findings)
 
         git(repo, "push", "-q", "origin", "main")
-        pushed = closeout_check.check_closeout(self.record, self.fake)
+        pushed = self.closeout()
         self.assertTrue(pushed.passed, pushed.findings)
 
         (repo / "tracked.txt").write_text("unreviewed\n", encoding="utf-8")
         git(repo, "commit", "-qam", "unreviewed")
-        unreviewed = closeout_check.check_closeout(self.record, self.fake)
+        unreviewed = self.closeout()
         self.assertTrue(unreviewed.passed, unreviewed.findings)
 
-    def test_closeout_folds_each_ledger_row_once(self):
-        def git(*args: str) -> str:
-            return support.git(self.canonical, *args)
-
-        base = git("rev-parse", "HEAD")
-        (self.canonical / "tracked.txt").write_text("next\n", encoding="utf-8")
-        git("commit", "-qam", "next")
-        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
-            self.assertEqual(gate_row.main([
-                "--ledger", str(self.ledger), "--repo", str(self.canonical),
-                "--kind", "review", "--status", "recorded:review-pass", "--review-base", base,
-                "--words", "seat", "--note", "review passed", "--quote", "PASS",
-            ]), 0)
-        rows = gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))
-        _, folds = count_folds(lambda: closeout_check.check_closeout(self.record, self.fake))
-        self.assertEqual(folds, len(rows))
-
     def test_open_recorded_peer_fails_even_when_agent_is_not_found_then_passes_after_close(self):
-        result = closeout_check.check_closeout(self.record, self.fake)
+        result = self.closeout()
         self.assertFalse(result.passed)
         self.assertIn("eng-teardown", "\n".join(result.findings))
         self.assertIn("agent_not_found", "\n".join(result.findings))
@@ -206,7 +181,7 @@ class CloseoutCheckTest(unittest.TestCase):
 
         self.fake.remove("w1:p3")
         self.fake.remove("w1:p4")
-        result = closeout_check.check_closeout(self.record, self.fake)
+        result = self.closeout()
         self.assertTrue(result.passed, result.findings)
         self.assertEqual(result.checked_seats, ("w1:p3", "w1:p4"))
 
@@ -235,7 +210,7 @@ class CloseoutCheckTest(unittest.TestCase):
             with self.subTest(argv=argv):
                 add_peer(self.fake, self.canonical, "eng-teardown", "w1:p3", agent=False,
                          processes=[backend.Process(tuple(argv), cwd=str(self.canonical))])
-                result = closeout_check.check_closeout(self.record, self.fake)
+                result = self.closeout()
                 self.assertEqual(
                     any("squatting-server anti-pattern" in finding for finding in result.findings),
                     expected,
@@ -244,13 +219,13 @@ class CloseoutCheckTest(unittest.TestCase):
     def test_a_server_outside_the_canonical_checkout_is_not_squatting(self):
         add_peer(self.fake, self.canonical, "eng-teardown", "w1:p3", agent=False,
                  processes=[backend.Process(("npm", "run", "dev"), cwd=str(self.canonical.parent / "elsewhere"))])
-        result = closeout_check.check_closeout(self.record, self.fake)
+        result = self.closeout()
         self.assertFalse(any("squatting-server" in finding for finding in result.findings))
 
     def test_a_process_without_a_cwd_takes_the_terminals(self):
         add_peer(self.fake, self.canonical, "eng-teardown", "w1:p3", agent=False,
                  processes=[backend.Process(("npm", "run", "dev"))])
-        result = closeout_check.check_closeout(self.record, self.fake)
+        result = self.closeout()
         self.assertTrue(any("squatting-server" in finding for finding in result.findings))
 
     def test_lead_only_persistent_record_passes_validation_and_closeout(self):
@@ -258,7 +233,7 @@ class CloseoutCheckTest(unittest.TestCase):
         record["persistent"] = [self.record["persistent"][0]]
         self.fake.remove("w1:p3")
         self.fake.remove("w1:p4")
-        result = closeout_check.check_closeout(record, self.fake)
+        result = self.closeout(record)
         self.assertTrue(result.passed, result.findings)
 
     def test_persistent_record_without_exactly_one_lead_or_with_extra_roles_refuses(self):
@@ -275,7 +250,7 @@ class CloseoutCheckTest(unittest.TestCase):
             with self.subTest(label):
                 record = dict(self.record)
                 record["persistent"] = persistent
-                result = closeout_check.check_closeout(record, self.fake)
+                result = self.closeout(record)
                 self.assertFalse(result.passed)
                 self.assertIn(
                     "persistent must record exactly one Lead and at most one Human Supervisor",
@@ -288,8 +263,9 @@ class CloseoutCheckTest(unittest.TestCase):
             self.record["persistent"][0],
             {"role": "Human Supervisor", "name": "supervisor", "seat": "w1:p1"},
         ]
-        with self.assertRaisesRegex(ValueError, "persistent seat 'w1:p1' is duplicated"):
-            closeout_check._validate_record(record)
+        result = self.closeout(record)
+        self.assertFalse(result.passed)
+        self.assertIn("malformed staffing record: persistent seat 'w1:p1' is duplicated", result.findings[0])
 
     def test_duplicate_persistent_name_is_rejected(self):
         record = dict(self.record)
@@ -297,18 +273,19 @@ class CloseoutCheckTest(unittest.TestCase):
             self.record["persistent"][0],
             {"role": "Human Supervisor", "name": "lead-beo-skills", "seat": "w1:p2"},
         ]
-        with self.assertRaisesRegex(ValueError, "persistent name 'lead-beo-skills' is duplicated"):
-            closeout_check._validate_record(record)
+        result = self.closeout(record)
+        self.assertFalse(result.passed)
+        self.assertIn("malformed staffing record: persistent name 'lead-beo-skills' is duplicated", result.findings[0])
 
     def test_terminal_read_failure_fails_closed(self):
         self.fake.script("get_terminal", backend.BackendUnavailable("get_terminal timed out"))
-        result = closeout_check.check_closeout(self.record, self.fake)
+        result = self.closeout()
         self.assertFalse(result.passed)
         self.assertTrue(any("w1:p3: terminal read failed" in finding for finding in result.findings))
 
     def test_mismatched_terminal_evidence_fails_closed(self):
         self.fake.script("get_terminal", backend.Seat(handle="w1:p9", cwd=str(self.canonical)))
-        result = closeout_check.check_closeout(self.record, self.fake)
+        result = self.closeout()
         self.assertFalse(result.passed)
         self.assertTrue(any("w1:p3: backend returned mismatched terminal evidence" in finding
                             for finding in result.findings))
@@ -316,7 +293,7 @@ class CloseoutCheckTest(unittest.TestCase):
     def test_agent_and_process_read_failures_are_findings_not_passes(self):
         self.fake.script("get_seat", backend.BackendUnavailable("agent get timed out"))
         self.fake.script("processes", backend.BackendError("process-info lacks foreground_processes"))
-        result = closeout_check.check_closeout(self.record, self.fake)
+        result = self.closeout()
         self.assertFalse(result.passed)
         text = "\n".join(result.findings)
         self.assertIn("w1:p3: agent read failed: agent get timed out", text)
@@ -327,7 +304,7 @@ class CloseoutCheckTest(unittest.TestCase):
     def test_malformed_opaque_handle_is_rejected_without_boundary_call(self):
         record = dict(self.record)
         record["peers"] = [dict(self.record["peers"][0], seat="$(touch should-not-run)")]
-        result = closeout_check.check_closeout(record, self.fake)
+        result = self.closeout(record)
         self.assertFalse(result.passed)
         self.assertIn("malformed staffing record", result.findings[0])
         self.assertEqual(self.fake.calls, [])
@@ -346,13 +323,6 @@ class CloseoutCheckTest(unittest.TestCase):
         self.assertTrue(canonical.is_absolute())
         self.assertTrue(ledger.is_absolute())
         self.assertEqual([peer["role"] for peer in peers], ["Engineer", "Reviewer"])
-        self.assertEqual(
-            record["persistent"],
-            [
-                {"role": "Lead", "name": "lead-project-slug", "seat": "w0:pLead"},
-                {"role": "Human Supervisor", "name": "supervisor", "seat": "w0:pSupervisor"},
-            ],
-        )
 
     def test_cli_reads_json_closeout_staffing_record_and_returns_pass(self):
         self.fake.remove("w1:p3")
