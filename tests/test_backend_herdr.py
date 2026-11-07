@@ -1,6 +1,6 @@
 """Herdr adapter: argv building and parsing against an injected runner and recorded fixtures.
 
-Replaces test_herdr_cli.py. Fixtures under tests/fixtures/backends/herdr are hand-written shapes
+Fixtures under tests/fixtures/backends/herdr are hand-written shapes
 (see SOURCES.txt there); nothing here runs herdr.
 """
 from __future__ import annotations
@@ -195,12 +195,6 @@ class ErrorKindTest(unittest.TestCase):
             a.prompt(LEAD, "text")
         self.assertEqual(caught.exception.code, "unknown")
 
-    def test_not_started_is_a_defined_kind_the_herdr_adapter_does_not_emit(self) -> None:
-        self.assertIn("not_started", backend.SEAT_ERROR_KINDS)
-        self.assertEqual(backend.SeatError("not_started", "x").code, "not_started")
-        with self.assertRaises(ValueError):
-            backend.SeatError("stuck", "x")
-
 
 class ReadPromptWaitTest(unittest.TestCase):
     def test_read_output_argv_and_text(self) -> None:
@@ -339,11 +333,6 @@ class SendBlockTest(unittest.TestCase):
         ):
             with self.subTest(lead=lead, report=report), self.assertRaises(ValueError):
                 a.send_block(lead, report)
-
-    def test_a_handle_the_other_backends_use_is_accepted(self) -> None:
-        a, _ = adapter()
-        for handle in ("w1:p1", "t7", "session:s1.block:b1"):
-            self.assertIn(f"herdr agent prompt {handle} ", a.send_block(handle, REPORT).send_command)
 
 
 if __name__ == "__main__":

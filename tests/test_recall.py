@@ -203,25 +203,28 @@ class RecallTest(unittest.TestCase):
             "demo/runs/coordination/lessons/missing.md",
             "---\nid: missing\nadded: 2020-01-01\nsource_run: runs/issue\napproved_by: human\nstatus: active\n---\n\nmissing lesson\n",
         )
+        lesson = self.root / "demo/runs/coordination/lessons/missing.md"
+        before = lesson.read_bytes()
 
         code, output = self.run_recall(["--project", "demo", "--stamp", "missing", "lesson"])
 
         self.assertEqual(code, 0)
         self.assertIn("demo/runs/coordination/lessons/missing.md", output)
+        self.assertEqual(lesson.read_bytes(), before)
 
-    def test_stamp_writes_each_returned_file_once(self):
-        self.write(
-            "demo/runs/coordination/lessons/lesson.md",
-            "---\nid: lesson\nadded: 2020-01-01\nsource_run: runs/issue\napproved_by: human\nstatus: active\nlast_used: 2020-01-01\n---\n\nlesson lesson lesson guidance\n",
+    def test_a_lesson_returned_on_several_rows_changes_only_its_last_used_line(self):
+        before = (
+            "---\nid: lesson\nadded: 2020-01-01\nsource_run: runs/issue\napproved_by: human\nstatus: active\nlast_used: 2020-01-01\n---\n\nlesson lesson lesson guidance\n"
         )
+        self.write("demo/runs/coordination/lessons/lesson.md", before)
         lesson = self.root / "demo/runs/coordination/lessons/lesson.md"
-        with mock.patch.object(recall, "stamp_lesson", wraps=recall.stamp_lesson) as stamp:
-            code, output = self.run_recall(["--project", "demo", "--stamp", "lesson", "guidance"])
 
+        code, output = self.run_recall(["--project", "demo", "--stamp", "lesson", "guidance"])
+
+        today = datetime.now(timezone.utc).date().isoformat()
         self.assertEqual(code, 0)
-        self.assertTrue(output)
-        self.assertEqual(stamp.call_count, 1)
-        self.assertEqual(stamp.call_args.args[0], os.path.realpath(lesson))
+        self.assertGreater(output.count("demo/runs/coordination/lessons/lesson.md:"), 1)
+        self.assertEqual(lesson.read_text(), before.replace("last_used: 2020-01-01", f"last_used: {today}"))
 
     def test_project_must_be_a_lowercase_slug(self):
         self.write("Demo/notes.md", "lesson guidance\n")

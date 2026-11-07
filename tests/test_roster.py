@@ -23,23 +23,12 @@ def setUpModule() -> None:
     support.never_run()
 
 
-def seats_of(agents):
-    return [
-        backend.Seat(
-            handle=agent["pane_id"], name=agent.get("name"), state=agent["agent_status"],
-            kind=agent.get("agent"), workspace=agent.get("workspace_id"),
-        )
-        for agent in agents
-    ]
-
-
-def fake_of(agents, processes=None):
+def fake_of(seats, processes=None):
     fake = FakeBackend()
-    for agent in agents:
+    for seat in seats:
         fake.add_seat(
-            agent["pane_id"], name=agent.get("name"), state=agent["agent_status"],
-            kind=agent.get("agent"), workspace=agent.get("workspace_id"),
-            processes=[backend.Process.from_record(record) for record in (processes or {}).get(agent["pane_id"], [])],
+            seat.handle, name=seat.name, state=seat.state, kind=seat.kind, workspace=seat.workspace,
+            processes=[backend.Process.from_record(record) for record in (processes or {}).get(seat.handle, [])],
         )
     return fake
 
@@ -52,9 +41,9 @@ def run_main(fake, argv):
 class RosterTest(unittest.TestCase):
     def test_formats_agents_and_filters_workspace(self):
         agents = [
-            {"pane_id": "w1:p1", "name": "lead", "agent": "claude", "agent_status": "working", "workspace_id": "w1"},
-            {"pane_id": "w1:p2", "name": "eng", "agent_status": "unknown", "workspace_id": "w1"},
-            {"pane_id": "w2:p1", "agent": "agy", "agent_status": "idle", "workspace_id": "w2"},
+            backend.Seat(handle="w1:p1", name="lead", kind="claude", state="working", workspace="w1"),
+            backend.Seat(handle="w1:p2", name="eng", state="unknown", workspace="w1"),
+            backend.Seat(handle="w2:p1", kind="agy", state="idle", workspace="w2"),
         ]
         self.assertEqual(
             run_main(fake_of(agents), [])[1],
@@ -65,7 +54,7 @@ class RosterTest(unittest.TestCase):
             "w1:p1 lead claude working\nw1:p2 eng - unknown\n",
         )
 
-    _AGENTS = [{"pane_id": "w1:p1", "name": "lead", "agent": "claude", "agent_status": "working", "workspace_id": "w1"}]
+    _AGENTS = [backend.Seat(handle="w1:p1", name="lead", kind="claude", state="working", workspace="w1")]
 
     def test_default_prints_the_agent_list(self):
         fake = fake_of(self._AGENTS)
@@ -100,10 +89,7 @@ class RosterTest(unittest.TestCase):
                     "state": "working", "progress_mtime": stale_mtime,
                 }}})
             )
-            agents = [{
-                "pane_id": "w1:p1", "name": "peer-1", "agent": "claude",
-                "agent_status": "idle", "workspace_id": "w1",
-            }]
+            agents = [backend.Seat(handle="w1:p1", name="peer-1", kind="claude", state="idle", workspace="w1")]
             rc, output, _ = run_main(fake_of(agents), [
                 "--stalled", "--workspace", "w1",
                 "--peer", f"peer-1:{report}:{progress}",
@@ -117,11 +103,7 @@ class RosterTest(unittest.TestCase):
             root = Path(directory)
             report = root / "report.md"
             progress = root / "progress.md"
-            agents = [{
-                "pane_id": "w1:p1", "name": "peer-1", "agent": "claude",
-                "agent_status": "idle", "workspace_id": "w1",
-                "tokens": {"sort_key": "000000000001"},
-            }]
+            agents = [backend.Seat(handle="w1:p1", name="peer-1", kind="claude", state="idle", workspace="w1")]
             rc, output, _ = run_main(fake_of(agents), [
                 "--never-started", "peer-1", "--workspace", "w1",
                 "--peer", f"peer-1:{report}:{progress}",
@@ -136,10 +118,7 @@ class RosterTest(unittest.TestCase):
                 report = root / "report.md"
                 progress = root / "progress.md"
                 {"progress": progress, "report": report}[existing].write_text(existing)
-                agents = [{
-                    "pane_id": "w1:p1", "name": "peer-1", "agent": "claude",
-                    "agent_status": "done", "workspace_id": "w1",
-                }]
+                agents = [backend.Seat(handle="w1:p1", name="peer-1", kind="claude", state="done", workspace="w1")]
                 rc, output, _ = run_main(fake_of(agents), [
                     "--never-started", "peer-1",
                     "--peer", f"peer-1:{report}:{progress}",
@@ -155,10 +134,7 @@ class RosterTest(unittest.TestCase):
             previous.write_text(json.dumps({"peers": {
                 "peer-1": {"state": "working", "progress_mtime": 0},
             }}))
-            agents = [{
-                "pane_id": "w1:p1", "name": "peer-1", "agent": "claude",
-                "agent_status": "idle", "workspace_id": "w1",
-            }]
+            agents = [backend.Seat(handle="w1:p1", name="peer-1", kind="claude", state="idle", workspace="w1")]
             rc, output, _ = run_main(fake_of(agents), [
                 "--stalled", "--peer", f"peer-1:{report}:{progress}",
                 "--previous-sample", str(previous), "--stale-after", "60",
@@ -178,10 +154,7 @@ class RosterTest(unittest.TestCase):
             previous.write_text(json.dumps({"peers": {
                 "peer-1": {"state": "working", "progress_mtime": stale_mtime},
             }}))
-            agents = [{
-                "pane_id": "w1:p1", "name": "peer-1", "agent": "claude",
-                "agent_status": "idle", "workspace_id": "w1",
-            }]
+            agents = [backend.Seat(handle="w1:p1", name="peer-1", kind="claude", state="idle", workspace="w1")]
             rc, output, _ = run_main(fake_of(agents), [
                 "--stalled", "--peer", f"peer-1:{report}:{progress}",
                 "--previous-sample", str(previous), "--stale-after", "60",
@@ -201,12 +174,9 @@ class RosterTest(unittest.TestCase):
                     "progress_mtime": current_mtime - 1,
                 }
             }
-            agents = [{
-                "pane_id": "w1:p1", "name": "peer-1", "agent": "claude",
-                "agent_status": "idle", "workspace_id": "w1",
-            }]
+            agents = [backend.Seat(handle="w1:p1", name="peer-1", kind="claude", state="idle", workspace="w1")]
             lines = roster.format_stalled_roster(
-                seats_of(agents),
+                agents,
                 {"peer-1": (report, progress)},
                 previous,
                 stale_after=60,
@@ -292,7 +262,7 @@ class RosterTest(unittest.TestCase):
             return entries
 
         def agent(pane, name, kind):
-            return {"pane_id": pane, "name": name, "agent": kind, "agent_status": "working"}
+            return backend.Seat(handle=pane, name=name, kind=kind, state="working")
 
         agents = [
             agent("w1:p1", "eng-primary", "pi"),
@@ -431,7 +401,7 @@ class RosterTest(unittest.TestCase):
         self.assertEqual(lines, expected_lines)
         bare_config = {**self._DRIFT_CONFIG, "engineer-fallback-args": ["--approve", "--model=luna"]}
         rc, lines, error = self._drift(
-            [next(item for item in agents if item["name"] == "eng-bare-route")],
+            [next(item for item in agents if item.name == "eng-bare-route")],
             argv, ["eng-bare-route:engineer"], config=bare_config,
             pi_sessions={"w1:p17": [session("eng-bare-route", [{"type": "model_change", "provider": "other", "modelId": "luna"}])]},
             process_start=process_start,
@@ -462,7 +432,7 @@ class RosterTest(unittest.TestCase):
                 "peer-settings-json": {"mode": "configured"},
             }},
         }
-        seat = {"pane_id": "w1:p1", "name": "rev", "agent": "pi", "agent_status": "idle"}
+        seat = backend.Seat(handle="w1:p1", name="rev", kind="pi", state="idle")
         with tempfile.TemporaryDirectory() as directory:
             settings = roster.project_config.peer_settings_path(directory, "rev")
             process = {"w1:p1": ["pi", "--model", "review-model", "--settings", str(settings)]}
@@ -491,13 +461,13 @@ class RosterTest(unittest.TestCase):
         }
         launches = {
             "ok": ["claude", "--model", "m1", "--permission-mode", "auto"],
-            "split": ["claude", "--model", "m1", "--permission-mode", "auto"],
+            "split": ["claude", "--model", "m1", "--name", "x", "--permission-mode", "auto"],
             "absent": ["claude", "--model", "m1"],
             "fallback-ok": ["pi", "--approve", "--model", "p1", "--name", "x"],
             "fallback-missing": ["pi", "--model", "p1"],
         }
         agents = [
-            {"pane_id": f"w1:p{i}", "name": name, "agent": argv[0], "agent_status": "idle"}
+            backend.Seat(handle=f"w1:p{i}", name=name, kind=argv[0], state="idle")
             for i, (name, argv) in enumerate(launches.items())
         ]
         argv_by_pane = {f"w1:p{i}": argv for i, argv in enumerate(launches.values())}
@@ -507,6 +477,8 @@ class RosterTest(unittest.TestCase):
         self.assertEqual((rc, error), (0, ""))
         want = "expected=claude --model m1 or pi --model p1 missing="
         self.assertEqual(lines, [
+            "w1:p1 split claude DRIFT role=engineer running=claude --model m1 "
+            f"{want}--model m1 --permission-mode auto",
             "w1:p2 absent claude DRIFT role=engineer running=claude --model m1 "
             f"{want}--model m1 --permission-mode auto",
             "w1:p4 fallback-missing pi DRIFT role=engineer running=pi --model p1 "
@@ -519,13 +491,13 @@ class RosterTest(unittest.TestCase):
             "engineer-fallback": "pi", "engineer-fallback-args": ["--model", "same", "--fallback"],
             "launch-profiles": {"pi": {"seat-argv": [], "peer-argv": []}},
         }
-        agent = {"pane_id": "w1:p1", "name": "eng", "agent": "pi", "agent_status": "idle"}
+        agent = backend.Seat(handle="w1:p1", name="eng", kind="pi", state="idle")
         process = {"w1:p1": ["pi", "--model", "same", "--fallback"]}
         rc, lines, error = self._drift([agent], process, ["eng:engineer"], config)
         self.assertEqual((rc, lines, error), (0, [], ""))
 
     def test_drift_compares_a_visible_one_word_argv_against_the_route(self):
-        agent = {"pane_id": "w1:p1", "name": "eng", "agent": "claude", "agent_status": "idle"}
+        agent = backend.Seat(handle="w1:p1", name="eng", kind="claude", state="idle")
         process = {"w1:p1": ["claude"]}
         bare = {
             "engineer-kind": "claude", "engineer-args": [],
@@ -545,7 +517,7 @@ class RosterTest(unittest.TestCase):
             "engineer-fallback": "pi", "engineer-fallback-args": ["--model", "prov/luna"],
             "launch-profiles": {"pi": {"seat-argv": [], "peer-argv": []}},
         }
-        seat = {"pane_id": "w1:p1", "name": "eng", "agent": "pi", "agent_status": "idle"}
+        seat = backend.Seat(handle="w1:p1", name="eng", kind="pi", state="idle")
         start = datetime(2026, 9, 26, 13).astimezone()
         timestamp = start.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
         process = {"w1:p1": {
@@ -590,7 +562,7 @@ class RosterTest(unittest.TestCase):
             self.assertEqual(runtimes.pi_session_dir("/work/proj:a"), Path("/pi/sessions/--work-proj-a--"))
 
     def test_drift_fails_closed_without_the_role_key_the_seat_process_or_the_seat(self):
-        seat = [{"pane_id": "w1:p1", "name": "eng", "agent": "pi", "agent_status": "idle"}]
+        seat = [backend.Seat(handle="w1:p1", name="eng", kind="pi", state="idle")]
         pi, claude = {"w1:p1": ["pi"]}, {"w1:p1": ["claude", "--model", "x"]}
         cases = [
             ({"reviewer-kind": "agy"}, pi, "eng:engineer", (), "config names no primary kind for engineer"),

@@ -49,9 +49,6 @@ three
 class MailboxTest(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory(dir=os.path.realpath("/tmp"))
-        # A live wake is only allowed from a real project mailbox, so the
-        # fixture lives under a fake state root and the module
-        # constant is pointed at it for the duration of the test.
         root = Path(self.tmp.name) / ".agent-delivery" / "projects"
         project = root / "beo-skills"
         project.mkdir(parents=True)

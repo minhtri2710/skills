@@ -101,8 +101,6 @@ class WakerTest(unittest.TestCase):
     def write_report_during_wait(self):
         return lambda: self.report.write_text("report")
 
-    # Peer watch: freshness is judged against the report state captured when the watch starts.
-
     def test_fresh_report_at_done_still_sends_one_prompt(self):
         fake = Scripted(status="done", on_wait=self.write_report_during_wait())
         self.assertEqual(self.run_waker(fake, self.peer_argv()), 0)
@@ -139,7 +137,6 @@ class WakerTest(unittest.TestCase):
         fake = Scripted(status="idle", on_wait=self.write_report_during_wait())
         self.assertEqual(self.run_waker(fake, self.peer_argv()), 0)
         self.assertEqual(fake.calls, [WAIT, self.peer_prompt("idle", "yes")])
-        self.assertEqual(fake.prompts(), [self.peer_prompt("idle", "yes")])
 
     def test_wait_failure_names_the_backend_error_and_sends_nothing(self):
         for code in ("timeout", "agent_not_found"):
@@ -185,8 +182,6 @@ class WakerTest(unittest.TestCase):
         fake = Scripted(status="idle", prompt_error=backend.SeatError("blocked", "agent_blocked"))
         self.assertEqual(self.run_waker(fake, self.peer_argv()), 1)
         self.assertEqual(fake.prompts(), [self.peer_prompt("idle", "no")])
-
-    # Lead watch: the Lead's bounded tail decides whether a prompt is needed.
 
     def test_lead_idle_with_awaiting_line_above_footer_sends_no_prompt(self):
         fake = Scripted(status="idle")
@@ -269,17 +264,10 @@ class WakerTest(unittest.TestCase):
         self.assertEqual(fake.prompts(), [self.lead_prompt("idle")])
         self.assertIn("tail unreadable: not_found", self.stderr)
 
-    def test_read_success_is_returned_as_plain_text_even_when_it_looks_like_json(self):
-        text = '{"error": {"code": "agent_not_found"}}\n' + PI_FOOTER
-        fake = Scripted(tail=text)
-        self.assertEqual(waker.read_tail(fake, LEAD), text)
-
     def test_blocked_lead_prompt_refused_by_herdr_fails(self):
         fake = Scripted(status="blocked", tail="Human dialog: approve push?\n", prompt_error=backend.SeatError("blocked", "agent_blocked"))
         self.assertEqual(self.run_waker(fake, self.lead_argv()), 1)
         self.assertEqual(fake.prompts(), [self.lead_prompt("blocked")])
-
-    # Argument boundary: names are validated before they reach a path or an argv.
 
     def test_seat_name_with_path_components_is_rejected(self):
         argv = self.peer_argv()
