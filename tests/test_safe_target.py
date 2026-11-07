@@ -131,6 +131,13 @@ class SafeTargetTest(unittest.TestCase):
         with self.assertRaises(safe_target.CannotCheck):
             self.resolve(self.root / "abc123", owner_file=None, expect_owner="worker-7")
 
+    def test_owner_file_must_be_a_bare_file_name(self) -> None:
+        (self.root / ".owner").write_text("worker-7\n")
+        for owner_file in ("../.owner", str(self.root / ".owner"), "sub/.owner", "", ".", ".."):
+            with self.subTest(owner_file=owner_file):
+                with self.assertRaises(safe_target.CannotCheck):
+                    self.resolve(self.root / "abc123", owner_file=owner_file, expect_owner="worker-7")
+
     def test_owner_evidence_is_never_read_from_the_root(self) -> None:
         (self.root / ".owner").write_text("worker-7\n")
         with self.assertRaises(safe_target.Refused):
@@ -189,6 +196,17 @@ class SafeTargetTest(unittest.TestCase):
         code, out, err = self.run_cli(str(self.root / "abc123"), "--root", str(self.root), "--expect-owner", "worker-7")
         self.assertEqual((code, out), (2, ""))
         self.assertIn("cannot check", err)
+
+    def test_cli_owner_file_outside_the_target_exits_2(self) -> None:
+        (self.root / ".owner").write_text("worker-7\n")
+        for owner_file in ("../.owner", ""):
+            with self.subTest(owner_file=owner_file):
+                code, out, err = self.run_cli(
+                    str(self.root / "abc123"), "--root", str(self.root),
+                    "--owner-file", owner_file, "--expect-owner", "worker-7",
+                )
+                self.assertEqual((code, out), (2, ""))
+                self.assertIn("cannot check", err)
 
     def test_cli_unresolvable_root_exits_2(self) -> None:
         code, _, err = self.run_cli(str(self.root / "abc123"), "--root", str(self.outside / "missing"))

@@ -50,6 +50,8 @@ def resolve_target(
         raise CannotCheck("min_depth below 1 would let a root be the target")
     if (owner_file is None) != (expect_owner is None):
         raise CannotCheck("owner_file and expect_owner must be given together")
+    if owner_file is not None and (Path(owner_file).parts != (owner_file,) or owner_file == ".."):
+        raise CannotCheck("owner_file must be a file name")
     target = _resolve(Path(candidate))
     resolved_roots = []
     for raw in roots:

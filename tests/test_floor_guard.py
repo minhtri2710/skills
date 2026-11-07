@@ -104,6 +104,24 @@ class FloorGuardRepoTest(unittest.TestCase):
             "[unfinished-work] src/new_é.py:2".encode("iso8859-1"), proc.stderr
         )
 
+    def test_non_utf8_content_in_a_changed_file_is_scanned(self) -> None:
+        legacy = self.repo / "src" / "legacy.py"
+        legacy.write_bytes(b"caf\xe9 = 1\n")
+        support.git(self.repo, "add", ".")
+        support.git(self.repo, "commit", "-q", "-m", "legacy")
+        legacy.write_bytes(b"caf\xe9 = 1  # noqa\n")
+        self.assertEqual(self.run_guard(), (1, "floor-guard: 1 violation(s)\n  [silenced-checker] src/legacy.py:1\n"))
+
+    def test_non_utf8_content_of_a_watched_file_renamed_away_is_read(self) -> None:
+        cfg = (self.repo / "pkg" / "setup.cfg")
+        cfg.parent.mkdir()
+        cfg.write_bytes(b"[metadata]\nauthor = Ren\xe9\n[report]\nfail_under = 80\n")
+        support.git(self.repo, "add", ".")
+        support.git(self.repo, "commit", "-q", "-m", "legacy config")
+        support.git(self.repo, "mv", "pkg/setup.cfg", "pkg/setup.cfg.old")
+        (self.repo / "pkg" / "setup.cfg.old").write_bytes(b"[metadata]\nauthor = Ren\xe9\n[report]\nfail_under = 70\n")
+        self.assertEqual(self.run_guard(), (1, "floor-guard: 1 violation(s)\n  [threshold-loosened] pkg/setup.cfg:4\n"))
+
     def test_deleted_test_file_is_flagged(self) -> None:
         (self.repo / "tests/test_old.py").unlink()
         code, err = self.run_guard()

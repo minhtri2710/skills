@@ -139,7 +139,6 @@ def install_drift(repo: Path, install_dir: Path, entries: list[tuple[str, int, s
 
 def verify_install(repo: Path, install_dir: Path, entries: list[tuple[str, int, str]],
                    prefix: str) -> None:
-    install_dir = Path(os.path.abspath(os.path.expanduser(install_dir)))
     if install_dir.is_symlink():
         raise DeployError(f"install tree is a symlink: {install_dir}")
     drift, untracked = install_drift(repo, install_dir, entries, prefix)

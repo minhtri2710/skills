@@ -524,8 +524,12 @@ class CharterLintTest(unittest.TestCase):
             ("FAIL naming no commit", narrowed + "Prior review: report-review-deadbeefcafe.md FAIL\n",
              "repair re-review Prior review names a FAIL but no commit in --repo"),
             ("no Reviewed unit range", failed, "repair re-review has no Reviewed unit range"),
-            ("unresolvable range", f"Reviewed unit: the range {gitops.NULL_OID}..{head}\n" + failed,
-             f"repair re-review range {gitops.NULL_OID}..{head} does not resolve in {self.repo}"),
+            ("root range kept", f"Reviewed unit: the range {gitops.NULL_OID}..{head}\n" + failed, None),
+            ("rewritten sibling of a root range",
+             f"Reviewed unit: the range {gitops.NULL_OID}..{rewritten}\n"
+             + f"Prior review: report-review-{head[:12]}.md FAIL (F1)\n", None),
+            ("unresolvable range", f"Reviewed unit: the range {head}..{base}\n" + f"Prior review: report-review-{mid[:12]}.md FAIL (F1)\n",
+             f"repair re-review range {head}..{base} does not resolve in {self.repo}"),
         )
         for label, charter_lines, problem in cases:
             with self.subTest(label):

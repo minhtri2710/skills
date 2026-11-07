@@ -72,7 +72,7 @@ rex block ls -s <S> --json
 rex block call -s <S> -b <B> program_status
 ```
 
-One `block ls` for the Lead's own session, then one `program_status` per block (CD, `rex.go:109-112`). A block that closes between the two calls is skipped. Every block is listed, including plain shells; `name` is the label (empty is `None`), `workspace` is the session id; `kind`, `cwd` and `argv` are not set, because no source maps a foreground process to an agent kind (codex's `argv0` is `node`). `roster.py --drift` therefore refuses every named rex seat (its no-process error, exit 1): model drift is unsupported on Rex until a kind source exists. Plain `roster.py` listing, `--stalled` and `--never-started` do not need `kind`.
+One `block ls` for the Lead's own session, then one `program_status` per block (CD, `rex.go:109-112`). A block that closes between the two calls is skipped. Every block is listed, including plain shells; `name` is the label (empty is `None`), `workspace` is the session id; `kind` and `cwd` are not set, because no source maps a foreground process to an agent kind (codex's `argv0` is `node`). `roster.py --drift` therefore refuses every named rex seat (its no-process error, exit 1): model drift is unsupported on Rex until a kind source exists. Plain `roster.py` listing, `--stalled` and `--never-started` do not need `kind`.
 Provisional: `block ls` shape is CD only (see identify).
 
 ## processes
