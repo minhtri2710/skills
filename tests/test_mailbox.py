@@ -55,7 +55,7 @@ class MailboxTest(unittest.TestCase):
         root = Path(self.tmp.name) / ".agent-delivery" / "projects"
         project = root / "beo-skills"
         project.mkdir(parents=True)
-        self.path = project / "mailbox.md"
+        self.path = project / "supervisor-mailbox.md"
         self.path.write_text(SAMPLE, encoding="utf-8")
         root_patch = mock.patch.object(state_root, "STATE_ROOT", root)
         root_patch.start()
@@ -131,12 +131,32 @@ class MailboxTest(unittest.TestCase):
         )
         self.assertEqual(stderr.getvalue(), "")
 
+    def test_parse_header_reads_the_fields_this_module_writes_and_refuses_other_lines(self):
+        head = "a" * 40
+        line = f"## lead-x -> supervisor | 2026-09-24T03:04:05Z | ATTENTION beo-skills human-gate: G1 | HEAD {head}"
+        self.assertEqual(
+            mailbox.parse_header(line),
+            mailbox.Header(line, "lead-x", "supervisor", "2026-09-24T03:04:05Z",
+                           "ATTENTION beo-skills human-gate: G1", head, "beo-skills human-gate: G1"),
+        )
+        answer = mailbox.parse_header("## lead-x -> supervisor | 2026-09-24T03:04:05Z | first")
+        self.assertEqual((answer.event, answer.head, answer.attention), ("first", None, None))
+        for text in ("ATTENTION G1 | HEAD " + head, "## lead-x -> supervisor | 2026-09-24T03:04Z | e",
+                     "## lead-x -> supervisor | 2026-09-24T03:04:05.5Z | e", "## notes"):
+            with self.subTest(text=text):
+                self.assertIsNone(mailbox.parse_header(text))
+
+    def test_attention_text_is_what_parse_header_reads_back_as_the_attention(self):
+        event = mailbox.attention_text("beo-skills", "human-gate", "gate opened")
+        header = mailbox.parse_header(f"## a -> supervisor | 2026-09-24T03:04:05Z | {event} | HEAD {'b' * 40}")
+        self.assertEqual(header.attention, "beo-skills human-gate: gate opened")
+
     def test_minute_and_fractional_precision_header_and_since_are_rejected(self):
         minute_header = "## lead-beo-skills -> supervisor | 2026-09-10T00:20Z | minute"
         fractional_header = "## lead-beo-skills -> supervisor | 2026-09-10T00:20:00.500Z | fractional"
         for header, since in ((minute_header, "2026-09-10T00:20Z"), (fractional_header, "2026-09-10T00:20:00.500Z")):
             with self.subTest(since=since):
-                self.assertIsNone(mailbox.HEADER_RE.match(header))
+                self.assertIsNone(mailbox.parse_header(header))
                 with self.assertRaisesRegex(ValueError, "ISO-8601"):
                     mailbox.select_entries(header, since=since)
         stdout = io.StringIO()
@@ -185,7 +205,7 @@ class MailboxTest(unittest.TestCase):
         self.assertEqual(sys.stdout.getvalue(), "")
         self.assertIn("prompted w1:p7 on herdr", sys.stderr.getvalue())
         self.assertEqual(self.path.read_bytes(), SAMPLE.encode("utf-8"))
-        self.assertEqual(len(mailbox._entries(self.path.read_text(encoding="utf-8"))), 3)
+        self.assertEqual(len(mailbox.select_entries(self.path.read_text(encoding="utf-8"), headers=True)), 3)
 
     def test_wake_without_header_is_unsent_and_does_not_wake(self):
         self.path.write_text("not a mailbox entry\n", encoding="utf-8")
@@ -254,17 +274,34 @@ class MailboxTest(unittest.TestCase):
         self.assertEqual(self.wake(), 1)
         self.assertEqual(self.fake.calls, [])
 
-    def test_other_seat_is_prompted_by_the_name_given_and_needs_no_record(self):
-        self.seat_record.unlink()
-        self.assertEqual(self.wake("lead-x"), 0)
+    def test_the_lead_is_woken_at_its_recorded_handle_and_refused_without_a_record(self):
+        lead_record = self.path.parent / "lead-seat"
+        self.assertEqual(self.wake("lead"), 1)
+        self.assertIn("wake failed: no usable lead seat record", sys.stderr.getvalue())
+        self.assertEqual(self.fake.calls, [])
+        self.open_backend.assert_not_called()
+        lead_record.write_text("herdr w1:p8\n", encoding="utf-8")
+        self.clear_streams()
+        self.assertEqual(self.wake("lead"), 0)
         [(operation, handle, text)] = self.fake.calls
-        self.assertEqual((operation, handle), ("prompt", "lead-x"))
-        self.assertIn("Seat lead-x:", text)
+        self.assertEqual((operation, handle), ("prompt", "w1:p8"))
+        self.assertIn("Seat lead:", text)
 
-    def test_other_seat_not_found_gets_no_fallback(self):
-        self.fake.script("prompt", backend.SeatError("not_found", "herdr agent prompt failed: agent_not_found"))
+    def test_a_seat_that_is_not_a_role_is_refused_by_name(self):
         self.assertEqual(self.wake("lead-x"), 1)
-        self.assertEqual([call[:2] for call in self.fake.calls], [("prompt", "lead-x")])
+        self.assertIn("wake failed: 'lead-x' is not a seat role", sys.stderr.getvalue())
+        self.assertEqual(self.fake.calls, [])
+
+    def test_wake_refuses_a_mailbox_that_is_not_a_project_mailbox_path(self):
+        nested = self.path.parent / "runs" / "x" / "supervisor-mailbox.md"
+        nested.parent.mkdir(parents=True)
+        renamed = self.path.parent / "notes.md"
+        for refused in (nested, renamed):
+            with self.subTest(path=refused.name):
+                refused.write_text(SAMPLE, encoding="utf-8")
+                self.assertEqual(mailbox.main(["--file", str(refused), "--wake", "supervisor"]), 1)
+                self.assertIn("refused", sys.stderr.getvalue())
+                self.assertEqual(self.fake.calls, [])
 
     def test_backend_flag_reaches_detect_as_explicit(self):
         error = backend.DetectionError("no supported terminal tool signature matches this environment")
@@ -339,7 +376,10 @@ class MailboxAppendTest(unittest.TestCase):
             r"2026-09-24T03:04:05Z \| gate opened \| HEAD "
             r"[0-9a-f]{40}$",
         )
-        self.assertIsNotNone(mailbox.HEADER_RE.match(header))
+        self.assertEqual(
+            mailbox.parse_header(header),
+            mailbox.Header(header, "lead-beo-skills", "supervisor", "2026-09-24T03:04:05Z", "gate opened", self.head, None),
+        )
 
     def test_append_without_stdin_writes_a_header_only_entry(self):
         argv = ["--file", str(self.path), "--append", "--from", "lead-beo-skills", "--to", "supervisor",
@@ -348,21 +388,22 @@ class MailboxAppendTest(unittest.TestCase):
         self.assertEqual(self.append("two\n"), 0)
         header = f"## lead-beo-skills -> supervisor | 2026-09-24T03:04:05Z | G1 PR#1 | HEAD {self.head}"
         self.assertTrue(self.path.read_text(encoding="utf-8").startswith(f"---\n{header}\n---\n"))
-        entries = mailbox._entries(self.path.read_text(encoding="utf-8"))
-        self.assertEqual([(e.header, e.body) for e in entries][0], (header, ""))
-        self.assertEqual(entries[1].body, "two")
+        self.assertEqual(
+            mailbox.select_entries(self.path.read_text(encoding="utf-8")),
+            [f"{header}\n", f"{header.replace('G1 PR#1', 'gate opened')}\ntwo"],
+        )
 
     def test_append_attention_takes_slug_from_mailbox_directory_and_appends(self):
         self.assertEqual(self.append("one\n"), 0)
         self.assertEqual(self.append("two\n", "--attention", "human-gate"), 0)
-        entries = mailbox._entries(self.path.read_text(encoding="utf-8"))
-        self.assertEqual(len(entries), 2)
-        self.assertEqual(
-            entries[1].header,
+        header = (
             f"## lead-beo-skills -> supervisor | 2026-09-24T03:04:05Z | "
-            f"ATTENTION beo-skills human-gate: gate opened | HEAD {self.head}",
+            f"ATTENTION beo-skills human-gate: gate opened | HEAD {self.head}"
         )
-        self.assertEqual(entries[1].body, "two")
+        entries = mailbox.select_entries(self.path.read_text(encoding="utf-8"))
+        self.assertEqual(len(entries), 2)
+        self.assertEqual(entries[1], f"{header}\ntwo")
+        self.assertEqual(mailbox.parse_header(header).attention, "beo-skills human-gate: gate opened")
 
     def test_invalid_append_inputs_exit_non_zero_and_write_nothing(self):
         outside = Path(self.tmp.name) / "scratch-mailbox.md"
@@ -391,6 +432,25 @@ class MailboxAppendTest(unittest.TestCase):
             ]), 0)
         self.assertFalse(self.path.exists())
 
+    def test_a_mailbox_other_than_the_project_mailbox_path_is_refused(self):
+        nested = self.path.parent / "runs" / "x" / "supervisor-mailbox.md"
+        nested.parent.mkdir(parents=True)
+        renamed = self.path.parent / "notes.md"
+        for refused in (nested, renamed):
+            with self.subTest(path=refused.name):
+                self.assertNotEqual(self.append("x\n", "--attention", "human-gate", path=refused), 0)
+                self.assertIn("refused", self.stderr.getvalue())
+                self.assertFalse(refused.exists())
+        self.assertEqual(self.fake.calls, [])
+
+    def test_append_to_a_seat_that_is_not_a_role_writes_nothing_and_wakes_nothing(self):
+        argv = ["--file", str(self.path), "--append", "--from", "lead-beo-skills", "--to", "lead-x",
+                "--repo", str(self.repo), "--event", "gate opened"]
+        self.assertNotEqual(mailbox.main(argv), 0)
+        self.assertIn("'lead-x' is not a seat role", self.stderr.getvalue())
+        self.assertFalse(self.path.exists())
+        self.assertEqual(self.fake.calls, [])
+
     def test_append_rejects_selectors_and_append_only_flags_need_append(self):
         for extra in (["--headers"], ["--last", "1"], ["--since", "2026-09-24T00:00:00Z"]):
             with self.subTest(extra=extra), self.assertRaises(SystemExit):
@@ -415,7 +475,7 @@ class MailboxAppendTest(unittest.TestCase):
     def test_append_keeps_entry_and_returns_wake_code_when_wake_fails(self):
         self.fake.script("prompt", backend.SeatError("blocked", "herdr agent prompt failed: agent_blocked"))
         self.assertEqual(self.append("x\n"), 1)
-        self.assertEqual(len(mailbox._entries(self.path.read_text(encoding="utf-8"))), 1)
+        self.assertEqual(len(mailbox.select_entries(self.path.read_text(encoding="utf-8"), headers=True)), 1)
         self.assertIn("agent_blocked", self.stderr.getvalue())
 
     def test_append_with_wake_flag_is_a_usage_error(self):

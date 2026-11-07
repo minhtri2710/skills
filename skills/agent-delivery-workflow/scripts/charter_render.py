@@ -12,6 +12,7 @@ from pathlib import Path
 
 import backend
 import project_config
+import state_root
 from gate_row import RowError, clean_merge_parents, landed_commits
 
 SKILL = Path(__file__).resolve().parents[1]
@@ -85,9 +86,8 @@ def scope_authors(staffing: Path, lead: str, paths: list[str]) -> tuple[str, lis
 def render(args: argparse.Namespace, seats: backend.Backend) -> tuple[str, str]:
     repo = args.repo.resolve()
     run_dir = args.run_dir.resolve()
-    if len(run_dir.parts) < 5 or run_dir.parent.name != "runs" or run_dir.parents[2].name != "projects":
-        raise ValueError(f"run dir {run_dir} is not ~/.agent-delivery/projects/<slug>/runs/<run>")
-    config = project_config.load(run_dir.parents[1] / "config.json")
+    slug, _run = state_root.parse_run_dir(run_dir)
+    config = project_config.load(state_root.config(slug))
     lead = args.lead
     head = _git(repo, "rev-parse", "--verify", f"{args.head}^{{commit}}").strip()
     if head != args.head.lower():
@@ -150,7 +150,7 @@ def render(args: argparse.Namespace, seats: backend.Backend) -> tuple[str, str]:
         "bounded_run": str(SKILL / "scripts" / "bounded_run.py"),
         "peer_name": peer,
         "send_block": seats.send_block(lead, f"{run_dir}/report-{peer}.md"),
-        "state_root": str(run_dir.parents[2]),
+        "state_root": str(state_root.STATE_ROOT),
     }
     return peer, SLOT_RE.sub(lambda match: values[match.group(1)], TEMPLATE.read_text(encoding="utf-8"))
 

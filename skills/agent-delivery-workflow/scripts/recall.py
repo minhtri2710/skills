@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Recall indexed Herdr project records or read a cited line span."""
+"""Recall indexed project records or read a cited line span."""
 
 import argparse
 import datetime
@@ -10,9 +10,9 @@ import sqlite3
 import sys
 import tempfile
 import unicodedata
-from dataclasses import dataclass
 
 import state_root
+from lessons import LessonParseError, lesson_record_lines
 
 STOP = set(
     "the did what why about was were how when who does not have has with of and is are to for in on at it this that vi sao khong duoc toi la va cua".split()
@@ -30,18 +30,13 @@ def terms(variant):
     return [word for word in re.findall(r"\w+", fold(variant)) if len(word) > 1 and word not in STOP]
 
 
-def project_root(parser, project):
-    root = os.path.abspath(state_root.STATE_ROOT)
-    if project is not None:
-        if (
-            not project
-            or project in (".", "..")
-            or os.path.isabs(project)
-            or os.path.basename(project) != project
-        ):
-            parser.error("--project must be a project slug")
-        return os.path.join(root, project)
-    return root
+def index_root(parser, project):
+    if project is None:
+        return os.path.abspath(state_root.STATE_ROOT)
+    try:
+        return str(state_root.project_dir(project))
+    except ValueError:
+        parser.error("--project must be a project slug")
 
 
 def build_index(index_root):
@@ -78,95 +73,10 @@ def query_records(db, variants):
         for rank, (path, line, snippet) in enumerate(rows):
             key = (path, line)
             scores[key] = scores.get(key, 0) + 1 / (60 + rank)
-            if os.path.basename(path) == "INDEX.md":
+            if os.path.basename(path) == state_root.INDEX:
                 scores[key] += INDEX_BONUS
             snippets.setdefault(key, snippet)
     return sorted(scores.items(), key=lambda item: (-item[1], item[0][0], item[0][1])), snippets
-
-
-LESSON_FIELDS = {
-    "id",
-    "added",
-    "source_run",
-    "approved_by",
-    "status",
-    "last_used",
-}
-LESSON_STATUSES = ("active", "failure-mode", "rejected", "superseded")
-
-
-class LessonParseError(ValueError):
-    pass
-
-
-@dataclass
-class LessonRecord:
-    lines: list[str]
-    end: int
-    fields: dict[str, tuple[int, str]]
-
-
-def lesson_record_lines(text):
-    lines = text.splitlines(keepends=True)
-    if not lines:
-        raise LessonParseError("file is empty")
-
-    start = 0
-    if lines[0].rstrip("\r\n") != "---":
-        if not re.fullmatch(r"<!--[\s\S]*-->", lines[0].rstrip("\r\n")):
-            raise LessonParseError("missing frontmatter opening delimiter")
-        start = 1
-    if start >= len(lines) or lines[start].rstrip("\r\n") != "---":
-        raise LessonParseError("missing frontmatter opening delimiter")
-
-    end = next(
-        (
-            index
-            for index, line in enumerate(lines[start + 1 :], start=start + 1)
-            if line.rstrip("\r\n") == "---"
-        ),
-        None,
-    )
-    if end is None:
-        raise LessonParseError("missing frontmatter closing delimiter")
-
-    fields = {}
-    for index, line in enumerate(lines[start + 1 : end], start=start + 1):
-        match = re.fullmatch(
-            r"([A-Za-z_][A-Za-z0-9_-]*):[ \t]*(.*?)(?:\r?\n)?", line
-        )
-        if match is None:
-            raise LessonParseError(f"invalid frontmatter line {index + 1}")
-        name, value = match.groups()
-        if name in fields:
-            raise LessonParseError(f"duplicate field: {name}")
-        fields[name] = (index, value)
-
-    missing = LESSON_FIELDS - set(fields)
-    if missing:
-        raise LessonParseError(f"missing field: {sorted(missing)[0]}")
-    unexpected = set(fields) - LESSON_FIELDS - {"superseded_by"}
-    if unexpected:
-        raise LessonParseError(f"unexpected field: {sorted(unexpected)[0]}")
-
-    status = fields["status"][1]
-    if status not in LESSON_STATUSES:
-        raise LessonParseError(f"invalid status: {status}")
-    has_landing = "superseded_by" in fields
-    if status == "superseded" and not has_landing:
-        raise LessonParseError("superseded lesson is missing superseded_by")
-    if status != "superseded" and has_landing:
-        raise LessonParseError("superseded_by is valid only for superseded lessons")
-    for name, (_index, value) in fields.items():
-        if not value:
-            raise LessonParseError(f"empty field: {name}")
-
-    try:
-        datetime.date.fromisoformat(fields["added"][1])
-        datetime.date.fromisoformat(fields["last_used"][1])
-    except ValueError as exc:
-        raise LessonParseError("added and last_used must be ISO dates") from exc
-    return LessonRecord(lines, end, fields)
 
 
 def stamp_lesson(path, today):
@@ -176,8 +86,6 @@ def stamp_lesson(path, today):
         with open(path, "rb") as handle:
             original = handle.read()
         record = lesson_record_lines(original.decode("utf-8"))
-        # Superseded records remain valid lessons for the shared parser, but
-        # recall keeps its existing behavior of not marking replaced doctrine.
         if record.fields["status"][1] == "superseded":
             return
         line_index = record.fields["last_used"][0]
@@ -216,17 +124,10 @@ def stamp_lesson(path, today):
 
 def lesson_result_path(relative):
     parts = os.path.normpath(relative).split(os.sep)
-    if "lessons" not in parts or parts[-1] in {"", ".", ".."}:
+    if state_root.LESSONS not in parts or parts[-1] in {"", ".", ".."}:
         return None
-    root = os.path.realpath(os.path.abspath(state_root.STATE_ROOT))
-    path = os.path.realpath(os.path.join(root, relative))
-    try:
-        inside_root = os.path.commonpath((root, path)) == root
-    except ValueError:
-        inside_root = False
-    if not inside_root:
-        return None
-    return path
+    path = os.path.realpath(os.path.join(state_root.STATE_ROOT, relative))
+    return path if state_root.inside_state_root(path) else None
 
 
 def stamp_results(results):
@@ -249,13 +150,8 @@ def span_target(parser, spec):
         parser.error("--get must be PATH:FROM:COUNT")
     if not path or os.path.isabs(path) or start < 1 or count < 1:
         parser.error("--get must use a relative path and positive FROM and COUNT")
-    root = os.path.realpath(os.path.abspath(state_root.STATE_ROOT))
-    target = os.path.realpath(os.path.join(root, path))
-    try:
-        inside = os.path.commonpath((root, target)) == root
-    except ValueError:
-        inside = False
-    if not inside or target == root or not os.path.isfile(target):
+    target = os.path.realpath(os.path.join(state_root.STATE_ROOT, path))
+    if not state_root.inside_state_root(target) or not os.path.isfile(target):
         parser.error("--get path must name a file under the projects root")
     return target, start, count
 
@@ -275,7 +171,7 @@ def main(argv=None):
     if args.get is None and len(args.variants) < 2:
         parser.error("query mode requires at least two variants")
 
-    root = project_root(parser, args.project)
+    root = index_root(parser, args.project)
     if args.get is not None:
         target, start, count = span_target(parser, args.get)
         with open(target, encoding="utf-8", errors="ignore") as handle:

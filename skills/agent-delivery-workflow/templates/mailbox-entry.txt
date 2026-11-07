@@ -5,6 +5,4 @@ Only for what no ledger row holds, add --stdin with a quoted heredoc (the body i
 <a few lines>
 EOF
 
-The script writes this exact header, then any body:
-## <lead> -> supervisor | <UTC YYYY-MM-DDTHH:MM:SSZ at write time> | ATTENTION <project-slug> <event-kind>: <one line> | HEAD <full 40-hex HEAD of --repo>
-(without --attention the header is an answer header and omits the ATTENTION segment; <project-slug> is the mailbox's directory name)
+The script writes the header and owns its shape; without --attention the entry is an answer, not an ATTENTION event.

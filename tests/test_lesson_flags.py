@@ -116,10 +116,10 @@ class LessonFlagsTest(unittest.TestCase):
         self.assertIn("Nothing to flag", output)
 
     def test_project_must_be_a_slug(self):
-        for slug in ("", ".", "..", "/abs", "a/b"):
+        for slug in ("", ".", "..", "/abs", "a/b", "Demo", "-demo"):
             stderr = io.StringIO()
             with self.subTest(slug=slug), redirect_stderr(stderr), self.assertRaises(SystemExit) as caught:
-                lesson_flags.main(["--project", slug])
+                lesson_flags.main([f"--project={slug}"])
             self.assertEqual(caught.exception.code, 2)
             self.assertIn("--project must be a project slug", stderr.getvalue())
 
