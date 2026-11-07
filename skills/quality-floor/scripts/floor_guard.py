@@ -63,6 +63,11 @@ QUOTED = re.compile(r"[\"']([^\"']+)[\"']")
 HUNK = re.compile(r"^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@")
 CONSTRAINTS = "CONSTRAINTS.md"
 EXCEPTION_ID = re.compile(r"E\d+")
+# Files whose removed lines raise findings. Lint configs are not here: deleting one is not flagged either.
+WATCHED_REMOVALS = (
+    lambda path: Path(path).name == CONSTRAINTS,
+    *(files.search for files, _ in COVERAGE_CONFIGS),
+)
 
 
 @dataclass(frozen=True)
@@ -333,33 +338,51 @@ def check(
     return findings + check_constraints(added, removed)
 
 
-def _deleted_tests(status: str) -> list[str]:
+def _name_status(status: str) -> tuple[list[str], dict[str, str]]:
     tokens = status.split("\0")
     gone: list[str] = []
+    renames: dict[str, str] = {}
     index = 0
     while index < len(tokens) and tokens[index]:
         kind = tokens[index][0]
         if kind in "RC":
             old, new = tokens[index + 1], tokens[index + 2]
-            if kind == "R" and TEST_PATH.search(old) and not TEST_PATH.search(new):
-                gone.append(old)
+            if kind == "R":
+                renames[old] = new
+                if TEST_PATH.search(old) and not TEST_PATH.search(new):
+                    gone.append(old)
             index += 3
         else:
             if kind == "D" and TEST_PATH.search(tokens[index + 1]):
                 gone.append(tokens[index + 1])
             index += 2
-    return gone
+    return gone, renames
+
+
+def _fs_path(repo: Path, name: str) -> Path:
+    return repo / os.fsdecode(name.encode())
+
+
+def _leaves_watch(old: str, new: str) -> bool:
+    return any(watched(old) and not watched(new) for watched in WATCHED_REMOVALS)
 
 
 def collect(repo: Path, base: str) -> tuple[list[Line], list[Line], list[str], str, dict[str, list[str]]]:
     merge_base = _git(repo, "merge-base", base, "HEAD").strip()
     added, removed = parse_diff(_git(repo, "diff", "--no-color", "--unified=0", "-M", merge_base, "--"))
-    deleted = _deleted_tests(_git(repo, "diff", "--name-status", "-z", "-M", merge_base, "--"))
+    deleted, renames = _name_status(_git(repo, "diff", "--name-status", "-z", "-M", merge_base, "--"))
+    leaving = {old for old, new in renames.items() if _leaves_watch(old, new)}
+    stays = {old: new for old, new in renames.items() if old not in leaving}
+    removed = [Line(stays.get(line.path, line.path), line.number, line.text) for line in removed if line.path not in leaving]
+    for old in sorted(leaving):
+        removed.extend(
+            Line(old, i, t) for i, t in enumerate(_git(repo, "show", f"{merge_base}:{old}").splitlines(), start=1)
+        )
     for name in _git(repo, "ls-files", "--others", "--exclude-standard", "-z").split("\0"):
         if not name:
             continue
         try:
-            text = (repo / os.fsdecode(name.encode())).read_text(encoding="utf-8")
+            text = _fs_path(repo, name).read_text(encoding="utf-8")
         except (UnicodeDecodeError, OSError):
             continue
         added.extend(Line(name, i, t) for i, t in enumerate(text.splitlines(), start=1))
@@ -370,7 +393,7 @@ def collect(repo: Path, base: str) -> tuple[list[Line], list[Line], list[str], s
     toml: dict[str, list[str]] = {}
     for path in {l.path for l in added if RUFF_CONFIG.search(l.path)}:
         try:
-            toml[path] = (repo / path).read_text(encoding="utf-8").splitlines()
+            toml[path] = _fs_path(repo, path).read_text(encoding="utf-8").splitlines()
         except (UnicodeDecodeError, OSError) as exc:
             raise GuardError(f"cannot read {path}: {exc}") from exc
     return added, removed, deleted, constraints, toml

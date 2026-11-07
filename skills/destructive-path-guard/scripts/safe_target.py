@@ -48,8 +48,8 @@ def resolve_target(
         raise CannotCheck("no allowlisted root given")
     if min_depth < 1:
         raise CannotCheck("min_depth below 1 would let a root be the target")
-    if owner_file and expect_owner is None:
-        raise CannotCheck("owner_file requires expect_owner")
+    if (owner_file is None) != (expect_owner is None):
+        raise CannotCheck("owner_file and expect_owner must be given together")
     target = _resolve(Path(candidate))
     resolved_roots = []
     for raw in roots:
@@ -81,7 +81,7 @@ def resolve_target(
     if len(inside.parts) < min_depth:
         raise Refused(f"outside allowed roots or above min depth: {target}")
 
-    if owner_file:
+    if owner_file is not None:
         holder = target if (not target.is_symlink() and target.is_dir()) else target.parent
         if holder == root:
             raise Refused(f"unproven owner: evidence would be read from the root itself: {root}")

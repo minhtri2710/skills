@@ -127,6 +127,10 @@ class SafeTargetTest(unittest.TestCase):
         with self.assertRaises(safe_target.CannotCheck):
             self.resolve(self.root / "abc123", owner_file=".owner", expect_owner=None)
 
+    def test_expected_owner_without_owner_file_cannot_be_checked(self) -> None:
+        with self.assertRaises(safe_target.CannotCheck):
+            self.resolve(self.root / "abc123", owner_file=None, expect_owner="worker-7")
+
     def test_owner_evidence_is_never_read_from_the_root(self) -> None:
         (self.root / ".owner").write_text("worker-7\n")
         with self.assertRaises(safe_target.Refused):
@@ -178,6 +182,11 @@ class SafeTargetTest(unittest.TestCase):
 
     def test_cli_owner_file_without_expect_owner_exits_2(self) -> None:
         code, out, err = self.run_cli(str(self.root / "abc123"), "--root", str(self.root), "--owner-file", ".owner")
+        self.assertEqual((code, out), (2, ""))
+        self.assertIn("cannot check", err)
+
+    def test_cli_expect_owner_without_owner_file_exits_2(self) -> None:
+        code, out, err = self.run_cli(str(self.root / "abc123"), "--root", str(self.root), "--expect-owner", "worker-7")
         self.assertEqual((code, out), (2, ""))
         self.assertIn("cannot check", err)
 

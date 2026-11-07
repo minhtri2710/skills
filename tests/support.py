@@ -8,6 +8,9 @@ share a module name, since one process holds them all. It also holds:
     temp_git_repo(path)    a git repository with a fixed identity, shut out from the user's git config
     git(repo, *args)       run git in a repository under the same isolation
     run_main(main, argv)   run a CLI main(argv) and return (exit code, stdout, stderr)
+    run_in_locale(locale, code, *args)
+                           run Python code in a child under LC_ALL=locale with UTF-8 mode off, so a locale the
+                           host lacks leaves the child in an ASCII locale instead of UTF-8 mode; returns bytes
     Recorder, reply, fixture, adapter
                            the injected runner and recorded replies of the backend adapter tests
 """
@@ -120,6 +123,16 @@ def run_main(
             stack.enter_context(mock.patch.object(sys, "stdin", io.StringIO(stdin)))
         code = main(argv)
     return code, out.getvalue(), err.getvalue()
+
+
+def run_in_locale(locale: str, code: str, *args: str) -> subprocess.CompletedProcess[bytes]:
+    inherited = {key: value for key, value in os.environ.items() if key != "PYTHONIOENCODING"}
+    return subprocess.run(
+        [sys.executable, "-c", code, *args],
+        capture_output=True,
+        stdin=subprocess.DEVNULL,
+        env={**inherited, "LC_ALL": locale, "PYTHONUTF8": "0"},
+    )
 
 
 def fixture(backend_name: str, name: str) -> str:

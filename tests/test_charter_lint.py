@@ -6,7 +6,6 @@ import hashlib
 import io
 import os
 import shutil
-import subprocess
 import sys
 import tempfile
 import unittest
@@ -422,14 +421,12 @@ class CharterLintTest(unittest.TestCase):
         charter.write_text(self.engineer_charter() + "café\n", encoding="utf-8")
         staffing = self.tmp / "staffing.txt"
         staffing.write_text(self.staffing_record(), encoding="utf-8")
-        env = {k: v for k, v in os.environ.items() if k not in ("PYTHONUTF8", "PYTHONIOENCODING", "LANG")}
-        proc = subprocess.run(
-            [sys.executable, "-c", "import sys; sys.path[:0] = sys.argv[1:3]; import backend, charter_lint; "
-             "from fake_backend import FakeBackend; backend.open_backend = lambda environ, explicit=None: FakeBackend(); "
-             "sys.exit(charter_lint.main(sys.argv[3:]))", str(SCRIPTS), str(Path(__file__).parent), "--charter", str(charter),
-             "--lead", LEAD, "--staffing", str(staffing), "--repo", str(self.repo)],
-            capture_output=True, text=True, env={**env, "LC_ALL": "en_US.US-ASCII"},
-            stdin=subprocess.DEVNULL,
+        proc = support.run_in_locale(
+            "C",
+            "import sys; sys.path[:0] = sys.argv[1:3]; import backend, charter_lint; "
+            "from fake_backend import FakeBackend; backend.open_backend = lambda environ, explicit=None: FakeBackend(); "
+            "sys.exit(charter_lint.main(sys.argv[3:]))", str(SCRIPTS), str(Path(__file__).parent), "--charter", str(charter),
+            "--lead", LEAD, "--staffing", str(staffing), "--repo", str(self.repo),
         )
         self.assertEqual(proc.returncode, 0, proc.stderr)
 

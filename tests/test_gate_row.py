@@ -1939,10 +1939,8 @@ class GateRowTest(unittest.TestCase):
         self.assertIn(f" | HEAD@{self.rev('HEAD')} | ", self.last_row())
 
     def run_in_locale(self, locale: str, *argv: str) -> subprocess.CompletedProcess:
-        env = {k: v for k, v in os.environ.items() if k not in ("PYTHONUTF8", "PYTHONIOENCODING", "LANG")}
-        return subprocess.run([sys.executable, "-c", "import sys; sys.path.insert(0, sys.argv[1]); import gate_row; "
-                               "sys.exit(gate_row.main(sys.argv[2:]))", str(SCRIPTS), *argv],
-                              capture_output=True, env={**env, "LC_ALL": locale}, stdin=subprocess.DEVNULL)
+        return support.run_in_locale(locale, "import sys; sys.path.insert(0, sys.argv[1]); import gate_row; "
+                                     "sys.exit(gate_row.main(sys.argv[2:]))", str(SCRIPTS), *argv)
 
     def test_a_quote_file_is_read_as_utf8_whatever_the_locale(self):
         quote = self.tmp / "quote.txt"
@@ -1962,7 +1960,7 @@ class GateRowTest(unittest.TestCase):
         mailbox = self.tmp / "mailbox.md"
         mailbox.write_text(f"## lead -> supervisor | 2026-09-25T01:02:03Z | ATTENTION G1 café | HEAD {self.rev('HEAD')}\n",
                            encoding="utf-8")
-        proc = self.run_in_locale("en_US.US-ASCII", "--ledger", str(self.ledger), "--repo", str(self.repo),
+        proc = self.run_in_locale("C", "--ledger", str(self.ledger), "--repo", str(self.repo),
                                   "--check", "--mailbox", str(mailbox))
         self.assertEqual(proc.returncode, 0, proc.stderr)
 
