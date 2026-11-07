@@ -398,17 +398,6 @@ def _blobs(repo: Path, ids: set[str]) -> dict[str, bytes]:
     return blobs
 
 
-def _worktree_binary(repo: Path, path: str) -> bool:
-    full = _fs_path(repo, path)
-    try:
-        if full.is_symlink():
-            return False
-        with open(full, "rb") as handle:
-            return _is_binary(handle.read(8000))
-    except OSError:
-        return False
-
-
 def _fs_path(repo: Path, name: str) -> Path:
     return repo / os.fsdecode(name.encode(errors="surrogateescape"))
 
@@ -426,11 +415,8 @@ def collect(repo: Path, base: str) -> tuple[list[Line], list[Line], list[str], s
     stays = {old: new for old, new in renames.items() if old not in leaving}
     named = {l.path for l in added + removed}
     blobs = _blobs(repo, {base_blobs[path] for path in named | leaving if path in base_blobs})
-    binary = {
-        path
-        for path in named
-        if _worktree_binary(repo, path) or _is_binary(blobs.get(base_blobs.get(path, ""), b""))
-    }
+    nul = {l.path for l in added if "\0" in l.text}
+    binary = {path for path in named if path in nul or _is_binary(blobs.get(base_blobs.get(path, ""), b""))}
     binary |= {old for old, new in renames.items() if new in binary}
     added = [l for l in added if l.path not in binary]
     removed = [l for l in removed if l.path not in binary]

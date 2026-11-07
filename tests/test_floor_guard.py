@@ -235,6 +235,23 @@ class FloorGuardRepoTest(unittest.TestCase):
         (self.repo / "pyproject.toml").symlink_to(target)
         self.assertEqual(self.run_guard(), (1, "floor-guard: 1 violation(s)\n  [threshold-loosened] pyproject.toml:2\n"))
 
+    def test_untracked_binary_file_at_a_deleted_path_does_not_hide_its_removed_lines(self) -> None:
+        self.write("pyproject.toml", "[tool.coverage.report]\nfail_under = 80\n")
+        support.git(self.repo, "add", ".")
+        support.git(self.repo, "commit", "-q", "-m", "coverage")
+        support.git(self.repo, "rm", "-q", "--cached", "pyproject.toml")
+        (self.repo / "pyproject.toml").write_bytes(b"\0\xff\n")
+        self.assertEqual(self.run_guard(), (1, "floor-guard: 1 violation(s)\n  [threshold-loosened] pyproject.toml:2\n"))
+
+    def test_working_tree_encoding_does_not_hide_a_tracked_change(self) -> None:
+        (self.repo / ".git" / "info" / "attributes").write_text("*.ps1 working-tree-encoding=UTF-16\n")
+        script = self.repo / "src" / "x.ps1"
+        script.write_bytes("x = 1\n".encode("utf-16"))
+        support.git(self.repo, "add", ".")
+        support.git(self.repo, "commit", "-q", "-m", "ps1")
+        script.write_bytes("x = 1\ny = 2  # TODO\n".encode("utf-16"))
+        self.assertEqual(self.run_guard(), (1, "floor-guard: 1 violation(s)\n  [unfinished-work] src/x.ps1:2\n"))
+
     def test_tracked_crlf_file_is_flagged_at_the_right_line(self) -> None:
         crlf = self.repo / "src" / "crlf.py"
         crlf.write_bytes(b"a = 1\r\nb = 2\r\n")
