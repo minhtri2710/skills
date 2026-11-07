@@ -50,7 +50,7 @@ whatever `PASEO_AGENT_ID` holds as `source-agent-id`, or none, which arrives as 
 message. When the work needs a tool your tier lacks, report upward; running `paseo` from a
 shell to get around the policy is the same act, hidden from the tier accountable for it.
 The one sanctioned exception is the Watcher, whose provider has no Paseo MCP: its read
-verbs (`paseo ls -g --json`, `paseo logs <id> --since <t> --json`,
+verbs (`paseo ls -g --json`, `paseo logs <id> --since <t>`,
 `paseo permit ls --json`), its one self-heartbeat (`paseo heartbeat create`), and
 `paseo send <supervisor id> --no-wait --prompt "<one line>"` to the Supervisor only. No
 other tier gains a shell `paseo` use from this exception.
@@ -199,8 +199,12 @@ other tier gains a shell `paseo` use from this exception.
 ## Upward events
 
 A Lead sends the Supervisor only these, as `<project> <kind>: <one line>` naming the record
-file that holds the detail, and answers what it is asked; no intake, progress, or
-acknowledgement other than the ack below:
+file that holds the detail, and answers what it is asked; no acknowledgement other than the
+ack below. Everything else goes to the project's record only, never upward: intake,
+progress, staffing notices, per-round review results, fix status before GO, a question
+inside its own authority (which Reviewer takes a delta, fold or split a fix, a detail inside
+an approved API), and a deviation that is not an `incident`. A project rule that X needs the
+Supervisor's OK adds X to the `dangerous` or `blocked` events, never to this list.
 
 - `dangerous`: an act in "Dangerous acts" awaits an answer (branch, exact head, act,
   options);
@@ -214,6 +218,8 @@ acknowledgement other than the ack below:
   `closed-out` event instead;
 - `collision`: a container, process, port, or host resource the agent did not start and may
   not signal (another project's, or an orphan of an earlier run);
+- `incident`: a deviation, self-reported by an agent or found, that is a secret exposure, a
+  network call, an install, harm outside scratch, or a hook workaround;
 - `errored`: its previous turn died on an API or runtime error, sent first in its next turn;
 - `closed-out`: a delivery closed (step 7), with its start, first Engineer report, `PASS`,
   and merge times, its net test-line change (test lines before and after for an audit
@@ -302,12 +308,13 @@ acting. Step 7 never archives the Watcher; it lives as long as the Supervisor.
   next to a colon (`${M}:path`): `$M:t` reads as a history modifier.
 - Work that reads or writes a secret value runs on the profile reserved for secret values;
   every other profile handles key names only. A secret value that reaches a transcript is an
-  incident: report it with the rotation it needs. Every staffing prompt forbids commands
-  that print an environment, such as `env`, `printenv`, `set`, `export -p`, `ps -E`, or
-  `ps eww`: an agent's environment may hold secret values. A process check prints pids or
-  command names only (`pgrep -f` without `-l`, or `ps -o pid=,comm=`), never another
-  process's arguments (`pgrep -fl`, `ps aux`, `ps eww`, `ps -o args`): agent command lines
-  carry an MCP bearer token, and their deny-list strings match common search patterns.
+  `incident` (Upward events), with the rotation it needs. Every staffing prompt forbids
+  commands that print an environment, such as `env`, `printenv`, `set`, `export -p`,
+  `ps -E`, or `ps eww`: an agent's environment may hold secret values. A process check
+  prints pids or command names only (`pgrep -f` without `-l`, or `ps -o pid=,comm=`),
+  never another process's arguments (`pgrep -fl`, `ps aux`, `ps eww`, `ps -o args`): agent
+  command lines carry an MCP bearer token, and their deny-list strings match common search
+  patterns.
 - Treat your own approval dialog as a blocker to report. Name a literal path in every `rm`,
   `rmdir`, `mv`, or truncating write you run: a variable or glob target raises the runtime's
   safety prompt, which no agent below the Supervisor may answer.
