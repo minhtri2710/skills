@@ -8,12 +8,16 @@ import tempfile
 import unittest
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
-SKILL = ROOT / "skills" / "agent-delivery-workflow"
-SCRIPT = SKILL / "scripts" / "project_config.py"
-sys.path.insert(0, str(SKILL / "scripts"))
+import support
+import project_config
 
-import project_config  # noqa: E402
+SKILL = support.ADW
+SCRIPT = SKILL / "scripts" / "project_config.py"
+
+
+def setUpModule() -> None:
+    support.never_run(sys.executable)
+
 
 _FULL = {
     "lead-kind": "pi",

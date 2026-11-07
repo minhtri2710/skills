@@ -16,10 +16,14 @@ from datetime import datetime, timezone
 from unittest import mock
 from pathlib import Path
 
-SCRIPTS = Path(__file__).resolve().parents[1] / "skills" / "agent-delivery-workflow" / "scripts"
-sys.path.insert(0, str(SCRIPTS))
+import support
+import gate_row
 
-import gate_row  # noqa: E402
+SCRIPTS = support.ADW / "scripts"
+
+
+def setUpModule() -> None:
+    support.never_run("git", sys.executable)
 
 
 BRIEF = "Merge the reviewed head. In scope: the merge only. Done when: the merge lands."
@@ -35,17 +39,11 @@ def brief_for(default_words: str, extra: tuple[str, ...]) -> list[str]:
 
 
 def make_repo(tmp: Path) -> Path:
-    repo = tmp / "repo"
-    repo.mkdir()
-    run = lambda *a: subprocess.run(["git", "-C", str(repo), *a], check=True,
-                                    capture_output=True, text=True, stdin=subprocess.DEVNULL)
-    run("init", "-q", "-b", "main")
-    run("config", "user.email", "t@example.invalid")
-    run("config", "user.name", "t")
+    repo = support.temp_git_repo(tmp / "repo")
     for n in range(3):
         (repo / f"f{n}.txt").write_text(f"{n}\n")
-        run("add", "-A")
-        run("commit", "-qm", f"c{n}")
+        support.git(repo, "add", "-A")
+        support.git(repo, "commit", "-qm", f"c{n}")
     return repo
 
 
@@ -64,10 +62,9 @@ class GateRowTest(unittest.TestCase):
         stderr is kept on `self.err`: a refusal that exits 1 for the wrong reason
         is still a passing exit code, so the message is part of the assertion.
         """
-        self.err = io.StringIO()
-        self.out = io.StringIO()
-        with contextlib.redirect_stdout(self.out), contextlib.redirect_stderr(self.err):
-            return gate_row.main(argv)
+        code, out, err = support.run_main(gate_row.main, argv)
+        self.out, self.err = io.StringIO(out), io.StringIO(err)
+        return code
 
     def append(self, *extra: str) -> int:
         return self.run_main([
@@ -136,13 +133,8 @@ class GateRowTest(unittest.TestCase):
             "--quote", "accepted", *extra,
         ])
 
-    def git(self, *args: str) -> str:
-        return subprocess.run(["git", "-C", str(self.repo), *args],
-                              capture_output=True, text=True, check=True, stdin=subprocess.DEVNULL).stdout.strip()
-
     def rev(self, ref: str) -> str:
-        return subprocess.run(["git", "-C", str(self.repo), "rev-parse", ref],
-                              capture_output=True, text=True, check=True, stdin=subprocess.DEVNULL).stdout.strip()
+        return support.git(self.repo, "rev-parse", ref)
 
     def last_row(self) -> str:
         return [l for l in self.ledger.read_text().splitlines()
@@ -476,8 +468,7 @@ class GateRowTest(unittest.TestCase):
 
     def test_validation_resolves_every_distinct_head_in_one_cat_file_batch(self):
         for n in range(30):
-            subprocess.run(["git", "-C", str(self.repo), "commit", "--allow-empty", "-qm", f"e{n}"],
-                           check=True, capture_output=True, stdin=subprocess.DEVNULL)
+            support.git(self.repo, "commit", "--allow-empty", "-qm", f"e{n}")
         heads = [self.rev(f"HEAD~{n}") for n in range(30)]
         rows = self.chained([
             self.fixture_row(f"G{n}", "resolved:human").replace(f"main@{self.rev('HEAD')}", f"main@{head}")
@@ -807,8 +798,8 @@ class GateRowTest(unittest.TestCase):
         self.assertNotIn(current, self.last_row().split(" | ")[3])
 
         (self.repo / "later.txt").write_text("later\n")
-        self.git("add", "later.txt")
-        self.git("commit", "-qm", "later review time")
+        support.git(self.repo, "add", "later.txt")
+        support.git(self.repo, "commit", "-qm", "later review time")
         self.assertEqual(self.append(
             "--kind", "review", "--status", "recorded:review-pass",
             "--review-base", self.rev("HEAD~3"), "--head", f"main@{past}",
@@ -839,7 +830,7 @@ class GateRowTest(unittest.TestCase):
         self.assertIn(f"main@{past}", self.last_row().split(" | ")[3])
         self.assertIn("record=timely", self.last_row())
         self.assertEqual(self.check_last(), 0, self.err.getvalue())
-        side = self.git("commit-tree", f"{past}^{{tree}}", "-p", past, "-m", "side")
+        side = support.git(self.repo, "commit-tree", f"{past}^{{tree}}", "-p", past, "-m", "side")
         self.assertEqual(self.append(*push, "--head", f"main@{side}"), 1)
         self.assertIn("--record reconstruction", self.err.getvalue())
 
@@ -866,10 +857,9 @@ class GateRowTest(unittest.TestCase):
         self.assertEqual(self.append_review_pass(zero), 0)
         self.add_remote("HEAD")
         (self.repo / "later.txt").write_text("later\n")
-        self.git("add", "later.txt")
-        self.git("commit", "-qm", "later remote commit")
-        subprocess.run(["git", "-C", str(self.repo), "push", "-q", "origin", "main"],
-                       check=True, capture_output=True, stdin=subprocess.DEVNULL)
+        support.git(self.repo, "add", "later.txt")
+        support.git(self.repo, "commit", "-qm", "later remote commit")
+        support.git(self.repo, "push", "-q", "origin", "main")
         self.assertEqual(self.append(
             "--kind", "push", "--push-base", zero, "--boundary", ".",
             "--head", f"main@{past}", "--record", "reconstruction",
@@ -881,16 +871,11 @@ class GateRowTest(unittest.TestCase):
         self.assertEqual(self.append_review_pass(zero), 0)
         self.add_remote("HEAD")
         other = self.tmp / "other"
-        subprocess.run(["git", "clone", "-q", str(self.tmp / "origin.git"), str(other)],
-                       check=True, capture_output=True, stdin=subprocess.DEVNULL)
-        subprocess.run(["git", "-C", str(other), "config", "user.email", "t@example.invalid"],
-                       check=True, stdin=subprocess.DEVNULL)
-        subprocess.run(["git", "-C", str(other), "config", "user.name", "t"], check=True, stdin=subprocess.DEVNULL)
+        support.git(self.tmp, "clone", "-q", str(self.tmp / "origin.git"), str(other))
         (other / "unknown.txt").write_text("unknown\n")
-        subprocess.run(["git", "-C", str(other), "add", "unknown.txt"], check=True, stdin=subprocess.DEVNULL)
-        subprocess.run(["git", "-C", str(other), "commit", "-qm", "unknown remote commit"], check=True, stdin=subprocess.DEVNULL)
-        subprocess.run(["git", "-C", str(other), "push", "-q", "origin", "main"],
-                       check=True, capture_output=True, stdin=subprocess.DEVNULL)
+        support.git(other, "add", "unknown.txt")
+        support.git(other, "commit", "-qm", "unknown remote commit")
+        support.git(other, "push", "-q", "origin", "main")
         before = self.ledger.read_bytes()
         self.assertEqual(self.append(
             "--kind", "push", "--push-base", zero, "--boundary", ".",
@@ -932,12 +917,9 @@ class GateRowTest(unittest.TestCase):
                     ["--ledger", str(self.ledger), "--repo", str(self.repo), "--check"]), 0)
 
     def add_remote(self, ref: str) -> None:
-        bare = self.tmp / "origin.git"
-        subprocess.run(["git", "init", "-q", "--bare", "-b", "main", str(bare)], check=True, stdin=subprocess.DEVNULL)
-        subprocess.run(["git", "-C", str(self.repo), "remote", "add", "origin", str(bare)],
-                       check=True, stdin=subprocess.DEVNULL)
-        subprocess.run(["git", "-C", str(self.repo), "push", "-q", "origin",
-                        f"{self.rev(ref)}:refs/heads/main"], check=True, capture_output=True, stdin=subprocess.DEVNULL)
+        bare = support.temp_git_repo(self.tmp / "origin.git", bare=True)
+        support.git(self.repo, "remote", "add", "origin", str(bare))
+        support.git(self.repo, "push", "-q", "origin", f"{self.rev(ref)}:refs/heads/main")
 
     def test_a_landed_push_derives_its_own_count_and_boundary(self):
         self.assertEqual(self.append_review_pass(), 0)
@@ -955,12 +937,12 @@ class GateRowTest(unittest.TestCase):
         base = self.rev("HEAD")
         (self.repo / "src").mkdir()
         (self.repo / "src" / "out-of-boundary.py").write_text("x\n")
-        self.git("add", "-A")
-        self.git("commit", "-qm", "add outside the boundary")
-        self.git("rm", "-q", "src/out-of-boundary.py")
-        self.git("commit", "-qm", "delete it again")
+        support.git(self.repo, "add", "-A")
+        support.git(self.repo, "commit", "-qm", "add outside the boundary")
+        support.git(self.repo, "rm", "-q", "src/out-of-boundary.py")
+        support.git(self.repo, "commit", "-qm", "delete it again")
 
-        net = self.git("diff", "--name-only", f"{base}..HEAD")
+        net = support.git(self.repo, "diff", "--name-only", f"{base}..HEAD")
         self.assertEqual(net, "", "the net tree diff must be empty, or this case proves nothing")
 
         self.assertEqual(self.append_review_pass(), 0)
@@ -1039,8 +1021,7 @@ class GateRowTest(unittest.TestCase):
 
     def merged_branch(self, land_main: bool, edit_merge: bool) -> str:
         """feat (reviewed) merges a later main commit; returns the push base. origin/HEAD is origin/main."""
-        git = lambda *a: subprocess.run(["git", "-C", str(self.repo), *a], check=True,
-                                        capture_output=True, text=True, stdin=subprocess.DEVNULL)
+        git = lambda *a: support.git(self.repo, *a)
         base = self.rev("HEAD")
         self.add_remote("HEAD")
         git("fetch", "-q", "origin")
@@ -1071,13 +1052,13 @@ class GateRowTest(unittest.TestCase):
     def feature_with_origin(self) -> str:
         """origin/main (origin/HEAD) is c0; feat is c2, two commits ahead. Returns the push base."""
         self.add_remote("HEAD~2")
-        self.git("fetch", "-q", "origin")
-        self.git("remote", "set-head", "origin", "main")
-        self.git("switch", "-q", "-c", "feat")
+        support.git(self.repo, "fetch", "-q", "origin")
+        support.git(self.repo, "remote", "set-head", "origin", "main")
+        support.git(self.repo, "switch", "-q", "-c", "feat")
         return self.rev("HEAD~2")
 
     def remote_refs(self) -> dict[str, str]:
-        return {ref: sha for sha, ref in (line.split("\t") for line in self.git("ls-remote", "origin").splitlines())}
+        return {ref: sha for sha, ref in (line.split("\t") for line in support.git(self.repo, "ls-remote", "origin").splitlines())}
 
     def push(self, base: str, *extra: str) -> int:
         return self.append("--kind", "push", "--push", "--push-base", base, "--boundary", ".", *extra)
@@ -1108,13 +1089,13 @@ class GateRowTest(unittest.TestCase):
 
     def test_push_never_moves_the_product_line(self):
         base = self.feature_with_origin()
-        self.git("switch", "-q", "main")
+        support.git(self.repo, "switch", "-q", "main")
         self.assertEqual(self.append_review_pass(base), 0)
         self.assertEqual(self.push(base), 1)
         self.assertIn("main is not a feature branch; the product line origin/main moves only by merge",
                       self.err.getvalue())
-        self.git("remote", "set-head", "origin", "--delete")
-        self.git("switch", "-q", "feat")
+        support.git(self.repo, "remote", "set-head", "origin", "--delete")
+        support.git(self.repo, "switch", "-q", "feat")
         self.assertEqual(self.push(base), 1)
         self.assertIn("origin/HEAD is unset", self.err.getvalue())
         self.assertEqual(self.remote_refs()["refs/heads/main"], base)
@@ -1122,13 +1103,13 @@ class GateRowTest(unittest.TestCase):
 
     def test_push_never_forces_over_a_diverged_remote_branch(self):
         base = self.feature_with_origin()
-        self.git("switch", "-q", "-c", "side", base)
+        support.git(self.repo, "switch", "-q", "-c", "side", base)
         (self.repo / "side.txt").write_text("side\n")
-        self.git("add", "-A")
-        self.git("commit", "-qm", "side")
-        self.git("push", "-q", "origin", "side:feat")
+        support.git(self.repo, "add", "-A")
+        support.git(self.repo, "commit", "-qm", "side")
+        support.git(self.repo, "push", "-q", "origin", "side:feat")
         side = self.rev("HEAD")
-        self.git("switch", "-q", "feat")
+        support.git(self.repo, "switch", "-q", "feat")
         self.assertEqual(self.append_review_pass(base), 0)
         self.assertEqual(self.push(base), 1)
         self.assertIn("git push", self.err.getvalue())
@@ -1248,12 +1229,12 @@ class GateRowTest(unittest.TestCase):
         self.assertIn('boundary-check=""', row)
 
     def test_a_row_outlives_the_branch_that_named_it(self):
-        self.git("checkout", "-q", "-b", "topic")
+        support.git(self.repo, "checkout", "-q", "-b", "topic")
         self.assertEqual(self.append(), 0)
         row = self.last_row()
         self.assertIn("topic@", row)
-        self.git("checkout", "-q", "main")
-        self.git("branch", "-D", "topic")
+        support.git(self.repo, "checkout", "-q", "main")
+        support.git(self.repo, "branch", "-D", "topic")
         gate_row.check(row, self.repo)
         gate_row.check(row.replace("topic@", "nonexistent-branch@"), self.repo)
         push_row, _ = self.valid_push_row()
@@ -1286,8 +1267,8 @@ class GateRowTest(unittest.TestCase):
         skill_root = self.repo / "skills" / "example"
         skill_root.mkdir(parents=True)
         (skill_root / "SKILL.md").write_text("test skill\n", encoding="utf-8")
-        self.git("add", "skills/example")
-        self.git("commit", "-qm", "add skill")
+        support.git(self.repo, "add", "skills/example")
+        support.git(self.repo, "commit", "-qm", "add skill")
         first_head = self.rev("HEAD")
         args = [
             "--ledger", str(self.ledger), "--repo", str(self.repo),
@@ -1298,8 +1279,8 @@ class GateRowTest(unittest.TestCase):
         first_row = gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))[-1]
         self.assertIn("skills=example", first_row)
         (skill_root / "SKILL.md").write_text("newer skill\n", encoding="utf-8")
-        self.git("add", "skills/example")
-        self.git("commit", "-qm", "update skill")
+        support.git(self.repo, "add", "skills/example")
+        support.git(self.repo, "commit", "-qm", "update skill")
         second_head = self.rev("HEAD")
         self.assertEqual(self.run_main(args), 0, self.err.getvalue())
         selected = gate_row.select_deployed_head(self.ledger, "example", self.repo)
@@ -1326,8 +1307,8 @@ class GateRowTest(unittest.TestCase):
         skill_root = self.repo / "skills" / "example"
         skill_root.mkdir(parents=True)
         (skill_root / "SKILL.md").write_text("test skill\n", encoding="utf-8")
-        self.git("add", "skills/example")
-        self.git("commit", "-qm", "add skill")
+        support.git(self.repo, "add", "skills/example")
+        support.git(self.repo, "commit", "-qm", "add skill")
 
         def cli(*args: str) -> subprocess.CompletedProcess[str]:
             return subprocess.run(
@@ -1548,10 +1529,8 @@ class GateRowTest(unittest.TestCase):
     def test_the_landed_check_reads_origins_copy_of_the_rows_branch(self):
         self.assertEqual(self.append_review_pass(), 0, self.err.getvalue())
         self.add_remote("HEAD")
-        subprocess.run(["git", "-C", str(self.repo), "push", "-q", "origin",
-                        f"{self.rev('HEAD~1')}:refs/heads/aaa"], check=True, capture_output=True, stdin=subprocess.DEVNULL)
-        subprocess.run(["git", "--git-dir", str(self.tmp / "origin.git"), "symbolic-ref", "HEAD",
-                        "refs/heads/aaa"], check=True, stdin=subprocess.DEVNULL)
+        support.git(self.repo, "push", "-q", "origin", f"{self.rev('HEAD~1')}:refs/heads/aaa")
+        support.git(self.tmp / "origin.git", "symbolic-ref", "HEAD", "refs/heads/aaa")
         self.assertEqual(self.append(
             "--kind", "push", "--push-base", self.rev("HEAD~2"), "--boundary", "."), 0, self.err.getvalue())
 
@@ -1576,17 +1555,17 @@ class GateRowTest(unittest.TestCase):
         self.assertEqual(gate_row.derive_push(self.repo, "0" * 40, self.rev("HEAD"), ["f1.txt", "f2.txt"]),
                          ("3", ["f0.txt"]))
         base = self.rev("HEAD")
-        self.git("checkout", "-qb", "side")
+        support.git(self.repo, "checkout", "-qb", "side")
         (self.repo / "side.txt").write_text("s\n")
-        self.git("add", "-A")
-        self.git("commit", "-qm", "side")
-        self.git("checkout", "-q", "main")
-        self.git("mv", "f0.txt", "kept.txt")
-        self.git("commit", "-qm", "rename")
-        self.git("merge", "-q", "--no-ff", "--no-commit", "side")
+        support.git(self.repo, "add", "-A")
+        support.git(self.repo, "commit", "-qm", "side")
+        support.git(self.repo, "checkout", "-q", "main")
+        support.git(self.repo, "mv", "f0.txt", "kept.txt")
+        support.git(self.repo, "commit", "-qm", "rename")
+        support.git(self.repo, "merge", "-q", "--no-ff", "--no-commit", "side")
         (self.repo / "evil.txt").write_text("e\n")
-        self.git("add", "-A")
-        self.git("commit", "-qm", "merge with a change of its own")
+        support.git(self.repo, "add", "-A")
+        support.git(self.repo, "commit", "-qm", "merge with a change of its own")
         _, outside = gate_row.derive_push(self.repo, base, self.rev("HEAD"), ["side.txt", "kept.txt"])
         self.assertEqual(outside, ["evil.txt", "f0.txt"])
 
@@ -1594,13 +1573,13 @@ class GateRowTest(unittest.TestCase):
         base = self.rev("HEAD")
         (self.repo / "docs").mkdir()
         (self.repo / "docs" / "a.md").write_text("a\n")
-        self.git("add", "-A")
-        self.git("commit", "-qm", "docs")
+        support.git(self.repo, "add", "-A")
+        support.git(self.repo, "commit", "-qm", "docs")
         docs = self.rev("HEAD")
         (self.repo / "lib").mkdir()
         (self.repo / "lib" / "core.py").write_text("c\n")
-        self.git("add", "-A")
-        self.git("commit", "-qm", "lib")
+        support.git(self.repo, "add", "-A")
+        support.git(self.repo, "commit", "-qm", "lib")
         for boundary, since, until, expected in (
             ("docs", base, docs, ("1", [])),
             ("docs/", base, docs, ("1", [])),
@@ -1724,7 +1703,7 @@ class GateRowTest(unittest.TestCase):
 
     def test_local_ops_values_are_read_up_to_the_first_equals(self):
         self.assertEqual(self.append_local_ops("--op", "export X="), 0, self.err.getvalue())
-        self.git("branch", "a=")
+        support.git(self.repo, "branch", "a=")
         self.assertEqual(self.append_local_ops("--after", f"a=@{self.rev('HEAD')}"), 0, self.err.getvalue())
 
     def test_resolving_a_standing_delegation_still_checks_the_next_target(self):
@@ -1755,8 +1734,8 @@ class GateRowTest(unittest.TestCase):
             with self.subTest(name):
                 base = self.rev("HEAD")
                 (self.repo / name).write_text("x\n")
-                self.git("add", "-A")
-                self.git("commit", "-qm", "delimiter path")
+                support.git(self.repo, "add", "-A")
+                support.git(self.repo, "commit", "-qm", "delimiter path")
                 with self.assertRaises(gate_row.RowError):
                     gate_row.derive_push(self.repo, base, self.rev("HEAD"), ["docs"])
 
@@ -1880,18 +1859,17 @@ class GateRowTest(unittest.TestCase):
 
     def test_a_row_in_a_linked_worktree_records_that_worktrees_branch_and_head(self):
         worktree = self.tmp / "wt"
-        self.git("worktree", "add", "-q", "-b", "side", str(worktree))
+        support.git(self.repo, "worktree", "add", "-q", "-b", "side", str(worktree))
         (worktree / "s.txt").write_text("s\n")
-        subprocess.run(["git", "-C", str(worktree), "add", "s.txt"], check=True, stdin=subprocess.DEVNULL)
-        subprocess.run(["git", "-C", str(worktree), "commit", "-qm", "s1"], check=True, stdin=subprocess.DEVNULL)
-        side = subprocess.run(["git", "-C", str(worktree), "rev-parse", "HEAD"],
-                              capture_output=True, text=True, check=True, stdin=subprocess.DEVNULL).stdout.strip()
+        support.git(worktree, "add", "s.txt")
+        support.git(worktree, "commit", "-qm", "s1")
+        side = support.git(worktree, "rev-parse", "HEAD")
         self.repo = worktree
         self.assertEqual(self.append_local_ops(), 0, self.err.getvalue())
         self.assertIn(f" | side@{side} | ", self.last_row())
 
     def test_a_row_on_a_detached_head_records_the_branch_as_HEAD(self):
-        self.git("checkout", "-q", "--detach")
+        support.git(self.repo, "checkout", "-q", "--detach")
         self.assertEqual(self.append_local_ops(), 0, self.err.getvalue())
         self.assertIn(f" | HEAD@{self.rev('HEAD')} | ", self.last_row())
 

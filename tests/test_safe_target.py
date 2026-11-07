@@ -2,16 +2,17 @@
 from __future__ import annotations
 
 import io
-import sys
 import tempfile
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 
-SCRIPTS = Path(__file__).resolve().parents[1] / "skills" / "destructive-path-guard" / "scripts"
-sys.path.insert(0, str(SCRIPTS))
+import support
+import safe_target
 
-import safe_target  # noqa: E402
+
+def setUpModule() -> None:
+    support.never_run()
 
 
 class SafeTargetTest(unittest.TestCase):

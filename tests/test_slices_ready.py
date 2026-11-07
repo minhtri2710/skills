@@ -5,15 +5,16 @@ from __future__ import annotations
 import contextlib
 import io
 import json
-import sys
 import tempfile
 import unittest
 from pathlib import Path
 
-SCRIPTS = Path(__file__).resolve().parents[1] / "skills" / "agent-delivery-workflow" / "scripts"
-sys.path.insert(0, str(SCRIPTS))
+import support
+import slices_ready
 
-import slices_ready  # noqa: E402
+
+def setUpModule() -> None:
+    support.never_run()
 
 
 class SlicesReadyTest(unittest.TestCase):

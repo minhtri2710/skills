@@ -5,41 +5,21 @@ from __future__ import annotations
 import contextlib
 import io
 import json
-import subprocess
 import tempfile
 import unittest
 from pathlib import Path
-import sys
 from typing import Any
 from unittest import mock
 
-SCRIPTS = Path(__file__).resolve().parents[1] / "skills" / "agent-delivery-workflow" / "scripts"
-sys.path.insert(0, str(SCRIPTS))
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-
-import backend  # noqa: E402
-import closeout_check  # noqa: E402
-import gate_row  # noqa: E402
-from fake_backend import FakeBackend  # noqa: E402
-
-_real_run = subprocess.run
-
-
-def _only_git(args, *rest, **kwargs):
-    if args[0] != "git":
-        raise AssertionError(f"tests run only git, not {args[0]}")
-    return _real_run(args, *rest, **kwargs)
-
-
-_NEVER_RUN = mock.patch.object(subprocess, "run", side_effect=_only_git)
+import support
+import backend
+import closeout_check
+import gate_row
+from fake_backend import FakeBackend
 
 
 def setUpModule() -> None:
-    _NEVER_RUN.start()
-
-
-def tearDownModule() -> None:
-    _NEVER_RUN.stop()
+    support.never_run("git")
 
 
 def add_peer(fake: FakeBackend, canonical: Path, name: str, seat: str, *, agent: bool = True,
@@ -68,25 +48,10 @@ def count_folds(run):
 class CloseoutCheckTest(unittest.TestCase):
     def setUp(self) -> None:
         self.tmp = tempfile.TemporaryDirectory()
-        self.canonical = Path(self.tmp.name) / "checkout"
-        self.canonical.mkdir()
-        for args in (
-            ("init", "-q", "-b", "main"),
-            ("config", "user.email", "closeout@example.invalid"),
-            ("config", "user.name", "closeout-test"),
-        ):
-            subprocess.run(
-                ["git", "-C", str(self.canonical), *args],
-                check=True,
-                capture_output=True,
-                text=True,
-                stdin=subprocess.DEVNULL,
-            )
+        self.canonical = support.temp_git_repo(Path(self.tmp.name) / "checkout")
         (self.canonical / "tracked.txt").write_text("base\n", encoding="utf-8")
-        subprocess.run(["git", "-C", str(self.canonical), "add", "tracked.txt"],
-                       check=True, capture_output=True, text=True, stdin=subprocess.DEVNULL)
-        subprocess.run(["git", "-C", str(self.canonical), "commit", "-qm", "base"],
-                       check=True, capture_output=True, text=True, stdin=subprocess.DEVNULL)
+        support.git(self.canonical, "add", "tracked.txt")
+        support.git(self.canonical, "commit", "-qm", "base")
         self.fake = FakeBackend()
         self.project_dir = Path(self.tmp.name) / "closeout-project"
         self.project_dir.mkdir()
@@ -114,14 +79,8 @@ class CloseoutCheckTest(unittest.TestCase):
 
     def test_closeout_reports_a_ledger_that_fails_check(self):
         origin = Path(self.tmp.name) / "origin.git"
-        subprocess.run(["git", "init", "-q", "--bare", str(origin)], check=True,
-                       capture_output=True, text=True, stdin=subprocess.DEVNULL)
-
-        def git(path: Path, *args: str) -> str:
-            return subprocess.run(
-                ["git", "-C", str(path), *args], check=True,
-                capture_output=True, text=True, stdin=subprocess.DEVNULL,
-            ).stdout.strip()
+        support.temp_git_repo(origin, bare=True)
+        git = support.git
 
         def row(*args: str) -> None:
             out, err = io.StringIO(), io.StringIO()
@@ -164,23 +123,9 @@ class CloseoutCheckTest(unittest.TestCase):
         temp = Path(self.tmp.name) / "d4"
         repo = temp / "repo"
         origin = temp / "origin.git"
-        temp.mkdir()
-        repo.mkdir()
-
-        def git(path: Path, *args: str) -> str:
-            return subprocess.run(
-                ["git", "-C", str(path), *args],
-                check=True,
-                capture_output=True,
-                text=True,
-                stdin=subprocess.DEVNULL,
-            ).stdout.strip()
-
-        subprocess.run(["git", "init", "-q", "--bare", str(origin)], check=True,
-                       stdin=subprocess.DEVNULL)
-        git(repo, "init", "-q", "-b", "main")
-        git(repo, "config", "user.email", "closeout@example.invalid")
-        git(repo, "config", "user.name", "closeout-test")
+        git = support.git
+        support.temp_git_repo(origin, bare=True)
+        support.temp_git_repo(repo)
         (repo / "tracked.txt").write_text("base\n", encoding="utf-8")
         git(repo, "add", "tracked.txt")
         git(repo, "commit", "-qm", "base")
@@ -235,8 +180,7 @@ class CloseoutCheckTest(unittest.TestCase):
 
     def test_closeout_folds_each_ledger_row_once(self):
         def git(*args: str) -> str:
-            return subprocess.run(["git", "-C", str(self.canonical), *args], check=True,
-                                  capture_output=True, text=True, stdin=subprocess.DEVNULL).stdout.strip()
+            return support.git(self.canonical, *args)
 
         base = git("rev-parse", "HEAD")
         (self.canonical / "tracked.txt").write_text("next\n", encoding="utf-8")

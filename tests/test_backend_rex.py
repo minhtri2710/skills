@@ -9,33 +9,23 @@ import json
 import re
 import shlex
 import subprocess
-import sys
 import tempfile
 import unittest
+from functools import partial
 from pathlib import Path
 from unittest import mock
 
-ROOT = Path(__file__).resolve().parents[1]
-SCRIPTS = ROOT / "skills" / "agent-delivery-workflow" / "scripts"
-sys.path.insert(0, str(SCRIPTS))
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-
-import backend  # noqa: E402
-from backends import rex  # noqa: E402
-
-_NEVER_RUN = mock.patch.object(subprocess, "run", side_effect=AssertionError("tests never run rex"))
+import support
+import backend
+from backends import rex
+from support import Recorder
 
 
 def setUpModule() -> None:
-    _NEVER_RUN.start()
+    support.never_run()
 
 
-def tearDownModule() -> None:
-    _NEVER_RUN.stop()
-
-
-FIXTURES = Path(__file__).resolve().parent / "fixtures" / "backends" / "rex"
-REFERENCE = ROOT / "skills" / "agent-delivery-workflow" / "references" / "backend-rex.md"
+REFERENCE = support.ADW / "references" / "backend-rex.md"
 SESSION = "session:aaaa"
 LEAD = f"{SESSION}.block:a1"
 ENG_A = f"{SESSION}.block:a2"
@@ -48,33 +38,12 @@ OPERATIONS = ["identify", "spawn", "prompt", "read", "state", "wait", "list", "p
 NOT_NONE_PROVISIONAL = ["identify", "spawn", "prompt", "state", "wait", "list", "notify"]
 
 
-def fixture(name: str) -> str:
-    return (FIXTURES / name).read_text(encoding="utf-8")
-
-
-def reply(stdout: str = "", returncode: int = 0) -> subprocess.CompletedProcess[str]:
-    return subprocess.CompletedProcess(["rex"], returncode, stdout, "")
-
-
-class Recorder:
-    """The injected runner: records (args, timeout) and answers the queued replies in order."""
-
-    def __init__(self, *replies: subprocess.CompletedProcess[str]) -> None:
-        self.replies = list(replies)
-        self.calls: list[tuple[list[str], float]] = []
-
-    def __call__(self, args: list[str], *, timeout: float = 30.0, **_: object) -> subprocess.CompletedProcess[str]:
-        self.calls.append((list(args), timeout))
-        return self.replies.pop(0)
-
-    @property
-    def argv(self) -> list[list[str]]:
-        return [args for args, _ in self.calls]
+fixture = partial(support.fixture, "rex")
+reply = partial(support.reply, "rex")
 
 
 def adapter(*replies: subprocess.CompletedProcess[str]) -> tuple[rex.Adapter, Recorder]:
-    runner = Recorder(*replies)
-    return rex.Adapter(ENVIRON, runner=runner), runner
+    return support.adapter(rex, ENVIRON, *replies)
 
 
 def block_call(block: str, method: str) -> list[str]:

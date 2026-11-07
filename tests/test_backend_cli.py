@@ -3,29 +3,17 @@ from __future__ import annotations
 
 import contextlib
 import io
-import subprocess
-import sys
 import unittest
-from pathlib import Path
 from unittest import mock
 
-SCRIPTS = Path(__file__).resolve().parents[1] / "skills" / "agent-delivery-workflow" / "scripts"
-sys.path.insert(0, str(SCRIPTS))
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-
-import backend  # noqa: E402
-from backends import herdr  # noqa: E402
-from fake_backend import FakeBackend  # noqa: E402
-
-_NEVER_RUN = mock.patch.object(subprocess, "run", side_effect=AssertionError("tests never run a terminal tool"))
+import support
+import backend
+from backends import herdr
+from fake_backend import FakeBackend
 
 
 def setUpModule() -> None:
-    _NEVER_RUN.start()
-
-
-def tearDownModule() -> None:
-    _NEVER_RUN.stop()
+    support.never_run()
 
 
 HERDR = {"HERDR_ENV": "1", "HERDR_PANE_ID": "w1:p1"}
@@ -34,14 +22,10 @@ REPORT = "/tmp/runs/r1/report-eng-a.md"
 
 
 def run_main(argv: list[str], opened: backend.Backend | None = None, environ: dict[str, str] | None = None):
-    out, err = io.StringIO(), io.StringIO()
-    with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
-        if opened is None:
-            code = backend.main(argv, environ if environ is not None else {})
-        else:
-            with mock.patch.object(backend, "open_backend", return_value=opened):
-                code = backend.main(argv, {})
-    return code, out.getvalue(), err.getvalue()
+    if opened is None:
+        return support.run_main(lambda args: backend.main(args, environ if environ is not None else {}), argv)
+    with mock.patch.object(backend, "open_backend", return_value=opened):
+        return support.run_main(lambda args: backend.main(args, {}), argv)
 
 
 class WhoamiTest(unittest.TestCase):

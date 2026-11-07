@@ -12,35 +12,19 @@ import unittest
 import unittest.mock
 from pathlib import Path
 
-SCRIPTS = Path(__file__).resolve().parents[1] / "skills" / "agent-delivery-workflow" / "scripts"
-sys.path.insert(0, str(SCRIPTS))
-sys.path.insert(0, str(Path(__file__).parent))
+import support
+import backend
+import charter_lint
+from backends import herdr
+from fake_backend import FakeBackend
 
-import backend  # noqa: E402
-import charter_lint  # noqa: E402
-from backends import herdr  # noqa: E402
-from fake_backend import FakeBackend  # noqa: E402
-
+SCRIPTS = support.ADW / "scripts"
 LEAD = "lead-beo-skills"
 REPORT = "/state/demo/runs/r1/report-eng-lint.md"
-_real_run = subprocess.run
-
-
-def _git_only(command, *args, **kwargs):
-    if command[0] not in ("git", sys.executable):
-        raise AssertionError(f"tests run only git and this interpreter, not {command[0]}")
-    return _real_run(command, *args, **kwargs)
-
-
-_PATCH = unittest.mock.patch.object(subprocess, "run", side_effect=_git_only)
 
 
 def setUpModule() -> None:
-    _PATCH.start()
-
-
-def tearDownModule() -> None:
-    _PATCH.stop()
+    support.never_run("git", sys.executable)
 
 
 class CharterLintTest(unittest.TestCase):
@@ -49,14 +33,10 @@ class CharterLintTest(unittest.TestCase):
         cls._repo_tmp = tempfile.TemporaryDirectory(dir=os.path.realpath("/tmp"))
         cls.repo = Path(cls._repo_tmp.name)
         cls.addClassCleanup(cls._repo_tmp.cleanup)
-        git = ["git", "-C", str(cls.repo), "-c", "user.name=t", "-c", "user.email=t@example.com"]
-        subprocess.run([*git, "init", "-q"], check=True, stdin=subprocess.DEVNULL)
+        support.temp_git_repo(cls.repo)
         for message in ("base", "mid", "head"):
-            subprocess.run([*git, "commit", "-q", "--allow-empty", "-m", message], check=True, stdin=subprocess.DEVNULL)
-        cls.base, cls.mid, cls.head = subprocess.run(
-            [*git, "rev-parse", "HEAD~2", "HEAD~1", "HEAD"], check=True, capture_output=True, text=True,
-            stdin=subprocess.DEVNULL,
-        ).stdout.split()
+            support.git(cls.repo, "commit", "-q", "--allow-empty", "-m", message)
+        cls.base, cls.mid, cls.head = support.git(cls.repo, "rev-parse", "HEAD~2", "HEAD~1", "HEAD").split()
 
     def setUp(self):
         self._tmp = tempfile.TemporaryDirectory(dir=os.path.realpath("/tmp"))
@@ -487,16 +467,10 @@ class CharterLintTest(unittest.TestCase):
         gloss = "(`none`, or the prior FAIL report, its head and the finding ids)"
         failed = f"Prior review: report-review-{mid[:12]}.md FAIL (F1)\n"
         narrowed = f"Reviewed unit: the range {mid}..{head}\n"
-        rewritten = subprocess.run(
-            ["git", "-C", str(self.repo), "-c", "user.name=t", "-c", "user.email=t@example.com",
-             "commit-tree", f"{head}^{{tree}}", "-p", mid, "-m", "rewritten"],
-            check=True, capture_output=True, text=True, stdin=subprocess.DEVNULL,
-        ).stdout.strip()
-        rewritten_child = subprocess.run(
-            ["git", "-C", str(self.repo), "-c", "user.name=t", "-c", "user.email=t@example.com",
-             "commit-tree", f"{head}^{{tree}}", "-p", rewritten, "-m", "rewritten child"],
-            check=True, capture_output=True, text=True, stdin=subprocess.DEVNULL,
-        ).stdout.strip()
+        rewritten = support.git(self.repo, "commit-tree", f"{head}^{{tree}}", "-p", mid, "-m", "rewritten")
+        rewritten_child = support.git(
+            self.repo, "commit-tree", f"{head}^{{tree}}", "-p", rewritten, "-m", "rewritten child"
+        )
         keep_base = (
             "must keep the slice base: no commit named on the Prior review line lies inside it below its head, "
             "or was rewritten with the range starting at or below where the head diverged from it"

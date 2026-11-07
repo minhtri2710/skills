@@ -11,13 +11,13 @@ from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from unittest import mock
 
-SCRIPTS = Path(__file__).resolve().parents[1] / "skills" / "agent-delivery-workflow" / "scripts"
-import sys
+import support
+import recall
+import state_root
 
-sys.path.insert(0, str(SCRIPTS))
 
-import recall  # noqa: E402
-import state_root  # noqa: E402
+def setUpModule() -> None:
+    support.never_run()
 
 
 class RecallTest(unittest.TestCase):

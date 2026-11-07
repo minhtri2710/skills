@@ -10,14 +10,14 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest import mock
 
-SCRIPTS = Path(__file__).resolve().parents[1] / "skills" / "agent-delivery-workflow" / "scripts"
-import sys
+import support
+import lesson_flags
+import recall
+import state_root
 
-sys.path.insert(0, str(SCRIPTS))
 
-import lesson_flags  # noqa: E402
-import recall  # noqa: E402
-import state_root  # noqa: E402
+def setUpModule() -> None:
+    support.never_run()
 
 
 class LessonFlagsTest(unittest.TestCase):

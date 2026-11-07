@@ -5,30 +5,19 @@ import contextlib
 import io
 import json
 import os
-import subprocess
-import sys
 import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
 
-SCRIPTS = Path(__file__).resolve().parents[1] / "skills" / "agent-delivery-workflow" / "scripts"
-sys.path.insert(0, str(SCRIPTS))
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-
-import backend  # noqa: E402
-import waker  # noqa: E402
-from fake_backend import FakeBackend  # noqa: E402
-
-_NEVER_RUN = mock.patch.object(subprocess, "run", side_effect=AssertionError("tests never run a terminal tool"))
+import support
+import backend
+import waker
+from fake_backend import FakeBackend
 
 
 def setUpModule() -> None:
-    _NEVER_RUN.start()
-
-
-def tearDownModule() -> None:
-    _NEVER_RUN.stop()
+    support.never_run()
 
 
 LEAD = "w1:p1"
@@ -83,10 +72,8 @@ class WakerTest(unittest.TestCase):
         self.report = self.run_dir / f"report-{PEER}.md"
 
     def run_waker(self, fake: Scripted, argv: list[str]) -> int:
-        stderr = io.StringIO()
-        with mock.patch.object(waker.backend, "open_backend", return_value=fake), contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(stderr):
-            code = waker.main(argv)
-        self.stderr = stderr.getvalue()
+        with mock.patch.object(waker.backend, "open_backend", return_value=fake):
+            code, _, self.stderr = support.run_main(waker.main, argv)
         return code
 
     def peer_argv(self) -> list[str]:

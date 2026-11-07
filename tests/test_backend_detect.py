@@ -4,29 +4,18 @@ from __future__ import annotations
 import argparse
 import contextlib
 import io
-import subprocess
-import sys
 import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
 
-SCRIPTS = Path(__file__).resolve().parents[1] / "skills" / "agent-delivery-workflow" / "scripts"
-sys.path.insert(0, str(SCRIPTS))
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-
-import backend  # noqa: E402
-from fake_backend import FakeBackend  # noqa: E402
-
-_NEVER_RUN = mock.patch.object(subprocess, "run", side_effect=AssertionError("tests never run a terminal tool"))
+import support
+import backend
+from fake_backend import FakeBackend
 
 
 def setUpModule() -> None:
-    _NEVER_RUN.start()
-
-
-def tearDownModule() -> None:
-    _NEVER_RUN.stop()
+    support.never_run()
 
 
 HERDR = {"HERDR_ENV": "1", "HERDR_PANE_ID": "w1:p1"}
@@ -278,7 +267,6 @@ class OpenAndCliTest(unittest.TestCase):
         with mock.patch.object(backend, "open_backend", return_value=fake) as opened, contextlib.redirect_stdout(
             out
         ), contextlib.redirect_stderr(err):
-            fake.handle = "w1:p1"
             code = backend.main(["whoami", "--backend", "herdr@w1:p1"], HERDR)
         self.assertEqual((code, out.getvalue(), err.getvalue()), (0, "herdr w1:p1\n", ""))
         with tempfile.TemporaryDirectory() as directory:  # `whoami > <path>` writes a readable record

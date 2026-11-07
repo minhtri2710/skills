@@ -6,17 +6,17 @@ import io
 import json
 import os
 import stat
-import subprocess
-import sys
 import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-SCRIPTS = Path(__file__).resolve().parents[1] / "skills" / "security-setup" / "scripts"
-sys.path.insert(0, str(SCRIPTS))
+import support
+import security_check
 
-import security_check  # noqa: E402
+
+def setUpModule() -> None:
+    support.never_run("git", "gitleaks", "trivy", "semgrep")
 
 
 class InteractiveInput(io.StringIO):
@@ -72,28 +72,23 @@ class SecurityCheckTest(unittest.TestCase):
     def report_paths(self, stem: str = "report") -> tuple[Path, Path]:
         return self.root / (stem + ".json"), self.root / (stem + ".md")
 
-    def run_main(self, *args: str) -> tuple[int, str, str]:
-        stdout, stderr = io.StringIO(), io.StringIO()
-        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
-            code = security_check.main(list(args))
-        return code, stdout.getvalue(), stderr.getvalue()
-
     def run_with_reports(self, config: Path, *args: str) -> tuple[int, str, str, dict[str, object]]:
         output, markdown = self.report_paths()
-        code, stdout, stderr = self.run_main(
-            "--config", str(config), "--output", str(output), "--markdown", str(markdown), *args
+        code, stdout, stderr = support.run_main(
+            security_check.main,
+            ["--config", str(config), "--output", str(output), "--markdown", str(markdown), *args],
         )
         payload = json.loads(output.read_text(encoding="utf-8"))
         return code, stdout, stderr, payload
 
     def init_git(self) -> None:
-        subprocess.run(["git", "init", "-q", "-b", "main"], cwd=self.root, check=True, stdin=subprocess.DEVNULL)
+        support.temp_git_repo(self.root)
 
     def stage(self, relative: str, content: str) -> None:
         path = self.root / relative
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(content, encoding="utf-8")
-        subprocess.run(["git", "add", relative], cwd=self.root, check=True, stdin=subprocess.DEVNULL)
+        support.git(self.root, "add", relative)
 
     def clean_fakes(self) -> None:
         self.write_fake(
@@ -112,10 +107,9 @@ class SecurityCheckTest(unittest.TestCase):
             with self.subTest(fail_on=fail_on):
                 config = self.write_config([self.one_check()], fail_on=fail_on)  # type: ignore[arg-type]
                 output, markdown = self.report_paths("invalid-fail-on")
-                code, stdout, stderr = self.run_main(
-                    "--config", str(config),
-                    "--output", str(output),
-                    "--markdown", str(markdown),
+                code, stdout, stderr = support.run_main(
+                    security_check.main,
+                    ["--config", str(config), "--output", str(output), "--markdown", str(markdown)],
                 )
                 self.assertEqual(code, 2)
                 self.assertEqual(stdout, "")
@@ -129,10 +123,9 @@ class SecurityCheckTest(unittest.TestCase):
     def test_explicit_missing_config_exits_two(self) -> None:
         output, markdown = self.report_paths()
         missing = self.root / "missing.json"
-        code, stdout, stderr = self.run_main(
-            "--config", str(missing),
-            "--output", str(output),
-            "--markdown", str(markdown),
+        code, stdout, stderr = support.run_main(
+            security_check.main,
+            ["--config", str(missing), "--output", str(output), "--markdown", str(markdown)],
         )
         self.assertEqual(code, 2)
         self.assertEqual(stdout, "")
@@ -176,7 +169,7 @@ class SecurityCheckTest(unittest.TestCase):
 
     def test_staged_only_without_staged_file_exits_two(self) -> None:
         self.init_git()
-        code, stdout, stderr = self.run_main("--staged-only")
+        code, stdout, stderr = support.run_main(security_check.main, ["--staged-only"])
         self.assertEqual(code, 2)
         self.assertEqual(stdout, "")
         self.assertIn("--staged-only requires", stderr)
@@ -186,8 +179,8 @@ class SecurityCheckTest(unittest.TestCase):
         self.init_git()
         self.stage("docs/example.md", "synthetic-token-like-value-for-testing-only\n")
         output, markdown = self.report_paths()
-        code, stdout, stderr = self.run_main(
-            "--staged-only", "--output", str(output), "--markdown", str(markdown)
+        code, stdout, stderr = support.run_main(
+            security_check.main, ["--staged-only", "--output", str(output), "--markdown", str(markdown)]
         )
         payload = json.loads(output.read_text(encoding="utf-8"))
         self.assertEqual(stderr, "")

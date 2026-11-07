@@ -7,13 +7,14 @@ import os
 import sys
 import unittest
 import urllib.request
-from pathlib import Path
 from unittest import mock
 
-SCRIPTS = Path(__file__).resolve().parents[1] / "skills" / "prompt-leverage" / "scripts"
-sys.path.insert(0, str(SCRIPTS))
+import support
+import augment_prompt
 
-import augment_prompt  # noqa: E402
+
+def setUpModule() -> None:
+    support.never_run()
 
 
 class TaskDetectionTest(unittest.TestCase):
