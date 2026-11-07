@@ -1,0 +1,96 @@
+"""The agent-delivery-workflow references: each backend reference covers the seat operations, and doctrine names no backend command."""
+from __future__ import annotations
+
+import re
+import unittest
+
+import support
+
+REFERENCES = support.ADW / "references"
+BACKENDS = sorted(REFERENCES.glob("backend-*.md"))
+EXTRA_SECTIONS = {"backend-herdr.md": ["Safety"]}
+
+
+def seat_operations() -> list[str]:
+    text = (REFERENCES / "seat-operations.md").read_text(encoding="utf-8")
+    section = text.split("\n## Operations\n", 1)[1].split("\n## ", 1)[0]
+    return re.findall(r"^### `([a-z]+)`$", section, re.M)
+
+
+OPERATIONS = seat_operations()
+
+
+def sections(name: str) -> dict[str, str]:
+    parts = re.split(r"^## (.+)$", (REFERENCES / name).read_text(encoding="utf-8"), flags=re.MULTILINE)
+    return dict(zip(parts[1::2], parts[2::2]))
+
+
+class BackendReferenceTest(unittest.TestCase):
+    def test_the_references_and_the_operation_list_are_found(self) -> None:
+        self.assertTrue(OPERATIONS)
+        self.assertTrue(BACKENDS)
+
+    def test_each_backend_has_one_section_per_operation_in_order_and_each_is_filled(self) -> None:
+        for path in BACKENDS:
+            with self.subTest(backend=path.name):
+                found = sections(path.name)
+                self.assertEqual(list(found), OPERATIONS + EXTRA_SECTIONS.get(path.name, []))
+                for operation in OPERATIONS:
+                    with self.subTest(backend=path.name, operation=operation):
+                        self.assertTrue(found[operation].strip())
+
+    def test_hc_sections_are_a_sourced_command_or_unsupported_and_a_provisional_line(self) -> None:
+        found = sections("backend-hc.md")
+        for operation in OPERATIONS:
+            body = found[operation]
+            with self.subTest(operation):
+                if "Command:" in body or "Commands:" in body:
+                    self.assertIn("Source:", body)
+                else:
+                    self.assertIn("Unsupported:", body)
+                self.assertIn("Provisional:", body)
+
+    def test_rex_sections_are_a_cited_command_or_unsupported_and_a_provisional_line(self) -> None:
+        found = sections("backend-rex.md")
+        for operation in OPERATIONS:
+            body = found[operation]
+            with self.subTest(operation):
+                self.assertIn("Provisional:", body)
+                if "Unsupported:" in body:
+                    self.assertNotIn("```", body)
+                    continue
+                self.assertIn("```", body)
+                self.assertRegex(body, r"\b(CL|CD|IS|UV)\b")
+                self.assertRegex(body, r"`[\w./-]+\.(sh|go|lua|md|txt):\d")
+
+
+class DoctrineTest(unittest.TestCase):
+    def test_doctrine_names_no_backend_tool_command(self) -> None:
+        commands = {}
+        for backend_doc in BACKENDS:
+            tool = backend_doc.stem.removeprefix("backend-")
+            body = backend_doc.read_text(encoding="utf-8")
+            fenced = re.findall(r"^```[a-z]*\n(.*?)^```", body, re.M | re.S)
+            prose = re.sub(r"^```[a-z]*\n.*?^```", "", body, flags=re.M | re.S)
+            shown = rf"(?:[A-Za-z_][A-Za-z0-9_]*=\S+\s+)*{re.escape(tool)} ([a-z][a-z-]*)\b"
+            subcommands = {
+                match.group(1)
+                for text, pattern in (("\n".join(fenced), rf"^\s*{shown}"), (prose, rf"`{shown}"))
+                for match in re.finditer(pattern, text, re.M)
+            }
+            self.assertTrue(subcommands, backend_doc.name)
+            commands[tool] = re.compile(rf"\b{re.escape(tool)} (?:{'|'.join(sorted(subcommands))})\b")
+        doctrine = [
+            support.ADW / "SKILL.md",
+            *sorted((support.ADW / "templates").iterdir()),
+            *(path for path in sorted(REFERENCES.glob("*.md")) if path not in BACKENDS),
+        ]
+        self.assertGreater(len(doctrine), 2)
+        for path in doctrine:
+            for tool, command in commands.items():
+                with self.subTest(path=path.name, tool=tool):
+                    self.assertIsNone(command.search(path.read_text(encoding="utf-8")))
+
+
+if __name__ == "__main__":
+    unittest.main()

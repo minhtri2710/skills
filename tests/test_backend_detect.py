@@ -1,4 +1,3 @@
-"""detect(environ, explicit) and the seat record: every row of design 9.2, environments as dict literals."""
 from __future__ import annotations
 
 import argparse
@@ -188,6 +187,16 @@ class ParseAndRecordTest(unittest.TestCase):
                     backend.read_seat_record(path)
             with self.assertRaises(OSError):
                 backend.read_seat_record(Path(directory) / "missing")
+
+
+class SeatErrorTest(unittest.TestCase):
+    def test_a_seat_error_takes_only_a_defined_kind_and_carries_it_as_its_code(self) -> None:
+        self.assertIn("not_started", backend.SEAT_ERROR_KINDS)
+        for kind in backend.SEAT_ERROR_KINDS:
+            with self.subTest(kind):
+                self.assertEqual(backend.SeatError(kind, "x").code, kind)
+        with self.assertRaises(ValueError):
+            backend.SeatError("stuck", "x")
 
 
 class OpenAndCliTest(unittest.TestCase):

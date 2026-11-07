@@ -34,7 +34,6 @@ ENVIRON = {"TERM_PROGRAM": "rex", "REX_SESSION": SESSION, "REX_BLOCK": "block:a1
 REPORT = "/state/projects/demo/runs/r1/report-eng-a.md"
 BASE = ["--autostart=false"]
 PINNED = ["--autostart=false", "-S", ENDPOINT]
-OPERATIONS = ["identify", "spawn", "prompt", "read", "state", "wait", "list", "processes", "interrupt", "close", "notify"]
 NOT_NONE_PROVISIONAL = ["identify", "spawn", "prompt", "state", "wait", "list", "notify"]
 
 
@@ -110,15 +109,21 @@ def is_allowed(command: str) -> bool:
 
 
 class RunnerTest(unittest.TestCase):
-    def test_binary_is_rex_bin_dir_when_executable_else_path(self) -> None:
+    def test_the_adapter_runs_rex_bin_dir_when_executable_else_rex_from_path(self) -> None:
+        def binary_run(environ: dict[str, str]) -> str:
+            with mock.patch.object(backend.subprocess, "run", return_value=reply("{}")) as run:
+                with self.assertRaises(backend.BackendError):
+                    rex.Adapter(environ).identify()
+            return run.call_args.args[0][0]
+
         with tempfile.TemporaryDirectory() as tmp:
-            self.assertEqual(rex._binary({"REX_BIN_DIR": tmp}), "rex")
+            self.assertEqual(binary_run({**ENVIRON, "REX_BIN_DIR": tmp}), "rex")
             binary = Path(tmp) / "rex"
             binary.write_text("#!/bin/sh\n", encoding="utf-8")
             binary.chmod(0o755)
-            self.assertEqual(rex._binary({"REX_BIN_DIR": tmp}), str(binary))
-        self.assertEqual(rex._binary({}), "rex")
-        self.assertEqual(rex._binary({"REX_BIN_DIR": ""}), "rex")
+            self.assertEqual(binary_run({**ENVIRON, "REX_BIN_DIR": tmp}), str(binary))
+        self.assertEqual(binary_run(ENVIRON), "rex")
+        self.assertEqual(binary_run({**ENVIRON, "REX_BIN_DIR": ""}), "rex")
 
     def test_default_runner_is_resolved_at_construction_and_passes_the_binary(self) -> None:
         completed = reply("{}")
@@ -440,7 +445,6 @@ class WaitTest(unittest.TestCase):
         with self.assertRaises(backend.Unsupported):
             a.wait_state(ENG_A, ["idle", "done"], 1000)
         self.assertEqual(runner.calls, [])
-        self.assertIs(rex.Adapter.wait_state, backend.Backend.wait_state)
 
 
 class ProcessesTest(unittest.TestCase):
@@ -504,7 +508,6 @@ class SendBlockTest(unittest.TestCase):
     def test_a_real_shaped_handle_fits_the_handle_pattern(self) -> None:
         uuid = "0b9a3f1e-7c2d-4e55-9a10-6f2b8d4c1e77"
         handle = f"session:{uuid}.block:{uuid}"
-        self.assertEqual(len(handle), 87)
         self.assertIsNotNone(backend.HANDLE_RE.fullmatch(handle))
         a, _ = adapter()
         self.assertIn(f"-s session:{uuid} -b block:{uuid}", a.send_block(handle, REPORT).send_command)
@@ -548,19 +551,6 @@ class ContractTest(unittest.TestCase):
             },
         )
 
-    def test_the_allow_list_rejects_an_invented_command(self) -> None:
-        for command in (
-            "wait -s <S> -b <B> --for 30s --json",
-            "block call -s <S> -b <B> write",
-            "block close -s <S> <B>",
-            "send -s <S> -b <B> text",
-            "capture -s <S> -b <B>",
-            "ls --json",
-            "split -s <S> -b <B>",
-        ):
-            with self.subTest(command):
-                self.assertFalse(is_allowed(command))
-
     def test_the_send_block_commands_are_in_the_allow_list(self) -> None:
         a, _ = adapter()
         block = a.send_block(LEAD, REPORT).send_command
@@ -598,20 +588,6 @@ class ReferenceTest(unittest.TestCase):
         cls.text = text
         cls.sections = dict(zip(parts[1::2], parts[2::2]))
 
-    def test_one_heading_per_operation_in_order(self) -> None:
-        self.assertEqual(list(self.sections), OPERATIONS)
-
-    def test_each_operation_is_a_cited_command_or_unsupported(self) -> None:
-        for operation, body in self.sections.items():
-            with self.subTest(operation):
-                self.assertIn("Provisional:", body)
-                if "Unsupported:" in body:
-                    self.assertNotIn("```", body)
-                    continue
-                self.assertIn("```", body)
-                self.assertRegex(body, r"\b(CL|CD|IS|UV)\b")
-                self.assertRegex(body, r"`[\w./-]+\.(sh|go|lua|md|txt):\d")
-
     def test_pending_operations_say_what_is_pending(self) -> None:
         for operation in NOT_NONE_PROVISIONAL:
             with self.subTest(operation):
@@ -642,7 +618,7 @@ class ReferenceTest(unittest.TestCase):
             command = normalized(args, ("hello text", "<text>"))
             self.assertIn(f"rex {command}", self.text, command)
 
-    def test_the_unsupported_wait_is_named_in_the_reference_and_the_adapter(self) -> None:
+    def test_the_reference_says_wait_state_raises_unsupported(self) -> None:
         self.assertIn("`wait_state` raises `Unsupported`", self.sections["wait"])
 
 

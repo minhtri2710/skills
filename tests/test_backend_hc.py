@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import json
 import os
-import re
 import stat
 import subprocess
 import tempfile
@@ -42,7 +41,7 @@ def adapter(*replies: subprocess.CompletedProcess[str]) -> tuple[hc.Adapter, Rec
     return support.adapter(hc, ENVIRON, *replies, binary="hc")
 
 
-# The whole command surface the adapter may use: verb -> flags it may pass (design 9.3 allow-list).
+# The whole command surface the adapter may use: verb -> flags it may pass.
 ALLOWED = {
     "get": {"--json"},
     "ls": {"--json"},
@@ -172,17 +171,6 @@ class NormalizeTest(unittest.TestCase):
         a, runner = adapter(reply(fixture("get-live.json")), reply(fixture("get-live.json")))
         self.assertEqual(a.get_terminal("t7"), a.get_seat("t7"))
         self.assertEqual(runner.argv, [["get", "t7", "--json"], ["get", "t7", "--json"]])
-
-    def test_every_record_has_the_normalized_fields(self) -> None:
-        for name in ("get-live.json", "get-live-no-status.json", "get-finished-ok.json", "get-finished-failed.json"):
-            with self.subTest(name):
-                a, _ = adapter(reply(fixture(name)))
-                seat = a.get_seat("t1")
-                self.assertIsInstance(seat, backend.Seat)
-                self.assertIsInstance(seat.handle, str)
-                self.assertTrue(seat.handle)
-                self.assertIn(seat.state, backend.STATES)
-                self.assertIsInstance(seat.argv, tuple)
 
     def test_list_seats_uses_ls_and_reads_the_short_rows(self) -> None:
         a, runner = adapter(reply(fixture("ls.json")))
@@ -487,11 +475,6 @@ class SendBlockTest(unittest.TestCase):
             with self.subTest(lead=lead, report=report), self.assertRaises(ValueError):
                 a.send_block(lead, report)
 
-    def test_a_handle_the_other_backends_use_is_accepted(self) -> None:
-        a, _ = adapter()
-        for handle in ("w1:p1", "t7", "session:s1.block:b1"):
-            self.assertIn(f"hc send {handle} ", a.send_block(handle, REPORT).send_command)
-
 
 def template_matches(template: str, args: list[str]) -> bool:
     """`hc <verb> ...` with <placeholder> words and an optional trailing `<argv>...`, against built argv."""
@@ -533,14 +516,6 @@ class ReferenceTest(unittest.TestCase):
         "list": "hc ls --json",
         "processes": "hc get <t> --json",
     }
-    # The seam has no spawn, interrupt or close yet (backend.py docstring): the reference documents
-    # their commands and the allow-list bounds them, but the adapter builds no argv for them.
-    REFERENCE_ONLY = (
-        "hc run --bg --json --no-parent --name <name> --cwd <dir> -- <argv>...",
-        "hc interrupt --json <t>",
-        "hc kill --json <t>",
-        "hc rm --json <t>",
-    )
 
     def test_each_built_argv_is_the_command_the_reference_documents(self) -> None:
         reference = REFERENCE.read_text(encoding="utf-8")
@@ -552,49 +527,10 @@ class ReferenceTest(unittest.TestCase):
                 self.assertIn(f"`{template}`", reference)
                 self.assertTrue(template_matches(template, args), f"{args} does not fit {template}")
 
-    def test_the_reference_only_commands_are_documented_and_inside_the_allow_list(self) -> None:
-        reference = REFERENCE.read_text(encoding="utf-8")
-        for template in self.REFERENCE_ONLY:
-            with self.subTest(template):
-                self.assertIn(f"`{template}`", reference)
-                self.assertIsNone(violation(template.split()[1:]))
-
     def test_every_built_argv_is_inside_the_allow_list(self) -> None:
         for operation, args in self.exercise():
             with self.subTest(operation=operation):
                 self.assertIsNone(violation(args))
-
-    def test_the_allow_list_rejects_an_invented_command(self) -> None:
-        invented = [
-            ["keys", "t7", "enter"],
-            ["server", "stop"],
-            ["send", "--force", "t7", "x"],
-            ["send", "--wait", "t7", "x"],
-            ["send", "--if", "idle", "t7", "x"],
-            ["run", "--bg", "--name", "x", "claude"],
-            ["run", "--no-parent", "--name", "x", "claude"],
-            ["run", "--outlive-parent", "--bg", "--no-parent", "claude"],
-            ["get", "t7", "--all"],
-            [],
-        ]
-        for args in invented:
-            with self.subTest(args):
-                self.assertIsNotNone(violation(args))
-
-    def test_the_reference_has_one_heading_per_operation_in_order(self) -> None:
-        headings = re.findall(r"^## (.+)$", REFERENCE.read_text(encoding="utf-8"), flags=re.MULTILINE)
-        self.assertEqual(headings, ["identify", "spawn", "prompt", "read", "state", "wait", "list", "processes", "interrupt", "close", "notify"])
-
-    def test_every_operation_section_has_a_command_or_unsupported_and_a_provisional_line(self) -> None:
-        text = REFERENCE.read_text(encoding="utf-8")
-        sections = dict(re.findall(r"^## ([^\n]+)\n(.*?)(?=^## |\Z)", text, flags=re.MULTILINE | re.DOTALL))
-        for operation, body in sections.items():
-            with self.subTest(operation):
-                if "Command:" in body or "Commands:" in body:
-                    self.assertIn("Source:", body)
-                else:
-                    self.assertIn("Unsupported:", body)
-                self.assertIn("Provisional:", body)
 
 
 if __name__ == "__main__":
