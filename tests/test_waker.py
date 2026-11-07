@@ -128,9 +128,10 @@ class WakerTest(unittest.TestCase):
     def test_error_is_a_terminal_state_that_prompts_in_both_modes(self):
         fake = Scripted(status="error")
         self.assertEqual(self.run_waker(fake, self.peer_argv()), 0)
-        self.assertEqual(fake.prompts(), [self.peer_prompt("error", "no")])
+        self.assertEqual(fake.calls, [WAIT, self.peer_prompt("error", "no")])
         fake = Scripted(status="error", tail="no marker\n")
         self.assertEqual(self.run_waker(fake, self.lead_argv()), 0)
+        self.assertEqual(fake.calls[0], ("wait_state", LEAD, WAIT[2], TIMEOUT_MS))
         self.assertEqual(fake.prompts(), [self.lead_prompt("error")])
 
     def test_report_older_than_watch_start_is_not_fresh(self):
