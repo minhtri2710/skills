@@ -15,6 +15,7 @@ import support
 import backend
 import charter_lint
 import charter_render
+import state_root
 from fake_backend import FakeBackend
 
 SCRIPTS = support.ADW / "scripts"
@@ -32,9 +33,13 @@ class CharterRenderTest(unittest.TestCase):
         self.addCleanup(tmp.cleanup)
         root = Path(tmp.name)
         self.repo = root / "repo"
-        self.run_dir = root / ".agent-delivery" / "projects" / "demo" / "runs" / "demo-run"
+        state = root / "state"
+        patched = mock.patch.object(state_root, "STATE_ROOT", state)
+        patched.start()
+        self.addCleanup(patched.stop)
+        self.run_dir = state_root.run_dir("demo", "demo-run")
         self.run_dir.mkdir(parents=True)
-        (self.run_dir.parents[1] / "config.json").write_text(json.dumps({
+        state_root.config("demo").write_text(json.dumps({
             "lead-kind": "claude", "lead-args": ["--model", "claude-opus-5-5"],
             "reviewer-kind": "claude", "reviewer-args": ["--model", "claude-sonnet-5-5"],
             "target-line": "main",

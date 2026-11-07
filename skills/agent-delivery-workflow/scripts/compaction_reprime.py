@@ -27,7 +27,6 @@ import state_root
 THRESHOLD = 4
 RELAUNCH_THRESHOLD = 8
 _ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
-_SLUG = re.compile(r"^[a-z0-9][a-z0-9._-]{0,127}$")
 _DOCTRINE = Path(__file__).resolve().parents[1] / "references"
 
 
@@ -128,9 +127,8 @@ def _count_claude(records: list[dict[str, Any]], session_id: str) -> int:
 
 
 def _block(run_id: str, seat: str, threshold: int, slug: str) -> str:
-    records = state_root.STATE_ROOT / slug
-    run_dir = records / "runs" / run_id
-    required = [records / "context-pack.md", records / "gates.md", records / "supervisor-notebook.md"]
+    run_dir = state_root.run_dir(slug, run_id)
+    required = [state_root.context_pack(slug), state_root.ledger(slug), state_root.notebook(slug)]
     if not run_dir.is_dir() or not all(p.is_file() for p in required):
         raise Unavailable(f"threshold {threshold} remains pending; prompt not attempted")
     lead, supervisor, closeout = (_DOCTRINE / f"{name}.md" for name in ("lead", "supervisor", "closeout"))
@@ -138,7 +136,7 @@ def _block(run_id: str, seat: str, threshold: int, slug: str) -> str:
         f"run-id: {run_id}", f"seat: {seat}", f"run-dir: {run_dir}",
         f"context-pack: {required[0]}", f"gate-ledger: {required[1]}", f"supervisor-notebook: {required[2]}",
     ]
-    for label, name in (("intake", "intake-record.md"), ("plan", "plan.md"), ("specification", "specification.md"), ("slices", "slices.json")):
+    for label, name in state_root.RUN_RECORDS.items():
         if (run_dir / name).is_file():
             lines.append(f"{label}: {run_dir / name}")
     lines += [
@@ -152,10 +150,9 @@ def _block(run_id: str, seat: str, threshold: int, slug: str) -> str:
 
 
 def _state_dir(slug: str) -> Path:
-    """The coordination directory, created if missing; no component below projects/ may be a symlink."""
     current = state_root.STATE_ROOT
     current.mkdir(parents=True, exist_ok=True)
-    for part in (slug, "runs", "coordination"):
+    for part in state_root.coordination_dir(slug).relative_to(current).parts:
         current /= part
         try:
             mode = current.lstat().st_mode
@@ -186,7 +183,7 @@ def _load_state(path: Path, count: int) -> dict[str, int] | None:
 
 
 def _save_state(path: Path, state: dict[str, int]) -> None:
-    descriptor, temporary = tempfile.mkstemp(dir=path.parent, prefix=".baseline-", suffix=".tmp")  # O_EXCL: never follows a link
+    descriptor, temporary = tempfile.mkstemp(dir=path.parent, prefix=".baseline-", suffix=".tmp")
     try:
         with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
             stream.write(json.dumps(state, sort_keys=True) + "\n")
@@ -197,10 +194,12 @@ def _save_state(path: Path, state: dict[str, int]) -> None:
 
 
 def reprime(run_id: str, seat: str, project_root: Path, seats: backend.Backend) -> str:
-    """Return the success line; raise Unavailable when nothing can be proven or sent."""
     project = project_root.resolve(strict=True)
-    slug = project.name.lower()
-    if not _ID.fullmatch(run_id) or not _SLUG.fullmatch(slug):
+    try:
+        if not _ID.fullmatch(run_id):
+            raise ValueError(run_id)
+        slug = state_root.slug_for(project)
+    except ValueError:
         raise Unavailable("run id or project name is not a safe path component")
     agent = _live_agent(seats, seat)
     cwd = agent.cwd
@@ -211,7 +210,7 @@ def reprime(run_id: str, seat: str, project_root: Path, seats: backend.Backend) 
     records = _read_jsonl(session_file)
     count = (_count_claude if agent.kind == "claude" else _count_pi)(records, session_id)
 
-    digest = hashlib.sha256(f"{seat}\0{session_id}".encode("utf-8")).hexdigest()
+    digest = hashlib.sha256(f"{agent.handle}\0{session_id}".encode("utf-8")).hexdigest()
     path = _state_dir(slug) / f"baseline-{digest}.json"
     state = _load_state(path, count)
     if state is None:
@@ -224,13 +223,10 @@ def reprime(run_id: str, seat: str, project_root: Path, seats: backend.Backend) 
     block = _block(run_id, seat, threshold, slug)
     _save_state(path, {**state, "sent": threshold})  # advanced first: a crash never re-prompts
     try:
-        seats.prompt(seat, block)
-        sent = True
-    except backend.BackendError:
-        sent = False
-    if not sent:
+        seats.prompt(agent.handle, block)
+    except backend.BackendError as exc:
         _save_state(path, state)  # unsent: the next run retries this threshold
-        raise Unavailable(f"prompt failed for {seat} at threshold {threshold}")
+        raise Unavailable(f"prompt failed for {seat} at threshold {threshold}: {exc}")
     suffix = "; relaunch recommended at the next slice boundary" if threshold >= RELAUNCH_THRESHOLD else ""
     return f"prompted {seat} at threshold {threshold}{suffix}"
 

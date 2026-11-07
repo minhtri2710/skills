@@ -38,7 +38,9 @@ from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 
+import state_root
 from bounded_run import stop_group
+from mailbox import parse_header
 
 NOTE_MAX = 200
 BRIEF_MAX = 500
@@ -77,10 +79,6 @@ HANDOFF_STATUS = "recorded:handoff"
 CUTOVER_STATUS = "recorded:cutover"
 ARCHIVE_RE = re.compile(r"^[0-9a-f]{64}$")
 FINDING_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]*$")
-MAILBOX_ATTENTION_RE = re.compile(
-    r"^## .+ -> supervisor \| \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z "
-    r"\| ATTENTION (?P<text>.+?) \| HEAD (?P<head>[0-9a-f]{7,40})\s*$"
-)
 HUMAN_GATE_KINDS = frozenset({
     "push", "merge", "deploy", "push-gate", "merge-gate", "deploy-gate",
 })
@@ -159,13 +157,13 @@ def require_mailbox_attention(gid: str, head: str, mailbox: Path) -> None:
     except (OSError, UnicodeError) as exc:
         raise RowError(f"mailbox {mailbox} could not be read: {exc}") from None
     for line in text.splitlines():
-        match = MAILBOX_ATTENTION_RE.fullmatch(line)
-        if not match:
-            continue
+        header = parse_header(line)
         if (
-            mailbox_token(match.group("text"), gid)
-            or mailbox_token(match.group("text"), head)
+            header is None or header.recipient != "supervisor"
+            or header.head is None or header.attention is None
         ):
+            continue
+        if mailbox_token(header.attention, gid) or mailbox_token(header.attention, head):
             return
     raise RowError(
         f"open gate {gid} has no matching ATTENTION entry in mailbox {mailbox}; "
@@ -1329,7 +1327,7 @@ def main(argv: list[str] | None = None) -> int:
         if not args.ledger.is_absolute():
             raise RowError(
                 f"--ledger {args.ledger} is not absolute; the live ledger is "
-                "~/.agent-delivery/projects/<slug>/gates.md and a relative path resolves "
+                f"{state_root.STATE_ROOT}/<slug>/{state_root.LEDGER} and a relative path resolves "
                 "against the shell cwd, silently starting a stray G1"
             )
         if args.deployed_head:

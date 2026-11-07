@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
-"""Report superseded and stale Herdr lesson records for Human review."""
+"""Report superseded and stale lesson records for Human review."""
 
 import argparse
 import datetime
 import os
 import sys
 
-from recall import LESSON_STATUSES, LessonParseError, lesson_record_lines, project_root
+import state_root
+from lessons import LESSON_STATUSES, STALE_DAYS, LessonParseError, lesson_record_lines
 
 
 def record_fields(path):
@@ -20,10 +21,12 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--project", metavar="SLUG", required=True)
     args = parser.parse_args(argv)
-    # The stale window is fixed doctrine (90 days); there is no CLI override.
-    cutoff = datetime.datetime.now(datetime.timezone.utc).date() - datetime.timedelta(days=90)
+    cutoff = datetime.datetime.now(datetime.timezone.utc).date() - datetime.timedelta(days=STALE_DAYS)
 
-    lessons = os.path.join(project_root(parser, args.project), "runs", "coordination", "lessons")
+    try:
+        lessons = state_root.lessons_dir(args.project)
+    except ValueError:
+        parser.error("--project must be a project slug")
     if not os.path.isdir(lessons):
         print("Nothing to flag: lessons directory does not exist.")
         return 0
@@ -40,10 +43,6 @@ def main(argv=None):
             except (OSError, UnicodeError, LessonParseError) as exc:
                 malformed.append((path, str(exc)))
                 continue
-            # A superseded lesson is replaced doctrine; surface it for retirement
-            # regardless of staleness. A freshly-used superseded record is the
-            # dangerous case — a seat still recalling doctrine that has been
-            # replaced — so it must show up even when last_used is recent.
             if last_used < cutoff or fields["status"] == "superseded":
                 flagged.append((fields["status"], os.path.relpath(path, lessons), fields["last_used"]))
 

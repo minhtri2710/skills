@@ -12,6 +12,7 @@ from pathlib import Path
 from unittest import mock
 
 import support
+import lessons
 import recall
 import state_root
 
@@ -77,7 +78,7 @@ class RecallTest(unittest.TestCase):
         self.assertEqual(output.splitlines()[0].split(":", 1)[0], "runs/INDEX.md")
 
     def test_shared_parser_accepts_all_statuses_and_requires_superseded_ref(self):
-        for status in recall.LESSON_STATUSES:
+        for status in lessons.LESSON_STATUSES:
             landing = "superseded_by: replacement\n" if status == "superseded" else ""
             text = (
                 "---\n"
@@ -90,7 +91,7 @@ class RecallTest(unittest.TestCase):
                 f"{landing}"
                 "---\n"
             )
-            record = recall.lesson_record_lines(text)
+            record = lessons.lesson_record_lines(text)
             self.assertEqual(record.fields["status"][1], status)
 
         without_landing = (
@@ -103,16 +104,16 @@ class RecallTest(unittest.TestCase):
             "last_used: 2020-01-01\n"
             "---\n"
         )
-        with self.assertRaises(recall.LessonParseError):
-            recall.lesson_record_lines(without_landing)
+        with self.assertRaises(lessons.LessonParseError):
+            lessons.lesson_record_lines(without_landing)
 
         active_with_landing = without_landing.replace(
             "status: superseded\n", "status: active\n"
         ).replace(
             "last_used: 2020-01-01\n", "last_used: 2020-01-01\nsuperseded_by: replacement\n"
         )
-        with self.assertRaises(recall.LessonParseError):
-            recall.lesson_record_lines(active_with_landing)
+        with self.assertRaises(lessons.LessonParseError):
+            lessons.lesson_record_lines(active_with_landing)
 
     def test_stamp_preserves_crlf_and_every_other_byte(self):
         path = self.root / "demo/runs/coordination/lessons/crlf.md"

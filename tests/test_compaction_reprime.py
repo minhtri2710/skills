@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 import io
 import json
 import os
@@ -191,6 +190,14 @@ class SeatResolutionTest(ReprimeCase):
         self.assertEqual(self.run_cli(args=["--run-id", "run-1", "--seat", "no-such-seat"]), 1)
         self.assertEqual(self.prompts, [])
 
+    def test_a_seat_given_by_name_is_prompted_and_keyed_by_its_handle(self) -> None:
+        self.baseline_then_cross()
+        by_name = self.run_cli()
+        by_handle = self.run_cli(args=["--run-id", "run-1", "--seat", f"pane-{SEAT}"])
+        self.assertEqual((by_name, by_handle), (0, 0))
+        self.assertEqual([prompt[1] for prompt in self.prompts], [f"pane-{SEAT}"])
+        self.assertEqual(len(self.state_files()), 1)
+
     def test_unavailable_roster_fails_without_prompt(self) -> None:
         self.baseline_then_cross()
         self.roster_error = backend.BackendUnavailable("tool unavailable")
@@ -363,9 +370,12 @@ class ThresholdTest(ReprimeCase):
         self.baseline_then_cross()
         self.assertEqual(self.run_cli(), 0)
         (state_file,) = self.state_files()
-        digest = hashlib.sha256((SEAT + "\0" + PI_SESSION).encode("utf-8")).hexdigest()
-        self.assertEqual(state_file.name, f"baseline-{digest}.json")
         self.assertEqual(json.loads(state_file.read_text(encoding="utf-8")), {"baseline": 3, "sent": 4})
+        self.assertEqual(self.run_cli(), 0)
+        self.assertEqual(self.state_files(), [state_file])
+        self.set_pi(8, session_id="02def456")
+        self.assertEqual(self.run_cli(), 0)
+        self.assertEqual(len(self.state_files()), 2)
 
     def test_state_is_never_written_through_a_symlink(self) -> None:
         self.write_pointer_files()
@@ -374,8 +384,10 @@ class ThresholdTest(ReprimeCase):
         outside.mkdir()
         runs = self.records_dir() / "runs"
         coordination = runs / "coordination"
-        digest = hashlib.sha256((SEAT + "\0" + PI_SESSION).encode("utf-8")).hexdigest()
-        state_name = f"baseline-{digest}.json"
+        self.assertEqual(self.run_cli(), 0)
+        (state_file,) = self.state_files()
+        state_name = state_file.name
+        shutil.rmtree(coordination)
 
         def plant(case: str) -> None:
             if case == "coordination directory":
@@ -385,7 +397,7 @@ class ThresholdTest(ReprimeCase):
             if case == "state file":
                 (coordination / state_name).symlink_to(outside / "state.json")
             else:
-                (coordination / f"baseline-{digest}.tmp").symlink_to(outside / "tmp.json")
+                (coordination / state_name.replace(".json", ".tmp")).symlink_to(outside / "tmp.json")
 
         for case, returncode in (("coordination directory", 1), ("state file", 1), ("temporary file", 0)):  # a planted fixed temp name is never used
             with self.subTest(case):
@@ -447,7 +459,7 @@ class PromptTest(ReprimeCase):
         self.baseline_then_cross()
         self.assertEqual(self.run_cli(), 0)
         ((operation, seat, block),) = self.prompts
-        self.assertEqual((operation, seat), ("prompt", SEAT))
+        self.assertEqual((operation, seat), ("prompt", f"pane-{SEAT}"))
         records, run_dir = self.records_dir(), self.records_dir() / "runs" / "run-1"
         for pointer in (
             records / "context-pack.md", records / "gates.md", records / "supervisor-notebook.md", run_dir,
