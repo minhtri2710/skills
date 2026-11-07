@@ -5,6 +5,7 @@ import re
 import unittest
 
 import support
+import backend
 
 REFERENCES = support.ADW / "references"
 BACKENDS = sorted(REFERENCES.glob("backend-*.md"))
@@ -20,21 +21,25 @@ def seat_operations() -> list[str]:
 OPERATIONS = seat_operations()
 
 
+def headings(name: str) -> list[str]:
+    return re.findall(r"^## (.+)$", (REFERENCES / name).read_text(encoding="utf-8"), flags=re.MULTILINE)
+
+
 def sections(name: str) -> dict[str, str]:
     parts = re.split(r"^## (.+)$", (REFERENCES / name).read_text(encoding="utf-8"), flags=re.MULTILINE)
     return dict(zip(parts[1::2], parts[2::2]))
 
 
 class BackendReferenceTest(unittest.TestCase):
-    def test_the_references_and_the_operation_list_are_found(self) -> None:
+    def test_every_registered_backend_has_a_reference_and_the_operation_list_is_not_empty(self) -> None:
+        self.assertEqual({path.stem.removeprefix("backend-") for path in BACKENDS}, set(backend.ADAPTERS))
         self.assertTrue(OPERATIONS)
-        self.assertTrue(BACKENDS)
 
     def test_each_backend_has_one_section_per_operation_in_order_and_each_is_filled(self) -> None:
         for path in BACKENDS:
             with self.subTest(backend=path.name):
+                self.assertEqual(headings(path.name), OPERATIONS + EXTRA_SECTIONS.get(path.name, []))
                 found = sections(path.name)
-                self.assertEqual(list(found), OPERATIONS + EXTRA_SECTIONS.get(path.name, []))
                 for operation in OPERATIONS:
                     with self.subTest(backend=path.name, operation=operation):
                         self.assertTrue(found[operation].strip())

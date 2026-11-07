@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import stat
 import subprocess
 import tempfile
@@ -42,6 +43,7 @@ def adapter(*replies: subprocess.CompletedProcess[str]) -> tuple[hc.Adapter, Rec
 
 
 # The whole command surface the adapter may use: verb -> flags it may pass.
+# The reference's spawn, interrupt and close commands are held to it too (ReferenceTest).
 ALLOWED = {
     "get": {"--json"},
     "ls": {"--json"},
@@ -531,6 +533,17 @@ class ReferenceTest(unittest.TestCase):
         for operation, args in self.exercise():
             with self.subTest(operation=operation):
                 self.assertIsNone(violation(args))
+
+    def test_the_reference_commands_for_spawn_interrupt_and_close_are_inside_the_allow_list(self) -> None:
+        text = REFERENCE.read_text(encoding="utf-8")
+        for operation in ("spawn", "interrupt", "close"):
+            section = re.search(rf"^## {operation}\n(.*?)(?=^## |\Z)", text, flags=re.MULTILINE | re.DOTALL).group(1)
+            line = next(line for line in section.splitlines() if line.startswith(("Command:", "Commands:")))
+            commands = re.findall(r"`(hc [^`]+)`", line)
+            self.assertTrue(commands, operation)
+            for command in commands:
+                with self.subTest(operation=operation, command=command):
+                    self.assertIsNone(violation(command.split()[1:]))
 
 
 if __name__ == "__main__":
