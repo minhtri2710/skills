@@ -129,6 +129,15 @@ class CharterRenderTest(unittest.TestCase):
         text = (self.run_dir / f"charter-review-{self.head[:12]}.md").read_text(encoding="utf-8")
         self.assertEqual(text, "lead-m reviewer-m")
 
+    def test_an_empty_model_equals_value_is_refused_like_a_missing_model(self):
+        state_root.config("demo").write_text(json.dumps({
+            "lead-kind": "claude", "lead-args": ["--model="],
+            "reviewer-kind": "claude", "reviewer-args": ["--model", "reviewer-m"],
+            "target-line": "main",
+        }), encoding="utf-8")
+        code, err = self.render_with_template("<lead_model>")
+        self.assertEqual((code, err), (1, "charter_render: config lead-args has no --model\n"))
+
     def test_the_seat_handle_is_taken_as_given(self):
         for handle in ("t7", "sess.blk", "w7:p3"):
             with self.subTest(handle=handle):

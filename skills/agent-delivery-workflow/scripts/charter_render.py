@@ -36,7 +36,7 @@ def _git(repo: Path, *args: str) -> str:
 
 def _model(argv: list[str], key: str) -> str:
     model = project_config.model_of(argv)
-    if model is None:
+    if not model:
         raise ValueError(f"config {key} has no --model")
     return model
 
