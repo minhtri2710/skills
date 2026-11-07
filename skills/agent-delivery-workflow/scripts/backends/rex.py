@@ -9,7 +9,6 @@ from __future__ import annotations
 import functools
 import json
 import os
-import re
 import subprocess
 from collections.abc import Callable, Mapping
 from typing import Any
@@ -22,8 +21,6 @@ EXIT_NOT_FOUND = 3
 EXIT_UNREACHABLE = 4
 # The seat reports its most urgent program_status record (Rex gives no single seat state).
 _STATE_ORDER = ("blocked", "error", "working", "done")
-_REPORT_PATH_RE = re.compile(r"(?P<dir>.+)/report-(?P<peer>[^/]+)\.md")
-_UNSAFE_IN_DOUBLE_QUOTES = frozenset('"$`\\\n')
 
 Runner = Callable[..., "subprocess.CompletedProcess[str]"]
 
@@ -216,10 +213,7 @@ class Adapter(backend.Backend):
 
     def send_block(self, lead_handle: str, report_path: str) -> str:
         session, block = _split(lead_handle)
-        match = _REPORT_PATH_RE.fullmatch(report_path)
-        if match is None or _UNSAFE_IN_DOUBLE_QUOTES & set(report_path):
-            raise ValueError(f"report path must be <run-dir>/report-<peer>.md without shell metacharacters: {report_path!r}")
-        send_path = f"{match['dir']}/send-{match['peer']}.txt"
+        _, send_path = backend.report_send_file(report_path)
         target = f"-s {session} -b {block}"
         # Rex exports REX_BIN_DIR into every block but a shell's startup files often reset PATH, so a bare `rex` may not resolve.
         binary = '"$REX_BIN_DIR/rex"'

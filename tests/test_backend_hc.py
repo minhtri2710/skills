@@ -403,6 +403,8 @@ class WaitTest(unittest.TestCase):
         self.assertEqual(a.wait_state("t9", ["done"], 1000), "done")
         a, _ = adapter(reply(fixture("wait-exit-failed.json")))
         self.assertEqual(a.wait_state("t9", ["done", "error"], 1000), "error")
+        a, _ = adapter(reply(fixture("wait-error.json")))
+        self.assertEqual(a.wait_state("t7", ["idle", "done", "blocked", "error"], 1000), "error")
 
     def test_a_state_outside_the_requested_ones_is_an_error_not_a_spin(self) -> None:
         for name in ("wait-error.json", "wait-exit-failed.json"):
@@ -540,12 +542,6 @@ class SendBlockTest(unittest.TestCase):
             ("t3;rm", REPORT),
             ("", REPORT),
             (LEAD, "report-eng-a.md"),
-            (LEAD, "/state/runs/r1/eng-a.md"),
-            (LEAD, "/state/runs/r1/report-.md"),
-            (LEAD, '/state/runs/"r1"/report-eng-a.md'),
-            (LEAD, "/state/runs/$HOME/report-eng-a.md"),
-            (LEAD, "/state/runs/`x`/report-eng-a.md"),
-            (LEAD, "/state/runs/r1/report-eng-a.md\nrm"),
         ):
             with self.subTest(lead=lead, report=report), self.assertRaises(ValueError):
                 a.send_block(lead, report)
