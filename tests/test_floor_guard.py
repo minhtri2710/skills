@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import io
+import os
 import sys
 import tempfile
 import unittest
@@ -131,7 +132,30 @@ class FloorGuardRepoTest(unittest.TestCase):
         support.git(self.repo, "commit", "-q", "-m", "coverage")
         support.git(self.repo, "config", "diff.noprefix", "true")
         self.write("pyproject.toml", "[tool.coverage.report]\nfail_under = 70\n")
-        self.assertEqual(self.run_guard(), (1, "floor-guard: 1 violation(s)\n  [threshold-loosened] pyproject.toml:2\n"))
+        self.write("src/app.py", "def total(items):\n    return sum(items)  # noqa\n")
+        self.assertEqual(
+            self.run_guard(),
+            (1, "floor-guard: 2 violation(s)\n  [silenced-checker] src/app.py:2\n  [threshold-loosened] pyproject.toml:2\n"),
+        )
+
+    def test_textconv_driver_does_not_hide_a_tracked_change(self) -> None:
+        (self.repo / ".git" / "info" / "attributes").write_text("*.py diff=hide\n")
+        support.git(self.repo, "config", "diff.hide.textconv", "true")
+        self.write("src/app.py", "def total(items):\n    return sum(items)  # noqa\n")
+        self.assertEqual(self.run_guard(), (1, "floor-guard: 1 violation(s)\n  [silenced-checker] src/app.py:2\n"))
+
+    def test_inter_hunk_context_config_does_not_fuse_hunks(self) -> None:
+        ruff = '[tool.ruff.lint]\nselect = [\n  "E",\n]\nignore = [\n  "E501",\n]\n'
+        self.write("pyproject.toml", ruff)
+        support.git(self.repo, "add", ".")
+        support.git(self.repo, "commit", "-q", "-m", "ruff")
+        support.git(self.repo, "config", "diff.interHunkContext", "3")
+        self.write("pyproject.toml", ruff.replace('  "E",\n', '  "E",\n  "F",\n').replace('  "E501",\n', '  "E501",\n  "E402",\n'))
+        self.assertEqual(self.run_guard(), (1, "floor-guard: 1 violation(s)\n  [lint-rule-disabled] pyproject.toml:8\n"))
+
+    def test_touched_tracked_file_with_unchanged_content_is_clean(self) -> None:
+        os.utime(self.repo / "src" / "app.py", (1_000_000_000, 1_000_000_000))
+        self.assertEqual(self.run_guard(), (0, ""))
 
     def test_non_utf8_content_of_a_watched_file_renamed_away_is_read(self) -> None:
         cfg = (self.repo / "pkg" / "setup.cfg")
