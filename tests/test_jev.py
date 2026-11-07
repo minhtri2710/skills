@@ -415,6 +415,16 @@ class JevTest(unittest.TestCase):
                     self.assertEqual(result.reason, reason)
         urlopen.assert_not_called()
 
+    def test_fork_too_deeply_nested_is_unavailable_without_http(self):
+        nested: dict[str, object] = {}
+        for _ in range(100_000):
+            nested = {"k": nested}
+        with mock.patch.object(jev.urllib.request, "urlopen") as urlopen:
+            result = jev.route_fork({**FORK, "nested": nested}, DELEGATION)
+        self.assertIsInstance(result, jev.UnavailableResult)
+        self.assertEqual(result.reason, "invalid_fork")
+        urlopen.assert_not_called()
+
     def test_fork_invalid_choice_answers_fail_open_without_exception_or_secret(self):
         answers = (
             {"answers": []},

@@ -329,7 +329,7 @@ def _retained_mapping(value: object) -> dict[str, object] | None:
 def _json_safe(value: object) -> bool:
     try:
         json.dumps(value, sort_keys=True, ensure_ascii=False, allow_nan=False)
-    except (TypeError, ValueError, OverflowError):
+    except (TypeError, ValueError, OverflowError, RecursionError):
         return False
     return True
 
