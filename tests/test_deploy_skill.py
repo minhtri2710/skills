@@ -180,7 +180,9 @@ class DeploySkillTest(unittest.TestCase):
             with self.subTest(extra=extra):
                 self.assertEqual(self.run_deploy(self.human_deploy_args(ledger, *extra)), 1)
                 self.assertIn(message, sys.stderr.getvalue())
-                self.assertEqual(gate_row.text_rows(ledger.read_text(encoding="utf-8")), [])
+                self.assertFalse(ledger.exists())
+                self.assertFalse(self.cli_log.exists(), "refused row must not invoke skills")
+                self.assertFalse((self.home / ".agents").exists())
 
     def test_dirty_worktree_installs_head_blob_and_mode(self):
         (self.source / "run.sh").write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")

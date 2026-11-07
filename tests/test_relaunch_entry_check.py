@@ -93,6 +93,10 @@ class RelaunchEntryCheckTest(unittest.TestCase):
         ])
 
     def test_count_requires_latest_target_row_and_checks_file_parity(self):
+        absent = self.count()
+        self.assertEqual(absent[0], 1)
+        self.assertIn("holds no gate ledger", absent[2])
+        self.ledger.write_text("", encoding="utf-8")
         no_row = self.count()
         self.assertEqual(no_row[0], 1)
         self.assertIn("no completed target-bearing deploy row", no_row[2])
