@@ -383,9 +383,12 @@ def collect(repo: Path, base: str) -> tuple[list[Line], list[Line], list[str], s
         if not name:
             continue
         try:
-            text = _fs_path(repo, name).read_text(encoding="utf-8")
-        except (UnicodeDecodeError, OSError):
+            data = _fs_path(repo, name).read_bytes()
+        except OSError:
             continue
+        if b"\0" in data[:8000]:
+            continue
+        text = data.decode("utf-8", errors="surrogateescape")
         added.extend(Line(name, i, t) for i, t in enumerate(text.splitlines(), start=1))
     try:
         constraints = (repo / CONSTRAINTS).read_text(encoding="utf-8", errors="surrogateescape")

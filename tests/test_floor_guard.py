@@ -112,6 +112,14 @@ class FloorGuardRepoTest(unittest.TestCase):
         legacy.write_bytes(b"caf\xe9 = 1  # noqa\n")
         self.assertEqual(self.run_guard(), (1, "floor-guard: 1 violation(s)\n  [silenced-checker] src/legacy.py:1\n"))
 
+    def test_non_utf8_text_in_an_untracked_file_is_scanned(self) -> None:
+        (self.repo / "src" / "legacy.py").write_bytes(b"caf\xe9 = 1  # noqa\n")
+        self.assertEqual(self.run_guard(), (1, "floor-guard: 1 violation(s)\n  [silenced-checker] src/legacy.py:1\n"))
+
+    def test_untracked_binary_file_is_skipped(self) -> None:
+        (self.repo / "src" / "blob.py").write_bytes(b"\0\xff\n x = 1  # noqa\n")
+        self.assertEqual(self.run_guard(), (0, ""))
+
     def test_non_utf8_content_of_a_watched_file_renamed_away_is_read(self) -> None:
         cfg = (self.repo / "pkg" / "setup.cfg")
         cfg.parent.mkdir()
