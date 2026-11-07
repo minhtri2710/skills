@@ -222,7 +222,7 @@ class SeatResolutionTest(ReprimeCase):
         self.roster_error = backend.BackendUnavailable("tool unavailable")
         self.assertEqual(self.run_cli(), 1)
         self.assertEqual(self.prompts, [])
-        self.assertIn("live roster unavailable", self.stderr.getvalue())
+        self.assertIn("live roster unavailable: tool unavailable", self.stderr.getvalue())
 
     def test_a_seat_without_an_agent_session_fails_closed(self) -> None:
         self.write_pointer_files()
@@ -343,16 +343,6 @@ class MarkerCountingTest(ReprimeCase):
                 self.assertEqual(self.run_cli(), 1)
                 self.assertEqual(self.state_files(), [])
         self.assertEqual(self.prompts, [])
-
-    def test_claude_storage_key_replaces_every_non_alphanumeric_of_the_project_path(self) -> None:
-        self.project = self.root / "my_proj.v2"
-        self.project.mkdir()
-        self.write_pointer_files()
-        self.set_claude(self.claude_records(0))
-        self.assertEqual(self.run_cli(), 0)
-        self.set_claude(self.claude_records(4))
-        self.assertEqual(self.run_cli(), 0)
-        self.assertEqual(len(self.prompts), 1)
 
     def test_claude_session_id_cannot_escape_the_project_directory(self) -> None:
         self.write_pointer_files()

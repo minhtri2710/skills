@@ -8,7 +8,7 @@ A seat handle is `<session-id>.<block-id>`, for example `session:<uuid>.block:<u
 
 A seat's name is its block label; the handle, not the name, is authority.
 
-The Peer report send block (`send_block` in `scripts/backends/rex.py`, from `prompt`) is one send command, the `send` then `send-key ... enter` pair on one line, and has no failure notice. It uses `$REX_BIN_DIR/rex` because Rex exports `REX_BIN_DIR` into every block but shell startup files commonly reset `PATH` (CD, `rex-backend.md:19-20`, `rex.sh:81-85`); a bare `rex` may not resolve in a Peer's shell. It omits `-S` and `--autostart=false`: the Peer runs in the same server and `REX_SERVER` is not trusted either way. UV: that `REX_BIN_DIR` is set in a Peer's ordinary shell. Provisional: L2. There is no waker backstop on Rex (`wait`), so a failed send shows only as the `SEND-FAILED` line in the report file.
+The Peer report send block (`_render_send_block` in `scripts/backends/rex.py`, called by `send_block` in `scripts/backend.py`, from `prompt`) is one send command, the `send` then `send-key ... enter` pair on one line, and has no failure notice. It uses `$REX_BIN_DIR/rex` because Rex exports `REX_BIN_DIR` into every block but shell startup files commonly reset `PATH` (CD, `rex-backend.md:19-20`, `rex.sh:81-85`); a bare `rex` may not resolve in a Peer's shell. It omits `-S` and `--autostart=false`: the Peer runs in the same server and `REX_SERVER` is not trusted either way. UV: that `REX_BIN_DIR` is set in a Peer's ordinary shell. Provisional: L2. There is no waker backstop on Rex (`wait`), so a failed send shows only as the `SEND-FAILED` line in the report file.
 
 ## identify
 

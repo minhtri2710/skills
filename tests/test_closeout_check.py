@@ -317,12 +317,9 @@ class CloseoutCheckTest(unittest.TestCase):
             / "templates"
             / "staffing-closeout.json"
         )
-        with template.open(encoding="utf-8") as handle:
-            record = json.load(handle)
-        canonical, peers, ledger = closeout_check._validate_record(record)
-        self.assertTrue(canonical.is_absolute())
-        self.assertTrue(ledger.is_absolute())
-        self.assertEqual([peer["role"] for peer in peers], ["Engineer", "Reviewer"])
+        result = closeout_check.check_closeout(template, self.fake)
+        self.assertEqual([f for f in result.findings if f.startswith("malformed staffing record")], [])
+        self.assertEqual(result.checked_seats, ("w0:pEngineer", "w0:pReviewer"))
 
     def test_cli_reads_json_closeout_staffing_record_and_returns_pass(self):
         self.fake.remove("w1:p3")

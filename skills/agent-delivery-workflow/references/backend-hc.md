@@ -1,6 +1,6 @@
 # Backend: herdr core (`hc`)
 
-Read this after detection returns `hc`. It lists each seat operation as a command with the source that documents it, and what is still unproven. `hc.py` builds the argv for identify, prompt, read, state, wait, list, and processes; spawn, interrupt, and close are reference-only, because the seam has no such operations yet (`backend.py` docstring), so the adapter has no method for them. Nothing here was run: no `hc`, `herdr-core`, or `herdr` command has been executed for this reference, so every operation is provisional until the Human's live proof (L1-L8).
+Read this after detection returns `hc`. It lists each seat operation as a command with the source that documents it, and what is still unproven. `hc.py` builds the argv for identify, prompt, read, state, wait, list, and processes; spawn, interrupt, and close are reference-only, because `seat-operations.md` gives them no script method, so the adapter has no method for them. Nothing here was run: no `hc`, `herdr-core`, or `herdr` command has been executed for this reference, so every operation is provisional until the Human's live proof (L1-L8).
 
 Sources, all read only at herdr-core commit 52d7c56 (v0.1.17): `HCM` = `crates/herdr-core/src/SKILL.md` (printed by `hc --skill`), `CMD` = `docs/commands.md`, `SCHEMA` = `schema/hc.openrpc.json`, other paths are under `crates/herdr-core/src/`. Confidence for hc is the source file and line; a claim with no source line is marked as an inference.
 
@@ -35,7 +35,7 @@ Command: `hc send --json <t> <text>`
 
 Source: `CMD:518-536`; pastes the text and presses Enter, refuses a `blocked` terminal unless `--force` (the adapter never passes it), `input.rs:154-176`. The result's `started` is true or false after a window of 5 seconds, and null when the program never reports status (`input.rs:70-72,203-212`); `false` is raised as `SeatError not_started` (the text was typed; read before resending, `HCM:48-51`), `null` is accepted because no acknowledgement exists. `--wait` is not used: it holds the call for the whole turn (`CMD:532-533`). The send text must not start with `-`: it would be read as an option, and no end-of-options form is documented for `send`, so the adapter refuses it (`ValueError`) before running anything. The same holds for the Peer's send file in the report block below.
 
-Report block: `send_block` in `scripts/backends/hc.py` renders the command with the binary the adapter resolved, so a foreign `hc` on PATH never receives a report (the installer links `hc` only when none exists, `distribution/install.sh:70-81`). It has no failure notice (see notify). The Peer's own shell is assumed to have the same `$HOME` and a standard PATH; no source shows it.
+Report block: `_render_send_block` in `scripts/backends/hc.py` (called by `send_block` in `scripts/backend.py`) renders the command with the binary the adapter resolved, so a foreign `hc` on PATH never receives a report (the installer links `hc` only when none exists, `distribution/install.sh:70-81`). It has no failure notice (see notify). The Peer's own shell is assumed to have the same `$HOME` and a standard PATH; no source shows it.
 
 Provisional: L1 (a seat that does not emit OSC 7501 never acknowledges), and the report block (L3: a Peer's shell resolves the rendered binary and the core). Test: `ReadPromptTest`, `SendBlockTest`.
 
@@ -85,7 +85,7 @@ Command: `hc interrupt --json <t>` (reference-only: the seam has no interrupt).
 
 Source: `CMD:225-239`; presses esc when the program reports a status, else ctrl+c, reports the observed effect, and never escalates (`HCM:61`; `api.rs:106-108,544-556`). The outcome word is `stopped`, `exited`, `still_working`, or `unknown` (`api.rs:549-554`). The `hc keys` command is not used.
 
-Provisional: L1 (the esc-or-ctrl+c choice depends on the program reporting status). Test: golden and allow-list in `ReferenceTest`.
+Provisional: L1 (the esc-or-ctrl+c choice depends on the program reporting status). Test: allow-list in `ReferenceTest`.
 
 ## close
 
@@ -93,7 +93,7 @@ Commands: `hc kill --json <t>` then `hc rm --json <t>` (reference-only: the seam
 
 Source: `CMD:273-286` (kill: hangup, then escalate), `CMD:464-477` (rm: a finished terminal only; a live one fails with kind `live`, `api.rs:297-312`); the manual says to kill then remove only terminals this run started, because `hc ls` includes the user's other work (`HCM:202-203`). Peers spawned `--no-parent` do not end with the Lead, so the Lead closes each one itself. If `kill` fails, do not run `rm`.
 
-Provisional: L3 (`--no-parent` Peers outlive a Lead restart: the cleanup path). Test: golden and allow-list in `ReferenceTest`.
+Provisional: L3 (`--no-parent` Peers outlive a Lead restart: the cleanup path). Test: allow-list in `ReferenceTest`.
 
 ## notify
 

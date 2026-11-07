@@ -51,10 +51,6 @@ def ledger(slug: str) -> Path:
     return project_dir(slug) / LEDGER
 
 
-def mailbox(slug: str) -> Path:
-    return project_dir(slug) / MAILBOX
-
-
 def context_pack(slug: str) -> Path:
     return project_dir(slug) / CONTEXT_PACK
 
@@ -72,10 +68,6 @@ def seat_record(slug: str, role: str) -> Path:
 
 def runs_dir(slug: str) -> Path:
     return project_dir(slug) / RUNS
-
-
-def runs_index(slug: str) -> Path:
-    return runs_dir(slug) / INDEX
 
 
 def run_dir(slug: str, run_id: str) -> Path:

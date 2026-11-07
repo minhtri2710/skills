@@ -90,7 +90,6 @@ class ListAndGetTest(unittest.TestCase):
         self.assertEqual((eng.name, eng.kind, eng.state, eng.session), ("eng", None, "unknown", None))
         self.assertEqual((agy.name, agy.kind, agy.state), (None, "agy", "idle"))
         self.assertEqual(rev.session, backend.Session("path", "/home/u/.pi/agent/sessions/2026-11-06_ab12.jsonl"))
-        self.assertEqual(rev.argv, ())
 
     def test_unrecognised_state_is_unknown(self) -> None:
         payload = {"result": {"agents": [{"pane_id": "w1:p1", "agent_status": "sleeping"}]}}

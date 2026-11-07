@@ -123,11 +123,12 @@ def stamp_lesson(path, today):
 
 
 def lesson_result_path(relative):
-    parts = os.path.normpath(relative).split(os.sep)
-    if state_root.LESSONS not in parts or parts[-1] in {"", ".", ".."}:
+    try:
+        store = state_root.lessons_dir(os.path.normpath(relative).split(os.sep)[0])
+    except ValueError:
         return None
     path = os.path.realpath(os.path.join(state_root.STATE_ROOT, relative))
-    return path if state_root.inside_state_root(path) else None
+    return path if path.startswith(os.path.realpath(store) + os.sep) else None
 
 
 def stamp_results(results):

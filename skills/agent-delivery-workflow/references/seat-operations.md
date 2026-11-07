@@ -13,7 +13,6 @@ Every operation returns or takes this normalized record:
 | `state` | one of `backend.STATES` |
 | `kind` | the agent kind running in the seat, or none |
 | `cwd` | the seat's working directory |
-| `argv` | the launched program's argv, where the tool reports it |
 | `session` | the agent session `kind` and `value`, or none |
 
 Errors are the `BackendError` kinds in `scripts/backend.py` (`SEAT_ERROR_KINDS`, `BackendUnavailable`, `Unsupported`). `not_found`: the seat is gone or never existed. `blocked`: the seat is at an approval or question dialog. `not_started`: a prompt started no turn. `unavailable`: the tool is missing, timed out, or failed to identify; the run stops, and nothing falls back to another tool. `unsupported`: this tool has no such operation (`Unsupported: <reason>` in its backend file); the caller fails closed or takes the degraded path the doctrine names for that operation.

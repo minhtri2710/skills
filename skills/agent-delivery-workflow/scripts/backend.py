@@ -74,7 +74,6 @@ class Seat:
     state: str = "unknown"
     kind: str | None = None
     cwd: str | None = None
-    argv: tuple[str, ...] = ()
     session: Session | None = None
     workspace: str | None = None
 
