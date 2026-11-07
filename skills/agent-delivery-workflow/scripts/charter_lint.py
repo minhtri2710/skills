@@ -7,26 +7,25 @@ import hashlib
 import os
 import re
 import shutil
-import subprocess
 import sys
 from pathlib import Path
 from typing import NamedTuple
 
 import backend
+import gitops
 
 DISPOSITION_RE = re.compile(
     r"^\s*[*#`_-]*\s*Disposition:\s*[*_`]*\s*(Engineer|Reviewer|Architect)\b",
     re.IGNORECASE | re.MULTILINE,
 )
-HEAD_RE = re.compile(r"(?<![0-9a-f])[0-9a-f]{40}(?![0-9a-f])", re.IGNORECASE)
+HEAD_RE = re.compile(rf"(?<![0-9a-f]){gitops.FULL_SHA}(?![0-9a-f])", re.IGNORECASE)
 RANGE_RE = re.compile(
-    r"(?<![0-9a-f])([0-9a-f]{40})\.\.\.?([0-9a-f]{40})(?![0-9a-f])", re.IGNORECASE
+    rf"(?<![0-9a-f])({gitops.FULL_SHA})\.\.\.?({gitops.FULL_SHA})(?![0-9a-f])", re.IGNORECASE
 )
 STAFFED_HEAD_RE = re.compile(
-    r"(?:^\s*HEAD:\s*|\bhead=)(?:\S*@)?([0-9a-f]{40})(?![0-9a-f])",
+    rf"(?:^\s*HEAD:\s*|\bhead=)(?:\S*@)?({gitops.FULL_SHA})(?![0-9a-f])",
     re.IGNORECASE | re.MULTILINE,
 )
-NULL_OID = "0" * 40
 SPLICE_PREFIX = 7
 PRIOR_RE = re.compile(r"^\W*Prior reviews?\W*:?[ \t]*(.*)$", re.IGNORECASE | re.MULTILINE)
 PRIOR_GLOSS_RE = re.compile(r"\(`none`, or the prior FAIL report[^)]*\)")
@@ -300,21 +299,12 @@ def _staffing_problems(
     return problems
 
 
-def _git(repo: Path, args: list[str], stdin: str = "") -> subprocess.CompletedProcess[str]:
-    try:
-        return subprocess.run(
-            ["git", "-C", str(repo), *args], input=stdin, capture_output=True, text=True,
-            encoding="utf-8",
-        )
-    except OSError as exc:
-        raise ValueError(f"could not run git: {exc}") from exc
-
-
 def _missing_objects(repo: Path, shas: list[str]) -> set[str]:
-    proc = _git(repo, ["cat-file", "--batch-check"], "".join(f"{sha}\n" for sha in shas))
-    if proc.returncode != 0:
-        raise ValueError(f"could not read repo {repo}: {proc.stderr.strip()}")
-    return {line.split()[0] for line in proc.stdout.splitlines() if line.endswith(" missing")}
+    try:
+        out = gitops.git(repo, "cat-file", "--batch-check", stdin="".join(f"{sha}\n" for sha in shas))
+    except gitops.GitError as exc:
+        raise ValueError(f"could not read repo {repo}: {exc}") from None
+    return {line.split()[0] for line in out.splitlines() if line.endswith(" missing")}
 
 
 def _sha_problems(repo: Path, texts: dict[str, str]) -> list[str]:
@@ -326,8 +316,8 @@ def _sha_problems(repo: Path, texts: dict[str, str]) -> list[str]:
         critical.update(sha.lower() for pair in RANGE_RE.findall(text) for sha in pair)
         critical.update(sha.lower() for sha in STAFFED_HEAD_RE.findall(text))
     missing = _missing_objects(repo, list(found))
-    missing.discard(NULL_OID)
-    anchors = {sha[:SPLICE_PREFIX] for sha in critical - missing if sha != NULL_OID}
+    missing.discard(gitops.NULL_OID)
+    anchors = {sha[:SPLICE_PREFIX] for sha in critical - missing if sha != gitops.NULL_OID}
     return [
         f"unresolved SHA {sha} in {label}: not an object in {repo}"
         for sha, label in found.items()
@@ -345,25 +335,25 @@ def _repair_range_problems(repo: Path, charter: str) -> list[str]:
         return ["repair re-review has no Reviewed unit range"]
     base, head = unit.groups()
     names = "".join(f"{sha}^{{commit}}\n" for sha in SHORT_SHA_RE.findall(line))
-    named = {out.split()[0] for out in _git(repo, ["cat-file", "--batch-check"], names).stdout.splitlines()
+    named = {out.split()[0] for out in gitops.git(repo, "cat-file", "--batch-check", stdin=names).splitlines()
              if out.split()[1:2] == ["commit"]}
     if not named:
         return ["repair re-review Prior review names a FAIL but no commit in --repo"]
-    listed = _git(repo, ["rev-list", f"{base}..{head}"])
-    if listed.returncode != 0:
+    try:
+        listed = gitops.git(repo, "rev-list", f"{base}..{head}")
+    except gitops.GitError:
         return [f"repair re-review range {base}..{head} does not resolve in {repo}"]
-    below_head = set(listed.stdout.split()[1:])  # rev-list lists the head first; naming it proves nothing
+    below_head = set(listed.split()[1:])  # rev-list lists the head first; naming it proves nothing
     if not named.isdisjoint(below_head):
         return []
     for commit in named:
-        divergence = _git(repo, ["merge-base", commit, head])
-        if divergence.returncode != 0:
+        try:
+            merge_base = gitops.git(repo, "merge-base", commit, head)
+        except gitops.GitError:
             continue
-        merge_base = divergence.stdout.strip()
         if merge_base in {commit, head}:
             continue
-        kept = _git(repo, ["merge-base", "--is-ancestor", base, merge_base])
-        if kept.returncode == 0:
+        if gitops.is_ancestor(repo, base, merge_base):
             return []
     return [
         f"repair re-review range {base}..{head} must keep the slice base: "
@@ -402,7 +392,7 @@ def main(argv: list[str] | None = None) -> int:
             problems.extend(_staffing_problems(staffing, disposition, args.staffing, charter))
         problems.extend(_sha_problems(args.repo, texts))
         problems.extend(_repair_range_problems(args.repo, charter))
-    except (ValueError, backend.BackendError) as exc:
+    except (ValueError, gitops.GitError, backend.BackendError) as exc:
         print(f"charter_lint: {exc}", file=sys.stderr)
         return 1
 

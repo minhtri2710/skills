@@ -267,6 +267,12 @@ class CharterRenderTest(unittest.TestCase):
             with self.subTest(entry=entry, path=path):
                 self.assertEqual(charter_render._owns(entry, path), owned)
 
+    def test_a_base_that_is_not_an_ancestor_of_the_head_is_refused(self):
+        unrelated = support.git(self.repo, "commit-tree", f"{self.head}^{{tree}}", "-m", "unrelated")
+        code, _, err = self.render("--base", unrelated)
+        self.assertEqual(code, 1)
+        self.assertIn(f"git merge-base --is-ancestor {unrelated} {self.head} failed", err)
+
     def test_refuses_an_abbreviated_head(self):
         code, _, err = self.render("--head", self.head[:12])
         self.assertEqual(code, 1)

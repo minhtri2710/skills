@@ -6,32 +6,20 @@ import argparse
 import hashlib
 import os
 import re
-import subprocess
 import sys
 from pathlib import Path
 
 import backend
 import charter_lint
+import gitops
 import project_config
 import state_root
-from gate_row import RowError, clean_merge_parents, landed_commits
 
 SKILL = Path(__file__).resolve().parents[1]
 TEMPLATE = SKILL / "templates" / "reviewer-charter.txt"
 QUALITY_FLOOR = SKILL.parent / "quality-floor"
 SLOT_RE = re.compile(r"<([a-z][a-z0-9_]*)>")
-NULL_OID = "0" * 40
 GUIDANCE = ("AGENTS.md", "CLAUDE.md")
-
-
-def _git(repo: Path, *args: str) -> str:
-    proc = subprocess.run(
-        ["git", "-C", str(repo), *args], capture_output=True, text=True, encoding="utf-8",
-        stdin=subprocess.DEVNULL,
-    )
-    if proc.returncode != 0:
-        raise ValueError(f"git {' '.join(args)}: {proc.stderr.strip()}")
-    return proc.stdout
 
 
 def _model(argv: list[str], key: str) -> str:
@@ -84,26 +72,23 @@ def render(args: argparse.Namespace, seats: backend.Backend) -> tuple[str, str]:
     slug, _run = state_root.parse_run_dir(run_dir)
     config = project_config.load(state_root.config(slug))
     lead = args.lead
-    head = _git(repo, "rev-parse", "--verify", f"{args.head}^{{commit}}").strip()
+    head = gitops.git(repo, "rev-parse", "--verify", f"{args.head}^{{commit}}")
     if head != args.head.lower():
         raise ValueError(f"--head must be the full 40-hex SHA, got {args.head}")
     base = args.base.lower()
-    if base == NULL_OID:
-        commits = _git(repo, "rev-list", "--reverse", head).split()
-    else:
-        if _git(repo, "rev-parse", "--verify", f"{base}^{{commit}}").strip() != base:
-            raise ValueError(f"--base must be the full 40-hex SHA, got {args.base}")
-        commits = _git(repo, "rev-list", "--reverse", f"{base}..{head}").split()
-    landed = landed_commits(repo, head, set(commits))
+    if base != gitops.NULL_OID and gitops.git(repo, "rev-parse", "--verify", f"{base}^{{commit}}") != base:
+        raise ValueError(f"--base must be the full 40-hex SHA, got {args.base}")
+    commits = gitops.range_commits(repo, base, head, oldest_first=True)
+    landed = gitops.landed_commits(repo, head, set(commits))
     commits = [commit for commit in commits if commit not in landed]
     if not commits:
         raise ValueError(f"range {base}..{head} has no commits")
-    authored = [commit for commit in commits if clean_merge_parents(repo, commit) is None]
-    paths = sorted({path for path in _git(repo, "log", "--no-walk", "--format=", "--name-only", "-z",
-                                          "--no-renames", "--diff-merges=remerge", *authored).split("\0") if path}
-                   ) if authored else []
+    authored = [commit for commit in commits if gitops.clean_merge_parents(repo, commit) is None]
+    log = gitops.git(repo, "log", "--no-walk", "--format=", "--name-only", "-z",
+                     "--no-renames", "--diff-merges=remerge", *authored) if authored else ""
+    paths = sorted({path for path in log.split("\0") if path})
     mode, authors = scope_authors(args.staffing, lead, paths)
-    tracked = _git(repo, "ls-tree", "-r", "-z", "--name-only", head).split("\0")[:-1]
+    tracked = gitops.git(repo, "ls-tree", "-r", "-z", "--name-only", head).split("\0")[:-1]
     guidance = [
         str(repo / name) for name in tracked
         if Path(name).name in GUIDANCE
@@ -115,7 +100,7 @@ def render(args: argparse.Namespace, seats: backend.Backend) -> tuple[str, str]:
     peer = f"review-{head[:12]}"
     values = {
         "run_name": run_dir.name,
-        "one_line_outcome": _git(repo, "log", "-1", "--format=%s", head).strip(),
+        "one_line_outcome": gitops.git(repo, "log", "-1", "--format=%s", head),
         "head_sha": head,
         "acceptance_boundary": args.boundary,
         "base_sha": base,
@@ -172,7 +157,7 @@ def main(argv: list[str] | None = None) -> int:
         peer, charter = render(args, backend.open_backend(os.environ, args.backend))
         path = args.run_dir.resolve() / f"charter-{peer}.md"
         path.write_text(charter, encoding="utf-8")
-    except (OSError, KeyError, ValueError, RowError, backend.BackendError) as exc:
+    except (OSError, KeyError, ValueError, gitops.GitError, backend.BackendError) as exc:
         print(f"charter_render: {exc}", file=sys.stderr)
         return 1
     print(f"{path} sha256={hashlib.sha256(charter.encode('utf-8')).hexdigest()}")

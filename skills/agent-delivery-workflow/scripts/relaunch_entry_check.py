@@ -3,15 +3,14 @@
 from __future__ import annotations
 
 import argparse
-import os
 import re
-import stat
 import subprocess
 import sys
 from pathlib import Path
 
 import deploy_skill
 import gate_row
+from gitops import GitError
 
 
 class CheckError(Exception):
@@ -21,19 +20,6 @@ class CheckError(Exception):
 GATE_ID_RE = re.compile(r"\bG\d+\b")
 
 
-def git(repo: Path, *args: str) -> str:
-    proc = subprocess.run(
-        ["git", "-C", str(repo), *args],
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        check=False,
-    )
-    if proc.returncode:
-        raise CheckError(f"git {' '.join(args)} failed: {proc.stderr.strip()}")
-    return proc.stdout.strip()
-
-
 def skill_prefix(value: str) -> str:
     path = Path(value)
     if not value or path.is_absolute() or any(part in {"", ".", ".."} for part in path.parts):
@@ -41,53 +27,18 @@ def skill_prefix(value: str) -> str:
     return value.rstrip("/") + "/"
 
 
-def installed_files(install_dir: Path) -> list[Path]:
-    if not install_dir.exists():
-        return []
-    if not install_dir.is_dir():
-        raise CheckError(f"--installed-path is not a directory: {install_dir}")
-
-    files: list[Path] = []
-    for root, dirs, names in os.walk(install_dir, topdown=True, followlinks=False):
-        root_path = Path(root)
-        dirs[:] = [
-            name for name in dirs
-            if name != "__pycache__" and not (root_path / name).is_symlink()
-        ]
-        for name in names:
-            relative = (root_path / name).relative_to(install_dir)
-            if not deploy_skill._is_pycache(relative):
-                files.append(relative)
-    return sorted(files)
-
-
 def count_evidence(repo: Path, head: str, skill_path: str,
                    install_dir: Path) -> tuple[int, int, int]:
-    """Return tracked count, installed count, and drifted count.
-
-    A tracked file drifts when it is absent from the installed tree, or its
-    installed hash or mode differs from the head tree (deploy_skill.tracked_files).
-    Extra installed files affect the installed count but not the drifted
-    count; the two values expose both directions of drift.
-    """
     prefix = skill_prefix(skill_path)
+    if install_dir.exists() and not install_dir.is_dir():
+        raise CheckError(f"--installed-path is not a directory: {install_dir}")
     try:
-        entries = deploy_skill.tracked_files(repo, head, prefix.rstrip("/"))
-    except deploy_skill.DeployError as exc:
+        entries = deploy_skill.tracked_files(repo, head, prefix)
+        drift, untracked = deploy_skill.install_drift(repo, install_dir, entries, prefix)
+    except (deploy_skill.DeployError, GitError) as exc:
         raise CheckError(str(exc)) from None
-    installed = installed_files(install_dir)
-    installed_set = set(installed)
-    drifted = 0
-    for tracked, expected_mode, expected in entries:
-        relative = Path(tracked[len(prefix):])
-        destination = install_dir / relative
-        if relative not in installed_set or destination.is_symlink() or not destination.is_file():
-            drifted += 1
-            continue
-        actual = git(repo, "hash-object", str(destination))
-        if actual != expected or stat.S_IMODE(destination.stat().st_mode) != expected_mode:
-            drifted += 1
-    return len(entries), len(installed), drifted
+    absent = sum(1 for _message, installed in drift if not installed)
+    return len(entries), len(entries) - absent + len(untracked), len(drift)
 
 
 def read_exact(path: Path) -> str:

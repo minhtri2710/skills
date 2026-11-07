@@ -336,7 +336,7 @@ class MailboxAppendTest(unittest.TestCase):
         self.path = root / "beo-skills" / "supervisor-mailbox.md"
         self.repo = support.temp_git_repo(Path(self.tmp.name) / "repo")
         support.git(self.repo, "commit", "-q", "--allow-empty", "-m", "base")
-        self.head = gate_row.git(self.repo, "rev-parse", "HEAD")
+        self.head = support.git(self.repo, "rev-parse", "HEAD")
         (root / "beo-skills" / "supervisor-seat").write_text("herdr w1:p7\n", encoding="utf-8")
         self.fake = seats_under_test({"w1:p7": "supervisor"})
         for module, name, value in (
