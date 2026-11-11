@@ -129,7 +129,9 @@ other tier gains a shell `paseo` use from this exception.
    for one the change did not cause is split into a delivery of its own, and the failing
    run's output goes to the Reviewer with the rest. The Reviewer checks and states these
    conditions in its verdict, and a lane that fails them runs again. A `PASS` needs every
-   lane green at its SHA. A lane that checks terminal output meant for a human runs under a
+   lane green at its SHA. A Reviewer whose review spans more files than one context holds
+   reports a table naming who read each file (itself or a named read-only subagent); a
+   `PASS` without it is no `PASS`. A lane that checks terminal output meant for a human runs under a
    real pty with explicit columns and color profile, and its output carries the captured
    screens. A lane run on a second host holds that host's run lock, which the project's
    record names (one run at a time, taken before the run and released after it), never
