@@ -38,7 +38,7 @@ requires, report it with the addition you suggest; edit no config and take no ot
 | Human | each dangerous act, through the Supervisor or in a Lead's own chat | — |
 | Supervisor (the one session the Human talks to, in the `~/Work` workspace, over every project) | which project runs, which Lead is staffed, what reaches the Human, the answer to a Lead's permission request for an approved dangerous act | commit, write source, move or delete a branch, push, mutate a PR, merge, deploy, install, or change a host or config of a project that has a Lead; poll or sleep in a loop |
 | Lead (one per project) | every act in its project that is not dangerous: scope within the brief, partition, commits, acceptance, push and PR of each delivery's branch, merge (step 6) | a dangerous act before its answer arrives, write source in a partitioned run, send the Supervisor anything but an upward event, an ack, or an answer, poll or sleep in a loop |
-| Engineer (one per owned path set) | the implementation inside its owned paths | edit outside owned paths, commit, staff any agent beyond its own subagents |
+| Engineer (one per owned path set) | the implementation inside its owned paths | edit outside owned paths, commit other than the one its Lead names (step 1), staff any agent beyond its own subagents |
 | Reviewer | `PASS` / `FAIL` / `BLOCKED` on one exact SHA | write anything, review a moving tree |
 | Heartbeat | nothing; reports one bounded snapshot | start work, run tests, edit |
 | Watcher (not a Heartbeat: it runs on a recurring self-heartbeat and judges activity against the rules) | nothing; reports rule violations to the Supervisor only, P0 and a permission waiting over 15 minutes at once, other P1 batched at most hourly | act on, prompt, stop, or archive another agent, answer a permission, write outside its record dir, message anyone but the Supervisor |
@@ -74,9 +74,14 @@ other tier gains a shell `paseo` use from this exception.
    and whose written paths are disjoint from those in flight; one that overlaps waits for
    the merge it overlaps. The first delivery in flight runs in the project's existing
    workspace and creates no workspace worktree; each further one runs on its own branch in
-   its own `--new-workspace worktree` workspace. Before it goes in flight, the Lead names
-   the host ports, databases, compose projects, and container names each delivery's checks
-   use, and checks that share any of them run one delivery at a time. Every Engineer of a
+   its own `--new-workspace worktree` workspace, outside the Lead's cwd: there an Engineer
+   writes the work even when it does not split, every shell command the Lead needs (a
+   commit, a git read, a checksum) is run by that Engineer exactly as the Lead names it,
+   with the output and SHA reported back, and the Lead reads files there with its file-read
+   tools only, since a Lead shell command naming that path raises a dialog. Before it goes
+   in flight, the Lead names the host ports, databases, compose projects, and container
+   names each delivery's checks use, and checks that share any of them run one delivery at a
+   time. Every Engineer of a
    delivery works on that delivery's branch and checkout, never on a branch, worktree, or PR
    of its own; commits, exact-SHA review, merges, and close-out stay per delivery. The
    project's record is `~/.paseo/reports/<project>/`; its `handoff.md` holds state, standing
@@ -107,13 +112,16 @@ other tier gains a shell `paseo` use from this exception.
    the refusal and acceptance table the plan names, quoting both in its report. Done when
    every Engineer has reported, none is running, and the Lead has checked each reported
    change against the diff.
-4. **Commit.** Only the Lead commits, on the delivery's quiet tree: `git status --porcelain`
-   shows only this commit's paths. Done when the commit SHA is named.
+4. **Commit.** Only the Lead commits (in a worktree workspace, through its Engineer as step
+   1 says), on the delivery's quiet tree: `git status --porcelain` shows only this commit's
+   paths. Done when the commit SHA is named.
 5. **Review.** At the commit, the Lead starts the plan's acceptance lanes and end-to-end
    runs on a detached snapshot of that SHA (a worktree or archive; a scratch copy comes from
    `git archive <sha>`, never `cp -R` or rsync, and no agent runs a writing git command in a
-   snapshot or a copy), never the live checkout, and in parallel staffs a Reviewer there, as
-   a different agent instance from every writer. Engineers may keep editing the branch
+   snapshot or a copy; a suite that reads the git index or history runs on a worktree, since
+   an archive copy has no `.git`), never the live checkout, and in parallel staffs a
+   Reviewer there, as a different agent instance from every writer. Engineers may keep
+   editing the branch
    checkout meanwhile: a new commit gets its own lanes and review, and those running report
    on their own SHA. The Reviewer reviews the diff while the lanes run, runs no lane itself,
    and reports `PASS` / `FAIL` / `BLOCKED` only after reading every lane's output file,
@@ -131,10 +139,11 @@ other tier gains a shell `paseo` use from this exception.
    conditions in its verdict, and a lane that fails them runs again. A `PASS` needs every
    lane green at its SHA. A Reviewer whose review spans more files than one context holds
    reports a table naming who read each file (itself or a named read-only subagent); a
-   `PASS` without it is no `PASS`. A lane that checks terminal output meant for a human runs under a
-   real pty with explicit columns and color profile, and its output carries the captured
-   screens. A lane run on a second host holds that host's run lock, which the project's
-   record names (one run at a time, taken before the run and released after it), never
+   `PASS` without it is no `PASS`. A lane that checks terminal output meant for a human runs
+   under a real pty with explicit columns and color profile, and its output carries the
+   captured screens. A lane run on a second host holds that host's run lock, which the
+   project's record names (one run at a time, taken before the run and released after it),
+   never
    receives real secrets, and with that host unreachable fails with no local fallback; on an
    interrupt it stops the remote run it recorded and confirms it gone before releasing the
    lock. A second-host run dies with its runner: the remote wrapper kills its whole process
@@ -186,8 +195,9 @@ other tier gains a shell `paseo` use from this exception.
    squashed to a tree equal to its head's; archive each agent it created, then the workspace
    it created (archiving a workspace archives none of its agents); a child of theirs that
    must keep running is detached first, and the workspace holding it stays with its
-   worktree, recorded as still open. Remove its worktree and any leftover directory. If the
-   delivery used `--new-workspace local --cwd <path>`, `paseo project delete` the project
+   worktree, recorded as still open. Remove its worktree and any leftover directory (in a
+   worktree workspace, by its Engineer before that Engineer is archived, as step 1 says).
+   If the delivery used `--new-workspace local --cwd <path>`, `paseo project delete` the project
    whose `paseo project ls` path equals `<path>`, never the main checkout's, nor one holding
    a kept workspace: deleting a project deletes all its workspaces. Then write to the
    project's record what changed, what was removed, tests run with their output, the net
@@ -323,7 +333,8 @@ acting. Step 7 never archives the Watcher; it lives as long as the Supervisor.
   heredoc (`<<'EOF'`), and send a prompt through the send tool or from such a file; never
   use an unquoted heredoc, an `echo` of prose, or an inline double-quoted shell argument,
   whose backticks, `$(...)`, and `$` variables the shell expands. In zsh, brace a variable
-  next to a colon (`${M}:path`): `$M:t` reads as a history modifier.
+  next to a colon (`${M}:path`): `$M:t` reads as a history modifier; and never name a
+  variable after a zsh special parameter: `read ... path` replaces `PATH`.
 - Work that reads or writes a secret value runs on the profile reserved for secret values;
   every other profile handles key names only. A secret value that reaches a transcript is an
   `incident` (Upward events), with the rotation it needs. Every staffing prompt forbids
