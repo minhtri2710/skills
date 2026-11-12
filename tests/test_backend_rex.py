@@ -479,7 +479,7 @@ class SendBlockTest(unittest.TestCase):
         self.assertEqual(
             a.send_block(LEAD, REPORT),
             backend.SendBlock(
-                '"$REX_BIN_DIR/rex" send -s session:aaaa -b block:a1 -- "$(cat /state/projects/demo/runs/r1/send-eng-a.txt)"'
+                '"$REX_BIN_DIR/rex" send -s session:aaaa -b block:a1 -- "$(cat "/state/projects/demo/runs/r1/send-eng-a.txt")"'
                 ' && "$REX_BIN_DIR/rex" send-key -s session:aaaa -b block:a1 enter'
             ),
         )

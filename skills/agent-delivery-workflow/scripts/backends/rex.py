@@ -190,4 +190,4 @@ class Adapter(backend.Backend):
         target = f"-s {session} -b {block}"
         # Rex exports REX_BIN_DIR into every block but a shell's startup files often reset PATH, so a bare `rex` may not resolve.
         binary = '"$REX_BIN_DIR/rex"'
-        return backend.SendBlock(f'{binary} send {target} -- "$(cat {send_path})" && {binary} send-key {target} enter')
+        return backend.SendBlock(f'{binary} send {target} -- "$(cat "{send_path}")" && {binary} send-key {target} enter')

@@ -188,9 +188,8 @@ def format_drift_roster(
     lead: str = "",
     run_dir: str = "",
     installed_skill_dir: str = "",
-) -> tuple[list[str], bool]:
+) -> list[str]:
     lines = []
-    unverifiable = False
     unseen = set(seats)
     for seat in live:
         name = seat.name
@@ -211,11 +210,9 @@ def format_drift_roster(
             model, reason = runtimes.session_model(seat, argv0_process)
             if reason is not None:
                 lines.append(f"{label} UNVERIFIABLE role={role} reason={reason} expected={want}")
-                unverifiable = True
                 continue
         elif matching_kinds and launch_args is None:
             lines.append(f"{label} UNVERIFIABLE role={role} reason=model-unavailable expected={want}")
-            unverifiable = True
             continue
         route_matches = [
             (r, m) for r, m in expected if r.kind == kind and (
@@ -229,12 +226,10 @@ def format_drift_roster(
                 route_matches = argv_matches
         if session_model and sum(m is not None and runtimes.model_matches(m, model) for _, m in matching_kinds) > 1:
             lines.append(f"{label} UNVERIFIABLE role={role} reason=route-ambiguous expected={want}")
-            unverifiable = True
             continue
         if route_matches:
             if launch_args is None:
                 lines.append(f"{label} UNVERIFIABLE role={role} reason=launch-argv-hidden expected={want}")
-                unverifiable = True
                 continue
             try:
                 expanded = project_config.expand_launch(
@@ -246,24 +241,20 @@ def format_drift_roster(
                 )
             except ValueError as exc:
                 lines.append(f"{label} UNVERIFIABLE role={role} reason={exc}")
-                unverifiable = True
                 continue
             if _has_block(launch_args, expanded["argv"]):
                 if expanded["settings_file"]:
                     settings_path = Path(expanded["settings_file"])
                     if settings_path.is_symlink() or not settings_path.is_file():
                         lines.append(f"{label} UNVERIFIABLE role={role} reason=settings-file-unreadable")
-                        unverifiable = True
                         continue
                     try:
                         actual_settings = json.loads(settings_path.read_text(encoding="utf-8"))
                     except (OSError, UnicodeError, json.JSONDecodeError):
                         lines.append(f"{label} UNVERIFIABLE role={role} reason=settings-file-unreadable")
-                        unverifiable = True
                         continue
                     if actual_settings != expanded["settings_json"]:
                         lines.append(f"{label} UNVERIFIABLE role={role} reason=settings-mismatch")
-                        unverifiable = True
                         continue
                 continue
             lines.append(
@@ -273,12 +264,11 @@ def format_drift_roster(
             continue
         if session_model:
             lines.append(f"{label} UNVERIFIABLE role={role} reason=launch-argv-hidden expected={want}")
-            unverifiable = True
             continue
         lines.append(f"{label} DRIFT role={role} running={kind} --model {model or '-'} expected={want}")
     if unseen:
         raise ValueError(f"no live seat named {', '.join(sorted(unseen))}")
-    return lines, unverifiable
+    return lines
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -342,12 +332,12 @@ def main(argv: list[str] | None = None) -> int:
         if args.drift:
             if not args.seat:
                 raise ValueError("--drift requires at least one --seat")
-            lines, unverifiable = format_drift_roster(
+            lines = format_drift_roster(
                 seat_backend, live, project_config.load(args.drift), _seat_specs(args.seat),
                 lead=args.lead, run_dir=args.run_dir,
                 installed_skill_dir=args.installed_skill_dir,
             )
-            exit_code = int(unverifiable)
+            exit_code = int(bool(lines))
         elif args.never_started:
             if not args.peer:
                 raise ValueError("--never-started requires at least one --peer")

@@ -474,7 +474,7 @@ class RosterTest(unittest.TestCase):
         rc, lines, error = self._drift(
             agents, argv_by_pane, [f"{name}:engineer" for name in launches], config
         )
-        self.assertEqual((rc, error), (0, ""))
+        self.assertEqual((rc, error), (1, ""))
         want = "expected=claude --model m1 or pi --model p1 missing="
         self.assertEqual(lines, [
             "w1:p1 split claude DRIFT role=engineer running=claude --model m1 "
@@ -506,7 +506,7 @@ class RosterTest(unittest.TestCase):
         self.assertEqual(self._drift([agent], process, ["eng:engineer"], bare), (0, [], ""))
         flagged = dict(bare, **{"engineer-args": ["--model", "m1"]})
         rc, lines, error = self._drift([agent], process, ["eng:engineer"], flagged)
-        self.assertEqual((rc, error), (0, ""))
+        self.assertEqual((rc, error), (1, ""))
         self.assertEqual(lines, [
             "w1:p1 eng claude DRIFT role=engineer running=claude --model - expected=claude --model m1",
         ])

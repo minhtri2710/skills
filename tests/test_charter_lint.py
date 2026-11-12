@@ -470,7 +470,7 @@ class CharterLintTest(unittest.TestCase):
         self.assertIn(f"charter_lint: could not read repo {self.tmp}: ", stderr.getvalue())
         stderr = io.StringIO()
         missing_git = FileNotFoundError(2, "No such file or directory", "git")
-        with unittest.mock.patch.object(gitops.subprocess, "run", side_effect=missing_git), \
+        with unittest.mock.patch.object(gitops.subprocess, "Popen", side_effect=missing_git), \
                 contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(stderr):
             code = self.lint_main([
                 "--charter", str(charter_path), "--lead", LEAD, "--repo", str(self.repo),

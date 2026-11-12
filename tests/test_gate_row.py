@@ -1806,6 +1806,34 @@ class GateRowTest(unittest.TestCase):
                 with self.assertRaises(gate_row.RowError):
                     gate_row.derive_push(self.repo, base, self.rev("HEAD"), ["docs"])
 
+    def test_a_non_ascii_path_is_read_as_itself_inside_or_outside_the_boundary(self):
+        base = self.rev("HEAD")
+        (self.repo / "docs").mkdir()
+        (self.repo / "docs" / "café.md").write_text("x\n")
+        (self.repo / "naïve.txt").write_text("x\n")
+        support.git(self.repo, "add", "-A")
+        support.git(self.repo, "commit", "-qm", "non-ascii paths")
+        self.assertEqual(gate_row.derive_push(self.repo, base, self.rev("HEAD"), ["docs"]), ("1", ["naïve.txt"]))
+
+    def test_a_hung_ls_remote_is_killed_at_its_limit_and_records_nothing(self):
+        self.assertEqual(self.append_review_pass(), 0, self.err.getvalue())
+        self.add_remote("HEAD")
+        helpers = self.tmp / "bin"
+        helpers.mkdir()
+        helper = helpers / "git-remote-hang"
+        helper.write_text("#!/bin/sh\nsleep 300\n")
+        helper.chmod(0o755)
+        support.git(self.repo, "remote", "set-url", "origin", "hang://origin")
+        before = self.ledger.read_bytes()
+        began = time.monotonic()
+        with mock.patch.dict(os.environ, {"PATH": f"{helpers}{os.pathsep}{os.environ['PATH']}"}), \
+                mock.patch.object(gate_row, "PUSH_TIMEOUT_S", 1):
+            code = self.append("--kind", "push", "--push-base", self.rev("HEAD~2"), "--boundary", ".")
+        self.assertEqual(code, 1)
+        self.assertLess(time.monotonic() - began, 30)
+        self.assertIn("passed its 1s limit", self.err.getvalue())
+        self.assertEqual(self.ledger.read_bytes(), before)
+
     def test_mailbox_attention_is_required_only_of_an_open_human_gate(self):
         mailbox = self.tmp / "supervisor-mailbox.md"
         mailbox.write_text("", encoding="utf-8")

@@ -147,6 +147,6 @@ class Adapter(backend.Backend):
 
     def _render_send_block(self, lead_handle: str, peer: str, send_path: str, report_path: str) -> backend.SendBlock:
         return backend.SendBlock(
-            f'herdr agent prompt {lead_handle} "$(cat {send_path})"',
+            f'herdr agent prompt {lead_handle} "$(cat "{send_path}")"',
             f'herdr notification show "{peer}: report send failed" --body "{report_path}" --sound request',
         )

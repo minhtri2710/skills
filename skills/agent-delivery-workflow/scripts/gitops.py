@@ -1,10 +1,13 @@
 """The delivery scripts' one git runner and the commit questions they share."""
 from __future__ import annotations
 
+import os
 import re
 import subprocess
 from collections.abc import Callable
 from pathlib import Path
+
+from bounded_run import stop_group
 
 NULL_OID = "0" * 40
 FULL_SHA = r"[0-9a-f]{40}"
@@ -15,18 +18,28 @@ class GitError(Exception):
     pass
 
 
-def git(repo: Path, *args: str, stdin: str | None = None) -> str:
-    """Run `git -C repo args`; return stdout without its final newline, or raise GitError."""
+def git(repo: Path, *args: str, stdin: str | None = None, timeout: float | None = None) -> str:
+    """Run `git -C repo args`; return stdout without its final newline, or raise GitError.
+
+    Git never prompts. A `timeout` kills git's whole process group at the limit and raises GitError.
+    """
     try:
-        proc = subprocess.run(
-            ["git", "-C", str(repo), *args], capture_output=True, text=True, encoding="utf-8",
-            check=False, **({"stdin": subprocess.DEVNULL} if stdin is None else {"input": stdin}),
+        proc = subprocess.Popen(
+            ["git", "-C", str(repo), *args], stdin=subprocess.DEVNULL if stdin is None else subprocess.PIPE,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8",
+            start_new_session=True, env={**os.environ, "GIT_TERMINAL_PROMPT": "0"},
         )
     except OSError as exc:
         raise GitError(f"could not run git: {exc}") from exc
+    try:
+        out, err = proc.communicate(stdin, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        stop_group(proc, 5)
+        proc.communicate()
+        raise GitError(f"git {' '.join(args)} passed its {timeout:g}s limit; its process group was killed") from None
     if proc.returncode != 0:
-        raise GitError(f"git {' '.join(args)} failed: {proc.stderr.strip()}")
-    return proc.stdout.rstrip("\n")
+        raise GitError(f"git {' '.join(args)} failed: {err.strip()}")
+    return out.rstrip("\n")
 
 
 Runner = Callable[..., str]

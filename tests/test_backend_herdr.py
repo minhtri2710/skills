@@ -316,7 +316,7 @@ class SendBlockTest(unittest.TestCase):
         self.assertEqual(
             a.send_block(LEAD, REPORT),
             backend.SendBlock(
-                'herdr agent prompt lead-demo "$(cat /state/projects/demo/runs/r1/send-eng-a.txt)"',
+                'herdr agent prompt lead-demo "$(cat "/state/projects/demo/runs/r1/send-eng-a.txt")"',
                 'herdr notification show "eng-a: report send failed" --body "/state/projects/demo/runs/r1/report-eng-a.md" --sound request',
             ),
         )

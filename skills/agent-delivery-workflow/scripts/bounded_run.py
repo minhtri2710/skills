@@ -3,9 +3,9 @@
 
 The command starts in its own session, so the group holds it and every child it spawns
 (test workers, browsers, a `sleep` under `sh`). At the limit the group gets SIGTERM, then
-SIGKILL after the grace period if any member is left, and the exit code is 124. Otherwise
-the command's own exit code passes through, after any member it left running is stopped the
-same way. A SIGTERM or SIGINT to this wrapper is forwarded to the group the same way, so
+SIGKILL after the grace period if any member is left, and the exit code is 124. A command that cannot
+be started exits 127. Otherwise the command's own exit code passes through, after any member it left
+running is stopped the same way. A SIGTERM or SIGINT to this wrapper is forwarded to the group the same way, so
 stopping the runtime task never orphans the group.
 """
 from __future__ import annotations
@@ -18,6 +18,7 @@ import sys
 import time
 
 TIMED_OUT = 124
+NOT_STARTED = 127
 POLL_S = 0.05
 
 
@@ -66,7 +67,11 @@ def main(argv: list[str] | None = None) -> int:
 
     signal.signal(signal.SIGTERM, forward)
     signal.signal(signal.SIGINT, forward)
-    proc = subprocess.Popen(command, start_new_session=True)
+    try:
+        proc = subprocess.Popen(command, start_new_session=True)
+    except OSError as exc:
+        print(f"bounded_run: could not start {command[0]}: {exc}", file=sys.stderr)
+        return NOT_STARTED
     try:
         code = proc.wait(timeout=args.seconds)
     except subprocess.TimeoutExpired:
