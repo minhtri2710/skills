@@ -229,6 +229,16 @@ def _read_api_key() -> str | None:
     return key
 
 
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    # A redirect would resend the Authorization header to its target; refuse it.
+    def redirect_request(self, *args, **kwargs):
+        return None
+
+
+# Bound to a plain name: test_script_encoding reads any `x.open(` as a text-mode file open.
+_open_url = urllib.request.build_opener(_NoRedirect).open
+
+
 def _request_answers(
     state: Mapping[str, object], questions: Mapping[str, object]
 ) -> tuple[object | None, str | None]:
@@ -250,7 +260,7 @@ def _request_answers(
             },
             method="POST",
         )
-        with urllib.request.urlopen(request, timeout=API_TIMEOUT_SECONDS) as response:
+        with _open_url(request, timeout=API_TIMEOUT_SECONDS) as response:
             return json.load(response), None
     except urllib.error.HTTPError as exc:
         exc.close()

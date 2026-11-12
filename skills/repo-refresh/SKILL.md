@@ -1,6 +1,7 @@
 ---
 name: repo-refresh
 description: Refresh an explicitly named repository by removing stale documentation, plans, issues, tests, proof machinery, scripts, and generated debris. Use only when the user explicitly invokes $repo-refresh.
+disable-model-invocation: true
 ---
 
 # Repository Refresh
