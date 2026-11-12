@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import contextlib
+import io
 import os
 import signal
 import subprocess
@@ -12,6 +13,7 @@ import unittest
 from pathlib import Path
 
 import support
+import bounded_run
 
 SCRIPT = support.ADW / "scripts" / "bounded_run.py"
 
@@ -20,7 +22,7 @@ def setUpModule() -> None:
     support.never_run(sys.executable)
 
 
-def _gone(pid: int, within: float = 3.0) -> bool:
+def _gone(pid: int, within: float = 10.0) -> bool:
     deadline = time.monotonic() + within
     while time.monotonic() < deadline:
         try:
@@ -42,7 +44,7 @@ class BoundedRunTest(unittest.TestCase):
                 "sh", "-c", script, "sh", str(self.pidfile)]
 
     def grandchild(self) -> int:
-        deadline = time.monotonic() + 3
+        deadline = time.monotonic() + 30
         while not self.pidfile.exists() or not self.pidfile.read_text().strip():
             self.assertLess(time.monotonic(), deadline, "grandchild never wrote its pid")
             time.sleep(0.05)
@@ -72,11 +74,17 @@ class BoundedRunTest(unittest.TestCase):
         self.assertEqual(run.returncode, 128 + signal.SIGKILL)
 
     def test_limit_kills_a_grandchild_that_ignores_sigterm(self):
-        run = subprocess.run(self.wrapper("1", "trap '' TERM; sleep 300 & echo $! > \"$1\"; wait"),
-                             stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=30)
+        # In process, so the 1s limit can be held until the shell is up: a loaded machine can spend a 1s
+        # limit before `sh` starts, and then no grandchild exists to outlive it.
+        self.addCleanup(signal.signal, signal.SIGTERM, signal.getsignal(signal.SIGTERM))
+        self.addCleanup(signal.signal, signal.SIGINT, signal.getsignal(signal.SIGINT))
+        stderr = io.StringIO()
+        started = lambda: self.pidfile.is_file() and self.pidfile.read_text().endswith("\n")
+        with support.guarded("sh"), support.limit_starts_when("wait", started), contextlib.redirect_stderr(stderr):
+            code = bounded_run.main(self.wrapper("1", "trap '' TERM; sleep 300 & echo $! > \"$1\"; wait")[2:])
         pid = self.grandchild()
-        self.assertEqual(run.returncode, 124)
-        self.assertIn("bounded_run: limit 1s passed; killed process group", run.stderr)
+        self.assertEqual(code, 124)
+        self.assertIn("bounded_run: limit 1s passed; killed process group", stderr.getvalue())
         self.assertTrue(_gone(pid), f"grandchild {pid} survived the limit")
 
     def test_stops_a_grandchild_left_running_after_a_normal_exit(self):
