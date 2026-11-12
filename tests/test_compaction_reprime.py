@@ -25,7 +25,7 @@ OPEN_BACKEND = backend.open_backend
 
 
 def setUpModule() -> None:
-    support.never_run()
+    support.never_run("git")
 
 
 SEAT = "lead-beo-skills"
@@ -42,9 +42,8 @@ class ReprimeCase(unittest.TestCase):
         self.addCleanup(tmp.cleanup)
         self.root = Path(tmp.name).resolve()
         self.home = self.root / "home"
-        self.project = self.root / "project"
         self.home.mkdir()
-        self.project.mkdir()
+        self.project = support.temp_git_repo(self.root / "project")
         self.state = self.root / "state"
         self.fake = FakeBackend()
         self.agents: list[backend.Seat] = []
@@ -163,6 +162,16 @@ class CliContractTest(ReprimeCase):
             compaction_reprime.main(ARGS + ["--project-root", "relative/project"])
         self.assertEqual(raised.exception.code, 2)
         self.assertIn("--project-root must be an absolute path", self.stderr.getvalue())
+        self.assertEqual(self.prompts, [])
+
+    def test_a_project_root_with_no_git_checkout_is_refused_before_any_state_or_prompt(self) -> None:
+        plain = self.root / "plain"
+        plain.mkdir()
+        self.write_pointer_files()
+        self.set_pi(3)
+        self.assertEqual(self.run_cli("--project-root", str(plain)), 1)
+        self.assertIn("no project slug", self.stderr.getvalue())
+        self.assertEqual(self.state_files(), [])
         self.assertEqual(self.prompts, [])
 
     def test_runs_from_any_cwd(self) -> None:
