@@ -65,6 +65,10 @@ skills/<name>/
 | `throwaway-prototype` | Build throwaway code that answers one design question: a logic demo or structurally different UI variants. |
 | `verification-skill-lifecycle` | Create or maintain a source-grounded verification contract and feature map with owned cleanup and surviving evidence. |
 
+## Hooks
+
+`hooks/` holds the Claude Code hook scripts that guard agent shell commands (secret and glob-delete guards, per-session `TMPDIR`); see `hooks/README.md`.
+
 ## Checks
 
 The repository's checks, and the commands that run them, are in the "Checks" section of [`AGENTS.md`](AGENTS.md). They are the CI of record; there is no hosted CI.
