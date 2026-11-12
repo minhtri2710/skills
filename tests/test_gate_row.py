@@ -1303,10 +1303,11 @@ class GateRowTest(unittest.TestCase):
         self.assertEqual(self.append_review(), 0)
         self.add_remote("HEAD")
         before = self.ledger.read_bytes()
-        for bad in ('f1.txt"x', "f1.txt|x"):
+        for bad, refusal in (('f1.txt"x', "is malformed"), ("f1.txt|x", "holds |")):
             with self.subTest(bad=bad):
                 self.assertEqual(self.append("--kind", "push", "--push-base", self.rev("HEAD~2"),
                                              "--boundary", ".", "--boundary", bad), 1)
+                self.assertIn(refusal, self.err.getvalue())
                 self.assertEqual(self.ledger.read_bytes(), before)
 
     def test_a_review_row_needs_a_review_base(self):

@@ -229,7 +229,7 @@ def main(argv: list[str] | None = None) -> int:
                 for skill, prefix, entries in deployments:
                     failing = skill
                     verify_install(repo, install_root / skill, entries, prefix)
-            except DeployError as exc:
+            except (DeployError, GitError, OSError) as exc:
                 if installed:
                     raise DeployError(
                         f"{exc}; failed at {failing}; already installed, no deploy row recorded: "

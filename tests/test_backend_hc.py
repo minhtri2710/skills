@@ -454,7 +454,7 @@ class SendBlockTest(unittest.TestCase):
     def test_block_is_the_report_by_prompt_send_with_no_notification_line(self) -> None:
         a, runner = adapter()
         block = a.send_block(LEAD, REPORT)
-        self.assertEqual(block, backend.SendBlock('hc send t3 "$(cat "/state/projects/demo/runs/r1/send-eng-a.txt")"'))
+        self.assertEqual(block, backend.SendBlock('hc send t3 " $(cat "/state/projects/demo/runs/r1/send-eng-a.txt")"'))
         self.assertIsNone(block.failure_notice)
         self.assertEqual(runner.calls, [])
 
@@ -462,20 +462,21 @@ class SendBlockTest(unittest.TestCase):
         resolved = hc.Adapter(ENVIRON, runner=Recorder(), binary="/home/u/.local/bin/herdr-core")
         self.assertEqual(
             resolved.send_block(LEAD, REPORT).send_command,
-            '"$HOME/.local/bin/herdr-core" send t3 "$(cat "/state/projects/demo/runs/r1/send-eng-a.txt")"',
+            '"$HOME/.local/bin/herdr-core" send t3 " $(cat "/state/projects/demo/runs/r1/send-eng-a.txt")"',
         )
 
     def test_block_sends_the_file_whose_path_holds_spaces_and_shell_syntax(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            run_dir = Path(directory) / "my run;&|()>x"
-            run_dir.mkdir()
-            (run_dir / "send-eng-a.txt").write_text("the report", encoding="utf-8")
-            a, _ = adapter()
-            command = a.send_block(LEAD, f"{run_dir}/report-eng-a.md").send_command
-            shell = 'hc() { printf "%s|%s|%s" "$1" "$2" "$3"; }; ' + command
-            with support.guarded("sh"):
-                ran = subprocess.run(["sh", "-c", shell], capture_output=True, text=True, check=False)
-        self.assertEqual((ran.returncode, ran.stdout, ran.stderr), (0, "send|t3|the report", ""))
+        for body in ("the report", "--force go"):  # a leading '-' must reach hc as text, never as an option
+            with self.subTest(body=body), tempfile.TemporaryDirectory() as directory:
+                run_dir = Path(directory) / "my run;&|()>x"
+                run_dir.mkdir()
+                (run_dir / "send-eng-a.txt").write_text(body, encoding="utf-8")
+                a, _ = adapter()
+                command = a.send_block(LEAD, f"{run_dir}/report-eng-a.md").send_command
+                shell = 'hc() { printf "%s|%s|%s" "$1" "$2" "$3"; }; ' + command
+                with support.guarded("sh"):
+                    ran = subprocess.run(["sh", "-c", shell], capture_output=True, text=True, check=False)
+                self.assertEqual((ran.returncode, ran.stdout, ran.stderr), (0, f"send|t3| {body}", ""))
 
     def test_block_refuses_unsafe_or_misshapen_inputs(self) -> None:
         a, _ = adapter()

@@ -177,4 +177,5 @@ class Adapter(backend.Backend):
 
     def _render_send_block(self, lead_handle: str, peer: str, send_path: str, report_path: str) -> backend.SendBlock:
         command = FALLBACK_BINARY if self._binary == FALLBACK_BINARY else f'"$HOME/.local/bin/{BINARY_NAME}"'
-        return backend.SendBlock(f'{command} send {lead_handle} "$(cat "{send_path}")"')
+        # The leading space keeps a send file that starts with '-' from being read as an option.
+        return backend.SendBlock(f'{command} send {lead_handle} " $(cat "{send_path}")"')

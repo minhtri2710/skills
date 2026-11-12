@@ -33,11 +33,11 @@ Provisional: L3 (`--no-parent` Peers survive a Lead restart and produce no dupli
 
 Command: `hc send --json <t> <text>`
 
-Source: `CMD:518-536`; pastes the text and presses Enter, refuses a `blocked` terminal unless `--force` (the adapter never passes it), `input.rs:154-176`. The result's `started` is true or false after a window of 5 seconds, and null when the program never reports status (`input.rs:70-72,203-212`); `false` is raised as `SeatError not_started` (the text was typed; read before resending, `HCM:48-51`), `null` is accepted because no acknowledgement exists. `--wait` is not used: it holds the call for the whole turn (`CMD:532-533`). The send text must not start with `-`: it would be read as an option, and no end-of-options form is documented for `send`, so the adapter refuses it (`ValueError`) before running anything. The same holds for the Peer's send file in the report block below.
+Source: `CMD:518-536`; pastes the text and presses Enter, refuses a `blocked` terminal unless `--force` (the adapter never passes it), `input.rs:154-176`. The result's `started` is true or false after a window of 5 seconds, and null when the program never reports status (`input.rs:70-72,203-212`); `false` is raised as `SeatError not_started` (the text was typed; read before resending, `HCM:48-51`), `null` is accepted because no acknowledgement exists. `--wait` is not used: it holds the call for the whole turn (`CMD:532-533`). The send text must not start with `-`: it would be read as an option, and no end-of-options form is documented for `send`, so the adapter refuses it (`ValueError`) before running anything. The report block cannot check its send file before the Peer's shell reads it, so it passes the text with one leading space, which no option parser reads as an option.
 
 Report block: `_render_send_block` in `scripts/backends/hc.py` (called by `send_block` in `scripts/backend.py`) renders the command with the binary the adapter resolved, so a foreign `hc` on PATH never receives a report (the installer links `hc` only when none exists, `distribution/install.sh:70-81`). It has no failure notice (see notify). The Peer's own shell is assumed to have the same `$HOME` and a standard PATH; no source shows it.
 
-Provisional: L1 (a seat that does not emit OSC 7501 never acknowledges), and the report block (L3: a Peer's shell resolves the rendered binary and the core). Test: `ReadPromptTest`, `SendBlockTest`.
+Provisional: L1 (a seat that does not emit OSC 7501 never acknowledges), and the report block (L3: a Peer's shell resolves the rendered binary and the core; no live check that `hc send` reads a text with a leading space as text). Test: `ReadPromptTest`, `SendBlockTest`.
 
 ## read
 

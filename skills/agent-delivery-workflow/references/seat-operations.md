@@ -67,7 +67,7 @@ Returns the live seats as seat records. Method `list_seats`. `scripts/roster.py`
 
 ### `processes`
 
-Returns a seat's foreground processes, as `backend.Process` records (`argv`, `pid`, `cwd`). Input: handle. Method `processes` (the terminal behind a handle is `get_terminal`). `scripts/roster.py --drift` and `scripts/closeout_check.py` use it.
+Returns a seat's foreground processes, as `backend.Process` records (`argv`, `pid`, `cwd`). Input: handle. Method `processes` (the terminal behind a handle is `get_terminal`). `scripts/roster.py --drift` uses it.
 
 ### `interrupt`
 

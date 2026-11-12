@@ -13,6 +13,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from unittest import mock
 import urllib.error
+import urllib.request
 
 import support
 import jev
@@ -200,9 +201,11 @@ class JevTest(unittest.TestCase):
                 pass
 
         target = serve(self, Target)
+        posted: list[str] = []
 
         class Redirector(BaseHTTPRequestHandler):
             def do_POST(self) -> None:
+                posted.append(self.path)
                 self.rfile.read(int(self.headers["Content-Length"]))
                 self.send_response(302)
                 self.send_header("Location", f"http://127.0.0.1:{target.server_address[1]}/")
@@ -212,9 +215,14 @@ class JevTest(unittest.TestCase):
                 pass
 
         api = serve(self, Redirector)
-        with mock.patch.object(jev, "API_URL", f"http://127.0.0.1:{api.server_address[1]}/"):
+        # The module's opener reads http_proxy at import; an explicit empty ProxyHandler keeps this test off any proxy.
+        direct = urllib.request.build_opener(jev._NoRedirect, urllib.request.ProxyHandler({}))
+        with mock.patch.object(jev, "API_URL", f"http://127.0.0.1:{api.server_address[1]}/"), mock.patch.object(
+            jev, "_open_url", direct.open
+        ):
             result = jev.triage_finding(FINDING)
 
+        self.assertEqual(posted, ["/"])
         self.assertEqual(received, [])
         self.assert_unavailable(result, "http_error")
 
