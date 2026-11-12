@@ -157,7 +157,8 @@ class CharterLintTest(unittest.TestCase):
                 self.assertEqual(
                     error,
                     "charter_lint: missing takeover guard: Never stop, remove, or take over a "
-                    "container, process, or port\n",
+                    "container, process, or port another agent, issue, or project started; "
+                    "report the collision to the Lead\n",
                 )
 
     def test_takeover_guard_match_ignores_case_and_spacing(self):
@@ -647,6 +648,21 @@ class CharterLintTest(unittest.TestCase):
         )
 
     @staticmethod
+    def by_value_sentences() -> str:
+        return (
+            "Never run two heavy suites of one project at once, across its checkout, baseline tree, and sandboxes.\n"
+            "Paste the ran and skipped counts of each rerun beside the reported ones. Re-derive each red-proof row "
+            "by applying only the added or changed test files to the base, running that row's command, one targeted run and never a mutant run.\n"
+            "Not called for: new files; abstractions with one caller; config or flags that no caller varies; "
+            "handling for states the types or callers make impossible; old paths kept beside new ones; "
+            "comments that restate the code. Each one is a finding, and it fails the head only when it crosses the acceptance boundary.\n"
+            "No-mutation: one charter-named check at a time as a runtime task id, never detached (no `nohup`, "
+            "`setsid`, `disown`, trailing `&`), awaited through the runtime's completion notice, not a sleep or "
+            "poll loop, stopped only by its own task id, and reported only after it ends, with its task id, "
+            "command, how it started, end state and exit code.\n"
+        )
+
+    @staticmethod
     def time_limit_sentence() -> str:
         return "Time limit: three hours after the latest Lead prompt with no verdict, send `BLOCKED (time limit)`.\n"
 
@@ -666,6 +682,7 @@ class CharterLintTest(unittest.TestCase):
             + cls.kill_guard_sentence()
             + cls.takeover_guard_sentence()
             + cls.ocr_step_sentence()
+            + cls.by_value_sentences()
             + "Review order: first the diff and your own findings; only then read the implementation reports.\n"
             + cls.time_limit_sentence()
             + "Write the finished report/verdict to report-eng-lint.md with the editor/write tool (never via the shell), then print it as the pane's final output.\n"

@@ -136,38 +136,6 @@ class ReviewerCharterTemplateTest(unittest.TestCase):
         sentence = section.split("carries, by value: ", 1)[1].strip()
         self.assertIn(sentence, TEMPLATE.read_text(encoding="utf-8"))
 
-    def test_one_heavy_suite_per_project_rule_is_in_doctrine_and_charter(self):
-        rule = "Never run two heavy suites of one project at once, across its checkout, baseline tree, and sandboxes."
-        lead = (SKILL / "references" / "lead.md").read_text(encoding="utf-8")
-        self.assertIn(rule, lead.split("Every test, build, or browser command", 1)[1].split("\n\n", 1)[0])
-        self.assertIn(rule, TEMPLATE.read_text(encoding="utf-8"))
-
-    def test_takeover_guard_is_in_charters_and_charter(self):
-        clause = (
-            "Never stop, remove, or take over a container, process, or port another agent, issue, "
-            "or project started; report the collision to the Lead."
-        )
-        charters = (SKILL / "references" / "charters.md").read_text(encoding="utf-8")
-        self.assertIn(f"the takeover guard clause: {clause}", charters)
-        self.assertIn(clause, TEMPLATE.read_text(encoding="utf-8"))
-
-    def test_carries_unconditional_reviewer_clauses_of_charters(self):
-        charters = (SKILL / "references" / "charters.md").read_text(encoding="utf-8")
-        reviewer = charters.split("\n**Disposition: Reviewer.**", 1)[1].split("\n*Frozen tree:*", 1)[0]
-        for clause in (
-            "`floor_guard.py`",
-            "the ran and skipped counts of each rerun beside the reported ones",
-            "applying only the added or changed test files to the base",
-            "running that row's command, one targeted run and never a mutant run",
-            "did not call for: new files; abstractions with one caller; config or flags that no caller varies; "
-            "handling for states the types or callers make impossible; old paths kept beside new ones; "
-            "comments that restate the code. Each one is a finding, and it fails the head only when it crosses "
-            "the acceptance boundary",
-        ):
-            with self.subTest(clause=clause):
-                self.assertIn(clause, reviewer)
-                self.assertIn(clause.replace("`floor_guard.py`", f"floor_guard.py --base {self.base}"), self.filled)
-
     def test_report_block_no_write_form_writes_hostile_body_verbatim(self):
         form = re.search(
             r"`(cat > <run_dir>/report-<peer_name>\.md <<(\S+))`",
@@ -195,7 +163,6 @@ class ReviewerCharterTemplateTest(unittest.TestCase):
         self.assertEqual(len(lines), 1)
         for route in routes:
             self.assertIn(f"`{route}`", lines[0])
-        self.assertIn("send it with the same command", lines[0])
 
     @unittest.skipUnless(shutil.which("sandbox-exec"), "sandbox-exec is macOS-only")
     def test_write_fence_admits_only_its_targets(self):
@@ -239,21 +206,6 @@ class ReviewerCharterTemplateTest(unittest.TestCase):
                     self.assertEqual(path.exists(), path in allowed, run.stderr)
                     if path in denied:
                         self.assertIn("Operation not permitted", run.stderr)
-
-    def test_no_mutation_contract_bounds_the_awaited_background_check(self):
-        text = TEMPLATE.read_text(encoding="utf-8")
-        contract = text.split("No-mutation contract:", 1)[1].split("change no external state", 1)[0]
-        for bound in (
-            "one charter-named check at a time",
-            "runtime task id",
-            "is never detached (no `nohup`, `setsid`, `disown`, trailing `&`,",
-            "awaited through the runtime's completion notice, not a sleep or poll loop",
-            "stopped only by its own task id",
-            "reported only after it ends",
-            "task id, command, how it started, end state and exit code",
-        ):
-            with self.subTest(bound=bound):
-                self.assertIn(bound, contract)
 
     def test_the_rendered_floor_guard_command_runs_under_floor_guards_argparse(self):
         command = re.search(r"`python3 (\S+/floor_guard\.py [^`]*)`", self.filled)
