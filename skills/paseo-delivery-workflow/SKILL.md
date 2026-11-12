@@ -97,8 +97,8 @@ other tier gains a shell `paseo` use from this exception.
    owned paths, its delivery's branch and checkout, and its reporting target, and relays
    what the Human said per "Human words" in Every agent; it also has the Engineer list,
    before editing, every reader and writer of each field, function, or input rule it changes
-   (specs and tests included, inside its owned paths or not), and its change reaches each
-   one or names why not. Replace a Lead only after its `handoff.md` is current; for a Lead
+   (specs and tests included, inside its owned paths or not), and reach each one or name why
+   not. Replace a Lead only after its `handoff.md` is current; for a Lead
    that cannot write it, the new Lead writes it from the old Lead's `paseo logs` before other
    work. The new Lead first checks that record against each delivery's tree and writes each
    mismatch into it, and reads `grants.md` unchanged. The
@@ -111,11 +111,12 @@ other tier gains a shell `paseo` use from this exception.
    fast lane with the same race or sanitizer flags as the acceptance lanes (for example a
    race detector), so a data race is caught before hand-in, and checks its change against
    the refusal and acceptance table the plan names, quoting both in its report. The report
-   also carries: for a change that tightens or loosens an input rule, or turns a refusal into
-   a hold, an accept, or a silent drop (a broad catch around a refusal counts), or the
-   reverse, a table of inputs the old code accepted and the new code refuses and the
-   reverse, each row marked intended or defect; each containment or refusal guard in a
-   function it changed, with the line that shows the guard still holds; for each test it
+   also carries: step 2's reader and writer list, each one reached or named with why not; for
+   a change that tightens or loosens an input rule, or turns a refusal into a hold, an
+   accept, or a silent drop (a broad catch around a refusal counts), or the reverse, a table
+   of inputs the old code accepted and the new code refuses and the reverse, each row marked
+   intended or defect (a refusal turned into a silent drop is always a defect); each containment or refusal guard in a function it changed, with the
+   line that shows the guard still holds or the brief item that removes it; for each test it
    deletes or rewrites, each behaviour that test pinned and the surviving test that pins it;
    and every deviation from its brief as a named item, which the Lead accepts or sends back.
    Done when every Engineer has reported, none is running, and the Lead has checked each
@@ -165,10 +166,11 @@ other tier gains a shell `paseo` use from this exception.
    a `FAIL` until it has a containment guard in the same delivery, never an accepted risk. A
    new test the change does not need, or one that duplicates an existing proof, is a
    finding; a stub that breaks the stub rule in "Extend before adding" (Every agent) is a
-   `FAIL`. The Reviewer checks step 3's report items against the diff and judges each brief
-   deviation: a lost guard, or a behaviour left with no test pinning it, is a `FAIL`; a
-   change in accepted or refused inputs that the table omits or marks defect is a finding, at
-   least Medium when a refusal became a silent drop. A `FAIL` lists every finding at its SHA
+   `FAIL`. Each Reviewer prompt asks for step 3's report items; the Reviewer checks them
+   against the diff and judges each brief deviation: a lost guard, or a behaviour left with
+   no test pinning it, is a `FAIL`; a change in accepted or refused inputs that the table
+   omits or marks defect is a finding, and a refusal turned into a silent drop is at least
+   Medium however its row is marked. A `FAIL` lists every finding at its SHA
    and goes back to the owning writer; the fix is committed on top of the failed SHA, with no
    amend, rebase, squash, or force-push before merge, and the same Reviewer re-reviews
    `git diff <failed SHA> <new SHA>`, its prompt naming both SHAs. Only the lanes that
