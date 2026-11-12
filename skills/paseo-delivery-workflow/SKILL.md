@@ -115,8 +115,8 @@ other tier gains a shell `paseo` use from this exception.
    a change that tightens or loosens an input rule, or turns a refusal into a hold, an
    accept, or a silent drop (a broad catch around a refusal counts), or the reverse, a table
    of inputs the old code accepted and the new code refuses and the reverse, each row marked
-   intended or defect (a refusal turned into a silent drop is always a defect); each containment or refusal guard in a function it changed, with the
-   line that shows the guard still holds or the brief item that removes it; for each test it
+   intended or defect (a refusal turned into a silent drop is always a defect); each
+   containment or refusal guard in a function it changed, with the line that shows the guard still holds or the brief item that removes it; for each test it
    deletes or rewrites, each behaviour that test pinned and the surviving test that pins it;
    and every deviation from its brief as a named item, which the Lead accepts or sends back.
    Done when every Engineer has reported, none is running, and the Lead has checked each
