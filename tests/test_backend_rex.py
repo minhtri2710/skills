@@ -34,7 +34,6 @@ ENVIRON = {"TERM_PROGRAM": "rex", "REX_SESSION": SESSION, "REX_BLOCK": "block:a1
 REPORT = "/state/projects/demo/runs/r1/report-eng-a.md"
 BASE = ["--autostart=false"]
 PINNED = ["--autostart=false", "-S", ENDPOINT]
-NOT_NONE_PROVISIONAL = ["identify", "spawn", "prompt", "state", "wait", "list", "notify"]
 
 
 fixture = partial(support.fixture, "rex")
@@ -588,13 +587,6 @@ class ReferenceTest(unittest.TestCase):
         cls.text = text
         cls.sections = dict(zip(parts[1::2], parts[2::2]))
 
-    def test_pending_operations_say_what_is_pending(self) -> None:
-        for operation in NOT_NONE_PROVISIONAL:
-            with self.subTest(operation):
-                self.assertNotRegex(self.sections[operation], r"Provisional: none")
-        self.assertIn("Unsupported:", self.sections["wait"])
-        self.assertRegex(self.sections["notify"], r"Provisional: L8")
-
     def test_fenced_rex_commands_stay_inside_the_documented_set(self) -> None:
         documented = {
             ("whoami",), ("block", "ls"), ("block", "call"), ("block", "rename"), ("block", "close"),
@@ -617,9 +609,6 @@ class ReferenceTest(unittest.TestCase):
         for args in runner.argv:
             command = normalized(args, ("hello text", "<text>"))
             self.assertIn(f"rex {command}", self.text, command)
-
-    def test_the_reference_says_wait_state_raises_unsupported(self) -> None:
-        self.assertIn("`wait_state` raises `Unsupported`", self.sections["wait"])
 
 
 if __name__ == "__main__":

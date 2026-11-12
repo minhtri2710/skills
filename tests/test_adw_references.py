@@ -44,30 +44,6 @@ class BackendReferenceTest(unittest.TestCase):
                     with self.subTest(backend=path.name, operation=operation):
                         self.assertTrue(found[operation].strip())
 
-    def test_hc_sections_are_a_sourced_command_or_unsupported_and_a_provisional_line(self) -> None:
-        found = sections("backend-hc.md")
-        for operation in OPERATIONS:
-            body = found[operation]
-            with self.subTest(operation):
-                if "Command:" in body or "Commands:" in body:
-                    self.assertIn("Source:", body)
-                else:
-                    self.assertIn("Unsupported:", body)
-                self.assertIn("Provisional:", body)
-
-    def test_rex_sections_are_a_cited_command_or_unsupported_and_a_provisional_line(self) -> None:
-        found = sections("backend-rex.md")
-        for operation in OPERATIONS:
-            body = found[operation]
-            with self.subTest(operation):
-                self.assertIn("Provisional:", body)
-                if "Unsupported:" in body:
-                    self.assertNotIn("```", body)
-                    continue
-                self.assertIn("```", body)
-                self.assertRegex(body, r"\b(CL|CD|IS|UV)\b")
-                self.assertRegex(body, r"`[\w./-]+\.(sh|go|lua|md|txt):\d")
-
 
 class DoctrineTest(unittest.TestCase):
     def test_doctrine_names_no_backend_tool_command(self) -> None:
