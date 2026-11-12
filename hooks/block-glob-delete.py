@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """PreToolUse hook on Bash: refuse rm, rmdir, unlink, shred, mv, find -delete and xargs rm whose target
 could expand a pattern, or that names the shared /tmp top level. A guard against mistakes, not a security
-boundary: a script file, a computed value or a program that deletes is not seen.
+boundary: a script file, a computed value or a program that deletes is not seen, nor is a glob that sits
+in a `for` list or inside a quoted substitution rather than in rm's own arguments.
 
 Input: the hook JSON on stdin. Exit 0 allows; exit 2 blocks with one message on stderr. Fails closed:
 input it cannot parse is blocked. Runs on Python 3.9 (the hook host's /usr/bin/python3): keep 3.9 syntax.
@@ -15,10 +16,15 @@ import sys
 
 DELETERS = {"rm", "rmdir", "unlink", "shred"}
 SHELLS = {"sh", "bash", "zsh", "dash", "ksh"}
-KEYWORDS = {"if", "then", "else", "elif", "while", "until", "do", "!", "time", "coproc"}
-WRAPPERS = {"command": set(), "builtin": set(), "exec": set(), "nohup": set(), "time": set(),
-            "sudo": {"-u", "-g", "-h", "-p", "-C", "-D", "-R", "-T", "-U"}, "doas": {"-u", "-C"},
-            "env": {"-u", "-C", "-S"}, "nice": {"-n"}}
+KEYWORDS = {"if", "then", "else", "elif", "while", "until", "do", "!", "coproc"}
+# wrapper -> (options that take a separate argument, positional words before the wrapped command)
+WRAPPERS = {"command": (set(), 0), "builtin": (set(), 0), "exec": (set(), 0), "nohup": (set(), 0),
+            "time": (set(), 0), "caffeinate": ({"-t", "-w"}, 0), "nice": ({"-n"}, 0),
+            "stdbuf": ({"-i", "-o", "-e"}, 0), "ionice": ({"-c", "-n", "-p", "-P", "-u"}, 0),
+            "timeout": ({"-s", "-k", "--signal", "--kill-after"}, 1), "doas": ({"-u", "-C"}, 0),
+            "sudo": ({"-u", "-g", "-h", "-p", "-C", "-D", "-R", "-T", "-U"}, 0), "env": ({"-u", "-C", "-S"}, 0)}
+XARGS_ARG = {"-I", "-J", "-R", "-S", "-n", "-P", "-L", "-s", "-d", "-E", "-a", "--delimiter", "--max-args",
+             "--max-procs", "--max-lines", "--max-chars", "--arg-file", "--process-slot-var"}
 SHARED = {"/", "/private", "/var", "/private/var", "/tmp", "/private/tmp", "/var/tmp", "/private/var/tmp"}
 ASSIGNMENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 MAX_DEPTH = 8
@@ -48,39 +54,36 @@ def text(word):
     return "".join(c for c, _ in word)
 
 
-def match_paren(src, i):
-    """Index of the ')' that closes the '(' at src[i], skipping quoted text and escapes."""
-    depth, n = 0, len(src)
-    while i < n:
-        c = src[i]
-        if c == "\\":
-            i += 1
-        elif c == "'":
-            i = src.find("'", i + 1)
-            if i < 0:
+def body_subs(body):
+    """The parsed `$(...)` and backtick substitutions of an unquoted heredoc body: the shell runs them."""
+    subs, i = [], 0
+    while i < len(body):
+        if body[i] == "\\":
+            i += 2
+        elif body.startswith("$(", i):
+            sub, i = parse(body, i + 2, True)
+            subs.append(sub)
+        elif body[i] == "`":
+            j = body.find("`", i + 1)
+            if j < 0:
                 raise Unparsable
-        elif c == '"':
+            subs.append(parse(body[i + 1:j])[0])
+            i = j + 1
+        else:
             i += 1
-            while i < n and src[i] != '"':
-                i += 2 if src[i] == "\\" else 1
-        elif c == "(":
-            depth += 1
-        elif c == ")":
-            depth -= 1
-            if depth == 0:
-                return i
-        i += 1
-    raise Unparsable
+    return subs
 
 
-def parse(src):
-    """Split `src` into simple commands: {"words", "heredocs", "subs"}.
+def parse(src, start=0, nested=False):
+    """Split `src` into simple commands: ([{"words", "heredocs", "subs"}], index after the text parsed).
 
     A word is a list of (char, mode): "u" unquoted, "q" quoted or escaped, "x" an unquoted expansion.
-    Redirections are dropped; heredoc bodies are kept apart; substitutions are kept as texts to scan.
+    Redirections are dropped; heredoc bodies and here-strings are kept apart; substitutions are parsed with
+    this same parser, so a heredoc inside `$(...)` is read as a heredoc. With `nested` the text ends at the
+    unbalanced `)` that closes a `$(` or `<(`.
     """
     cmds = []
-    state = {"cmd": {"words": [], "heredocs": [], "subs": []}, "word": None, "redir": None}
+    state = {"cmd": {"words": [], "heredocs": [], "subs": []}, "word": None, "redir": None, "depth": 0}
     pending = []
     n = len(src)
 
@@ -94,9 +97,12 @@ def parse(src):
         if word is None:
             return
         redir, state["redir"] = state["redir"], None
-        if redir is not None:
-            if redir:
-                pending.append((state["cmd"], text(word), redir == "dash"))
+        if redir == "here":
+            state["cmd"]["heredocs"].append(text(word))
+        elif redir in ("plain", "dash"):
+            pending.append((state["cmd"], text(word), redir == "dash", all(m != "q" for _, m in word)))
+        elif redir is not None:
+            pass
         elif text(word) in ("{", "}") and all(m == "u" for _, m in word):
             end_cmd()
         else:
@@ -113,8 +119,9 @@ def parse(src):
         """Handle the '$' at src[i]; returns the index after the expansion."""
         nxt = src[i + 1] if i + 1 < n else ""
         if nxt == "(":
-            j = match_paren(src, i + 1)
-            state["cmd"]["subs"].append(src[i + 2:j])
+            sub, end = parse(src, i + 2, True)
+            state["cmd"]["subs"].append(sub)
+            j = end - 1
         elif nxt == "{":
             j = src.find("}", i + 2)
             if j < 0:
@@ -138,12 +145,12 @@ def parse(src):
             j += 2 if src[j] == "\\" else 1
         if j >= n:
             raise Unparsable
-        state["cmd"]["subs"].append(src[i + 1:j])
+        state["cmd"]["subs"].append(parse(src[i + 1:j])[0])
         for ch in src[i:j + 1]:
             add(ch, mode)
         return j + 1
 
-    i = 0
+    i = start
     while i < n:
         c = src[i]
         nxt = src[i + 1] if i + 1 < n else ""
@@ -153,7 +160,7 @@ def parse(src):
         elif c == "\n":
             end_cmd()
             i += 1
-            for cmd, delim, dash in pending:
+            for cmd, delim, dash, unquoted in pending:
                 body = []
                 while i < n:
                     j = src.find("\n", i)
@@ -164,6 +171,8 @@ def parse(src):
                         break
                     body.append(line)
                 cmd["heredocs"].append("\n".join(body))
+                if unquoted:
+                    cmd["subs"].extend(body_subs(cmd["heredocs"][-1]))
             pending.clear()
         elif c == "#" and state["word"] is None:
             while i < n and src[i] != "\n":
@@ -180,11 +189,16 @@ def parse(src):
         elif c in "()":
             end_cmd()
             i += 1
+            if c == "(":
+                state["depth"] += 1
+            elif state["depth"]:
+                state["depth"] -= 1
+            elif nested:
+                return cmds, i
         elif c in "<>" and nxt == "(":
-            j = match_paren(src, i + 1)
-            state["cmd"]["subs"].append(src[i + 2:j])
+            sub, i = parse(src, i + 2, True)
+            state["cmd"]["subs"].append(sub)
             add("<", "q")
-            i = j + 1
         elif c in "<>&":
             word = state["word"]
             if word is not None and all(ch.isdigit() and m == "u" for ch, m in word):
@@ -192,7 +206,7 @@ def parse(src):
             else:
                 end_word()
             if src.startswith("<<<", i):
-                state["redir"], i = "", i + 3
+                state["redir"], i = "here", i + 3
             elif src.startswith("<<-", i):
                 state["redir"], i = "dash", i + 3
             elif src.startswith("<<", i):
@@ -241,6 +255,15 @@ def parse(src):
             else:
                 add(nxt or "\\", "q")
                 i += 2 if nxt else 1
+        elif c == "$" and nxt == "'":
+            j = i + 2
+            while j < n and src[j] != "'":
+                j += 2 if src[j] == "\\" else 1
+            if j >= n:
+                raise Unparsable
+            for ch in src[i + 2:j]:
+                add(ch, "q")
+            i = j + 1
         elif c == "$":
             i = dollar(i, "x")
         elif c == "`":
@@ -248,8 +271,10 @@ def parse(src):
         else:
             add(c, "u")
             i += 1
+    if nested:
+        raise Unparsable
     end_cmd()
-    return cmds
+    return cmds, n
 
 
 def has_pattern(word):
@@ -299,24 +324,35 @@ def resolve(words):
             continue
         base = w.rsplit("/", 1)[-1]
         if base in WRAPPERS:
+            with_argument, positionals = WRAPPERS[base]
             i += 1
             while i < len(words) and text(words[i]).startswith("-"):
-                opt = text(words[i])
-                i += 2 if opt in WRAPPERS[base] else 1
+                i += 2 if text(words[i]) in with_argument else 1
+            i += positionals
             continue
         return base, words[i + 1:]
     return None, []
 
 
 def shell_script(args):
-    """The -c text of a shell's arguments, "" for a shell reading a script from stdin, None otherwise."""
-    for k, w in enumerate(args):
+    """The -c text of a shell's arguments, "" for a shell reading a script from stdin, None otherwise.
+
+    Walks the shell's options, including those that take an argument (-o NAME, -O NAME, --rcfile FILE), up to
+    the first operand: that is the -c text when -c was given, else a script file.
+    """
+    found_c, skip = False, 0
+    for w in args:
         s = text(w)
-        if s.startswith("-") and not s.startswith("--") and "c" in s:
-            return text(args[k + 1]) if k + 1 < len(args) else None
-        if not s.startswith("-") or s == "--":
-            return None
-    return ""
+        if skip:
+            skip -= 1
+        elif s in ("-", "--") or s[:1] not in ("-", "+"):
+            return s if found_c else None
+        elif s.startswith("--"):
+            skip = 1 if s in ("--rcfile", "--init-file") else 0
+        else:
+            found_c = found_c or (s[0] == "-" and "c" in s[1:])
+            skip += sum(ch in "oO" for ch in s[1:])
+    return None if found_c else ""
 
 
 def operands(name, args):
@@ -376,6 +412,7 @@ def check_find(args, cwd, depth, in_xargs):
                 found = scan(shell_script(rest), cwd, depth + 1, in_xargs)
                 if found:
                     return found
+                danger = danger or bool(scan(shell_script(rest), cwd, depth + 1, True))
     if not danger:
         return None
     if not paths or any(has_pattern(p) or has_expansion(p) or is_shared_tmp(p, cwd) for p in paths):
@@ -392,7 +429,7 @@ def judge(cmd, cwd, depth, in_xargs):
     if name == "xargs":
         k = 0
         while k < len(args) and text(args[k]).startswith("-"):
-            k += 2 if text(args[k]) in ("-I", "-n", "-P", "-L", "-s", "-d", "-E", "-a") else 1
+            k += 2 if text(args[k]) in XARGS_ARG else 1
         inner, rest = resolve(args[k:])
         if inner in DELETERS or inner == "mv":
             return "xargs"
@@ -415,15 +452,18 @@ def judge(cmd, cwd, depth, in_xargs):
 
 def scan(src, cwd, depth=0, in_xargs=False):
     """The id of the first refusal in `src`, or None."""
-    if depth > MAX_DEPTH:
-        return "unparsable"
     try:
-        cmds = parse(src)
+        return scan_commands(parse(src)[0], cwd, depth, in_xargs)
     except Unparsable:
+        return "unparsable"
+
+
+def scan_commands(cmds, cwd, depth, in_xargs):
+    if depth > MAX_DEPTH:
         return "unparsable"
     for cmd in cmds:
         for sub in cmd["subs"]:
-            found = scan(sub, cwd, depth + 1, in_xargs)
+            found = scan_commands(sub, cwd, depth + 1, in_xargs)
             if found:
                 return found
         found = judge(cmd, cwd, depth, in_xargs)

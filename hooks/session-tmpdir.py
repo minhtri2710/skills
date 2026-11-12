@@ -40,7 +40,7 @@ def session_dir(code):
 
 def owned_directory(path):
     st = os.lstat(path)
-    return stat.S_ISDIR(st.st_mode) and st.st_uid == os.getuid() and os.path.realpath(path) == path
+    return stat.S_ISDIR(st.st_mode) and st.st_uid == os.getuid()
 
 
 def start():

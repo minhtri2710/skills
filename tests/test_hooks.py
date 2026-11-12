@@ -1,13 +1,17 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import importlib.util
+import io
 import json
 import os
 import subprocess
 import sys
 import tempfile
+import types
 import unittest
 from pathlib import Path
+from unittest import mock
 
 import support
 
@@ -103,6 +107,48 @@ ROWS = [
     ("ls /tmp", None),
     ("rm \"unterminated", "unparsable"),
     ("echo $(rm /tmp/x", "unparsable"),
+    # a heredoc inside $(...) is data to the scan, whatever quotes and parentheses its body holds
+    ("git commit -m \"$(cat <<'EOF'\nfix: don't crash on empty input\n\nCo-Authored-By: X <x@y>\nEOF\n)\"", None),
+    ("gh pr create --title t --body \"$(cat <<'EOF'\n## Summary\n- it's done (mostly\nEOF\n)\"", None),
+    ("git commit -m \"$(cat <<'EOF'\n1) first\n2) second\nEOF\n)\" && rm /tmp/z*", "glob"),
+    ("echo $(cat <<'EOF'\nrm -rf /tmp/*\nEOF\n)", None),
+    ("echo $((1<<2))", None),
+    # shell options that take an argument sit before -c
+    ("bash -euo pipefail -c 'rm -rf /tmp/*'", "glob"),
+    ("bash -o pipefail -c 'rm -rf /tmp/*'", "glob"),
+    ("bash -O extglob -c 'rm -rf /tmp/*'", "glob"),
+    ("sh +o errexit -c 'rm -rf /tmp/*'", "glob"),
+    ("bash --norc -c 'rm -rf /tmp/*'", "glob"),
+    ("bash -euo pipefail -c 'rm -r /tmp/gdg.Ab12Cd'", None),
+    ("bash script.sh 'rm -rf /tmp/*'", None),
+    # wrappers with their own options and arguments
+    ("timeout 5 rm -rf /tmp/*", "glob"),
+    ("timeout -s KILL 5 rm -rf /tmp/*", "glob"),
+    ("timeout --foreground 60 bash -c 'rm -rf /tmp/tmp*'", "glob"),
+    ("time -p rm /tmp/*", "glob"),
+    ("stdbuf -o0 rm /tmp/*", "glob"),
+    ("ionice -c3 rm /tmp/*", "glob"),
+    ("caffeinate -t 5 rm /tmp/*", "glob"),
+    ("timeout 5 rm -r /tmp/gdg.Ab12Cd", None),
+    # a shell script run by find -exec is judged like one run by xargs
+    ("find /tmp -name 'tmp*' -exec sh -c 'rm -r \"$0\"' {} \;", "find"),
+    ("find /tmp -exec bash -c 'rm -rf \"$@\"' _ {} +", "find"),
+    ("find /tmp/gdg.Ab12Cd -exec sh -c 'rm \"$0\"' {} \;", None),
+    ("find /tmp/gdg.Ab12Cd -exec sh -c 'rm -r /tmp/*' {} \;", "glob"),
+    ("find /tmp -exec sh -c 'echo \"$0\"' {} \;", None),
+    # text a shell runs: a here-string, and a substitution in an unquoted heredoc body
+    ("bash <<< 'rm -rf /tmp/*'", "glob"),
+    ("cat <<< 'rm /tmp/*'", None),
+    ("cat <<EOF\n$(rm -rf /tmp/*)\nEOF", "glob"),
+    ("cat <<EOF\n`rm -rf /tmp/*`\nEOF", "glob"),
+    ("cat <<'EOF'\n$(rm -rf /tmp/*)\nEOF", None),
+    # xargs options that take a separate argument
+    ("ls /tmp | xargs -J % rm %", "xargs"),
+    ("ls /tmp | xargs --delimiter '\\n' rm", "xargs"),
+    ("ls /tmp | xargs --max-args 1 echo", None),
+    # ANSI-C quoting
+    ("echo $'it\\'s'", None),
+    ("rm $'/tmp/*'", None),
 ]
 
 
@@ -153,6 +199,13 @@ class BlockGlobDeleteTest(unittest.TestCase):
     def test_runs_under_the_system_interpreter(self) -> None:
         self.assert_verdict(run_hook("rm -r /tmp/tmp*", python=str(SYSTEM_PYTHON)), "glob", "system python")
         self.assert_verdict(run_hook("rm -r /tmp/gdg.Ab12Cd", python=str(SYSTEM_PYTHON)), None, "system python")
+
+
+def load_session_tmpdir() -> types.ModuleType:
+    spec = importlib.util.spec_from_file_location("session_tmpdir", SESSION_TMPDIR)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 class SessionTmpdirTest(unittest.TestCase):
@@ -206,6 +259,17 @@ class SessionTmpdirTest(unittest.TestCase):
         self.assertEqual(self.hook("end").returncode, 1)
         self.assertTrue((target / "keep").is_file())
         self.assertTrue(self.session.is_symlink())
+
+    def test_end_leaves_a_directory_another_user_owns(self) -> None:
+        self.hook("start")
+        module = load_session_tmpdir()
+        with mock.patch.dict(os.environ, {"TMPDIR": str(self.root)}), \
+                mock.patch.object(module.os, "getuid", return_value=os.getuid() + 1), \
+                mock.patch.object(sys, "stdin", io.StringIO(json.dumps({"session_id": SESSION_ID}))), \
+                self.assertRaises(SystemExit) as raised:
+            module.end()
+        self.assertEqual(raised.exception.code, 1)
+        self.assertTrue(self.session.is_dir())
 
 
 if __name__ == "__main__":
