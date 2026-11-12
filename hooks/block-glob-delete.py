@@ -80,10 +80,14 @@ def parse(src, start=0, nested=False):
     A word is a list of (char, mode): "u" unquoted, "q" quoted or escaped, "x" an unquoted expansion.
     Redirections are dropped; heredoc bodies and here-strings are kept apart; substitutions are parsed with
     this same parser, so a heredoc inside `$(...)` is read as a heredoc. With `nested` the text ends at the
-    unbalanced `)` that closes a `$(` or `<(`.
+    unbalanced `)` that closes a `$(` or `<(`; a `case` pattern's `)` does not close it. `<<` inside an
+    arithmetic `((...))` is a shift, not a heredoc.
     """
     cmds = []
-    state = {"cmd": {"words": [], "heredocs": [], "subs": []}, "word": None, "redir": None, "depth": 0}
+    state = {"cmd": {"words": [], "heredocs": [], "subs": []}, "word": None, "redir": None, "depth": 0,
+             "arith": 0, "cases": []}
+    # arith: paren depth of an open `((`. cases: one int per open `case`: -1 in a body, else the open parens
+    # of the pattern being read
     pending = []
     n = len(src)
 
@@ -106,7 +110,15 @@ def parse(src, start=0, nested=False):
         elif text(word) in ("{", "}") and all(m == "u" for _, m in word):
             end_cmd()
         else:
-            state["cmd"]["words"].append(word)
+            words, plain = state["cmd"]["words"], all(m == "u" for _, m in word)
+            if plain and text(word) == "esac" and state["cases"] and not words:
+                state["cases"].pop()
+                return
+            words.append(word)
+            if (plain and text(word) == "in" and len(words) >= 3
+                    and text(words[-3]) == "case" and (len(words) == 3 or text(words[-4]) in KEYWORDS)):
+                state["cases"].append(0)
+                end_cmd()
 
     def end_cmd():
         end_word()
@@ -179,7 +191,11 @@ def parse(src, start=0, nested=False):
                 i += 1
         elif c == ";":
             end_cmd()
-            i += 1
+            if state["cases"] and state["cases"][-1] < 0 and nxt in (";", "&"):
+                state["cases"][-1] = 0
+                i += 3 if src.startswith(";;&", i) else 2
+            else:
+                i += 1
         elif c == "&" and nxt != ">":
             end_cmd()
             i += 2 if nxt == "&" else 1
@@ -187,12 +203,27 @@ def parse(src, start=0, nested=False):
             end_cmd()
             i += 2 if nxt in ("|", "&") else 1
         elif c in "()":
+            lead = state["word"] is None and not state["cmd"]["words"]
+            at_command = state["word"] is None and all(text(w) in KEYWORDS | {"for"} for w in state["cmd"]["words"])
             end_cmd()
             i += 1
-            if c == "(":
-                state["depth"] += 1
+            cases = state["cases"]
+            if cases and cases[-1] >= 0:
+                if c == "(" and not lead:
+                    cases[-1] += 1
+                elif c == ")":
+                    cases[-1] = cases[-1] - 1 if cases[-1] else -1
+            elif c == "(":
+                if nxt == "(" and at_command:
+                    state["depth"] += 2
+                    state["arith"] = state["depth"]
+                    i += 1
+                else:
+                    state["depth"] += 1
             elif state["depth"]:
                 state["depth"] -= 1
+                if state["depth"] < state["arith"]:
+                    state["arith"] = 0
             elif nested:
                 return cmds, i
         elif c in "<>" and nxt == "(":
@@ -205,7 +236,9 @@ def parse(src, start=0, nested=False):
                 state["word"] = None
             else:
                 end_word()
-            if src.startswith("<<<", i):
+            if state["arith"] and src.startswith("<<", i):
+                i += 2
+            elif src.startswith("<<<", i):
                 state["redir"], i = "here", i + 3
             elif src.startswith("<<-", i):
                 state["redir"], i = "dash", i + 3
@@ -338,14 +371,17 @@ def shell_script(args):
     """The -c text of a shell's arguments, "" for a shell reading a script from stdin, None otherwise.
 
     Walks the shell's options, including those that take an argument (-o NAME, -O NAME, --rcfile FILE), up to
-    the first operand: that is the -c text when -c was given, else a script file.
+    the first operand: that is the -c text when -c was given, else a script file. A `-` or `--` ends the
+    options; the -c text is the word after it.
     """
     found_c, skip = False, 0
-    for w in args:
+    for k, w in enumerate(args):
         s = text(w)
         if skip:
             skip -= 1
-        elif s in ("-", "--") or s[:1] not in ("-", "+"):
+        elif s in ("-", "--"):
+            return text(args[k + 1]) if found_c and k + 1 < len(args) else None
+        elif s[:1] not in ("-", "+"):
             return s if found_c else None
         elif s.startswith("--"):
             skip = 1 if s in ("--rcfile", "--init-file") else 0
