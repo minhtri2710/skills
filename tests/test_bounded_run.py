@@ -55,6 +55,12 @@ class BoundedRunTest(unittest.TestCase):
         with contextlib.suppress(ProcessLookupError):
             os.kill(pid, signal.SIGKILL)
 
+    def test_a_command_that_cannot_start_exits_127_without_a_traceback(self):
+        run = subprocess.run([sys.executable, str(SCRIPT), "--seconds", "10", "--", "/nonexistent/bounded-run-cmd"],
+                             stdin=subprocess.DEVNULL, capture_output=True, text=True)
+        self.assertEqual(run.returncode, 127)
+        self.assertNotIn("Traceback", run.stderr)
+
     def test_passes_the_command_exit_code_through(self):
         run = subprocess.run([sys.executable, str(SCRIPT), "--seconds", "10", "--", "sh", "-c", "exit 3"],
                              stdin=subprocess.DEVNULL, capture_output=True, text=True)
