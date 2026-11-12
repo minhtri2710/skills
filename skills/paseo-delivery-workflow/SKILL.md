@@ -92,12 +92,13 @@ other tier gains a shell `paseo` use from this exception.
    running in parallel; overlapping work is one Engineer, not two. A shared interface,
    schema, or generated file belongs to one Engineer; the Lead routes every change to it
    through that owner and relays each such change to every Engineer whose paths use it. Only
-   when the work does not split does the Lead write it itself, under owned paths and a
-   report, as an Engineer would, and the plan records why. Each Engineer's prompt names its
-   owned paths, its delivery's branch and checkout, and its reporting target, and relays
-   what the Human said per "Human words" in Every agent; it also has the Engineer list,
-   before editing, every reader and writer of each field, function, or input rule it changes
-   (specs and tests included, inside its owned paths or not), and reach each one or name why
+   when the work does not split does the Lead write it itself (not in a worktree workspace,
+   where an Engineer writes it, as step 1 says), under owned paths and a report, as an
+   Engineer would, and the plan records why. Each Engineer's prompt names its owned paths,
+   its delivery's branch and checkout, and its reporting target, and relays what the Human
+   said per "Human words" in Every agent; it also has the Engineer list, before editing,
+   every reader and writer of each field, function, or input rule it changes (specs
+   and tests included, inside its owned paths or not), and reach each one or name why
    not. Replace a Lead only after its `handoff.md` is current; for a Lead
    that cannot write it, the new Lead writes it from the old Lead's `paseo logs` before other
    work. The new Lead first checks that record against each delivery's tree and writes each
@@ -130,18 +131,18 @@ other tier gains a shell `paseo` use from this exception.
    snapshot or a copy; a suite that reads the git index or history runs on a worktree, since
    an archive copy has no `.git`), never the live checkout, and in parallel staffs a
    Reviewer there, as a different agent instance from every writer. Engineers may keep
-   editing the branch
-   checkout meanwhile: a new commit gets its own lanes and review, and those running report
-   on their own SHA. The Reviewer reviews the diff while the lanes run, runs no lane itself,
-   and reports `PASS` / `FAIL` / `BLOCKED` only after reading every lane's output file,
-   quoting what it saw; the Lead sends it each file's path as its lane ends, and a Reviewer
-   waiting on one is not stalled. A lane's output shows, before and after it, the SHA it ran
-   at and, for a worktree snapshot, an empty `git status --porcelain` there. A lane is green
-   at a SHA when its output shows it passing there, or at an earlier SHA whose diff to this
-   one touches no path the lane reads; a read path that is solely a build input may change
-   when the product artifact built there (build-VCS stamping off) has the same hash at both
-   SHAs. A lane is not green at a SHA while any run of it there failed and that failure has
-   no diagnosis in the record: an intermittent failure, or one the change did not cause, is
+   editing the branch checkout meanwhile: a new commit gets its own lanes and review,
+   and those running report on their own SHA. The Reviewer reviews the diff while
+   the lanes run, runs no lane itself, and reports `PASS` / `FAIL` / `BLOCKED` only
+   after reading every lane's output file, quoting what it saw; the Lead sends it each
+   file's path as its lane ends, and a Reviewer waiting on one is not stalled. A lane's
+   output shows, before and after it, the SHA it ran at and, for a worktree snapshot,
+   an empty `git status --porcelain` there. A lane is green at a SHA when its output
+   shows it passing there, or at an earlier SHA whose diff to this one touches no path
+   the lane reads; a read path that is solely a build input may change when the product
+   artifact built there (build-VCS stamping off) has the same hash at both SHAs. A
+   lane is not green at a SHA while any run of it there failed and that failure has no
+   diagnosis in the record: an intermittent failure, or one the change did not cause, is
    diagnosed from the failing run's own logs, a green rerun alone closes nothing, the fix
    for one the change did not cause is split into a delivery of its own, and the failing
    run's output goes to the Reviewer with the rest. The Reviewer checks and states these
@@ -152,30 +153,33 @@ other tier gains a shell `paseo` use from this exception.
    under a real pty with explicit columns and color profile, and its output carries the
    captured screens. A lane run on a second host holds that host's run lock, which the
    project's record names (one run at a time, taken before the run and released after it),
-   never
-   receives real secrets, and with that host unreachable fails with no local fallback; on an
-   interrupt it stops the remote run it recorded and confirms it gone before releasing the
-   lock. A second-host run dies with its runner: the remote wrapper kills its whole process
-   group on every exit; a periodic heartbeat over the connection turns a dead connection
-   into SIGPIPE, since a dropped ssh connection with no pty sends no HUP; and, under the run
-   lock before starting, the runner checks the recorded remote process group for an orphan;
-   with a live orphan it does not start, the agent running the lane reports the orphan as a
-   `collision`, and the lane is not green. A SIGKILL of the local runner mid-run proves the
-   whole; it runs once per change to the remote wrapper, with its output in the project's
-   record. A delete, move, or overwrite in the change whose path comes from stored state is
-   a `FAIL` until it has a containment guard in the same delivery, never an accepted risk. A
+   never receives real secrets, and with that host unreachable fails with no local
+   fallback; on an interrupt it stops the remote run it recorded and confirms it gone
+   before releasing the lock. A second-host run dies with its runner: the remote
+   wrapper kills its whole process group on every exit; a periodic heartbeat over the
+   connection turns a dead connection into SIGPIPE, since a dropped ssh connection with
+   no pty sends no HUP; and, under the run lock before starting, the runner checks the
+   recorded remote process group for an orphan; with a live orphan it does not start,
+   the agent running the lane reports the orphan as a `collision`, and the lane is not
+   green. A SIGKILL of the local runner mid-run proves the whole; it runs once per
+   change to the remote wrapper, with its output in the project's record. A delete,
+   move, or overwrite in the change whose path comes from stored state is a `FAIL`
+   until it has a containment guard in the same delivery, never an accepted risk. A
    new test the change does not need, or one that duplicates an existing proof, is a
    finding; a stub that breaks the stub rule in "Extend before adding" (Every agent) is a
-   `FAIL`. Each Reviewer prompt asks for step 3's report items; the Reviewer checks them
-   against the diff and judges each brief deviation: a lost guard, or a behaviour left with
-   no test pinning it, is a `FAIL`; a change in accepted or refused inputs that the table
-   omits or marks defect is a finding, and a refusal turned into a silent drop is at least
-   Medium however its row is marked. A `FAIL` lists every finding at its SHA
-   and goes back to the owning writer; the fix is committed on top of the failed SHA, with no
+   `FAIL`. Each Reviewer prompt asks for step 3's report items (the Review-only route
+   has no writer report, so it asks for none); the Reviewer checks them against the
+   diff and judges each brief deviation: a lost guard, or a behaviour left with no test
+   pinning it, is a `FAIL`; a change in accepted or refused inputs that the table omits
+   or marks defect is a finding, and a refusal turned into a silent drop is at least
+   Medium however its row is marked. A `FAIL` lists every finding at its SHA and goes
+   back to the owning writer; the fix is committed on top of the failed SHA, with no
    amend, rebase, squash, or force-push before merge, and the same Reviewer re-reviews
-   `git diff <failed SHA> <new SHA>`, its prompt naming both SHAs. Only the lanes that
-   fail the carry rule at the new SHA run again. Every finding carries a severity (High,
-   Medium, Low, or Info), and only High and Medium block; a Low or Info finding reported with a
+   `git diff <failed SHA> <new SHA>`, its prompt naming both SHAs. Paseo deliberately
+   keeps the same Reviewer for this delta review; the one-instance-per-head rule of
+   agent-delivery-workflow governs that skill's seats only. Only the lanes that fail the
+   carry rule at the new SHA run again. Every finding carries a severity (High, Medium,
+   Low, or Info), and only High and Medium block; a Low or Info finding reported with a
    `PASS` does not reopen the review, and the head goes on to step 6. A Low that is a
    correctness or user-visible defect goes into the next queued delivery touching its area,
    else into the record's next work; style, wording, and doc Lows join the next delivery

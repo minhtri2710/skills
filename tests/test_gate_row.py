@@ -84,10 +84,10 @@ class GateRowTest(unittest.TestCase):
             "--quote", "", "--brief", BRIEF,
         ])
 
-    def append_review_pass(self, base: str | None = None) -> int:
+    def append_review_pass(self, base: str | None = None, status: str = "recorded:review-pass") -> int:
         return self.run_main([
             "--ledger", str(self.ledger), "--repo", str(self.repo),
-            "--kind", "review", "--status", "recorded:review-pass",
+            "--kind", "review", "--status", status,
             "--review-base", base or self.rev("HEAD~2"),
             "--words", "seat", "--note", "review passed", "--quote", "PASS",
         ])
@@ -1089,6 +1089,16 @@ class GateRowTest(unittest.TestCase):
         ]), 1)
         self.assertIn("not covered by any review PASS range", self.err.getvalue())
 
+    def test_a_self_check_row_covers_a_push_but_is_not_a_voidable_review_pass(self):
+        self.add_remote("HEAD")
+        self.assertEqual(self.append_review_pass(status="recorded:self-check"), 0, self.err.getvalue())
+        self.assertEqual(self.append("--kind", "push", "--push-base", self.rev("HEAD~2"),
+                                     "--boundary", "f1.txt"), 0, self.err.getvalue())
+        self.assertEqual(self.append(
+            "--kind", "correction", "--status", "recorded:correction", "--void", "G1",
+            "--words", "seat", "--note", "not a verdict", "--quote", "void"), 1)
+        self.assertIn("target must be a kind=review status=recorded:review-pass", self.err.getvalue())
+
     def merged_branch(self, land_main: bool, edit_merge: bool) -> str:
         """feat (reviewed) merges a later main commit; returns the push base. origin/HEAD is origin/main."""
         git = lambda *a: support.git(self.repo, *a)
@@ -1587,6 +1597,7 @@ class GateRowTest(unittest.TestCase):
         self.add_remote("HEAD")
         cases = (
             ("review pass", True, lambda: self.append_review_pass()),
+            ("self-check", True, lambda: self.append_review_pass(status="recorded:self-check")),
             ("review fail", False, lambda: self.append_review_fail()),
             ("merge resolved", True, lambda: self.append()),
             ("repair-cap-gate", True, lambda: self.append("--kind", "repair-cap-gate", "--status", "open")),
