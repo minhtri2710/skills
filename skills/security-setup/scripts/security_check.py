@@ -23,7 +23,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
-SEVERITIES = ("CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO")
+# UNKNOWN is Trivy's level for an unscored advisory.
+SEVERITIES = ("CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO", "UNKNOWN")
+# A scanner level outside SEVERITIES, or none, must still block: reading it as INFO would hide a renamed level.
+UNRECOGNIZED = "UNRECOGNIZED"
+SECRET_SCANNERS = ("gitleaks",)
+BUILTIN_CONFIG = "built-in default"
+PROJECT_CONFIG = Path("security/security-tools.json")
 DEFAULT_TIMEOUT_SECONDS = 120
 DEFAULT_TRIP_ALL_PATHS = (
     ".pre-commit-config.yaml",
@@ -60,7 +66,7 @@ DEFAULT_TRIGGERS = {
     "bandit": {"paths": ["**/*.py"]},
     "cargo-audit": {"paths": ["**/Cargo.lock", "**/Cargo.toml"]},
 }
-DEFAULT_FAIL_ON = ["CRITICAL", "HIGH"]
+DEFAULT_FAIL_ON = ["CRITICAL", "HIGH", "UNKNOWN"]
 DEFAULT_CONFIG = {
     "fail_on": DEFAULT_FAIL_ON,
     "checks": [
@@ -70,6 +76,10 @@ DEFAULT_CONFIG = {
             "required": True,
             "command": [
                 "gitleaks", "git", ".", "--redact",
+                "--report-format", "json", "--report-path", "{output}",
+            ],
+            "staged_command": [
+                "gitleaks", "git", "--pre-commit", "--staged", "--redact",
                 "--report-format", "json", "--report-path", "{output}",
             ],
         },
@@ -105,17 +115,35 @@ class JsonOutputError(Exception):
 
 
 def normalize_severity(value: Any) -> str:
-    if value is None:
-        return "INFO"
     text = str(value).upper()
-    return text if text in SEVERITIES else "INFO"
+    return text if text in SEVERITIES else UNRECOGNIZED
 
 
-def load_config(path: Optional[Path]) -> Dict[str, Any]:
+def repo_root() -> Optional[Path]:
+    if not shutil.which("git"):
+        return None
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"], capture_output=True, check=False, timeout=10
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if result.returncode != 0:
+        return None
+    return Path(result.stdout.decode(errors="replace").strip())
+
+
+def load_config(path: Optional[Path]) -> Tuple[Dict[str, Any], str]:
     if path is None:
-        path = Path("security/security-tools.json")
+        path = PROJECT_CONFIG
         if not path.exists():
-            return DEFAULT_CONFIG
+            root = repo_root()
+            if root is not None and (root / PROJECT_CONFIG).exists():
+                raise ConfigurationError(
+                    "run from the repository root or pass --config; "
+                    "found %s outside the working directory" % (root / PROJECT_CONFIG)
+                )
+            return DEFAULT_CONFIG, BUILTIN_CONFIG
     elif not path.exists():
         raise ConfigurationError("configuration file not found: " + str(path))
     try:
@@ -123,7 +151,7 @@ def load_config(path: Optional[Path]) -> Dict[str, Any]:
     except (OSError, json.JSONDecodeError) as exc:
         raise ConfigurationError("could not read valid JSON configuration") from exc
     validate_config(value)
-    return value
+    return value, str(path)
 
 
 def is_glob_list(value: Any) -> bool:
@@ -156,14 +184,15 @@ def validate_config(config: Any) -> None:
         if name in names:
             raise ConfigurationError("check names must be unique")
         names.add(name)
-        if not isinstance(command, list) or not command or any(not isinstance(part, str) for part in command):
-            raise ConfigurationError("each check command must be a non-empty argv list")
+        for argv in (command, check.get("staged_command", command)):
+            if not isinstance(argv, list) or not argv or any(not isinstance(part, str) for part in argv):
+                raise ConfigurationError("each check command must be a non-empty argv list")
         if "triggers" in check:
             if not isinstance(check["triggers"], dict):
                 raise ConfigurationError("check triggers must be an object")
             if not is_glob_list(check["triggers"].get("paths", [])):
                 raise ConfigurationError("check trigger paths must be a list of globs")
-        if check.get("category") == "secrets" and "triggers" in check and not check["triggers"].get("always"):
+        if (check.get("category") == "secrets" or name in SECRET_SCANNERS) and "triggers" in check and not check["triggers"].get("always"):
             raise ConfigurationError("secret checks must be always-on")
         if "timeout_seconds" in check:
             try:
@@ -299,7 +328,7 @@ def parse_trivy(raw: Any, category: str, tool: str) -> List[Dict[str, str]]:
             fixed = vuln.get("FixedVersion")
             findings.append(make_finding(
                 category,
-                vuln.get("Severity", "INFO"),
+                vuln.get("Severity"),
                 tool,
                 "%s in %s" % (vuln.get("VulnerabilityID", "Vulnerability"), vuln.get("PkgName", "package")),
                 target,
@@ -335,7 +364,7 @@ def parse_bandit(raw: Any, category: str, tool: str) -> List[Dict[str, str]]:
             continue
         findings.append(make_finding(
             category,
-            item.get("issue_severity", "INFO"),
+            item.get("issue_severity"),
             tool,
             item.get("issue_text") or item.get("test_id") or "Bandit finding",
             item.get("filename", ""),
@@ -400,7 +429,7 @@ def not_assessed(base: Dict[str, Any], title: str, hint: str, missing_tool: bool
     return base
 
 
-def run_check(check: Dict[str, Any], tempdir: Path, decision: Dict[str, Any]) -> Dict[str, Any]:
+def run_check(check: Dict[str, Any], tempdir: Path, decision: Dict[str, Any], staged: bool) -> Dict[str, Any]:
     base: Dict[str, Any] = {
         "name": check["name"],
         "category": check.get("category", "other"),
@@ -416,7 +445,8 @@ def run_check(check: Dict[str, Any], tempdir: Path, decision: Dict[str, Any]) ->
         return base
 
     output_path = tempdir / (check["name"] + ".json")
-    command = materialize_command(check["command"], output_path)
+    argv = check.get("staged_command", check["command"]) if staged else check["command"]
+    command = materialize_command(argv, output_path)
     base["command_name"] = command[0]
     if not command_exists(command):
         return not_assessed(
@@ -489,7 +519,10 @@ def summarize(results: List[Dict[str, Any]]) -> Tuple[List[Dict[str, str]], Dict
 
 def should_fail(findings: List[Dict[str, str]], fail_on: Sequence[str]) -> bool:
     levels = {item.upper() for item in fail_on}
-    return any(item.get("assessment") == "Assessed" and item["severity"] in levels for item in findings)
+    return any(
+        item.get("assessment") == "Assessed" and (item["severity"] in levels or item["severity"] == UNRECOGNIZED)
+        for item in findings
+    )
 
 
 def confirm_force() -> bool:
@@ -513,6 +546,7 @@ def format_counter(counter: Dict[str, int], order: Sequence[str]) -> str:
 def summary_lines(payload: Dict[str, Any]) -> List[Tuple[str, str]]:
     summary = payload["summary"]
     return [
+        ("Configuration", payload["config"]),
         ("Mode", payload["scope"]["mode"]),
         ("Staged files considered", str(len(payload["scope"]["files"]))),
         ("Checks run", "%s of %s (skipped: %s)" % (
@@ -520,7 +554,7 @@ def summary_lines(payload: Dict[str, Any]) -> List[Tuple[str, str]]:
         ("Checks assessed", str(summary["checks_assessed"])),
         ("Not-Assessed checks", str(summary["not_assessed"])),
         ("Findings", str(summary["finding_count"])),
-        ("Severity", format_counter(summary["severity_counts"], SEVERITIES)),
+        ("Severity", format_counter(summary["severity_counts"], SEVERITIES + (UNRECOGNIZED,))),
         ("Categories", format_counter(summary["category_counts"], sorted(summary["category_counts"]))),
         ("Bypass", payload["bypass"]["status"]),
     ]
@@ -592,7 +626,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     json_path = Path(args.output)
     markdown_path = Path(args.markdown)
     try:
-        config = load_config(Path(args.config) if args.config is not None else None)
+        config, config_source = load_config(Path(args.config) if args.config is not None else None)
         if args.all_files:
             files = None
             mode = "full"
@@ -608,7 +642,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         decisions = evaluate_scope(config, files if mode == "staged" else None)
         with tempfile.TemporaryDirectory(prefix="security-check-") as temp:
             results = [
-                run_check(check, Path(temp), decisions[check["name"]])
+                run_check(check, Path(temp), decisions[check["name"]], mode == "staged")
                 for check in config["checks"]
             ]
     except ConfigurationError as exc:
@@ -631,6 +665,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
     payload = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
+        "config": config_source,
         "scope": {"mode": mode, "files": files if mode == "staged" else []},
         "summary": summary,
         "bypass": bypass,

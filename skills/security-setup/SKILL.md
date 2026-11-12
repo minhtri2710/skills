@@ -129,7 +129,8 @@ python3 scripts/security_check.py --staged-only
   is not copied into reports because it can contain sensitive material.
 - Exit `0` means no blocking result under the selected explicit policy; it does
   not mean every category was assessed. Exit `1` means a configured finding
-  meets `fail_on`; exit `2` means a required tool/prerequisite, configuration,
+  meets `fail_on` or carries a severity the runner does not recognise (reported
+  as `UNRECOGNIZED`, which no `fail_on` can exclude); exit `2` means a required tool/prerequisite, configuration,
   staged-file precondition, or invocation failed. An explicit accepted
   `--force` is reported as `BYPASSED`, not as a clean assessment.
 
