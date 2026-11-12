@@ -4,8 +4,9 @@
 Compares the working tree (staged, unstaged, and untracked files) against the
 merge base with ``--base``. Reports rule and location only, never line text, so
 a secret on a flagged line never reaches the transcript. A complete exception
-row in CONSTRAINTS.md (id, rule or ``*``, path glob, reason, removal condition)
-suppresses matching findings; an incomplete row is itself a finding.
+row (id, rule or ``*``, path glob, reason, removal condition) in the merge base's
+CONSTRAINTS.md suppresses matching findings; a row added by the diff does not. An
+incomplete row is itself a finding.
 
 Exit codes: 0 clean, 1 at least one violation, 2 the guard could not run.
 """
@@ -30,7 +31,7 @@ SUPPRESSION = re.compile(
 STUB = re.compile(
     r"raise NotImplementedError|throw new Error\(.*not implemented|"
     r"\btodo!\(|\bunimplemented!\(|panic\(\"not implemented|"
-    r"catch\s*(\([^)]*\))?\s*\{\s*\}|except\b[^:]*:\s*pass\b",
+    r"catch\s*(\([^)]*\))?\s*\{\s*\}|except\b[^:\n]*:\s*pass\b",
     re.IGNORECASE,
 )
 TODO_MARK = re.compile(r"(?:#|//|/\*|<!--|\*|--|;)\s*(?:TODO|FIXME)\b")
@@ -48,7 +49,7 @@ COVERAGE_CONFIGS = (
         re.compile(r"(?P<key>fail_under|--cov-fail-under)(?:\s*[=:]\s*|=|\s+)(?P<value>\d+(?:\.\d+)?)"),
     ),
     (
-        re.compile(r"(^|/)(jest\.config\.\w+|package\.json)$"),
+        re.compile(r"(^|/)(jest\.config\.\w+|vitest\.config\.\w+|\.nycrc(\.\w+)?|\.c8rc(\.\w+)?|package\.json)$"),
         re.compile(r"(?P<key>branches|functions|lines|statements)[\"']?\s*:\s*(?P<value>\d+(?:\.\d+)?)"),
     ),
 )
@@ -198,8 +199,11 @@ def _row(text: str) -> list[str] | None:
     return cells
 
 
+BOUND = re.compile(r"(>=|<=|≥|≤)\s*(\d+(?:\.\d+)?)")
+
+
 def _bound(text: str) -> tuple[str, float] | None:
-    match = re.search(r"(>=|<=|≥|≤)\s*(\d+(?:\.\d+)?)", text)
+    match = BOUND.search(text)
     if not match:
         return None
     op = ">=" if match.group(1) in (">=", "≥") else "<="
@@ -210,7 +214,7 @@ def check_constraints(added: list[Line], removed: list[Line]) -> list[Finding]:
     findings: list[Finding] = []
     new = [line for line in added if Path(line.path).name == CONSTRAINTS]
     old = [line for line in removed if Path(line.path).name == CONSTRAINTS]
-    new_rows = {cells[0]: line for line in new if (cells := _row(line.text))}
+    new_rows = {cells[0]: (line, cells) for line in new if (cells := _row(line.text))}
     new_bullets = {line.text.strip() for line in new}
     for line in old:
         cells = _row(line.text)
@@ -218,11 +222,13 @@ def check_constraints(added: list[Line], removed: list[Line]) -> list[Finding]:
             if line.text.lstrip().startswith("- ") and line.text.strip() not in new_bullets:
                 findings.append(Finding("floor-rule-removed", line.path, line.number))
             continue
-        replacement = new_rows.get(cells[0])
-        if replacement is None:
+        if cells[0] not in new_rows:
             if not EXCEPTION_ID.fullmatch(cells[0]):
                 findings.append(Finding("constraint-removed", line.path, line.number))
             continue
+        replacement, new_cells = new_rows[cells[0]]
+        if [BOUND.sub("", c, count=1) for c in cells] != [BOUND.sub("", c, count=1) for c in new_cells]:
+            findings.append(Finding("constraint-changed", replacement.path, replacement.number))
         before, after = _bound(line.text), _bound(replacement.text)
         if before and (
             after is None
@@ -318,21 +324,40 @@ def _excepted(finding: Finding, exceptions: list[Exception_]) -> bool:
     )
 
 
+def _stub_lines(added: list[Line]) -> set[tuple[str, int]]:
+    """Lines where a STUB match starts, matched over each run of adjacent added lines."""
+    # shortcut: a handler whose first line is unchanged context is not seen; upgrade by reading the new file's lines.
+    hits: set[tuple[str, int]] = set()
+    run: list[Line] = []
+    for line in [*added, None]:
+        if run and (line is None or line.path != run[-1].path or line.number != run[-1].number + 1):
+            text = "\n".join(l.text for l in run)
+            hits.update((run[0].path, run[0].number + text.count("\n", 0, m.start())) for m in STUB.finditer(text))
+            run = []
+        if line is not None:
+            run.append(line)
+    return hits
+
+
 def check(
     added: list[Line],
     removed: list[Line],
     deleted: list[str],
     constraints: str,
+    base_constraints: str,
     toml: dict[str, list[str]],
 ) -> list[Finding]:
-    exceptions, incomplete = parse_exceptions(constraints)
+    # Only exceptions already in the merge base count: a diff cannot excuse itself.
+    exceptions, _ = parse_exceptions(base_constraints)
+    _, incomplete = parse_exceptions(constraints)
     findings: list[Finding] = []
+    stubs = _stub_lines([l for l in added if Path(l.path).name != CONSTRAINTS])
     for line in added:
         if Path(line.path).name == CONSTRAINTS:
             continue
         if SUPPRESSION.search(line.text):
             findings.append(Finding("silenced-checker", line.path, line.number))
-        if STUB.search(line.text) or TODO_MARK.search(line.text):
+        if (line.path, line.number) in stubs or TODO_MARK.search(line.text):
             findings.append(Finding("unfinished-work", line.path, line.number))
         if SKIP.search(line.text):
             findings.append(Finding("test-made-easier", line.path, line.number))
@@ -406,7 +431,7 @@ def _leaves_watch(old: str, new: str) -> bool:
     return any(watched(old) and not watched(new) for watched in WATCHED_REMOVALS)
 
 
-def collect(repo: Path, base: str) -> tuple[list[Line], list[Line], list[str], str, dict[str, list[str]]]:
+def collect(repo: Path, base: str) -> tuple[list[Line], list[Line], list[str], str, str, dict[str, list[str]]]:
     merge_base = _git(repo, "merge-base", base, "HEAD").strip()
     # ponytail: --text makes git diff a real binary as text before the guard drops it; cost is time and memory on very large binaries.
     added, removed = parse_diff(_git(repo, "diff-index", "-p", "--text", "--unified=0", "-M", merge_base, "--"))
@@ -416,10 +441,10 @@ def collect(repo: Path, base: str) -> tuple[list[Line], list[Line], list[str], s
     named = {l.path for l in added + removed}
     blobs = _blobs(repo, {base_blobs[path] for path in named | leaving if path in base_blobs})
     nul = {l.path for l in added if "\0" in l.text}
-    binary = {path for path in named if path in nul or _is_binary(blobs.get(base_blobs.get(path, ""), b""))}
-    binary |= {old for old, new in renames.items() if new in binary}
-    added = [l for l in added if l.path not in binary]
-    removed = [l for l in removed if l.path not in binary]
+    # A text base keeps its removed lines when the new side is binary: the file lost them.
+    base_binary = {path for path in named if _is_binary(blobs.get(base_blobs.get(path, ""), b""))}
+    added = [l for l in added if l.path not in nul | base_binary]
+    removed = [l for l in removed if l.path not in base_binary]
     removed = [Line(stays.get(line.path, line.path), line.number, line.text) for line in removed if line.path not in leaving]
     for old in sorted(leaving):
         removed.extend(Line(old, i, t) for i, t in enumerate(_lines(_decode(blobs[base_blobs[old]])), start=1))
@@ -442,13 +467,16 @@ def collect(repo: Path, base: str) -> tuple[list[Line], list[Line], list[str], s
         constraints = _decode((repo / CONSTRAINTS).read_bytes())
     except OSError:
         constraints = ""
+    base_constraints = ""
+    if _git(repo, "ls-tree", "--name-only", merge_base, "--", CONSTRAINTS).strip():
+        base_constraints = _git(repo, "show", f"{merge_base}:{CONSTRAINTS}")
     toml: dict[str, list[str]] = {}
     for path in {l.path for l in added if RUFF_CONFIG.search(l.path)}:
         try:
             toml[path] = _lines(_fs_path(repo, path).read_bytes().decode("utf-8"))
         except (UnicodeDecodeError, OSError) as exc:
             raise GuardError(f"cannot read {path}: {exc}") from exc
-    return added, removed, deleted, constraints, toml
+    return added, removed, deleted, constraints, base_constraints, toml
 
 
 def main(argv: list[str] | None = None) -> int:

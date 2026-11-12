@@ -87,8 +87,8 @@ violation, `2` means it could not run and never counts as clean.
 
 Each flag is resolved by fixing the code, or by the user accepting an exception
 row `| E<n> | rule or * | path glob | reason | removal condition |`, which
-suppresses matching findings from then on. Review also rejects a `CONSTRAINTS.md`
-change in the same commit as the feature it would let pass.
+suppresses matching findings once it is in the merge base: land the row in a commit
+of its own first, because a row added by the diff under guard suppresses nothing.
 
 Done means `CONSTRAINTS.md` exists with a reason for every number, every enforced
 row has a command that runs today, the floor guard exits `0` on the current tree,

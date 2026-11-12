@@ -188,14 +188,14 @@ class FloorGuardRepoTest(unittest.TestCase):
         new.write_bytes(b"b" * 63 + b"\n" + (b"a" * 63 + b"\n") * 30 + b"x = 1  # noqa\n")
         self.assertEqual(self.run_guard(), (0, ""))
 
-    def test_text_base_renamed_to_a_binary_file_is_skipped(self) -> None:
+    def test_text_base_renamed_to_a_binary_file_keeps_its_removed_lines(self) -> None:
         old, new = self.repo / "tests" / "test_text.py", self.repo / "tests" / "test_moved.py"
         old.write_bytes(b"b" * 63 + b"\n" + (b"a" * 63 + b"\n") * 30 + b"assert x\n")
         support.git(self.repo, "add", ".")
         support.git(self.repo, "commit", "-q", "-m", "text")
         support.git(self.repo, "mv", "tests/test_text.py", "tests/test_moved.py")
         new.write_bytes(b"\0" + b"a" * 62 + b"\n" + (b"a" * 63 + b"\n") * 30)
-        self.assertEqual(self.run_guard(), (0, ""))
+        self.assertEqual(self.run_guard(), (1, "floor-guard: 1 violation(s)\n  [assertion-removed] tests/test_moved.py:32\n"))
 
     def test_tracked_file_replaced_by_a_symlink_to_a_binary_file_is_not_read_through(self) -> None:
         outside = tempfile.TemporaryDirectory()
@@ -281,9 +281,11 @@ class FloorGuardRepoTest(unittest.TestCase):
         self.assertEqual(self.run_guard(), (1, "floor-guard: 1 violation(s)\n  [threshold-loosened] pkg/setup.cfg:4\n"))
 
     def test_non_utf8_constraints_file_still_parses_its_exception_rows(self) -> None:
-        self.write("src/new.py", "def later():\n    raise NotImplementedError\n")
         row = "| E1 | unfinished-work | src/*.py | port of caf\xe9 | port lands |\n"
         (self.repo / "CONSTRAINTS.md").write_bytes((CONSTRAINTS + row).encode("latin-1"))
+        support.git(self.repo, "add", ".")
+        support.git(self.repo, "commit", "-q", "-m", "exceptions")
+        self.write("src/new.py", "def later():\n    raise NotImplementedError\n")
         self.assertEqual(self.run_guard(), (0, ""))
 
     def test_deleted_test_file_is_flagged(self) -> None:
@@ -318,6 +320,10 @@ class FloorGuardRepoTest(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertEqual(err.count("[threshold-loosened] CONSTRAINTS.md"), 2)
 
+    def test_changed_non_threshold_cell_of_a_kept_row_is_flagged(self) -> None:
+        self.write("CONSTRAINTS.md", CONSTRAINTS.replace("`pytest --cov`", "`true`"))
+        self.assertEqual(self.run_guard(), (1, "floor-guard: 1 violation(s)\n  [constraint-changed] CONSTRAINTS.md:12\n"))
+
     def test_removed_bound_floor_rule_and_row_are_flagged(self) -> None:
         text = (
             CONSTRAINTS.replace("changed lines >= 80%", "changed lines covered")
@@ -331,20 +337,28 @@ class FloorGuardRepoTest(unittest.TestCase):
         self.assertIn("[floor-rule-removed]", err)
         self.assertIn("[constraint-removed]", err)
 
-    def test_complete_exception_row_suppresses_matching_finding(self) -> None:
+    def commit_exceptions(self, rows: str) -> None:
+        self.write("CONSTRAINTS.md", CONSTRAINTS + rows)
+        support.git(self.repo, "add", ".")
+        support.git(self.repo, "commit", "-q", "-m", "exceptions")
+
+    def test_complete_exception_row_in_the_base_suppresses_matching_finding(self) -> None:
+        self.commit_exceptions("| E1 | unfinished-work | src/*.py | port in progress | port lands |\n")
         self.write("src/new.py", "def later():\n    raise NotImplementedError\n")
-        self.write("CONSTRAINTS.md", CONSTRAINTS + "| E1 | unfinished-work | src/*.py | port in progress | port lands |\n")
         self.assertEqual(self.run_guard(), (0, ""))
 
+    def test_exception_row_added_in_the_same_diff_suppresses_nothing(self) -> None:
+        self.write("src/new.py", "def later():\n    raise NotImplementedError\n")
+        self.write("CONSTRAINTS.md", CONSTRAINTS + "| E1 | unfinished-work | src/*.py | port in progress | port lands |\n")
+        self.assertEqual(self.run_guard(), (1, "floor-guard: 1 violation(s)\n  [unfinished-work] src/new.py:2\n"))
+
     def test_exception_row_is_scoped_by_rule_and_path(self) -> None:
+        self.commit_exceptions(
+            "| E1 | unfinished-work | src/*.py | port in progress | port lands |\n"
+            "| E2 | silenced-checker | lib/*.py | vendor types | upstream ships types |\n"
+        )
         self.write("src/new.py", "def later():\n    raise NotImplementedError\n")
         self.write("lib/x.py", "def later():\n    raise NotImplementedError\n")
-        self.write(
-            "CONSTRAINTS.md",
-            CONSTRAINTS
-            + "| E1 | unfinished-work | src/*.py | port in progress | port lands |\n"
-            + "| E2 | silenced-checker | lib/*.py | vendor types | upstream ships types |\n",
-        )
         code, err = self.run_guard()
         self.assertEqual(code, 1)
         self.assertNotIn("[unfinished-work] src/new.py:2", err)
@@ -361,6 +375,23 @@ class FloorGuardRepoTest(unittest.TestCase):
     def test_todo_as_vocabulary_is_not_unfinished_work(self) -> None:
         self.write("src/app.py", "def add(todo, items):\n    return [*items, todo]  # the Todo list\n")
         self.assertEqual(self.run_guard(), (0, ""))
+
+    def test_empty_handlers_split_over_lines_are_unfinished_work_and_real_handlers_are_not(self) -> None:
+        rows = [
+            ("def f():\n    try:\n        g()\n    except ValueError:\n        pass\n", "[unfinished-work] src/new.py:4"),
+            ("try {\n  g();\n} catch (e) {\n}\n", "[unfinished-work] src/new.py:3"),
+            ("try {\n  g();\n} catch {\n  // ignore\n}\n", None),
+            ("def f():\n    try:\n        g()\n    except ValueError:\n        return 0\n", None),
+        ]
+        for text, expected in rows:
+            with self.subTest(text=text):
+                self.write("src/new.py", text)
+                code, err = self.run_guard()
+                if expected is None:
+                    self.assertEqual((code, err), (0, ""))
+                else:
+                    self.assertEqual(code, 1)
+                    self.assertIn(expected, err)
 
     def test_renamed_test_file_is_not_a_deletion(self) -> None:
         support.git(self.repo, "mv", "tests/test_old.py", "tests/test_older.py")
@@ -458,6 +489,8 @@ class FloorGuardRepoTest(unittest.TestCase):
         report = "[report]\nfail_under = 80\n"
         addopts = "[pytest]\naddopts = --cov --cov-fail-under=80\n"
         jest = "module.exports = {\n  coverageThreshold: {\n    global: { branches: 80, lines: 80 },\n  },\n};\n"
+        vitest = "export default {\n  test: { coverage: { thresholds: {\n    lines: 80,\n  } } },\n};\n"
+        nyc = '{\n  "branches": 80\n}\n'
         self.assert_config_rows([
             ("pyproject.toml", "[tool.coverage.report]\nfail_under = 80\n", "[tool.coverage.report]\nfail_under = 70\n", loose + "pyproject.toml:2"),
             ("pyproject.toml", "[tool.coverage.report]\nfail_under = 80\n", "[tool.coverage.report]\n", loose + "pyproject.toml:2"),
@@ -470,6 +503,9 @@ class FloorGuardRepoTest(unittest.TestCase):
             ("jest.config.js", jest, "module.exports = {\n};\n", loose + "jest.config.js:3"),
             ("package.json", '{\n  "jest": {\n    "coverageThreshold": {\n      "global": {\n        "lines": 80\n      }\n    }\n  }\n}\n',
              '{\n  "jest": {\n    "coverageThreshold": {\n      "global": {\n        "lines": 60\n      }\n    }\n  }\n}\n', loose + "package.json:5"),
+            ("vitest.config.ts", vitest, vitest.replace("lines: 80", "lines: 70"), loose + "vitest.config.ts:3"),
+            (".nycrc", nyc, nyc.replace("80", "70"), loose + ".nycrc:2"),
+            (".c8rc.json", nyc, nyc.replace("80", "70"), loose + ".c8rc.json:2"),
             ("pyproject.toml", "[tool.coverage.report]\nfail_under = 80\n", "[tool.coverage.report]\nfail_under = 90\n", None),
             ("tox.ini", addopts, addopts.replace("=80", "=95"), None),
             ("jest.config.js", jest, jest.replace("branches: 80", "branches: 90"), None),
@@ -506,12 +542,9 @@ class FloorGuardRepoTest(unittest.TestCase):
         self.write("src é.py", "value = 1\n")
         support.git(self.repo, "add", ".")
         support.git(self.repo, "commit", "-q", "-m", "non-ascii")
+        self.commit_exceptions("| E1 | silenced-checker | src *.py | generated | source removed |\n")
         self.write("tests/test_é.py", "def test_non_ascii():\n    pass\n")
         self.write("src é.py", "value = 1  # noqa: E501\n")
-        self.write(
-            "CONSTRAINTS.md",
-            CONSTRAINTS + "| E1 | silenced-checker | src *.py | generated | source removed |\n",
-        )
         code, err = self.run_guard()
         self.assertEqual(code, 1)
         self.assertIn("[assertion-removed] tests/test_é.py:2", err)
