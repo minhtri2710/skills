@@ -1,11 +1,9 @@
-Hand-written shapes, never produced by running herdr. Each is what a script parsed before the
-backend seam, taken from the scripts and their tests:
-  agent-list*.json       roster.py _agents/format_roster and tests/test_roster.py; agent_session from
-                         compaction_reprime.py _session_file and tests/test_compaction_reprime.py
-  agent-get*.json        mailbox.py _supervisor_pane, closeout_check.py read_agent (tests/test_mailbox.py stub)
-  pane-get.json          closeout_check.py read_pane
-  process-info*.json     roster.py _launch_args, closeout_check.py read_processes and tests/test_closeout_check.py
-  agent-wait*.json       waker.py wait_status and tests/test_waker.py
-  error-*                waker.py _error_code (stderr error.code), mailbox.py/closeout_check.py (error as a plain string,
-                         plain-text agent_blocked)
-  agent-read.txt         waker.py read_tail (plain pane text on stdout)
+Hand-written shapes, never produced by running herdr. Each is the JSON or text the herdr adapter
+(scripts/backends/herdr.py) parses, read by tests/test_backend_herdr.py:
+  agent-list*.json       list_seats
+  agent-get*.json        get_seat
+  pane-get.json          get_terminal, identify
+  process-info*.json     processes
+  agent-wait*.json       wait_state
+  error-*                _error_code (stderr error.code; an error as a plain string; plain-text agent_blocked)
+  agent-read.txt         read_output (plain pane text on stdout)

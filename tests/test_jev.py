@@ -4,6 +4,7 @@ from __future__ import annotations
 import contextlib
 import io
 import json
+import os
 import socketserver
 import subprocess
 import tempfile
@@ -200,9 +201,11 @@ class JevTest(unittest.TestCase):
                 pass
 
         target = serve(self, Target)
+        posted: list[str] = []
 
         class Redirector(BaseHTTPRequestHandler):
             def do_POST(self) -> None:
+                posted.append(self.path)
                 self.rfile.read(int(self.headers["Content-Length"]))
                 self.send_response(302)
                 self.send_header("Location", f"http://127.0.0.1:{target.server_address[1]}/")
@@ -212,9 +215,13 @@ class JevTest(unittest.TestCase):
                 pass
 
         api = serve(self, Redirector)
-        with mock.patch.object(jev, "API_URL", f"http://127.0.0.1:{api.server_address[1]}/"):
+        # The module's own opener, with proxies bypassed per request: no_proxy is read when each request opens.
+        with mock.patch.object(jev, "API_URL", f"http://127.0.0.1:{api.server_address[1]}/"), mock.patch.dict(
+            os.environ, {"no_proxy": "*"}
+        ):
             result = jev.triage_finding(FINDING)
 
+        self.assertEqual(posted, ["/"])
         self.assertEqual(received, [])
         self.assert_unavailable(result, "http_error")
 

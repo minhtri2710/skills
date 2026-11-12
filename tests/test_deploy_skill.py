@@ -303,6 +303,17 @@ class DeploySkillTest(unittest.TestCase):
         )
         self.assertFalse(ledger.exists())
 
+    def test_a_git_failure_after_an_install_still_names_the_installed_skills(self):
+        ledger = self.tmp / "gates.md"
+        with patch.object(deploy_skill, "verify_install", side_effect=deploy_skill.GitError("git hash-object failed")):
+            result = self.run_deploy(self.deploy_args(ledger))
+
+        self.assertEqual(result, 1)
+        err = sys.stderr.getvalue()
+        for token in ("git hash-object failed", "failed at agent-delivery-workflow", "already installed", "no deploy row recorded"):
+            self.assertIn(token, err)
+        self.assertFalse(ledger.exists())
+
     def test_selection_is_validated_and_limits_installs(self):
         second = self.skills / "second-skill"
         second.mkdir()
