@@ -62,10 +62,10 @@ class FloorGuardRepoTest(unittest.TestCase):
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(text)
 
-    def run_guard(self, base: str = "main") -> tuple[int, str]:
+    def run_guard(self, base: str = "main", repo: Path | None = None) -> tuple[int, str]:
         err = io.StringIO()
         with redirect_stdout(io.StringIO()), redirect_stderr(err):
-            code = floor_guard.main(["--base", base, "--repo", str(self.repo)])
+            code = floor_guard.main(["--base", base, "--repo", str(repo or self.repo)])
         return code, err.getvalue()
 
     def test_ordinary_change_is_clean(self) -> None:
@@ -92,6 +92,14 @@ class FloorGuardRepoTest(unittest.TestCase):
         code, err = self.run_guard()
         self.assertEqual(code, 1)
         self.assertIn("[unfinished-work] src/new.py:2", err)
+
+    def test_repo_pointing_at_a_subdirectory_guards_the_whole_repository(self) -> None:
+        self.write("src/new.py", "def later():\n    pass  # TODO\n")
+        self.write("tests/test_app.py", "from app import total\n\n\ndef test_total():\n    assert total([1, 2]) == 3\n")
+        code, err = self.run_guard(repo=self.repo / "src")
+        self.assertEqual(code, 1)
+        self.assertIn("[unfinished-work] src/new.py:2", err)
+        self.assertIn("tests/test_app.py", err)
 
     def test_non_ascii_untracked_violation_is_reported_under_legacy_locale(self) -> None:
         self.write("src/new_é.py", "def later():\n    pass  # TODO\n")

@@ -483,10 +483,11 @@ def collect(repo: Path, base: str) -> tuple[list[Line], list[Line], list[str], s
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--base", default="origin/main", help="ref whose merge base is compared (default: origin/main)")
-    parser.add_argument("--repo", type=Path, default=Path.cwd(), help="repository root (default: cwd)")
+    parser.add_argument("--repo", type=Path, default=Path.cwd(), help="a directory inside the repository (default: cwd)")
     args = parser.parse_args(argv)
     try:
-        findings = check(*collect(args.repo, args.base))
+        root = Path(_git(args.repo, "rev-parse", "--show-toplevel").strip())
+        findings = check(*collect(root, args.base))
     except GuardError as exc:
         print(f"floor-guard: cannot run: {exc}", file=sys.stderr)
         return 2

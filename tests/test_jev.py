@@ -4,9 +4,12 @@ from __future__ import annotations
 import contextlib
 import io
 import json
+import socketserver
 import subprocess
 import tempfile
+import threading
 import unittest
+from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from unittest import mock
 import urllib.error
@@ -138,6 +141,26 @@ class Response:
         return self._body.read(*args)
 
 
+class LocalServer(HTTPServer):
+    def server_bind(self) -> None:
+        # HTTPServer.server_bind resolves the host name by DNS, which stalls for seconds.
+        socketserver.TCPServer.server_bind(self)
+
+
+def serve(test: unittest.TestCase, handler: type[BaseHTTPRequestHandler]) -> HTTPServer:
+    server = LocalServer(("127.0.0.1", 0), handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+
+    def stop() -> None:
+        server.shutdown()
+        server.server_close()
+        thread.join()
+
+    test.addCleanup(stop)
+    return server
+
+
 class JevTest(unittest.TestCase):
     def setUp(self) -> None:
         self.keychain = start_keychain(self)
@@ -150,8 +173,8 @@ class JevTest(unittest.TestCase):
         self.keychain.assert_not_called()
         payload = {"answers": finding_answers()}
         with mock.patch.object(
-            jev.urllib.request, "urlopen", return_value=Response(payload)
-        ) as urlopen:
+            jev._OPENER, "open", return_value=Response(payload)
+        ) as opened:
             result = jev.triage_finding(FINDING)
 
         self.assertIsInstance(result, jev.AdvisoryResult)
@@ -161,21 +184,52 @@ class JevTest(unittest.TestCase):
             self.keychain.call_args.kwargs["timeout"], jev.KEYCHAIN_TIMEOUT_SECONDS
         )
         self.assertEqual(
-            urlopen.call_args.args[0].get_header("Authorization"), f"Bearer {FAKE_KEY}"
+            opened.call_args.args[0].get_header("Authorization"), f"Bearer {FAKE_KEY}"
         )
+
+    def test_redirect_is_not_followed_and_never_carries_the_key(self) -> None:
+        received: list[str | None] = []
+
+        class Target(BaseHTTPRequestHandler):
+            def do_GET(self) -> None:
+                received.append(self.headers.get("Authorization"))
+                self.send_response(200)
+                self.end_headers()
+
+            def log_message(self, *args: object) -> None:
+                pass
+
+        target = serve(self, Target)
+
+        class Redirector(BaseHTTPRequestHandler):
+            def do_POST(self) -> None:
+                self.rfile.read(int(self.headers["Content-Length"]))
+                self.send_response(302)
+                self.send_header("Location", f"http://127.0.0.1:{target.server_address[1]}/")
+                self.end_headers()
+
+            def log_message(self, *args: object) -> None:
+                pass
+
+        api = serve(self, Redirector)
+        with mock.patch.object(jev, "API_URL", f"http://127.0.0.1:{api.server_address[1]}/"):
+            result = jev.triage_finding(FINDING)
+
+        self.assertEqual(received, [])
+        self.assert_unavailable(result, "http_error")
 
     def test_keychain_failures_are_unavailable_without_http_or_key_leak(self) -> None:
         for name, behavior in KEYCHAIN_FAILURES.items():
             self.keychain.reset_mock(return_value=True, side_effect=True)
             self.keychain.configure_mock(**behavior)
             with self.subTest(failure=name), mock.patch.object(
-                jev.urllib.request, "urlopen"
-            ) as urlopen:
+                jev._OPENER, "open"
+            ) as opened:
                 stdout, stderr = io.StringIO(), io.StringIO()
                 with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
                     result = jev.triage_finding(FINDING)
                 self.assert_unavailable(result, "missing_api_key")
-                urlopen.assert_not_called()
+                opened.assert_not_called()
                 self.keychain.assert_called_once()
                 self.assertEqual(stderr.getvalue(), KEYCHAIN_LINE)
                 self.assertEqual(stdout.getvalue(), "")
@@ -194,10 +248,10 @@ class JevTest(unittest.TestCase):
         )
         for failure, reason in failures:
             with self.subTest(reason=reason):
-                with mock.patch.object(jev.urllib.request, "urlopen", side_effect=failure) as urlopen:
+                with mock.patch.object(jev._OPENER, "open", side_effect=failure) as opened:
                     result = jev.triage_finding(FINDING)
                 self.assert_unavailable(result, reason)
-                self.assertEqual(json.loads(urlopen.call_args.args[0].data)["state"], FINDING)
+                self.assertEqual(json.loads(opened.call_args.args[0].data)["state"], FINDING)
                 self.assertNotIn("offline", result.reason)
                 self.assertNotIn("secret", result.reason)
 
@@ -206,10 +260,10 @@ class JevTest(unittest.TestCase):
         response.__enter__ = mock.Mock(return_value=response)
         response.__exit__ = mock.Mock(return_value=None)
         response.read.return_value = b"{not-json"
-        with mock.patch.object(jev.urllib.request, "urlopen", return_value=response) as urlopen:
+        with mock.patch.object(jev._OPENER, "open", return_value=response) as opened:
             result = jev.triage_finding(FINDING)
         self.assert_unavailable(result, "malformed_json")
-        self.assertEqual(json.loads(urlopen.call_args.args[0].data)["state"], FINDING)
+        self.assertEqual(json.loads(opened.call_args.args[0].data)["state"], FINDING)
 
     def test_unusable_answers_are_unavailable(self) -> None:
         valid = finding_answers()
@@ -228,17 +282,17 @@ class JevTest(unittest.TestCase):
         for payload in responses:
             with self.subTest(payload=payload):
                 with mock.patch.object(
-                    jev.urllib.request, "urlopen", return_value=Response(payload)
-                ) as urlopen:
+                    jev._OPENER, "open", return_value=Response(payload)
+                ) as opened:
                     result = jev.triage_finding(FINDING)
                 self.assert_unavailable(result, "invalid_answers")
-                self.assertEqual(json.loads(urlopen.call_args.args[0].data)["state"], FINDING)
+                self.assertEqual(json.loads(opened.call_args.args[0].data)["state"], FINDING)
 
     def test_finding_asks_three_one_dimension_questions_in_one_request(self) -> None:
         payload = {"answers": {**finding_answers(), "ignored": {"free_form": "kept raw"}}}
         with mock.patch.object(
-            jev.urllib.request, "urlopen", return_value=Response(payload)
-        ) as urlopen:
+            jev._OPENER, "open", return_value=Response(payload)
+        ) as opened:
             result = jev.triage_finding(FINDING)
 
         self.assertIsInstance(result, jev.AdvisoryResult)
@@ -249,8 +303,8 @@ class JevTest(unittest.TestCase):
             jev.ScoreJudgment(label="high", argmax="high", probability=0.7, confidence=0.6),
         )
 
-        urlopen.assert_called_once()
-        request = urlopen.call_args.args[0]
+        opened.assert_called_once()
+        request = opened.call_args.args[0]
         self.assertEqual(request.full_url, jev.API_URL)
         self.assertEqual(request.method, "POST")
         self.assertEqual(request.get_header("Authorization"), f"Bearer {FAKE_KEY}")
@@ -274,7 +328,7 @@ class JevTest(unittest.TestCase):
         ):
             payload = {"answers": finding_answers(actionable=probability, cites=probability)}
             with self.subTest(probability=probability), mock.patch.object(
-                jev.urllib.request, "urlopen", return_value=Response(payload)
+                jev._OPENER, "open", return_value=Response(payload)
             ):
                 result = jev.triage_finding(FINDING)
             self.assertIsInstance(result, jev.AdvisoryResult)
@@ -295,7 +349,7 @@ class JevTest(unittest.TestCase):
         ):
             payload = {"answers": finding_answers(severity=probabilities)}
             with self.subTest(probabilities=probabilities), mock.patch.object(
-                jev.urllib.request, "urlopen", return_value=Response(payload)
+                jev._OPENER, "open", return_value=Response(payload)
             ):
                 result = jev.triage_finding(FINDING)
             self.assertIsInstance(result, jev.AdvisoryResult)
@@ -307,7 +361,7 @@ class JevTest(unittest.TestCase):
             )
 
     def test_fork_deterministic_human_gate_without_api_key(self):
-        with mock.patch.object(jev.urllib.request, "urlopen") as urlopen:
+        with mock.patch.object(jev._OPENER, "open") as opened:
             for fork, delegation in (
                 ({**FORK, "hard_gate": True}, DELEGATION),
                 (FORK, None),
@@ -324,7 +378,7 @@ class JevTest(unittest.TestCase):
                         "supervisor_decide": 0.0,
                         "human_gate": 1.0,
                     })
-        urlopen.assert_not_called()
+        opened.assert_not_called()
         self.keychain.assert_not_called()
 
     def test_fork_choice_request_and_available_result_retain_objective_state(self):
@@ -343,8 +397,8 @@ class JevTest(unittest.TestCase):
             }
         }
         with mock.patch.object(
-            jev.urllib.request, "urlopen", return_value=Response(payload)
-        ) as urlopen:
+            jev._OPENER, "open", return_value=Response(payload)
+        ) as opened:
             result = jev.route_fork(FORK, DELEGATION)
 
         self.assertIsInstance(result, jev.ForkAdvisoryResult)
@@ -356,7 +410,7 @@ class JevTest(unittest.TestCase):
         })
         self.assertEqual(result.confidence, 0.92)
 
-        request = urlopen.call_args.args[0]
+        request = opened.call_args.args[0]
         body = json.loads(request.data)
         self.assertEqual(body["state"], {"fork": FORK, "delegation": DELEGATION})
         self.assertEqual(body["model"], "jev-latest")
@@ -380,7 +434,7 @@ class JevTest(unittest.TestCase):
             ("human_gate", 0.1, "human_gate"),
         ):
             with self.subTest(choice=choice, confidence=confidence), mock.patch.object(
-                jev.urllib.request, "urlopen", return_value=Response(fork_answer(choice, confidence))
+                jev._OPENER, "open", return_value=Response(fork_answer(choice, confidence))
             ):
                 result = jev.route_fork(FORK, DELEGATION)
             self.assertIsInstance(result, jev.ForkAdvisoryResult)
@@ -397,23 +451,23 @@ class JevTest(unittest.TestCase):
             (FORK, {"in_force": "yes"}, "invalid_delegation"),
             (FORK, {"in_force": True, "bad": float("nan")}, "invalid_delegation"),
         )
-        with mock.patch.object(jev.urllib.request, "urlopen") as urlopen:
+        with mock.patch.object(jev._OPENER, "open") as opened:
             for fork, delegation, reason in cases:
                 with self.subTest(fork=fork, delegation=delegation):
                     result = jev.route_fork(fork, delegation)
                     self.assertIsInstance(result, jev.UnavailableResult)
                     self.assertEqual(result.reason, reason)
-        urlopen.assert_not_called()
+        opened.assert_not_called()
 
     def test_fork_too_deeply_nested_is_unavailable_without_http(self):
         nested: dict[str, object] = {}
         for _ in range(100_000):
             nested = {"k": nested}
-        with mock.patch.object(jev.urllib.request, "urlopen") as urlopen:
+        with mock.patch.object(jev._OPENER, "open") as opened:
             result = jev.route_fork({**FORK, "nested": nested}, DELEGATION)
         self.assertIsInstance(result, jev.UnavailableResult)
         self.assertEqual(result.reason, "invalid_fork")
-        urlopen.assert_not_called()
+        opened.assert_not_called()
 
     def test_fork_invalid_choice_answers_fail_open_without_exception_or_secret(self):
         answers = (
@@ -467,7 +521,7 @@ class JevTest(unittest.TestCase):
         )
         for payload in answers:
             with self.subTest(payload=payload), mock.patch.object(
-                jev.urllib.request, "urlopen", return_value=Response(payload)
+                jev._OPENER, "open", return_value=Response(payload)
             ):
                 result = jev.route_fork(FORK, DELEGATION)
             self.assertIsInstance(result, jev.UnavailableResult)
@@ -529,8 +583,8 @@ class JevCliTest(unittest.TestCase):
             ):
                 self.keychain.return_value = keychain_reply("", 44)
                 with self.subTest(input=path.name), mock.patch.object(
-                    jev.urllib.request, "urlopen"
-                ) as urlopen:
+                    jev._OPENER, "open"
+                ) as opened:
                     code, out, err = support.run_main(jev.main, ["fork", "--file", str(path)])
 
                 self.assertEqual(code, 0)
@@ -544,15 +598,15 @@ class JevCliTest(unittest.TestCase):
                         output["probabilities"],
                         {"supervisor_decide": 0.0, "human_gate": 1.0},
                     )
-        urlopen.assert_not_called()
+        opened.assert_not_called()
 
     def test_cli_keychain_failures_are_unavailable_with_exit_zero_and_no_key(self) -> None:
         for name, behavior in KEYCHAIN_FAILURES.items():
             self.keychain.reset_mock(return_value=True, side_effect=True)
             self.keychain.configure_mock(**behavior)
             with self.subTest(failure=name), mock.patch.object(
-                jev.urllib.request, "urlopen"
-            ) as urlopen:
+                jev._OPENER, "open"
+            ) as opened:
                 code, out, err = support.run_main(jev.main, ["finding", "--stdin"], json.dumps(FINDING))
 
                 self.assertEqual(code, 0)
@@ -562,7 +616,7 @@ class JevCliTest(unittest.TestCase):
                     {"status": "unavailable", "reason": "missing_api_key"},
                 )
                 self.assertNotIn(FAKE_KEY, out)
-                urlopen.assert_not_called()
+                opened.assert_not_called()
 
     def test_cli_usage_and_input_errors_exit_two_without_output_or_key(self) -> None:
         cases = (
@@ -606,8 +660,8 @@ class JevCliTest(unittest.TestCase):
                 else:
                     patch_kwargs = {"side_effect": failure}
                 with self.subTest(mode=mode, scenario=scenario), mock.patch.object(
-                    jev.urllib.request, "urlopen", **patch_kwargs
-                ) as urlopen:
+                    jev._OPENER, "open", **patch_kwargs
+                ) as opened:
                     code, out, err = support.run_main(jev.main, argv, stdin_text)
 
                 self.assertEqual(code, expected_code)
@@ -616,11 +670,11 @@ class JevCliTest(unittest.TestCase):
                 if scenario == "available":
                     self.assertEqual(json.loads(out), CLI_AVAILABLE_OUTPUTS[mode])
                     self.assertEqual(err, "")
-                    self.assertEqual(urlopen.call_count, 1)
+                    self.assertEqual(opened.call_count, 1)
                 elif scenario == "input_error":
                     self.assertEqual(out, "")
                     self.assertTrue(err.strip())
-                    urlopen.assert_not_called()
+                    opened.assert_not_called()
                 else:
                     output = json.loads(out)
                     self.assertEqual(output["status"], "unavailable")
