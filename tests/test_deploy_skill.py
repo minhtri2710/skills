@@ -41,6 +41,8 @@ log_path = Path(os.environ["SKILLS_LOG"])
 records = json.loads(log_path.read_text(encoding="utf-8")) if log_path.exists() else []
 records.append(record)
 log_path.write_text(json.dumps(records), encoding="utf-8")
+if os.environ.get("SKILLS_EXIT_ON") == sys.argv[sys.argv.index("-s") + 1]:
+    raise SystemExit(7)
 if int(os.environ.get("SKILLS_EXIT", "0")):
     raise SystemExit(int(os.environ["SKILLS_EXIT"]))
 source = Path(sys.argv[2])
@@ -279,6 +281,28 @@ class DeploySkillTest(unittest.TestCase):
         self.assertFalse(ledger.exists())
         self.assertFalse((self.home / ".agents").exists())
 
+    def test_a_failure_at_a_later_skill_names_every_skill_already_installed(self):
+        for name in ("second-skill", "third-skill"):
+            (self.skills / name).mkdir()
+            (self.skills / name / "SKILL.md").write_text(
+                f"---\nname: {name}\ndescription: test skill\n---\n{name}\n", encoding="utf-8")
+        support.git(self.repo, "add", "skills")
+        support.git(self.repo, "commit", "-qm", "add more skills")
+        self.origin(self.head())
+        ledger = self.tmp / "gates.md"
+
+        result = self.run_deploy(self.deploy_args(ledger), SKILLS_EXIT_ON="third-skill")
+
+        self.assertEqual(result, 1)
+        err = sys.stderr.getvalue()
+        self.assertIn("failed at third-skill", err)
+        self.assertIn("agent-delivery-workflow, second-skill", err)
+        self.assertEqual(
+            {path.name for path in (self.home / ".agents" / "skills").iterdir()},
+            {"agent-delivery-workflow", "second-skill"},
+        )
+        self.assertFalse(ledger.exists())
+
     def test_selection_is_validated_and_limits_installs(self):
         second = self.skills / "second-skill"
         second.mkdir()
@@ -424,7 +448,7 @@ class DeploySkillTest(unittest.TestCase):
         open_gate = subprocess.run(
             append + [
                 "--kind", "deploy-gate", "--status", "open",
-                "--words", "none", "--note", "deploy permission pending", "--quote", "",
+                "--words", "none", "--note", "blocked:seat-permission deploy", "--quote", "",
             ],
             check=False,
             capture_output=True,

@@ -742,7 +742,9 @@ class LedgerState:
         for target in row.resolves:
             opener = self.parsed[self.latest[target][0]]
             rule = kind_rule(opener.kind)
-            if rule.human_gate and not (rule.seat_permission and opener.words == "none"):
+            seat_constraint = (rule.seat_permission and opener.words == "none"
+                               and "blocked:seat-permission" in opener.note)
+            if rule.human_gate and not seat_constraint:
                 raise RowError(
                     f"resolves={target} closes a Human gate: it needs words=human or words=selected, or under=")
 
@@ -866,6 +868,8 @@ def push_head(repo: Path, branch: str, head: str) -> str:
     checked_out = git(repo, "rev-parse", "--abbrev-ref", "HEAD")
     if branch != checked_out:
         raise RowError(f"--push refused: {branch} is not the checked-out branch {checked_out}")
+    if head != git(repo, "rev-parse", "HEAD"):
+        raise RowError(f"--push refused: {head} is not the checked-out commit; --push pushes only HEAD")
     try:
         product = git(repo, "symbolic-ref", "--short", "refs/remotes/origin/HEAD")
     except gitops.GitError:
@@ -1168,6 +1172,8 @@ def append_row(ledger: Path, repo: Path, request: RowRequest, push: bool = False
             if push:
                 if request.kind != "push":
                     raise RowError(f"--push is only meaningful on kind=push, not kind={request.kind}")
+                if request.record == "reconstruction":
+                    raise RowError("--push is a timely act: it cannot be combined with --record reconstruction")
                 build(request, repo, state, target, landed=False)
                 pushed = push_head(repo, *target)
             row = build(request, repo, state, target)

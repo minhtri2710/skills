@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check seat-level teardown and canonical-tree squatting servers for one run."""
+"""Check seat-level teardown and unpushed reviewed commits for one run."""
 from __future__ import annotations
 
 import argparse
@@ -26,28 +26,6 @@ _PERSISTENT_ROLES = {"Lead", "Human Supervisor"}
 _PERSISTENT_ROLE_ERROR = (
     "persistent must record exactly one Lead and at most one Human Supervisor"
 )
-_SERVER_MARKERS = (
-    "astro",
-    "flask run",
-    "gunicorn",
-    "http.server",
-    "live-server",
-    "next dev",
-    "next start",
-    "parcel",
-    "preview",
-    "rails server",
-    "storybook",
-    "uvicorn",
-    "vite",
-    "webpack-dev-server",
-)
-_SERVER_WORDS = frozenset({"dev", "preview", "serve", "server"})
-_SCRIPT_INTERPRETERS = frozenset({
-    "bun", "deno", "node", "nodejs", "php", "python", "python3", "ruby", "ts-node", "tsx",
-})
-_INTERPRETER_SUBCOMMANDS = frozenset({"run"})
-_INLINE_CODE_FLAGS = frozenset({"-c", "-e", "-m", "-r", "--eval"})
 
 
 def _record_from_input(path: str | Path) -> Mapping[str, Any]:
@@ -136,49 +114,6 @@ def _validate_record(
     return canonical.resolve(strict=False), validated, ledger_path.resolve(strict=False)
 
 
-def _path_in_checkout(value: Any, canonical: Path) -> bool:
-    if not isinstance(value, str) or not value or "\x00" in value:
-        return False
-    path = Path(value).expanduser()
-    if not path.is_absolute():
-        return False
-    try:
-        path.resolve(strict=False).relative_to(canonical)
-    except ValueError:
-        return False
-    return True
-
-
-def _is_server_process(process: backend.Process) -> bool:
-    argv = [token.lower() for token in process.argv]
-    tokens = set(argv)
-    basenames = {Path(token).name for token in argv}
-    for marker in _SERVER_MARKERS:
-        marker_tokens = marker.split()
-        if len(marker_tokens) == 1:
-            if marker_tokens[0] in tokens or marker_tokens[0] in basenames:
-                return True
-            continue
-        if any(argv[index:index + len(marker_tokens)] == marker_tokens for index in range(len(argv) - len(marker_tokens) + 1)):
-            return True
-    return bool(tokens & _SERVER_WORDS) or _runs_server_script(argv)
-
-
-def _runs_server_script(argv: list[str]) -> bool:
-    for index, token in enumerate(argv):
-        if Path(token).name not in _SCRIPT_INTERPRETERS:
-            continue
-        for arg in argv[index + 1:]:
-            if arg in _INLINE_CODE_FLAGS:
-                break
-            if arg.startswith("-") or arg in _INTERPRETER_SUBCOMMANDS:
-                continue
-            if Path(arg).stem in _SERVER_WORDS:
-                return True
-            break
-    return False
-
-
 def check_closeout(staffing_record: str | Path, seats: backend.Backend) -> CloseoutResult:
     """Inspect exactly the recorded peer seats through a read-only backend."""
     findings: list[str] = []
@@ -230,22 +165,6 @@ def check_closeout(staffing_record: str | Path, seats: backend.Backend) -> Close
             )
         else:
             findings.append(f"{peer['role']} {name} seat {seat_id} remains open")
-
-        try:
-            processes = seats.processes(seat_id)
-        except Exception as exc:
-            findings.append(f"{peer['role']} {name} seat {seat_id}: process read failed: {exc}")
-            continue
-        for process in processes:
-            cwd = process.cwd if process.cwd is not None else terminal.cwd
-            if cwd is None:
-                findings.append(f"{peer['role']} {name} seat {seat_id}: process evidence has no cwd")
-                continue
-            if _is_server_process(process) and _path_in_checkout(cwd, canonical):
-                findings.append(
-                    f"{peer['role']} {name} seat {seat_id}: squatting-server anti-pattern; "
-                    f"live server/dev/preview process in canonical checkout {canonical}"
-                )
 
     return CloseoutResult(not findings, tuple(findings), tuple(checked))
 

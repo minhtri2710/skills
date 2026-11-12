@@ -21,13 +21,12 @@ def setUpModule() -> None:
     support.never_run("git")
 
 
-def add_peer(fake: FakeBackend, canonical: Path, name: str, seat: str, *, agent: bool = True,
-             processes: list[backend.Process] | None = None) -> None:
+def add_peer(fake: FakeBackend, canonical: Path, name: str, seat: str, *, agent: bool = True) -> None:
     """An open peer seat; `agent=False` leaves its terminal open with no agent registered for it."""
     if agent:
-        fake.add_seat(seat, name=name, state="idle", cwd=str(canonical), processes=processes)
+        fake.add_seat(seat, name=name, state="idle", cwd=str(canonical))
     else:
-        fake.add_terminal(seat, cwd=str(canonical), processes=processes)
+        fake.add_terminal(seat, cwd=str(canonical))
 
 
 class CloseoutCheckTest(unittest.TestCase):
@@ -175,8 +174,8 @@ class CloseoutCheckTest(unittest.TestCase):
         self.assertIn("eng-teardown", "\n".join(result.findings))
         self.assertIn("agent_not_found", "\n".join(result.findings))
         self.assertEqual(self.fake.calls, [
-            ("get_terminal", "w1:p3"), ("get_seat", "eng-teardown"), ("processes", "w1:p3"),
-            ("get_terminal", "w1:p4"), ("get_seat", "review-teardown"), ("processes", "w1:p4"),
+            ("get_terminal", "w1:p3"), ("get_seat", "eng-teardown"),
+            ("get_terminal", "w1:p4"), ("get_seat", "review-teardown"),
         ])
 
         self.fake.remove("w1:p3")
@@ -184,49 +183,6 @@ class CloseoutCheckTest(unittest.TestCase):
         result = self.closeout()
         self.assertTrue(result.passed, result.findings)
         self.assertEqual(result.checked_seats, ("w1:p3", "w1:p4"))
-
-    def test_server_detection_matches_argv_tokens_not_substrings(self):
-        cases = (
-            (["node", "vitest"], False),
-            (["tail", "-f", "/dev/null"], False),
-            (["vim", "server.py"], False),
-            (["npm", "run", "dev"], True),
-            (["vite"], True),
-            (["/usr/bin/python3", "-m", "http.server"], True),
-            (["next", "dev"], True),
-            (["uvicorn", "app:app"], True),
-            (["node", "server.js"], True),
-            (["python3", "serve.py"], True),
-            (["bun", "./src/server.ts"], True),
-            (["deno", "run", "-A", "server.ts"], True),
-            (["/usr/local/bin/node", "--inspect", "dev.mjs"], True),
-            (["cat", "server.js"], False),
-            (["less", "dev.log"], False),
-            (["node", "build.js", "server.js"], False),
-            (["python3", "-c", "import server"], False),
-            (["node", "-e", "require('./server.js')"], False),
-        )
-        for argv, expected in cases:
-            with self.subTest(argv=argv):
-                add_peer(self.fake, self.canonical, "eng-teardown", "w1:p3", agent=False,
-                         processes=[backend.Process(tuple(argv), cwd=str(self.canonical))])
-                result = self.closeout()
-                self.assertEqual(
-                    any("squatting-server anti-pattern" in finding for finding in result.findings),
-                    expected,
-                )
-
-    def test_a_server_outside_the_canonical_checkout_is_not_squatting(self):
-        add_peer(self.fake, self.canonical, "eng-teardown", "w1:p3", agent=False,
-                 processes=[backend.Process(("npm", "run", "dev"), cwd=str(self.canonical.parent / "elsewhere"))])
-        result = self.closeout()
-        self.assertFalse(any("squatting-server" in finding for finding in result.findings))
-
-    def test_a_process_without_a_cwd_takes_the_terminals(self):
-        add_peer(self.fake, self.canonical, "eng-teardown", "w1:p3", agent=False,
-                 processes=[backend.Process(("npm", "run", "dev"))])
-        result = self.closeout()
-        self.assertTrue(any("squatting-server" in finding for finding in result.findings))
 
     def test_lead_only_persistent_record_passes_validation_and_closeout(self):
         record = dict(self.record)
@@ -290,16 +246,14 @@ class CloseoutCheckTest(unittest.TestCase):
         self.assertTrue(any("w1:p3: backend returned mismatched terminal evidence" in finding
                             for finding in result.findings))
 
-    def test_agent_and_process_read_failures_are_findings_not_passes(self):
+    def test_an_agent_read_failure_is_a_finding_not_a_pass(self):
         self.fake.script("get_seat", backend.BackendUnavailable("agent get timed out"))
-        self.fake.script("processes", backend.BackendError("process-info lacks foreground_processes"))
         result = self.closeout()
         self.assertFalse(result.passed)
         text = "\n".join(result.findings)
         self.assertIn("w1:p3: agent read failed: agent get timed out", text)
         self.assertIn("eng-teardown seat w1:p3 remains open", text)
         self.assertNotIn("despite agent_not_found", text)
-        self.assertIn("w1:p3: process read failed: process-info lacks foreground_processes", text)
 
     def test_malformed_opaque_handle_is_rejected_without_boundary_call(self):
         record = dict(self.record)
