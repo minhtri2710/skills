@@ -51,7 +51,10 @@ contract:
   `pre-commit` or any project dependency as a setup shortcut.
 - `agent-delivery-workflow` owns agent orchestration and the Human-gate ledger.
   This skill states its action boundary but does not create a competing delivery
-  workflow or scheduler path.
+  workflow or scheduler path. Which checks a delivery's seats run, and where the
+  whole suite runs for that delivery's acceptance evidence, follow its
+  `references/lead.md`, "Light and heavy checks"; the lanes below stay the
+  project's standing routing.
 
 If the proposed pipeline cannot be reduced to this routing axis without copying
 one of those owners, stop and report `REOPEN_REQUEST` rather than creating a

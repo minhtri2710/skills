@@ -22,6 +22,7 @@ from __future__ import annotations
 import contextlib
 import io
 import os
+import signal
 import subprocess
 import sys
 import time
@@ -108,6 +109,27 @@ def limit_starts_when(method: str, ready: Callable[[], object]) -> Iterator[None
 
     with mock.patch.object(_REAL_POPEN, method, held):
         yield
+
+
+@contextlib.contextmanager
+def outer_bound(seconds: int, what: str) -> Iterator[None]:
+    """Fail the test with AssertionError if the block has not returned in `seconds`, whatever it is blocked on."""
+    def expired(_signum: int, _frame: object) -> None:
+        raise AssertionError(f"{what} did not return within {seconds}s: its own limit never fired")
+
+    previous = signal.signal(signal.SIGALRM, expired)
+    signal.alarm(seconds)
+    try:
+        yield
+    finally:
+        signal.alarm(0)
+        signal.signal(signal.SIGALRM, previous)
+
+
+def kill_recorded(pidfile: Path) -> None:
+    """Best-effort SIGKILL of the pid a test command wrote, for a command its own limit failed to stop."""
+    with contextlib.suppress(OSError, ValueError):
+        os.kill(int(pidfile.read_text()), signal.SIGKILL)
 
 
 def never_run(*allowed: str) -> None:

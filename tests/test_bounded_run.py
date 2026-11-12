@@ -38,6 +38,7 @@ class BoundedRunTest(unittest.TestCase):
         tmp = tempfile.TemporaryDirectory()
         self.addCleanup(tmp.cleanup)
         self.pidfile = Path(tmp.name) / "grandchild.pid"
+        self.addCleanup(support.kill_recorded, self.pidfile)
 
     def wrapper(self, seconds: str, script: str) -> list[str]:
         return [sys.executable, str(SCRIPT), "--seconds", seconds, "--grace", "0.5", "--",
@@ -48,14 +49,7 @@ class BoundedRunTest(unittest.TestCase):
         while not self.pidfile.exists() or not self.pidfile.read_text().strip():
             self.assertLess(time.monotonic(), deadline, "grandchild never wrote its pid")
             time.sleep(0.05)
-        pid = int(self.pidfile.read_text())
-        self.addCleanup(self.kill, pid)
-        return pid
-
-    @staticmethod
-    def kill(pid: int) -> None:
-        with contextlib.suppress(ProcessLookupError):
-            os.kill(pid, signal.SIGKILL)
+        return int(self.pidfile.read_text())
 
     def test_a_command_that_cannot_start_exits_127_without_a_traceback(self):
         run = subprocess.run([sys.executable, str(SCRIPT), "--seconds", "10", "--", "/nonexistent/bounded-run-cmd"],
@@ -80,7 +74,8 @@ class BoundedRunTest(unittest.TestCase):
         self.addCleanup(signal.signal, signal.SIGINT, signal.getsignal(signal.SIGINT))
         stderr = io.StringIO()
         started = lambda: self.pidfile.is_file() and self.pidfile.read_text().endswith("\n")
-        with support.guarded("sh"), support.limit_starts_when("wait", started), contextlib.redirect_stderr(stderr):
+        with support.guarded("sh"), support.limit_starts_when("wait", started), \
+                contextlib.redirect_stderr(stderr), support.outer_bound(90, "bounded_run.main"):
             code = bounded_run.main(self.wrapper("1", "trap '' TERM; sleep 300 & echo $! > \"$1\"; wait")[2:])
         pid = self.grandchild()
         self.assertEqual(code, 124)

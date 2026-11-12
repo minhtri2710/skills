@@ -1246,12 +1246,12 @@ class GateRowTest(unittest.TestCase):
         hook = self.repo / ".git" / "hooks" / "pre-push"
         hook.write_text(f"#!/bin/sh\nsleep 300 &\necho $! > {hook_pid}\nwait\n")
         hook.chmod(0o755)
+        self.addCleanup(support.kill_recorded, hook_pid)
         self.assertEqual(self.append_review(base), 0)
-        began = time.monotonic()
         started = lambda: hook_pid.is_file() and hook_pid.read_text().endswith("\n")
-        with mock.patch.object(gate_row, "PUSH_TIMEOUT_S", 1), support.limit_starts_when("communicate", started):
+        with mock.patch.object(gate_row, "PUSH_TIMEOUT_S", 1), support.limit_starts_when("communicate", started), \
+                support.outer_bound(90, "gate_row push"):
             self.assertEqual(self.push(base), 1)
-        self.assertLess(time.monotonic() - began, 120)
         self.assertIn(f"git push origin {self.rev('HEAD')}:refs/heads/feat passed its 1s limit; its process "
                       "group was killed and no row was written", self.err.getvalue())
         self.assertNotIn("ran, but", self.err.getvalue())
@@ -1899,12 +1899,10 @@ class GateRowTest(unittest.TestCase):
         helper.chmod(0o755)
         support.git(self.repo, "remote", "set-url", "origin", "hang://origin")
         before = self.ledger.read_bytes()
-        began = time.monotonic()
         with mock.patch.dict(os.environ, {"PATH": f"{helpers}{os.pathsep}{os.environ['PATH']}"}), \
-                mock.patch.object(gate_row, "PUSH_TIMEOUT_S", 1):
+                mock.patch.object(gate_row, "PUSH_TIMEOUT_S", 1), support.outer_bound(90, "gate_row ls-remote"):
             code = self.append("--kind", "push", "--push-base", self.rev("HEAD~2"), "--boundary", ".")
         self.assertEqual(code, 1)
-        self.assertLess(time.monotonic() - began, 120)
         self.assertIn("passed its 1s limit", self.err.getvalue())
         self.assertEqual(self.ledger.read_bytes(), before)
 
