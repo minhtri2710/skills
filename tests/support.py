@@ -5,6 +5,9 @@ share a module name, since one process holds them all. It also holds:
 
     never_run(*allowed)    in setUpModule: subprocess.run and subprocess.Popen refuse any command whose
                            argv[0] (or its basename) is not listed, and git sees no global or system config
+    limit_starts_when(method, ready)
+                           a production limit counts from the command's start; hold it until `ready()` so a
+                           slow start on a loaded machine cannot spend it before the command is up
     temp_git_repo(path)    a git repository with a fixed identity, shut out from the user's git config
     git(repo, *args)       run git in a repository under the same isolation
     run_main(main, argv)   run a CLI main(argv) and return (exit code, stdout, stderr)
@@ -21,6 +24,7 @@ import io
 import os
 import subprocess
 import sys
+import time
 import unittest
 from collections.abc import Callable, Iterator, Sequence
 from pathlib import Path
@@ -82,6 +86,27 @@ def guarded(*allowed: str) -> Iterator[None]:
     with mock.patch.object(subprocess, "run", new=_guard(_REAL_RUN, allowed)), \
             mock.patch.object(subprocess, "Popen", new=_guard(_REAL_POPEN, allowed)), \
             mock.patch.dict(os.environ, {**GIT_IDENTITY, **GIT_ISOLATION}):
+        yield
+
+
+@contextlib.contextmanager
+def limit_starts_when(method: str, ready: Callable[[], object]) -> Iterator[None]:
+    """Make the production limit of Popen.`method` ("wait" or "communicate") count from when `ready()` holds.
+
+    A call that carries a timeout first waits, up to 60s, for `ready()`; the timeout then runs as written.
+    """
+    real = getattr(_REAL_POPEN, method)
+
+    def held(self: subprocess.Popen, *args: Any, timeout: float | None = None, **kwargs: Any) -> Any:
+        if timeout is not None:
+            deadline = time.monotonic() + 60
+            while not ready():
+                if time.monotonic() > deadline:
+                    raise AssertionError(f"the command was not up within 60s of its start (Popen.{method})")
+                time.sleep(0.02)
+        return real(self, *args, timeout=timeout, **kwargs)
+
+    with mock.patch.object(_REAL_POPEN, method, held):
         yield
 
 

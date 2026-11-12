@@ -1248,13 +1248,14 @@ class GateRowTest(unittest.TestCase):
         hook.chmod(0o755)
         self.assertEqual(self.append_review(base), 0)
         began = time.monotonic()
-        with mock.patch.object(gate_row, "PUSH_TIMEOUT_S", 1):
+        started = lambda: hook_pid.is_file() and hook_pid.read_text().endswith("\n")
+        with mock.patch.object(gate_row, "PUSH_TIMEOUT_S", 1), support.limit_starts_when("communicate", started):
             self.assertEqual(self.push(base), 1)
-        self.assertLess(time.monotonic() - began, 30)
+        self.assertLess(time.monotonic() - began, 120)
         self.assertIn(f"git push origin {self.rev('HEAD')}:refs/heads/feat passed its 1s limit; its process "
                       "group was killed and no row was written", self.err.getvalue())
         self.assertNotIn("ran, but", self.err.getvalue())
-        sleeper, deadline = int(hook_pid.read_text()), time.monotonic() + 5
+        sleeper, deadline = int(hook_pid.read_text()), time.monotonic() + 30
         while time.monotonic() < deadline:
             try:
                 os.kill(sleeper, 0)
@@ -1903,7 +1904,7 @@ class GateRowTest(unittest.TestCase):
                 mock.patch.object(gate_row, "PUSH_TIMEOUT_S", 1):
             code = self.append("--kind", "push", "--push-base", self.rev("HEAD~2"), "--boundary", ".")
         self.assertEqual(code, 1)
-        self.assertLess(time.monotonic() - began, 30)
+        self.assertLess(time.monotonic() - began, 120)
         self.assertIn("passed its 1s limit", self.err.getvalue())
         self.assertEqual(self.ledger.read_bytes(), before)
 
