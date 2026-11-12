@@ -49,7 +49,9 @@ SKILL_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 BRANCH_HEAD_RE = re.compile(rf"^(?P<branch>[^ |@]+)@(?P<head>{gitops.FULL_SHA})$")
 # One feature-branch push lands in seconds; two minutes covers a slow link or a large first
 # pack, and bounds how long a hung push or ls-remote can hold the ledger lock against every other writer.
+# --push-seconds raises the push's own limit, up to the cap, for a project whose pre-push hook runs long.
 PUSH_TIMEOUT_S = 120
+PUSH_TIMEOUT_MAX_S = 1800
 PUSH_RE = re.compile(
     rf'^push=(?P<base>{gitops.FULL_SHA})\.\.(?P<head>{gitops.FULL_SHA}) '
     r'count=(?P<count>\d+) boundary="(?P<declared>[^"]*)"$'
@@ -864,7 +866,13 @@ def resolve_row_head(request: RowRequest, repo: Path) -> tuple[str, str]:
     return branch, head
 
 
-def push_head(repo: Path, branch: str, head: str) -> str:
+def parse_push_seconds(raw: str) -> int:
+    if not re.fullmatch(r"[0-9]+", raw) or not 1 <= int(raw) <= PUSH_TIMEOUT_MAX_S:
+        raise RowError(f"--push-seconds must be an integer from 1 to {PUSH_TIMEOUT_MAX_S}, not {raw!r}")
+    return int(raw)
+
+
+def push_head(repo: Path, branch: str, head: str, seconds: int) -> str:
     checked_out = git(repo, "rev-parse", "--abbrev-ref", "HEAD")
     if branch != checked_out:
         raise RowError(f"--push refused: {branch} is not the checked-out branch {checked_out}")
@@ -889,12 +897,12 @@ def push_head(repo: Path, branch: str, head: str) -> str:
         start_new_session=True, env={**os.environ, "GIT_TERMINAL_PROMPT": "0"},
     )
     try:
-        _, err = proc.communicate(timeout=PUSH_TIMEOUT_S)
+        _, err = proc.communicate(timeout=seconds)
     except subprocess.TimeoutExpired:
         stop_group(proc, 5)
         proc.communicate()
         raise RowError(
-            f"git push origin {refspec} passed its {PUSH_TIMEOUT_S}s limit; its process group was "
+            f"git push origin {refspec} passed its {seconds}s limit; its process group was "
             "killed and no row was written; read git ls-remote origin before retrying"
         ) from None
     if proc.returncode:
@@ -1160,8 +1168,9 @@ def preview_row(ledger: Path, repo: Path, request: RowRequest) -> str:
     return build(request, repo, state, resolve_row_head(request, repo))
 
 
-def append_row(ledger: Path, repo: Path, request: RowRequest, push: bool = False) -> str:
-    """Build, check, append and read back the row for `request`; `push` pushes the row's head first."""
+def append_row(ledger: Path, repo: Path, request: RowRequest, push_seconds: int | None = None) -> str:
+    """Build, check, append and read back the row for `request`; a `push_seconds` pushes the row's head
+    first, under that limit."""
     request_words(request)
     pushed = ""
     with locked_ledger(ledger, exclusive=True) as handle:
@@ -1169,13 +1178,13 @@ def append_row(ledger: Path, repo: Path, request: RowRequest, push: bool = False
         state = validate_ledger(ledger_rows(before), repo)
         target = resolve_row_head(request, repo)
         try:
-            if push:
+            if push_seconds is not None:
                 if request.kind != "push":
                     raise RowError(f"--push is only meaningful on kind=push, not kind={request.kind}")
                 if request.record == "reconstruction":
                     raise RowError("--push is a timely act: it cannot be combined with --record reconstruction")
                 build(request, repo, state, target, landed=False)
-                pushed = push_head(repo, *target)
+                pushed = push_head(repo, *target, push_seconds)
             row = build(request, repo, state, target)
             if before and not before.endswith("\n"):
                 handle.seek(0, 2)
@@ -1234,6 +1243,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--push", action="store_true",
                         help="on kind=push: check the row, then run the non-force git push of "
                         "<head> to origin/<branch> (never the product line), then append the row")
+    parser.add_argument("--push-seconds", metavar="N",
+                        help=f"with --push, the limit of the git push, hook included, in seconds: an integer "
+                        f"from 1 to {PUSH_TIMEOUT_MAX_S}; default {PUSH_TIMEOUT_S}")
     parser.add_argument("--boundary", action="append", default=[],
                         help="a path of the delivery's declared scope; repeatable, required to "
                              "append a push row, which is refused when the pushed range touches "
@@ -1260,7 +1272,7 @@ def main(argv: list[str] | None = None) -> int:
                      else "--deployed-head" if args.deployed_head else None)
         if args.mailbox is not None and not args.check:
             raise RowError("--mailbox requires --check")
-        if read_mode and (any(vars(request).values()) or args.push):
+        if read_mode and (any(vars(request).values()) or args.push or args.push_seconds is not None):
             raise RowError(f"{read_mode} cannot be combined with append arguments")
         if args.deployed_head:
             branch, head, source_row = select_deployed_head(args.ledger, args.deployed_head, args.repo)
@@ -1279,7 +1291,12 @@ def main(argv: list[str] | None = None) -> int:
             print(f"ok: {state.parsed[-1].gid} checks out")
             return 0
 
-        print(append_row(args.ledger, args.repo, request, push=args.push))
+        if args.push_seconds is not None and not args.push:
+            raise RowError("--push-seconds is only meaningful with --push")
+        push_seconds = None
+        if args.push:
+            push_seconds = PUSH_TIMEOUT_S if args.push_seconds is None else parse_push_seconds(args.push_seconds)
+        print(append_row(args.ledger, args.repo, request, push_seconds))
         return 0
     except RowError as exc:
         print(f"gate_row: {exc}", file=sys.stderr)

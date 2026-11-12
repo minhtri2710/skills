@@ -8,6 +8,10 @@ share a module name, since one process holds them all. It also holds:
     limit_starts_when(method, ready)
                            a production limit counts from the command's start; hold it until `ready()` so a
                            slow start on a loaded machine cannot spend it before the command is up
+    outer_bound(seconds, what)
+                           fail the test if the block has not returned in `seconds`, whatever it is blocked on
+    kill_recorded(pidfile) best-effort SIGKILL of the pid a test command wrote, for one its own limit failed to stop
+    guarded(*allowed)      the context-manager form of never_run, for a block inside a test
     temp_git_repo(path)    a git repository with a fixed identity, shut out from the user's git config
     git(repo, *args)       run git in a repository under the same isolation
     run_main(main, argv)   run a CLI main(argv) and return (exit code, stdout, stderr)
@@ -115,7 +119,7 @@ def limit_starts_when(method: str, ready: Callable[[], object]) -> Iterator[None
 def outer_bound(seconds: int, what: str) -> Iterator[None]:
     """Fail the test with AssertionError if the block has not returned in `seconds`, whatever it is blocked on."""
     def expired(_signum: int, _frame: object) -> None:
-        raise AssertionError(f"{what} did not return within {seconds}s: its own limit never fired")
+        raise AssertionError(f"{what} did not return within {seconds}s")
 
     previous = signal.signal(signal.SIGALRM, expired)
     signal.alarm(seconds)

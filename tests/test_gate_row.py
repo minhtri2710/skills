@@ -1249,9 +1249,8 @@ class GateRowTest(unittest.TestCase):
         self.addCleanup(support.kill_recorded, hook_pid)
         self.assertEqual(self.append_review(base), 0)
         started = lambda: hook_pid.is_file() and hook_pid.read_text().endswith("\n")
-        with mock.patch.object(gate_row, "PUSH_TIMEOUT_S", 1), support.limit_starts_when("communicate", started), \
-                support.outer_bound(90, "gate_row push"):
-            self.assertEqual(self.push(base), 1)
+        with support.limit_starts_when("communicate", started), support.outer_bound(90, "gate_row push"):
+            self.assertEqual(self.push(base, "--push-seconds", "1"), 1)
         self.assertIn(f"git push origin {self.rev('HEAD')}:refs/heads/feat passed its 1s limit; its process "
                       "group was killed and no row was written", self.err.getvalue())
         self.assertNotIn("ran, but", self.err.getvalue())
@@ -1269,6 +1268,18 @@ class GateRowTest(unittest.TestCase):
         self.assertEqual(len(gate_row.ledger_rows(self.ledger.read_text())), 1)
         hook.unlink()
         self.assertEqual(self.push(base), 0, self.err.getvalue())
+
+    def test_push_seconds_is_an_integer_within_its_cap_and_refused_before_anything_is_pushed(self):
+        base = self.feature_with_origin()
+        self.assertEqual(self.append_review(base), 0)
+        before = self.ledger.read_bytes()
+        for value in ("0", str(gate_row.PUSH_TIMEOUT_MAX_S + 1), "-1", "+5", " 5", "5.0", "abc", ""):
+            with self.subTest(value):
+                self.assertEqual(self.push(base, "--push-seconds", value), 1)
+                self.assertIn("--push-seconds must be", self.err.getvalue())
+                self.assertEqual(self.ledger.read_bytes(), before)
+                self.assertNotIn("refs/heads/feat", self.remote_refs())
+        self.assertEqual(self.push(base, "--push-seconds", str(gate_row.PUSH_TIMEOUT_MAX_S)), 0, self.err.getvalue())
 
     def test_push_is_refused_with_check(self):
         self.assertEqual(self.run_main(["--ledger", str(self.ledger), "--repo", str(self.repo), "--check", "--push"]), 1)
@@ -1598,6 +1609,7 @@ class GateRowTest(unittest.TestCase):
             (("--kind", "review", "--status", "recorded:review-pass", "--review-base", base,
               "--boundary", "f1.txt"), "only meaningful on a push row"),
             (("--push",), "--push is only meaningful on kind=push, not kind=merge"),
+            (("--push-seconds", "5"), "--push-seconds is only meaningful with --push"),
         ]
         for extra, message in cases:
             with self.subTest(extra):
@@ -1895,8 +1907,10 @@ class GateRowTest(unittest.TestCase):
         helpers = self.tmp / "bin"
         helpers.mkdir()
         helper = helpers / "git-remote-hang"
-        helper.write_text("#!/bin/sh\nsleep 300\n")
+        hang_pid = self.tmp / "hang.pid"
+        helper.write_text(f"#!/bin/sh\nsleep 300 &\necho $! > {hang_pid}\nwait\n")
         helper.chmod(0o755)
+        self.addCleanup(support.kill_recorded, hang_pid)
         support.git(self.repo, "remote", "set-url", "origin", "hang://origin")
         before = self.ledger.read_bytes()
         with mock.patch.dict(os.environ, {"PATH": f"{helpers}{os.pathsep}{os.environ['PATH']}"}), \

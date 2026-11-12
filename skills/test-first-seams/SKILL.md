@@ -48,7 +48,9 @@ turns it green, then the next test informed by what that cycle taught you.
 3. Run each new test more than once before calling it green; run the test file
    after each change, the typecheck regularly, and the full suite once at the end.
    Inside an `agent-delivery-workflow` delivery, its `references/lead.md`, "Light
-   and heavy checks" governs which of these runs a seat makes.
+   and heavy checks" governs which of these runs a seat makes; inside a
+   `paseo-delivery-workflow` delivery, the plan's Engineer fast lane and the
+   Lead's acceptance lanes do (its steps 2, 3 and 5).
 
 Writing all tests first and all implementation after tests imagined behavior and
 locks in test structure before the design is understood.
