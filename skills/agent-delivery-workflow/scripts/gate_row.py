@@ -867,7 +867,7 @@ def resolve_row_head(request: RowRequest, repo: Path) -> tuple[str, str]:
 
 
 def parse_push_seconds(raw: str) -> int:
-    if not re.fullmatch(r"[0-9]+", raw) or not 1 <= int(raw) <= PUSH_TIMEOUT_MAX_S:
+    if not re.fullmatch(r"[0-9]{1,4}", raw) or not 1 <= int(raw) <= PUSH_TIMEOUT_MAX_S:
         raise RowError(f"--push-seconds must be an integer from 1 to {PUSH_TIMEOUT_MAX_S}, not {raw!r}")
     return int(raw)
 
