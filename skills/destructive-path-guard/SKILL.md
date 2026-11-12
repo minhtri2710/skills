@@ -15,8 +15,10 @@ That is how a cleanup routine removes the root instead of the leaf.
 ## Require three things, in this order
 
 1. **Containment after resolution.** A symlink leaf is checked as the link:
-   resolve its parent, keep the link name, and refuse if the link points outside
-   the allowlisted roots; print the link itself. Comparing raw strings, or
+   resolve its parent, keep the link name, and print the link itself. The
+   pointee must pass the same containment, depth, and root rules as a plain
+   target, and sit inside the directory that holds the ownership evidence, since
+   an overwrite or `rm -r link/` acts on the pointee. Comparing raw strings, or
    resolving after the check, lets a symlink inside the root point anywhere.
 2. **Depth below the root.** Count depth from the nearest listed root containing
    the target, and refuse a target that is or contains any listed root. Require

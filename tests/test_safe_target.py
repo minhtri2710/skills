@@ -110,6 +110,26 @@ class SafeTargetTest(unittest.TestCase):
                 expect_owner="worker-7",
             )
 
+    def test_symlink_pointee_must_satisfy_root_depth_and_owner_rules(self) -> None:
+        other = self.root / "other-tenant" / "data"
+        other.mkdir(parents=True)
+        shallow = self.root / "shallow"
+        shallow.mkdir()
+        cases = (
+            ("pointee is the root", self.root, {}),
+            ("pointee is another owner's directory", other, {"owner_file": ".owner", "expect_owner": "worker-7"}),
+            ("pointee above min depth", shallow, {"min_depth": 2}),
+        )
+        for name, pointee, kwargs in cases:
+            with self.subTest(name):
+                link = self.root / "abc123" / "link"
+                link.symlink_to(pointee)
+                try:
+                    with self.assertRaises(safe_target.Refused):
+                        self.resolve(link, **kwargs)
+                finally:
+                    link.unlink()
+
     def test_sibling_named_like_traversal_is_accepted(self) -> None:
         sneaky = self.root / "..cache"
         sneaky.mkdir()
@@ -205,6 +225,19 @@ class SafeTargetTest(unittest.TestCase):
                     str(self.root / "abc123"), "--root", str(self.root),
                     "--owner-file", owner_file, "--expect-owner", "worker-7",
                 )
+                self.assertEqual((code, out), (2, ""))
+                self.assertIn("cannot check", err)
+
+    def test_cli_empty_target_root_or_expected_owner_exits_2(self) -> None:
+        (self.root / "abc123" / ".owner").write_text("")
+        owned = ("--owner-file", ".owner", "--expect-owner", "")
+        for name, argv in (
+            ("target", ("", "--root", str(self.root))),
+            ("root", (str(self.root / "abc123"), "--root", "")),
+            ("expected owner", (str(self.root / "abc123"), "--root", str(self.root), *owned)),
+        ):
+            with self.subTest(name):
+                code, out, err = self.run_cli(*argv)
                 self.assertEqual((code, out), (2, ""))
                 self.assertIn("cannot check", err)
 
