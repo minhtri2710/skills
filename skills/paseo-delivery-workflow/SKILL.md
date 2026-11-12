@@ -108,19 +108,19 @@ other tier gains a shell `paseo` use from this exception.
    gitignored directory or a persistent cache, never `/tmp`, which a reboot clears. Done
    when every writer's owned paths are disjoint and written down.
 3. **Implement.** Engineers write inside owned paths; before reporting, each runs the plan's
-   fast lane with the same race or sanitizer flags as the acceptance lanes (for example a
-   race detector), so a data race is caught before hand-in, and checks its change against
-   the refusal and acceptance table the plan names, quoting both in its report. The report
-   also carries: step 2's reader and writer list, each one reached or named with why not; for
-   a change that tightens or loosens an input rule, or turns a refusal into a hold, an
-   accept, or a silent drop (a broad catch around a refusal counts), or the reverse, a table
-   of inputs the old code accepted and the new code refuses and the reverse, each row marked
-   intended or defect (a refusal turned into a silent drop is always a defect); each
-   containment or refusal guard in a function it changed, with the line that shows the guard still holds or the brief item that removes it; for each test it
-   deletes or rewrites, each behaviour that test pinned and the surviving test that pins it;
-   and every deviation from its brief as a named item, which the Lead accepts or sends back.
-   Done when every Engineer has reported, none is running, and the Lead has checked each
-   reported change against the diff.
+   fast lane with the same race or sanitizer flags as the acceptance lanes (for example a race
+   detector), so a data race is caught before hand-in, and checks its change against the
+   refusal and acceptance table the plan names, quoting both in its report. The report also
+   carries: step 2's reader and writer list, each one reached or named with why not; for a
+   change that tightens or loosens an input rule, or turns a refusal into a hold, an accept, or
+   a silent drop (a broad catch around a refusal counts), or the reverse, a table of inputs the
+   old code accepted and the new code refuses and the reverse, each row marked intended or
+   defect (a refusal turned into a silent drop is always a defect); each containment or refusal
+   guard in a function it changed, with the line that shows the guard still holds or the brief
+   item that removes it; for each test it deletes or rewrites, each behaviour that test pinned
+   and the surviving test that pins it; and every deviation from its brief as a named item,
+   which the Lead accepts or sends back. Done when every Engineer has reported, none is
+   running, and the Lead has checked each reported change against the diff.
 4. **Commit.** Only the Lead commits (in a worktree workspace, through its Engineer as step
    1 says), on the delivery's quiet tree: `git status --porcelain` shows only this commit's
    paths. Done when the commit SHA is named.
