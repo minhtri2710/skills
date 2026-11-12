@@ -23,7 +23,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
-SEVERITIES = ("CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO")
+# UNKNOWN is Trivy's level for an unscored advisory.
+SEVERITIES = ("CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO", "UNKNOWN")
 # A scanner level outside SEVERITIES, or none, must still block: reading it as INFO would hide a renamed level.
 UNRECOGNIZED = "UNRECOGNIZED"
 SECRET_SCANNERS = ("gitleaks",)
@@ -65,7 +66,7 @@ DEFAULT_TRIGGERS = {
     "bandit": {"paths": ["**/*.py"]},
     "cargo-audit": {"paths": ["**/Cargo.lock", "**/Cargo.toml"]},
 }
-DEFAULT_FAIL_ON = ["CRITICAL", "HIGH"]
+DEFAULT_FAIL_ON = ["CRITICAL", "HIGH", "UNKNOWN"]
 DEFAULT_CONFIG = {
     "fail_on": DEFAULT_FAIL_ON,
     "checks": [

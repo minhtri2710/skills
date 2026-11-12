@@ -103,7 +103,7 @@ class SecurityCheckTest(unittest.TestCase):
         self.write_fake("semgrep", "printf '%s\\n' '{\"results\":[]}'\n")
 
     def test_fail_on_rejects_empty_unknown_and_non_string_values(self) -> None:
-        for fail_on in ([], ["HIHG"], [1], ["HIGH", "UNKNOWN"]):
+        for fail_on in ([], ["HIHG"], [1], ["HIGH", "UNSCORED"]):
             with self.subTest(fail_on=fail_on):
                 config = self.write_config([self.one_check()], fail_on=fail_on)  # type: ignore[arg-type]
                 output, markdown = self.report_paths("invalid-fail-on")
@@ -401,6 +401,22 @@ class SecurityCheckTest(unittest.TestCase):
             [item["severity"] for item in payload["findings"]], [security_check.UNRECOGNIZED] * 2
         )
         self.assertIn("%s=2" % security_check.UNRECOGNIZED, stdout)
+
+        self.write_fake(
+            "trivy",
+            "printf '%s\\n' '{\"Results\":[{\"Target\":\"package-lock.json\",\"Vulnerabilities\":"
+            "[{\"VulnerabilityID\":\"SYNTHETIC-3\",\"PkgName\":\"fixture\",\"Severity\":\"UNKNOWN\"}]}]}'\n",
+        )
+        config = self.write_config([self.one_check(name="trivy", category="dependencies")])
+        for fail_on, expected in ((None, 1), (["HIGH"], 0)):
+            with self.subTest(fail_on=fail_on):
+                body = {"checks": [self.one_check(name="trivy", category="dependencies")]}
+                if fail_on is not None:
+                    body["fail_on"] = fail_on
+                config.write_text(json.dumps(body), encoding="utf-8")
+                code, _, _, payload = self.run_with_reports(config)
+                self.assertEqual(code, expected)
+                self.assertEqual(payload["findings"][0]["severity"], "UNKNOWN")
 
     def test_default_config_stages_gitleaks_blobs_and_full_scan_reads_history(self) -> None:
         self.init_git()
