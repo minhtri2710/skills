@@ -1166,6 +1166,40 @@ class GateRowTest(unittest.TestCase):
         self.assertEqual(self.remote_refs(), before)
         self.assertEqual(len(gate_row.ledger_rows(self.ledger.read_text())), 1)
 
+    def test_push_pushes_only_the_checked_out_commit_whatever_record_says(self):
+        base = self.feature_with_origin()
+        head = self.rev("HEAD")
+        support.git(self.repo, "switch", "-q", "-c", "side", base)
+        (self.repo / "side.txt").write_text("side\n")
+        support.git(self.repo, "add", "-A")
+        support.git(self.repo, "commit", "-qm", "side")
+        side = self.rev("HEAD")
+        support.git(self.repo, "switch", "-q", "feat")
+        self.assertEqual(self.append_review(base), 0)
+        self.assertEqual(self.run_main([
+            "--ledger", str(self.ledger), "--repo", str(self.repo), "--kind", "review",
+            "--status", "recorded:review-pass", "--review-base", base, "--head", f"feat@{side}",
+            "--record", "reconstruction", "--words", "seat", "--note", "side reviewed", "--quote", "PASS",
+        ]), 0, self.err.getvalue())
+        self.assertEqual(self.run_main([
+            "--ledger", str(self.ledger), "--repo", str(self.repo), "--kind", "review",
+            "--status", "recorded:review-pass", "--review-base", base, "--head", f"feat@{self.rev('HEAD~1')}",
+            "--words", "seat", "--note", "ancestor reviewed", "--quote", "PASS",
+        ]), 0, self.err.getvalue())
+        before, rows = self.remote_refs(), self.ledger.read_bytes()
+        for label, extra, refusal in (
+            ("reconstructed head", ("--head", f"feat@{side}", "--record", "reconstruction"),
+             "cannot be combined with --record reconstruction"),
+            ("ancestor head", ("--head", f"feat@{self.rev('HEAD~1')}"), "is not the checked-out commit"),
+            ("reconstruction at HEAD", ("--head", f"feat@{head}", "--record", "reconstruction"),
+             "cannot be combined with --record reconstruction"),
+        ):
+            with self.subTest(label):
+                self.assertEqual(self.push(base, *extra), 1)
+                self.assertIn(refusal, self.err.getvalue())
+                self.assertEqual(self.remote_refs(), before)
+                self.assertEqual(self.ledger.read_bytes(), rows)
+
     def test_push_never_moves_the_product_line(self):
         base = self.feature_with_origin()
         support.git(self.repo, "switch", "-q", "main")
@@ -1264,6 +1298,16 @@ class GateRowTest(unittest.TestCase):
                                      "--push-base", self.rev("HEAD~2")), 1)
         self.assertIn("a push row needs --boundary", self.err.getvalue())
         self.assertEqual(self.ledger.read_text(), before, "the refused row landed anyway")
+
+    def test_a_declared_boundary_holding_a_quote_or_a_pipe_never_reaches_the_ledger(self):
+        self.assertEqual(self.append_review(), 0)
+        self.add_remote("HEAD")
+        before = self.ledger.read_bytes()
+        for bad in ('f1.txt"x', "f1.txt|x"):
+            with self.subTest(bad=bad):
+                self.assertEqual(self.append("--kind", "push", "--push-base", self.rev("HEAD~2"),
+                                             "--boundary", ".", "--boundary", bad), 1)
+                self.assertEqual(self.ledger.read_bytes(), before)
 
     def test_a_review_row_needs_a_review_base(self):
         before = self.ledger.read_text()
@@ -1591,6 +1635,8 @@ class GateRowTest(unittest.TestCase):
             ("--status", "open"),                                   # a Human gate opened with the Human's words
             ("--status", "open", "--words", "none", "--quote", ""),  # a merge is not a seat-permission kind
             ("--kind", "merge-gate", "--status", "open"),           # a seat-permission kind, but not a denial row
+            ("--kind", "merge-gate", "--status", "open", "--words", "none", "--quote", "",
+             "--note", "Human: approve the merge?"),                 # no quote, but no seat-permission token
         ):
             with self.subTest(opener=opener):
                 self.assertEqual(self.append(*opener), 0, self.err.getvalue())

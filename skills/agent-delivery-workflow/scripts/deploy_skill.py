@@ -219,10 +219,23 @@ def main(argv: list[str] | None = None) -> int:
                     destination.parent.mkdir(parents=True, exist_ok=True)
                     destination.write_bytes(content)
                     os.chmod(destination, mode)
-            for skill, _prefix, _entries in deployments:
-                _install_with_skills(cli, staging_root / skill, skill)
-            for skill, prefix, entries in deployments:
-                verify_install(repo, install_root / skill, entries, prefix)
+            installed: list[str] = []
+            failing = ""
+            try:
+                for skill, _prefix, _entries in deployments:
+                    failing = skill
+                    _install_with_skills(cli, staging_root / skill, skill)
+                    installed.append(skill)
+                for skill, prefix, entries in deployments:
+                    failing = skill
+                    verify_install(repo, install_root / skill, entries, prefix)
+            except DeployError as exc:
+                if installed:
+                    raise DeployError(
+                        f"{exc}; failed at {failing}; already installed, no deploy row recorded: "
+                        f"{', '.join(installed)}"
+                    ) from None
+                raise
 
         try:
             row = gate_row.append_row(args.ledger, repo, request)
