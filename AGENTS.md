@@ -6,6 +6,7 @@ This repository contains standalone Agent Skills. The canonical inventory is in 
 
 - `skills/*/SKILL.md` — standalone skill contracts.
 - `skills/*/references/`, `templates/`, and `scripts/` — skill-owned supporting material where present.
+- `hooks/` — Claude Code hook scripts, installed by hand into `~/.claude/hooks`; `hooks/README.md` says which.
 - `tests/` — repository checks.
 
 ## Working rules
