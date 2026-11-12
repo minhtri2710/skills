@@ -1,7 +1,8 @@
 scripts/gate_row.py --ledger ~/.agent-delivery/projects/<project-slug>/gates.md --kind merge --status resolved:standing-delegation --under <delegation id> --words seat --note "merged the reviewed head" --quote "<what the seat did>"
 
 push (the Lead's feature-branch push; refused when the range touches a path outside --boundary, repeated once per path, or the head is not the checked-out branch's HEAD commit):
-scripts/gate_row.py --ledger ~/.agent-delivery/projects/<project-slug>/gates.md --kind push --status recorded:push --record timely --push --push-base <remote tip the stack lands on> --boundary <declared path of the delivery> --words seat --note "<why this push>" --quote "<the push command>"
+scripts/gate_row.py --ledger ~/.agent-delivery/projects/<project-slug>/gates.md --kind push --status recorded:push --record timely --push [--push-seconds <N>] --push-base <remote tip the stack lands on> --boundary <declared path of the delivery> --words seat --note "<why this push>" --quote "<the push command>"
+# --push-seconds <N> (an integer, 1 to 1800; default 120) bounds the push, its pre-push hook included (lead.md, "Review and push coverage").
 
 local-ops:
 scripts/gate_row.py --ledger ~/.agent-delivery/projects/<project-slug>/gates.md --kind local-ops --status recorded:local-ops --record timely --op "<one named command>" --after <branch>@<exact head the merge landed> --words seat --note "<why this local op ran>" --quote "<the named command>"
