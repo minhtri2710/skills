@@ -48,7 +48,7 @@ WRITER_RE = re.compile(r"^[a-z][a-z0-9_-]*$")
 SKILL_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 BRANCH_HEAD_RE = re.compile(rf"^(?P<branch>[^ |@]+)@(?P<head>{gitops.FULL_SHA})$")
 # One feature-branch push lands in seconds; two minutes covers a slow link or a large first
-# pack, and bounds how long a hung push can hold the ledger lock against every other writer.
+# pack, and bounds how long a hung push or ls-remote can hold the ledger lock against every other writer.
 PUSH_TIMEOUT_S = 120
 PUSH_RE = re.compile(
     rf'^push=(?P<base>{gitops.FULL_SHA})\.\.(?P<head>{gitops.FULL_SHA}) '
@@ -442,13 +442,13 @@ def memo_key(repo: Path, args: tuple[str, ...], stdin: str | None = None) -> tup
     return (str(repo), args, stdin)
 
 
-def git(repo: Path, *args: str, stdin: str | None = None) -> str:
+def git(repo: Path, *args: str, stdin: str | None = None, timeout: float | None = None) -> str:
     key = memo_key(repo, args, stdin)
     if GIT_MEMO is not None and key in GIT_MEMO:
         ok, text = GIT_MEMO[key]
     else:
         try:
-            ok, text = True, gitops.git(repo, *args, stdin=stdin)
+            ok, text = True, gitops.git(repo, *args, stdin=stdin, timeout=timeout)
         except gitops.GitError as exc:
             ok, text = False, str(exc)
         if GIT_MEMO is not None:
@@ -805,9 +805,9 @@ def derive_push(repo: Path, base: str, head: str, boundary: list[str]) -> tuple[
     commits = range_commits(repo, base, head)
     count = str(len(commits))
     changed = set(path for path in git(
-        repo, "diff-tree", "--root", "-m", "--no-commit-id", "--name-only", "-r", "--stdin",
+        repo, "diff-tree", "--root", "-m", "--no-commit-id", "--name-only", "-r", "-z", "--stdin",
         stdin="\n".join(commits) + "\n",
-    ).splitlines() if path)
+    ).split("\0") if path)
     outside = sorted(path for path in changed
                      if not any(b == "." or path == b or path.startswith(b.rstrip("/") + "/")
                                 for b in boundary))
@@ -886,7 +886,8 @@ def derived_blocks(request: RowRequest, repo: Path, branch: str, head: str,
                 "push happened while holding no evidence that it did"
             )
         if landed:
-            remote = git(repo, "ls-remote", "origin", f"refs/heads/{branch}").split()
+            remote = git(
+                repo, "ls-remote", "origin", f"refs/heads/{branch}", timeout=PUSH_TIMEOUT_S).split()
             if not remote:
                 raise RowError(
                     f"origin/{branch} is absent — the push this row claims has not landed"
