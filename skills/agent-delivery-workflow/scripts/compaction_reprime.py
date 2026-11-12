@@ -113,10 +113,10 @@ def reprime(run_id: str, seat: str, project_root: Path, seats: backend.Backend) 
     project = project_root.resolve(strict=True)
     try:
         if not _ID.fullmatch(run_id):
-            raise ValueError(run_id)
+            raise ValueError(f"{run_id!r} is not a safe run id")
         slug = state_root.slug_for(project)
-    except ValueError:
-        raise runtimes.Unavailable("run id or project name is not a safe path component")
+    except ValueError as exc:
+        raise runtimes.Unavailable(str(exc))
     agent = _live_agent(seats, seat)
     cwd = agent.cwd
     if not isinstance(cwd, str) or not Path(cwd).is_absolute() or not Path(cwd).resolve(strict=True).is_relative_to(project):
