@@ -366,6 +366,116 @@ class SecurityCheckTest(unittest.TestCase):
         code, _, _, _ = self.run_with_reports(config)
         self.assertEqual(code, 0)
 
+    def test_unexpected_exit_code_is_not_assessed_and_keeps_findings(self) -> None:
+        self.write_fake(
+            "gitleaks",
+            "printf '%s\\n' '[{\"Description\":\"Synthetic secret-like finding\"}]'\nexit 2\n",
+        )
+        config = self.write_config([self.one_check()], fail_on=["CRITICAL"])
+        code, _, _, payload = self.run_with_reports(config)
+        self.assertEqual(code, 2)
+        self.assertEqual(payload["checks"][0]["status"], "Not-Assessed")
+        self.assertEqual(payload["checks"][0]["returncode"], 2)
+        self.assertEqual(
+            [item["assessment"] for item in payload["findings"]], ["Assessed", "Not-Assessed"]
+        )
+
+        config = self.write_config([self.one_check(expected_returncodes=[2])], fail_on=["CRITICAL"])
+        code, _, _, payload = self.run_with_reports(config)
+        self.assertEqual(code, 0)
+        self.assertEqual(payload["checks"][0]["status"], "Assessed")
+
+    def test_unrecognized_or_missing_severity_blocks_instead_of_becoming_info(self) -> None:
+        self.write_fake(
+            "trivy",
+            "printf '%s\\n' '{\"Results\":[{\"Target\":\"package-lock.json\",\"Vulnerabilities\":"
+            "[{\"VulnerabilityID\":\"SYNTHETIC-1\",\"PkgName\":\"fixture\",\"Severity\":\"SEVERE\"},"
+            "{\"VulnerabilityID\":\"SYNTHETIC-2\",\"PkgName\":\"fixture\"}]}]}'\n",
+        )
+        config = self.write_config(
+            [self.one_check(name="trivy", category="dependencies")], fail_on=["CRITICAL"]
+        )
+        code, stdout, _, payload = self.run_with_reports(config)
+        self.assertEqual(code, 1)
+        self.assertEqual(
+            [item["severity"] for item in payload["findings"]], [security_check.UNRECOGNIZED] * 2
+        )
+        self.assertIn("%s=2" % security_check.UNRECOGNIZED, stdout)
+
+    def test_default_config_stages_gitleaks_blobs_and_full_scan_reads_history(self) -> None:
+        self.init_git()
+        self.stage("README.md", "synthetic\n")
+        self.write_fake(
+            "gitleaks",
+            "printf '%s\\n' \"$@\" > " + str(self.root / "gitleaks-argv") + "\n"
+            "report=\"\"\n"
+            "while [ \"$#\" -gt 0 ]; do\n"
+            "  if [ \"$1\" = \"--report-path\" ]; then report=$2; shift 2; else shift; fi\n"
+            "done\n"
+            "printf '%s\\n' '[]' > \"$report\"\n",
+        )
+        output, markdown = self.report_paths()
+        argv_file = self.root / "gitleaks-argv"
+        for flags, argument, expected in (
+            (["--staged-only"], "--staged", True),
+            (["--all"], "--staged", False),
+        ):
+            with self.subTest(flags=flags):
+                argv_file.unlink(missing_ok=True)
+                support.run_main(
+                    security_check.main,
+                    [*flags, "--allow-missing-tools", "--output", str(output), "--markdown", str(markdown)],
+                )
+                argv = argv_file.read_text(encoding="utf-8").split()
+                self.assertEqual(argument in argv, expected)
+                self.assertEqual("--pre-commit" in argv, expected)
+
+    def test_default_config_from_subdirectory_is_refused_when_repo_has_one(self) -> None:
+        self.init_git()
+        self.clean_fakes()
+        (self.root / "security").mkdir()
+        (self.root / "security" / "security-tools.json").write_text(
+            json.dumps({"checks": [self.one_check()]}), encoding="utf-8"
+        )
+        sub = self.root / "sub"
+        sub.mkdir()
+        os.chdir(sub)
+        code, stdout, stderr = support.run_main(
+            security_check.main,
+            ["--output", str(self.root / "r.json"), "--markdown", str(self.root / "r.md")],
+        )
+        self.assertEqual(code, 2)
+        self.assertEqual(stdout, "")
+        self.assertIn("Configuration error:", stderr)
+        self.assertFalse((self.root / "r.json").exists())
+
+    def test_report_names_the_configuration_in_use(self) -> None:
+        self.clean_fakes()
+        config = self.write_config([self.one_check()])
+        _, stdout, _, payload = self.run_with_reports(config)
+        self.assertEqual(payload["config"], str(config))
+        self.assertIn("Configuration: %s\n" % config, stdout)
+        output, markdown = self.report_paths("builtin")
+        code, stdout, _ = support.run_main(
+            security_check.main, ["--output", str(output), "--markdown", str(markdown)]
+        )
+        self.assertEqual(json.loads(output.read_text(encoding="utf-8"))["config"], security_check.BUILTIN_CONFIG)
+        self.assertIn("Configuration: %s\n" % security_check.BUILTIN_CONFIG, stdout)
+
+    def test_secret_scanner_is_always_on_whatever_its_declared_category(self) -> None:
+        for check in (
+            self.one_check(category="static", triggers={"paths": ["**/*.py"]}),
+            self.one_check(category="secrets", triggers={"paths": ["**/*.py"]}),
+        ):
+            with self.subTest(category=check["category"]):
+                output, markdown = self.report_paths("secret-trigger")
+                code, _, stderr = support.run_main(
+                    security_check.main,
+                    ["--config", str(self.write_config([check])), "--output", str(output), "--markdown", str(markdown)],
+                )
+                self.assertEqual(code, 2)
+                self.assertEqual(stderr, "Configuration error: secret checks must be always-on\n")
+
     def test_force_is_refused_non_interactively_and_yes_bypasses_only_findings(self) -> None:
         self.write_fake(
             "gitleaks",

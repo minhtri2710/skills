@@ -48,7 +48,11 @@ staged POSIX paths. The command itself remains the source of truth for what it
 scans, so the report must retain both the scope decision and the configured
 command target. In particular, a command such as `gitleaks git .`
 scans the repository's commit history, not the staged blobs or the working
-tree.
+tree. A check may carry a `staged_command`, which replaces `command` when the
+run is in staged mode; the built-in gitleaks check uses
+`gitleaks git --pre-commit --staged` there, so a secret in the commit being
+made is scanned before it enters history. This flag pair is from the gitleaks
+v8 CLI (v8.19 and later) and was not run against a binary here.
 
 - Secret detection uses `always: true` and is never restricted to source or
   lockfile extensions.

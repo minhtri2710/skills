@@ -31,7 +31,12 @@ established.
 The runner accepts JSON; its fields, and each check's, are validated in
 `validate_config` and read in `run_check`, both in `scripts/security_check.py`.
 The command must be an argv array, not a shell string; `{output}` is replaced
-with a temporary per-check JSON output path. Omitted fields take the script's
+with a temporary per-check JSON output path. An optional `staged_command`
+(same shape) replaces `command` in staged mode. The runner uses
+`security/security-tools.json` from the working directory; without it, it uses
+`DEFAULT_CONFIG`, unless the repository root holds that file, in which case it
+exits 2 until run from the root or given `--config`. Every report names the
+configuration in use. Omitted fields take the script's
 values: `fail_on`, `trip_all_paths` (`DEFAULT_TRIP_ALL_PATHS`), and the
 per-scanner triggers are defined in `scripts/security_check.py`, as is the
 built-in `DEFAULT_CONFIG` used when no configuration file exists. Read them
