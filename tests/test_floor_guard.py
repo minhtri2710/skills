@@ -194,7 +194,7 @@ class FloorGuardRepoTest(unittest.TestCase):
         support.git(self.repo, "add", ".")
         support.git(self.repo, "commit", "-q", "-m", "text")
         support.git(self.repo, "mv", "tests/test_text.py", "tests/test_moved.py")
-        new.write_bytes(b"\0" + b"a" * 62 + b"\n" + (b"a" * 63 + b"\n") * 30)
+        new.write_bytes(b"\0" + b"a" * 62 + b"\n" + (b"a" * 63 + b"\n") * 30 + b"x = 1  # noqa\n")
         self.assertEqual(self.run_guard(), (1, "floor-guard: 1 violation(s)\n  [assertion-removed] tests/test_moved.py:32\n"))
 
     def test_tracked_file_replaced_by_a_symlink_to_a_binary_file_is_not_read_through(self) -> None:
@@ -324,6 +324,13 @@ class FloorGuardRepoTest(unittest.TestCase):
         self.write("CONSTRAINTS.md", CONSTRAINTS.replace("`pytest --cov`", "`true`"))
         self.assertEqual(self.run_guard(), (1, "floor-guard: 1 violation(s)\n  [constraint-changed] CONSTRAINTS.md:12\n"))
 
+    def test_second_bound_in_another_cell_of_a_kept_row_is_a_changed_cell(self) -> None:
+        self.write("CONSTRAINTS.md", CONSTRAINTS.replace("`pytest --cov`", "`jq '.total >= 80' cov.json`"))
+        support.git(self.repo, "add", ".")
+        support.git(self.repo, "commit", "-q", "-m", "jq check")
+        self.write("CONSTRAINTS.md", (self.repo / "CONSTRAINTS.md").read_text().replace(".total >= 80", ".total >= 0"))
+        self.assertEqual(self.run_guard(), (1, "floor-guard: 1 violation(s)\n  [constraint-changed] CONSTRAINTS.md:12\n"))
+
     def test_removed_bound_floor_rule_and_row_are_flagged(self) -> None:
         text = (
             CONSTRAINTS.replace("changed lines >= 80%", "changed lines covered")
@@ -350,7 +357,13 @@ class FloorGuardRepoTest(unittest.TestCase):
     def test_exception_row_added_in_the_same_diff_suppresses_nothing(self) -> None:
         self.write("src/new.py", "def later():\n    raise NotImplementedError\n")
         self.write("CONSTRAINTS.md", CONSTRAINTS + "| E1 | unfinished-work | src/*.py | port in progress | port lands |\n")
-        self.assertEqual(self.run_guard(), (1, "floor-guard: 1 violation(s)\n  [unfinished-work] src/new.py:2\n"))
+        expected = (1, "floor-guard: 1 violation(s)\n  [unfinished-work] src/new.py:2\n")
+        self.assertEqual(self.run_guard(), expected)
+        # First adoption: the base has no CONSTRAINTS.md at all.
+        support.git(self.repo, "rm", "-q", "-f", "CONSTRAINTS.md")
+        support.git(self.repo, "commit", "-q", "-m", "drop constraints")
+        self.write("CONSTRAINTS.md", CONSTRAINTS + "| E1 | unfinished-work | src/*.py | port in progress | port lands |\n")
+        self.assertEqual(self.run_guard(), expected)
 
     def test_exception_row_is_scoped_by_rule_and_path(self) -> None:
         self.commit_exceptions(

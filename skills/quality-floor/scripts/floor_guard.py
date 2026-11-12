@@ -214,7 +214,7 @@ def check_constraints(added: list[Line], removed: list[Line]) -> list[Finding]:
     findings: list[Finding] = []
     new = [line for line in added if Path(line.path).name == CONSTRAINTS]
     old = [line for line in removed if Path(line.path).name == CONSTRAINTS]
-    new_rows = {cells[0]: (line, cells) for line in new if (cells := _row(line.text))}
+    new_rows = {cells[0]: line for line in new if (cells := _row(line.text))}
     new_bullets = {line.text.strip() for line in new}
     for line in old:
         cells = _row(line.text)
@@ -222,12 +222,13 @@ def check_constraints(added: list[Line], removed: list[Line]) -> list[Finding]:
             if line.text.lstrip().startswith("- ") and line.text.strip() not in new_bullets:
                 findings.append(Finding("floor-rule-removed", line.path, line.number))
             continue
-        if cells[0] not in new_rows:
+        replacement = new_rows.get(cells[0])
+        if replacement is None:
             if not EXCEPTION_ID.fullmatch(cells[0]):
                 findings.append(Finding("constraint-removed", line.path, line.number))
             continue
-        replacement, new_cells = new_rows[cells[0]]
-        if [BOUND.sub("", c, count=1) for c in cells] != [BOUND.sub("", c, count=1) for c in new_cells]:
+        # Only the bound _bound reads is exempt; a second bound in another cell is a changed cell.
+        if _row(BOUND.sub("", line.text, count=1)) != _row(BOUND.sub("", replacement.text, count=1)):
             findings.append(Finding("constraint-changed", replacement.path, replacement.number))
         before, after = _bound(line.text), _bound(replacement.text)
         if before and (
