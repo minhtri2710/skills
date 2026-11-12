@@ -4,8 +4,13 @@ Every script that names a file under the root asks this module; STATE_ROOT is re
 """
 from __future__ import annotations
 
+import argparse
+import hashlib
 import re
+import sys
 from pathlib import Path
+
+import gitops
 
 STATE_ROOT = Path.home() / ".agent-delivery" / "projects"
 
@@ -35,8 +40,21 @@ def check_slug(slug: str) -> str:
 
 
 def slug_for(checkout: Path) -> str:
-    """The project slug of a checkout: its directory name, lower-cased."""
-    return check_slug(checkout.name.lower())
+    """The project slug of a checkout: `<main checkout name, lower-cased>-<8 hex of sha256(git common dir)>`.
+
+    The hash tells apart same-named checkouts in different places; every worktree of one repository shares
+    its common dir, so they share the slug.
+    """
+    try:
+        common = Path(gitops.git(checkout, "rev-parse", "--path-format=absolute", "--git-common-dir"))
+    except gitops.GitError as exc:
+        raise ValueError(f"{checkout} has no project slug: {exc}") from None
+    if common.name != ".git":
+        raise ValueError(
+            f"{checkout} has no project slug: git common dir {common} is not a .git directory "
+            "(a bare repository or a submodule)")
+    digest = hashlib.sha256(str(common).encode("utf-8")).hexdigest()[:8]
+    return check_slug(f"{common.parent.name.lower()}-{digest}")
 
 
 def project_dir(slug: str) -> Path:
@@ -110,3 +128,19 @@ def mailbox_slug(path: str | Path) -> str:
     if len(parts) != 2 or parts[1] != MAILBOX or not SLUG_RE.fullmatch(parts[0]):
         raise ValueError(f"{path} is not {STATE_ROOT}/<slug>/{MAILBOX}")
     return parts[0]
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="print the project slug of a git checkout")
+    parser.add_argument("checkout", type=Path)
+    args = parser.parse_args(argv)
+    try:
+        print(slug_for(args.checkout))
+    except ValueError as exc:
+        print(str(exc).replace("\n", " "), file=sys.stderr)
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
