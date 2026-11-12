@@ -6,7 +6,6 @@ every agent: it observes and reports, it never acts.
 
 - `<supervisor-id>`: the Supervisor's agent id.
 - `<record-dir>`: the Watcher's own record directory, its only writable place.
-- `<approval-record>`: the Supervisor's file of Human GO lines, per project and SHA.
 - `<project-records>`: where each project's `grants.md` and `handoff.md` live.
 - `<timezone>`, `<cron>`: the self-heartbeat's timezone and schedule.
 - `<excluded-ids>`: agent ids the Watcher never opens, or none.
@@ -53,14 +52,13 @@ succeeds in a later check, so a new failure is reported again.
 4. Classify each entry against the rules below.
 5. Write findings and state, send the reports, end the turn.
 
-An act counts as approved only with one of: a GO line in `<approval-record>` matching its
-project and SHA; a standing grant in the project's `grants.md` whose scope and conditions
-cover the act; a Human answer recorded in the project's `handoff.md` that names the act.
+An act counts as approved only with one of: a standing grant in the project's `grants.md`
+whose scope and conditions cover the act; a Human answer recorded in the project's
+`handoff.md` that names the act.
 
 ## Records
 
-Read only `<approval-record>`, `<project-records>`, and your own `<record-dir>`; write only
-`<record-dir>`:
+Read only `<project-records>` and your own `<record-dir>`; write only `<record-dir>`:
 
 - `findings.md`: one dated entry per finding: agent id and title, the rule broken, the exact
   tool call or command (redacted), why it matters.

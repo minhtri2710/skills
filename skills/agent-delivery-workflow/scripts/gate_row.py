@@ -70,6 +70,10 @@ HUMAN_WORDS = ("human", "selected")
 LOCAL_OPS_STATUS = "recorded:local-ops"
 STANDING_DELEGATION_STATUS = "recorded:standing-delegation"
 CUTOVER_STATUS = "recorded:cutover"
+REVIEW_PASS_STATUS = "recorded:review-pass"
+# A Tier P head's Lead self-check is its step 8 review for push coverage and the repair cap, never an independent PASS.
+SELF_CHECK_STATUS = "recorded:self-check"
+COVERING_REVIEW_STATUSES = frozenset({REVIEW_PASS_STATUS, SELF_CHECK_STATUS})
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 FINDING_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]*$")
 ISO_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
@@ -697,9 +701,9 @@ class LedgerState:
         if row.void is not None:
             self.voided_by[row.void] = row.gid
             self.resolved_at[row.void] = index
-        if row.kind == "review" and row.status == "recorded:review-pass":
+        if row.kind == "review" and row.status in COVERING_REVIEW_STATUSES:
             self.reviews.setdefault(row.review.head, []).append((index, row.gid, row.review.base))
-        if (row.status == "recorded:review-pass" or row.kind == "push"
+        if (row.status in COVERING_REVIEW_STATUSES or row.kind == "push"
                 or (row.kind == "merge" and row.status.startswith("resolved:"))
                 or row.kind == "repair-cap-gate"):
             self.repair_findings.clear()
@@ -710,7 +714,7 @@ class LedgerState:
         if target not in self.latest:
             raise RowError(f"void={target} refused: target is not an earlier row of this ledger")
         kind, status = self.kinds[target], self.latest[target][1]
-        if not (kind == "review" and status == "recorded:review-pass"):
+        if not (kind == "review" and status == REVIEW_PASS_STATUS):
             raise RowError(
                 f"void={target} refused: target must be a kind=review status=recorded:review-pass row"
             )
