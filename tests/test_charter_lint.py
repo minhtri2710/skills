@@ -650,12 +650,12 @@ class CharterLintTest(unittest.TestCase):
     @staticmethod
     def by_value_sentences() -> str:
         return (
-            "Never run two heavy suites of one project at once.\n"
+            "Never run two heavy suites of one project at once, across its checkout, baseline tree, and sandboxes.\n"
             "Paste the ran and skipped counts of each rerun beside the reported ones. Re-derive each red-proof row "
-            "by applying only the added or changed test files to the base: one targeted run and never a mutant run.\n"
+            "by applying only the added or changed test files to the base, running that row's command, one targeted run and never a mutant run.\n"
             "Not called for: new files; abstractions with one caller; config or flags that no caller varies; "
             "handling for states the types or callers make impossible; old paths kept beside new ones; "
-            "comments that restate the code. Each one fails the head only when it crosses the acceptance boundary.\n"
+            "comments that restate the code. Each one is a finding, and it fails the head only when it crosses the acceptance boundary.\n"
             "No-mutation: one charter-named check at a time as a runtime task id, never detached (no `nohup`, "
             "`setsid`, `disown`, trailing `&`), awaited through the runtime's completion notice, not a sleep or "
             "poll loop, stopped only by its own task id, and reported only after it ends, with its task id, "
