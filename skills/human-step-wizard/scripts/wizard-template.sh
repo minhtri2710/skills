@@ -64,7 +64,8 @@ open_url() {
   for candidate in wslview explorer.exe xdg-open open; do
     if command -v "$candidate" >/dev/null 2>&1; then opener="$candidate"; break; fi
   done
-  if [[ -n "$opener" ]] && "$opener" "$url" >/dev/null 2>&1; then return 0; fi
+  # explorer.exe exits 1 even when it opened the URL.
+  if [[ -n "$opener" ]] && { "$opener" "$url" >/dev/null 2>&1 || [[ "$opener" == explorer.exe ]]; }; then return 0; fi
   warn "couldn't open a browser; visit it manually: $url"
 }
 
@@ -84,10 +85,18 @@ confirm() {
   [[ "$reply" =~ ^[Yy] ]]
 }
 
+# _existing KEY prints the saved value with one layer of quotes removed.
 _existing() {
   [[ -f "$ENV_FILE" ]] || return 1
-  local line; line=$(grep -E "^${1}=" "$ENV_FILE" | tail -n1) || return 1
-  printf '%s' "${line#*=}"
+  local line value; line=$(grep -E "^${1}=" "$ENV_FILE" | tail -n1) || return 1
+  value="${line#*=}"
+  if [[ ${#value} -ge 2 && "$value" == \"*\" ]]; then
+    value="${value:1:${#value}-2}"
+    value=$(printf '%s' "$value" | sed -e 's/\\\([\\"$`]\)/\1/g')
+  elif [[ ${#value} -ge 2 && "$value" == \'*\' ]]; then
+    value="${value:1:${#value}-2}"
+  fi
+  printf '%s' "$value"
 }
 
 # _read_value KEY "Prompt" SECRET reads a value into $KEY; SECRET=1 hides the
@@ -127,15 +136,36 @@ ask() { _read_value "$1" "$2" 0; }
 # ask_secret KEY "Prompt" is like ask, but input is hidden.
 ask_secret() { _read_value "$1" "$2" 1; }
 
-# write_env KEY VALUE upserts KEY=VALUE into ENV_FILE (creates it; replaces
-# any existing line). Idempotent.
+# write_env swaps in its own EXIT/INT/TERM traps while the temp file exists and
+# puts the caller's back afterwards; on an abnormal exit it also runs the
+# caller's EXIT trap, which `trap -p` prints as: trap -- 'COMMAND' EXIT.
+_ENV_TMP=""; _ENV_PRIOR_TRAPS=""; _ENV_PRIOR_EXIT=""
+_env_tmp_done() { rm -f -- "$_ENV_TMP"; trap - EXIT INT TERM; eval "$_ENV_PRIOR_TRAPS"; }
+_env_on_exit() { rm -f -- "$_ENV_TMP"; eval "set -- $_ENV_PRIOR_EXIT"; eval "${3:-}"; }
+
+# write_env KEY VALUE upserts KEY="VALUE" into ENV_FILE (creates it; replaces
+# any existing line). Idempotent. The value is double-quoted with \ " $ ` escaped,
+# so the file stays valid to source. The new file is staged beside ENV_FILE and
+# renamed over it; an unreadable ENV_FILE fails instead of being overwritten.
 write_env() {
-  local key="$1" value="$2" tmp
+  local key="$1" value="$2" rc=0
   touch "$ENV_FILE"
-  tmp=$(mktemp)
-  grep -vE "^${key}=" "$ENV_FILE" > "$tmp" || true
-  printf '%s=%s\n' "$key" "$value" >> "$tmp"
-  mv "$tmp" "$ENV_FILE"
+  _ENV_TMP=$(mktemp "${ENV_FILE}.XXXXXX")
+  _ENV_PRIOR_TRAPS=$(trap -p EXIT INT TERM)
+  _ENV_PRIOR_EXIT=$(trap -p EXIT)
+  trap _env_on_exit EXIT
+  trap 'exit 130' INT
+  trap 'exit 143' TERM
+  grep -vE "^${key}=" "$ENV_FILE" > "$_ENV_TMP" || rc=$?
+  if (( rc > 1 )); then
+    _env_tmp_done
+    printf 'wizard: cannot read %s; left unchanged\n' "$ENV_FILE" >&2
+    return 1
+  fi
+  value=$(printf '%s' "$value" | sed -e 's/[\\"$`]/\\&/g')
+  printf '%s="%s"\n' "$key" "$value" >> "$_ENV_TMP"
+  mv "$_ENV_TMP" "$ENV_FILE"
+  _env_tmp_done
   WRITTEN_ENV+=("$key")
   printf '  %s✓ wrote%s %s → %s\n' "$GREEN" "$RESET" "$key" "$ENV_FILE"
 }
@@ -144,31 +174,32 @@ write_env() {
 _gh_ready() { command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; }
 
 # set_secret NAME VALUE sets a GitHub Actions repo secret via gh. Falls back
-# to a warning (and records it) if gh is unavailable or unauthenticated.
+# to a warning (and records it) if gh is unavailable, unauthenticated, or fails;
+# the warning carries gh's own error.
 set_secret() {
-  local name="$1" value="$2"
+  local name="$1" value="$2" reason="gh not ready"
   if _gh_ready; then
-    if printf '%s' "$value" | gh secret set "$name" >/dev/null 2>&1; then
+    if reason=$(printf '%s' "$value" | gh secret set "$name" 2>&1 >/dev/null); then
       WRITTEN_SECRET+=("$name")
       printf '  %s✓ set%s GitHub secret %s\n' "$GREEN" "$RESET" "$name"
       return
     fi
   fi
   SKIPPED+=("GitHub secret $name (set it manually: gh secret set $name)")
-  warn "skipped GitHub secret $name: gh not ready; set it later"
+  warn "skipped GitHub secret $name: ${reason//$'\n'/ }; set it later"
 }
 
 # set_var NAME VALUE sets a GitHub Actions repo variable (non-secret).
 set_var() {
-  local name="$1" value="$2"
+  local name="$1" value="$2" reason="gh not ready"
   if _gh_ready; then
-    if gh variable set "$name" --body "$value" >/dev/null 2>&1; then
+    if reason=$(gh variable set "$name" --body "$value" 2>&1 >/dev/null); then
       printf '  %s✓ set%s GitHub variable %s\n' "$GREEN" "$RESET" "$name"
       return
     fi
   fi
   SKIPPED+=("GitHub variable $name")
-  warn "skipped GitHub variable $name, gh not ready; set it later"
+  warn "skipped GitHub variable $name: ${reason//$'\n'/ }; set it later"
 }
 
 # finish clears, then shows a closing summary of everything configured.

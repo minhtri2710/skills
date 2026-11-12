@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
 """Refuse a destructive target that is not provably contained in an allowlisted root.
 
-A symlink leaf is kept as the link: only its parent is resolved, and its
-non-strict pointee must be inside an allowlisted root. With multiple roots,
-containment and depth use the nearest containing root; a target that is or
-contains an allowlisted root is refused. Ownership evidence is read before the
-caller's delete, move, or overwrite runs. A refusal is final: no broader root is tried.
+A symlink leaf is kept as the link: only its parent is resolved. Its non-strict
+pointee must pass the same root, depth, and root-equality rules as a plain
+target, and with ownership evidence it must sit inside the directory that holds
+the evidence. With multiple roots, containment and depth use the nearest
+containing root; a target that is or contains an allowlisted root is refused.
+Ownership evidence is read before the caller's delete, move, or overwrite runs.
+An empty target, root, or expected owner cannot be checked. A refusal is final:
+no broader root is tried.
 
 Exit codes: 0 accepted (the checked target is printed), 1 refused, 2 cannot check.
 """
@@ -44,12 +47,16 @@ def resolve_target(
     owner_file: str | None = None,
     expect_owner: str | None = None,
 ) -> Path:
-    if not roots:
-        raise CannotCheck("no allowlisted root given")
+    if not roots or "" in roots:
+        raise CannotCheck("no allowlisted root given, or a root is empty")
+    if candidate == "":
+        raise CannotCheck("empty target")
     if min_depth < 1:
         raise CannotCheck("min_depth below 1 would let a root be the target")
     if (owner_file is None) != (expect_owner is None):
         raise CannotCheck("owner_file and expect_owner must be given together")
+    if expect_owner is not None and not expect_owner.strip():
+        raise CannotCheck("expect_owner is empty")
     if owner_file is not None and (Path(owner_file).parts != (owner_file,) or owner_file == ".."):
         raise CannotCheck("owner_file must be a file name")
     target = _resolve(Path(candidate))
@@ -60,28 +67,14 @@ def resolve_target(
         except OSError as exc:
             raise CannotCheck(f"cannot resolve root {raw}: {exc}") from exc
 
+    pointee = None
     if target.is_symlink():
         pointee = Path(os.path.realpath(target))
-        if not any(
-            _is_contained(pointee, root)
-            for root in resolved_roots
-        ):
+        if not any(_is_contained(pointee, root) for root in resolved_roots):
             raise Refused(f"symlink points outside allowed roots: {target} -> {pointee}")
+        _nearest_root(pointee, resolved_roots, min_depth)
 
-    for root in resolved_roots:
-        if target == root or _is_contained(root, target):
-            raise Refused(f"target is or contains an allowed root: {target}")
-
-    containing = [
-        (root, target.relative_to(root))
-        for root in resolved_roots
-        if _is_contained(target, root)
-    ]
-    if not containing:
-        raise Refused(f"outside allowed roots or above min depth: {target}")
-    root, inside = max(containing, key=lambda item: len(item[0].parts))
-    if len(inside.parts) < min_depth:
-        raise Refused(f"outside allowed roots or above min depth: {target}")
+    root = _nearest_root(target, resolved_roots, min_depth)
 
     if owner_file is not None:
         holder = target if (not target.is_symlink() and target.is_dir()) else target.parent
@@ -94,8 +87,23 @@ def resolve_target(
             raise Refused(f"unproven owner, evidence unreadable: {exc}") from exc
         if owner != expect_owner:
             raise Refused(f"unproven owner: {evidence}")
+        if pointee is not None and not _is_contained(pointee, holder):
+            raise Refused(f"symlink points outside the owner's directory: {target} -> {pointee}")
 
     return target
+
+
+def _nearest_root(target: Path, roots: list[Path], min_depth: int) -> Path:
+    for root in roots:
+        if target == root or _is_contained(root, target):
+            raise Refused(f"target is or contains an allowed root: {target}")
+    containing = [(root, target.relative_to(root)) for root in roots if _is_contained(target, root)]
+    if not containing:
+        raise Refused(f"outside allowed roots or above min depth: {target}")
+    root, inside = max(containing, key=lambda item: len(item[0].parts))
+    if len(inside.parts) < min_depth:
+        raise Refused(f"outside allowed roots or above min depth: {target}")
+    return root
 
 
 def _is_contained(candidate: Path, root: Path) -> bool:
