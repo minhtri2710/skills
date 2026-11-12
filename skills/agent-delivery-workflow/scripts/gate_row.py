@@ -52,8 +52,7 @@ BRANCH_HEAD_RE = re.compile(rf"^(?P<branch>[^ |@]+)@(?P<head>{gitops.FULL_SHA})$
 PUSH_TIMEOUT_S = 120
 PUSH_RE = re.compile(
     rf'^push=(?P<base>{gitops.FULL_SHA})\.\.(?P<head>{gitops.FULL_SHA}) '
-    r'count=(?P<count>\d+) boundary="(?P<declared>[^"]*)" '
-    r'boundary-check="(?P<boundary>[^"]*)"$'
+    r'count=(?P<count>\d+) boundary="(?P<declared>[^"]*)"$'
 )
 REVIEW_RE = re.compile(
     rf'^review=(?P<base>{gitops.FULL_SHA})\.\.(?P<head>{gitops.FULL_SHA}) '
@@ -142,11 +141,16 @@ KINDS = {
     "local-ops": KindRule(frozenset({LOCAL_OPS_STATUS})),
     "standing-delegation": KindRule(frozenset({STANDING_DELEGATION_STATUS}), human_words=True),
     "cutover": KindRule(frozenset({CUTOVER_STATUS}), genesis=True),
+    "decision": KindRule(),
+    "repair-grant": KindRule(),
+    "repair-cap-gate": KindRule(human_gate=True),
 }
 
 
-def kind_rule(kind: str | None) -> KindRule:
-    return KINDS.get(kind, KindRule())
+def kind_rule(kind: str) -> KindRule:
+    if kind not in KINDS:
+        raise RowError(f"kind={kind} is not a ledger kind")
+    return KINDS[kind]
 
 
 class PushBlock(NamedTuple):
@@ -154,7 +158,6 @@ class PushBlock(NamedTuple):
     head: str
     count: str
     declared: tuple[str, ...]
-    boundary: str
 
 
 class ReviewBlock(NamedTuple):
@@ -249,10 +252,9 @@ def parse_push(field: str) -> PushBlock:
     if not declared:
         raise RowError(
             'this row declares boundary="" — an empty boundary puts every touched '
-            "path outside it, which passes any row claiming the whole changed set"
+            "path outside it, so no push could satisfy it"
         )
-    return PushBlock(match.group("base"), match.group("head"), match.group("count"),
-                     declared, match.group("boundary"))
+    return PushBlock(match.group("base"), match.group("head"), match.group("count"), declared)
 
 
 def parse_review(field: str) -> ReviewBlock:
@@ -282,7 +284,7 @@ FIELDS = (
     Field("skills", parse_skills, only("deploy")),
     Field("push", parse_push, only("push"), True,
           "this row is kind=push and carries no push block — the range, count and "
-          "boundary-check are the whole of what a push row is checked against, so a "
+          "boundary are the whole of what a push row is checked against, so a "
           "row without them is checked against nothing and passes vacuously"),
     Field("review", parse_review, only("review"), True,
           "this row is kind=review and carries no review block — the range it covers "
@@ -564,7 +566,7 @@ def read_ledger_state(ledger: Path, repo: Path) -> "LedgerState":
 
 
 def reviewed_unpushed(state: "LedgerState", repo: Path) -> set[str]:
-    """Commits in `repo` that are not pushed, are covered by a review PASS, and no open push-gate row names."""
+    """Commits not pushed, covered by a review PASS or self-check, and named by no open push-gate row."""
     tips = open_push_gate_tips(state, repo)
     head = git(repo, "rev-parse", "HEAD")
     try:
@@ -608,6 +610,7 @@ def parse_row(text: str) -> Row:
     fields, quote = split_row(text)
     gid, when, kind_field, head_field, status_field, *rest = fields
     kind = tagged(kind_field, "kind", KIND_RE)
+    rule = kind_rule(kind)
     status = tagged(status_field, "status", STATUS_RE)
     if not ISO_RE.fullmatch(when):
         raise RowError(f"time {when!r} is not an ISO UTC timestamp")
@@ -637,7 +640,6 @@ def parse_row(text: str) -> Row:
     if position != len(rest):
         raise RowError(f"field {rest[position].split('=')[0]!r} is out of order or duplicated")
 
-    rule = kind_rule(kind)
     if rule.statuses and status not in rule.statuses:
         if len(rule.statuses) == 1:
             raise RowError(f"kind={kind} requires status={next(iter(rule.statuses))}")
@@ -733,6 +735,17 @@ class LedgerState:
             if own is None or own[1] != "open" or self.resolved_at.get(target, -1) > own[0]:
                 raise RowError(f"resolves={target} refused: already-closed")
 
+    def require_closing_authority(self, row: Row) -> None:
+        """A Human gate closes on the Human's words or under a delegation; only a seat-permission denial closes on a seat row."""
+        if row.under is not None or row.words in HUMAN_WORDS:
+            return
+        for target in row.resolves:
+            opener = self.parsed[self.latest[target][0]]
+            rule = kind_rule(opener.kind)
+            if rule.human_gate and not (rule.seat_permission and opener.words == "none"):
+                raise RowError(
+                    f"resolves={target} closes a Human gate: it needs words=human or words=selected, or under=")
+
     def require_in_force(self, target: str, when: str) -> None:
         if self.kinds.get(target) != "standing-delegation":
             raise RowError(f"under={target} is not an earlier kind=standing-delegation row")
@@ -789,7 +802,7 @@ class LedgerState:
             detail = f"; {', '.join(text for _, text in voided)}" if voided else ""
             raise RowError(
                 f"refusing push of {base}..{head}: {', '.join(sorted(missing))} "
-                f"is not covered by any review PASS range{detail}"
+                f"is not covered by any review range{detail}"
             )
 
 
@@ -804,7 +817,7 @@ def derive_push(repo: Path, base: str, head: str, boundary: list[str]) -> tuple[
         if not b or b.split() != [b]:
             raise RowError(
                 f"boundary path {b!r} is empty or holds whitespace — --boundary is one flag "
-                "per path, and a path with a space cannot be read back out of boundary-check"
+                "per path, and a path with a space cannot be read back out of boundary="
             )
     commits = range_commits(repo, base, head)
     count = str(len(commits))
@@ -815,9 +828,12 @@ def derive_push(repo: Path, base: str, head: str, boundary: list[str]) -> tuple[
     outside = sorted(path for path in changed
                      if not any(b == "." or path == b or path.startswith(b.rstrip("/") + "/")
                                 for b in boundary))
-    if any('"' in path or "|" in path or path.split() != [path] for path in outside):
-        raise RowError("a path outside the boundary contains a delimiter character")
     return count, outside
+
+
+def require_inside(base: str, head: str, outside: list[str]) -> None:
+    if outside:
+        raise RowError(f"push {base}..{head} touches paths outside --boundary: {' '.join(outside)}")
 
 
 def resolve_row_head(request: RowRequest, repo: Path) -> tuple[str, str]:
@@ -847,6 +863,9 @@ def resolve_row_head(request: RowRequest, repo: Path) -> tuple[str, str]:
 
 
 def push_head(repo: Path, branch: str, head: str) -> str:
+    checked_out = git(repo, "rev-parse", "--abbrev-ref", "HEAD")
+    if branch != checked_out:
+        raise RowError(f"--push refused: {branch} is not the checked-out branch {checked_out}")
     try:
         product = git(repo, "symbolic-ref", "--short", "refs/remotes/origin/HEAD")
     except gitops.GitError:
@@ -885,7 +904,7 @@ def derived_blocks(request: RowRequest, repo: Path, branch: str, head: str,
     if request.kind == "push":
         if not request.push_base:
             raise RowError(
-                "a push row needs --push-base: the range, count and boundary-check are "
+                "a push row needs --push-base: the range, count and boundary are "
                 "derived from it, and a push row carrying none of them asserts that a "
                 "push happened while holding no evidence that it did"
             )
@@ -911,13 +930,13 @@ def derived_blocks(request: RowRequest, repo: Path, branch: str, head: str,
                 )
         if not request.boundary:
             raise RowError(
-                "a push row needs --boundary: the declared paths the push was judged "
-                "against are part of the row, and refusing here keeps the bad row out "
-                "of an append-only file rather than rejecting it after it lands"
+                "a push row needs --boundary: the delivery's declared paths are part of "
+                "the row, and a push touching a path outside them is refused here, "
+                "keeping the bad row out of an append-only file"
             )
         count, outside = derive_push(repo, request.push_base, head, request.boundary)
-        return (f'{request.push_base}..{head} count={count} boundary="{" ".join(request.boundary)}" '
-                f'boundary-check="{" ".join(outside)}"'), None
+        require_inside(request.push_base, head, outside)
+        return f'{request.push_base}..{head} count={count} boundary="{" ".join(request.boundary)}"', None
     if request.kind == "review":
         if not request.review_base:
             raise RowError(
@@ -977,6 +996,7 @@ def request_words(request: RowRequest) -> str:
     """The row's words, refusing a request too incomplete to build a row from."""
     if not request.kind or not request.status:
         raise RowError("--kind and --status are required to append a row")
+    kind_rule(request.kind)
     if request.words is None:
         raise RowError("--words is required when appending a row")
     return request.words
@@ -1066,11 +1086,7 @@ def check(text: str, repo: Path, state: LedgerState) -> None:
             raise RowError(f"push head {push.head} does not match row head {row.head}")
         if count != push.count:
             raise RowError(f"count={push.count} but {push.base}..{push.head} carries {count} commits")
-        if " ".join(outside) != push.boundary:
-            raise RowError(
-                f'boundary-check="{push.boundary}" but the union over {push.base}..{push.head} '
-                f'outside the declared boundary is "{" ".join(outside)}"'
-            )
+        require_inside(push.base, push.head, outside)
         state.require_review_coverage(repo, push.base, row.head)
 
     if row.review is not None:
@@ -1085,6 +1101,7 @@ def check(text: str, repo: Path, state: LedgerState) -> None:
 
     if row.resolves:
         state.require_open(row.resolves)
+        state.require_closing_authority(row)
 
 
 def check_mailbox_for_open_gate(row: Row, mailbox: Path | None) -> None:
@@ -1212,9 +1229,10 @@ def main(argv: list[str] | None = None) -> int:
                         help="on kind=push: check the row, then run the non-force git push of "
                         "<head> to origin/<branch> (never the product line), then append the row")
     parser.add_argument("--boundary", action="append", default=[],
-                        help="a declared boundary path; repeatable, required to append a push "
-                             "row, and written into the row so --check derives against the "
-                             "same paths without being told them")
+                        help="a path of the delivery's declared scope; repeatable, required to "
+                             "append a push row, which is refused when the pushed range touches "
+                             "a path outside them; written into the row so --check derives "
+                             "against the same paths without being told them")
     parser.add_argument("--resolves", action="append", default=[],
                         help="an open gate id to resolve; repeatable and comma-separated")
     parser.add_argument("--under", help="the in-force kind=standing-delegation id a row answered "

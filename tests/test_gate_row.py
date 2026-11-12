@@ -84,7 +84,7 @@ class GateRowTest(unittest.TestCase):
             "--quote", "", "--brief", BRIEF,
         ])
 
-    def append_review_pass(self, base: str | None = None, status: str = "recorded:review-pass") -> int:
+    def append_review(self, base: str | None = None, status: str = "recorded:review-pass") -> int:
         return self.run_main([
             "--ledger", str(self.ledger), "--repo", str(self.repo),
             "--kind", "review", "--status", status,
@@ -528,7 +528,7 @@ class GateRowTest(unittest.TestCase):
         return rows
 
     def test_validation_spends_a_fixed_number_of_git_processes_whatever_the_row_count(self):
-        self.assertEqual(self.append_review_pass(), 0, self.err.getvalue())
+        self.assertEqual(self.append_review(), 0, self.err.getvalue())
         self.add_remote("HEAD")
         self.assertEqual(self.append(
             "--kind", "push", "--push-base", self.rev("HEAD~2"), "--boundary", "."), 0, self.err.getvalue())
@@ -545,7 +545,7 @@ class GateRowTest(unittest.TestCase):
         self.assertEqual(self.git_verbs(self.fixture_rows_on(heads, after=review_and_push)), pair)
 
     def test_a_read_state_holds_each_ledger_row_once_and_answers_reviewed_unpushed_alone(self):
-        self.assertEqual(self.append_review_pass(), 0, self.err.getvalue())
+        self.assertEqual(self.append_review(), 0, self.err.getvalue())
         self.assertEqual(self.append(), 0, self.err.getvalue())
         rows = gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))
         state = gate_row.read_ledger_state(self.ledger, self.repo)
@@ -678,7 +678,7 @@ class GateRowTest(unittest.TestCase):
         self.ledger.write_text(legacy + "\n", encoding="utf-8")
         self.assertEqual(self.open_gates(), [])
 
-        self.assertEqual(self.append_review_pass(), 0)
+        self.assertEqual(self.append_review(), 0)
         review_id = self.last_row().split(" | ")[0]
         self.assertEqual(self.append_correction(review_id), 0, self.err.getvalue())
         self.assertIn(f" | void={review_id} | ", self.last_row())
@@ -912,9 +912,9 @@ class GateRowTest(unittest.TestCase):
         self.assertEqual(self.append(
             "--kind", "push", "--push-base", zero, "--boundary", ".",
         ), 1)
-        self.assertIn("not covered by any review PASS range", self.err.getvalue())
+        self.assertIn("not covered by any review range", self.err.getvalue())
         self.assertEqual(self.ledger.read_bytes(), before)
-        self.assertEqual(self.append_review_pass(zero), 0)
+        self.assertEqual(self.append_review(zero), 0)
         self.assertIn(f"review={zero}..{self.rev('HEAD')} count=3", self.last_row())
         self.assertEqual(self.check_last(), 0, self.err.getvalue())
         self.assertEqual(self.append(
@@ -925,7 +925,7 @@ class GateRowTest(unittest.TestCase):
     def test_a_past_head_is_landed_when_a_newer_remote_tip_is_on_top(self):
         zero = gitops.NULL_OID
         past = self.rev("HEAD")
-        self.assertEqual(self.append_review_pass(zero), 0)
+        self.assertEqual(self.append_review(zero), 0)
         self.add_remote("HEAD")
         (self.repo / "later.txt").write_text("later\n")
         support.git(self.repo, "add", "later.txt")
@@ -939,7 +939,7 @@ class GateRowTest(unittest.TestCase):
 
     def test_a_remote_tip_not_present_locally_is_refused_with_fetch_action(self):
         zero = gitops.NULL_OID
-        self.assertEqual(self.append_review_pass(zero), 0)
+        self.assertEqual(self.append_review(zero), 0)
         self.add_remote("HEAD")
         other = self.tmp / "other"
         support.git(self.tmp, "clone", "-q", str(self.tmp / "origin.git"), str(other))
@@ -992,18 +992,16 @@ class GateRowTest(unittest.TestCase):
         support.git(self.repo, "push", "-q", "origin", f"{self.rev(ref)}:refs/heads/main")
 
     def test_a_landed_push_derives_its_own_count_and_boundary(self):
-        self.assertEqual(self.append_review_pass(), 0)
+        self.assertEqual(self.append_review(), 0)
         self.add_remote("HEAD")
         self.assertEqual(self.append("--kind", "push", "--push-base", self.rev("HEAD~2"),
                                      "--boundary", "f1.txt", "--boundary", "f2.txt"), 0)
         row = self.last_row()
         self.assertIn("count=2", row)
-        self.assertIn('boundary="f1.txt f2.txt"', row)
-        self.assertIn('boundary-check=""', row)
-        self.assertRegex(row, r"push=[0-9a-f]{7,40}\.\.[0-9a-f]{7,40} count=\d+ "
-                              r'boundary="[^"]+" boundary-check="[^"]*"')
+        self.assertRegex(row, r"push=[0-9a-f]{40}\.\.[0-9a-f]{40} count=2 "
+                              r'boundary="f1.txt f2.txt" \| ')
 
-    def test_a_path_added_and_deleted_inside_the_range_is_still_named(self):
+    def test_a_path_added_and_deleted_inside_the_range_is_still_outside_the_boundary(self):
         base = self.rev("HEAD")
         (self.repo / "src").mkdir()
         (self.repo / "src" / "out-of-boundary.py").write_text("x\n")
@@ -1015,17 +1013,16 @@ class GateRowTest(unittest.TestCase):
         net = support.git(self.repo, "diff", "--name-only", f"{base}..HEAD")
         self.assertEqual(net, "", "the net tree diff must be empty, or this case proves nothing")
 
-        self.assertEqual(self.append_review_pass(), 0)
+        self.assertEqual(self.append_review(), 0)
         self.add_remote("HEAD")
-        self.assertEqual(self.append("--kind", "push", "--push-base", base,
-                                     "--boundary", "docs"), 0)
-        row = self.last_row()
-        self.assertIn("count=2", row)
-        self.assertIn('boundary-check="src/out-of-boundary.py"', row)
+        self.assertEqual(self.append("--kind", "push", "--push-base", base, "--boundary", "docs"), 1)
+        self.assertIn("outside --boundary", self.err.getvalue())
+        self.assertIn("src/out-of-boundary.py", self.err.getvalue())
+        self.assertEqual(len(gate_row.ledger_rows(self.ledger.read_text())), 1)
 
     def valid_push_row(self) -> tuple[str, list[str]]:
         boundary = ["f1.txt", "f2.txt"]
-        self.assertEqual(self.append_review_pass(), 0)
+        self.assertEqual(self.append_review(), 0)
         self.add_remote("HEAD")
         self.assertEqual(self.append(
             "--kind", "push", "--push-base", self.rev("HEAD~2"),
@@ -1037,14 +1034,7 @@ class GateRowTest(unittest.TestCase):
         row, boundary = self.valid_push_row()
         prior_rows = gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))[:-1]
         tampers = {
-            "boundary-check": (
-                'boundary-check=""', 'boundary-check="src/fabricated.py"',
-                "outside the declared boundary",
-            ),
-            "boundary": (
-                'boundary="f1.txt f2.txt"', 'boundary="f1.txt"',
-                'boundary-check=""',
-            ),
+            "boundary": ('boundary="f1.txt f2.txt"', 'boundary="f1.txt"', "outside --boundary"),
             "record": ("record=timely", "record=bogus", "not one of"),
             "quote": ('quote=""', 'quote="said"', "stores no Human text"),
             "head": (
@@ -1068,13 +1058,13 @@ class GateRowTest(unittest.TestCase):
         self.add_remote("HEAD")
         base = self.rev("HEAD~2")
         self.assertEqual(self.append("--kind", "push", "--push-base", base,
-                                     "--boundary", "f1.txt"), 1)
-        self.assertIn("not covered by any review PASS range", self.err.getvalue())
+                                     "--boundary", "."), 1)
+        self.assertIn("not covered by any review range", self.err.getvalue())
         self.assertEqual(len(gate_row.ledger_rows(self.ledger.read_text())), 0)
 
-        self.assertEqual(self.append_review_pass(), 0)
+        self.assertEqual(self.append_review(), 0)
         self.assertEqual(self.append("--kind", "push", "--push-base", base,
-                                     "--boundary", "f1.txt"), 0)
+                                     "--boundary", "."), 0)
         rows = gate_row.ledger_rows(self.ledger.read_text(encoding="utf-8"))
         review = rows[0].replace("status=recorded:review-pass", "status=recorded:review-fail")
         row = self.last_row().replace(
@@ -1087,13 +1077,13 @@ class GateRowTest(unittest.TestCase):
         self.assertEqual(self.run_main([
             "--ledger", str(self.ledger), "--repo", str(self.repo), "--check",
         ]), 1)
-        self.assertIn("not covered by any review PASS range", self.err.getvalue())
+        self.assertIn("not covered by any review range", self.err.getvalue())
 
     def test_a_self_check_row_covers_a_push_but_is_not_a_voidable_review_pass(self):
         self.add_remote("HEAD")
-        self.assertEqual(self.append_review_pass(status="recorded:self-check"), 0, self.err.getvalue())
+        self.assertEqual(self.append_review(status="recorded:self-check"), 0, self.err.getvalue())
         self.assertEqual(self.append("--kind", "push", "--push-base", self.rev("HEAD~2"),
-                                     "--boundary", "f1.txt"), 0, self.err.getvalue())
+                                     "--boundary", "."), 0, self.err.getvalue())
         self.assertEqual(self.append(
             "--kind", "correction", "--status", "recorded:correction", "--void", "G1",
             "--words", "seat", "--note", "not a verdict", "--quote", "void"), 1)
@@ -1110,7 +1100,7 @@ class GateRowTest(unittest.TestCase):
         (self.repo / "feat.txt").write_text("feat\n")
         git("add", "-A")
         git("commit", "-qm", "feat")
-        self.assertEqual(self.append_review_pass(base), 0)
+        self.assertEqual(self.append_review(base), 0)
         git("switch", "-q", "main")
         (self.repo / "main.txt").write_text("main\n")
         git("add", "-A")
@@ -1145,7 +1135,7 @@ class GateRowTest(unittest.TestCase):
 
     def test_push_checks_the_row_then_pushes_only_the_named_branch_at_its_head(self):
         base = self.feature_with_origin()
-        self.assertEqual(self.append_review_pass(base), 0)
+        self.assertEqual(self.append_review(base), 0)
         self.assertEqual(self.push(base), 0, self.err.getvalue())
         self.assertEqual(self.remote_refs(), {"HEAD": base, "refs/heads/main": base,
                                               "refs/heads/feat": self.rev("HEAD")})
@@ -1155,22 +1145,31 @@ class GateRowTest(unittest.TestCase):
     def test_push_refuses_an_uncovered_head_before_pushing(self):
         base = self.feature_with_origin()
         self.assertEqual(self.push(base), 1)
-        self.assertIn("is not covered by any review PASS range", self.err.getvalue())
+        self.assertIn("is not covered by any review range", self.err.getvalue())
         self.assertNotIn("refs/heads/feat", self.remote_refs())
         self.assertEqual(gate_row.ledger_rows(self.ledger.read_text()), [])
 
     def test_push_refuses_a_malformed_head_before_pushing(self):
         base = self.feature_with_origin()
-        self.assertEqual(self.append_review_pass(base), 0)
+        self.assertEqual(self.append_review(base), 0)
         self.assertEqual(self.push(base, "--head", f"feat@{self.rev('HEAD')[:7]}"), 1)
         self.assertIn("is not <branch>@<full 40-hex commit SHA>", self.err.getvalue())
         self.assertNotIn("refs/heads/feat", self.remote_refs())
         self.assertEqual(len(gate_row.ledger_rows(self.ledger.read_text())), 1)
 
+    def test_push_names_only_the_checked_out_branch(self):
+        base = self.feature_with_origin()
+        self.assertEqual(self.append_review(base), 0)
+        before = self.remote_refs()
+        self.assertEqual(self.push(base, "--head", f"other@{self.rev('HEAD')}"), 1)
+        self.assertIn("--push refused: other is not the checked-out branch feat", self.err.getvalue())
+        self.assertEqual(self.remote_refs(), before)
+        self.assertEqual(len(gate_row.ledger_rows(self.ledger.read_text())), 1)
+
     def test_push_never_moves_the_product_line(self):
         base = self.feature_with_origin()
         support.git(self.repo, "switch", "-q", "main")
-        self.assertEqual(self.append_review_pass(base), 0)
+        self.assertEqual(self.append_review(base), 0)
         self.assertEqual(self.push(base), 1)
         self.assertIn("main is not a feature branch; the product line origin/main moves only by merge",
                       self.err.getvalue())
@@ -1190,7 +1189,7 @@ class GateRowTest(unittest.TestCase):
         support.git(self.repo, "push", "-q", "origin", "side:feat")
         side = self.rev("HEAD")
         support.git(self.repo, "switch", "-q", "feat")
-        self.assertEqual(self.append_review_pass(base), 0)
+        self.assertEqual(self.append_review(base), 0)
         self.assertEqual(self.push(base), 1)
         self.assertIn("git push", self.err.getvalue())
         self.assertEqual(self.remote_refs()["refs/heads/feat"], side)
@@ -1201,7 +1200,7 @@ class GateRowTest(unittest.TestCase):
         hook = self.tmp / "origin.git" / "hooks" / "post-receive"
         hook.write_text("#!/bin/sh\ngit update-ref -d refs/heads/feat\n")
         hook.chmod(0o755)
-        self.assertEqual(self.append_review_pass(base), 0)
+        self.assertEqual(self.append_review(base), 0)
         self.assertEqual(self.push(base), 1)
         self.assertIn(f"git push origin {self.rev('HEAD')}:refs/heads/feat ran, but origin/feat is absent",
                       self.err.getvalue())
@@ -1213,7 +1212,7 @@ class GateRowTest(unittest.TestCase):
         hook = self.repo / ".git" / "hooks" / "pre-push"
         hook.write_text(f"#!/bin/sh\nsleep 300 &\necho $! > {hook_pid}\nwait\n")
         hook.chmod(0o755)
-        self.assertEqual(self.append_review_pass(base), 0)
+        self.assertEqual(self.append_review(base), 0)
         began = time.monotonic()
         with mock.patch.object(gate_row, "PUSH_TIMEOUT_S", 1):
             self.assertEqual(self.push(base), 1)
@@ -1248,17 +1247,17 @@ class GateRowTest(unittest.TestCase):
     def test_a_merge_that_adds_content_needs_its_own_review(self):
         base = self.merged_branch(land_main=True, edit_merge=True)
         self.assertEqual(self.append("--kind", "push", "--push-base", base, "--boundary", "."), 1)
-        self.assertIn(f"{self.rev('HEAD')} is not covered by any review PASS range", self.err.getvalue())
+        self.assertIn(f"{self.rev('HEAD')} is not covered by any review range", self.err.getvalue())
 
     def test_a_merged_main_commit_not_yet_landed_stays_uncovered(self):
         base = self.merged_branch(land_main=False, edit_merge=False)
         self.assertEqual(self.append("--kind", "push", "--push-base", base, "--boundary", "."), 1)
-        self.assertIn("is not covered by any review PASS range", self.err.getvalue())
+        self.assertIn("is not covered by any review range", self.err.getvalue())
         for unreviewed in (self.rev("main"), self.rev("HEAD")):
             self.assertIn(unreviewed, self.err.getvalue())
 
     def test_a_push_row_with_no_declared_boundary_never_reaches_the_ledger(self):
-        self.assertEqual(self.append_review_pass(), 0)
+        self.assertEqual(self.append_review(), 0)
         self.add_remote("HEAD")
         before = self.ledger.read_text()
         self.assertEqual(self.append("--kind", "push",
@@ -1277,7 +1276,7 @@ class GateRowTest(unittest.TestCase):
         self.assertEqual(self.ledger.read_text(), before, "the refused row landed anyway")
 
     def test_a_review_row_with_a_wrong_count_is_refused_by_check(self):
-        self.assertEqual(self.append_review_pass(), 0)
+        self.assertEqual(self.append_review(), 0)
         tampered = self.last_row().replace("count=2", "count=5")
         self.ledger.write_text("# Gate ledger — test\n\n" + tampered + "\n", encoding="utf-8")
         self.assertEqual(self.run_main(
@@ -1285,7 +1284,7 @@ class GateRowTest(unittest.TestCase):
         self.assertIn("carries 2 commits", self.err.getvalue())
 
     def test_a_review_row_with_no_review_block_is_refused_by_check(self):
-        self.assertEqual(self.append_review_pass(), 0)
+        self.assertEqual(self.append_review(), 0)
         stripped = " | ".join(
             p for p in self.last_row().split(" | ") if not p.startswith("review=")
         )
@@ -1295,13 +1294,12 @@ class GateRowTest(unittest.TestCase):
         self.assertIn("carries no review block", self.err.getvalue())
 
     def test_a_dot_boundary_covers_the_whole_repository(self):
-        self.assertEqual(self.append_review_pass(), 0)
+        self.assertEqual(self.append_review(), 0)
         self.add_remote("HEAD")
         self.assertEqual(self.append("--kind", "push", "--push-base", self.rev("HEAD~2"),
                                      "--boundary", "."), 0)
         row = self.last_row()
         self.assertIn('boundary="."', row)
-        self.assertIn('boundary-check=""', row)
 
     def test_a_row_outlives_the_branch_that_named_it(self):
         support.git(self.repo, "checkout", "-q", "-b", "topic")
@@ -1317,7 +1315,7 @@ class GateRowTest(unittest.TestCase):
         gate_row.validate_ledger([*prior_rows, push_row.replace("main@", "nonexistent-branch@")], self.repo)
 
     def test_a_push_row_without_push_base_never_reaches_the_ledger(self):
-        self.assertEqual(self.append_review_pass(), 0)
+        self.assertEqual(self.append_review(), 0)
         self.add_remote("HEAD")
         before = self.ledger.read_text()
         self.assertEqual(self.append("--kind", "push", "--boundary", "f1.txt"), 1)
@@ -1574,7 +1572,7 @@ class GateRowTest(unittest.TestCase):
                 self.assertEqual(self.ledger.read_bytes(), before)
 
     def test_a_correction_refuses_a_padded_void_id(self):
-        self.assertEqual(self.append_review_pass(), 0, self.err.getvalue())
+        self.assertEqual(self.append_review(), 0, self.err.getvalue())
         before = self.ledger.read_bytes()
         self.assertEqual(self.append_correction(" G1"), 1)
         self.assertEqual(self.ledger.read_bytes(), before)
@@ -1586,6 +1584,32 @@ class GateRowTest(unittest.TestCase):
                 self.assertEqual(self.append_local_ops("--op", op), 1)
         self.assertEqual(self.ledger.read_bytes(), before)
 
+    def test_a_human_gate_closes_only_on_human_words_or_a_delegation_but_a_seat_constraint_on_a_seat_row(self):
+        seat = ("--words", "seat", "--quote", "the seat closed it")
+        self.assertEqual(self.append_standing_delegation(), 0, self.err.getvalue())  # G1
+        for opener in (
+            ("--status", "open"),                                   # a Human gate opened with the Human's words
+            ("--status", "open", "--words", "none", "--quote", ""),  # a merge is not a seat-permission kind
+            ("--kind", "merge-gate", "--status", "open"),           # a seat-permission kind, but not a denial row
+        ):
+            with self.subTest(opener=opener):
+                self.assertEqual(self.append(*opener), 0, self.err.getvalue())
+                gid = f"G{len(gate_row.ledger_rows(self.ledger.read_text(encoding='utf-8')))}"
+                before = self.ledger.read_bytes()
+                self.assertEqual(self.append(*seat, "--resolves", gid), 1)
+                self.assertIn(f"resolves={gid} closes a Human gate", self.err.getvalue())
+                self.assertEqual(self.ledger.read_bytes(), before)
+                self.assertEqual(self.append(*seat, "--under", "G1", "--resolves", gid), 0, self.err.getvalue())
+        self.assertEqual(self.append("--status", "open"), 0, self.err.getvalue())
+        gid = f"G{len(gate_row.ledger_rows(self.ledger.read_text(encoding='utf-8')))}"
+        self.assertEqual(self.append("--resolves", gid), 0, self.err.getvalue())
+        self.assertEqual(self.append(
+            "--kind", "push-gate", "--status", "open", "--words", "none", "--quote", "",
+            "--note", "blocked:seat-permission push"), 0, self.err.getvalue())
+        gid = f"G{len(gate_row.ledger_rows(self.ledger.read_text(encoding='utf-8')))}"
+        self.assertEqual(self.append(*seat, "--resolves", gid), 0, self.err.getvalue())
+        self.assertEqual(self.check_last(), 0, self.err.getvalue())
+
     def test_one_resolves_flag_can_close_several_gates(self):
         self.assertEqual(self.append("--status", "open"), 0, self.err.getvalue())
         self.assertEqual(self.append("--status", "open"), 0, self.err.getvalue())
@@ -1596,8 +1620,8 @@ class GateRowTest(unittest.TestCase):
     def test_only_a_progress_boundary_resets_the_repair_cap(self):
         self.add_remote("HEAD")
         cases = (
-            ("review pass", True, lambda: self.append_review_pass()),
-            ("self-check", True, lambda: self.append_review_pass(status="recorded:self-check")),
+            ("review pass", True, lambda: self.append_review()),
+            ("self-check", True, lambda: self.append_review(status="recorded:self-check")),
             ("review fail", False, lambda: self.append_review_fail()),
             ("merge resolved", True, lambda: self.append()),
             ("repair-cap-gate", True, lambda: self.append("--kind", "repair-cap-gate", "--status", "open")),
@@ -1609,7 +1633,7 @@ class GateRowTest(unittest.TestCase):
         for name, resets, boundary in cases:
             with self.subTest(name):
                 self.ledger.write_text("# Gate ledger — test\n\n")
-                self.assertEqual(self.append_review_pass(), 0, self.err.getvalue())
+                self.assertEqual(self.append_review(), 0, self.err.getvalue())
                 self.assertEqual(self.append_repair_grant(), 0, self.err.getvalue())
                 self.assertEqual(boundary(), 0, self.err.getvalue())
                 self.assertEqual(self.append_repair_grant(), 0 if resets else 1, self.err.getvalue())
@@ -1619,7 +1643,7 @@ class GateRowTest(unittest.TestCase):
                     self.assertIn("repair cap", self.err.getvalue())
 
     def test_the_landed_check_reads_origins_copy_of_the_rows_branch(self):
-        self.assertEqual(self.append_review_pass(), 0, self.err.getvalue())
+        self.assertEqual(self.append_review(), 0, self.err.getvalue())
         self.add_remote("HEAD")
         support.git(self.repo, "push", "-q", "origin", f"{self.rev('HEAD~1')}:refs/heads/aaa")
         support.git(self.tmp / "origin.git", "symbolic-ref", "HEAD", "refs/heads/aaa")
@@ -1627,7 +1651,7 @@ class GateRowTest(unittest.TestCase):
             "--kind", "push", "--push-base", self.rev("HEAD~2"), "--boundary", "."), 0, self.err.getvalue())
 
     def test_a_head_that_is_not_under_the_remote_tip_has_not_landed(self):
-        self.assertEqual(self.append_review_pass(), 0, self.err.getvalue())
+        self.assertEqual(self.append_review(), 0, self.err.getvalue())
         self.add_remote("HEAD~1")
         before = self.ledger.read_bytes()
         self.assertEqual(self.append(
@@ -1635,13 +1659,14 @@ class GateRowTest(unittest.TestCase):
         self.assertIn("has not landed", self.err.getvalue())
         self.assertEqual(self.ledger.read_bytes(), before)
 
-    def test_two_paths_outside_the_boundary_round_trip(self):
-        self.assertEqual(self.append_review_pass(), 0, self.err.getvalue())
+    def test_every_path_outside_the_boundary_is_named_and_the_row_is_refused(self):
+        self.assertEqual(self.append_review(), 0, self.err.getvalue())
         self.add_remote("HEAD")
+        before = self.ledger.read_bytes()
         self.assertEqual(self.append(
-            "--kind", "push", "--push-base", self.rev("HEAD~2"), "--boundary", "docs"), 0, self.err.getvalue())
-        self.assertIn('boundary-check="f1.txt f2.txt"', self.last_row())
-        self.assertEqual(self.check_last(), 0, self.err.getvalue())
+            "--kind", "push", "--push-base", self.rev("HEAD~2"), "--boundary", "docs"), 1)
+        self.assertIn("outside --boundary: f1.txt f2.txt", self.err.getvalue())
+        self.assertEqual(self.ledger.read_bytes(), before)
 
     def test_the_touched_set_counts_the_root_commit_merges_and_both_rename_sides(self):
         self.assertEqual(gate_row.derive_push(self.repo, gitops.NULL_OID, self.rev("HEAD"), ["f1.txt", "f2.txt"]),
@@ -1807,16 +1832,6 @@ class GateRowTest(unittest.TestCase):
                 self.assertEqual(self.run_main(["--ledger", str(missing), "--repo", str(self.repo), mode]), 1)
                 self.assertFalse(missing.exists())
 
-    def test_an_outside_path_holding_a_row_delimiter_is_refused(self):
-        for name in ("pipe|name.txt", 'quote"name.txt', "two words.txt"):
-            with self.subTest(name):
-                base = self.rev("HEAD")
-                (self.repo / name).write_text("x\n")
-                support.git(self.repo, "add", "-A")
-                support.git(self.repo, "commit", "-qm", "delimiter path")
-                with self.assertRaises(gate_row.RowError):
-                    gate_row.derive_push(self.repo, base, self.rev("HEAD"), ["docs"])
-
     def test_a_non_ascii_path_is_read_as_itself_inside_or_outside_the_boundary(self):
         base = self.rev("HEAD")
         (self.repo / "docs").mkdir()
@@ -1827,7 +1842,7 @@ class GateRowTest(unittest.TestCase):
         self.assertEqual(gate_row.derive_push(self.repo, base, self.rev("HEAD"), ["docs"]), ("1", ["naïve.txt"]))
 
     def test_a_hung_ls_remote_is_killed_at_its_limit_and_records_nothing(self):
-        self.assertEqual(self.append_review_pass(), 0, self.err.getvalue())
+        self.assertEqual(self.append_review(), 0, self.err.getvalue())
         self.add_remote("HEAD")
         helpers = self.tmp / "bin"
         helpers.mkdir()
@@ -1851,8 +1866,20 @@ class GateRowTest(unittest.TestCase):
         argv = ["--ledger", str(self.ledger), "--repo", str(self.repo), "--check", "--mailbox", str(mailbox)]
         self.assertEqual(self.append(), 0, self.err.getvalue())
         self.assertEqual(self.run_main(argv), 0, self.err.getvalue())
-        self.assertEqual(self.append("--kind", "note", "--status", "open"), 0, self.err.getvalue())
+        self.assertEqual(self.append("--kind", "decision", "--status", "open"), 0, self.err.getvalue())
         self.assertEqual(self.run_main(argv), 0, self.err.getvalue())
+        self.assertEqual(self.append("--kind", "repair-cap-gate", "--status", "open"), 0, self.err.getvalue())
+        self.assertEqual(self.run_main(argv), 1)
+        self.assertIn("no matching ATTENTION entry", self.err.getvalue())
+
+    def test_a_kind_outside_the_table_is_refused_on_append_and_on_check(self):
+        before = self.ledger.read_bytes()
+        self.assertEqual(self.append("--kind", "merge-gat", "--status", "open"), 1)
+        self.assertIn("kind=merge-gat is not a ledger kind", self.err.getvalue())
+        self.assertEqual(self.ledger.read_bytes(), before)
+        self.ledger.write_text(self.fixture_row("G1", "open", kind="merge-gat") + "\n", encoding="utf-8")
+        self.assertEqual(self.check_last(), 1)
+        self.assertIn("kind=merge-gat is not a ledger kind", self.err.getvalue())
 
     def test_a_field_value_carrying_a_second_equals_is_refused_by_check(self):
         self.assertEqual(self.append("--status", "open", "--channel", "supervisor-relay:typed",
