@@ -2,8 +2,8 @@ Hand-written shapes, never produced by running herdr. Each is the JSON or text t
 (scripts/backends/herdr.py) parses, read by tests/test_backend_herdr.py:
   agent-list*.json       list_seats
   agent-get*.json        get_seat
-  pane-get.json          get_terminal
-  process-info*.json     processes (also tests/test_roster.py)
+  pane-get.json          get_terminal, identify
+  process-info*.json     processes
   agent-wait*.json       wait_state
   error-*                _error_code (stderr error.code; an error as a plain string; plain-text agent_blocked)
   agent-read.txt         read_output (plain pane text on stdout)
