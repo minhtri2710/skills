@@ -512,9 +512,11 @@ class PromptTest(ReprimeCase):
             self.assertNotIn(f"\n{label}:", block)
 
     def test_named_doctrine_sections_exist(self) -> None:
-        self.baseline_then_cross()
+        self.baseline_then_cross(baseline=3, crossed=11)
         self.assertEqual(self.run_cli(), 0)
-        for pointer in re.findall(r"^[a-z-]+: (/\S+\.md)#(.+)$", self.prompts[0][2], re.MULTILINE):
+        self.assertEqual(self.run_cli(), 0)
+        self.assertIn("relaunch-recommended", self.prompts[-1][2])
+        for pointer in re.findall(r"(/\S+\.md)#(.+)$", self.prompts[-1][2], re.MULTILINE):
             path, section = pointer
             with self.subTest(section=section):
                 self.assertRegex(Path(path).read_text(encoding="utf-8"), rf"(?m)^#{{1,4}} {re.escape(section)}\s*$")

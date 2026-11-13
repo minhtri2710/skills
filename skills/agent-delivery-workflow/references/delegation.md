@@ -1,0 +1,21 @@
+# Delegation
+
+Split from `lead.md`; read when its pointer there says. A quoted heading without a file name is in this file or, if absent here, in `lead.md`.
+
+### Authority mode
+
+**Authority mode.** The default is escalate-only. While an in-force delegation covers the gate, the seat self-handles every gate in scope and escalates only on the three triggers listed here: a Reviewer FAIL, a genuinely hard or ambiguous product fork that no delegation of design or scope decisions to the Lead covers ("Durable delegation"), or a Scope-OUT item. The hard-fork and Scope-OUT triggers include ambiguity that changes material scope, safety, external effects, credentials, permissions, security, or an irreversible decision; ownership does not move: a push to the product line, PR mutation, merge, and deploy remain Human-owned, while their execution is delegable only under the durable row below or performed on the Human's own words for that occasion; a push to a feature branch is a Lead act ("Review and push coverage"). The Supervisor/Lead role boundary, the frozen anchors ("Frozen anchors"), and R1 evidence in "R1 evidence boundaries" remain in force.
+
+| CAN flip | CAN NEVER flip |
+|---|---|
+| Per-write approval on internal writes under an in-force standing delegation. | Scope-OUT = production/customer-facing deploy, `secrets/.env`, version tags `v*.*.*`, force-push, `git config`, or branch deletion; classifier-blocked publication to public origin. |
+| Per-merge approval when step 8 records its review row on the exact SHA and CI is green: merge-ready, then `GO`, or a notice alone for a doc-only PR ("Durable delegation"). | Classifier-blocked self-amend-of-own-config; the Supervisor/Lead role boundary; the frozen anchors ("Frozen anchors"). |
+| Checkpoint-(a) design approval for a Human-specified-diff light-coordination change. | R1 evidence where it applies. |
+
+### Durable delegation
+
+**Durable delegation row.** A durable Human delegation is recorded ONCE as a `kind=standing-delegation` ledger row with `status=recorded:standing-delegation`, `words=human`, `who=`, `scope=`, `conditions=`, and `expiry=`, plus the grant as its `brief=` ("Attribution"), following the pinned `gate_row.py` grammar. The Lead applies that row thereafter. Its `who=` decides who rules a bounded fork in scope: under a row naming the Lead, the Lead rules; under a row naming `supervisor`, the Supervisor's relayed ruling decides it. When the row delegates design or scope decisions, the Lead may staff an independent Architect Peer to compare the options of a hard call, then rules it and records one `kind=decision` row; an irreversible, security, secrets, paid-provider, or release decision stays the Human's. The delegation is durable only in that row: it never lives in a dialog turn or a single gate-row note, and it ends at its `expiry=` (`--under` refuses past an ISO-8601 UTC one) or through a later row whose `resolves=` names it. A row answered under it passes `--under <id>` of the latest in-force row covering that act ("Attribution"). A merge under it is announced, not awaited: with the PR clean and CI green on the exact head, the Lead sends the `merge-ready` event `PR#<n> <sha>` and starts the next ready item, the pending merge holding no flight slot and a PR stacked on it opening after it lands; it merges (`--match-head-commit`) only on the Supervisor's `GO` (`supervisor.md`, "Authority", says when the Human counts as offline), on `HOLD` (Human online) the Human's relayed answer decides. A doc-only PR, one that changes only Markdown prose and no script, test, template, or config, skips that wait: with the exact-head review its delegation row's conditions require and CI green, the Lead merges it (`--match-head-commit`) and sends `merge-ready` as a notice.
+
+### Land decision
+
+The Human may pre-authorize, in one dialog, the combined `land` decision described by the exact option wording in `supervisor.md`, "Authority": push, merge-when-independent-review-PASS-on-the-exact-SHA, and PR-CI-green. The independent review is a `recorded:review-pass` row on that SHA; a Tier P `recorded:self-check` row never satisfies it, and no script checks that. Red CI hard-blocks. The merge may execute without a fresh dialog ONLY because the Human pre-authorized exactly those machine-checkable conditions.
