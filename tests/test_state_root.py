@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import tempfile
 import unittest
 from pathlib import Path
@@ -55,6 +56,20 @@ class SlugTest(unittest.TestCase):
         bare = support.temp_git_repo(self.root / "app.git", bare=True)
         with self.assertRaisesRegex(ValueError, "no project slug"):
             state_root.slug_for(bare)
+
+    def test_a_separate_git_dir_work_tree_is_refused_naming_it(self) -> None:
+        work = self.root / "app"
+        work.mkdir()
+        support.git(work, "init", "-q", "-b", "main", "--separate-git-dir", str(self.root / "elsewhere"))
+        with self.assertRaisesRegex(ValueError, "no project slug.*separate git dir"):
+            state_root.slug_for(work)
+
+    def test_a_checkout_name_the_slug_pattern_refuses_is_named_with_the_checkout(self) -> None:
+        for name in ("my app", ".app", "caf\u00e9"):
+            with self.subTest(name=name):
+                checkout = self.repo(name)
+                with self.assertRaisesRegex(ValueError, "^" + re.escape(str(checkout)) + " has no project slug"):
+                    state_root.slug_for(checkout)
 
 
 class CliTest(unittest.TestCase):

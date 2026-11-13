@@ -55,7 +55,8 @@ def _clause(name: str, patterns: tuple[str, ...], dispositions: tuple[str, ...] 
     return Clause(name, tuple(re.compile(pattern, flags) for pattern in patterns), dispositions, message)
 
 
-# The clauses a charter must carry; templates/reviewer-charter.txt words each Reviewer clause.
+# The clauses a charter must carry; templates/reviewer-charter.txt words each Reviewer clause. The check-depth and
+# heavy-suite clauses bind Engineer charters too (lead.md, "Light and heavy checks").
 REQUIRED_CLAUSES = (
     _clause("owned paths", (r"owned paths",), ("engineer",), "missing owned paths section"),
     Clause("exact head", (HEAD_RE,), ("reviewer",), "missing exact-head 40-hex SHA"),
@@ -73,8 +74,13 @@ REQUIRED_CLAUSES = (
                               r"another\s+agent,\s+issue,\s+or\s+project\s+started;\s+report\s+the\s+collision\s+to\s+the\s+lead"), None,
             "missing takeover guard: Never stop, remove, or take over a container, process, or port "
             "another agent, issue, or project started; report the collision to the Lead"),
+    _clause("check-depth sentence", (r"heavy\s+or\s+full\s+suites\s+run\s+on\s+the\s+configured\s+ci,"
+                                    r"\s+or\s+once\s+locally\s+by\s+the\s+lead\s+before\s+the\s+push\s+gate\s+when\s+the\s+project\s+has\s+no\s+ci",
+                                    r"this\s+overrides\s+any\s+\"full\s+suite\s+by\s+default\"\s+instruction"), ("engineer", "reviewer"),
+            "missing check-depth sentence: heavy or full suites run on the configured CI, or once locally by the Lead "
+            "before the push gate when the project has no CI; this overrides any \"full suite by default\" instruction"),
     _clause("heavy-suite guard", (r"never\s+run\s+two\s+heavy\s+suites\s+of\s+one\s+project\s+at\s+once,"
-                                  r"\s+across\s+its\s+checkout,\s+baseline\s+tree,\s+and\s+sandboxes",), ("reviewer",),
+                                  r"\s+across\s+its\s+checkout,\s+baseline\s+tree,\s+and\s+sandboxes",), ("engineer", "reviewer"),
             "missing heavy-suite guard: Never run two heavy suites of one project at once, "
             "across its checkout, baseline tree, and sandboxes"),
     _clause("rerun counts", (r"ran\s+and\s+skipped\s+counts\s+of\s+each\s+rerun\s+beside\s+the\s+reported\s+ones",), ("reviewer",),
