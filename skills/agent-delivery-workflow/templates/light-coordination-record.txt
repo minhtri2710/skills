@@ -3,9 +3,21 @@ Agent brief: <the Human's request restated; lead.md, "Attribution">
 Light-coordination: yes — the four conditions and the evidence each holds on
 Qualifies: single-owner=<solo-Lead | one Engineer>; localized=<owned paths, no contract surface>; settled=<human-specified-diff | trivially-verifiable: the check that decides it>; no-hard-gate=<confirmed>
 Lane: tiny | normal
+Reason: <material reason for the lane>
+Lead: <handle>
+Supervisor: <handle from supervisor-seat> | none
+backend: <name> for <handle> (only when detection needed a Human answer; otherwise omit the line)
 Mode: solo-Lead | partitioned (one Engineer)
 Owner: <Lead seat, or the single Engineer and its owned paths>
 Guidance: <governing repository contract, or none found>
+Plan: <active plan reference or none>
+Config: <applied project-config keys or none>
+Target repository/product line: <repository path and product line, or none>
+Exclusions: <out-of-scope paths, behavior, and external effects>
+Base: <full SHA>
+Merge-base: <full SHA>
+Working tree: porcelain=<output>; HEAD=<full SHA>; branch=<name>; stash=<output>
+Seats and sandboxes created: <seats, workspaces, sandboxes, or none>
 Validation: <claim-shaped checks and expected outcomes>
 Checkpoint (a): skipped:human-specified-diff | run
 Prediction: <falsifiable forward claim about expected behavior; none if this run changes no doctrine>
