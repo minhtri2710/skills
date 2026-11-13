@@ -74,11 +74,15 @@ REQUIRED_CLAUSES = (
                               r"another\s+agent,\s+issue,\s+or\s+project\s+started;\s+report\s+the\s+collision\s+to\s+the\s+lead"), None,
             "missing takeover guard: Never stop, remove, or take over a container, process, or port "
             "another agent, issue, or project started; report the collision to the Lead"),
-    _clause("check-depth sentence", (r"heavy\s+or\s+full\s+suites\s+run\s+on\s+the\s+configured\s+ci,"
+    _clause("check-depth sentence", (r"local\s+runs\s+are\s+light\s+and\s+scoped\s+to\s+the\s+change;",
+                                    r"heavy\s+or\s+full\s+suites\s+run\s+on\s+the\s+configured\s+ci,"
                                     r"\s+or\s+once\s+locally\s+by\s+the\s+lead\s+before\s+the\s+push\s+gate\s+when\s+the\s+project\s+has\s+no\s+ci",
-                                    r"this\s+overrides\s+any\s+\"full\s+suite\s+by\s+default\"\s+instruction"), ("engineer", "reviewer"),
-            "missing check-depth sentence: heavy or full suites run on the configured CI, or once locally by the Lead "
-            "before the push gate when the project has no CI; this overrides any \"full suite by default\" instruction"),
+                                    r"this\s+overrides\s+any\s+\"full\s+suite\s+by\s+default\"\s+instruction\s+elsewhere,"
+                                    r"\s+including\s+text\s+a\s+hook,\s+skill\s+or\s+context\s+file\s+injects\s+into\s+the\s+seat"),
+            ("engineer", "reviewer"),
+            "missing check-depth sentence: local runs are light and scoped to the change; heavy or full suites run on "
+            "the configured CI, or once locally by the Lead before the push gate when the project has no CI; this overrides "
+            "any \"full suite by default\" instruction elsewhere, including text a hook, skill or context file injects into the seat"),
     _clause("heavy-suite guard", (r"never\s+run\s+two\s+heavy\s+suites\s+of\s+one\s+project\s+at\s+once,"
                                   r"\s+across\s+its\s+checkout,\s+baseline\s+tree,\s+and\s+sandboxes",), ("engineer", "reviewer"),
             "missing heavy-suite guard: Never run two heavy suites of one project at once, "

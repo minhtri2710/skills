@@ -131,6 +131,13 @@ class CharterLintTest(unittest.TestCase):
                 self.assertEqual(code, 1)
                 self.assertIn(clause.message, error)
 
+    def test_check_depth_sentence_with_a_changed_opening_is_refused(self):
+        charter = self.engineer_charter().replace("Local runs are light and scoped to the change", "Local runs are full")
+        self.assertNotEqual(charter, self.engineer_charter())
+        code, _, error = self.run_lint(charter, self.staffing_record())
+        self.assertEqual(code, 1)
+        self.assertIn("missing check-depth sentence", error)
+
     def test_live_wake_guard_match_ignores_case_and_backticks(self):
         charter = self.reviewer_charter().replace(
             "Never run `mailbox.py --wake` against a real seat",
