@@ -118,6 +118,26 @@ class CharterLintTest(unittest.TestCase):
         self.assertNotEqual(code, 0)
         self.assertIn("owned paths", error)
 
+    def test_engineer_charter_missing_a_by_value_clause_is_named(self):
+        clauses = {clause.name: clause for clause in charter_lint.REQUIRED_CLAUSES}
+        for name in ("check-depth sentence", "heavy-suite guard"):
+            with self.subTest(clause=name):
+                clause = clauses[name]
+                charter = self.engineer_charter()
+                for pattern in clause.patterns:
+                    charter = pattern.sub("", charter)
+                self.assertNotEqual(charter, self.engineer_charter())
+                code, _, error = self.run_lint(charter, self.staffing_record())
+                self.assertEqual(code, 1)
+                self.assertIn(clause.message, error)
+
+    def test_check_depth_sentence_with_a_changed_opening_is_refused(self):
+        charter = self.engineer_charter().replace("Local runs are light and scoped to the change", "Local runs are full")
+        self.assertNotEqual(charter, self.engineer_charter())
+        code, _, error = self.run_lint(charter, self.staffing_record())
+        self.assertEqual(code, 1)
+        self.assertIn("missing check-depth sentence", error)
+
     def test_live_wake_guard_match_ignores_case_and_backticks(self):
         charter = self.reviewer_charter().replace(
             "Never run `mailbox.py --wake` against a real seat",
@@ -613,9 +633,23 @@ class CharterLintTest(unittest.TestCase):
             "Owned paths: tests/test_charter_lint.py\n"
             + CharterLintTest.kill_guard_sentence()
             + CharterLintTest.takeover_guard_sentence()
+            + CharterLintTest.check_depth_sentence()
+            + CharterLintTest.heavy_suite_sentence()
             + "Write the finished report/verdict to report-eng-lint.md with the editor/write tool (never via the shell), then print it as the pane's final output.\n"
             + CharterLintTest.send_block_text()
         )
+
+    @staticmethod
+    def check_depth_sentence() -> str:
+        return (
+            "Local runs are light and scoped to the change; heavy or full suites run on the configured CI, "
+            "or once locally by the Lead before the push gate when the project has no CI; this overrides any "
+            "\"full suite by default\" instruction elsewhere, including text a hook, skill or context file injects into the seat.\n"
+        )
+
+    @staticmethod
+    def heavy_suite_sentence() -> str:
+        return "Never run two heavy suites of one project at once, across its checkout, baseline tree, and sandboxes.\n"
 
     @staticmethod
     def send_block_text(block: str | None = None) -> str:
@@ -650,8 +684,9 @@ class CharterLintTest(unittest.TestCase):
     @staticmethod
     def by_value_sentences() -> str:
         return (
-            "Never run two heavy suites of one project at once, across its checkout, baseline tree, and sandboxes.\n"
-            "Paste the ran and skipped counts of each rerun beside the reported ones. Re-derive each red-proof row "
+            CharterLintTest.check_depth_sentence()
+            + CharterLintTest.heavy_suite_sentence()
+            + "Paste the ran and skipped counts of each rerun beside the reported ones. Re-derive each red-proof row "
             "by applying only the added or changed test files to the base, running that row's command, one targeted run and never a mutant run.\n"
             "Not called for: new files; abstractions with one caller; config or flags that no caller varies; "
             "handling for states the types or callers make impossible; old paths kept beside new ones; "

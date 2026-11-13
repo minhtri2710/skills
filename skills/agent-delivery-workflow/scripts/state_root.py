@@ -52,9 +52,12 @@ def slug_for(checkout: Path) -> str:
     if common.name != ".git":
         raise ValueError(
             f"{checkout} has no project slug: git common dir {common} is not a .git directory "
-            "(a bare repository or a submodule)")
+            "(for example a bare repository, a submodule, or a separate git dir)")
     digest = hashlib.sha256(str(common).encode("utf-8")).hexdigest()[:8]
-    return check_slug(f"{common.parent.name.lower()}-{digest}")
+    try:
+        return check_slug(f"{common.parent.name.lower()}-{digest}")
+    except ValueError as exc:
+        raise ValueError(f"{checkout} has no project slug: {exc}") from None
 
 
 def project_dir(slug: str) -> Path:
