@@ -17,6 +17,7 @@ import sys
 DELETERS = {"rm", "rmdir", "unlink", "shred"}
 SHELLS = {"sh", "bash", "zsh", "dash", "ksh"}
 KEYWORDS = {"if", "then", "else", "elif", "while", "until", "do", "!", "coproc"}
+CASE_PREFIX = KEYWORDS | {"time"}
 # wrapper -> (options that take a separate argument, positional words before the wrapped command)
 WRAPPERS = {"command": (set(), 0), "builtin": (set(), 0), "exec": (set(), 0), "nohup": (set(), 0),
             "time": (set(), 0), "caffeinate": ({"-t", "-w"}, 0), "nice": ({"-n"}, 0),
@@ -85,9 +86,10 @@ def parse(src, start=0, nested=False):
     """
     cmds = []
     state = {"cmd": {"words": [], "heredocs": [], "subs": []}, "word": None, "redir": None, "depth": 0,
-             "arith": 0, "cases": []}
+             "arith": 0, "cases": [], "case": 0}
     # arith: paren depth of an open `((`. cases: one int per open `case`: -1 in a body, else the open parens
-    # of the pattern being read
+    # of the pattern being read. case: 1 after a command-position `case`, 2 after its subject; the next word
+    # `in`, even on a later line, opens the case
     pending = []
     n = len(src)
 
@@ -114,11 +116,15 @@ def parse(src, start=0, nested=False):
             if plain and text(word) == "esac" and state["cases"] and not words:
                 state["cases"].pop()
                 return
+            seen, state["case"] = state["case"], 0
             words.append(word)
-            if (plain and text(word) == "in" and len(words) >= 3
-                    and text(words[-3]) == "case" and (len(words) == 3 or text(words[-4]) in KEYWORDS)):
+            if seen == 2 and plain and text(word) == "in":
                 state["cases"].append(0)
                 end_cmd()
+            elif seen == 1:
+                state["case"] = 2
+            elif plain and text(word) == "case" and all(text(w) in CASE_PREFIX for w in words[:-1]):
+                state["case"] = 1
 
     def end_cmd():
         end_word()
@@ -204,7 +210,6 @@ def parse(src, start=0, nested=False):
             i += 2 if nxt in ("|", "&") else 1
         elif c in "()":
             lead = state["word"] is None and not state["cmd"]["words"]
-            at_command = state["word"] is None and all(text(w) in KEYWORDS | {"for"} for w in state["cmd"]["words"])
             end_cmd()
             i += 1
             cases = state["cases"]
@@ -214,7 +219,7 @@ def parse(src, start=0, nested=False):
                 elif c == ")":
                     cases[-1] = cases[-1] - 1 if cases[-1] else -1
             elif c == "(":
-                if nxt == "(" and at_command:
+                if nxt == "(":
                     state["depth"] += 2
                     state["arith"] = state["depth"]
                     i += 1
