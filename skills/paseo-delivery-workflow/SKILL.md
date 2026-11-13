@@ -150,31 +150,31 @@ other tier gains a shell `paseo` use from this exception.
    context holds reports a table naming who read each file (itself or a named read-only
    subagent); a `PASS` without it is no `PASS`. A lane that reads a path solely as a build
    input, checks terminal output meant for a human, or runs on a second host: read
-   `references/review-lanes.md` before planning or reviewing it. A delete, move, or
-   overwrite in the change whose path comes from stored state is a `FAIL` until it has a
-   containment guard in the same delivery, never an accepted risk. A new test the change
-   does not need, or one that duplicates an existing proof, is a finding; a stub that breaks
-   the stub rule in "Extend before adding" (Every agent) is a `FAIL`. Each Reviewer prompt
-   asks for step 3's report items (the Review-only route has no writer report, so it asks
-   for none); the Reviewer checks them against the diff and judges each brief deviation: a
-   lost guard, or a behaviour left with no test pinning it, is a `FAIL`; a change in
-   accepted or refused inputs that the table omits or marks defect is a finding, and a
-   refusal turned into a silent drop is at least Medium however its row is marked. A `FAIL`
-   lists every finding at its SHA and goes back to the owning writer; the fix is committed
-   on top of the failed SHA, with no amend, rebase, squash, or force-push before merge, and
-   the same Reviewer re-reviews `git diff <failed SHA> <new SHA>`, its prompt naming both
-   SHAs. Paseo deliberately keeps the same Reviewer for this delta review; the
+   `references/review-lanes.md` before planning, running, carrying, or reviewing it. A
+   delete, move, or overwrite in the change whose path comes from stored state is a `FAIL`
+   until it has a containment guard in the same delivery, never an accepted risk. A new test
+   the change does not need, or one that duplicates an existing proof, is a finding; a stub
+   that breaks the stub rule in "Extend before adding" (Every agent) is a `FAIL`. Each
+   Reviewer prompt asks for step 3's report items (the Review-only route has no writer
+   report, so it asks for none); the Reviewer checks them against the diff and judges each
+   brief deviation: a lost guard, or a behaviour left with no test pinning it, is a `FAIL`;
+   a change in accepted or refused inputs that the table omits or marks defect is a finding,
+   and a refusal turned into a silent drop is at least Medium however its row is marked. A
+   `FAIL` lists every finding at its SHA and goes back to the owning writer; the fix is
+   committed on top of the failed SHA, with no amend, rebase, squash, or force-push before
+   merge, and the same Reviewer re-reviews `git diff <failed SHA> <new SHA>`, its prompt
+   naming both SHAs. Paseo deliberately keeps the same Reviewer for this delta review; the
    one-instance-per-head rule of agent-delivery-workflow governs that skill's seats only.
    Only the lanes that fail the carry rule at the new SHA run again. Every finding carries a
    severity (High, Medium, Low, or Info), and only High and Medium block; a Low or Info
-   finding reported with a `PASS` does not reopen the review, and the head goes on to step
-   6. A Low that is a correctness or user-visible defect goes into the next queued delivery
-   touching its area, else into the record's next work; style, wording, and doc Lows join
-   the next delivery that touches the same file, or wait for the next trial or usage pass (a
-   round of running the product to find defects). This delivery's record and the receiving
-   delivery's plan name each such finding. A delivery that only fixes Lows opens no further
-   delivery for a Low its review finds, unless that Low is a correctness defect. Done when a
-   `PASS` names the SHA it covers.
+   finding reported with a `PASS` does not reopen the review, and the head goes on to
+   step 6. A Low that is a correctness or user-visible defect goes into the next queued
+   delivery touching its area, else into the record's next work; style, wording, and doc
+   Lows join the next delivery that touches the same file, or wait for the next trial or
+   usage pass (a round of running the product to find defects). This delivery's record and
+   the receiving delivery's plan name each such finding. A delivery that only fixes Lows
+   opens no further delivery for a Low its review finds, unless that Low is a correctness
+   defect. Done when a `PASS` names the SHA it covers.
 6. **Merge.** The Lead pushes the delivery's branch, opens or updates its PR, and
    squash-merges it once a `PASS` names that PR's head or a head with the same tree, CI is
    green on that head where the project runs CI, and the head contains the product line's
@@ -183,21 +183,22 @@ other tier gains a shell `paseo` use from this exception.
    reviewed again unless its tree equals the reviewed head's. Where CI cannot run for a
    recorded reason, a Human condition in `grants.md` that names its replacement checks and
    its removal condition stands in for green CI, and the record, the `closed-out` event, and
-   any `dangerous` request for the merge name the CI state. A stacked head: read
-   `references/stacked-merges.md` before merging it. A dangerous edit to declarative runtime
-   config (a compose file, manifest, or unit file) is written only once approved, and
-   applied in that same window. Done when the merged head is named and each dangerous act is
-   reported with its answer, or as pending with the work it holds.
+   any `dangerous` request for the merge name the CI state. Stacked heads (each head stacked
+   on the previous one): read `references/stacked-merges.md` before reviewing or merging
+   them. A dangerous edit to declarative runtime config (a compose file, manifest, or unit
+   file) is written only once approved, and applied in that same window. Done when the
+   merged head is named and each dangerous act is reported with its answer, or as pending
+   with the work it holds.
 7. **Close out.** Each delivery closes on its own: check that each merge it made in a stack
    squashed to a tree equal to its head's; archive each agent it created, then the workspace
    it created (archiving a workspace archives none of its agents); a child of theirs that
    must keep running is detached first, and the workspace holding it stays with its
    worktree, recorded as still open. Remove its worktree and any leftover directory (in a
    worktree workspace, by its Engineer before that Engineer is archived, as step 1 says).
-   If the delivery used `--new-workspace local --cwd <path>`, `paseo project delete` the project
-   whose `paseo project ls` path equals `<path>`, never the main checkout's, nor one holding
-   a kept workspace: deleting a project deletes all its workspaces. Then write to the
-   project's record what changed, what was removed, tests run with their output, the net
+   If the delivery used `--new-workspace local --cwd <path>`, `paseo project delete` the
+   project whose `paseo project ls` path equals `<path>`, never the main checkout's, nor one
+   holding a kept workspace: deleting a project deletes all its workspaces. Then write to
+   the project's record what changed, what was removed, tests run with their output, the net
    test-line change with one line of reason, what is still open, and the times of its start,
    first Engineer report, `PASS`, and merge, each written to the record when it happens, and
    send `closed-out`. Every SHA, head, installed version, and branch state in `closed-out`
@@ -209,10 +210,11 @@ other tier gains a shell `paseo` use from this exception.
    re-reads `handoff.md`, starts what step 1 admits, and ends; it deletes the heartbeat once
    its queue is empty. After each trial or usage pass (step 5), the Lead runs the
    `test-proof-debt-audit` skill on the fastest-growing suites and deletes redundant tests
-   in a delivery of its own, through the normal review. Done when `paseo ls`, `paseo
-   workspace ls`, `paseo project ls`, and `git worktree list` show nothing a delivery of
-   this project created that no delivery in flight owns or the record names as still open;
-   report an archive only after `paseo ls`, not the workspace state, no longer shows its id.
+   in a delivery of its own, through the normal review. Done when `paseo ls`,
+   `paseo workspace ls`, `paseo project ls`, and `git worktree list` show nothing a delivery
+   of this project created that no delivery in flight owns or the record names as still
+   open; report an archive only after `paseo ls`, not the workspace state, no longer shows
+   its id.
 
 ## Upward events
 
@@ -363,8 +365,9 @@ acting. Step 7 never archives the Watcher; it lives as long as the Supervisor.
 
 ## Self-improvement
 
-Supervisor only, when a `closed-out` event names a general lesson: read
-`references/self-improvement.md`.
+Lead or Supervisor, on a lesson learned in a delivery (general or not), on a lesson entry
+(written, sighted, handed to a Lead, deleted once its merge lands), or after a reinstall of
+this skill: read `references/self-improvement.md`.
 
 ## Dangerous acts
 
