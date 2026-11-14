@@ -136,8 +136,9 @@ A permission request's line, outside the batch:
   is not polling).
 - A Lead idle for more than 60 minutes while its `handoff.md` names a delivery in flight
   and none of its agents is running, unless a pending answer holds that delivery (a
-  `dangerous` or `blocked` event awaiting its answer, or a Human GO awaited); reported
-  once per idle stretch.
+  `dangerous` or `blocked` event awaiting its answer, or a Human GO awaited) or its lane
+  runs as a tracked background task that the Lead recorded in `handoff.md` with its start
+  and no end; reported once per idle stretch.
 
 ## Not reported
 
