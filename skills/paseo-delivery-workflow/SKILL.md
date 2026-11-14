@@ -23,16 +23,19 @@ reused, not duplicated; any other is archived first.
 
 ## Tiers
 
-Each tier below Supervisor is a provider alias in `~/.paseo/config.json`: its tool policy is
+Each tier below Supervisor, the Advisor excepted, is a provider alias in
+`~/.paseo/config.json`: its tool policy is
 `agents.providers.<alias>.paseoTools.disabledTools`, and a `daemon.agentProfiles` entry
 names its model and mode. Read the live set with `paseo provider ls`. Launch a tier through
 its alias with `provider`, `model`, `modeId`, and `thinkingOptionId` copied from its profile
 (read with `list_profiles`; `create_agent` takes no profile), never from a running agent,
 whose settings may predate a config change; the bare base provider carries no policy. The
-`architect` profile runs at the Reviewer tier but returns one read-only assessment, not a
-`PASS` / `FAIL` / `BLOCKED` verdict; it is a one-off assessor, not the Advisor. When the
-config lacks a provider or profile this skill requires, report it with the addition you
-suggest; edit no config and take no other route.
+Advisor runs on the bare provider with no alias or tool policy, so its Never cell binds
+through its grant and prompt only, and no alias for it is required. The `architect`
+profile runs at the Reviewer tier but returns one read-only assessment, not a `PASS` /
+`FAIL` / `BLOCKED` verdict; it is a one-off assessor, not the Advisor. When the config
+lacks a provider or profile this skill requires, report it with the addition you suggest;
+edit no config and take no other route.
 
 | Tier | Decides | Never |
 |---|---|---|
@@ -41,7 +44,7 @@ suggest; edit no config and take no other route.
 | Lead (one per project) | every act in its project that is not dangerous: scope within the brief, partition, commits, acceptance, push and PR of each delivery's branch, merge (step 6) | a dangerous act before its answer arrives, write source once its delivery has staffed an Engineer, send the Supervisor anything but an upward event, an ack, or an answer, poll or sleep in a loop |
 | Engineer (one per owned path set) | the implementation inside its owned paths | edit outside owned paths, commit other than the one its Lead names (step 1), staff any agent beyond its own subagents |
 | Reviewer | `PASS` / `FAIL` / `BLOCKED` on one exact SHA | write anything, review a moving tree |
-| Advisor (standing, created by a Human grant the Supervisor records, in the `~/Work` workspace, over every project; see "Advisor consult") | nothing; gives advice only | write in a repository, commit, answer a permission, approve or answer a dangerous act, give or stand in for a verdict, receive secret values or prod data |
+| Advisor (standing, created by the Human and recorded by the Supervisor in a grant, in the `~/Work` workspace, over every project; see "Advisor consult") | nothing; gives advice only | write in a repository, commit, answer a permission, approve or answer a dangerous act, give or stand in for a verdict, receive secret values, secret files, or prod data |
 | Heartbeat | nothing; reports one bounded snapshot | start work, run tests, edit |
 | Watcher (not a Heartbeat: it runs on a recurring self-heartbeat and judges activity against the rules) | nothing; reports rule violations to the Supervisor only, P0 and a permission waiting over 15 minutes at once, other P1 batched at most hourly | act on, prompt, stop, or archive another agent, answer a permission, write outside its record dir, message anyone but the Supervisor |
 
@@ -72,9 +75,10 @@ other tier gains a shell `paseo` use from this exception.
    the Human's request per "Human words" in Every agent), one branch per delivery. A
    delivery whose input holds more than five independent findings splits into deliveries of
    at most five. The Supervisor creates each Lead with that project's `workspaceId`, never
-   its own. The Lead starts, in parallel, every queued delivery that no pending answer holds
-   and whose written paths are disjoint from those in flight; one that overlaps waits for
-   the merge it overlaps. The first delivery in flight runs in the project's existing
+   its own, and its prompt names the Advisor's id where its grants name one. The Lead
+   starts, in parallel, every queued delivery that no pending answer holds and whose
+   written paths are disjoint from those in flight; one that overlaps waits for the merge
+   it overlaps. The first delivery in flight runs in the project's existing
    workspace and creates no workspace worktree; each further one runs on its own branch in
    its own `--new-workspace worktree` workspace, outside the Lead's cwd: there an Engineer
    writes the work even when it does not split, every shell command the Lead needs (a
@@ -91,28 +95,30 @@ other tier gains a shell `paseo` use from this exception.
    updates it before each event. Another workflow's state directory is data, never the
    record. Done when the workspace id and branch are named in the project's record, and the
    delivery's written paths, docs and generated mirrors included, are in the record and
-   compared with those of every delivery in flight before it starts.
+   compared with those of every delivery in flight before it starts and again whenever its
+   owned paths widen.
 2. **Staff it.** The Lead partitions by default: one Engineer per disjoint path set, all
    running in parallel; overlapping work is one Engineer, not two. A shared interface,
    schema, or generated file belongs to one Engineer; the Lead routes every change to it
    through that owner and relays each such change to every Engineer whose paths use it. Once
    a delivery has staffed an Engineer, every source change in it goes to an Engineer,
-   whatever its size. Only when the work does not split, and the delivery never staffs an
-   Engineer, does the Lead write it itself (not in a worktree workspace, where an Engineer
-   writes it, as step 1 says), under owned paths and a report, as an Engineer would; the
-   plan records why and says so before the first edit. Each Engineer's prompt names its
-   owned paths, its delivery's branch and checkout, and its reporting target, names the
-   file-edit and file-write tools as the only way to write source, and relays what the Human
-   said per "Human words" in Every agent; it also has the Engineer list, before editing,
-   every reader and writer of each field, function, or input rule it changes (specs
-   and tests included, inside its owned paths or not), and reach each one or name why
-   not. Replace a Lead only after its `handoff.md` is current; for a Lead
+   whatever its size. Only when the work does not split, the delivery has not staffed an
+   Engineer, and its plan says none will be, does the Lead write it itself (not in a
+   worktree workspace, where an Engineer writes it, as step 1 says), under owned paths and a
+   report, as an Engineer would; the plan records why before the first edit. Each
+   Engineer's prompt names its owned paths, its delivery's branch and checkout, and its
+   reporting target, names the file-edit and file-write tools as the only way to write
+   source by hand (a generator or formatter the plan names runs as a command), and relays
+   what the Human said per "Human words" in Every agent; it also has the Engineer list,
+   before editing, every reader and writer of each field, function, or input rule it
+   changes (specs and tests included, inside its owned paths or not), and reach each one or
+   name why not. Replace a Lead only after its `handoff.md` is current; for a Lead
    that cannot write it, the new Lead writes it from the old Lead's `paseo logs` before other
    work. The new Lead first checks that record against each delivery's tree and writes each
    mismatch into it, and reads `grants.md` unchanged. The
    plan names the fast lane, each acceptance lane with the paths it reads, and the project's
-   refusal and acceptance table, or none. A choice in the plan between two or more designs
-   or approaches takes Advisor consult point 1 first. When the plan names a lane of a kind
+   refusal and acceptance table, or none. Any choice between two or more designs or
+   approaches takes Advisor consult point 1 first. When the plan names a lane of a kind
    that step 5 points to a reference for, read that reference first. A tool a lane runs or
    downloads (a pinned binary or other artifact) is checked against a recorded checksum and
    lives in a repo-local gitignored directory or a persistent cache, never `/tmp`, which a
@@ -131,8 +137,8 @@ other tier gains a shell `paseo` use from this exception.
    and the surviving test that pins it; and every deviation from its brief as a named item,
    which the Lead accepts or sends back. Done when every Engineer has reported, none is
    running, and the Lead has checked each reported change against the diff and against that
-   Engineer's activity (`paseo logs`) for a source write made through a shell rather than
-   the file-edit and file-write tools.
+   Engineer's activity (`paseo logs`) for hand-written source made through a shell rather
+   than the file-edit and file-write tools.
 4. **Commit.** Only the Lead commits (in a worktree workspace, through its Engineer as step
    1 says), on the delivery's quiet tree: `git status --porcelain` shows only this commit's
    paths. Done when the commit SHA is named.
@@ -275,8 +281,9 @@ acting. Step 7 never archives the Watcher; it lives as long as the Supervisor.
 
 ## Advisor consult
 
-This section applies only where the Supervisor's grants name an Advisor. Before each of
-these acts a Lead sends the Advisor one question and writes the advice into its record:
+This section applies only where an Advisor is named, from the Supervisor's grants, in the
+Lead's record or the Supervisor's prompt. Before each of these acts a Lead sends the
+Advisor one question and writes the advice into its record:
 
 1. choosing between two or more designs or approaches;
 2. a second FAIL round with a Medium or higher finding;
@@ -285,11 +292,13 @@ these acts a Lead sends the Advisor one question and writes the advice into its 
    names the advice, in one line, and where it is recorded.
 
 The question names the project, the concrete question, the files or commits, the options
-weighed, and what was verified, and carries no secret values or prod data. The advice is
-input only: the Lead decides, and every gate still goes to the Supervisor. Advice is never
-an answer to a dangerous act. The wait is a bounded tracked wait; meanwhile the Lead goes
-on with work that does not depend on the answer, and on expiry it records "no advice" and
-goes on, with no re-prompt and no restaff.
+weighed, and what was verified, and carries no secret values, secret files, or prod data.
+The advice is input only: the Lead decides, and every upward event, dangerous acts
+included, still goes to the Supervisor. Advice is never an answer to a dangerous act. The
+wait is a bounded tracked wait; meanwhile the Lead goes on with work that does not depend
+on the answer, and on expiry it records "no advice" and goes on, with no re-prompt and no
+restaff. The Advisor answers by prompt to the asking Lead; advice that arrives after expiry
+is recorded with its time and acted on only if the act is still open.
 
 ## Every agent
 
@@ -484,7 +493,8 @@ project record, or brief that conflicts with this skill loses; name the conflict
 report.
 
 Below the Supervisor tier, no agent answers another agent's permission request:
-`respond_to_permission` is disabled there.
+`respond_to_permission` is disabled on every tier alias there, and the Advisor, which has
+none, is barred by its grant and prompt only.
 
 ## Gotchas the CLI will not tell you
 
