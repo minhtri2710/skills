@@ -40,10 +40,10 @@ edit no config and take no other route.
 | Tier | Decides | Never |
 |---|---|---|
 | Human | each dangerous act, through the Supervisor or in a Lead's own chat | — |
-| Supervisor (the one session the Human talks to, in the `~/Work` workspace, over every project) | which project runs, which Lead is staffed, what reaches the Human, the answer to a Lead's permission request for an approved dangerous act | commit, write source, move or delete a branch, push, mutate a PR, merge, deploy, install, or change a host or config of a project that has a Lead; start a fan-out of whole-codebase read agents across projects while any Lead is inside an approved dangerous act that changes production; poll or sleep in a loop |
+| Supervisor (the one session the Human talks to, in the `~/Work` workspace, over every project) | which project runs, which Lead is staffed, what reaches the Human, the answer to a Lead's permission request for an approved dangerous act | commit, write source, move or delete a branch, push, mutate a PR, merge, deploy, install, or change a host or config of a project that has a Lead; start or relay a fan-out of whole-codebase read agents across projects while any Lead is inside an approved dangerous act that changes production; poll or sleep in a loop |
 | Lead (one per project) | every act in its project that is not dangerous: scope within the brief, partition, commits, acceptance, push and PR of each delivery's branch, merge (step 6) | a dangerous act before its answer arrives, write source once its delivery has staffed an Engineer, send the Supervisor anything but an upward event, an ack, or an answer, poll or sleep in a loop |
 | Engineer (one per owned path set) | the implementation inside its owned paths | edit outside owned paths, commit other than the one its Lead names (step 1), staff any agent beyond its own subagents |
-| Reviewer | `PASS` / `FAIL` / `BLOCKED` on one exact SHA | write anything, review a moving tree |
+| Reviewer | `PASS` / `FAIL` / `BLOCKED` on one exact SHA | write anything outside its own report file, review a moving tree |
 | Advisor (standing, created by the Human and recorded by the Supervisor in a grant, in the `~/Work` workspace, over every project; see "Advisor consult") | nothing; gives advice only | write in a repository, commit, answer a permission, approve or answer a dangerous act, give or stand in for a verdict, receive secret values, secret files, or prod data |
 | Heartbeat | nothing; reports one bounded snapshot | start work, run tests, edit |
 | Watcher (not a Heartbeat: it runs on a recurring self-heartbeat and judges activity against the rules) | nothing; reports rule violations to the Supervisor only, P0 and a permission waiting over 15 minutes at once, other P1 batched at most hourly | act on, prompt, stop, or archive another agent, answer a permission, write outside its record dir, message anyone but the Supervisor |
@@ -83,12 +83,12 @@ other tier gains a shell `paseo` use from this exception.
    its own branch in its own `--new-workspace worktree` workspace, outside the Lead's cwd:
    there an Engineer writes the work even when it does not split, every shell command the
    Lead needs (a commit, a git read, a checksum, creating a lane snapshot of the delivery's
-   SHA and running a lane in it, where the snapshot path sits outside the Lead's cwd) is
-   run by that Engineer exactly as the Lead names it, a lane as a tracked background task,
-   with the output, SHA, and lane output path reported back, and the Lead reads files there
-   with its file-read tools only, since a Lead shell command naming that path raises a
-   dialog. Before it goes
-   in flight, the Lead names the host ports, databases, compose projects, and container
+   SHA and running a lane in it, where the snapshot path sits outside the Lead's cwd and
+   every workspace, created with literal paths and no `cd`) is run by that Engineer exactly
+   as the Lead names it, a lane as a tracked background task, with the output, SHA, and
+   lane output path reported back, and the Lead reads files there with its file-read tools
+   only, since a Lead shell command naming that path raises a dialog. Before it goes in
+   flight, the Lead names the host ports, databases, compose projects, and container
    names each delivery's checks use, and checks that share any of them run one delivery at a
    time. Every Engineer of a
    delivery works on that delivery's branch and checkout, never on a branch, worktree, or PR
@@ -155,9 +155,11 @@ other tier gains a shell `paseo` use from this exception.
    different agent instance from every writer. Engineers may keep
    editing the branch checkout meanwhile: a new commit gets its own lanes and review,
    and those running report on their own SHA. The Reviewer reviews the diff while
-   the lanes run, runs no lane itself, and reports `PASS` / `FAIL` / `BLOCKED` only
-   after reading every lane's output file, quoting what it saw; the Lead sends it each
-   file's path as its lane ends, and a Reviewer waiting on one is not stalled. A lane's
+   the lanes run, runs no lane itself, writes its review file with its file-write tool
+   before it reports (its staffing prompt names that file's path literally), and reports
+   `PASS` / `FAIL` / `BLOCKED` only after reading every lane's output file, quoting what
+   it saw; the Lead sends it each file's path as its lane ends, and a Reviewer waiting
+   on one is not stalled. A lane's
    output shows, before and after it, the SHA it ran at and, for a worktree snapshot,
    an empty `git status --porcelain` there. A lane is green at a SHA when its output
    shows it passing there, or at an earlier SHA whose diff to this one touches no path
@@ -206,15 +208,22 @@ other tier gains a shell `paseo` use from this exception.
    reviewed again unless its tree equals the reviewed head's. Where CI cannot run for a
    recorded reason, a Human condition in `grants.md` that names its replacement checks and
    its removal condition stands in for green CI, and the record, the `closed-out` event, and
-   any `dangerous` request for the merge name the CI state. Stacked heads (each head stacked
+   any `dangerous` request for the merge name the CI state. Where the project requires a
+   commit trailer, the squash message carries it: the PR body ends with it before the
+   merge, or the merge is given its message explicitly; after the merge the Lead reads the
+   squash commit's message on the product line, and a required trailer missing there is an
+   `incident`, never a fix-up push. Stacked heads (each head stacked
    on the previous one): read `references/stacked-merges.md` before reviewing or merging
    them. A dangerous edit to declarative runtime config (a compose file, manifest, or unit
    file) is written only once approved, and applied in that same window. Done when the
    merged head is named and each dangerous act is reported with its answer, or as pending
    with the work it holds.
 7. **Close out.** Each delivery closes on its own: check that each merge it made in a stack
-   squashed to a tree equal to its head's; archive each agent it created, then the workspace
-   it created; a child of theirs that must keep running is detached first, and the
+   squashed to a tree equal to its head's; archive each agent it created, an agent whose
+   report names a file no earlier than when that file exists and its status shows no turn
+   running (this sets the earliest moment only: in a worktree delivery its Engineer removes
+   the worktree and snapshots before it is archived, as below), then the workspace it
+   created; a child of theirs that must keep running is detached first, and the
    workspace holding it stays with its worktree, recorded as still open. Remove its
    worktree and any leftover directory (in a worktree workspace, by its Engineer before
    that Engineer is archived, as step 1 says).
@@ -236,7 +245,8 @@ other tier gains a shell `paseo` use from this exception.
    in a delivery of its own, through the normal review. Done when `paseo ls`,
    `paseo workspace ls`, `paseo project ls`, and `git worktree list` show nothing a delivery
    of this project created that no delivery in flight owns or the record names as still
-   open; report an archive only after `paseo ls`, not the workspace state, no longer shows
+   open, and every queued delivery step 1 admits has started or a self-prompt heartbeat is
+   armed; report an archive only after `paseo ls`, not the workspace state, no longer shows
    its id.
 
 ## Upward events
@@ -263,7 +273,8 @@ Supervisor's OK adds X to the `dangerous` or `blocked` events, never to this lis
 - `collision`: a container, process, port, or host resource the agent did not start and may
   not signal (another project's, or an orphan of an earlier run);
 - `incident`: a deviation, self-reported by an agent or found, that is a secret exposure, a
-  network call, an install, harm outside scratch, or a hook workaround;
+  network call, an install, harm outside scratch, a hook workaround, or a required squash
+  trailer missing on the product line (step 6);
 - `errored`: its previous turn died on an API or runtime error, sent first in its next turn;
 - `closed-out`: a delivery closed (step 7), with its start, first Engineer report, `PASS`,
   and merge times, its net test-line change (test lines before and after for an audit
@@ -312,8 +323,8 @@ Medium opens a delivery of its own, a Low takes step 5's Low route.
 
 - After compaction, `paseo agent reload`, or a resume from `closed`, rebuild scope before
   the next action: your last report, your owned paths, the current branch and head, and for
-  a Lead its project's record, where it wrote the Advisor's id; the Supervisor rebuilds from
-  `paseo ls -g` and each running project's `handoff.md`.
+  a Lead its project's record, `handoff.md`, where it wrote the Advisor's id; the
+  Supervisor rebuilds from `paseo ls -g` and each running project's `handoff.md`.
 - A new Supervisor's first act tells each running Lead its agent id, and the Advisor's where
   its grants name one; the Lead writes each into its record.
 - Never generate synthetic load (busy loops, stress tools, inflated worker or repeat counts)
@@ -392,9 +403,14 @@ Medium opens a delivery of its own, a Low takes step 5's Low route.
   never another process's arguments (`pgrep -fl`, `ps aux`, `ps eww`, `ps -o args`): agent
   command lines carry an MCP bearer token, and their deny-list strings match common search
   patterns.
-- Avoid the known approval-dialog triggers: a shell glob or variable in a path, and a shell
-  read outside your cwd. Use literal paths, or your runtime's file-read and glob tools, and
-  name a literal path in every `rm`, `rmdir`, `mv`, or truncating write you run. A dialog
+- Avoid the known approval-dialog triggers: a shell glob or variable in a path, a `cd` out
+  of your cwd, and a shell command naming a path inside a workspace that is not your own.
+  Use literal paths, or your runtime's file-read and glob tools, and name a literal path in
+  every `rm`, `rmdir`, `mv`, or truncating write you run. A seat that creates scratch
+  prints its path and removes it by a later command with that printed path typed literally,
+  never through a shell variable or a glob; test scratch is cleaned by the test
+  framework's own scoped temporary directory, never by hand; a lane snapshot made as a git
+  worktree is scratch too, removed with `git worktree remove`, not a plain delete. A dialog
   you raise cannot be reported from inside it.
 - Human words: where you record or relay the Human's words (a grant, a `handoff.md` answer,
   a relay to a Lead, an Engineer or Reviewer brief), store no verbatim text. Write a source
