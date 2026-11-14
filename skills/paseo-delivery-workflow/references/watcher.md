@@ -101,9 +101,10 @@ A permission request's line, outside the batch:
   them: scope beyond the brief and a breaking contract change.
 - A tier doing what its "Never" column forbids: a Reviewer writing anything outside its
   own report file; a Heartbeat starting work, running tests, or editing; an Engineer
-  committing, editing outside its owned paths, or staffing an agent beyond its subagents; a
-  Lead writing source in a partitioned run or acting dangerously before its answer
-  arrives. Left out for the same reason: a Reviewer reviewing a moving tree.
+  committing, editing outside its owned paths, or staffing an agent beyond its subagents; an
+  Advisor writing in a repository, committing, or answering a permission request; a Lead
+  writing source once its delivery has staffed an Engineer or acting dangerously before its
+  answer arrives. Left out for the same reason: a Reviewer reviewing a moving tree.
 - An Every-agent rule broken that logs can judge and whose breach can harm another agent or
   leak a secret. The shared-machine rules: signalling by `pkill`, `pkill -f`, `killall`, or
   a pid found by searching command lines; stopping, removing, or taking over a container,

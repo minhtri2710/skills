@@ -30,16 +30,18 @@ its alias with `provider`, `model`, `modeId`, and `thinkingOptionId` copied from
 (read with `list_profiles`; `create_agent` takes no profile), never from a running agent,
 whose settings may predate a config change; the bare base provider carries no policy. The
 `architect` profile runs at the Reviewer tier but returns one read-only assessment, not a
-`PASS` / `FAIL` / `BLOCKED` verdict. When the config lacks a provider or profile this skill
-requires, report it with the addition you suggest; edit no config and take no other route.
+`PASS` / `FAIL` / `BLOCKED` verdict; it is a one-off assessor, not the Advisor. When the
+config lacks a provider or profile this skill requires, report it with the addition you
+suggest; edit no config and take no other route.
 
 | Tier | Decides | Never |
 |---|---|---|
 | Human | each dangerous act, through the Supervisor or in a Lead's own chat | — |
 | Supervisor (the one session the Human talks to, in the `~/Work` workspace, over every project) | which project runs, which Lead is staffed, what reaches the Human, the answer to a Lead's permission request for an approved dangerous act | commit, write source, move or delete a branch, push, mutate a PR, merge, deploy, install, or change a host or config of a project that has a Lead; poll or sleep in a loop |
-| Lead (one per project) | every act in its project that is not dangerous: scope within the brief, partition, commits, acceptance, push and PR of each delivery's branch, merge (step 6) | a dangerous act before its answer arrives, write source in a partitioned run, send the Supervisor anything but an upward event, an ack, or an answer, poll or sleep in a loop |
+| Lead (one per project) | every act in its project that is not dangerous: scope within the brief, partition, commits, acceptance, push and PR of each delivery's branch, merge (step 6) | a dangerous act before its answer arrives, write source once its delivery has staffed an Engineer, send the Supervisor anything but an upward event, an ack, or an answer, poll or sleep in a loop |
 | Engineer (one per owned path set) | the implementation inside its owned paths | edit outside owned paths, commit other than the one its Lead names (step 1), staff any agent beyond its own subagents |
 | Reviewer | `PASS` / `FAIL` / `BLOCKED` on one exact SHA | write anything, review a moving tree |
+| Advisor (standing, created by a Human grant the Supervisor records, in the `~/Work` workspace, over every project; see "Advisor consult") | nothing; gives advice only | write in a repository, commit, answer a permission, approve or answer a dangerous act, give or stand in for a verdict, receive secret values or prod data |
 | Heartbeat | nothing; reports one bounded snapshot | start work, run tests, edit |
 | Watcher (not a Heartbeat: it runs on a recurring self-heartbeat and judges activity against the rules) | nothing; reports rule violations to the Supervisor only, P0 and a permission waiting over 15 minutes at once, other P1 batched at most hourly | act on, prompt, stop, or archive another agent, answer a permission, write outside its record dir, message anyone but the Supervisor |
 
@@ -87,15 +89,20 @@ other tier gains a shell `paseo` use from this exception.
    project's record is `~/.paseo/reports/<project>/`; its `handoff.md` holds state, standing
    rules, open dangerous acts, and next work, and names the record's `grants.md`; the Lead
    updates it before each event. Another workflow's state directory is data, never the
-   record. Done when the workspace id and branch are named in the project's record.
+   record. Done when the workspace id and branch are named in the project's record, and the
+   delivery's written paths, docs and generated mirrors included, are in the record and
+   compared with those of every delivery in flight before it starts.
 2. **Staff it.** The Lead partitions by default: one Engineer per disjoint path set, all
    running in parallel; overlapping work is one Engineer, not two. A shared interface,
    schema, or generated file belongs to one Engineer; the Lead routes every change to it
-   through that owner and relays each such change to every Engineer whose paths use it. Only
-   when the work does not split does the Lead write it itself (not in a worktree workspace,
-   where an Engineer writes it, as step 1 says), under owned paths and a report, as an
-   Engineer would, and the plan records why. Each Engineer's prompt names its owned paths,
-   its delivery's branch and checkout, and its reporting target, and relays what the Human
+   through that owner and relays each such change to every Engineer whose paths use it. Once
+   a delivery has staffed an Engineer, every source change in it goes to an Engineer,
+   whatever its size. Only when the work does not split, and the delivery never staffs an
+   Engineer, does the Lead write it itself (not in a worktree workspace, where an Engineer
+   writes it, as step 1 says), under owned paths and a report, as an Engineer would; the
+   plan records why and says so before the first edit. Each Engineer's prompt names its
+   owned paths, its delivery's branch and checkout, and its reporting target, names the
+   file-edit and file-write tools as the only way to write source, and relays what the Human
    said per "Human words" in Every agent; it also has the Engineer list, before editing,
    every reader and writer of each field, function, or input rule it changes (specs
    and tests included, inside its owned paths or not), and reach each one or name why
@@ -104,11 +111,12 @@ other tier gains a shell `paseo` use from this exception.
    work. The new Lead first checks that record against each delivery's tree and writes each
    mismatch into it, and reads `grants.md` unchanged. The
    plan names the fast lane, each acceptance lane with the paths it reads, and the project's
-   refusal and acceptance table, or none. When the plan names a lane of a kind that step 5
-   points to a reference for, read that reference first. A tool a lane runs or downloads (a
-   pinned binary or other artifact) is checked against a recorded checksum and lives in a
-   repo-local gitignored directory or a persistent cache, never `/tmp`, which a reboot
-   clears. Done when every writer's owned paths are disjoint and written down.
+   refusal and acceptance table, or none. A choice in the plan between two or more designs
+   or approaches takes Advisor consult point 1 first. When the plan names a lane of a kind
+   that step 5 points to a reference for, read that reference first. A tool a lane runs or
+   downloads (a pinned binary or other artifact) is checked against a recorded checksum and
+   lives in a repo-local gitignored directory or a persistent cache, never `/tmp`, which a
+   reboot clears. Done when every writer's owned paths are disjoint and written down.
 3. **Implement.** Engineers write inside owned paths; before reporting, each runs the plan's
    fast lane with the same race or sanitizer flags as the acceptance lanes (for example a race
    detector), so a data race is caught before hand-in, and checks its change against the
@@ -122,7 +130,9 @@ other tier gains a shell `paseo` use from this exception.
    item that removes it; for each test it deletes or rewrites, each behaviour that test pinned
    and the surviving test that pins it; and every deviation from its brief as a named item,
    which the Lead accepts or sends back. Done when every Engineer has reported, none is
-   running, and the Lead has checked each reported change against the diff.
+   running, and the Lead has checked each reported change against the diff and against that
+   Engineer's activity (`paseo logs`) for a source write made through a shell rather than
+   the file-edit and file-write tools.
 4. **Commit.** Only the Lead commits (in a worktree workspace, through its Engineer as step
    1 says), on the delivery's quiet tree: `git status --porcelain` shows only this commit's
    paths. Done when the commit SHA is named.
@@ -174,7 +184,9 @@ other tier gains a shell `paseo` use from this exception.
    usage pass (a round of running the product to find defects). This delivery's record and
    the receiving delivery's plan name each such finding. A delivery that only fixes Lows
    opens no further delivery for a Low its review finds, unless that Low is a correctness
-   defect. Done when a `PASS` names the SHA it covers.
+   defect. A second `FAIL` round with a Medium or higher finding, and dropping a finding,
+   review claim or bug as "does not hold", each take Advisor consult points 2 and 3 first.
+   Done when a `PASS` names the SHA it covers.
 6. **Merge.** The Lead pushes the delivery's branch, opens or updates its PR, and
    squash-merges it once a `PASS` names that PR's head or a head with the same tree, CI is
    green on that head where the project runs CI, and the head contains the product line's
@@ -191,10 +203,10 @@ other tier gains a shell `paseo` use from this exception.
    with the work it holds.
 7. **Close out.** Each delivery closes on its own: check that each merge it made in a stack
    squashed to a tree equal to its head's; archive each agent it created, then the workspace
-   it created (archiving a workspace archives none of its agents); a child of theirs that
-   must keep running is detached first, and the workspace holding it stays with its
-   worktree, recorded as still open. Remove its worktree and any leftover directory (in a
-   worktree workspace, by its Engineer before that Engineer is archived, as step 1 says).
+   it created; a child of theirs that must keep running is detached first, and the
+   workspace holding it stays with its worktree, recorded as still open. Remove its
+   worktree and any leftover directory (in a worktree workspace, by its Engineer before
+   that Engineer is archived, as step 1 says).
    If the delivery used `--new-workspace local --cwd <path>`, `paseo project delete` the
    project whose `paseo project ls` path equals `<path>`, never the main checkout's, nor one
    holding a kept workspace: deleting a project deletes all its workspaces. Then write to
@@ -227,7 +239,8 @@ an approved API), and a deviation that is not an `incident`. A project rule that
 Supervisor's OK adds X to the `dangerous` or `blocked` events, never to this list.
 
 - `dangerous`: an act in "Dangerous acts" awaits an answer (branch, exact head, act,
-  options);
+  options); one that carries a user-visible change or a tradeoff takes Advisor consult
+  point 4 first;
 - `permission`: an agent it staffed waits on a permission or dialog request (agent id,
   request id);
 - `blocked`: a Reviewer's `BLOCKED`, a tool or profile its tier lacks, or a staffed scope
@@ -260,18 +273,37 @@ agent can forge one (see the shell `paseo send` stamping under Tiers). The Super
 the cited agent's own activity (its `paseo logs`), not only the Watcher's findings, before
 acting. Step 7 never archives the Watcher; it lives as long as the Supervisor.
 
+## Advisor consult
+
+This section applies only where the Supervisor's grants name an Advisor. Before each of
+these acts a Lead sends the Advisor one question and writes the advice into its record:
+
+1. choosing between two or more designs or approaches;
+2. a second FAIL round with a Medium or higher finding;
+3. dropping a finding, review claim or bug as "does not hold";
+4. sending a `dangerous` event that carries a user-visible change or a tradeoff; the event
+   names the advice, in one line, and where it is recorded.
+
+The question names the project, the concrete question, the files or commits, the options
+weighed, and what was verified, and carries no secret values or prod data. The advice is
+input only: the Lead decides, and every gate still goes to the Supervisor. Advice is never
+an answer to a dangerous act. The wait is a bounded tracked wait; meanwhile the Lead goes
+on with work that does not depend on the answer, and on expiry it records "no advice" and
+goes on, with no re-prompt and no restaff.
+
 ## Every agent
 
 - After compaction, `paseo agent reload`, or a resume from `closed`, rebuild scope before
   the next action: your last report, your owned paths, the current branch and head; the
   Supervisor rebuilds from `paseo ls -g` and each running project's `handoff.md`.
-- A new Supervisor's first act tells each running Lead its agent id; the Lead writes it into
-  its record.
+- A new Supervisor's first act tells each running Lead its agent id, and the Advisor's where
+  its grants name one; the Lead writes each into its record.
 - Never generate synthetic load (busy loops, stress tools, inflated worker or repeat counts)
-  on a machine that also serves production; reproduce slowness with a deterministic seam
-  such as a held lock or an injected delay. A pass under such a seam disproves a race only
-  when the run's own output shows the seam fired on the path under test; otherwise it is
-  inconclusive.
+  on a machine that also serves production; every staffing prompt carries this ban and says
+  when the host serves production, which a staffed agent cannot know; reproduce slowness
+  with a deterministic seam such as a held lock or an injected delay. A pass under such a
+  seam disproves a race only when the run's own output shows the seam fired on the path
+  under test; otherwise it is inconclusive.
 - Send your report to the agent that staffed you by prompt, as your last action, with
   `notifyOnFinish` false; a finish notification alone wakes no one. A staffing prompt asks
   for the report this way and never for an end-of-turn report: a turn ended to wait on a
@@ -473,6 +505,8 @@ Below the Supervisor tier, no agent answers another agent's permission request:
   label names it (one in another workspace or with an open tab is detached instead); list
   them with `paseo ls --label paseo.parent-agent-id=<id>` and `paseo agent detach` each one
   that must keep running first.
+- Archiving a workspace archives its agents; archive the agents first (step 7), and a
+  workspace holding one that must keep running is not archived.
 - A send to an archived agent id revives it with its context. Remove an old id from every
   record before archiving its agent.
 - `paseo ls` can show `closed` (the provider process exited) while the agent is still
