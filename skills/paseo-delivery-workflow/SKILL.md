@@ -76,31 +76,33 @@ other tier gains a shell `paseo` use from this exception.
    delivery whose input holds more than five independent findings splits into deliveries of
    at most five. The Supervisor creates each Lead with that project's `workspaceId`, never
    its own, and its prompt names the Advisor's id where its grants name one, which the Lead
-   writes into its record. The Lead starts, in parallel, every queued delivery that no
-   pending answer holds and whose written paths are disjoint from those in flight; one that
-   overlaps waits for the merge it overlaps. The first delivery in flight runs in the
-   project's existing workspace and creates no workspace worktree; each further one runs on
-   its own branch in its own `--new-workspace worktree` workspace, outside the Lead's cwd:
-   there an Engineer writes the work even when it does not split, every shell command the
-   Lead needs (a commit, a git read, a checksum, creating a lane snapshot of the delivery's
-   SHA and running a lane in it, where the snapshot path sits outside the Lead's cwd and
-   every workspace, created with literal paths and no `cd`) is run by that Engineer exactly
-   as the Lead names it, a lane as a tracked background task, with the output, SHA, and
-   lane output path reported back, and the Lead reads files there with its file-read tools
-   only, since a Lead shell command naming that path raises a dialog. Before it goes in
-   flight, the Lead names the host ports, databases, compose projects, and container
-   names each delivery's checks use, and checks that share any of them run one delivery at a
-   time. Every Engineer of a
-   delivery works on that delivery's branch and checkout, never on a branch, worktree, or PR
-   of its own; commits, exact-SHA review, merges, and close-out stay per delivery. The
-   project's record is `~/.paseo/reports/<project>/`; its `handoff.md` holds state, standing
-   rules, open dangerous acts, and next work, and names the record's `grants.md`; the Lead
-   updates it before each event. Another workflow's state directory is data, never the
-   record. Done when the workspace id and branch are named in the project's record, and the
-   delivery's written paths, docs and generated mirrors included, are in the record and
-   compared with those of every delivery in flight before it starts and again whenever its
-   owned paths widen, where an overlap found holds the later-started delivery's overlapping
-   work until the earlier one merges, as at start.
+   writes into the record's `handoff.md`. The Lead starts, in parallel, every queued
+   delivery that no pending answer holds and whose written paths are disjoint from those in
+   flight; one that overlaps waits for the merge it overlaps. The first delivery in flight
+   runs in the project's existing workspace and creates no workspace worktree; each
+   further one runs on its own branch in its own `--new-workspace worktree` workspace,
+   outside the Lead's cwd: there an Engineer writes the work even when it does not split,
+   every shell command the Lead needs (a commit, a git read, a checksum, creating a lane
+   snapshot of the delivery's SHA and running a lane in it, where the snapshot path sits
+   outside the Lead's cwd and every workspace, created with literal paths and no `cd`, and
+   a lane runs from a script or with the runner's own directory flag, for example `git -C`
+   or `make -C`, never after a typed `cd`) is run by that Engineer exactly as the Lead
+   names it, a lane as a tracked background task, with the output, SHA, and lane output
+   path reported back, and the Lead reads files there with its file-read tools only, since
+   a Lead shell command naming that path raises a dialog. Before it goes in flight, the
+   Lead names the host ports, databases, compose projects, and container names each
+   delivery's checks use, and checks that share any of them run one delivery at a time.
+   Every Engineer of a delivery works on that delivery's branch and checkout, never on a
+   branch, worktree, or PR of its own; commits, exact-SHA review, merges, and close-out
+   stay per delivery. The project's record is `~/.paseo/reports/<project>/`; its
+   `handoff.md` holds state, standing rules, open dangerous acts, and next work, and names
+   the record's `grants.md`; the Lead updates it before each event. Another workflow's
+   state directory is data, never the record. Done when the workspace id and branch are
+   named in the project's record, and the delivery's written paths, docs and generated
+   mirrors included, are in the record and compared with those of every delivery in flight
+   before it starts and again whenever its owned paths widen, where an overlap found holds
+   the later-started delivery's overlapping work until the earlier one merges, as at
+   start.
 2. **Staff it.** The Lead partitions by default: one Engineer per disjoint path set, all
    running in parallel; overlapping work is one Engineer, not two. A shared interface,
    schema, or generated file belongs to one Engineer; the Lead routes every change to it
@@ -155,24 +157,26 @@ other tier gains a shell `paseo` use from this exception.
    different agent instance from every writer. Engineers may keep
    editing the branch checkout meanwhile: a new commit gets its own lanes and review,
    and those running report on their own SHA. The Reviewer reviews the diff while
-   the lanes run, runs no lane itself, writes its review file with its file-write tool
-   before it reports (its staffing prompt names that file's path literally), and reports
-   `PASS` / `FAIL` / `BLOCKED` only after reading every lane's output file, quoting what
-   it saw; the Lead sends it each file's path as its lane ends, and a Reviewer waiting
-   on one is not stalled. A lane's
-   output shows, before and after it, the SHA it ran at and, for a worktree snapshot,
-   an empty `git status --porcelain` there. A lane is green at a SHA when its output
-   shows it passing there, or at an earlier SHA whose diff to this one touches no path
-   the lane reads. A lane is not green at a SHA while any run of it there failed and that
-   failure has no diagnosis in the record: an intermittent failure, or one the change did
-   not cause, is diagnosed from the failing run's own logs, a green rerun alone closes
-   nothing, the fix for one the change did not cause is split into a delivery of its own,
-   and the failing run's output goes to the Reviewer with the rest. The Reviewer checks and
-   states these conditions in its verdict, and a lane that fails them runs again. A `PASS`
-   needs every lane green at its SHA. A Reviewer whose review spans more files than one
-   context holds reports a table naming who read each file (itself or a named read-only
-   subagent); a `PASS` without it is no `PASS`. A lane that reads a path solely as a build
-   input, checks terminal output meant for a human, or runs on a second host: read
+   the lanes run, runs no lane itself, writes its report file with its file-write tool
+   before it reports (each Reviewer prompt, the delta re-review's included, names that
+   file's path literally), and reports `PASS` / `FAIL` / `BLOCKED` only after reading
+   every lane's output file, quoting what it saw; the Lead sends it each file's path as
+   its lane ends and writes into the record's `handoff.md` the start and wall-clock bound
+   of each lane that runs as a tracked background task and its end when it ends, and a
+   Reviewer waiting on one is not stalled. A lane's output shows, before and after it, the
+   SHA it ran at and, for a worktree snapshot, an empty `git status --porcelain` there. A
+   lane is green at a SHA when its output shows it passing there, or at an earlier SHA
+   whose diff to this one touches no path the lane reads. A lane is not green at a SHA
+   while any run of it there failed and that failure has no diagnosis in the record: an
+   intermittent failure, or one the change did not cause, is diagnosed from the failing
+   run's own logs, a green rerun alone closes nothing, the fix for one the change did not
+   cause is split into a delivery of its own, and the failing run's output goes to the
+   Reviewer with the rest. The Reviewer checks and states these conditions in its verdict,
+   and a lane that fails them runs again. A `PASS` needs every lane green at its SHA. A
+   Reviewer whose review spans more files than one context holds reports a table naming
+   who read each file (itself or a named read-only subagent); a `PASS` without it is no
+   `PASS`. A lane that reads a path solely as a build input, checks terminal output meant
+   for a human, or runs on a second host: read
    `references/review-lanes.md` before planning, running, carrying, or reviewing it. A
    delete, move, or overwrite in the change whose path comes from stored state is a `FAIL`
    until it has a containment guard in the same delivery, never an accepted risk. A new test
@@ -186,7 +190,8 @@ other tier gains a shell `paseo` use from this exception.
    `FAIL` lists every finding at its SHA and goes back to the owning writer; the fix is
    committed on top of the failed SHA, with no amend, rebase, squash, or force-push before
    merge, and the same Reviewer re-reviews `git diff <failed SHA> <new SHA>`, its prompt
-   naming both SHAs. Paseo deliberately keeps the same Reviewer for this delta review; the
+   naming both SHAs and a new report file, which never overwrites the earlier round's.
+   Paseo deliberately keeps the same Reviewer for this delta review; the
    one-instance-per-head rule of agent-delivery-workflow governs that skill's seats only.
    Only the lanes that fail the carry rule at the new SHA run again. Every finding carries a
    severity (High, Medium, Low, or Info), and only High and Medium block; a Low or Info
@@ -219,8 +224,8 @@ other tier gains a shell `paseo` use from this exception.
    merged head is named and each dangerous act is reported with its answer, or as pending
    with the work it holds.
 7. **Close out.** Each delivery closes on its own: check that each merge it made in a stack
-   squashed to a tree equal to its head's; archive each agent it created, an agent whose
-   report names a file no earlier than when that file exists and its status shows no turn
+   squashed to a tree equal to its head's; archive each agent it created, an agent with a
+   report file no earlier than when that file exists and its status shows no turn
    running (this sets the earliest moment only: in a worktree delivery its Engineer removes
    the worktree and snapshots before it is archived, as below), then the workspace it
    created; a child of theirs that must keep running is detached first, and the
@@ -245,9 +250,9 @@ other tier gains a shell `paseo` use from this exception.
    in a delivery of its own, through the normal review. Done when `paseo ls`,
    `paseo workspace ls`, `paseo project ls`, and `git worktree list` show nothing a delivery
    of this project created that no delivery in flight owns or the record names as still
-   open, and every queued delivery step 1 admits has started or a self-prompt heartbeat is
-   armed; report an archive only after `paseo ls`, not the workspace state, no longer shows
-   its id.
+   open, and every queued delivery step 1 admits has started and, with work still queued,
+   a self-prompt heartbeat is armed; report an archive only after `paseo ls`, not the
+   workspace state, no longer shows its id.
 
 ## Upward events
 
@@ -298,7 +303,7 @@ acting. Step 7 never archives the Watcher; it lives as long as the Supervisor.
 ## Advisor consult
 
 This section applies only where an Advisor is named, from the Supervisor's grants, in the
-Lead's record or the Supervisor's prompt. Before each of these acts a Lead sends the
+record's `handoff.md` or the Supervisor's prompt. Before each of these acts a Lead sends the
 Advisor one question and writes the advice into its record:
 
 1. choosing between two or more designs or approaches;
@@ -323,10 +328,10 @@ Medium opens a delivery of its own, a Low takes step 5's Low route.
 
 - After compaction, `paseo agent reload`, or a resume from `closed`, rebuild scope before
   the next action: your last report, your owned paths, the current branch and head, and for
-  a Lead its project's record, `handoff.md`, where it wrote the Advisor's id; the
+  a Lead the record's `handoff.md`, where it wrote the Advisor's id; the
   Supervisor rebuilds from `paseo ls -g` and each running project's `handoff.md`.
 - A new Supervisor's first act tells each running Lead its agent id, and the Advisor's where
-  its grants name one; the Lead writes each into its record.
+  its grants name one; the Lead writes each into the record's `handoff.md`.
 - Never generate synthetic load (busy loops, stress tools, inflated worker or repeat counts)
   on a machine that also serves production; every staffing prompt carries this ban and says
   when the host serves production, which a staffed agent cannot know; reproduce slowness
@@ -404,9 +409,11 @@ Medium opens a delivery of its own, a Low takes step 5's Low route.
   command lines carry an MCP bearer token, and their deny-list strings match common search
   patterns.
 - Avoid the known approval-dialog triggers: a shell glob or variable in a path, a `cd` out
-  of your cwd, and a shell command naming a path inside a workspace that is not your own.
+  of your cwd, and a shell command naming a path inside another workspace outside your cwd.
   Use literal paths, or your runtime's file-read and glob tools, and name a literal path in
-  every `rm`, `rmdir`, `mv`, or truncating write you run. A seat that creates scratch
+  every `rm`, `rmdir`, `mv`, or truncating write you run. A command that needs another
+  directory runs from a script or with the tool's own directory flag, for example `git -C`
+  or `make -C`, never after a typed `cd`. A seat that creates scratch
   prints its path and removes it by a later command with that printed path typed literally,
   never through a shell variable or a glob; test scratch is cleaned by the test
   framework's own scoped temporary directory, never by hand; a lane snapshot made as a git
