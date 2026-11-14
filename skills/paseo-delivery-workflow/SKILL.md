@@ -40,7 +40,7 @@ edit no config and take no other route.
 | Tier | Decides | Never |
 |---|---|---|
 | Human | each dangerous act, through the Supervisor or in a Lead's own chat | — |
-| Supervisor (the one session the Human talks to, in the `~/Work` workspace, over every project) | which project runs, which Lead is staffed, what reaches the Human, the answer to a Lead's permission request for an approved dangerous act | commit, write source, move or delete a branch, push, mutate a PR, merge, deploy, install, or change a host or config of a project that has a Lead; poll or sleep in a loop |
+| Supervisor (the one session the Human talks to, in the `~/Work` workspace, over every project) | which project runs, which Lead is staffed, what reaches the Human, the answer to a Lead's permission request for an approved dangerous act | commit, write source, move or delete a branch, push, mutate a PR, merge, deploy, install, or change a host or config of a project that has a Lead; start a fan-out of whole-codebase read agents across projects while any Lead is inside an approved dangerous act that changes production; poll or sleep in a loop |
 | Lead (one per project) | every act in its project that is not dangerous: scope within the brief, partition, commits, acceptance, push and PR of each delivery's branch, merge (step 6) | a dangerous act before its answer arrives, write source once its delivery has staffed an Engineer, send the Supervisor anything but an upward event, an ack, or an answer, poll or sleep in a loop |
 | Engineer (one per owned path set) | the implementation inside its owned paths | edit outside owned paths, commit other than the one its Lead names (step 1), staff any agent beyond its own subagents |
 | Reviewer | `PASS` / `FAIL` / `BLOCKED` on one exact SHA | write anything, review a moving tree |
@@ -75,16 +75,19 @@ other tier gains a shell `paseo` use from this exception.
    the Human's request per "Human words" in Every agent), one branch per delivery. A
    delivery whose input holds more than five independent findings splits into deliveries of
    at most five. The Supervisor creates each Lead with that project's `workspaceId`, never
-   its own, and its prompt names the Advisor's id where its grants name one. The Lead
-   starts, in parallel, every queued delivery that no pending answer holds and whose
-   written paths are disjoint from those in flight; one that overlaps waits for the merge
-   it overlaps. The first delivery in flight runs in the project's existing
-   workspace and creates no workspace worktree; each further one runs on its own branch in
-   its own `--new-workspace worktree` workspace, outside the Lead's cwd: there an Engineer
-   writes the work even when it does not split, every shell command the Lead needs (a
-   commit, a git read, a checksum) is run by that Engineer exactly as the Lead names it,
-   with the output and SHA reported back, and the Lead reads files there with its file-read
-   tools only, since a Lead shell command naming that path raises a dialog. Before it goes
+   its own, and its prompt names the Advisor's id where its grants name one, which the Lead
+   writes into its record. The Lead starts, in parallel, every queued delivery that no
+   pending answer holds and whose written paths are disjoint from those in flight; one that
+   overlaps waits for the merge it overlaps. The first delivery in flight runs in the
+   project's existing workspace and creates no workspace worktree; each further one runs on
+   its own branch in its own `--new-workspace worktree` workspace, outside the Lead's cwd:
+   there an Engineer writes the work even when it does not split, every shell command the
+   Lead needs (a commit, a git read, a checksum, creating a lane snapshot of the delivery's
+   SHA and running a lane in it, where the snapshot path sits outside the Lead's cwd) is
+   run by that Engineer exactly as the Lead names it, a lane as a tracked background task,
+   with the output, SHA, and lane output path reported back, and the Lead reads files there
+   with its file-read tools only, since a Lead shell command naming that path raises a
+   dialog. Before it goes
    in flight, the Lead names the host ports, databases, compose projects, and container
    names each delivery's checks use, and checks that share any of them run one delivery at a
    time. Every Engineer of a
@@ -96,7 +99,8 @@ other tier gains a shell `paseo` use from this exception.
    record. Done when the workspace id and branch are named in the project's record, and the
    delivery's written paths, docs and generated mirrors included, are in the record and
    compared with those of every delivery in flight before it starts and again whenever its
-   owned paths widen.
+   owned paths widen, where an overlap found holds the later-started delivery's overlapping
+   work until the earlier one merges, as at start.
 2. **Staff it.** The Lead partitions by default: one Engineer per disjoint path set, all
    running in parallel; overlapping work is one Engineer, not two. A shared interface,
    schema, or generated file belongs to one Engineer; the Lead routes every change to it
@@ -142,12 +146,13 @@ other tier gains a shell `paseo` use from this exception.
 4. **Commit.** Only the Lead commits (in a worktree workspace, through its Engineer as step
    1 says), on the delivery's quiet tree: `git status --porcelain` shows only this commit's
    paths. Done when the commit SHA is named.
-5. **Review.** At the commit, the Lead starts the plan's acceptance lanes and end-to-end
-   runs on a detached snapshot of that SHA (a worktree or archive; a scratch copy comes from
-   `git archive <sha>`, never `cp -R` or rsync, and no agent runs a writing git command in a
-   snapshot or a copy; a suite that reads the git index or history runs on a worktree, since
-   an archive copy has no `.git`), never the live checkout, and in parallel staffs a
-   Reviewer there, as a different agent instance from every writer. Engineers may keep
+5. **Review.** At the commit, the Lead starts (in a worktree workspace, through its Engineer
+   as step 1 says) the plan's acceptance lanes and end-to-end runs on a detached snapshot of
+   that SHA (a worktree or archive; a scratch copy comes from `git archive <sha>`, never
+   `cp -R` or rsync, and no agent runs a writing git command in a snapshot or a copy; a
+   suite that reads the git index or history runs on a worktree, since an archive copy has
+   no `.git`), never the live checkout, and in parallel staffs a Reviewer there, as a
+   different agent instance from every writer. Engineers may keep
    editing the branch checkout meanwhile: a new commit gets its own lanes and review,
    and those running report on their own SHA. The Reviewer reviews the diff while
    the lanes run, runs no lane itself, and reports `PASS` / `FAIL` / `BLOCKED` only
@@ -292,19 +297,23 @@ Advisor one question and writes the advice into its record:
    names the advice, in one line, and where it is recorded.
 
 The question names the project, the concrete question, the files or commits, the options
-weighed, and what was verified, and carries no secret values, secret files, or prod data.
+weighed, and what was verified; it asks for the answer by prompt to the asking Lead and
+carries no secret values, secret files, or prod data.
 The advice is input only: the Lead decides, and every upward event, dangerous acts
 included, still goes to the Supervisor. Advice is never an answer to a dangerous act. The
 wait is a bounded tracked wait; meanwhile the Lead goes on with work that does not depend
 on the answer, and on expiry it records "no advice" and goes on, with no re-prompt and no
 restaff. The Advisor answers by prompt to the asking Lead; advice that arrives after expiry
-is recorded with its time and acted on only if the act is still open.
+is recorded with its time and acted on only if the act is still open, except that advice
+naming a defect in a closed act is handled as a finding with its own severity: a High or
+Medium opens a delivery of its own, a Low takes step 5's Low route.
 
 ## Every agent
 
 - After compaction, `paseo agent reload`, or a resume from `closed`, rebuild scope before
-  the next action: your last report, your owned paths, the current branch and head; the
-  Supervisor rebuilds from `paseo ls -g` and each running project's `handoff.md`.
+  the next action: your last report, your owned paths, the current branch and head, and for
+  a Lead its project's record, where it wrote the Advisor's id; the Supervisor rebuilds from
+  `paseo ls -g` and each running project's `handoff.md`.
 - A new Supervisor's first act tells each running Lead its agent id, and the Advisor's where
   its grants name one; the Lead writes each into its record.
 - Never generate synthetic load (busy loops, stress tools, inflated worker or repeat counts)
@@ -521,5 +530,8 @@ none, is barred by its grant and prompt only.
   record before archiving its agent.
 - `paseo ls` can show `closed` (the provider process exited) while the agent is still
   resumable.
+- The MCP `list_agents` top-level listing misses agents in delivery worktree workspaces.
+  Before judging a Lead or its agents idle, check `get_agent_status` on the ids the handoff
+  names, or `paseo ls -g`.
 - Config edits land with `paseo reload`, but an agent keeps the tool policy and system
   prompt it launched with until `paseo agent reload <id>` restarts it.
