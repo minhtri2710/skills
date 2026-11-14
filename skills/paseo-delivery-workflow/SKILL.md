@@ -161,22 +161,22 @@ other tier gains a shell `paseo` use from this exception.
    before it reports (each Reviewer prompt, the delta re-review's included, names that
    file's path literally), and reports `PASS` / `FAIL` / `BLOCKED` only after reading
    every lane's output file, quoting what it saw; the Lead sends it each file's path as
-   its lane ends and writes into the record's `handoff.md` the start of each lane that
-   runs as a tracked background task and its end when it ends, and a Reviewer waiting on
-   one is not stalled. A lane's
-   output shows, before and after it, the SHA it ran at and, for a worktree snapshot,
-   an empty `git status --porcelain` there. A lane is green at a SHA when its output
-   shows it passing there, or at an earlier SHA whose diff to this one touches no path
-   the lane reads. A lane is not green at a SHA while any run of it there failed and that
-   failure has no diagnosis in the record: an intermittent failure, or one the change did
-   not cause, is diagnosed from the failing run's own logs, a green rerun alone closes
-   nothing, the fix for one the change did not cause is split into a delivery of its own,
-   and the failing run's output goes to the Reviewer with the rest. The Reviewer checks and
-   states these conditions in its verdict, and a lane that fails them runs again. A `PASS`
-   needs every lane green at its SHA. A Reviewer whose review spans more files than one
-   context holds reports a table naming who read each file (itself or a named read-only
-   subagent); a `PASS` without it is no `PASS`. A lane that reads a path solely as a build
-   input, checks terminal output meant for a human, or runs on a second host: read
+   its lane ends and writes into the record's `handoff.md` the start and wall-clock bound
+   of each lane that runs as a tracked background task and its end when it ends, and a
+   Reviewer waiting on one is not stalled. A lane's output shows, before and after it, the
+   SHA it ran at and, for a worktree snapshot, an empty `git status --porcelain` there. A
+   lane is green at a SHA when its output shows it passing there, or at an earlier SHA
+   whose diff to this one touches no path the lane reads. A lane is not green at a SHA
+   while any run of it there failed and that failure has no diagnosis in the record: an
+   intermittent failure, or one the change did not cause, is diagnosed from the failing
+   run's own logs, a green rerun alone closes nothing, the fix for one the change did not
+   cause is split into a delivery of its own, and the failing run's output goes to the
+   Reviewer with the rest. The Reviewer checks and states these conditions in its verdict,
+   and a lane that fails them runs again. A `PASS` needs every lane green at its SHA. A
+   Reviewer whose review spans more files than one context holds reports a table naming
+   who read each file (itself or a named read-only subagent); a `PASS` without it is no
+   `PASS`. A lane that reads a path solely as a build input, checks terminal output meant
+   for a human, or runs on a second host: read
    `references/review-lanes.md` before planning, running, carrying, or reviewing it. A
    delete, move, or overwrite in the change whose path comes from stored state is a `FAIL`
    until it has a containment guard in the same delivery, never an accepted risk. A new test
@@ -303,7 +303,7 @@ acting. Step 7 never archives the Watcher; it lives as long as the Supervisor.
 ## Advisor consult
 
 This section applies only where an Advisor is named, from the Supervisor's grants, in the
-Lead's record or the Supervisor's prompt. Before each of these acts a Lead sends the
+record's `handoff.md` or the Supervisor's prompt. Before each of these acts a Lead sends the
 Advisor one question and writes the advice into its record:
 
 1. choosing between two or more designs or approaches;
@@ -411,7 +411,9 @@ Medium opens a delivery of its own, a Low takes step 5's Low route.
 - Avoid the known approval-dialog triggers: a shell glob or variable in a path, a `cd` out
   of your cwd, and a shell command naming a path inside another workspace outside your cwd.
   Use literal paths, or your runtime's file-read and glob tools, and name a literal path in
-  every `rm`, `rmdir`, `mv`, or truncating write you run. A seat that creates scratch
+  every `rm`, `rmdir`, `mv`, or truncating write you run. A command that needs another
+  directory runs from a script or with the tool's own directory flag, for example `git -C`
+  or `make -C`, never after a typed `cd`. A seat that creates scratch
   prints its path and removes it by a later command with that printed path typed literally,
   never through a shell variable or a glob; test scratch is cleaned by the test
   framework's own scoped temporary directory, never by hand; a lane snapshot made as a git

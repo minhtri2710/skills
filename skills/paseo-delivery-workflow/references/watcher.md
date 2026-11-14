@@ -67,9 +67,9 @@ Read only `<project-records>` and your own `<record-dir>`; write only `<record-d
   per pending permission request id the start of the check that first listed it and whether
   its line was sent (dropped once `paseo permit ls --json` stops listing it; the 15 minutes
   and `<min>` count from that start), per Lead the start of the check that first found it
-  idle with a delivery in flight and whether its line was sent (dropped once the Lead or
-  one of its agents runs again; the 60 minutes count from that start), and the command of
-  a sent `blocked` report.
+  idle with a delivery in flight that no exclusion of that P1 holds and whether its line
+  was sent (dropped once the Lead or one of its agents runs again, or an exclusion holds;
+  the 60 minutes count from that start), and the command of a sent `blocked` report.
 
 ## Report line
 
@@ -136,9 +136,9 @@ A permission request's line, outside the batch:
   is not polling).
 - A Lead idle for more than 60 minutes while its `handoff.md` names a delivery in flight
   and none of its agents is running, unless a pending answer holds that delivery (a
-  `dangerous` or `blocked` event awaiting its answer, or a Human GO awaited) or its lane
-  runs as a tracked background task that the Lead recorded in `handoff.md` with its start
-  and no end; reported once per idle stretch.
+  `dangerous` or `blocked` event awaiting its answer, or a Human GO awaited) or its
+  `handoff.md` records a lane of it as a tracked background task with a start, a bound,
+  and no end, and start plus bound has not passed; reported once per idle stretch.
 
 ## Not reported
 
