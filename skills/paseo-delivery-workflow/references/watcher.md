@@ -66,7 +66,10 @@ Read only `<project-records>` and your own `<record-dir>`; write only `<record-d
   project, and read-up-to time, the time of your last P1 batch, the P1 lines not yet sent,
   per pending permission request id the start of the check that first listed it and whether
   its line was sent (dropped once `paseo permit ls --json` stops listing it; the 15 minutes
-  and `<min>` count from that start), and the command of a sent `blocked` report.
+  and `<min>` count from that start), per Lead the start of the check that first found it
+  idle with a delivery in flight and whether its line was sent (dropped once the Lead or
+  one of its agents runs again; the 60 minutes count from that start), and the command of
+  a sent `blocked` report.
 
 ## Report line
 
@@ -131,6 +134,10 @@ A permission request's line, outside the batch:
 - A Lead sending the Supervisor anything but an upward event, an ack, or an answer.
 - A Lead polling: re-asking for state in a sleep or self-wake loop (a tracked bounded wait
   is not polling).
+- A Lead idle for more than 60 minutes while its `handoff.md` names a delivery in flight
+  and none of its agents is running, unless a pending answer holds that delivery (a
+  `dangerous` or `blocked` event awaiting its answer, or a Human GO awaited); reported
+  once per idle stretch.
 
 ## Not reported
 
