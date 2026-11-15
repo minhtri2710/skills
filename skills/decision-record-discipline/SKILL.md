@@ -27,10 +27,13 @@ Define what a term is in one or two sentences, not what it does. Include only
 concepts specific to this project; a timeout or a retry is not a domain term.
 
 During work, challenge usage against it: a term used to mean something the
-glossary does not say, or two words for one concept, is surfaced at once and
-resolved before code is written. Cross-check claims against the code and surface
-contradictions ("the glossary says partial cancellation exists; the code cancels
-whole orders").
+glossary does not say, two words for one concept, or one word for two concepts is
+surfaced at once and resolved before code is written; for the last, propose a
+canonical term for each concept and ask which is meant. When two concepts'
+relationship is under discussion, pose a boundary case that forces a precise
+answer (one of three items shipped, the rest cancelled: delivered or cancelled?).
+Cross-check claims against the code and surface contradictions ("the glossary
+says partial cancellation exists; the code cancels whole orders").
 
 ## Decisions: where the project keeps them
 
@@ -62,7 +65,13 @@ answer, not the history of answers.
 One file per rejected concept, not per request, named so the directory can be
 read without opening files (`dark-mode.md`, `plugin-system.md`). Each states what
 the project does not do, why, what accepting it would require, and the requests
-it answered. Before engaging a new request, check the directory by concept, not
-by wording; a match is answered with the record instead of a fresh debate. The
-record is rewritten when the reasoning changes, and deleted when the concept is
-accepted.
+it answered. Write one only for a requested enhancement refused for a reason that
+will still hold later; a bug, a deferral ("not now"), and a request for what the
+project already does get none, the last answered by pointing to where it lives,
+since a built feature there would match as rejected. Before engaging a new
+request, search the code by concept and say where you looked, so built work is
+not scoped again, then check the directory by concept, not by wording. A match is
+answered with the record instead of a fresh debate, unless the user who owns the
+project reopens the concept: that is the decision, so do not argue from the
+record. The record is rewritten when the reasoning changes, and deleted when the
+concept is accepted.
