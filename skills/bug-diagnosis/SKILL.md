@@ -71,12 +71,12 @@ performance, measure a baseline and bisect instead of logging.
 
 Fix the root cause at the shared mechanism every caller routes through. Turn the
 minimised repro into a failing test at a seam that exercises the real bug pattern,
-watch it fail, fix, watch it pass, then re-run the original un-minimised loop. When
-the red comes from changing code or a fixture (a revert of the fix, an edited
-input), diff against the untouched state to show the change took effect before
-trusting it; a change that did not land gives a red or a green that proves
-nothing. When no seam can exercise the real pattern, record that as a finding:
-the architecture prevents locking this bug down.
+watch it fail, fix, watch it pass, then re-run the original un-minimised loop.
+Trust a red that rests on a change to source or a fixture (a revert of the fix,
+an edited input) only after a comparison with the untouched state shows the
+change took effect; a change that did not take effect gives a red or a green
+that proves nothing. When no seam can exercise the real pattern, record that as
+a finding: the architecture prevents locking this bug down.
 
 ## 6. Close
 
