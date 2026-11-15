@@ -103,7 +103,7 @@ A permission request's line, outside the batch:
   outside the delivery's branch, worktree, and artifacts. Left out, since logs cannot judge
   them: scope beyond the brief and a breaking contract change.
 - A tier doing what its "Never" column forbids: a Reviewer writing anything outside its
-  own report file; a Heartbeat starting work, running tests, or editing; an Engineer
+  own report file, scratch included; a Heartbeat starting work, running tests, or editing; an Engineer
   committing, editing outside its owned paths, or staffing an agent beyond its subagents; an
   Advisor writing in a repository, committing, or answering a permission request; a Lead
   writing source once its delivery has staffed an Engineer or acting dangerously before its
