@@ -161,7 +161,9 @@ other tier gains a shell `paseo` use from this exception.
    it deletes or rewrites, each behaviour that test pinned and the surviving test that pins
    it; and every deviation from its brief as a named item, which the Lead accepts or sends
    back. Done when every Engineer has reported, none is running, and the Lead has checked
-   each reported change against the diff.
+   each reported change against the diff and each statement in a report about what calls,
+   reads, or depends on the changed code against the code, before that statement enters a
+   commit message, a PR body, or the record as fact.
 4. **Commit.** Only the Lead commits (in a worktree workspace, through its Engineer as step
    1 says), on the delivery's quiet tree: `git status --porcelain` shows only this commit's
    paths. Done when the commit SHA is named.
@@ -184,13 +186,18 @@ other tier gains a shell `paseo` use from this exception.
    lane ends and writes into the record's `handoff.md`, in UTC, the start and wall-clock
    bound of each lane that runs as a tracked background task and its end when it ends,
    and a Reviewer waiting on one is not stalled. A lane's output shows, before and after it,
-   the SHA it ran at and, for a worktree snapshot, an empty `git status --porcelain` there.
+   the SHA it ran at, the load averages (`uptime`) of the host it ran on, and, for a
+   worktree snapshot, an empty `git status --porcelain` there. A Reviewer who puts a failure
+   or a slow run down to host load quotes those load lines.
    A lane's script itself checks every precondition the lane relies on (examples: a control
    that must show a refusal, a profile that must be written, a directory that must exist),
    and a failed check stops the lane before the launch that precondition guards, since a
    precondition set up outside the script is lost when the script is copied.
    A lane is green at a SHA when its output shows it passing there, or at an earlier SHA
-   whose diff to this one touches no path the lane reads. A lane is not green at a SHA
+   whose diff to this one touches no path the lane reads. A figure measured at an earlier
+   head is stated with that head and stands for a later head only when the diff between the
+   two touches no path the measurement reads; otherwise it is measured again or labelled as
+   measured at the earlier head. A lane is not green at a SHA
    while any run of it there failed and that failure has no diagnosis in the record: an
    intermittent failure, or one the change did not cause, is diagnosed from the failing
    run's own logs, a green rerun alone closes nothing, the fix for one the change did not
@@ -221,6 +228,9 @@ other tier gains a shell `paseo` use from this exception.
    naming both SHAs and a new report file, which never overwrites the earlier round's.
    Paseo deliberately keeps the same Reviewer for this delta review; the
    one-instance-per-head rule of agent-delivery-workflow governs that skill's seats only.
+   Where a fix rewrites a sentence of a rule or a contract, its writer and the delta's
+   Reviewer compare the new sentence with its base text on the product line as well as with
+   the finding, and name each case the base covered that the new text no longer does.
    Only the lanes that fail the carry rule at the new SHA run again. Every finding carries a
    severity (High, Medium, Low, or Info), and only High and Medium block; a Low or Info
    finding reported with a `PASS` does not reopen the review, and the head goes on to
@@ -347,7 +357,10 @@ Advisor one question and writes the advice into its record:
 2. a second FAIL round with a Medium or higher finding;
 3. dropping a finding, review claim or bug as "does not hold";
 4. sending a `dangerous` event that carries a user-visible change or a tradeoff; the event
-   names the advice, in one line, and where it is recorded.
+   names the advice, in one line, and where it is recorded. When the advice names a case the
+   change may make worse and no check covers it, the Lead settles it with a check inside its
+   own authority before sending the event, and the event lists it as not checked only when
+   that check needs a grant, an install, or a dangerous act.
 
 The question names the project, the concrete question, the files or commits, the options
 weighed, and what was verified; it asks for the answer by prompt to the asking Lead and
