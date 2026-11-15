@@ -28,12 +28,12 @@ concepts specific to this project; a timeout or a retry is not a domain term.
 
 During work, challenge usage against it: a term used to mean something the
 glossary does not say, two words for one concept, or one word for two concepts is
-surfaced at once and resolved before code is written; for the last, propose a
-canonical term for each concept and ask which is meant. When two concepts'
-relationship is under discussion, pose a boundary case that forces a precise
-answer (one of three items shipped, the rest cancelled: delivered or cancelled?).
-Cross-check claims against the code and surface contradictions ("the glossary
-says partial cancellation exists; the code cancels whole orders").
+surfaced at once and resolved before code is written; for the last, give each
+concept its own name and ask which one the user means. To settle how two concepts
+relate, ask about a case that sits on the line between them (one of three items
+shipped, the rest cancelled: delivered or cancelled?). Cross-check claims against
+the code and surface contradictions ("the glossary says partial cancellation
+exists; the code cancels whole orders").
 
 ## Decisions: where the project keeps them
 
@@ -67,11 +67,12 @@ read without opening files (`dark-mode.md`, `plugin-system.md`). Each states wha
 the project does not do, why, what accepting it would require, and the requests
 it answered. Write one only for a requested enhancement refused for a reason that
 will still hold later; a bug, a deferral ("not now"), and a request for what the
-project already does get none, the last answered by pointing to where it lives,
-since a built feature there would match as rejected. Before engaging a new
-request, search the code by concept and say where you looked, so built work is
-not scoped again, then check the directory by concept, not by wording. A match is
-answered with the record instead of a fresh debate, unless the user who owns the
-project reopens the concept: that is the decision, so do not argue from the
-record. The record is rewritten when the reasoning changes, and deleted when the
-concept is accepted.
+project already does get none; the last is answered by showing the code that
+does it, since a record for something already built would match later requests
+as rejected. Before engaging a new request, search the code for the concept first
+and name the places searched, so built work is not scoped again, then check the
+directory by concept, not by wording. A match is answered with the record instead
+of a fresh debate, unless the user who owns the project, shown the record,
+reopens the concept: that is the decision, so do not argue from the record. The
+record is rewritten when the reasoning changes, and deleted when the concept is
+accepted.
