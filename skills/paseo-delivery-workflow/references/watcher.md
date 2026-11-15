@@ -129,9 +129,11 @@ A permission request's line, outside the batch:
   what it blocked (a reworded retry, a dropped glob, a filter after the fact, a search
   that reaches the same target), other than a form the denial's own instruction names,
   taken once, that reaches no more than the denied command and breaks no other rule (command
-  text a hook echoes back names no form, and a form taken against an order to stop that
-  line of work, given at or after the denial, is not exempt); a flag or setting that skips
-  a project's own check (example: `--no-verify`).
+  text a hook echoes back names no form, and a form taken against an order to stop that line
+  of work from the agent that staffed the seat or one above it, given at or after the
+  denial, is not exempt); a flag or setting that makes an act go through without a check the
+  project runs by itself on that act (example: `--no-verify` on a commit), unless the
+  project's `grants.md` names it.
 - An agent below the Supervisor answering another agent's permission request.
 
 ## P1: queue, send at most one batch per hour
