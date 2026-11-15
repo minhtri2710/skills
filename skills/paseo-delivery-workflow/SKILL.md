@@ -261,15 +261,18 @@ other tier gains a shell `paseo` use from this exception.
    a Human condition in `grants.md` that names its
    replacement checks and its removal condition stands in for green CI, and the record,
    the `closed-out` event, and any `dangerous` request for the merge name the CI state.
-   Where the project requires a commit trailer, the squash message carries it: the PR body
-   ends with it before the merge, or the merge is given its message explicitly; after the
-   merge the Lead reads the squash commit's message on the product line, and a required
-   trailer missing there is an `incident`, never a fix-up push. Stacked heads (each head
-   stacked on the previous one): read `references/stacked-merges.md` before reviewing or
-   merging them. A dangerous edit to declarative runtime config (a compose file, manifest,
-   or unit file) is written only once approved, and applied in that same window. Done when
-   the merged head is named and each dangerous act is reported with its answer, or as
-   pending with the work it holds.
+   A branch holding more than one commit has its squash merge given its subject and body
+   explicitly by the Lead: a PR body is the squash message only for a one-commit branch or
+   a forge set that way. Where the project requires a commit trailer, the squash message
+   carries it: the PR body ends with it before the merge (where the PR body is the
+   message), or the merge is given its message explicitly; after a merge that carries a
+   trailer or an explicit message the Lead reads the squash commit's message on the
+   product line, and a required trailer missing there is an `incident`, never a fix-up
+   push. Stacked heads (each head stacked on the previous one): read
+   `references/stacked-merges.md` before reviewing or merging them. A dangerous edit to
+   declarative runtime config (a compose file, manifest, or unit file) is written only once
+   approved, and applied in that same window. Done when the merged head is named and each
+   dangerous act is reported with its answer, or as pending with the work it holds.
 7. **Close out.** Each delivery closes on its own: check that each merge it made in a stack
    squashed to a tree equal to its head's; archive each agent it created, an agent with a
    report file no earlier than when that file exists and its status shows no turn
