@@ -24,7 +24,7 @@ index, not a store:
 ```markdown
 ## Destination
 ## Notes            <- domain, skills every session should load, standing preferences
-## Decisions so far <- one line per closed ticket: name, gist, link to the ticket
+## Decisions so far <- one line per ticket closed in scope: name, gist, link to the ticket
 ## Not yet specified
 ## Out of scope
 ```
@@ -42,20 +42,20 @@ name, never by bare id.
 **Fog or ticket?** The test is whether the question can be stated precisely now,
 not whether it can be answered now. Sharp but blocked is a ticket; not yet
 phrasable goes under *Not yet specified*, coarser than a ticket, and graduates
-into tickets as resolutions clear the view. A graduated patch leaves *Not yet
+into tickets as resolutions clear the view. Graduated fog leaves *Not yet
 specified*, which holds nothing decided, ticketed, or out of scope, so each open
 question lives in one place. Work ruled beyond the destination is *Out of
 scope*, closed, and never graduates; it returns only as a new effort.
 
 Working the map: the session that charts it ends once the map and its first
-tickets exist, resolving none of them, because its context holds the fog. In each
-later session, load the low-resolution map, claim one frontier ticket before
-any work, resolve it, record the answer on the ticket and one line in *Decisions
-so far*, then add the tickets the answer made specifiable and close any it made
-moot. A ticket found to lie beyond the destination is not moot: close it with one
-line under *Out of scope* (gist and why) and none in *Decisions so far*. One
-decision per session, so each starts from a clean primary source; only research
-tickets may run in parallel.
+tickets exist and are wired, resolving none of them, because its context holds
+the fog. In each later session, load the low-resolution map, claim one frontier
+ticket before any work, resolve it, record the answer on the ticket and one line
+in *Decisions so far*, then add the tickets the answer made specifiable and
+close any it made moot. A ticket found to lie beyond the destination is not
+moot: close it with one line under *Out of scope* (gist and why) and none in
+*Decisions so far*. One decision per session, so each starts from a clean
+primary source; only research tickets may run in parallel.
 
 ## Phase 2: tracer slices
 
