@@ -17,7 +17,9 @@ network call and install unless contained. Proxy variables and a substituted `HO
 contain it. Containment is proved by the refusal itself, in the launch's own output or a
 denial record; the program's own updater log not rising across the run (its wake and
 request counts) is a necessary check, not the proof, since an unchanged count can pass by
-chance.
+chance. The lane stops before the launch when its control does not show that refusal; a
+control that fails for another reason (example: the containment tool failing to load its
+profile) has shown no refusal.
 
 ## Second host
 

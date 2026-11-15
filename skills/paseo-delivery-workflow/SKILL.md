@@ -142,19 +142,25 @@ other tier gains a shell `paseo` use from this exception.
    before other work. The new Lead first checks that record against each delivery's tree
    and writes each mismatch into it, and reads `grants.md` unchanged. The
    plan names the fast lane, each acceptance lane with the paths it reads, and the project's
-   refusal and acceptance table, or none; when the delivery changes a path with a
-   stated target not shown met before it, in a way that can move the measure, the plan
-   also names the fixtures, and the measure is recorded before and after the change on
-   those same fixtures. Any choice between two or more designs or approaches takes Advisor
-   consult point 1 first. When the plan names a lane of a kind that step 5 points to a
-   reference for, read that reference first. A tool a lane runs or downloads (a pinned
-   binary or other artifact) is checked against a recorded checksum and lives in a
-   repo-local gitignored directory or a persistent cache, never `/tmp`, which a reboot
-   clears. Done when every writer's owned paths are disjoint and written down.
+   refusal and acceptance table, or none; when a grant or a brief exempts one call from a
+   rule the delivery adds, the plan lists every caller of the function that implements the
+   exempted call, direct or through another function, and the table gives each caller a
+   row, exempt or refused; when the delivery changes a path with a stated target not shown
+   met before it, in a way that can move the measure, the plan also names the fixtures,
+   and the measure is recorded before and after the change on those same fixtures. Any
+   choice between two or more designs or approaches takes Advisor consult point 1 first.
+   When the plan names a lane of a kind
+   that step 5 points to a reference for, read that reference first. A tool a lane runs or
+   downloads (a pinned binary or other artifact) is checked against a recorded checksum
+   and lives in a repo-local gitignored directory or a persistent cache, never `/tmp`,
+   which a reboot clears. Done when every writer's owned paths are disjoint and written
+   down.
 3. **Implement.** Engineers write inside owned paths; before reporting, each runs the plan's
    fast lane with the same race or sanitizer flags as the acceptance lanes (for example a race
-   detector), so a data race is caught before hand-in, and checks its change against the
-   refusal and acceptance table the plan names, quoting both in its report. The report also
+   detector) and every static check they run on its owned paths (examples: a typecheck, a
+   lint), so a data race or a static fault is caught before hand-in, and checks its change
+   against the refusal and acceptance table the plan names, each such caller's row included,
+   quoting both in its report. The report also
    carries: step 2's reader and writer list, each one reached or named with why not; for a
    change that tightens or loosens an input rule, adds an input, or turns a refusal into a
    hold, an accept, or a silent drop (a broad catch around a refusal counts), or the
@@ -193,6 +199,10 @@ other tier gains a shell `paseo` use from this exception.
    bound of each lane that runs as a tracked background task and its end when it ends,
    and a Reviewer waiting on one is not stalled. A lane's output shows, before and after it,
    the SHA it ran at and, for a worktree snapshot, an empty `git status --porcelain` there.
+   A lane's script itself checks every precondition the lane relies on (examples: a control
+   that must show a refusal, a profile that must be written, a directory that must exist),
+   and a failed check stops the lane before the launch that precondition guards, since a
+   precondition set up outside the script is lost when the script is copied.
    A lane is green at a SHA when its output shows it passing there, or at an earlier SHA
    whose diff to this one touches no path the lane reads. A lane is not green at a SHA
    while any run of it there failed and that failure has no diagnosis in the record: an
@@ -361,9 +371,13 @@ included, still goes to the Supervisor. Advice is never an answer to a dangerous
 wait is a bounded tracked wait; meanwhile the Lead goes on with work that does not depend
 on the answer, and on expiry it records "no advice" and goes on, with no re-prompt and no
 restaff. The Advisor answers by prompt to the asking Lead; advice that arrives after expiry
-is recorded with its time and acted on only if the act is still open, except that advice
-naming a defect in a closed act is handled as a finding with its own severity: a High or
-Medium opens a delivery of its own, a Low takes step 5's Low route.
+is recorded with its time and acted on only if the act is still open (a design choice
+stays open until the delivery's merge: advice that arrives before it is weighed when it
+arrives, and the Lead tells at once each Engineer or Reviewer it affects), except that
+advice naming a defect in a closed act is handled as a finding with its own severity: a
+High or Medium opens a delivery of its own, a Low takes step 5's Low route. A design
+choice made under "no advice" is named as such, with the options weighed, in the plan and
+in the Reviewer's brief.
 
 ## Every agent
 
@@ -380,22 +394,27 @@ Medium opens a delivery of its own, a Low takes step 5's Low route.
   seam disproves a race only when the run's own output shows the seam fired on the path
   under test; otherwise it is inconclusive.
 - Send your report to the agent that staffed you by prompt, as your last action, with
-  `notifyOnFinish` false; a finish notification alone wakes no one. A staffing prompt asks
-  for the report this way and never for an end-of-turn report: a turn ended to wait on a
-  background task spends the staffer's one finish notification, and the later report reaches
-  no one. A wait on an agent you staffed that owes you a report runs as a tracked background
-  wait sized to the work (a bounded tracked wait is not a poll); its expiry, a runtime exit,
-  or a "background command was stopped" notice makes you check that agent's status at once,
-  since an agent that ended its turn waiting on a background task the exit killed never gets
-  its completion notice. After the check, the wait for a report still owed is re-armed as a
-  new bounded wait, until the report arrives or you restaff the agent. An agent you
-  staffed that is idle, closed, or errored with its report still owed has stalled: read its
-  `paseo logs`, then re-prompt it; restaff the same scope only when it cannot resume. The
-  Supervisor, to whom a Lead owes events and no report, learns a Lead stalled from an
-  `errored` event, a watched answer's notification, or the Human's Paseo attention list,
-  and never polls for it. A send that returned success proves nothing: check that the agent
-  then runs a turn rather than waiting on a permission or dialog request, and count the
-  work done only when the report arrives.
+  `notifyOnFinish` false; a finish notification alone wakes no one. Every reply a staffer
+  asks of an agent it staffed (examples: a confirmation, a cleanup answer, a late question),
+  a Lead's answer to the Supervisor excepted, is such a report: asked for by prompt, sent
+  by prompt at once, as that agent's last action when no work of its own goes on, waited
+  for under a bound, and read from its `paseo logs` when the bound expires. A staffing
+  prompt asks for the report this way and never for an end-of-turn report: a turn ended to
+  wait on a background task spends the staffer's one finish notification, and the later
+  report reaches no one. A wait on an agent you staffed that owes you a report runs as a
+  tracked background wait sized to the work (a bounded tracked wait is not a poll); its
+  expiry, a runtime exit, or a "background command was stopped" notice makes you check
+  that agent's status at once, since an agent that ended its turn waiting on a background
+  task the exit killed never gets its completion notice. After the check, the wait for a
+  report still owed is re-armed as a new bounded wait, until the report arrives or you
+  restaff the agent. An agent you staffed that is idle, closed, or errored with its report
+  still owed has stalled: read its `paseo logs`, then re-prompt it; restaff the same scope
+  only when it cannot resume. The Supervisor, to whom a Lead owes events and answers
+  (Upward events) and no report, learns a Lead stalled from an `errored` event, a watched
+  answer's notification, or the Human's Paseo attention list, and never polls for it. A
+  send that returned success proves nothing: check that the agent then runs a turn rather
+  than waiting on a permission or dialog request, and count the work done only when the
+  report arrives.
 - Agents share one machine. Never stop, remove, or take over a container, process, or port
   another agent, delivery, or project started; report the collision to the agent that
   staffed you. Replace a file a process may be using (a script it runs, an installed file)
