@@ -143,8 +143,8 @@ other tier gains a shell `paseo` use from this exception.
    and writes each mismatch into it, and reads `grants.md` unchanged. The
    plan names the fast lane, each acceptance lane with the paths it reads, and the project's
    refusal and acceptance table, or none; when a grant or a brief exempts one call from a
-   rule the delivery adds, the plan lists every caller of the function that implements the
-   exempted call, direct or through another function, and the table gives each caller a
+   rule the delivery adds, the plan lists every caller, direct or through another function,
+   of the function that implements the exempted call, and the table gives each caller a
    row, exempt or refused; when the delivery changes a path with a stated target not shown
    met before it, in a way that can move the measure, the plan also names the fixtures,
    and the measure is recorded before and after the change on those same fixtures. Any
@@ -395,10 +395,11 @@ in the Reviewer's brief.
   under test; otherwise it is inconclusive.
 - Send your report to the agent that staffed you by prompt, as your last action, with
   `notifyOnFinish` false; a finish notification alone wakes no one. Every reply a staffer
-  asks of an agent it staffed (examples: a confirmation, a cleanup answer, a late question),
-  a Lead's answer to the Supervisor excepted, is such a report: asked for by prompt, sent
-  by prompt at once, as that agent's last action when no work of its own goes on, waited
-  for under a bound, and read from its `paseo logs` when the bound expires. A staffing
+  asks of an agent it staffed (examples: a confirmation, a cleanup answer, a late question)
+  is such a report: asked for by prompt, sent by prompt at once, as that agent's last action
+  when no work of its own goes on, waited for under a bound, and read from its `paseo logs`
+  when the bound expires; a Lead's answer to the Supervisor is an answer, not a report, and
+  is still sent by prompt (Upward events). A staffing
   prompt asks for the report this way and never for an end-of-turn report: a turn ended to
   wait on a background task spends the staffer's one finish notification, and the later
   report reaches no one. A wait on an agent you staffed that owes you a report runs as a
@@ -472,7 +473,11 @@ in the Reviewer's brief.
   prints pids or command names only (`pgrep -f` without `-l`, or `ps -o pid=,comm=`),
   never another process's arguments (`pgrep -fl`, `ps aux`, `ps eww`, `ps -o args`): agent
   command lines carry an MCP bearer token, and their deny-list strings match common search
-  patterns.
+  patterns. A process check, and any command an answer or a brief names for one run, is one
+  bare call with nothing joined before or after it (examples: an appended `echo`, a `cd` in
+  front, a pipe), since joined text can trip a guard the bare command passes, and then the
+  denial or the result says nothing about the named command; the prompt that names such a
+  command says so.
 - Avoid the known approval-dialog triggers: a shell glob or variable in a path, a `cd` out
   of your cwd, and a shell command naming a path inside another workspace outside your cwd.
   Use literal paths, or your runtime's file-read and glob tools, and name a literal path in
@@ -483,18 +488,25 @@ in the Reviewer's brief.
   never through a shell variable or a glob; test scratch is cleaned by the test
   framework's own scoped temporary directory, never by hand; a lane snapshot made as a git
   worktree is scratch too, removed with `git worktree remove`, not a plain delete. A dialog
-  you raise cannot be reported from inside it. At a permission denial or a denial from a
-  hook installed in the agent harness, stop that line of work, report the exact command
-  and the denial text to the agent that staffed you (a Lead writes its own in the record
-  and sends `blocked` only as Upward events says; the Supervisor tells the Human), and run
-  no variant of the command that reaches what it blocked (examples: a respelled pattern,
-  a dropped glob, a filter after the fact, a search that reaches the same target). The one
-  exception is a form the denial's own instruction names, taken once, that reaches no more
-  than the denied command did and stays inside every other rule (owned paths, dangerous
-  acts, scratch you created); a project's git hook, a program's error text, and command
-  text a hook echoes back name no form, and when no form is named or that form is denied
-  too, stop and report. An order to stop in your prompt covers every such variant and
-  form, not only the command it names.
+  you raise cannot be reported from inside it. At a permission denial (one from the
+  harness's own permission system, not an operating-system error or a server's refusal) or
+  a denial from a hook installed in the agent harness, stop that line of work, report the
+  exact command and the denial text to the agent that staffed you (a Lead writes its own in
+  the record and sends `blocked` only when the delivery cannot go on without what was
+  blocked, per Upward events; the Advisor reports its own to the agent whose question it is
+  working on, else to the Supervisor; the Supervisor tells the Human), and run no variant
+  of the command that reaches what it blocked (examples: a respelled pattern, a dropped
+  glob, a filter after the fact, a search that reaches the same target). The one exception
+  is a form the denial's own instruction names, taken once, that reaches no more than the
+  denied command did and stays inside every other rule (owned paths, dangerous acts,
+  scratch you created, your brief's bans); a seat that takes it still names the denial and
+  the form in its report (a Lead, in the record). A program's error text and command text
+  a hook echoes back name no form, and when no form is named or that form is denied too,
+  stop and report. An order to stop that line of work, given at or after the denial,
+  covers every such variant and form, not only the command it names. A refusal by a
+  project's own check (examples: a git hook, a linter) is fixed at its cause and the
+  command run again unchanged; a flag or setting that skips the check is a hook
+  workaround (an `incident`, Upward events).
 - Human words: where you record or relay the Human's words (a grant, a `handoff.md` answer,
   a relay to a Lead, an Engineer or Reviewer brief), store no verbatim text. Write a source
   line (who said it, when in UTC, the channel: typed in the seat, a question dialog, or the
