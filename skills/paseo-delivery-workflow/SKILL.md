@@ -265,11 +265,11 @@ other tier gains a shell `paseo` use from this exception.
    explicitly by the Lead: a PR body is the squash message only for a one-commit branch or
    a forge set that way. Where the project requires a commit trailer, the squash message
    carries it: the PR body ends with it before the merge (where the PR body is the
-   message), or the merge is given its message explicitly; after a merge that carries a
-   trailer or an explicit message the Lead reads the squash commit's message on the
-   product line, and a required trailer missing there is an `incident`, never a fix-up
-   push. Stacked heads (each head stacked on the previous one): read
-   `references/stacked-merges.md` before reviewing or merging them. A dangerous edit to
+   message), or the merge is given its message explicitly. After a merge given an explicit
+   message, and after every merge where the project requires a trailer, the Lead reads the
+   squash commit's message on the product line; a required trailer missing there is an
+   `incident`, never a fix-up push. Stacked heads (each head stacked on the previous one):
+   read `references/stacked-merges.md` before reviewing or merging them. A dangerous edit to
    declarative runtime config (a compose file, manifest, or unit file) is written only once
    approved, and applied in that same window. Done when the merged head is named and each
    dangerous act is reported with its answer, or as pending with the work it holds.
