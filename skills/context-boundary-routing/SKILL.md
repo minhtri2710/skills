@@ -55,9 +55,9 @@ When step 4 wins, pick the shape and refuse the others.
   the diff looks small.
 - **Research isolation** sends an agent to read what would otherwise flood this
   context and returns a digest much smaller than what it read. When more than
-  one later agent needs the findings, it writes them once to a file outside the
-  repository and each later brief carries that path, so no agent explores again
-  or receives a retold digest.
+  one later agent needs the findings, the research agent writes them once to a
+  file outside the repository and each later brief carries that path, so no
+  agent explores again or receives a retold digest.
 
 Four shapes are refused: an agent whose whole job is deciding which agent to
 call; an agent that invokes another agent; a sequential orchestrator that

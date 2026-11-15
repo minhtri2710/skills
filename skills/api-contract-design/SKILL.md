@@ -39,13 +39,14 @@ database is noise that hides the real boundary.
 - Names follow one convention across every endpoint, documented once.
 - Separate input types from entity types: the create input has no id or
   timestamps; the entity has server-generated fields and no optional lies.
-- A response type carries a field only when a present consumer needs it and
-  this requester may see it in this context; authentication grants no field,
-  so the per-object and per-field permission check precedes building it.
+- A response type carries a field only when a present consumer, in this
+  repository or outside it, needs it and this requester may see it in this
+  context; authentication grants no field, so the per-object and per-field
+  permission check precedes building it.
 - Build each response from an explicit field list, never by serialising the
   stored record and deleting from it, so a new column reaches no response by
-  default; a client's field selection is intersected with that list and with
-  the requester's permissions.
+  default; however a client selects fields, the response holds only listed
+  fields that this requester may see.
 - Model variants as discriminated unions rather than a bag of nullable fields,
   and give ids distinct types so a task id cannot be passed where a user id goes.
 
@@ -85,5 +86,6 @@ sits at the boundary; lists paginate; names follow the convention; state-changin
 operations honour a key claimed atomically or are marked unsafe to retry; each
 kind of caller the contract distinguishes has a test asserting the exact keys
 returned, on list and error paths as well as detail, so absence is proved as
-well as presence (a snapshot never says why a field is allowed); and the types
-are committed alongside the implementation, because they are the documentation.
+well as presence (a snapshot is no substitute, since it gives no reason for a
+field's presence); and the types are committed alongside the implementation,
+because they are the documentation.
