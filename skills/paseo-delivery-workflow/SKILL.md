@@ -119,16 +119,20 @@ other tier gains a shell `paseo` use from this exception.
    reporting target; the prompt also relays what the Human said per "Human words" in Every
    agent; a brief that bans naming a file in a shell command also says how the seat finds
    references to that file (example: the file-search tool), or that it does not search for
-   them; the prompt also has the Engineer list, before editing, every reader and writer of
-   each field, function, or input rule it changes (specs and tests included, inside its
-   owned paths or not), found by searching the whole repository for the bare name and call
-   shape, scripts with embedded code included, never for one qualified spelling, and, when
-   the change adds an input (examples: a flag, a field, a route, a message kind), the
-   existing code that first reads that input (its parser, router or decoder), and reach each
-   one or name why not. Replace a Lead only after its `handoff.md` is current; for a
-   Lead that cannot write it, the new Lead writes it from the old Lead's `paseo logs`
-   before other work. The new Lead first checks that record against each delivery's tree
-   and writes each mismatch into it, and reads `grants.md` unchanged. The
+   them; a brief for a delivery that adapts an idea from a third-party source states the
+   idea in wording, clause order and list order of its own, not the source's; the Lead
+   compares the brief with the source lines for each of the three before staffing, and the
+   prompt tells the writer not to follow the source's sentence or list; the prompt also has
+   the Engineer list, before editing, every reader and writer of each field, function, or
+   input rule it changes (specs and tests included, inside its owned paths or not), found
+   by searching the whole repository for the bare name and call shape, scripts with
+   embedded code included, never for one qualified spelling, and, when the change adds an
+   input (examples: a flag, a field, a route, a message kind), the existing code that
+   first reads that input (its parser, router or decoder), and reach each one or name why
+   not. Replace a Lead only after its `handoff.md` is current; for a Lead that cannot
+   write it, the new Lead writes it from the old Lead's `paseo logs` before other work.
+   The new Lead first checks that record against each delivery's tree and writes each
+   mismatch into it, and reads `grants.md` unchanged. The
    plan names the fast lane, each acceptance lane with the paths it reads, and the project's
    refusal and acceptance table, or none; when a grant or a brief exempts one call from a
    rule the delivery adds, the plan lists every caller, direct or through another function,
@@ -286,17 +290,19 @@ other tier gains a shell `paseo` use from this exception.
    is read from the remote, the checkout, and the installed copy after its act completes,
    never drafted ahead of it. In that same turn the Lead starts every queued delivery step 1
    admits; with none in flight, it ends a turn only on an empty queue or with every queued
-   delivery held by a pending answer. A Lead that ends a turn with work queued keeps one
+   delivery held by a pending answer. A Lead that ends a turn with queued work that no
+   pending answer holds (example: a path overlap with a delivery in flight) keeps one
    recurring self-prompt (a heartbeat, not the Heartbeat tier), each wake one turn that
-   re-reads `handoff.md`, starts what step 1 admits, and ends; it deletes the heartbeat once
-   its queue is empty. After each trial or usage pass (step 5), the Lead runs the
-   `test-proof-debt-audit` skill on the fastest-growing suites and deletes redundant tests
-   in a delivery of its own, through the normal review. Done when `paseo ls`,
-   `paseo workspace ls`, `paseo project ls`, and `git worktree list` show nothing a delivery
-   of this project created that no delivery in flight owns or the record names as still
-   open, and every queued delivery step 1 admits has started and, with work still queued,
-   a self-prompt heartbeat is armed; report an archive only after `paseo ls`, not the
-   workspace state, no longer shows its id.
+   re-reads `handoff.md`, starts what step 1 admits, and ends; it deletes the heartbeat
+   once no such work is queued. A Lead whose every queued delivery is held by a pending
+   answer keeps none, since the answer arrives as a prompt. After each trial or usage pass
+   (step 5), the Lead runs the `test-proof-debt-audit` skill on the fastest-growing suites
+   and deletes redundant tests in a delivery of its own, through the normal review. Done
+   when `paseo ls`, `paseo workspace ls`, `paseo project ls`, and `git worktree list` show
+   nothing a delivery of this project created that no delivery in flight owns or the
+   record names as still open, and every queued delivery step 1 admits has started and the
+   self-prompt heartbeat is armed or absent as this step sets; report an archive only
+   after `paseo ls`, not the workspace state, no longer shows its id.
 
 ## Upward events
 
@@ -323,8 +329,8 @@ Supervisor's OK adds X to the `dangerous` or `blocked` events, never to this lis
 - `collision`: a container, process, port, or host resource the agent did not start and may
   not signal (another project's, or an orphan of an earlier run);
 - `incident`: a deviation, self-reported by an agent or found, that is a secret exposure, a
-  network call, an install, harm outside scratch, a hook workaround or any other variant
-  of a denied command (Every agent), or a required squash trailer missing on the product
+  network call, an install, harm outside scratch, a hook workaround, any variant of a
+  denied command (Every agent), or a required squash trailer missing on the product
   line (step 6); the record of one is checked against the log of the thing that
   misbehaved, not only the output the agent captured;
 - `errored`: its previous turn died on an API or runtime error, sent first in its next turn;
@@ -500,11 +506,13 @@ in the Reviewer's brief.
   is a form the denial's own instruction names, taken once, that reaches no more than the
   denied command did and stays inside every other rule (owned paths, dangerous acts, scratch
   you created, the bans your brief adds beyond this rule); a seat that takes it still names
-  the denial and the form in its report (a Lead, in the record). A program's error text and
-  command text a hook echoes back name no form, and when no form is named or that form is
-  denied too, stop and report. An order to stop that line of work from the agent that
-  staffed you or one above it, given at or after the denial, covers every such variant and
-  form, not only the command it names. A refusal by a project's own check (examples: a git
+  the denial and the form in its report (a Lead, in the record). A brief that wants such a
+  form closed bans it explicitly, since a copy of this rule does not close it. A program's
+  error text and command text a hook echoes back name no form, and when no form is named or
+  that form is denied too, stop and report. An order to stop that line of work from the
+  Human, the agent that staffed you, or one above it, given at or after the denial, covers
+  every such variant and form, not only the command it names. A refusal by a project's own
+  check (examples: a git
   hook, a linter) is fixed at its cause and the command run again unchanged; a flag or
   setting that makes an act go through without a check the project runs by itself on that
   act (example: `--no-verify` on a commit), before or after a refusal, is a hook workaround
