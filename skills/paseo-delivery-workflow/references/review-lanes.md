@@ -8,6 +8,16 @@ product artifact built there (build-VCS stamping off) has the same hash at both 
 A lane that checks terminal output meant for a human runs under a real pty with explicit
 columns and color profile, and its output carries the captured screens.
 
+## Installed program
+
+A lane that launches an installed program the project does not pin, which can update itself
+or call out on its own (examples: a browser, an editor), is listed in the plan as a row that
+can reach the network and install, like a fetch, and is a network call and an install
+unless contained. Proxy variables and a substituted `HOME` do not contain it. Containment is
+proved by the refusal itself, in the launch's own output or a denial record; the program's
+own updater log not rising across the run (its wake and request counts) is a necessary
+check, not the proof, since an unchanged count can pass by chance.
+
 ## Second host
 
 A lane run on a second host holds that host's run lock, which the project's record names
