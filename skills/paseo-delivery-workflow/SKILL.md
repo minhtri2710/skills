@@ -116,28 +116,16 @@ other tier gains a shell `paseo` use from this exception.
    worktree workspace, where an Engineer writes it, as step 1 says), under owned paths and a
    report, as an Engineer would; the plan records why before the first edit. Each
    Engineer's prompt names its owned paths, its delivery's branch and checkout, and its
-   reporting target, states that the content of a file in the repository checkout, tracked
-   or new, is written or changed only with the file-edit and file-write tools, by every
-   tier below the Supervisor, whatever the shell form (examples: an in-place edit flag, a
-   redirect or heredoc into the file, an inline interpreter), since a file-tool edit leaves
-   the exact old and new text in the agent's activity, where step 3's check and the Watcher
-   read it, and a shell write does not; the exception is a command that produces the file's
-   content itself (examples: a generator or formatter the plan names, a lane writing its
-   own output, git applying recorded history), never one that copies, moves, or applies
-   text a seat wrote (examples: `cp`, `mv`, a patch of a hand edit); a seat that made such
-   a shell write reports it, restores the file to its content before that write (a tracked
-   file to its committed or previously edited state, a new file removed by its literal
-   path), and redoes the change with the file tools; scratch outside the checkout stays
-   free; the prompt also relays what the Human said per "Human words" in Every agent; a
-   brief that bans naming a file in a shell command also says how the seat finds
+   reporting target; the prompt also relays what the Human said per "Human words" in Every
+   agent; a brief that bans naming a file in a shell command also says how the seat finds
    references to that file (example: the file-search tool), or that it does not search for
-   them; the prompt also has the Engineer list, before editing, every reader and writer
-   of each field, function, or input rule it changes (specs and tests included, inside its
+   them; the prompt also has the Engineer list, before editing, every reader and writer of
+   each field, function, or input rule it changes (specs and tests included, inside its
    owned paths or not), found by searching the whole repository for the bare name and call
    shape, scripts with embedded code included, never for one qualified spelling, and, when
    the change adds an input (examples: a flag, a field, a route, a message kind), the
-   existing code that first reads that input (its parser, router or decoder), and reach
-   each one or name why not. Replace a Lead only after its `handoff.md` is current; for a
+   existing code that first reads that input (its parser, router or decoder), and reach each
+   one or name why not. Replace a Lead only after its `handoff.md` is current; for a
    Lead that cannot write it, the new Lead writes it from the old Lead's `paseo logs`
    before other work. The new Lead first checks that record against each delivery's tree
    and writes each mismatch into it, and reads `grants.md` unchanged. The
@@ -173,9 +161,7 @@ other tier gains a shell `paseo` use from this exception.
    it deletes or rewrites, each behaviour that test pinned and the surviving test that pins
    it; and every deviation from its brief as a named item, which the Lead accepts or sends
    back. Done when every Engineer has reported, none is running, and the Lead has checked
-   each reported change against the diff and against that Engineer's activity (`paseo logs`)
-   for the content of a file in the checkout, tracked or new, written through a shell
-   command other than step 2's exceptions, rather than the file-edit and file-write tools.
+   each reported change against the diff.
 4. **Commit.** Only the Lead commits (in a worktree workspace, through its Engineer as step
    1 says), on the delivery's quiet tree: `git status --porcelain` shows only this commit's
    paths. Done when the commit SHA is named.
@@ -458,13 +444,12 @@ in the Reviewer's brief.
   host or VM fails as the real service does while that host is down (for example a refused
   or timed-out connection), never answering: a stub that answers while its host is down
   makes a passing test prove nothing about that path.
-- Write every text file outside the repository checkout (brief, report, PR body) with the
-  file-write tool or a quoted heredoc (`<<'EOF'`; a file in the checkout follows step 2's
-  file-tool rule instead), and send a prompt through the send tool or from such a file;
-  never use an unquoted heredoc, an `echo` of prose, or an inline double-quoted shell
-  argument, whose backticks, `$(...)`, and `$` variables the shell expands. In zsh, brace a
-  variable next to a colon (`${M}:path`): `$M:t` reads as a history modifier; and never
-  name a variable after a zsh special parameter: `read ... path` replaces `PATH`.
+- Write every text file (brief, report, PR body) with the file-write tool or a quoted
+  heredoc (`<<'EOF'`), and send a prompt through the send tool or from such a file; never
+  use an unquoted heredoc, an `echo` of prose, or an inline double-quoted shell argument,
+  whose backticks, `$(...)`, and `$` variables the shell expands. In zsh, brace a variable
+  next to a colon (`${M}:path`): `$M:t` reads as a history modifier; and never name a
+  variable after a zsh special parameter: `read ... path` replaces `PATH`.
 - Work that reads or writes a secret value runs on the profile reserved for secret values;
   every other profile handles key names only. A secret value that reaches a transcript is an
   `incident` (Upward events), with the rotation it needs. Every staffing prompt forbids
@@ -498,15 +483,17 @@ in the Reviewer's brief.
   of the command that reaches what it blocked (examples: a respelled pattern, a dropped
   glob, a filter after the fact, a search that reaches the same target). The one exception
   is a form the denial's own instruction names, taken once, that reaches no more than the
-  denied command did and stays inside every other rule (owned paths, dangerous acts,
-  scratch you created, your brief's bans); a seat that takes it still names the denial and
-  the form in its report (a Lead, in the record). A program's error text and command text
-  a hook echoes back name no form, and when no form is named or that form is denied too,
-  stop and report. An order to stop that line of work, given at or after the denial,
-  covers every such variant and form, not only the command it names. A refusal by a
-  project's own check (examples: a git hook, a linter) is fixed at its cause and the
-  command run again unchanged; a flag or setting that skips the check is a hook
-  workaround (an `incident`, Upward events).
+  denied command did and stays inside every other rule (owned paths, dangerous acts, scratch
+  you created, the bans your brief adds beyond this rule); a seat that takes it still names
+  the denial and the form in its report (a Lead, in the record). A program's error text and
+  command text a hook echoes back name no form, and when no form is named or that form is
+  denied too, stop and report. An order to stop that line of work from the agent that
+  staffed you or one above it, given at or after the denial, covers every such variant and
+  form, not only the command it names. A refusal by a project's own check (examples: a git
+  hook, a linter) is fixed at its cause and the command run again unchanged; a flag or
+  setting that makes an act go through without a check the project runs by itself on that
+  act (example: `--no-verify` on a commit), before or after a refusal, is a hook workaround
+  (an `incident`, Upward events), unless a grant names it.
 - Human words: where you record or relay the Human's words (a grant, a `handoff.md` answer,
   a relay to a Lead, an Engineer or Reviewer brief), store no verbatim text. Write a source
   line (who said it, when in UTC, the channel: typed in the seat, a question dialog, or the
