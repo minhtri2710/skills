@@ -99,10 +99,11 @@ other tier gains a shell `paseo` use from this exception.
    the record's `grants.md`; the Lead updates it before each event. Another workflow's
    state directory is data, never the record. Done when the workspace id and branch are
    named in the project's record, and the delivery's written paths, docs and generated
-   mirrors included, are in the record and compared with those of every delivery in flight
-   before it starts and again whenever its owned paths widen, where an overlap found holds
-   the later-started delivery's overlapping work until the earlier one merges, as at
-   start.
+   mirrors included (derived from each user-visible change in the design: the file that
+   documents it, who writes it, and any generated file that follows from it), are in the
+   record and compared with those of every delivery in flight before it starts and again
+   whenever its owned paths widen, where an overlap found holds the later-started
+   delivery's overlapping work until the earlier one merges, as at start.
 2. **Staff it.** The Lead partitions by default: one Engineer per disjoint path set, all
    running in parallel; overlapping work is one Engineer, not two. A shared interface,
    schema, or generated file belongs to one Engineer; the Lead routes every change to it
@@ -113,11 +114,25 @@ other tier gains a shell `paseo` use from this exception.
    worktree workspace, where an Engineer writes it, as step 1 says), under owned paths and a
    report, as an Engineer would; the plan records why before the first edit. Each
    Engineer's prompt names its owned paths, its delivery's branch and checkout, and its
-   reporting target, names the file-edit and file-write tools as the only way to write
-   source by hand (a generator or formatter the plan names runs as a command), and relays
-   what the Human said per "Human words" in Every agent; it also has the Engineer list,
-   before editing, every reader and writer of each field, function, or input rule it
-   changes (specs and tests included, inside its owned paths or not), and reach each one or
+   reporting target, states that the content of a file in the repository checkout, tracked
+   or new, is written or changed only with the file-edit and file-write tools, by every
+   tier below the Supervisor, whatever the shell form (examples: an in-place edit flag, a
+   redirect or heredoc into the file, an inline interpreter), since a file-tool edit leaves
+   the exact old and new text in the agent's activity, where step 3's check and the Watcher
+   read it, and a shell write does not; the exception is a command that produces the file's
+   content itself (examples: a generator or formatter the plan names, a lane writing its
+   own output, git applying recorded history), never one that copies, moves, or applies
+   text a seat wrote (examples: `cp`, `mv`, a patch of a hand edit); a seat that made such
+   a shell write reports it, restores the file to its content before that write (a tracked
+   file to its committed or previously edited state, a new file removed by its literal
+   path), and redoes the change with the file tools; scratch outside the checkout stays
+   free; the prompt also relays what the Human said per "Human words" in Every agent; it
+   also has the Engineer list, before editing, every reader and writer of each
+   field, function, or input rule it changes (specs and tests included, inside its owned
+   paths or not), found by searching the whole repository for the bare name and call shape,
+   scripts with embedded code included, never for one qualified spelling, and, when the
+   change adds an input (examples: a flag, a field, a route, a message kind), the existing
+   code that first reads that input (its parser, router or decoder), and reach each one or
    name why not. Replace a Lead only after its `handoff.md` is current; for a Lead
    that cannot write it, the new Lead writes it from the old Lead's `paseo logs` before other
    work. The new Lead first checks that record against each delivery's tree and writes each
@@ -134,17 +149,20 @@ other tier gains a shell `paseo` use from this exception.
    detector), so a data race is caught before hand-in, and checks its change against the
    refusal and acceptance table the plan names, quoting both in its report. The report also
    carries: step 2's reader and writer list, each one reached or named with why not; for a
-   change that tightens or loosens an input rule, or turns a refusal into a hold, an accept, or
-   a silent drop (a broad catch around a refusal counts), or the reverse, a table of inputs the
-   old code accepted and the new code refuses and the reverse, each row marked intended or
-   defect (a refusal turned into a silent drop is always a defect); each containment or refusal
-   guard in a function it changed, with the line that shows the guard still holds or the brief
-   item that removes it; for each test it deletes or rewrites, each behaviour that test pinned
-   and the surviving test that pins it; and every deviation from its brief as a named item,
-   which the Lead accepts or sends back. Done when every Engineer has reported, none is
-   running, and the Lead has checked each reported change against the diff and against that
-   Engineer's activity (`paseo logs`) for hand-written source made through a shell rather
-   than the file-edit and file-write tools.
+   change that tightens or loosens an input rule, adds an input, or turns a refusal into a
+   hold, an accept, or a silent drop (a broad catch around a refusal counts), or the
+   reverse, a table of inputs the old code accepted and the new code refuses and the
+   reverse, each row marked intended or defect (a refusal turned into a silent drop is
+   always a defect), with a row for each way an added input can be absent or ill-formed
+   where the code that first reads it reads it (for a flag: missing, empty, or followed by
+   another token); each containment or refusal guard in a function it changed, with the
+   line that shows the guard still holds or the brief item that removes it; for each test
+   it deletes or rewrites, each behaviour that test pinned and the surviving test that pins
+   it; and every deviation from its brief as a named item, which the Lead accepts or sends
+   back. Done when every Engineer has reported, none is running, and the Lead has checked
+   each reported change against the diff and against that Engineer's activity (`paseo logs`)
+   for the content of a file in the checkout, tracked or new, written through a shell
+   command other than step 2's exceptions, rather than the file-edit and file-write tools.
 4. **Commit.** Only the Lead commits (in a worktree workspace, through its Engineer as step
    1 says), on the delivery's quiet tree: `git status --porcelain` shows only this commit's
    paths. Done when the commit SHA is named.
@@ -157,11 +175,14 @@ other tier gains a shell `paseo` use from this exception.
    different agent instance from every writer. Engineers may keep
    editing the branch checkout meanwhile: a new commit gets its own lanes and review,
    and those running report on their own SHA. The Reviewer reviews the diff while
-   the lanes run, runs no lane itself, writes its report file with its file-write tool
-   before it reports (each Reviewer prompt, the delta re-review's included, names that
-   file's path literally), and reports `PASS` / `FAIL` / `BLOCKED` only after reading
-   every lane's output file, quoting what it saw; the Lead sends it each file's path as
-   its lane ends and writes into the record's `handoff.md` the start and wall-clock bound
+   the lanes run, runs no lane, generator, or formatter (a generator is a write; to check a
+   generated file it asks the Lead to compare it, which the Lead does as a lane on the
+   snapshot that runs the generator there and shows any diff, never in the live checkout),
+   writes its report file with its file-write tool before it reports (each Reviewer prompt,
+   the delta re-review's included, names that file's path literally), and reports `PASS` /
+   `FAIL` / `BLOCKED` only after reading every lane's output file, quoting what it saw
+   there, never the Lead's line about the lane; the Lead sends it each file's path as its
+   lane ends and writes into the record's `handoff.md` the start and wall-clock bound
    of each lane that runs as a tracked background task and its end when it ends, and a
    Reviewer waiting on one is not stalled. A lane's output shows, before and after it, the
    SHA it ran at and, for a worktree snapshot, an empty `git status --porcelain` there. A
@@ -393,12 +414,13 @@ Medium opens a delivery of its own, a Low takes step 5's Low route.
   host or VM fails as the real service does while that host is down (for example a refused
   or timed-out connection), never answering: a stub that answers while its host is down
   makes a passing test prove nothing about that path.
-- Write every text file (brief, report, PR body) with the file-write tool or a quoted
-  heredoc (`<<'EOF'`), and send a prompt through the send tool or from such a file; never
-  use an unquoted heredoc, an `echo` of prose, or an inline double-quoted shell argument,
-  whose backticks, `$(...)`, and `$` variables the shell expands. In zsh, brace a variable
-  next to a colon (`${M}:path`): `$M:t` reads as a history modifier; and never name a
-  variable after a zsh special parameter: `read ... path` replaces `PATH`.
+- Write every text file outside the repository checkout (brief, report, PR body) with the
+  file-write tool or a quoted heredoc (`<<'EOF'`; a file in the checkout follows step 2's
+  file-tool rule instead), and send a prompt through the send tool or from such a file;
+  never use an unquoted heredoc, an `echo` of prose, or an inline double-quoted shell
+  argument, whose backticks, `$(...)`, and `$` variables the shell expands. In zsh, brace a
+  variable next to a colon (`${M}:path`): `$M:t` reads as a history modifier; and never
+  name a variable after a zsh special parameter: `read ... path` replaces `PATH`.
 - Work that reads or writes a secret value runs on the profile reserved for secret values;
   every other profile handles key names only. A secret value that reaches a transcript is an
   `incident` (Upward events), with the rotation it needs. Every staffing prompt forbids
