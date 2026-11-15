@@ -11,12 +11,13 @@ columns and color profile, and its output carries the captured screens.
 ## Installed program
 
 A lane that launches an installed program the project does not pin, which can update itself
-or call out on its own (examples: a browser, an editor), is listed in the plan as a row that
-can reach the network and install, like a fetch, and is a network call and an install
-unless contained. Proxy variables and a substituted `HOME` do not contain it. Containment is
-proved by the refusal itself, in the launch's own output or a denial record; the program's
-own updater log not rising across the run (its wake and request counts) is a necessary
-check, not the proof, since an unchanged count can pass by chance.
+or call out on its own (examples: a browser, an editor), is marked in the plan's lane entry
+as reaching the network, and as installing when it can update itself, and counts as that
+network call and install unless contained. Proxy variables and a substituted `HOME` do not
+contain it. Containment is proved by the refusal itself, in the launch's own output or a
+denial record; the program's own updater log not rising across the run (its wake and
+request counts) is a necessary check, not the proof, since an unchanged count can pass by
+chance.
 
 ## Second host
 
