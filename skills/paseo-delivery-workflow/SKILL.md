@@ -128,27 +128,29 @@ other tier gains a shell `paseo` use from this exception.
    a shell write reports it, restores the file to its content before that write (a tracked
    file to its committed or previously edited state, a new file removed by its literal
    path), and redoes the change with the file tools; scratch outside the checkout stays
-   free; the prompt also relays what the Human said per "Human words" in Every agent; it
-   also has the Engineer list, before editing, every reader and writer of each
-   field, function, or input rule it changes (specs and tests included, inside its owned
-   paths or not), found by searching the whole repository for the bare name and call shape,
-   scripts with embedded code included, never for one qualified spelling, and, when the
-   change adds an input (examples: a flag, a field, a route, a message kind), the existing
-   code that first reads that input (its parser, router or decoder), and reach each one or
-   name why not. Replace a Lead only after its `handoff.md` is current; for a Lead
-   that cannot write it, the new Lead writes it from the old Lead's `paseo logs` before other
-   work. The new Lead first checks that record against each delivery's tree and writes each
-   mismatch into it, and reads `grants.md` unchanged. The
+   free; the prompt also relays what the Human said per "Human words" in Every agent; a
+   brief that bans naming a file in a shell command also says how the seat finds
+   references to that file (example: the file-search tool), or that it does not search for
+   them; the prompt also has the Engineer list, before editing, every reader and writer
+   of each field, function, or input rule it changes (specs and tests included, inside its
+   owned paths or not), found by searching the whole repository for the bare name and call
+   shape, scripts with embedded code included, never for one qualified spelling, and, when
+   the change adds an input (examples: a flag, a field, a route, a message kind), the
+   existing code that first reads that input (its parser, router or decoder), and reach
+   each one or name why not. Replace a Lead only after its `handoff.md` is current; for a
+   Lead that cannot write it, the new Lead writes it from the old Lead's `paseo logs`
+   before other work. The new Lead first checks that record against each delivery's tree
+   and writes each mismatch into it, and reads `grants.md` unchanged. The
    plan names the fast lane, each acceptance lane with the paths it reads, and the project's
-   refusal and acceptance table, or none; when the delivery touches a path with a stated
-   target not shown met before it, the plan also names the fixtures, and the measure
-   is recorded before and after the change on those same fixtures. Any choice between two
-   or more designs or approaches takes Advisor consult point 1 first. When the plan names
-   a lane of a kind that step 5 points to a reference for, read that reference first. A
-   tool a lane runs or downloads (a pinned binary or other artifact) is checked against a
-   recorded checksum and lives in a repo-local gitignored directory or a persistent cache,
-   never `/tmp`, which a reboot clears. Done when every writer's owned paths are disjoint
-   and written down.
+   refusal and acceptance table, or none; when the delivery changes a path with a
+   stated target not shown met before it, in a way that can move the measure, the plan
+   also names the fixtures, and the measure is recorded before and after the change on
+   those same fixtures. Any choice between two or more designs or approaches takes Advisor
+   consult point 1 first. When the plan names a lane of a kind that step 5 points to a
+   reference for, read that reference first. A tool a lane runs or downloads (a pinned
+   binary or other artifact) is checked against a recorded checksum and lives in a
+   repo-local gitignored directory or a persistent cache, never `/tmp`, which a reboot
+   clears. Done when every writer's owned paths are disjoint and written down.
 3. **Implement.** Engineers write inside owned paths; before reporting, each runs the plan's
    fast lane with the same race or sanitizer flags as the acceptance lanes (for example a race
    detector), so a data race is caught before hand-in, and checks its change against the
@@ -187,11 +189,11 @@ other tier gains a shell `paseo` use from this exception.
    the delta re-review's included, names that file's path literally), and reports `PASS` /
    `FAIL` / `BLOCKED` only after reading every lane's output file, quoting what it saw
    there, never the Lead's line about the lane; the Lead sends it each file's path as its
-   lane ends and writes into the record's `handoff.md` the start and wall-clock bound
-   of each lane that runs as a tracked background task and its end when it ends, and a
-   Reviewer waiting on one is not stalled. A lane's output shows, before and after it, the
-   SHA it ran at and, for a worktree snapshot, an empty `git status --porcelain` there. A
-   lane is green at a SHA when its output shows it passing there, or at an earlier SHA
+   lane ends and writes into the record's `handoff.md`, in UTC, the start and wall-clock
+   bound of each lane that runs as a tracked background task and its end when it ends,
+   and a Reviewer waiting on one is not stalled. A lane's output shows, before and after it,
+   the SHA it ran at and, for a worktree snapshot, an empty `git status --porcelain` there.
+   A lane is green at a SHA when its output shows it passing there, or at an earlier SHA
    whose diff to this one touches no path the lane reads. A lane is not green at a SHA
    while any run of it there failed and that failure has no diagnosis in the record: an
    intermittent failure, or one the change did not cause, is diagnosed from the failing
@@ -270,7 +272,8 @@ other tier gains a shell `paseo` use from this exception.
    holding a kept workspace: deleting a project deletes all its workspaces. Then write to
    the project's record what changed, what was removed, tests run with their output, the net
    test-line change with one line of reason, what is still open, and the times of its start,
-   first Engineer report, `PASS`, and merge, each written to the record when it happens, and
+   first Engineer report, `PASS`, and merge, each written in UTC to the record when it
+   happens, and
    send `closed-out`. Every SHA, head, installed version, and branch state in `closed-out`
    is read from the remote, the checkout, and the installed copy after its act completes,
    never drafted ahead of it. In that same turn the Lead starts every queued delivery step 1
@@ -302,8 +305,9 @@ Supervisor's OK adds X to the `dangerous` or `blocked` events, never to this lis
   point 4 first;
 - `permission`: an agent it staffed waits on a permission or dialog request (agent id,
   request id);
-- `blocked`: a Reviewer's `BLOCKED`, a tool or profile its tier lacks, or a staffed scope
-  that neither resumes nor restaffs;
+- `blocked`: a Reviewer's `BLOCKED`, a tool or profile its tier lacks, a staffed scope
+  that neither resumes nor restaffs, or its own denied command that the delivery cannot go
+  on without (Every agent);
 - `ci`: CI on a pushed head failed or did not start within its bounded wait, blocking a
   merge that no condition in `grants.md` already accounts for, or CI on a merged head
   failed; a CI state a `grants.md` condition already accounts for goes in the record and the
@@ -311,13 +315,14 @@ Supervisor's OK adds X to the `dangerous` or `blocked` events, never to this lis
 - `collision`: a container, process, port, or host resource the agent did not start and may
   not signal (another project's, or an orphan of an earlier run);
 - `incident`: a deviation, self-reported by an agent or found, that is a secret exposure, a
-  network call, an install, harm outside scratch, a hook workaround, or a required squash
-  trailer missing on the product line (step 6); the record of one is checked against the
-  log of the thing that misbehaved, not only the output the agent captured;
+  network call, an install, harm outside scratch, a hook workaround or any other variant
+  of a denied command (Every agent), or a required squash trailer missing on the product
+  line (step 6); the record of one is checked against the log of the thing that
+  misbehaved, not only the output the agent captured;
 - `errored`: its previous turn died on an API or runtime error, sent first in its next turn;
 - `closed-out`: a delivery closed (step 7), with its start, first Engineer report, `PASS`,
-  and merge times, its net test-line change (test lines before and after for an audit
-  delivery), each general lesson and the next work it ranks first, or none.
+  and merge times in UTC, its net test-line change (test lines before and after for an
+  audit delivery), each general lesson and the next work it ranks first, or none.
 
 On each event or answer the Supervisor reads that project's `handoff.md` and the file named,
 and acts from them, never from memory of an earlier turn; before ruling on a rule
@@ -452,14 +457,25 @@ Medium opens a delivery of its own, a Low takes step 5's Low route.
 - Avoid the known approval-dialog triggers: a shell glob or variable in a path, a `cd` out
   of your cwd, and a shell command naming a path inside another workspace outside your cwd.
   Use literal paths, or your runtime's file-read and glob tools, and name a literal path in
-  every `rm`, `rmdir`, `mv`, or truncating write you run. A command that needs another
-  directory runs from a script or with the tool's own directory flag, for example `git -C`
-  or `make -C`, never after a typed `cd`. A seat that creates scratch
+  every `rm`, `rmdir`, `mv`, or truncating write you run. A command that needs a directory
+  outside your cwd runs from a script or with the tool's own directory flag, for example
+  `git -C` or `make -C`, never after a typed `cd`. A seat that creates scratch
   prints its path and removes it by a later command with that printed path typed literally,
   never through a shell variable or a glob; test scratch is cleaned by the test
   framework's own scoped temporary directory, never by hand; a lane snapshot made as a git
   worktree is scratch too, removed with `git worktree remove`, not a plain delete. A dialog
-  you raise cannot be reported from inside it.
+  you raise cannot be reported from inside it. At a permission denial or a denial from a
+  hook installed in the agent harness, stop that line of work, report the exact command
+  and the denial text to the agent that staffed you (a Lead writes its own in the record
+  and sends `blocked` only as Upward events says; the Supervisor tells the Human), and run
+  no variant of the command that reaches what it blocked (examples: a respelled pattern,
+  a dropped glob, a filter after the fact, a search that reaches the same target). The one
+  exception is a form the denial's own instruction names, taken once, that reaches no more
+  than the denied command did and stays inside every other rule (owned paths, dangerous
+  acts, scratch you created); a project's git hook, a program's error text, and command
+  text a hook echoes back name no form, and when no form is named or that form is denied
+  too, stop and report. An order to stop in your prompt covers every such variant and
+  form, not only the command it names.
 - Human words: where you record or relay the Human's words (a grant, a `handoff.md` answer,
   a relay to a Lead, an Engineer or Reviewer brief), store no verbatim text. Write a source
   line (who said it, when in UTC, the channel: typed in the seat, a question dialog, or the

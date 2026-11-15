@@ -125,7 +125,12 @@ A permission request's line, outside the batch:
   cannot judge (replacing a file in use, heavy-command bounds and concurrency, detached
   runs).
 - A secret value in any activity; a command that prints the environment; a read of a secret
-  file; a reworded retry that achieves the effect a hook just blocked.
+  file; a variant of a command a hook or permission denial stopped that reaches what it
+  blocked (a reworded retry, a dropped glob, a filter after the fact, a search that
+  reaches the same target), other than a form the denial's own instruction names, taken
+  once, that reaches no more than the denied command and breaks no other rule (an
+  instruction of a permission denial or a harness hook, not of a project's git hook or a
+  program's error text).
 - An agent below the Supervisor answering another agent's permission request.
 
 ## P1: queue, send at most one batch per hour
@@ -136,8 +141,10 @@ A permission request's line, outside the batch:
 - A Reviewer or Engineer that finished without sending its verdict or report to its Lead.
 - The same hook block three or more times for one agent.
 - A Lead sending the Supervisor anything but an upward event, an ack, or an answer.
-- A Lead polling or sleeping in a loop (a tracked bounded wait, and the recurring
-  self-prompt of the skill's step 7, are not).
+- A Lead polling or sleeping in a loop (a tracked bounded wait is not, nor is the skill's
+  step 7 self-prompt: a recurring heartbeat kept while its `handoff.md` names queued work,
+  each wake one turn that re-reads `handoff.md`, starts any queued work no pending answer
+  holds, and ends, deleted once the queue is empty).
 - A Lead idle for more than 60 minutes while its `handoff.md` names a delivery in flight
   and none of its agents is running, unless a pending answer holds that delivery (a
   `dangerous` or `blocked` event awaiting its answer, or a Human GO awaited) or its
