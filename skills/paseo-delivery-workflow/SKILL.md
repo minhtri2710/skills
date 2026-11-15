@@ -43,7 +43,7 @@ edit no config and take no other route.
 | Supervisor (the one session the Human talks to, in the `~/Work` workspace, over every project) | which project runs, which Lead is staffed, what reaches the Human, the answer to a Lead's permission request for an approved dangerous act | commit, write source, move or delete a branch, push, mutate a PR, merge, deploy, install, or change a host or config of a project that has a Lead; start or relay a fan-out of whole-codebase read agents across projects while any Lead is inside an approved dangerous act that changes production; poll or sleep in a loop |
 | Lead (one per project) | every act in its project that is not dangerous: scope within the brief, partition, commits, acceptance, push and PR of each delivery's branch, merge (step 6) | a dangerous act before its answer arrives, write source once its delivery has staffed an Engineer, send the Supervisor anything but an upward event, an ack, or an answer, poll or sleep in a loop |
 | Engineer (one per owned path set) | the implementation inside its owned paths | edit outside owned paths, commit other than the one its Lead names (step 1), staff any agent beyond its own subagents |
-| Reviewer | `PASS` / `FAIL` / `BLOCKED` on one exact SHA | write anything outside its own report file, review a moving tree |
+| Reviewer | `PASS` / `FAIL` / `BLOCKED` on one exact SHA | write anything outside its own report file (a redirect of command output to a file elsewhere, /tmp included, is such a write: read long output through a pipe or the file-read tool), review a moving tree |
 | Advisor (standing, created by the Human and recorded by the Supervisor in a grant, in the `~/Work` workspace, over every project; see "Advisor consult") | nothing; gives advice only | write in a repository, commit, answer a permission, approve or answer a dangerous act, give or stand in for a verdict, receive secret values, secret files, or prod data |
 | Heartbeat | nothing; reports one bounded snapshot | start work, run tests, edit |
 | Watcher (not a Heartbeat: it runs on a recurring self-heartbeat and judges activity against the rules) | nothing; reports rule violations to the Supervisor only, P0 and a permission waiting over 15 minutes at once, other P1 batched at most hourly | act on, prompt, stop, or archive another agent, answer a permission, write outside its record dir, message anyone but the Supervisor |
@@ -117,9 +117,11 @@ other tier gains a shell `paseo` use from this exception.
    report, as an Engineer would; the plan records why before the first edit. Each
    Engineer's prompt names its owned paths, its delivery's branch and checkout, and its
    reporting target; the prompt also relays what the Human said per "Human words" in Every
-   agent; a brief that bans naming a file in a shell command also says how the seat finds
-   references to that file (example: the file-search tool), or that it does not search for
-   them; a brief for a delivery that adapts an idea from a third-party source states the
+   agent; a brief for any seat (a Reviewer's included) that bans a form of command also
+   says beside the ban what the seat does instead, taken from this skill where the skill
+   says it (example: a ban on naming a file in a shell command says how the seat finds
+   references to that file, such as the file-search tool, or that it does not search for
+   them); a brief for a delivery that adapts an idea from a third-party source states the
    idea in wording, clause order and list order of its own, not the source's; the Lead
    compares the brief with the source lines for each of the three before staffing, and the
    prompt tells the writer not to follow the source's sentence or list; the prompt also has
@@ -134,7 +136,9 @@ other tier gains a shell `paseo` use from this exception.
    The new Lead first checks that record against each delivery's tree and writes each
    mismatch into it, and reads `grants.md` unchanged. The
    plan names the fast lane, each acceptance lane with the paths it reads, and the project's
-   refusal and acceptance table, or none; when a grant or a brief exempts one call from a
+   refusal and acceptance table, or none; the plan also names each act of the delivery on
+   the "Dangerous acts" list, its merge included, or says there is none; when a grant or
+   a brief exempts one call from a
    rule the delivery adds, the plan lists every caller, direct or through another function,
    of the function that implements the exempted call, and the table gives each caller a
    row, exempt or refused; when the delivery changes a path with a stated target not shown
@@ -250,7 +254,9 @@ other tier gains a shell `paseo` use from this exception.
    Done when a `PASS` names the SHA it covers.
 6. **Merge.** The Lead pushes the delivery's branch, opens or updates its PR, and
    squash-merges it once a `PASS` names that PR's head or a head with the same tree, CI is
-   green on that head where the project runs CI, and the head contains the product line's
+   green on that head where the project runs CI, the answer to the merge's `dangerous`
+   event, sent after the `PASS`, has arrived where the merge is on the "Dangerous acts"
+   list, and the head contains the product line's
    current head, shown by `git merge-base --is-ancestor <product line head> <PR head>`, read
    after a fetch right before each merge and again for every other open head after each
    merge of its own, its exit status written to the record (a forge accepting the merge is
@@ -494,7 +500,8 @@ in the Reviewer's brief.
   outside your cwd runs from a script or with the tool's own directory flag, for example
   `git -C` or `make -C`, never after a typed `cd`. A seat that creates scratch
   prints its path and removes it by a later command with that printed path typed literally,
-  never through a shell variable or a glob; test scratch is cleaned by the test
+  never through a path the shell computes (a variable, a glob, a command's output); test
+  scratch is cleaned by the test
   framework's own scoped temporary directory, never by hand; a lane snapshot made as a git
   worktree is scratch too, removed with `git worktree remove`, not a plain delete. A dialog
   you raise cannot be reported from inside it. At a permission denial (one from the
