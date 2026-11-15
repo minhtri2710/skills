@@ -203,14 +203,14 @@ other tier gains a shell `paseo` use from this exception.
    Reviewer with the rest. The Reviewer checks and states these conditions in its verdict,
    and a lane that fails them runs again. A `PASS` needs every lane green at its SHA. A
    figure measured at an earlier head is stated with that head; it is given as a later
-   head's only when the diff between the two touches no path the measurement reads, and is
-   otherwise measured again. A Reviewer whose review spans more files than one context
-   holds reports a table naming who read each file (itself or a named read-only subagent);
-   a `PASS` without it is no `PASS`. A lane that reads a path solely as a build input,
-   checks terminal output meant for a human, runs on a second host, or launches an
-   installed program the project does not pin that can update itself (an install) or call
-   out on its own (a network call): read `references/review-lanes.md` before planning,
-   running, carrying, or reviewing it.
+   head's only when the diff between the two touches no path the measurement reads, else
+   the later head's figure comes from a new measurement. A Reviewer whose review spans more
+   files than one context holds reports a table naming who read each file (itself or a
+   named read-only subagent); a `PASS` without it is no `PASS`. A lane that reads a path
+   solely as a build input, checks terminal output meant for a human, runs on a second
+   host, or launches an installed program the project does not pin that can update itself
+   (an install) or call out on its own (a network call): read `references/review-lanes.md`
+   before planning, running, carrying, or reviewing it.
    A delete, move, or overwrite in the change whose path comes from stored state is a `FAIL`
    until it has a containment guard in the same delivery, never an accepted risk. A new test
    the change does not need, or one that duplicates an existing proof, is a finding; a stub
