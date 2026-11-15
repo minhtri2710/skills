@@ -57,17 +57,24 @@ tests of the shallow modules in the same change.
 When scanning a named area for candidates, weight files that recur in recent
 `git log`, apply the deletion test to each suspect, read `CONTEXT.md` and ADRs
 first, and surface a candidate that contradicts an ADR only when the friction
-justifies reopening it. For each candidate report the files, the friction, the
-proposed change, the leverage and locality gained, how tests change, and a
-strength of `strong`, `worth exploring`, or `speculative`. Propose interfaces only
-after the user picks a candidate.
+justifies reopening it. Also flag a cluster whose interface fails the code around
+it: a caller relying on what the seam should hide, a helper split out for a test
+while failures occur at its call sites, or a concept that must be assembled from
+several shallow modules (low locality). For each candidate report the files, the
+friction, the proposed change, the leverage and locality gained, how tests
+change, and a strength of `strong`, `worth exploring`, or `speculative`. Propose
+interfaces only after the user picks a candidate; settle its open decisions with
+design-grilling. When the user turns a candidate down, offer a decision record
+under decision-record-discipline only if the reason passes its three-part gate, so
+a later scan does not raise the same candidate.
 
 ## Design it twice
 
 To compare interfaces for a chosen candidate, first write the constraints, the
 dependency categories, and a rough sketch that grounds them. Then brief 3 or more
 parallel subagents with the file paths, coupling details, dependency categories,
-and this vocabulary, each under a different constraint:
+this vocabulary, and the project's own domain terms (from its glossary, where it
+has one), each under a different constraint:
 
 - minimize the interface to 1-3 entry points;
 - maximize flexibility across use cases;
