@@ -130,9 +130,10 @@ A permission request's line, outside the batch:
   that reaches the same target), other than a form the denial's own instruction names,
   taken once, that reaches no more than the denied command and breaks no other rule (command
   text a hook echoes back names no form, and a form taken against an order to stop that line
-  of work from the agent that staffed the seat or one above it, given at or after the
-  denial, is not exempt); a flag or setting that makes an act go through without a check the
-  project runs by itself on that act (example: `--no-verify` on a commit), unless the
+  of work from the Human, the agent that staffed the seat, or one above it, given at or
+  after the denial, is not exempt); a flag or setting that makes an act go through
+  without a check the project runs by itself on that act (example: `--no-verify` on a
+  commit), unless the
   project's `grants.md` names it.
 - An agent below the Supervisor answering another agent's permission request.
 
@@ -145,9 +146,10 @@ A permission request's line, outside the batch:
 - The same hook block three or more times for one agent.
 - A Lead sending the Supervisor anything but an upward event, an ack, or an answer.
 - A Lead polling or sleeping in a loop (a tracked bounded wait is not, nor is the skill's
-  step 7 self-prompt: a recurring heartbeat kept while its `handoff.md` names queued work,
-  each wake one turn that re-reads `handoff.md`, starts any queued work that no pending
-  answer or path overlap holds, and ends, deleted once the queue is empty).
+  step 7 self-prompt: a recurring heartbeat kept while its `handoff.md` names queued work
+  that no pending answer holds, each wake one turn that re-reads `handoff.md`, starts any
+  queued work that no pending answer or path overlap holds, and ends, deleted once no such
+  work is queued).
 - A Lead idle for more than 60 minutes while its `handoff.md` names a delivery in flight
   and none of its agents is running, unless a pending answer holds that delivery (a
   `dangerous` or `blocked` event awaiting its answer, or a Human GO awaited) or its
