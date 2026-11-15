@@ -147,9 +147,9 @@ A permission request's line, outside the batch:
 - A Lead sending the Supervisor anything but an upward event, an ack, or an answer.
 - A Lead polling or sleeping in a loop (a tracked bounded wait is not, nor is the skill's
   step 7 self-prompt: a recurring heartbeat kept while its `handoff.md` names queued work
-  that no pending answer holds, each wake one turn that re-reads `handoff.md`, starts any
-  queued work that no pending answer or path overlap holds, and ends, deleted once no such
-  work is queued).
+  that no pending answer holds, directly or through an overlap with an answer-held
+  delivery, each wake one turn that re-reads `handoff.md`, starts any queued work that no
+  pending answer or path overlap holds, and ends, deleted once no such work is queued).
 - A Lead idle for more than 60 minutes while its `handoff.md` names a delivery in flight
   and none of its agents is running, unless a pending answer holds that delivery (a
   `dangerous` or `blocked` event awaiting its answer, or a Human GO awaited) or its
