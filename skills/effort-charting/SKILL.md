@@ -34,20 +34,28 @@ resolution is a decision, sized to one fresh context, typed as research (done
 alone), prototype or grilling (done with the human; an agent never answers the
 human's side), or task (manual work that unblocks a decision). Blocking uses the
 tracker's own dependency relation so the frontier — open, unblocked, unclaimed
-tickets — is visible without opening the map. Refer to tickets by name, never by
-bare id.
+tickets — is visible without opening the map. Create the tickets first, then add
+blocking relations and cross-references in a second pass: a reference written
+before its target exists can point at an unrelated record. Refer to tickets by
+name, never by bare id.
 
 **Fog or ticket?** The test is whether the question can be stated precisely now,
 not whether it can be answered now. Sharp but blocked is a ticket; not yet
 phrasable goes under *Not yet specified*, coarser than a ticket, and graduates
-into tickets as resolutions clear the view. Work ruled beyond the destination is
-*Out of scope*, closed, and never graduates; it returns only as a new effort.
+into tickets as resolutions clear the view. A graduated patch leaves *Not yet
+specified*, which holds nothing decided, ticketed, or out of scope, so each open
+question lives in one place. Work ruled beyond the destination is *Out of
+scope*, closed, and never graduates; it returns only as a new effort.
 
-Working the map: load the low-resolution map, claim one frontier ticket before
+Working the map: the session that charts it ends once the map and its first
+tickets exist, resolving none of them, because its context holds the fog. In each
+later session, load the low-resolution map, claim one frontier ticket before
 any work, resolve it, record the answer on the ticket and one line in *Decisions
 so far*, then add the tickets the answer made specifiable and close any it made
-moot. One decision per session, so each starts from a clean primary source; only
-research tickets may run in parallel.
+moot. A ticket found to lie beyond the destination is not moot: close it with one
+line under *Out of scope* (gist and why) and none in *Decisions so far*. One
+decision per session, so each starts from a clean primary source; only research
+tickets may run in parallel.
 
 ## Phase 2: tracer slices
 
