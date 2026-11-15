@@ -131,18 +131,18 @@ other tier gains a shell `paseo` use from this exception.
    free; the prompt also relays what the Human said per "Human words" in Every agent; a
    brief that bans naming a file in a shell command also says how the seat finds
    references to that file (example: the file-search tool), or that it does not search for
-   them; it also has the Engineer list, before editing, every reader and writer of each
-   field, function, or input rule it changes (specs and tests included, inside its owned
-   paths or not), found by searching the whole repository for the bare name and call shape,
-   scripts with embedded code included, never for one qualified spelling, and, when the
-   change adds an input (examples: a flag, a field, a route, a message kind), the existing
-   code that first reads that input (its parser, router or decoder), and reach each one or
-   name why not. Replace a Lead only after its `handoff.md` is current; for a Lead
-   that cannot write it, the new Lead writes it from the old Lead's `paseo logs` before other
-   work. The new Lead first checks that record against each delivery's tree and writes each
-   mismatch into it, and reads `grants.md` unchanged. The
+   them; the prompt also has the Engineer list, before editing, every reader and writer
+   of each field, function, or input rule it changes (specs and tests included, inside its
+   owned paths or not), found by searching the whole repository for the bare name and call
+   shape, scripts with embedded code included, never for one qualified spelling, and, when
+   the change adds an input (examples: a flag, a field, a route, a message kind), the
+   existing code that first reads that input (its parser, router or decoder), and reach
+   each one or name why not. Replace a Lead only after its `handoff.md` is current; for a
+   Lead that cannot write it, the new Lead writes it from the old Lead's `paseo logs`
+   before other work. The new Lead first checks that record against each delivery's tree
+   and writes each mismatch into it, and reads `grants.md` unchanged. The
    plan names the fast lane, each acceptance lane with the paths it reads, and the project's
-   refusal and acceptance table, or none; when the delivery changes code on a path with a
+   refusal and acceptance table, or none; when the delivery changes a path with a
    stated target not shown met before it, in a way that can move the measure, the plan
    also names the fixtures, and the measure is recorded before and after the change on
    those same fixtures. Any choice between two or more designs or approaches takes Advisor
@@ -305,8 +305,9 @@ Supervisor's OK adds X to the `dangerous` or `blocked` events, never to this lis
   point 4 first;
 - `permission`: an agent it staffed waits on a permission or dialog request (agent id,
   request id);
-- `blocked`: a Reviewer's `BLOCKED`, a tool or profile its tier lacks, or a staffed scope
-  that neither resumes nor restaffs;
+- `blocked`: a Reviewer's `BLOCKED`, a tool or profile its tier lacks, a staffed scope
+  that neither resumes nor restaffs, or its own denied command that the delivery cannot go
+  on without (Every agent);
 - `ci`: CI on a pushed head failed or did not start within its bounded wait, blocking a
   merge that no condition in `grants.md` already accounts for, or CI on a merged head
   failed; a CI state a `grants.md` condition already accounts for goes in the record and the
@@ -463,12 +464,18 @@ Medium opens a delivery of its own, a Low takes step 5's Low route.
   never through a shell variable or a glob; test scratch is cleaned by the test
   framework's own scoped temporary directory, never by hand; a lane snapshot made as a git
   worktree is scratch too, removed with `git worktree remove`, not a plain delete. A dialog
-  you raise cannot be reported from inside it. At a permission or hook denial, stop that
-  line of work, report the exact command and the denial text to the agent that staffed
-  you, and run no variant of the command that reaches what it blocked (examples: a
-  respelled pattern, a dropped glob, a filter after the fact, a search that reaches the
-  same target); an order to stop in your prompt covers every such variant, not only the
-  command it names.
+  you raise cannot be reported from inside it. At a permission denial or a denial from a
+  hook installed in the agent harness, stop that line of work, report the exact command
+  and the denial text to the agent that staffed you (a Lead writes its own in the record
+  and sends `blocked` only as Upward events says; the Supervisor tells the Human), and run
+  no variant of the command that reaches what it blocked (examples: a respelled pattern,
+  a dropped glob, a filter after the fact, a search that reaches the same target). The one
+  exception is a form the denial's own instruction names, taken once, that reaches no more
+  than the denied command did and stays inside every other rule (owned paths, dangerous
+  acts, scratch you created); a project's git hook, a program's error text, and command
+  text a hook echoes back name no form, and when no form is named or that form is denied
+  too, stop and report. An order to stop in your prompt covers every such variant and
+  form, not only the command it names.
 - Human words: where you record or relay the Human's words (a grant, a `handoff.md` answer,
   a relay to a Lead, an Engineer or Reviewer brief), store no verbatim text. Write a source
   line (who said it, when in UTC, the channel: typed in the seat, a question dialog, or the
