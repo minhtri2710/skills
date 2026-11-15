@@ -62,13 +62,18 @@ mean one is redone under an explicit constraint ("no card grid"). Each is a
 clearly named export; a shared switcher component reads the param, cycles with
 arrows and the arrow keys (not while an input is focused), updates the URL so a
 variant is shareable, looks unlike the design under judgment, and is hidden in
-production builds so a stray merge cannot ship it.
+production builds so a stray merge cannot ship it. A variant never performs a
+real write: reading real data is fine, but an action that would change data
+calls a stub, because the variants run against the project's data while the
+user clicks through them.
 
 ## Hand over and capture
 
 Give the user the file or the URL and the variant keys. The useful feedback is
 "that should not be possible" or "the header from B with the sidebar from C";
 add actions and scenarios as they ask. When the question is answered, fold the
-validated logic module or the chosen layout into the real code and record the
+validated logic module into the real code, write the chosen layout again to the
+project's production standard (tests, error handling) instead of moving or
+renaming the variant file, which was written without either, and record the
 verdict where the work is tracked. Delete the prototype unless the user asks to
 keep it; the main tree keeps only the decision.

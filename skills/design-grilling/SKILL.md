@@ -58,5 +58,6 @@ Decisions:    <one line per settled decision>
 The gate is an explicit yes to this restate. "Whatever you think" is delegation:
 re-ask as a choice between two concrete options. "Sounds good" or "sure, let's go"
 gets one follow-up asking what they would refine. Fold corrections in and restate
-until the yes is explicit. Act on the understanding only after that yes; save it to
-a file only when the user asks.
+until the yes is explicit. Act on the understanding only after that yes; save the
+restated understanding to a file only when the user asks. Glossary terms and
+decisions the interview settles follow decision-record-discipline.
