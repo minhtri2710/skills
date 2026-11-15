@@ -444,7 +444,7 @@ in the Reviewer's brief.
   host or VM fails as the real service does while that host is down (for example a refused
   or timed-out connection), never answering: a stub that answers while its host is down
   makes a passing test prove nothing about that path.
-- Write every text file (brief, report, PR body) with the file-write tool or a quoted
+- Write every brief, report, and PR body with the file-write or file-edit tool or a quoted
   heredoc (`<<'EOF'`), and send a prompt through the send tool or from such a file; never
   use an unquoted heredoc, an `echo` of prose, or an inline double-quoted shell argument,
   whose backticks, `$(...)`, and `$` variables the shell expands. In zsh, brace a variable
