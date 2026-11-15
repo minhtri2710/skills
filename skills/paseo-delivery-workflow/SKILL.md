@@ -144,11 +144,12 @@ other tier gains a shell `paseo` use from this exception.
    plan names the fast lane, each acceptance lane with the paths it reads, and the project's
    refusal and acceptance table, or none; when a grant or a brief exempts one call from a
    rule the delivery adds, the plan lists every caller of the function that implements the
-   exempted call, and the table gives each caller a row, exempt or refused; when the
-   delivery changes a path with a stated target not shown met before it, in a way that can
-   move the measure, the plan also names the fixtures, and the measure is recorded before
-   and after the change on those same fixtures. Any choice between two or more designs or
-   approaches takes Advisor consult point 1 first. When the plan names a lane of a kind
+   exempted call, direct or through another function, and the table gives each caller a
+   row, exempt or refused; when the delivery changes a path with a stated target not shown
+   met before it, in a way that can move the measure, the plan also names the fixtures,
+   and the measure is recorded before and after the change on those same fixtures. Any
+   choice between two or more designs or approaches takes Advisor consult point 1 first.
+   When the plan names a lane of a kind
    that step 5 points to a reference for, read that reference first. A tool a lane runs or
    downloads (a pinned binary or other artifact) is checked against a recorded checksum
    and lives in a repo-local gitignored directory or a persistent cache, never `/tmp`,
@@ -394,8 +395,9 @@ in the Reviewer's brief.
   under test; otherwise it is inconclusive.
 - Send your report to the agent that staffed you by prompt, as your last action, with
   `notifyOnFinish` false; a finish notification alone wakes no one. Every reply a staffer
-  asks of an agent it staffed (examples: a confirmation, a cleanup answer, a late question)
-  is such a report: asked for by prompt, sent by prompt as that agent's last action, waited
+  asks of an agent it staffed (examples: a confirmation, a cleanup answer, a late question),
+  a Lead's answer to the Supervisor excepted, is such a report: asked for by prompt, sent
+  by prompt at once, as that agent's last action when no work of its own goes on, waited
   for under a bound, and read from its `paseo logs` when the bound expires. A staffing
   prompt asks for the report this way and never for an end-of-turn report: a turn ended to
   wait on a background task spends the staffer's one finish notification, and the later
@@ -407,11 +409,12 @@ in the Reviewer's brief.
   report still owed is re-armed as a new bounded wait, until the report arrives or you
   restaff the agent. An agent you staffed that is idle, closed, or errored with its report
   still owed has stalled: read its `paseo logs`, then re-prompt it; restaff the same scope
-  only when it cannot resume. The Supervisor, to whom a Lead owes events and no report,
-  learns a Lead stalled from an `errored` event, a watched answer's notification, or the
-  Human's Paseo attention list, and never polls for it. A send that returned success
-  proves nothing: check that the agent then runs a turn rather than waiting on a
-  permission or dialog request, and count the work done only when the report arrives.
+  only when it cannot resume. The Supervisor, to whom a Lead owes events and answers
+  (Upward events) and no report, learns a Lead stalled from an `errored` event, a watched
+  answer's notification, or the Human's Paseo attention list, and never polls for it. A
+  send that returned success proves nothing: check that the agent then runs a turn rather
+  than waiting on a permission or dialog request, and count the work done only when the
+  report arrives.
 - Agents share one machine. Never stop, remove, or take over a container, process, or port
   another agent, delivery, or project started; report the collision to the agent that
   staffed you. Replace a file a process may be using (a script it runs, an installed file)
