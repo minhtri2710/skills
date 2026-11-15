@@ -161,7 +161,9 @@ other tier gains a shell `paseo` use from this exception.
    it deletes or rewrites, each behaviour that test pinned and the surviving test that pins
    it; and every deviation from its brief as a named item, which the Lead accepts or sends
    back. Done when every Engineer has reported, none is running, and the Lead has checked
-   each reported change against the diff.
+   each reported change against the diff and, before a statement in a report about what
+   calls, reads, or depends on the changed code enters a commit message, a PR body, or the
+   record as fact, that statement against the code.
 4. **Commit.** Only the Lead commits (in a worktree workspace, through its Engineer as step
    1 says), on the delivery's quiet tree: `git status --porcelain` shows only this commit's
    paths. Done when the commit SHA is named.
@@ -185,6 +187,9 @@ other tier gains a shell `paseo` use from this exception.
    bound of each lane that runs as a tracked background task and its end when it ends,
    and a Reviewer waiting on one is not stalled. A lane's output shows, before and after it,
    the SHA it ran at and, for a worktree snapshot, an empty `git status --porcelain` there.
+   The output also shows, at both points, the load averages (`uptime`) of the host it ran
+   on, and a Reviewer puts a failure or a slow run down to host load only by quoting those
+   averages.
    A lane's script itself checks every precondition the lane relies on (examples: a control
    that must show a refusal, a profile that must be written, a directory that must exist),
    and a failed check stops the lane before the launch that precondition guards, since a
@@ -197,13 +202,16 @@ other tier gains a shell `paseo` use from this exception.
    cause is split into a delivery of its own, and the failing run's output goes to the
    Reviewer with the rest. The Reviewer checks and states these conditions in its verdict,
    and a lane that fails them runs again. A `PASS` needs every lane green at its SHA. A
-   Reviewer whose review spans more files than one context holds reports a table naming
-   who read each file (itself or a named read-only subagent); a `PASS` without it is no
-   `PASS`. A lane that reads a path solely as a build input, checks terminal output meant
-   for a human, runs on a second host, or launches an installed program the project does
-   not pin that can update itself (an install) or call out on its own (a network call):
-   read `references/review-lanes.md` before planning, running, carrying, or reviewing it. A
-   delete, move, or overwrite in the change whose path comes from stored state is a `FAIL`
+   figure measured at an earlier head is stated with that head; it is given as a later
+   head's only when the diff between the two touches no path the measurement reads, else
+   the later head's figure comes from a new measurement. A Reviewer whose review spans more
+   files than one context holds reports a table naming who read each file (itself or a
+   named read-only subagent); a `PASS` without it is no `PASS`. A lane that reads a path
+   solely as a build input, checks terminal output meant for a human, runs on a second
+   host, or launches an installed program the project does not pin that can update itself
+   (an install) or call out on its own (a network call): read `references/review-lanes.md`
+   before planning, running, carrying, or reviewing it.
+   A delete, move, or overwrite in the change whose path comes from stored state is a `FAIL`
    until it has a containment guard in the same delivery, never an accepted risk. A new test
    the change does not need, or one that duplicates an existing proof, is a finding; a stub
    that breaks the stub rule in "Extend before adding" (Every agent) is a `FAIL`. Before
@@ -221,6 +229,9 @@ other tier gains a shell `paseo` use from this exception.
    naming both SHAs and a new report file, which never overwrites the earlier round's.
    Paseo deliberately keeps the same Reviewer for this delta review; the
    one-instance-per-head rule of agent-delivery-workflow governs that skill's seats only.
+   Where a fix rewrites a sentence of a rule or a contract, its writer and the delta's
+   Reviewer compare the new sentence with its base text on the product line as well as with
+   the finding, and name each case the base covered that the new text no longer does.
    Only the lanes that fail the carry rule at the new SHA run again. Every finding carries a
    severity (High, Medium, Low, or Info), and only High and Medium block; a Low or Info
    finding reported with a `PASS` does not reopen the review, and the head goes on to
@@ -240,9 +251,10 @@ other tier gains a shell `paseo` use from this exception.
    after a fetch right before each merge and again for every other open head after each
    merge of its own, its exit status written to the record (a forge accepting the merge is
    no proof), or is a stacked head meeting its proof (below);
-   otherwise it merges the product line into the branch, never rebasing a pushed branch,
-   and the new head is reviewed again unless its tree equals the reviewed head's. Where CI
-   cannot run for a recorded reason, a Human condition in `grants.md` that names its
+   otherwise it merges the product line into the branch (a figure measured before the
+   merge: step 5), never rebasing a pushed branch, and the new head is reviewed again
+   unless its tree equals the reviewed head's. Where CI cannot run for a recorded reason,
+   a Human condition in `grants.md` that names its
    replacement checks and its removal condition stands in for green CI, and the record,
    the `closed-out` event, and any `dangerous` request for the merge name the CI state.
    Where the project requires a commit trailer, the squash message carries it: the PR body
@@ -347,7 +359,10 @@ Advisor one question and writes the advice into its record:
 2. a second FAIL round with a Medium or higher finding;
 3. dropping a finding, review claim or bug as "does not hold";
 4. sending a `dangerous` event that carries a user-visible change or a tradeoff; the event
-   names the advice, in one line, and where it is recorded.
+   names the advice, in one line, and where it is recorded. When the advice names a case the
+   change may make worse and no check covers it, the Lead settles it with a check inside its
+   own authority before sending the event, and the event lists it as not checked only when
+   that check needs a grant, an install, or a dangerous act.
 
 The question names the project, the concrete question, the files or commits, the options
 weighed, and what was verified; it asks for the answer by prompt to the asking Lead and
