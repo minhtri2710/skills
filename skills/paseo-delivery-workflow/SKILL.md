@@ -444,12 +444,13 @@ in the Reviewer's brief.
   host or VM fails as the real service does while that host is down (for example a refused
   or timed-out connection), never answering: a stub that answers while its host is down
   makes a passing test prove nothing about that path.
-- Write every brief, report, and PR body with the file-write tool or a quoted heredoc
-  (`<<'EOF'`), and send a prompt through the send tool or from such a file; never pass such
-  text through an unquoted heredoc, an `echo`, or an inline double-quoted shell argument,
-  whose backticks, `$(...)`, and `$` variables the shell expands. In zsh, brace a variable
-  next to a colon (`${M}:path`): `$M:t` reads as a history modifier; and never name a
-  variable after a zsh special parameter: `read ... path` replaces `PATH`.
+- Write every brief, report, and PR body with the file-write or file-edit tool or a quoted
+  heredoc (`<<'EOF'`), and send a prompt through the send tool or from such a file; never
+  write any text file with an unquoted heredoc, an `echo` of prose, or an inline
+  double-quoted shell argument, whose backticks, `$(...)`, and `$` variables the shell
+  expands. In zsh, brace a variable next to a colon (`${M}:path`): `$M:t` reads as a
+  history modifier; and never name a variable after a zsh special parameter: `read ... path`
+  replaces `PATH`.
 - Work that reads or writes a secret value runs on the profile reserved for secret values;
   every other profile handles key names only. A secret value that reaches a transcript is an
   `incident` (Upward events), with the rotation it needs. Every staffing prompt forbids
