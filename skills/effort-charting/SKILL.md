@@ -64,13 +64,18 @@ Once nothing remains to decide, split the approved spec into vertical slices:
 - each cuts a narrow but complete path through every layer, demoable or
   verifiable on its own; never a horizontal layer;
 - each is sized to one fresh context;
-- any prefactoring that makes the change easy comes first, as its own slice;
+- any prefactoring that makes the change easy comes first, as its own slice; it
+  shows only in the code the spec touches, so read that code before slicing;
 - each declares its blocking edges; a slice with none can start now.
 
 Present the breakdown as a numbered list with title, blocked-by, and the
 end-to-end behavior it delivers, and iterate until the user approves granularity
 and edges. Publish one ticket per slice in dependency order, describing behavior
-in the glossary's terms and naming types and contracts rather than file paths or
-line numbers, which go stale. Work the frontier. A wide mechanical refactor whose
-blast radius no slice can land green is one ticket done in one cut, updating every
-caller; it is not staged behind a parallel old form.
+in the glossary's terms and naming types and contracts rather than file paths,
+line numbers, or implementation code, which go stale; a decision that is itself
+code is reached by naming the decision ticket that records it. Each ticket ends
+with its acceptance criteria, each verifiable alone, and a list of what it
+leaves out, so the ticket's own text shows the slice stands alone and tells a
+later agent where it stops. Work the frontier. A wide mechanical refactor whose
+blast radius no slice can land green is one ticket done in one cut, updating
+every caller; it is not staged behind a parallel old form.
