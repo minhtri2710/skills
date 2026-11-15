@@ -16,7 +16,9 @@ condition for reaching it: a skill description, or an `AGENTS.md` line naming a 
 The wording, not the target, decides how reliably the material is reached; sharpen
 a weak pointer before inlining its target.
 
-- Lead with the word that does the triggering.
+- Lead with the word that does the triggering: the one the user and the
+  repository already use for the thing, not a synonym you prefer, since the match
+  is made against what the user types.
 - Give one trigger per distinct branch; synonyms for one branch are one trigger.
 - Leave out identity the body already carries.
 - Every always-loaded word costs on every turn, so prune pointers harder than
