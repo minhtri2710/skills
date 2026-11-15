@@ -104,11 +104,14 @@ A permission request's line, outside the batch:
   them: scope beyond the brief and a breaking contract change.
 - A tier doing what its "Never" column forbids: a Reviewer writing anything outside its
   own report file, scratch included; a Heartbeat starting work, running tests, or editing;
-  an Engineer committing, editing outside its owned paths, or staffing an agent beyond its
-  subagents; an Advisor writing in a repository, committing, or answering a permission
-  request; a Lead writing source once its delivery has staffed an Engineer or acting
-  dangerously before its answer arrives. Left out for the same reason: a Reviewer
-  reviewing a moving tree.
+  an Engineer editing outside its owned paths, committing other than the one its Lead names
+  (the skill's step 1), or staffing any agent beyond its own subagents; an Advisor
+  writing in a repository, committing, answering a permission, approving or answering a
+  dangerous act, or giving or standing in for a verdict; a Lead writing source once its
+  delivery has staffed an Engineer or acting dangerously before its answer arrives. Left
+  out for the same reason: a Reviewer reviewing a moving tree, and an Advisor receiving
+  prod data (logs cannot tell it from fixtures; secret values and files fall under the
+  secret P0 below).
 - An Every-agent rule broken that logs can judge and whose breach can harm another agent or
   leak a secret. The shared-machine rules: signalling by `pkill`, `pkill -f`, `killall`, or
   a pid found by searching command lines; stopping, removing, or taking over a container,
@@ -133,8 +136,8 @@ A permission request's line, outside the batch:
 - A Reviewer or Engineer that finished without sending its verdict or report to its Lead.
 - The same hook block three or more times for one agent.
 - A Lead sending the Supervisor anything but an upward event, an ack, or an answer.
-- A Lead polling: re-asking for state in a sleep or self-wake loop (a tracked bounded wait
-  is not polling).
+- A Lead polling or sleeping in a loop (a tracked bounded wait, and the recurring
+  self-prompt of the skill's step 7, are not).
 - A Lead idle for more than 60 minutes while its `handoff.md` names a delivery in flight
   and none of its agents is running, unless a pending answer holds that delivery (a
   `dangerous` or `blocked` event awaiting its answer, or a Human GO awaited) or its
