@@ -291,19 +291,18 @@ other tier gains a shell `paseo` use from this exception.
    never drafted ahead of it. In that same turn the Lead starts every queued delivery step 1
    admits; with none in flight, it ends a turn only on an empty queue or with every queued
    delivery held by a pending answer. A Lead that ends a turn with queued work that no
-   pending answer holds (example: a path overlap with a delivery in flight that awaits no
-   answer) keeps one recurring self-prompt (a heartbeat, not the Heartbeat tier), each wake
-   one turn that re-reads `handoff.md`, starts what step 1 admits, and ends; it deletes the
-   heartbeat once no such work is queued. A queued delivery that overlaps a delivery a
-   pending answer holds is held by that answer. A Lead whose every queued delivery is held
-   by a pending answer keeps none, since the answer arrives as a prompt. After each trial
-   or usage pass (step 5), the Lead runs the `test-proof-debt-audit` skill on the
-   fastest-growing suites and deletes redundant tests in a delivery of its own, through
-   the normal review. Done when `paseo ls`, `paseo workspace ls`, `paseo project ls`, and
-   `git worktree list` show nothing a delivery of this project created that no delivery in
-   flight owns or the record names as still open, and every queued delivery step 1 admits
-   has started and the self-prompt heartbeat is armed or absent as this step sets; report
-   an archive only after `paseo ls`, not the workspace state, no longer shows its id.
+   pending answer holds (example: a path overlap with a delivery in flight) keeps one
+   recurring self-prompt (a heartbeat, not the Heartbeat tier), each wake one turn that
+   re-reads `handoff.md`, starts what step 1 admits, and ends; it deletes the heartbeat
+   once no such work is queued. A Lead whose every queued delivery is held by a pending
+   answer keeps none, since the answer arrives as a prompt. After each trial or usage pass
+   (step 5), the Lead runs the `test-proof-debt-audit` skill on the fastest-growing suites
+   and deletes redundant tests in a delivery of its own, through the normal review. Done
+   when `paseo ls`, `paseo workspace ls`, `paseo project ls`, and `git worktree list` show
+   nothing a delivery of this project created that no delivery in flight owns or the
+   record names as still open, and every queued delivery step 1 admits has started and the
+   self-prompt heartbeat is armed or absent as this step sets; report an archive only
+   after `paseo ls`, not the workspace state, no longer shows its id.
 
 ## Upward events
 
