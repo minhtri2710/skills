@@ -32,8 +32,6 @@ SOFTWARE.
 
 The repository history records that the standalone skills introduced in commit `d3af21d` were adapted from Addy Osmani's `agent-skills` and Matt Pocock's `skills` repositories. That commit credits both sources collectively; it does not map individual skills to either source. Preserve this notice without implying a per-skill provenance mapping.
 
-In November 2026, further ideas were adapted and reworded into `effort-charting`, `decision-record-discipline` and `context-boundary-routing` from skills of the collection `lassejlv/skills-stack` that name the command `/setup-matt-pocock-skills`; no text was copied.
-
 Source: https://github.com/mattpocock/skills
 License: MIT
 Copyright (c) 2026 Matt Pocock
@@ -88,7 +86,7 @@ SOFTWARE.
 
 ## Author not stated — `frontend-design` skill of `lassejlv/skills-stack`
 
-In November 2026, ideas from this skill were adapted and reworded into `frontend-design`; no text was copied. The skill's frontmatter points to its `LICENSE.txt`, which is the Apache License, Version 2.0, January 2004. The copy read states no author and no copyright line. The README of the collection credits `anthropics/skills` among eleven repositories without saying which skill comes from which, so whether this skill comes from it is not stated. The licence text is not reproduced here because no copy of the work is made; it is the file `skills/frontend-design/LICENSE.txt` of the collection.
+In November 2026, ideas from this skill, read in the copy at `lassejlv/skills-stack` commit `2c807ef`, were adapted and reworded into `frontend-design`; no text was copied. The skill's frontmatter points to its `LICENSE.txt`, which is the Apache License, Version 2.0, January 2004. The copy read states no author and no copyright line. The README of the collection credits `anthropics/skills` among eleven repositories without saying which skill comes from which, so whether this skill comes from it is not stated. The licence text is not reproduced here because no copy of the work is made; it is the file `skills/frontend-design/LICENSE.txt` of the collection.
 
 Source: https://github.com/lassejlv/skills-stack
 License: Apache License, Version 2.0
@@ -96,14 +94,14 @@ Copyright: not stated
 
 ## Damir Sokolovsky — `heydamir/unslop`
 
-In November 2026, ideas from unslop were adapted and reworded into `frontend-design`; no text was copied. unslop was created by Damir Sokolovsky ([@heydamir](https://x.com/heydamir)), who started the Unslopping series on X. It is licensed under CC BY 4.0, and its text asks that this credit be kept in any copy or adaptation. The licence text was not present in the copy used, and no copyright line is stated.
+In November 2026, ideas from unslop, read in the copy at `lassejlv/skills-stack` commit `2c807ef`, were adapted and reworded into `frontend-design`; no text was copied into it. unslop was created by Damir Sokolovsky ([@heydamir](https://x.com/heydamir)), who started the Unslopping series on X. It is licensed under CC BY 4.0, and its text asks that this credit be kept in any copy or adaptation. The licence text was not present in `skills/unslop` of that copy, and no copyright line is stated.
 
 Source: https://heydamir.design/unslop
-License: CC BY 4.0
+License: CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)
 
 ## Authors not stated — `lassejlv/skills-stack`
 
-In November 2026, ideas from skills of this collection, read at commit `2c807ef`, were adapted and reworded into `api-contract-design`, `frontend-design`, `throwaway-prototype`, `bug-diagnosis`, `deep-module-design`, `agent-doc-writing` and `decision-record-discipline`; no text was copied. The collection's README credits eleven repositories, among them `mattpocock/skills`, `emilkowalski/skills` and `ericzakariasson/scandinavian-design`, without saying which skill comes from which. Apart from the skills named in the entries above, the skills used state no author and no licence, so their authors are unknown to this repository; the only author-related text is one skill that says its standards come from Emil Kowalski's design engineering philosophy.
+In November 2026, ideas from skills of this collection, read at commit `2c807ef`, were adapted and reworded into `effort-charting`, `api-contract-design`, `context-boundary-routing`, `throwaway-prototype`, `bug-diagnosis`, `decision-record-discipline`, `deep-module-design` and `agent-doc-writing`, and, from the skills without an entry of their own, into `frontend-design`; no text was copied. The collection's README credits eleven repositories, among them `mattpocock/skills`, `emilkowalski/skills` and `ericzakariasson/scandinavian-design`, without saying which skill comes from which. Five of the skills used name the command `/setup-matt-pocock-skills`, and the README credits `mattpocock/skills`; neither states an author or a licence for those skills. Only two skills used state an author or a licence: the `frontend-design` skill and unslop, in the entries above. The others state no author and no licence, so their authors are unknown to this repository. One of them, `break-ui`, says its standards come from Emil Kowalski's design engineering philosophy; it does not say who wrote it.
 
 Source: https://github.com/lassejlv/skills-stack
 License: none; the collection has no licence file of its own
