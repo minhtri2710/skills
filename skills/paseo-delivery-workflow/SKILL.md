@@ -254,9 +254,9 @@ other tier gains a shell `paseo` use from this exception.
    Done when a `PASS` names the SHA it covers.
 6. **Merge.** The Lead pushes the delivery's branch, opens or updates its PR, and
    squash-merges it once a `PASS` names that PR's head or a head with the same tree, CI is
-   green on that head where the project runs CI, the answer to the merge's `dangerous`
-   event, sent after the `PASS`, has arrived where the merge is on the "Dangerous acts"
-   list, and the head contains the product line's
+   green on that head where the project runs CI, where the merge is on the "Dangerous
+   acts" list, that merge's answer, asked after the `PASS`, has arrived, and the head
+   contains the product line's
    current head, shown by `git merge-base --is-ancestor <product line head> <PR head>`, read
    after a fetch right before each merge and again for every other open head after each
    merge of its own, its exit status written to the record (a forge accepting the merge is
