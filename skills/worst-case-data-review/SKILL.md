@@ -140,8 +140,10 @@ when they meet its trigger and ordinary work otherwise. When it does not, stop
 at the report.
 
 Done when steps 1 to 3 ended, each finding has its fields and both severity
-parts, the report names what held and where the sets are, and the diff holds no
-changed product code.
+parts, the report names what held and where the sets are, and nothing the
+review itself did changed product code. A change the user asked for as an
+ordinary request, and any change already in the tree before the review began,
+are not the review's.
 
 ## Borders
 
