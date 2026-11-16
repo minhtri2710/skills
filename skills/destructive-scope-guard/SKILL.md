@@ -44,22 +44,24 @@ before the first removal. A removal is made only inside what the fourth covers.
    they were and reads no secret value; a secret appears by name. Coverage is
    part of the record: every location and every kind of resource the reach
    includes is marked read or unread, and one never tried is unread exactly as
-   one that was refused. Mark four things it lists: what resources in other
-   tenancies use; what a deployment tool or another party owns, with the owner
-   named; what would make a removal fail or keep a copy after it; what is
-   unread. Held when whoever gives the consent has the inventory.
+   one that was refused. Mark three things on what it lists: what resources in
+   other tenancies use; what a deployment tool or another party owns, with the
+   owner named; what would make a removal fail or keep a copy after it. What is
+   unread is no listed thing: it stays coverage, goes to the report, and nothing
+   in it is removed. Held when whoever gives the consent has the inventory.
 4. **The consent.** An answer, given with the inventory in hand, that names the
    tenancy's identifier and the set to remove, as items or as a class the
    inventory can be checked against; with several tenancies, each has its
    identifier and its set. An earlier instruction counts for what the inventory,
    taken afterwards, shows it to name, and the identifier is in it or it is not
    this fact. The whole of a tenancy is one such class, checked the same way.
-   Whatever the class, a thing the inventory marked is covered only when the
-   consent names it. An act on the tenancy itself (removing it, closing what
-   bills for it, turning off a whole service in it) is covered only when the
-   consent names the act and the identifier; consent to the contents does not
-   imply it, and one instruction naming both needs no second message. Held when
-   the consent's words are on record beside its inventory.
+   Whatever the class, a listed thing with one of the three marks is covered
+   only when the consent names it; no consent covers what is unread. An act on
+   the tenancy itself (removing it, closing what bills for it, turning off a
+   whole service in it) is covered only when the consent names the act and the
+   identifier; consent to the contents does not imply it, and one instruction
+   naming both needs no second message. Held when the consent's words are on
+   record beside its inventory.
 
 ## Who decides
 
