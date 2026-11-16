@@ -121,9 +121,10 @@ Delete the original's body in the same change unless the user asked for a period
 with both. When step 1 says the port does not replace the original here, make no
 switch and no delete; a delete is put to the user.
 
-Ends in one of three ways: you moved every caller to the target and deleted the
-original's body; the user's words for keeping both are quoted; or step 1 answered
-that the port does not replace the original here.
+Ends in one of three ways: you deleted the original's body, and every way to the
+behaviour in the code you changed, for callers that moved and callers that stay,
+runs through the target or its crossing; the user's words for keeping both are
+quoted; or step 1 answered that the port does not replace the original here.
 
 ## Leaving a part out
 
