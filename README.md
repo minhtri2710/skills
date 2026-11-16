@@ -52,6 +52,7 @@ skills/<name>/
 | `llm-trust-boundary` | Harden a feature that calls a model, exposes tools to one, or retrieves documents for one. |
 | `paseo-delivery-workflow` | Run bounded delivery as Paseo agents with the Supervisor / Lead / Engineer / Reviewer tier model. |
 | `performance-verification` | Improve a measured performance problem through measure, fix, re-measure, keep-or-revert. |
+| `pr-body` | Write a pull request's description for the merge decision: the change as one view, the risk of merging as reach and undo, and before-and-after evidence. |
 | `prompt-leverage` | Strengthen a raw prompt into an execution-ready instruction set. |
 | `quality-floor` | Write a project's quality bar as CONSTRAINTS.md and guard diffs against moves that lower it. |
 | `repo-refresh` | Remove stale docs, plans, tests, proof machinery, and debris from an explicitly named repository. |
