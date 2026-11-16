@@ -118,13 +118,23 @@ Only when step 1 says the port replaces the original here. Callers that move use
 the target. Callers that stay reach it through the crossing, which by now has its
 entries and passing checks and is the one live path; this step only cuts over.
 Delete the original's body in the same change unless the user asked for a period
-with both. When step 1 says the port does not replace the original here, make no
-switch and no delete; a delete is put to the user.
+with both, and with it each of the original's own checks that has its counterpart
+in the target. When step 1 says the port does not replace the original here, make
+no switch and no delete; a delete is put to the user.
 
-Ends in one of three ways: you deleted the original's body, and every way to the
-behaviour in the code you changed, for callers that moved and callers that stay,
-runs through the target or its crossing; the user's words for keeping both are
-quoted; or step 1 answered that the port does not replace the original here.
+After the cut, search the repository being changed for every reference that led to
+the original: a call, an entry in a build manifest, a packaging list or a job
+definition, a generated file checked in. Judge each hit by where it leads, since
+the crossing may live under the original's name. Give each reference found one
+destination: it now leads to the target or its crossing (for a generated file,
+change what generates it), or the report names it as not settled, as for a name
+built at run time or a string the search cannot resolve. Then run the target's
+build and static checks again; a file that exists only after a build shows up here.
+
+Ends in one of three ways: you made the cut, gave every reference the search found
+its destination, and ran the build and static checks again with no error; the
+user's words for keeping both are quoted; or step 1 answered that the port does
+not replace the original here.
 
 ## Leaving a part out
 
@@ -153,4 +163,5 @@ group of like entries, giving where the expected value came from and the check t
 pins it, so a reader can audit that each check of the original has its counterpart;
 dropped entries, each with its ground; kept faults with their callers; changes that
 altered no entry; entries whose expected value rests on reading; what was compared
-and what was not run.
+and what was not run; what the search after the cut did not settle, the code of
+callers outside the repository included, which was not searched.
