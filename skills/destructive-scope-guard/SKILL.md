@@ -70,6 +70,18 @@ tells you to go on without one of the facts, say which fact is missing and what
 you then cannot vouch for; the user's instruction decides, and the fact goes on
 record as waived, with the user's words.
 
+Whoever gives the consent (the user, or under a workflow its approver) gives a
+waiver. It lifts the rules that take the waived fact as their input, and only
+those: the sentence under "Four facts" that a removal is made only inside what
+the fourth covers, the two sentences on what is unread, and the Removal rule on
+a resource the inventory did not hold. The removal is then bounded by what the
+waiving person's words name, as targets or as a class, inside the tenancy those
+words or fact 1's record name; the reads the removal needs find a class's
+members. A waiver does not lift acting on what you see: when the read just
+before a removal shows the target owned by a deployment tool or another party,
+protected, or used from another tenancy, tell that person before removing it;
+they decide. That read is a read of the target, not an inventory.
+
 Under a workflow that gates any act this skill covers (a removal, an act under
 an outside account, the reads of facts 2 and 3 where it gates those), that gate
 stands and its approver is the one who consents. This skill adds no gate to a
