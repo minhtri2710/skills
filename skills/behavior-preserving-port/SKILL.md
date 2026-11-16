@@ -117,10 +117,12 @@ with no error.
 Only when step 1 says the port replaces the original here. Callers that move use
 the target. Callers that stay reach it through the crossing, which by now has its
 entries and passing checks and is the one live path; this step only cuts over.
-Delete the original's body in the same change unless the user asked for a period
-with both, and with it each of the original's own checks that has its counterpart
-in the target. When step 1 says the port does not replace the original here, make
-no switch and no delete; a delete is put to the user.
+Delete the original's body, and every one of its own checks, in the same change
+unless the user asked for a period with both; then body and checks stay together.
+A check with no counterpart in the target goes too, and the report says why: its
+entry was dropped, or the checks were left out on the user's word. When step 1 says
+the port does not replace the original here, make no switch and no delete; a delete
+is put to the user.
 
 After the cut, search the repository being changed for every reference that led to
 the original: a call, an entry in a build manifest, a packaging list or a job
