@@ -34,6 +34,7 @@ skills/<name>/
 | `agent-doc-writing` | Write or prune a document an agent consumes: a skill, AGENTS.md, CLAUDE.md, or a pointed-to reference. |
 | `api-contract-design` | Design an HTTP or RPC contract first: one error format, boundary validation, pagination, and honoured idempotency. |
 | `architecture-premise-audit` | Audit a whole project for a wrong system archetype before trusting repository vocabulary. |
+| `behavior-preserving-port` | Move existing code to another language, runtime, or framework so every behavior a caller can observe still holds, checked against a record of those observations. |
 | `bug-diagnosis` | Diagnose a hard bug by building a red-capable feedback loop before forming any theory. |
 | `capability-map` | Split a bundled requirement into modules with stable ids, one-way dependencies, and a build order, gated before any spec. |
 | `context-boundary-routing` | At a phase boundary, choose continue, clear, hand off, delegate, or compact, and pick the delegation shape. |
