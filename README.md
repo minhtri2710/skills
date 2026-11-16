@@ -68,6 +68,7 @@ skills/<name>/
 | `throwaway-prototype` | Build throwaway code that answers one design question: a logic demo or structurally different UI variants. |
 | `untangle-codebase` | Restructure a named area or the repository so a changed requirement lands in one place, keeping behaviour, from a surveyed log. |
 | `verification-skill-lifecycle` | Create or maintain a source-grounded verification contract and feature map with owned cleanup and surviving evidence. |
+| `worst-case-data-review` | Review an existing screen against the data it can really receive, break each assumption it makes about a value, and report where it fails. |
 
 ## Hooks
 
