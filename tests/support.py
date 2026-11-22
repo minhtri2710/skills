@@ -1,7 +1,8 @@
 """Shared plumbing for the test modules.
 
-Importing this module puts every skills/*/scripts directory on sys.path and refuses to load when two scripts
-share a module name, since one process holds them all. It also holds:
+Importing this module puts the delivery workflow's scripts directory and the repository root on sys.path, so
+sibling imports in that skill and `skills.<skill>.scripts.<module>` imports for independent skills resolve. It
+also holds:
 
     never_run(*allowed)    in setUpModule: subprocess.run and subprocess.Popen refuse any command whose
                            argv[0] (or its basename) is not listed, and git sees no global or system config
@@ -41,23 +42,7 @@ ADW = ROOT / "skills" / "agent-delivery-workflow"
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
 
 
-def insert_script_dirs(root: Path) -> None:
-    owners: dict[str, Path] = {}
-    for scripts in sorted(root.glob("skills/*/scripts")):
-        for entry in sorted(scripts.iterdir()):
-            if entry.suffix == ".py":
-                name = entry.stem
-            elif (entry / "__init__.py").is_file():
-                name = entry.name
-            else:
-                continue
-            if name in owners:
-                raise ImportError(f"script module {name} is in both {owners[name]} and {scripts}")
-            owners[name] = scripts
-        sys.path.insert(0, str(scripts))
-
-
-insert_script_dirs(ROOT)
+sys.path[:0] = [str(ADW / "scripts"), str(ROOT)]
 
 _REAL_RUN = subprocess.run
 _REAL_POPEN = subprocess.Popen

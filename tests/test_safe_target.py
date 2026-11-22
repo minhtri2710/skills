@@ -5,10 +5,12 @@ import io
 import tempfile
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
+from importlib import import_module
 from pathlib import Path
 
 import support
-import safe_target
+
+safe_target = import_module("skills.destructive-path-guard.scripts.safe_target")
 
 
 def setUpModule() -> None:

@@ -12,17 +12,6 @@ from unittest import mock
 import support
 
 
-class ScriptDirsTest(unittest.TestCase):
-    def test_two_scripts_with_one_module_name_refuse_to_load(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp, mock.patch.object(sys, "path", list(sys.path)):
-            for skill in ("one", "two"):
-                scripts = Path(tmp) / "skills" / skill / "scripts"
-                scripts.mkdir(parents=True)
-                (scripts / "shared.py").write_text("", encoding="utf-8")
-            with self.assertRaisesRegex(ImportError, "shared"):
-                support.insert_script_dirs(Path(tmp))
-
-
 class GuardTest(unittest.TestCase):
     def test_run_and_popen_refuse_a_command_that_is_not_listed(self) -> None:
         with support.guarded(sys.executable):

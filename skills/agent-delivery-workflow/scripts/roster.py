@@ -17,7 +17,6 @@ import runtimes
 
 
 _SETTLED_STATES = frozenset({"idle", "done"})
-_ROLES = ("engineer", "reviewer", "architect")
 
 
 def format_roster(seats: list[backend.Seat]) -> list[str]:
@@ -161,7 +160,7 @@ def _seat_specs(raw_seats: list[str] | None) -> dict[str, str]:
     seats: dict[str, str] = {}
     for raw in raw_seats or []:
         name, _, role = raw.partition(":")
-        if not name or role not in _ROLES:
+        if not name or role not in project_config.PEER_ROLES:
             raise ValueError("seat must use NAME:engineer, NAME:reviewer or NAME:architect")
         if name in seats:
             raise ValueError(f"duplicate seat specification: {name}")
@@ -235,9 +234,6 @@ def format_drift_roster(
                 expanded = project_config.expand_launch(
                     config, role=role, route=route_matches[0][0], seat=name,
                     lead=lead, run_dir=run_dir, installed_skill_dir=installed_skill_dir,
-                    settings_file=(
-                        str(project_config.peer_settings_path(run_dir, name)) if run_dir else ""
-                    ),
                 )
             except ValueError as exc:
                 lines.append(f"{label} UNVERIFIABLE role={role} reason={exc}")

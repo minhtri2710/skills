@@ -12,7 +12,7 @@ import tempfile
 import unicodedata
 
 import state_root
-from lessons import LessonParseError, lesson_record_lines
+from lessons import LessonParseError, parse_lesson
 
 STOP = set(
     "the did what why about was were how when who does not have has with of and is are to for in on at it this that vi sao khong duoc toi la va cua".split()
@@ -85,16 +85,10 @@ def stamp_lesson(path, today):
     try:
         with open(path, "rb") as handle:
             original = handle.read()
-        record = lesson_record_lines(original.decode("utf-8"))
-        if record.fields["status"][1] == "superseded":
+        record = parse_lesson(original.decode("utf-8"))
+        updated = record.stamped(today)
+        if updated is None:
             return
-        line_index = record.fields["last_used"][0]
-        newline = "\r\n" if record.lines[line_index].endswith("\r\n") else "\n"
-        replacement = f"last_used: {today}{newline}"
-        if record.lines[line_index] == replacement:
-            return
-        record.lines[line_index] = replacement
-        updated = "".join(record.lines).encode("utf-8")
 
         directory = os.path.dirname(path) or "."
         descriptor, temporary_path = tempfile.mkstemp(
@@ -102,7 +96,7 @@ def stamp_lesson(path, today):
         )
         with os.fdopen(descriptor, "wb") as handle:
             descriptor = None
-            handle.write(updated)
+            handle.write(updated.encode("utf-8"))
             handle.flush()
             os.fsync(handle.fileno())
         os.replace(temporary_path, path)

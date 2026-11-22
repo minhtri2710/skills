@@ -61,10 +61,13 @@ class ReprimeCase(unittest.TestCase):
             patcher.start()
             self.addCleanup(patcher.stop)
 
-    @property
-    def prompts(self) -> list[tuple[str, ...]]:
-        """The recorded prompt operations, each ("prompt", seat, text)."""
-        return [call for call in self.fake.calls if call[0] == "prompt"]
+    def assert_reference(self, value: str, filename: str) -> None:
+        path, sep, heading = value.rpartition("#")
+        self.assertEqual(Path(path), REFERENCES / filename)
+        self.assertTrue(sep and heading, value)
+        headings = {m.group(1) for m in re.finditer(r"^#{1,6}[ \t]+(.+?)[ \t]*$",
+                    (REFERENCES / filename).read_text(encoding="utf-8"), re.MULTILINE)}
+        self.assertIn(heading, headings, value)
 
     def run_cli(self, *extra: str, args: list[str] | None = None) -> int:
         self.stdout.seek(0), self.stdout.truncate()
@@ -146,7 +149,7 @@ class ReprimeCase(unittest.TestCase):
         self.write_pointer_files()
         self.set_pi(baseline)
         self.assertEqual(self.run_cli(), 0)
-        self.assertEqual(self.prompts, [])
+        self.assertEqual(self.fake.prompts(), [])
         self.set_pi(crossed)
 
 
@@ -157,12 +160,19 @@ class CliContractTest(ReprimeCase):
         self.assertEqual(raised.exception.code, 2)
         self.assertIn("the following arguments are required", self.stderr.getvalue())
 
+    def test_reserved_coordination_is_refused_before_even_a_baseline(self) -> None:
+        self.set_pi(3)
+        self.assertEqual(self.run_cli(args=["--run-id", "coordination", "--seat", SEAT]), 1)
+        self.assertIn("coordination", self.stderr.getvalue())
+        self.assertEqual(self.state_files(), [])
+        self.assertEqual(self.fake.calls, [])
+
     def test_project_root_must_be_absolute(self) -> None:
         with self.assertRaises(SystemExit) as raised:
             compaction_reprime.main(ARGS + ["--project-root", "relative/project"])
         self.assertEqual(raised.exception.code, 2)
         self.assertIn("--project-root must be an absolute path", self.stderr.getvalue())
-        self.assertEqual(self.prompts, [])
+        self.assertEqual(self.fake.prompts(), [])
 
     def test_a_project_root_with_no_git_checkout_is_refused_before_any_state_or_prompt(self) -> None:
         plain = self.root / "plain"
@@ -172,7 +182,7 @@ class CliContractTest(ReprimeCase):
         self.assertEqual(self.run_cli("--project-root", str(plain)), 1)
         self.assertIn("no project slug", self.stderr.getvalue())
         self.assertEqual(self.state_files(), [])
-        self.assertEqual(self.prompts, [])
+        self.assertEqual(self.fake.prompts(), [])
 
     def test_runs_from_any_cwd(self) -> None:
         self.baseline_then_cross()
@@ -183,7 +193,7 @@ class CliContractTest(ReprimeCase):
                 self.assertEqual(self.run_cli(), 0)
             finally:
                 os.chdir(original)
-        self.assertEqual(len(self.prompts), 1)
+        self.assertEqual(len(self.fake.prompts()), 1)
         self.assertIn(f"prompted {SEAT} at threshold 4", self.stdout.getvalue())
 
 
@@ -216,21 +226,21 @@ class SeatResolutionTest(ReprimeCase):
         self.assertEqual(self.run_cli(), 1)
         self.agents = [agent]
         self.assertEqual(self.run_cli(args=["--run-id", "run-1", "--seat", "no-such-seat"]), 1)
-        self.assertEqual(self.prompts, [])
+        self.assertEqual(self.fake.prompts(), [])
 
     def test_a_seat_given_by_name_is_prompted_and_keyed_by_its_handle(self) -> None:
         self.baseline_then_cross()
         by_name = self.run_cli()
         by_handle = self.run_cli(args=["--run-id", "run-1", "--seat", f"pane-{SEAT}"])
         self.assertEqual((by_name, by_handle), (0, 0))
-        self.assertEqual([prompt[1] for prompt in self.prompts], [f"pane-{SEAT}"])
+        self.assertEqual([prompt[1] for prompt in self.fake.prompts()], [f"pane-{SEAT}"])
         self.assertEqual(len(self.state_files()), 1)
 
     def test_unavailable_roster_fails_without_prompt(self) -> None:
         self.baseline_then_cross()
         self.roster_error = backend.BackendUnavailable("tool unavailable")
         self.assertEqual(self.run_cli(), 1)
-        self.assertEqual(self.prompts, [])
+        self.assertEqual(self.fake.prompts(), [])
         self.assertIn("live roster unavailable: tool unavailable", self.stderr.getvalue())
 
     def test_a_seat_without_an_agent_session_fails_closed(self) -> None:
@@ -239,7 +249,7 @@ class SeatResolutionTest(ReprimeCase):
         self.agents[0] = replace(self.agents[0], session=None)
         self.assertEqual(self.run_cli(), 1)
         self.assertIn("backend reports no agent session", self.stderr.getvalue())
-        self.assertEqual(self.prompts, [])
+        self.assertEqual(self.fake.prompts(), [])
         self.assertEqual(self.state_files(), [])
 
     def test_a_session_kind_the_agent_does_not_use_fails_closed(self) -> None:
@@ -277,7 +287,7 @@ class SeatResolutionTest(ReprimeCase):
         self.assertEqual(self.run_cli(), 0)
         self.set_pi(7, cwd=inside)
         self.assertEqual(self.run_cli(), 0)
-        self.assertEqual(len(self.prompts), 1)
+        self.assertEqual(len(self.fake.prompts()), 1)
 
     def test_roster_cwd_outside_project_root_is_refused_before_any_state_or_prompt(self) -> None:
         self.write_pointer_files()
@@ -288,7 +298,7 @@ class SeatResolutionTest(ReprimeCase):
         self.set_pi(7, cwd=outside)
         self.assertEqual(self.run_cli(), 1)
         self.assertEqual(self.state_files(), [])
-        self.assertEqual(self.prompts, [])
+        self.assertEqual(self.fake.prompts(), [])
 
 
 class MarkerCountingTest(ReprimeCase):
@@ -301,7 +311,7 @@ class MarkerCountingTest(ReprimeCase):
         with self.pi_path().open("a", encoding="utf-8") as stream:
             stream.write('{"type":"assistant"')
         self.assertEqual(self.run_cli(), 0)
-        self.assertEqual(len(self.prompts), 1)
+        self.assertEqual(len(self.fake.prompts()), 1)
 
     def test_claude_counts_boundary_summary_pairs(self) -> None:
         self.write_pointer_files()
@@ -309,10 +319,10 @@ class MarkerCountingTest(ReprimeCase):
         self.assertEqual(self.run_cli(), 0)
         self.set_claude(self.claude_records(3))
         self.assertEqual(self.run_cli(), 0)
-        self.assertEqual(self.prompts, [])
+        self.assertEqual(self.fake.prompts(), [])
         self.set_claude(self.claude_records(4))
         self.assertEqual(self.run_cli(), 0)
-        self.assertEqual(len(self.prompts), 1)
+        self.assertEqual(len(self.fake.prompts()), 1)
 
     def test_unverified_pi_evidence_fails_closed(self) -> None:
         self.write_pointer_files()
@@ -332,7 +342,7 @@ class MarkerCountingTest(ReprimeCase):
                     self.write_jsonl(self.pi_path(), records)
                 self.assertEqual(self.run_cli(), 1)
                 self.assertEqual(self.state_files(), [])
-        self.assertEqual(self.prompts, [])
+        self.assertEqual(self.fake.prompts(), [])
 
     def test_unverified_claude_evidence_fails_closed(self) -> None:
         self.write_pointer_files()
@@ -351,7 +361,7 @@ class MarkerCountingTest(ReprimeCase):
                 self.set_claude(records)
                 self.assertEqual(self.run_cli(), 1)
                 self.assertEqual(self.state_files(), [])
-        self.assertEqual(self.prompts, [])
+        self.assertEqual(self.fake.prompts(), [])
 
     def test_claude_session_id_cannot_escape_the_project_directory(self) -> None:
         self.write_pointer_files()
@@ -368,7 +378,7 @@ class ThresholdTest(ReprimeCase):
         self.write_pointer_files()
         self.set_pi(9)
         self.assertEqual(self.run_cli(), 0)
-        self.assertEqual(self.prompts, [])
+        self.assertEqual(self.fake.prompts(), [])
         self.assertIn(f"no newly crossed threshold for {SEAT}", self.stdout.getvalue())
 
     def test_only_markers_since_baseline_cross_the_first_threshold_of_four(self) -> None:
@@ -377,10 +387,10 @@ class ThresholdTest(ReprimeCase):
         self.assertEqual(self.run_cli(), 0)
         self.set_pi(6)
         self.assertEqual(self.run_cli(), 0)
-        self.assertEqual(self.prompts, [])
+        self.assertEqual(self.fake.prompts(), [])
         self.set_pi(7)
         self.assertEqual(self.run_cli(), 0)
-        self.assertEqual(len(self.prompts), 1)
+        self.assertEqual(len(self.fake.prompts()), 1)
         self.assertIn("prompted lead-beo-skills at threshold 4\n", self.stdout.getvalue())
 
     def test_each_crossed_threshold_prompts_once(self) -> None:
@@ -388,10 +398,10 @@ class ThresholdTest(ReprimeCase):
         for expected in (4, 8, 12):
             with self.subTest(threshold=expected):
                 self.assertEqual(self.run_cli(), 0)
-                self.assertEqual(len(self.prompts), expected // 4)
+                self.assertEqual(len(self.fake.prompts()), expected // 4)
                 self.assertIn(f"at threshold {expected}", self.stdout.getvalue())
         self.assertEqual(self.run_cli(), 0)
-        self.assertEqual(len(self.prompts), 3)
+        self.assertEqual(len(self.fake.prompts()), 3)
         self.assertIn("no newly crossed threshold", self.stdout.getvalue())
 
     def test_state_is_one_file_per_seat_session_holding_baseline_and_sent_threshold(self) -> None:
@@ -444,12 +454,12 @@ class ThresholdTest(ReprimeCase):
     def test_a_new_session_or_seat_starts_its_own_baseline(self) -> None:
         self.baseline_then_cross()
         self.assertEqual(self.run_cli(), 0)
-        self.assertEqual(len(self.prompts), 1)
+        self.assertEqual(len(self.fake.prompts()), 1)
         self.set_pi(8, session_id="02def456")
         self.assertEqual(self.run_cli(), 0)
         self.set_pi(8, seat="other-seat", session_id="02def456")
         self.assertEqual(self.run_cli(args=["--run-id", "run-1", "--seat", "other-seat"]), 0)
-        self.assertEqual(len(self.prompts), 1)
+        self.assertEqual(len(self.fake.prompts()), 1)
         self.assertEqual(len(self.state_files()), 3)
 
     def test_unreadable_or_regressed_state_fails_closed(self) -> None:
@@ -459,25 +469,24 @@ class ThresholdTest(ReprimeCase):
             with self.subTest(body=body):
                 state_file.write_text(body, encoding="utf-8")
                 self.assertEqual(self.run_cli(), 1)
-        self.assertEqual(self.prompts, [])
+        self.assertEqual(self.fake.prompts(), [])
 
 
 class PromptTest(ReprimeCase):
     def test_relaunch_is_recommended_from_eight_markers_since_baseline(self) -> None:
         self.baseline_then_cross(baseline=3, crossed=15)
-        lead = REFERENCES / "lead.md"
         for threshold in (4, 8, 12):
             with self.subTest(threshold=threshold):
                 self.assertEqual(self.run_cli(), 0)
-                block = self.prompts[-1][2]
+                block = self.fake.prompts()[-1][2]
                 if threshold == 4:
                     self.assertNotIn("relaunch-recommended", block)
                     self.assertEqual(self.stdout.getvalue(), f"compaction_reprime: prompted {SEAT} at threshold 4\n")
                 else:
-                    self.assertEqual(
-                        block.split("\n")[-1],
-                        f"relaunch-recommended: {threshold} compactions since baseline; at the next slice boundary: {lead}#Relaunch and doctrine",
-                    )
+                    prefix = f"relaunch-recommended: {threshold} compactions since baseline; at the next slice boundary: "
+                    recommendation = block.splitlines()[-1]
+                    self.assertTrue(recommendation.startswith(prefix), recommendation)
+                    self.assert_reference(recommendation.removeprefix(prefix), "lead.md")
                     self.assertEqual(
                         self.stdout.getvalue(),
                         f"compaction_reprime: prompted {SEAT} at threshold {threshold}; relaunch recommended at the next slice boundary\n",
@@ -486,17 +495,20 @@ class PromptTest(ReprimeCase):
     def test_prompt_is_one_prompt_operation_of_pointers_only(self) -> None:
         self.baseline_then_cross()
         self.assertEqual(self.run_cli(), 0)
-        ((operation, seat, block),) = self.prompts
+        ((operation, seat, block),) = self.fake.prompts()
         self.assertEqual((operation, seat), ("prompt", f"pane-{SEAT}"))
         records, run_dir = self.records_dir(), self.records_dir() / "runs" / "run-1"
         for pointer in (
             records / "context-pack.md", records / "gates.md", records / "supervisor-notebook.md", run_dir,
             run_dir / "intake-record.md", run_dir / "plan.md", run_dir / "specification.md", run_dir / "slices.json",
-            f"{REFERENCES / 'lead.md'}#Recovery", f"{REFERENCES / 'lead.md'}#Delivery sequence",
-            f"{REFERENCES / 'lead.md'}#Gates and ledger", f"{REFERENCES / 'supervisor.md'}#Handoff",
-            f"{REFERENCES / 'closeout.md'}#Acceptance custody",
         ):
             self.assertIn(str(pointer), block)
+        pointers = dict(line.split(": ", 1) for line in block.splitlines())
+        for label, file in (("lead-recovery", "lead.md"), ("lead-delivery", "lead.md"),
+                            ("lead-gates", "lead.md"), ("supervisor-handoff", "supervisor.md"),
+                            ("closeout", "closeout.md")):
+            with self.subTest(label=label):
+                self.assert_reference(pointers[label], file)
         self.assertNotIn("RAW", block)
         self.assertIn(f"run-id: run-1\nseat: {SEAT}\n", block)
 
@@ -506,20 +518,10 @@ class PromptTest(ReprimeCase):
         self.assertEqual(self.run_cli(), 0)
         self.set_pi(7)
         self.assertEqual(self.run_cli(), 0)
-        block = self.prompts[0][2]
+        block = self.fake.prompts()[0][2]
         self.assertIn("\nintake: ", block)
         for label in ("plan", "specification", "slices"):
             self.assertNotIn(f"\n{label}:", block)
-
-    def test_named_doctrine_sections_exist(self) -> None:
-        self.baseline_then_cross(baseline=3, crossed=11)
-        self.assertEqual(self.run_cli(), 0)
-        self.assertEqual(self.run_cli(), 0)
-        self.assertIn("relaunch-recommended", self.prompts[-1][2])
-        for pointer in re.findall(r"(/\S+\.md)#(.+)$", self.prompts[-1][2], re.MULTILINE):
-            path, section = pointer
-            with self.subTest(section=section):
-                self.assertRegex(Path(path).read_text(encoding="utf-8"), rf"(?m)^#{{1,4}} {re.escape(section)}\s*$")
 
     def test_failed_or_unavailable_prompt_leaves_the_threshold_unsent_and_the_next_run_retries(self) -> None:
         for outcome in (backend.SeatError("blocked", "agent blocked"), backend.BackendUnavailable("tool unavailable")):
@@ -528,14 +530,14 @@ class PromptTest(ReprimeCase):
                 self.baseline_then_cross()
                 self.prompt_outcome = outcome
                 self.assertEqual(self.run_cli(), 1)
-                self.assertEqual(len(self.prompts), 1)
+                self.assertEqual(len(self.fake.prompts()), 1)
                 self.assertIn("prompt failed", self.stderr.getvalue())
                 self.prompt_outcome = None
                 self.assertEqual(self.run_cli(), 0)
-                self.assertEqual(len(self.prompts), 2)
+                self.assertEqual(len(self.fake.prompts()), 2)
                 self.assertIn("at threshold 4", self.stdout.getvalue())
                 self.assertEqual(self.run_cli(), 0)
-                self.assertEqual(len(self.prompts), 2)
+                self.assertEqual(len(self.fake.prompts()), 2)
                 for state_file in self.state_files():
                     state_file.unlink()
 
@@ -543,17 +545,17 @@ class PromptTest(ReprimeCase):
         self.baseline_then_cross()
         (self.records_dir() / "context-pack.md").unlink()
         self.assertEqual(self.run_cli(), 1)
-        self.assertEqual(self.prompts, [])
+        self.assertEqual(self.fake.prompts(), [])
         self.assertIn("threshold 4 remains pending", self.stderr.getvalue())
         (self.records_dir() / "context-pack.md").write_text("pack", encoding="utf-8")
         self.assertEqual(self.run_cli(), 0)
-        self.assertEqual(len(self.prompts), 1)
+        self.assertEqual(len(self.fake.prompts()), 1)
 
     def test_run_id_cannot_escape_the_runs_directory(self) -> None:
         self.baseline_then_cross()
         (self.records_dir() / "outside").mkdir()
         self.assertEqual(self.run_cli(args=["--run-id", "../outside", "--seat", SEAT]), 1)
-        self.assertEqual(self.prompts, [])
+        self.assertEqual(self.fake.prompts(), [])
 
 
 if __name__ == "__main__":

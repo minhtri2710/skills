@@ -15,7 +15,9 @@ SHA_RE = re.compile(FULL_SHA)
 
 
 class GitError(Exception):
-    pass
+    def __init__(self, message: str, *, returncode: int | None = None) -> None:
+        super().__init__(message)
+        self.returncode = returncode
 
 
 def git(repo: Path, *args: str, stdin: str | None = None, timeout: float | None = None) -> str:
@@ -38,18 +40,20 @@ def git(repo: Path, *args: str, stdin: str | None = None, timeout: float | None 
         proc.communicate()
         raise GitError(f"git {' '.join(args)} passed its {timeout:g}s limit; its process group was killed") from None
     if proc.returncode != 0:
-        raise GitError(f"git {' '.join(args)} failed: {err.strip()}")
+        raise GitError(f"git {' '.join(args)} failed: {err.strip()}", returncode=proc.returncode)
     return out.rstrip("\n")
 
 
 Runner = Callable[..., str]
 
 
-def is_ancestor(repo: Path, ancestor: str, descendant: str) -> bool:
+def is_ancestor(repo: Path, ancestor: str, descendant: str, *, run: Runner = git) -> bool:
     try:
-        git(repo, "merge-base", "--is-ancestor", ancestor, descendant)
-    except GitError:
-        return False
+        run(repo, "merge-base", "--is-ancestor", ancestor, descendant)
+    except GitError as exc:
+        if exc.returncode == 1:
+            return False
+        raise
     return True
 
 

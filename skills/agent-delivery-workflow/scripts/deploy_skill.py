@@ -5,7 +5,6 @@ from __future__ import annotations
 import argparse
 import os
 import shutil
-import stat
 import subprocess
 import sys
 import tempfile
@@ -13,6 +12,7 @@ from pathlib import Path
 
 import gate_row
 from gitops import GitError, git, is_ancestor
+from skill_tree import SkillTree, TreeError, SKILL_NAME_RE, skill_names
 
 
 class DeployError(Exception):
@@ -20,10 +20,10 @@ class DeployError(Exception):
 
 
 def tracked_skills(repo: Path, head: str) -> list[str]:
-    skills = git(repo, "ls-tree", "-d", "--name-only", f"{head}:skills").splitlines()
+    skills = skill_names(repo, head)
     if not skills:
         raise DeployError(f"head {head} has no tracked top-level skills")
-    if any(not gate_row.SKILL_NAME_RE.fullmatch(skill) for skill in skills):
+    if any(not SKILL_NAME_RE.fullmatch(skill) for skill in skills):
         raise DeployError("git ls-tree returned a non-top-level skill")
     return skills
 
@@ -42,107 +42,10 @@ def selected_skills(repo: Path, head: str, requested: list[str]) -> list[str]:
     return [skill for skill in available if skill in requested]
 
 
-def tracked_files(repo: Path, head: str, prefix: str) -> list[tuple[str, int, str]]:
-    records = [r for r in git(repo, "ls-tree", "-r", "-z", head, prefix).split("\0") if r]
-    if not records:
-        raise DeployError(f"head {head} has no tracked files under {prefix}")
-    entries = []
-    for record in records:
-        metadata, path = record.split("\t", 1)
-        mode, _object_type, object_id = metadata.split()
-        if not path.startswith(prefix):
-            raise DeployError(f"git ls-tree returned a path outside {prefix}")
-        entries.append((path, install_mode(mode, path), object_id))
-    return entries
-
-
-def install_mode(git_mode: str, tracked_path: str) -> int:
-    if git_mode not in {"100644", "100755"}:
-        raise DeployError(f"tracked path has unsupported mode for {tracked_path}: {git_mode}")
-    return 0o755 if git_mode == "100755" else 0o644
-
-
-def read_blobs(repo: Path, object_ids: list[str]) -> dict[str, bytes]:
-    unique = sorted(set(object_ids))
-    proc = subprocess.run(
-        ["git", "-C", str(repo), "cat-file", "--batch"],
-        input="".join(f"{object_id}\n" for object_id in unique).encode(),
-        capture_output=True,
-        check=False,
-    )
-    if proc.returncode:
-        raise DeployError(f"git cat-file failed: {proc.stderr.decode(errors='replace').strip()}")
-    blobs: dict[str, bytes] = {}
-    offset = 0
-    for object_id in unique:
-        end = proc.stdout.index(b"\n", offset)
-        header = proc.stdout[offset:end].split()
-        if header[:2] != [object_id.encode(), b"blob"]:
-            raise DeployError(f"git cat-file returned no blob for {object_id}")
-        start = end + 1
-        blobs[object_id] = proc.stdout[start:start + int(header[2])]
-        offset = start + int(header[2]) + 1
-    return blobs
-
-
-def resolved_files(repo: Path, entries: list[tuple[str, int, str]],
-                   prefix: str) -> list[tuple[Path, bytes, int]]:
-    blobs = read_blobs(repo, [object_id for _path, _mode, object_id in entries])
-    return [(Path(path[len(prefix):]), blobs[object_id], mode) for path, mode, object_id in entries]
-
-
-def install_drift(repo: Path, install_dir: Path, entries: list[tuple[str, int, str]],
-                  prefix: str) -> tuple[list[tuple[str, bool]], list[str]]:
-    """Compare an installed tree with the tracked entries of one skill.
-
-    Returns (missing_or_mismatched, untracked): (message, file is installed)
-    for each tracked file that is absent or differs, and a message for each
-    installed path no entry names. A tracked file that is itself a symlink
-    counts as missing; a symlinked directory is reported untracked and not
-    walked; __pycache__ is ignored.
-    """
-    drift: list[tuple[str, bool]] = []
-    for tracked_path, expected_mode, expected in entries:
-        installed = install_dir / tracked_path[len(prefix):]
-        if installed.is_symlink() or not installed.is_file():
-            drift.append((f"installed file is missing: {installed}", False))
-            continue
-        actual = git(repo, "hash-object", str(installed))
-        if actual != expected:
-            drift.append((
-                f"installed hash mismatch for {tracked_path}: expected {expected}, got {actual}", True,
-            ))
-            continue
-        actual_mode = stat.S_IMODE(installed.stat().st_mode)
-        if actual_mode != expected_mode:
-            drift.append((
-                f"installed mode mismatch for {tracked_path}: expected {oct(expected_mode)}, "
-                f"got {oct(actual_mode)}", True,
-            ))
-
-    tracked = {Path(path[len(prefix):]) for path, _mode, _object_id in entries}
-    untracked: list[str] = []
-    for root, dirs, files in os.walk(install_dir, topdown=True, followlinks=False):
-        root_path = Path(root)
-        dirs[:] = [name for name in dirs if name != "__pycache__"]
-        untracked.extend(
-            f"installed path is not tracked: {root_path / name}"
-            for name in dirs if (root_path / name).is_symlink()
-        )
-        dirs[:] = [name for name in dirs if not (root_path / name).is_symlink()]
-        untracked.extend(
-            f"installed path is not tracked: {root_path / name}" for name in files
-            if (root_path / name).relative_to(install_dir) not in tracked
-        )
-    return drift, untracked
-
-
-def verify_install(repo: Path, install_dir: Path, entries: list[tuple[str, int, str]],
-                   prefix: str) -> None:
+def verify_install(tree: SkillTree, install_dir: Path) -> None:
     if install_dir.is_symlink():
         raise DeployError(f"install tree is a symlink: {install_dir}")
-    drift, untracked = install_drift(repo, install_dir, entries, prefix)
-    problems = [message for message, _installed in drift] + untracked
+    problems = tree.compare(install_dir).problems
     if problems:
         raise DeployError(problems[0])
 
@@ -204,17 +107,16 @@ def main(argv: list[str] | None = None) -> int:
             brief=args.brief, quote=args.quote, head=f"{branch}@{head}",
         )
         gate_row.preview_row(args.ledger, repo, request)
-        deployments = []
-        for skill in selected:
-            prefix = f"skills/{skill}/"
-            deployments.append((skill, prefix, tracked_files(repo, head, prefix)))
+        deployments = [
+            (skill, SkillTree.at(repo, head, skill)) for skill in selected
+        ]
 
         install_root = Path.home() / ".agents" / "skills"
         with tempfile.TemporaryDirectory(prefix="deploy-skill-") as temporary:
             staging_root = Path(temporary)
-            for skill, prefix, entries in deployments:
+            for skill, tree in deployments:
                 source = staging_root / skill
-                for relative, content, mode in resolved_files(repo, entries, prefix):
+                for relative, content, mode in tree.files():
                     destination = source / relative
                     destination.parent.mkdir(parents=True, exist_ok=True)
                     destination.write_bytes(content)
@@ -222,14 +124,14 @@ def main(argv: list[str] | None = None) -> int:
             installed: list[str] = []
             failing = ""
             try:
-                for skill, _prefix, _entries in deployments:
+                for skill, _tree in deployments:
                     failing = skill
                     _install_with_skills(cli, staging_root / skill, skill)
                     installed.append(skill)
-                for skill, prefix, entries in deployments:
+                for skill, tree in deployments:
                     failing = skill
-                    verify_install(repo, install_root / skill, entries, prefix)
-            except (DeployError, GitError, OSError) as exc:
+                    verify_install(tree, install_root / skill)
+            except (DeployError, TreeError, GitError, OSError) as exc:
                 if installed:
                     raise DeployError(
                         f"{exc}; failed at {failing}; already installed, no deploy row recorded: "
@@ -244,7 +146,7 @@ def main(argv: list[str] | None = None) -> int:
                 f"installed {', '.join(selected)}, but no deploy row was recorded: {exc}"
             ) from None
         print(row)
-    except (DeployError, GitError, gate_row.RowError, OSError) as exc:
+    except (DeployError, TreeError, GitError, gate_row.RowError, OSError) as exc:
         print(f"deploy_skill: {exc}", file=sys.stderr)
         return 1
     return 0

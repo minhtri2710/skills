@@ -12,11 +12,13 @@ import threading
 import unittest
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
+from importlib import import_module
 from unittest import mock
 import urllib.error
 
 import support
-import jev
+
+jev = import_module("skills.jev.scripts.jev")
 
 
 FAKE_KEY = "sk-fake-jev-probe-7f3a9-non-disclosure"

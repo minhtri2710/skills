@@ -42,14 +42,13 @@ def _live_agent(seats: backend.Backend, seat: str) -> backend.Seat:
     return matches[0]
 
 
-def _block(run_id: str, seat: str, threshold: int, slug: str) -> str:
-    run_dir = state_root.run_dir(slug, run_id)
+def _block(run_dir: Path, seat: str, threshold: int, slug: str) -> str:
     required = [state_root.context_pack(slug), state_root.ledger(slug), state_root.notebook(slug)]
     if not run_dir.is_dir() or not all(p.is_file() for p in required):
         raise runtimes.Unavailable(f"threshold {threshold} remains pending; prompt not attempted")
     lead, supervisor, closeout = (_DOCTRINE / f"{name}.md" for name in ("lead", "supervisor", "closeout"))
     lines = [
-        f"run-id: {run_id}", f"seat: {seat}", f"run-dir: {run_dir}",
+        f"run-id: {run_dir.name}", f"seat: {seat}", f"run-dir: {run_dir}",
         f"context-pack: {required[0]}", f"gate-ledger: {required[1]}", f"supervisor-notebook: {required[2]}",
     ]
     for label, name in state_root.RUN_RECORDS.items():
@@ -115,6 +114,8 @@ def reprime(run_id: str, seat: str, project_root: Path, seats: backend.Backend) 
         if not _ID.fullmatch(run_id):
             raise ValueError(f"{run_id!r} is not a safe run id")
         slug = state_root.slug_for(project)
+        run = state_root.run_dir(slug, run_id)
+        state_root.parse_run_dir(run)
     except ValueError as exc:
         raise runtimes.Unavailable(str(exc))
     agent = _live_agent(seats, seat)
@@ -133,7 +134,7 @@ def reprime(run_id: str, seat: str, project_root: Path, seats: backend.Backend) 
     if count - state["baseline"] < threshold:
         return f"no newly crossed threshold for {seat}"
 
-    block = _block(run_id, seat, threshold, slug)
+    block = _block(run, seat, threshold, slug)
     _save_state(path, {**state, "sent": threshold})  # advanced first: a crash never re-prompts
     try:
         seats.prompt(agent.handle, block)

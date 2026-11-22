@@ -59,9 +59,6 @@ class Scripted(FakeBackend):
             self.on_wait()
         return super().wait_state(ref, states, timeout_ms)
 
-    def prompts(self) -> list[tuple]:
-        return [call for call in self.calls if call[0] == "prompt"]
-
 
 def failed_wait(code: str) -> backend.BackendError:
     return backend.BackendError(f"agent wait {SEAT} failed: {code}", code=code)

@@ -1240,6 +1240,20 @@ class GateRowTest(unittest.TestCase):
                       self.err.getvalue())
         self.assertEqual(len(gate_row.ledger_rows(self.ledger.read_text())), 1)
 
+    def test_a_push_whose_landed_ancestry_check_errors_reports_the_git_failure(self):
+        base = self.feature_with_origin()
+        self.assertEqual(self.append_review(base), 0)
+
+        def broken(repo, ancestor, descendant, *, run):
+            return run(repo, "merge-base", "--is-ancestor", ancestor, "missing-test-object")
+
+        with mock.patch.object(gate_row.gitops, "is_ancestor", side_effect=broken):
+            self.assertEqual(self.push(base), 1)
+        self.assertIn("ran, but", self.err.getvalue())
+        self.assertIn("missing-test-object", self.err.getvalue())
+        self.assertEqual(len(gate_row.ledger_rows(self.ledger.read_text())), 1)
+        self.assertEqual(self.remote_refs()["refs/heads/feat"], self.rev("HEAD"))
+
     def test_a_hung_push_is_killed_at_its_limit_and_records_nothing(self):
         base = self.feature_with_origin()
         hook_pid = self.tmp / "hook.pid"

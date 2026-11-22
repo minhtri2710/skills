@@ -12,6 +12,7 @@ from typing import Any, Mapping
 
 import backend
 import gate_row
+from staffing import PEER_DISPOSITIONS
 
 
 @dataclass(frozen=True)
@@ -21,7 +22,6 @@ class CloseoutResult:
     checked_seats: tuple[str, ...] = ()
 
 
-_PEER_ROLES = {"Engineer", "Reviewer"}
 _PERSISTENT_ROLES = {"Lead", "Human Supervisor"}
 _PERSISTENT_ROLE_ERROR = (
     "persistent must record exactly one Lead and at most one Human Supervisor"
@@ -91,8 +91,8 @@ def _validate_record(
         if not isinstance(peer, Mapping):
             raise ValueError(f"peers[{index}] must be an object")
         role = peer.get("role")
-        if role not in _PEER_ROLES:
-            raise ValueError(f"peers[{index}] must be an Engineer or Reviewer")
+        if role not in PEER_DISPOSITIONS:
+            raise ValueError(f"peers[{index}].role must be one of {', '.join(PEER_DISPOSITIONS)}")
         issue = peer.get("issue")
         if not isinstance(issue, str) or not issue or "\x00" in issue:
             raise ValueError(f"peers[{index}].issue must be non-empty text")

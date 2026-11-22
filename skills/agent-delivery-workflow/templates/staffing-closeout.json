@@ -26,6 +26,12 @@
       "role": "Reviewer",
       "name": "review-issue-id",
       "seat": "w0:pReviewer"
+    },
+    {
+      "issue": "issue-id",
+      "role": "Architect",
+      "name": "arch-issue-id",
+      "seat": "w0:pArchitect"
     }
   ]
 }

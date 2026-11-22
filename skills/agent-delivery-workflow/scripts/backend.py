@@ -21,11 +21,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, NamedTuple
 
+import peer_reports
+
 STATES = ("idle", "working", "done", "blocked", "error", "unknown")
 SEAT_ERROR_KINDS = ("not_found", "blocked", "not_started")
 HANDLE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$")
-_REPORT_PATH_RE = re.compile(r"(?P<dir>.+)/report-(?P<peer>[^/]+)\.md")
-_UNSAFE_IN_DOUBLE_QUOTES = frozenset('"$`\\\n')
 DEFAULT_TIMEOUT = 30.0
 
 ADAPTERS = {
@@ -161,21 +161,10 @@ def require_reached(label: str, reached: str, states: Sequence[str]) -> str:
     return reached
 
 
-def report_send_file(report_path: str) -> tuple[str, str]:
-    match = _REPORT_PATH_RE.fullmatch(report_path)
-    if match is None or _UNSAFE_IN_DOUBLE_QUOTES & set(report_path):
-        raise ValueError(f"report path must be <run-dir>/report-<peer>.md without shell metacharacters: {report_path!r}")
-    return match["peer"], f"{match['dir']}/send-{match['peer']}.txt"
-
-
 def adapter_class(name: str) -> type[Backend]:
     if name not in ADAPTERS:
         raise ValueError(f"unknown backend: {name}")
     return importlib.import_module(ADAPTERS[name]).Adapter
-
-
-def own_handle(name: str, environ: Mapping[str, str]) -> str | None:
-    return adapter_class(name).own_handle(environ)
 
 
 def detect(environ: Mapping[str, str], explicit: Explicit | None = None) -> str:
@@ -195,7 +184,7 @@ def detect(environ: Mapping[str, str], explicit: Explicit | None = None) -> str:
                 f"--backend names {explicit.name}, which is not among the matched backends "
                 f"({', '.join(matched)})"
             )
-        if own_handle(explicit.name, environ) != explicit.handle:
+        if adapter_class(explicit.name).own_handle(environ) != explicit.handle:
             raise DetectionError(
                 f"--backend handle is not this seat's own handle under {explicit.name}"
             )
@@ -262,7 +251,7 @@ class Backend:
         raise self._unsupported("processes")
 
     def send_block(self, lead_handle: str, report_path: str) -> SendBlock:
-        peer, send_path = report_send_file(report_path)
+        peer, send_path = peer_reports.send_file(report_path)
         return self._render_send_block(require_handle(lead_handle), peer, send_path, report_path)
 
     def _render_send_block(self, lead_handle: str, peer: str, send_path: str, report_path: str) -> SendBlock:

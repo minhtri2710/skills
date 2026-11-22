@@ -16,6 +16,7 @@ from unittest.mock import patch
 import support
 import deploy_skill
 import gate_row
+from skill_tree import SkillTree
 
 SCRIPTS = support.ADW / "scripts"
 
@@ -116,7 +117,13 @@ class DeploySkillTest(unittest.TestCase):
     def assert_install_matches_head(self, skill: str, head: str) -> None:
         root = self.home / ".agents" / "skills" / skill
         prefix = f"skills/{skill}/"
-        entries = deploy_skill.tracked_files(self.repo, head, prefix)
+        records = [r for r in support.git(self.repo, "ls-tree", "-r", "-z", head, "--", prefix).split("\0") if r]
+        self.assertTrue(records)
+        entries = []
+        for record in records:
+            metadata, path = record.split("\t", 1)
+            git_mode, _object_type, object_id = metadata.split()
+            entries.append((path, {"100644": 0o644, "100755": 0o755}[git_mode], object_id))
         self.assertEqual(
             {path.relative_to(root).as_posix() for path in root.rglob("*") if path.is_file()},
             {path[len(prefix):] for path, _mode, _object_id in entries},
@@ -367,8 +374,7 @@ class DeploySkillTest(unittest.TestCase):
 
     def test_verify_rejects_extra_files_and_ignores_pycache(self):
         head = self.head()
-        prefix = "skills/agent-delivery-workflow/"
-        entries = deploy_skill.tracked_files(self.repo, head, prefix)
+        tree = SkillTree.at(self.repo, head, "agent-delivery-workflow")
         install = self.tmp / "install"
         install.mkdir()
         (install / "SKILL.md").write_bytes((self.source / "SKILL.md").read_bytes())
@@ -376,23 +382,22 @@ class DeploySkillTest(unittest.TestCase):
         cache.mkdir()
         (cache / "artifact.pyc").write_bytes(b"runtime artifact")
 
-        deploy_skill.verify_install(self.repo, install, entries, prefix)
+        deploy_skill.verify_install(tree, install)
         (install / "extra.txt").write_text("not tracked\n", encoding="utf-8")
         with self.assertRaises(deploy_skill.DeployError):
-            deploy_skill.verify_install(self.repo, install, entries, prefix)
+            deploy_skill.verify_install(tree, install)
 
     def test_verify_rejects_a_symlinked_subdirectory(self):
-        prefix = "skills/agent-delivery-workflow/"
-        entries = deploy_skill.tracked_files(self.repo, self.head(), prefix)
+        tree = SkillTree.at(self.repo, self.head(), "agent-delivery-workflow")
         install = self.tmp / "install"
         install.mkdir()
         (install / "SKILL.md").write_bytes((self.source / "SKILL.md").read_bytes())
-        deploy_skill.verify_install(self.repo, install, entries, prefix)
+        deploy_skill.verify_install(tree, install)
         outside = self.tmp / "outside"
         outside.mkdir()
         (install / "linked").symlink_to(outside, target_is_directory=True)
         with self.assertRaisesRegex(deploy_skill.DeployError, "not tracked"):
-            deploy_skill.verify_install(self.repo, install, entries, prefix)
+            deploy_skill.verify_install(tree, install)
 
     def test_head_equal_to_or_ancestor_of_origin_main_is_admitted(self):
         ancestor = self.head()
@@ -442,10 +447,12 @@ class DeploySkillTest(unittest.TestCase):
         self.assertFalse((self.home / ".agents" / "skills").exists())
         self.assertFalse(ledger.exists())
 
-    def test_null_head_is_refused_at_the_origin_main_admission_check(self):
+    def test_invalid_object_reports_the_git_error_before_any_install(self):
         ledger = self.tmp / "gates.md"
         self.assertEqual(self.run_deploy(self.deploy_args(ledger, "0" * 40)), 1)
-        self.assertIn(f"--head {'0' * 40} is not contained in refs/remotes/origin/main", sys.stderr.getvalue())
+        self.assertIn("merge-base --is-ancestor", sys.stderr.getvalue())
+        self.assertIn("0" * 40, sys.stderr.getvalue())
+        self.assertNotIn("is not contained in", sys.stderr.getvalue())
         self.assertFalse(self.cli_log.exists(), "refused head must not invoke skills")
         self.assertFalse((self.home / ".agents" / "skills").exists())
         self.assertFalse(ledger.exists())

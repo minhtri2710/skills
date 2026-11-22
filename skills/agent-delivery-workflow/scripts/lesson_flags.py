@@ -7,14 +7,7 @@ import os
 import sys
 
 import state_root
-from lessons import LESSON_STATUSES, STALE_DAYS, LessonParseError, lesson_record_lines
-
-
-def record_fields(path):
-    with open(path, encoding="utf-8") as handle:
-        record = lesson_record_lines(handle.read())
-    fields = {name: value for name, (_index, value) in record.fields.items()}
-    return fields, datetime.date.fromisoformat(fields["last_used"])
+from lessons import LESSON_STATUSES, STALE_DAYS, LessonParseError, parse_lesson
 
 
 def main(argv=None):
@@ -39,12 +32,13 @@ def main(argv=None):
                 continue
             path = os.path.join(root, name)
             try:
-                fields, last_used = record_fields(path)
+                with open(path, encoding="utf-8") as handle:
+                    record = parse_lesson(handle.read())
             except (OSError, UnicodeError, LessonParseError) as exc:
                 malformed.append((path, str(exc)))
                 continue
-            if last_used < cutoff or fields["status"] == "superseded":
-                flagged.append((fields["status"], os.path.relpath(path, lessons), fields["last_used"]))
+            if record.last_used < cutoff or record.status == "superseded":
+                flagged.append((record.status, os.path.relpath(path, lessons), record.last_used_text))
 
     for path, reason in malformed:
         print(f"malformed: {path}: {reason}")

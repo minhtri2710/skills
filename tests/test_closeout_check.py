@@ -184,6 +184,22 @@ class CloseoutCheckTest(unittest.TestCase):
         self.assertTrue(result.passed, result.findings)
         self.assertEqual(result.checked_seats, ("w1:p3", "w1:p4"))
 
+    def test_architect_is_checked_as_a_peer_not_a_persistent_seat(self):
+        record = dict(self.record)
+        record["peers"] = [
+            {"issue": "demo", "role": "Architect", "name": "arch-demo", "seat": "w1:p5"},
+        ]
+        add_peer(self.fake, self.canonical, "arch-demo", "w1:p5", agent=False)
+        result = self.closeout(record)
+        self.assertFalse(result.passed)
+        self.assertEqual(result.checked_seats, ("w1:p5",))
+        self.assertTrue(any("arch-demo" in finding and "remains open" in finding
+                            for finding in result.findings), result.findings)
+        self.assertEqual(self.fake.calls,
+                         [("get_terminal", "w1:p5"), ("get_seat", "arch-demo")])
+        self.fake.remove("w1:p5")
+        self.assertTrue(self.closeout(record).passed)
+
     def test_lead_only_persistent_record_passes_validation_and_closeout(self):
         record = dict(self.record)
         record["persistent"] = [self.record["persistent"][0]]
@@ -273,7 +289,7 @@ class CloseoutCheckTest(unittest.TestCase):
         )
         result = closeout_check.check_closeout(template, self.fake)
         self.assertEqual([f for f in result.findings if f.startswith("malformed staffing record")], [])
-        self.assertEqual(result.checked_seats, ("w0:pEngineer", "w0:pReviewer"))
+        self.assertEqual(result.checked_seats, ("w0:pEngineer", "w0:pReviewer", "w0:pArchitect"))
 
     def test_cli_reads_json_closeout_staffing_record_and_returns_pass(self):
         self.fake.remove("w1:p3")

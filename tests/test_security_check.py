@@ -8,11 +8,13 @@ import os
 import stat
 import tempfile
 import unittest
+from importlib import import_module
 from pathlib import Path
 from unittest.mock import patch
 
 import support
-import security_check
+
+security_check = import_module("skills.security-setup.scripts.security_check")
 
 
 def setUpModule() -> None:

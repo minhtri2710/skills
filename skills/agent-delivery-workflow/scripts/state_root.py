@@ -91,8 +91,12 @@ def runs_dir(slug: str) -> Path:
     return project_dir(slug) / RUNS
 
 
+def _run_name(name: str) -> bool:
+    return name not in ("", ".", "..") and "/" not in name and "\\" not in name and name.casefold() != COORDINATION
+
+
 def run_dir(slug: str, run_id: str) -> Path:
-    if run_id in ("", ".", "..") or "/" in run_id or "\\" in run_id:
+    if not _run_name(run_id):
         raise ValueError(f"{run_id!r} is not a run id")
     return runs_dir(slug) / run_id
 
@@ -120,7 +124,8 @@ def _under_root(path: Path) -> tuple[str, ...]:
 def parse_run_dir(path: Path) -> tuple[str, str]:
     """The (slug, run id) of `<root>/<slug>/runs/<run id>`; ValueError for any other path."""
     parts = _under_root(path)
-    if len(parts) != 3 or parts[1] != RUNS or not SLUG_RE.fullmatch(parts[0]):
+    if (len(parts) != 3 or parts[1] != RUNS or not SLUG_RE.fullmatch(parts[0])
+            or not _run_name(parts[2]) or not _run_name(path.name)):
         raise ValueError(f"{path} is not {STATE_ROOT}/<slug>/{RUNS}/<run>")
     return parts[0], parts[2]
 

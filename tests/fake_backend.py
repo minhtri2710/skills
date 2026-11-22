@@ -67,6 +67,9 @@ class FakeBackend(backend.Backend):
     def script(self, operation: str, *outcomes: Any) -> None:
         self._script[operation].extend(outcomes)
 
+    def prompts(self) -> list[tuple[Any, ...]]:
+        return [call for call in self.calls if call[0] == "prompt"]
+
     def _scripted(self, operation: str, *args: Any) -> tuple[bool, Any]:
         self.calls.append((operation, *args))
         queue = self._script[operation]

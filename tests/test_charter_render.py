@@ -5,6 +5,9 @@ import contextlib
 import io
 import json
 import os
+import re
+import runpy
+import shlex
 import subprocess
 import tempfile
 import unittest
@@ -19,7 +22,6 @@ import charter_render
 import state_root
 from fake_backend import FakeBackend
 
-SCRIPTS = support.ADW / "scripts"
 LEAD = "w7:p1"
 OPEN_BACKEND = backend.open_backend
 
@@ -33,7 +35,7 @@ class CharterRenderTest(unittest.TestCase):
         tmp = tempfile.TemporaryDirectory(dir=os.path.realpath("/tmp"))
         self.addCleanup(tmp.cleanup)
         root = Path(tmp.name)
-        self.repo = root / "repo"
+        self.repo = root / "review checkout"
         state = root / "state"
         patched = mock.patch.object(state_root, "STATE_ROOT", state)
         patched.start()
@@ -69,10 +71,10 @@ class CharterRenderTest(unittest.TestCase):
             encoding="utf-8",
         )
 
-    def render(self, *extra: str) -> tuple[int, str, str]:
+    def render(self, *extra: str, main=charter_render.main) -> tuple[int, str, str]:
         out, err = io.StringIO(), io.StringIO()
         with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
-            code = charter_render.main([
+            code = main([
                 "--repo", str(self.repo), "--run-dir", str(self.run_dir), "--base", self.base,
                 "--head", self.head, "--pane", "w7:p3", "--lead", LEAD, "--lane", "normal", "--reason", "new script",
                 "--boundary", "b.py exists", "--validation", "G1", "--check", "git diff --check",
@@ -95,7 +97,6 @@ class CharterRenderTest(unittest.TestCase):
             "seat w7:p3",
             self.fake.send_block(LEAD, f"{self.run_dir}/report-review-{self.head[:12]}.md").text,
             "1. git diff --check",
-            f"`python3 {SCRIPTS / 'bounded_run.py'} --seconds N -- CMD`",
             f"Exit {bounded_run.TIMED_OUT} means the limit killed",
             f"Write the finished report/verdict to `{self.run_dir}/report-review-{self.head[:12]}.md`",
         ):
@@ -105,6 +106,41 @@ class CharterRenderTest(unittest.TestCase):
                 "--charter", str(charter), "--lead", LEAD, "--staffing", str(self.staffing), "--repo", str(self.repo),
             ])
         self.assertEqual((lint, lint_err.getvalue()), (0, ""))
+
+    def test_linked_workflow_requires_the_floor_checker_in_its_own_installation(self):
+        collection = self.run_dir.parent / "installed skills"
+        collection.mkdir()
+        workflow = collection / "agent-delivery-workflow"
+        workflow.symlink_to(support.ADW, target_is_directory=True)
+        main = runpy.run_path(str(workflow / "scripts" / "charter_render.py"))["main"]
+        checker = collection / "quality-floor" / "scripts" / "floor_guard.py"
+        code, out, err = self.render(main=main)
+        self.assertEqual((code, out), (1, ""))
+        self.assertIn(str(checker), err)
+        self.assertEqual(list(self.run_dir.glob("charter-*.md")), [])
+
+        (collection / "quality-floor").symlink_to(support.ADW.parent / "quality-floor", target_is_directory=True)
+        code, _, err = self.render(main=main)
+        self.assertEqual((code, err), (0, ""))
+        text = (self.run_dir / f"charter-review-{self.head[:12]}.md").read_text(encoding="utf-8")
+        commands = [raw for raw in re.findall(r"`([^`\n]+)`", text)
+                    if raw.startswith(("python3 ", "git ", "ocr delegate "))]
+        words = [shlex.split(raw) for raw in commands]
+        self.assertIn(["python3", str(checker), "--base", self.base, "--repo", str(self.repo)], words)
+        self.assertIn(["python3", str(workflow / "scripts" / "bounded_run.py"), "--seconds", "N", "--", "CMD"], words)
+        self.assertIn(["git", "-C", str(self.repo), "rev-parse", "HEAD"], words)
+        for raw in commands:
+            if str(self.repo) in raw:
+                with self.subTest(command=raw):
+                    self.assertIn(str(self.repo), shlex.split(raw))
+
+    def test_reserved_directory_alias_cannot_receive_a_charter(self):
+        reserved = self.run_dir.parent / "coordination"
+        reserved.symlink_to(self.run_dir, target_is_directory=True)
+        code, out, err = self.render("--run-dir", str(reserved))
+        self.assertEqual((code, out), (1, ""))
+        self.assertIn(str(reserved), err)
+        self.assertEqual(list(self.run_dir.glob("charter-*.md")), [])
 
     def render_with_template(self, template: str, pane: str = "w7:p3", lead: str = LEAD) -> tuple[int, str]:
         path = self.run_dir.parent / "template.txt"

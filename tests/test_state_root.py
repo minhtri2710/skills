@@ -4,6 +4,7 @@ import re
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 import support
 import state_root
@@ -70,6 +71,26 @@ class SlugTest(unittest.TestCase):
                 checkout = self.repo(name)
                 with self.assertRaisesRegex(ValueError, "^" + re.escape(str(checkout)) + " has no project slug"):
                     state_root.slug_for(checkout)
+
+
+class RunDirectoryTest(unittest.TestCase):
+    def test_shared_coordination_is_never_a_run(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.object(
+                state_root, "STATE_ROOT", Path(tmp).resolve() / "state"):
+            coordination = state_root.STATE_ROOT / "demo" / "runs" / "coordination"
+            coordination.mkdir(parents=True)
+            alias = coordination.parent / "alias"
+            alias.symlink_to(coordination, target_is_directory=True)
+            for run_id in ("coordination", "Coordination"):
+                with self.subTest(run_id=run_id), self.assertRaises(ValueError):
+                    state_root.run_dir("demo", run_id)
+            for path in (coordination, alias):
+                with self.subTest(path=path), self.assertRaises(ValueError):
+                    state_root.parse_run_dir(path)
+            self.assertEqual(
+                state_root.parse_run_dir(state_root.run_dir("demo", "coordination-next")),
+                ("demo", "coordination-next"),
+            )
 
 
 class CliTest(unittest.TestCase):

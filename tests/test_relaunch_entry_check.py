@@ -88,7 +88,7 @@ class RelaunchEntryCheckTest(unittest.TestCase):
     def count(self) -> tuple[int, str, str]:
         return support.run_main(relaunch_entry_check.main, [
             "--count", "--repo", str(self.repo), "--ledger", str(self.ledger),
-            "--skill", "example", "--skill-path", "skills/example",
+            "--skill", "example",
             "--installed-path", str(self.install),
         ])
 
@@ -121,13 +121,26 @@ class RelaunchEntryCheckTest(unittest.TestCase):
         self.assertEqual(mismatch[1], "tracked=2 installed=2 drifted=1\n")
 
     def test_count_uses_selected_deploy_head_instead_of_checkout_head(self):
+        vendor = self.repo / "vendor" / "example"
+        vendor.mkdir(parents=True)
+        (vendor / "SKILL.md").write_text("vendor skill\n", encoding="utf-8")
+        (vendor / "script.py").write_text("print('vendor')\n", encoding="utf-8")
+        support.git(self.repo, "add", "vendor/example")
+        support.git(self.repo, "commit", "-qm", "vendor tree")
         self.deploy_row("example")
         deployed = support.git(self.repo, "rev-parse", "HEAD")
+        real = self.tmp / "real-installed"
+        self.install.rename(real)
+        self.install.symlink_to(real, target_is_directory=True)
         (self.skill / "script.py").write_text("new checkout\n", encoding="utf-8")
         support.git(self.repo, "add", "skills/example/script.py")
         support.git(self.repo, "commit", "-qm", "new checkout head")
         self.assertEqual(self.count(), (0, "tracked=2 installed=2 drifted=0\n", ""))
         self.assertNotEqual(deployed, support.git(self.repo, "rev-parse", "HEAD"))
+        (self.install / "script.py").write_text("print('vendor')\n", encoding="utf-8")
+        drift = self.count()
+        self.assertEqual(drift[0], 1)
+        self.assertEqual(drift[1], "tracked=2 installed=2 drifted=1\n")
 
     def test_count_refuses_a_symlinked_subdirectory_in_the_installed_tree(self):
         self.deploy_row("example")

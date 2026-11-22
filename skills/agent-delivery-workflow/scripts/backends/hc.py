@@ -40,11 +40,6 @@ def _error_kind(completed: subprocess.CompletedProcess[str]) -> str:
     return _EXIT_KINDS.get(completed.returncode, "unknown")
 
 
-def _target(ref: str) -> str:
-    # A ref is an argv word: it must not start with '-', so it is never read as an option.
-    return backend.require_handle(ref)
-
-
 def _state(terminal: Mapping[str, Any]) -> str:
     if terminal.get("state") == "finished":
         return "done" if terminal.get("exit_code") == 0 else "error"
@@ -107,7 +102,7 @@ class Adapter(backend.Backend):
         return payload
 
     def _get(self, ref: str) -> dict[str, Any]:
-        return self._json(["get", _target(ref), "--json"])
+        return self._json(["get", backend.require_handle(ref), "--json"])
 
     def identify(self) -> str:
         terminal = self.own_handle(self.environ)
@@ -135,12 +130,12 @@ class Adapter(backend.Backend):
     def read_output(self, ref: str, lines: int) -> str:
         if lines < 0:
             raise ValueError(f"lines must not be negative: {lines}")
-        return self._ok(["read", "--lines", str(lines), _target(ref)]).stdout
+        return self._ok(["read", "--lines", str(lines), backend.require_handle(ref)]).stdout
 
     def prompt(self, ref: str, text: str) -> None:
         if text.startswith("-"):
             raise ValueError("hc send reads a text starting with '-' as an option; no end-of-options form is documented")
-        result = self._json(["send", "--json", _target(ref), text])
+        result = self._json(["send", "--json", backend.require_handle(ref), text])
         if result.get("started") is False:  # null: the program reports no status, so no acknowledgement exists
             raise backend.SeatError("not_started", f"hc send {ref}: typed, but the program did not start working; read it before resending")
 
@@ -149,7 +144,7 @@ class Adapter(backend.Backend):
         deadline = time.monotonic() + timeout_ms / 1000
         while True:
             seconds = max(1, math.ceil(deadline - time.monotonic()))
-            result = self._json(["wait", "--json", "--timeout", str(seconds), _target(ref)], timeout=seconds + 10)
+            result = self._json(["wait", "--json", "--timeout", str(seconds), backend.require_handle(ref)], timeout=seconds + 10)
             reason = result.get("reason")
             # A message typed into this caller ends the wait; it is already in the caller's input and
             # hc removes it as it returns, so the same wait is issued again for the time that is left.

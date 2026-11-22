@@ -146,32 +146,31 @@ class ProjectConfigTests(unittest.TestCase):
                 "runtime-state-paths": ["/tmp/state", "/tmp/kind.json"],
             }},
         }
+        run_dir = str(self.path.parent / "run with space")
+        settings = str(Path(run_dir).resolve() / "settings-d1e75aca758154ee2147853c02ec6716f4a7ea0418c685978f5d4b8c7b0be25a.json")
         result = project_config.expand_launch(
             config, role="reviewer", route=_primary(config, "reviewer"),
-            seat="rev", lead="lead", run_dir="/run", installed_skill_dir="/skill",
-            settings_file="/run/settings.json",
+            seat="rev", lead="lead", run_dir=run_dir, installed_skill_dir="/skill",
         )
         self.assertEqual(result, {
-            "argv": ["--model", "reviewer", "--name", "rev", "--exclude-tools", "ask_question", "--settings", "/run/settings.json"],
-            "settings_file": "/run/settings.json",
-            "settings_json": {"seat": "rev", "run": "/run"},
+            "argv": ["--model", "reviewer", "--name", "rev", "--exclude-tools", "ask_question", "--settings", settings],
+            "settings_file": settings,
+            "settings_json": {"seat": "rev", "run": run_dir},
             "runtime_state_paths": ["/tmp/state", "/tmp/kind.json"],
         })
         engineer = project_config.expand_launch(
             config, role="engineer", route=_primary(config, "engineer"),
-            seat="eng", lead="lead", run_dir="/run", installed_skill_dir="/skill",
-            settings_file="/run/settings.json",
+            seat="eng", lead="lead", run_dir=run_dir, installed_skill_dir="/skill",
         )
         self.assertIsNone(engineer["runtime_state_paths"])
         architect = project_config.expand_launch(
             config, role="architect", route=_primary(config, "architect"),
-            seat="arch", lead="lead", run_dir="/run", installed_skill_dir="/skill",
-            settings_file="/run/settings.json",
+            seat="arch", lead="lead", run_dir=run_dir, installed_skill_dir="/skill",
         )
         self.assertEqual(architect["runtime_state_paths"], ["/tmp/state", "/tmp/kind.json"])
         lead = project_config.expand_launch(
             config, role="lead", route=_primary(config, "lead"), seat="lead", lead="lead",
-            run_dir="/run", installed_skill_dir="/skill", settings_file="/run/settings.json",
+            run_dir=run_dir, installed_skill_dir="/skill",
         )
         self.assertIsNone(lead["runtime_state_paths"])
 
@@ -185,7 +184,7 @@ class ProjectConfigTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, f"{role} role args are missing"):
                     project_config.expand_launch(
                         config, role=role, route=_primary(config, role), seat="peer", lead="lead",
-                        run_dir="/run", installed_skill_dir="/skill", settings_file="/run/settings.json",
+                        run_dir="/run", installed_skill_dir="/skill",
                     )
 
     def test_expand_allows_configured_fallback_when_primary_args_are_absent_for_same_kind(self):
@@ -197,7 +196,6 @@ class ProjectConfigTests(unittest.TestCase):
         result = project_config.expand_launch(
             config, role="engineer", route=project_config.role_routes(config, "engineer")[1],
             seat="peer", lead="lead", run_dir="/run", installed_skill_dir="/skill",
-            settings_file="/run/settings.json",
         )
         self.assertEqual(result["argv"], ["--model", "fallback"])
 

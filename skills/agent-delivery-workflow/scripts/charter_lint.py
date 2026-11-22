@@ -13,9 +13,11 @@ from typing import NamedTuple
 
 import backend
 import gitops
+import peer_reports
+from staffing import PEER_DISPOSITIONS, staffed_seats
 
 DISPOSITION_RE = re.compile(
-    r"^\s*[*#`_-]*\s*Disposition:\s*[*_`]*\s*(Engineer|Reviewer|Architect)\b",
+    r"^\s*[*#`_-]*\s*Disposition:\s*[*_`]*\s*(" + "|".join(PEER_DISPOSITIONS) + r")\b",
     re.IGNORECASE | re.MULTILINE,
 )
 HEAD_RE = re.compile(rf"(?<![0-9a-f]){gitops.FULL_SHA}(?![0-9a-f])", re.IGNORECASE)
@@ -34,10 +36,7 @@ UNIT_RANGE_RE = re.compile(
     re.IGNORECASE | re.MULTILINE,
 )
 SHORT_SHA_RE = re.compile(r"(?<![0-9a-f])[0-9a-f]{7,40}(?![0-9a-f])", re.IGNORECASE)
-REPORT_FILE_RE = re.compile(r"/[^\s\"'`$\\]*/report-[^\s/\"'`$\\]+\.md")
 STAFFING_TEMPLATE = Path(__file__).resolve().parents[1] / "templates" / "reviewer-staffing-record.txt"
-STAFFED_SEAT_RE = re.compile(r"^[ \t]*(ENGINEER|REVIEWER|ARCHITECT):(.*)$", re.IGNORECASE | re.MULTILINE)
-_FIELD = r"(?:^|\s)([a-z][a-z-]*)=(\S*)"
 # The keys that identify a seat; every other key all seat lines of the template share is evidence checked here.
 IDENTITY_KEYS = ("kind", "model", "seat", "workspace")
 PLACEHOLDER_RE = re.compile(r"<[^>\r\n]+>")
@@ -119,39 +118,14 @@ REQUIRED_CLAUSES = (
 )
 
 
-class StaffedSeat(NamedTuple):
-    role: str  # ENGINEER, REVIEWER or ARCHITECT
-    name: str
-    fields: dict[str, str]  # lowercase key -> value, first occurrence
-    line: str
-
-
-def fields_of(text: str) -> dict[str, str]:
-    """The `key=value` tokens of a staffing-record line, keys lowercased, the first occurrence of a key kept."""
-    fields: dict[str, str] = {}
-    for key, value in re.findall(_FIELD, text, re.IGNORECASE):
-        fields.setdefault(key.lower(), value)
-    return fields
-
-
-def staffed_seats(text: str) -> list[StaffedSeat]:
-    """Every ENGINEER, REVIEWER and ARCHITECT line of a staffing record, in order."""
-    return [
-        StaffedSeat(match.group(1).upper(), (match.group(2).split() or [""])[0],
-                    fields_of(match.group(2)), match.group(0))
-        for match in STAFFED_SEAT_RE.finditer(text)
-    ]
-
-
 def _required_keys() -> tuple[str, ...]:
-    seats = staffed_seats(STAFFING_TEMPLATE.read_text(encoding="utf-8"))
+    seats = staffed_seats(_read(STAFFING_TEMPLATE, "staffing template")[0])
+    if not seats:
+        raise ValueError(f"no staffed seats in {STAFFING_TEMPLATE}")
     return tuple(
         key for key in seats[0].fields
         if key not in IDENTITY_KEYS and all(key in seat.fields for seat in seats)
     )
-
-
-REQUIRED_KEYS = _required_keys()
 
 
 def _read(path: Path, label: str) -> tuple[str, bytes]:
@@ -163,7 +137,7 @@ def _read(path: Path, label: str) -> tuple[str, bytes]:
 
 
 def _send_block_problems(text: str, lead: str, seats: backend.Backend) -> list[str]:
-    paths = list(dict.fromkeys(REPORT_FILE_RE.findall(text)))
+    paths = list(dict.fromkeys(peer_reports.CHARTER_PATH_RE.findall(text)))
     if not paths:
         return ["missing report-by-prompt block: absolute <run-dir>/report-<peer>.md path"]
     try:
@@ -234,9 +208,10 @@ def _staffing_problems(
         return ["staffing record has no ENGINEER, REVIEWER, or ARCHITECT seat lines"]
 
     problems: list[str] = []
+    required_keys = _required_keys()
     for seat_line in staffed:
         seat, line, fields = seat_line.role, seat_line.line, seat_line.fields
-        for key in REQUIRED_KEYS:
+        for key in required_keys:
             if key not in fields:
                 problems.append(f"{seat} seat missing {key}=")
         dialog = fields.get("dialog")
@@ -415,7 +390,7 @@ def main(argv: list[str] | None = None) -> int:
         charter, charter_bytes = _read(args.charter, "charter")
         problems = _charter_problems(charter, args.lead, seats)
         disposition = _disposition(charter)
-        if disposition in ("engineer", "reviewer", "architect") and args.staffing is None:
+        if disposition is not None and args.staffing is None:
             problems.append(
                 "staffing record is required for an Engineer/Reviewer/Architect disposition"
             )

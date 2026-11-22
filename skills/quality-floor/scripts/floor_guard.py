@@ -340,7 +340,8 @@ def _stub_lines(added: list[Line]) -> set[tuple[str, int]]:
     return hits
 
 
-def check(
+def _check_changes(
+    *,
     added: list[Line],
     removed: list[Line],
     deleted: list[str],
@@ -432,7 +433,7 @@ def _leaves_watch(old: str, new: str) -> bool:
     return any(watched(old) and not watched(new) for watched in WATCHED_REMOVALS)
 
 
-def collect(repo: Path, base: str) -> tuple[list[Line], list[Line], list[str], str, str, dict[str, list[str]]]:
+def check(repo: Path, base: str) -> list[Finding]:
     merge_base = _git(repo, "merge-base", base, "HEAD").strip()
     # ponytail: --text makes git diff a real binary as text before the guard drops it; cost is time and memory on very large binaries.
     added, removed = parse_diff(_git(repo, "diff-index", "-p", "--text", "--unified=0", "-M", merge_base, "--"))
@@ -477,7 +478,8 @@ def collect(repo: Path, base: str) -> tuple[list[Line], list[Line], list[str], s
             toml[path] = _lines(_fs_path(repo, path).read_bytes().decode("utf-8"))
         except (UnicodeDecodeError, OSError) as exc:
             raise GuardError(f"cannot read {path}: {exc}") from exc
-    return added, removed, deleted, constraints, base_constraints, toml
+    return _check_changes(added=added, removed=removed, deleted=deleted,
+                          constraints=constraints, base_constraints=base_constraints, toml=toml)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -487,7 +489,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     try:
         root = Path(_git(args.repo, "rev-parse", "--show-toplevel").strip())
-        findings = check(*collect(root, args.base))
+        findings = check(root, args.base)
     except GuardError as exc:
         print(f"floor-guard: cannot run: {exc}", file=sys.stderr)
         return 2

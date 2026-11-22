@@ -29,9 +29,6 @@ def explicit(text: str) -> backend.Explicit:
 
 
 class SingleSignatureTest(unittest.TestCase):
-    def test_only_herdr(self) -> None:
-        self.assertEqual(backend.detect(HERDR), "herdr")
-
     def test_each_signature_detects_its_backend(self) -> None:
         for name, environ in (("herdr", HERDR), ("hc", HC), ("rex", REX)):
             with self.subTest(name):
@@ -118,18 +115,13 @@ class OwnHandleTest(unittest.TestCase):
 
     def test_rex_own_handle_joins_session_and_block(self) -> None:
         environ = {**REX, **HERDR}
-        self.assertEqual(backend.own_handle("rex", environ), REX_HANDLE)
         self.assertEqual(backend.detect(environ, explicit(f"rex@{REX_HANDLE}")), "rex")
         with self.assertRaisesRegex(backend.DetectionError, "own handle"):
             backend.detect(environ, explicit("rex@session:s1.block:other"))
 
-    def test_own_handle_per_backend(self) -> None:
-        self.assertEqual(backend.own_handle("herdr", HERDR), "w1:p1")
-        self.assertEqual(backend.own_handle("hc", HC), "t7")
-        self.assertIsNone(backend.own_handle("herdr", {}))
-        self.assertIsNone(backend.own_handle("rex", {"REX_BLOCK": "block:b1"}))
-        with self.assertRaises(ValueError):
-            backend.own_handle("tmux", {})
+    def test_a_foreign_hc_handle_is_rejected(self) -> None:
+        with self.assertRaises(backend.DetectionError):
+            backend.detect(HC, explicit("hc@t8"))
 
     def test_error_text_never_carries_environment_values(self) -> None:
         environ = {**HERDR, **HC, "SECRET_TOKEN": "s3cr3t-value"}

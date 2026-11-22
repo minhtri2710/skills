@@ -21,11 +21,26 @@ class LessonParseError(ValueError):
 
 @dataclass
 class LessonRecord:
-    lines: list[str]
-    fields: dict[str, tuple[int, str]]
+    status: str
+    last_used: datetime.date
+    last_used_text: str
+    _lines: list[str]
+    _last_used_line: int
+
+    def stamped(self, today: str) -> str | None:
+        if self.status == "superseded":
+            return None
+        old = self._lines[self._last_used_line]
+        newline = "\r\n" if old.endswith("\r\n") else "\n"
+        new = f"last_used: {today}{newline}"
+        if new == old:
+            return None
+        lines = self._lines.copy()
+        lines[self._last_used_line] = new
+        return "".join(lines)
 
 
-def lesson_record_lines(text):
+def parse_lesson(text: str) -> LessonRecord:
     lines = text.splitlines(keepends=True)
     if not lines:
         raise LessonParseError("file is empty")
@@ -82,7 +97,7 @@ def lesson_record_lines(text):
 
     try:
         datetime.date.fromisoformat(fields["added"][1])
-        datetime.date.fromisoformat(fields["last_used"][1])
+        last_used = datetime.date.fromisoformat(fields["last_used"][1])
     except ValueError as exc:
         raise LessonParseError("added and last_used must be ISO dates") from exc
-    return LessonRecord(lines, fields)
+    return LessonRecord(status, last_used, fields["last_used"][1], lines, fields["last_used"][0])

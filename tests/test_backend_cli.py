@@ -9,6 +9,7 @@ from unittest import mock
 
 import support
 import backend
+import peer_reports
 from backends import hc, herdr, rex
 from fake_backend import FakeBackend
 
@@ -90,8 +91,8 @@ class SendBlockTest(unittest.TestCase):
                 self.assertEqual((code, out), (1, ""))
                 self.assertTrue(err.startswith("backend: "), err)
 
-    def test_report_send_file_names_the_peer_and_refuses_unsafe_or_misshapen_paths(self) -> None:
-        self.assertEqual(backend.report_send_file("/state/runs/r1/report-eng-a.md"), ("eng-a", "/state/runs/r1/send-eng-a.txt"))
+    def test_report_and_send_paths_share_the_peer_and_reject_unsafe_names(self) -> None:
+        self.assertEqual(peer_reports.send_file("/state/runs/r1/report-eng-a.md"), ("eng-a", "/state/runs/r1/send-eng-a.txt"))
         for report in (
             "report-eng-a.md",
             "/state/runs/r1/eng-a.md",
@@ -103,15 +104,15 @@ class SendBlockTest(unittest.TestCase):
             "/state/runs/r\\1/report-eng-a.md",
         ):
             with self.subTest(report=report), self.assertRaises(ValueError):
-                backend.report_send_file(report)
+                peer_reports.send_file(report)
 
-    def test_the_template_file_names_are_the_ones_report_send_file_derives(self) -> None:
+    def test_template_uses_the_send_file_named_for_its_report(self) -> None:
         text = (support.ADW / "templates" / "report-by-prompt.txt").read_text(encoding="utf-8")
         named = re.findall(r"[^\s`\"]+/report-<[a-z_-]+>\.md", text)
         self.assertTrue(named)
         for report in named:
             with self.subTest(report=report):
-                self.assertIn(backend.report_send_file(report)[1], text)
+                self.assertIn(peer_reports.send_file(report)[1], text)
 
     def test_a_backend_without_a_send_block_fails_closed(self) -> None:
         fake = FakeBackend()

@@ -11,6 +11,8 @@ import sys
 from pathlib import Path
 from typing import Any, NamedTuple
 
+from staffing import PEER_DISPOSITIONS
+
 _STRINGS = ("lead-kind", "engineer-kind", "reviewer-kind", "engineer-fallback", "reviewer-fallback", "target-line")
 _ARGV = ("lead-args", "engineer-args", "reviewer-args", "engineer-fallback-args", "reviewer-fallback-args")
 _LISTS = ("checks-light", "checks-heavy", "local-ops", "always-gate")
@@ -18,8 +20,8 @@ _PROFILE_KEYS = frozenset({"seat-argv", "peer-argv", "peer-settings-json", "runt
 _KEYS = frozenset((*_STRINGS, *_ARGV, *_LISTS, "launch-profiles", "ci", "lane-defaults", "worker-cap", "provenance"))
 _TRIGGERS = ("none", "pr", "push")
 LANES = ("tiny", "normal", "high-risk")
-ROLES = ("lead", "engineer", "reviewer", "architect")
-_PLACEHOLDERS = ("seat", "lead", "run_dir", "installed_skill_dir", "settings_file")
+PEER_ROLES = tuple(role.lower() for role in PEER_DISPOSITIONS)
+ROLES = ("lead", *PEER_ROLES)
 _PLACEHOLDER_RE = re.compile(r"\{([^{}]*)\}")
 # The write fence writes each runtime-state-paths entry literally into a regex, escaping only ".",
 # so an entry takes no placeholder and no other regex metacharacter.
@@ -48,7 +50,7 @@ def _validate_placeholders(value: Any, path: str) -> None:
     if isinstance(value, str):
         matches = list(_PLACEHOLDER_RE.finditer(value))
         for match in matches:
-            if match.group(1) not in _PLACEHOLDERS:
+            if match.group(1) not in _LaunchValues._fields:
                 raise ValueError(f"{path}: unknown placeholder {{{match.group(1)}}}")
         if "{" in _PLACEHOLDER_RE.sub("", value) or "}" in _PLACEHOLDER_RE.sub("", value):
             raise ValueError(f"{path}: malformed placeholder")
@@ -182,6 +184,14 @@ def _substitute(value: Any, values: dict[str, str]) -> Any:
     return value
 
 
+class _LaunchValues(NamedTuple):
+    seat: str
+    lead: str
+    run_dir: str
+    installed_skill_dir: str
+    settings_file: str
+
+
 class Route(NamedTuple):
     slot: str  # "primary" or "fallback"
     kind: str
@@ -213,7 +223,7 @@ def model_of(argv: list[str]) -> str | None:
 
 def expand_launch(
     config: dict[str, Any], *, role: str, route: Route, seat: str,
-    lead: str, run_dir: str, installed_skill_dir: str, settings_file: str,
+    lead: str, run_dir: str, installed_skill_dir: str,
 ) -> dict[str, Any]:
     """Return argv and settings data for launching one seat on the `route` chosen from `role_routes`; execute nothing."""
     kind = route.kind
@@ -227,7 +237,9 @@ def expand_launch(
         raise ValueError(f"launch-profiles.{kind} requires peer-argv for {role}")
     if route.args is None:
         raise ValueError(f"{role} role args are missing")
-    values = dict(zip(_PLACEHOLDERS, (seat, lead, run_dir, installed_skill_dir, settings_file)))
+    settings_file = str(peer_settings_path(run_dir, seat)) if run_dir else ""
+    values = _LaunchValues(seat=seat, lead=lead, run_dir=run_dir,
+                           installed_skill_dir=installed_skill_dir, settings_file=settings_file)._asdict()
     profile_values = [profile["seat-argv"]]
     if peer:
         profile_values.extend((profile["peer-argv"], profile.get("peer-settings-json", {})))
@@ -284,7 +296,6 @@ def main(argv: list[str] | None = None) -> int:
         result = expand_launch(
             config, role=args.role, route=route, seat=args.seat,
             lead=args.lead, run_dir=run_dir, installed_skill_dir=str(Path(args.installed_skill_dir).expanduser()),
-            settings_file=str(peer_settings_path(run_dir, args.seat)),
         )
     except ValueError as exc:
         print(str(exc).replace("\n", " "), file=sys.stderr)

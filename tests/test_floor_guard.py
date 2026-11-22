@@ -7,10 +7,12 @@ import sys
 import tempfile
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
+from importlib import import_module
 from pathlib import Path
 
 import support
-import floor_guard
+
+floor_guard = import_module("skills.quality-floor.scripts.floor_guard")
 
 SCRIPTS = support.ROOT / "skills" / "quality-floor" / "scripts"
 

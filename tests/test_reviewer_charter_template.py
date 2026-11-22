@@ -202,9 +202,9 @@ class ReviewerCharterTemplateTest(unittest.TestCase):
                         self.assertIn("Operation not permitted", run.stderr)
 
     def test_the_rendered_floor_guard_command_runs_under_floor_guards_argparse(self):
-        command = re.search(r"`python3 (\S+/floor_guard\.py [^`]*)`", self.filled)
+        command = re.search(r"`(python3 [^`]*floor_guard\.py[^`]*)`", self.filled)
         self.assertIsNotNone(command)
-        run = subprocess.run([sys.executable, *shlex.split(command.group(1))],
+        run = subprocess.run([sys.executable, *shlex.split(command.group(1))[1:]],
                              capture_output=True, text=True, stdin=subprocess.DEVNULL)
         self.assertEqual((run.returncode, run.stdout, run.stderr), (0, "floor-guard: clean\n", ""))
 
@@ -220,7 +220,7 @@ class ReviewerCharterTemplateTest(unittest.TestCase):
         removals += [
             ("disposition", lambda t: charter_lint.DISPOSITION_RE.sub("", t),
              "charter_lint: missing Disposition: Engineer / Reviewer / Architect line"),
-            ("report file path", lambda t: charter_lint.REPORT_FILE_RE.sub("", t),
+            ("report file path", lambda t: t.replace(f"{self.run_dir}/report-{self.peer}.md", ""),
              "charter_lint: missing report-by-prompt block: absolute <run-dir>/report-<peer>.md path"),
         ]
         removals.append(("send command", lambda t: t.replace(block.send_command, ""),

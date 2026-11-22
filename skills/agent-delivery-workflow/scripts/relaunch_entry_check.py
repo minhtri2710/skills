@@ -7,9 +7,9 @@ import re
 import sys
 from pathlib import Path
 
-import deploy_skill
 import gate_row
 from gitops import GitError
+from skill_tree import SkillTree, TreeError
 
 
 class CheckError(Exception):
@@ -19,25 +19,15 @@ class CheckError(Exception):
 GATE_ID_RE = re.compile(r"\bG\d+\b")
 
 
-def skill_prefix(value: str) -> str:
-    path = Path(value)
-    if not value or path.is_absolute() or any(part in {"", ".", ".."} for part in path.parts):
-        raise CheckError("--skill-path must be a non-empty repository-relative path")
-    return value.rstrip("/") + "/"
-
-
-def count_evidence(repo: Path, head: str, skill_path: str,
+def count_evidence(repo: Path, head: str, skill: str,
                    install_dir: Path) -> tuple[int, int, int]:
-    prefix = skill_prefix(skill_path)
     if install_dir.exists() and not install_dir.is_dir():
         raise CheckError(f"--installed-path is not a directory: {install_dir}")
     try:
-        entries = deploy_skill.tracked_files(repo, head, prefix)
-        drift, untracked = deploy_skill.install_drift(repo, install_dir, entries, prefix)
-    except (deploy_skill.DeployError, GitError) as exc:
+        report = SkillTree.at(repo, head, skill).compare(install_dir)
+    except (TreeError, GitError) as exc:
         raise CheckError(str(exc)) from None
-    absent = sum(1 for _message, installed in drift if not installed)
-    return len(entries), len(entries) - absent + len(untracked), len(drift)
+    return report.tracked, report.installed, report.drifted
 
 
 def read_exact(path: Path) -> str:
@@ -63,20 +53,17 @@ def verify_block(block_file: Path, source_file: Path) -> list[str]:
     return gate_ids
 
 
-def _require_count_args(args: argparse.Namespace) -> tuple[Path, Path, str, str, Path]:
+def _require_count_args(args: argparse.Namespace) -> tuple[Path, Path, str, Path]:
     missing = [
         name for name, value in (
             ("--ledger", args.ledger),
             ("--skill", args.skill),
-            ("--skill-path", args.skill_path),
             ("--installed-path", args.installed_path),
         ) if value is None
     ]
     if missing:
         raise CheckError(f"--count requires {', '.join(missing)}")
-    if Path(args.skill_path).name != args.skill:
-        raise CheckError("--skill-path must name the selected top-level skill")
-    return (Path(args.repo).resolve(), args.ledger, args.skill, args.skill_path,
+    return (Path(args.repo).resolve(), args.ledger, args.skill,
             Path(args.installed_path).expanduser().resolve())
 
 
@@ -100,7 +87,6 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--repo", type=Path, default=Path.cwd())
     parser.add_argument("--ledger", type=Path, help="verified project gate ledger")
     parser.add_argument("--skill", help="top-level deployed skill name")
-    parser.add_argument("--skill-path", help="repository-relative skill directory used for COUNT mode")
     parser.add_argument("--installed-path", type=Path,
                         help="installed skill directory used for COUNT mode")
     parser.add_argument("--block-file", type=Path,
@@ -111,12 +97,12 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         if args.count:
-            repo, ledger, skill, skill_path, install_dir = _require_count_args(args)
+            repo, ledger, skill, install_dir = _require_count_args(args)
             try:
                 _branch, head, _row = gate_row.select_deployed_head(ledger, skill, repo)
             except gate_row.RowError as exc:
                 raise CheckError(f"gate_row: {exc}") from None
-            tracked, installed, drifted = count_evidence(repo, head, skill_path, install_dir)
+            tracked, installed, drifted = count_evidence(repo, head, skill, install_dir)
             print(f"tracked={tracked} installed={installed} drifted={drifted}")
             if tracked != installed or drifted:
                 return 1

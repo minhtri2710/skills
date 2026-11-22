@@ -6,20 +6,23 @@ import argparse
 import hashlib
 import os
 import re
+import shlex
 import sys
 from pathlib import Path
 
 import backend
 import bounded_run
-import charter_lint
 import gitops
+import peer_reports
 import project_config
 import state_root
+from staffing import scope_authors
 
-SKILL = Path(__file__).resolve().parents[1]
+# A symlinked installation takes sibling checks from the invoked skills directory.
+SKILL = Path(__file__).absolute().parents[1]
 TEMPLATE = SKILL / "templates" / "reviewer-charter.txt"
 REPORT_BY_PROMPT = SKILL / "templates" / "report-by-prompt.txt"
-QUALITY_FLOOR = SKILL.parent / "quality-floor"
+FLOOR_GUARD = SKILL.parent / "quality-floor" / "scripts" / "floor_guard.py"
 SLOT_RE = re.compile(r"<([a-z][a-z0-9_]*)>")
 GUIDANCE = ("AGENTS.md", "CLAUDE.md")
 
@@ -31,47 +34,10 @@ def _model(argv: list[str], key: str) -> str:
     return model
 
 
-GLOB_TOKEN_RE = re.compile(r"\*\*/|\*\*|\*|\?|[^*?]+")
-
-
-def _glob_re(entry: str) -> re.Pattern[str]:
-    parts = {"**/": "(?:.*/)?", "**": ".*", "*": "[^/]*", "?": "[^/]"}
-    return re.compile("".join(parts.get(token, re.escape(token)) for token in GLOB_TOKEN_RE.findall(entry)))
-
-
-def _owns(entry: str, path: str) -> bool:
-    return (entry == path or path.startswith(entry.rstrip("/") + "/")
-            or _glob_re(entry).fullmatch(path) is not None)
-
-
-def scope_authors(staffing: Path, lead: str, paths: list[str]) -> tuple[str, list[str]]:
-    text = staffing.read_text(encoding="utf-8")
-    mode = re.search(r"^MODE: (\S+)", text, re.MULTILINE)
-    if mode is None or mode.group(1) not in ("solo-Lead", "partitioned"):
-        raise ValueError(f"{staffing} has no MODE: solo-Lead or MODE: partitioned line")
-    if mode.group(1) == "solo-Lead":
-        line = re.search(r"^LEAD: (.*)$", text, re.MULTILINE)
-        if line is None:
-            raise ValueError(f"{staffing} has no LEAD line")
-        fields = charter_lint.fields_of(line.group(1))
-        if not fields.get("kind") or not fields.get("model"):
-            raise ValueError(f"{staffing} LEAD line lacks kind= or model=")
-        return "solo-Lead", [f"{lead} ({fields.get('kind')} {fields.get('model')})"]
-    engineers = [(seat.name, seat.fields) for seat in charter_lint.staffed_seats(text) if seat.role == "ENGINEER"]
-    authors: dict[str, None] = {}
-    for path in paths:
-        owners = [(name, fields) for name, fields in engineers
-                  if any(_owns(entry, path) for entry in fields.get("owned", "").split(",") if entry)]
-        if not owners:
-            raise ValueError(f"{path} has no ENGINEER owner in {staffing}")
-        authors.update((f"{name} ({fields.get('kind')} {fields.get('model')})", None) for name, fields in owners)
-    return "partitioned", list(authors)
-
-
 def render(args: argparse.Namespace, seats: backend.Backend) -> tuple[str, str]:
     repo = args.repo.resolve()
+    slug, _run = state_root.parse_run_dir(args.run_dir)
     run_dir = args.run_dir.resolve()
-    slug, _run = state_root.parse_run_dir(run_dir)
     config = project_config.load(state_root.config(slug))
     lead = args.lead
     head = gitops.git(repo, "rev-parse", "--verify", f"{args.head}^{{commit}}")
@@ -99,6 +65,8 @@ def render(args: argparse.Namespace, seats: backend.Backend) -> tuple[str, str]:
     evidence = sorted(str(path) for path in run_dir.glob("evidence-*"))
     if not evidence:
         raise ValueError(f"no evidence-* file in {run_dir}")
+    if not FLOOR_GUARD.is_file():
+        raise ValueError(f"review requires the installed quality-floor checker: {FLOOR_GUARD}")
     peer = f"review-{head[:12]}"
     values = {
         "run_name": run_dir.name,
@@ -124,14 +92,15 @@ def render(args: argparse.Namespace, seats: backend.Backend) -> tuple[str, str]:
         "reviewer_model": _model(config["reviewer-args"], "reviewer-args"),
         "guidance_files": ", ".join(guidance) or "none",
         "repo": str(repo),
+        "repo_arg": shlex.quote(str(repo)),
         "branch": config["target-line"],
         "pane_id": args.pane,
         "required_checks": "\n".join(f"{n}. {check}" for n, check in enumerate(args.check, 1)),
-        "quality_floor_dir": str(QUALITY_FLOOR),
-        "bounded_run": str(SKILL / "scripts" / "bounded_run.py"),
+        "floor_command": shlex.join(["python3", str(FLOOR_GUARD), "--base", base, "--repo", str(repo)]),
+        "bounded_run_arg": shlex.quote(str(SKILL / "scripts" / "bounded_run.py")),
         "timed_out_code": str(bounded_run.TIMED_OUT),
         "peer_name": peer,
-        "send_block": seats.send_block(lead, f"{run_dir}/report-{peer}.md").text,
+        "send_block": seats.send_block(lead, str(run_dir / peer_reports.filename(peer))).text,
         "state_root": str(state_root.STATE_ROOT),
     }
     template = TEMPLATE.read_text(encoding="utf-8").replace(

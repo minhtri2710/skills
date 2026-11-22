@@ -78,7 +78,7 @@ class RecallTest(unittest.TestCase):
         self.assertEqual(output.splitlines()[0].split(":", 1)[0], "runs/INDEX.md")
 
     def test_shared_parser_accepts_all_statuses_and_requires_superseded_ref(self):
-        for status in lessons.LESSON_STATUSES:
+        for status in ("active", "failure-mode", "rejected", "superseded"):
             landing = "superseded_by: replacement\n" if status == "superseded" else ""
             text = (
                 "---\n"
@@ -91,8 +91,8 @@ class RecallTest(unittest.TestCase):
                 f"{landing}"
                 "---\n"
             )
-            record = lessons.lesson_record_lines(text)
-            self.assertEqual(record.fields["status"][1], status)
+            record = lessons.parse_lesson(text)
+            self.assertEqual(record.status, status)
 
         without_landing = (
             "---\n"
@@ -105,7 +105,7 @@ class RecallTest(unittest.TestCase):
             "---\n"
         )
         with self.assertRaises(lessons.LessonParseError):
-            lessons.lesson_record_lines(without_landing)
+            lessons.parse_lesson(without_landing)
 
         active_with_landing = without_landing.replace(
             "status: superseded\n", "status: active\n"
@@ -113,7 +113,7 @@ class RecallTest(unittest.TestCase):
             "last_used: 2020-01-01\n", "last_used: 2020-01-01\nsuperseded_by: replacement\n"
         )
         with self.assertRaises(lessons.LessonParseError):
-            lessons.lesson_record_lines(active_with_landing)
+            lessons.parse_lesson(active_with_landing)
 
     def test_stamp_preserves_crlf_and_every_other_byte(self):
         path = self.root / "demo/runs/coordination/lessons/crlf.md"
@@ -222,7 +222,7 @@ class RecallTest(unittest.TestCase):
         code, output = self.run_recall(["--project", "demo", "lesson", "guidance"])
 
         self.assertEqual(code, 0)
-        self.assertTrue(output)
+        self.assertIn('demo/runs/coordination/lessons/lesson.md:', output)
         self.assertEqual(lesson.read_bytes(), before)
         self.assertEqual(os.stat(lesson).st_mtime_ns, before_mtime)
 
