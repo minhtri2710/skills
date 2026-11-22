@@ -50,12 +50,21 @@ database is noise that hides the real boundary.
 - Model variants as discriminated unions rather than a bag of nullable fields,
   and give ids distinct types so a task id cannot be passed where a user id goes.
 
-## Idempotency is honoured, not just accepted
+## Retry by intended effect
 
-A state-changing endpoint either honours an idempotency key or is documented as
-unsafe to retry. Accepting the header is the contract; storing the key against
-the result is the implementation, and a key accepted but handled carelessly is
-worse than none, because the client now believes retrying is safe.
+What happens if the client sends the same request twice after losing the first
+response? An operation is idempotent when the intended effect is the same as
+for one request, not when the responses are identical. For example, a second
+`DELETE` may return `404` after the first succeeded. A conforming `PUT` that
+replaces a resource and a `DELETE` that removes it need no idempotency key for
+that guarantee ([HTTP Semantics, section 9.2.2](https://www.rfc-editor.org/rfc/rfc9110.html#section-9.2.2)).
+Check what the operation actually does, including downstream effects the caller
+requested; a method name cannot make charging twice correct. Judge an RPC by
+its effect too.
+
+For a write that can duplicate the effect (for example, creating a charge),
+either honour a client key or document that the client must not automatically
+retry an unknown outcome. When promising keyed retries:
 
 - **The key comes from the intent, not the attempt.** Generated once by the
   client or derived from an immutable identifier (`charge:<orderId>`); never a
@@ -82,8 +91,9 @@ degraded, which is when they are most expensive.
 ## Done
 
 Every operation has typed input and output; errors share one format; validation
-sits at the boundary; lists paginate; names follow the convention; state-changing
-operations honour a key claimed atomically or are marked unsafe to retry; each
+sits at the boundary; lists paginate; names follow the convention; each write's retry
+contract names its naturally idempotent effect, its atomically claimed key, or
+why an unknown outcome must not be retried automatically; each
 kind of caller the contract distinguishes has a test asserting the exact keys
 returned, on list and error paths as well as detail, so absence is proved as
 well as presence (a snapshot is no substitute, since it gives no reason for a

@@ -5,50 +5,30 @@ description: Strengthen a raw user prompt into an execution-ready instruction se
 
 # Prompt Leverage
 
-Turn the user's current prompt into a stronger working prompt without changing the underlying intent. Preserve the task, fill in missing execution structure, and add only enough scaffolding to improve reliability.
+Preserve the user's objective, language, constraints, and tone. Add only what
+would change how the task is carried out. If the prompt already works, say so
+and keep the edit small.
 
-## Workflow
+## Upgrade the prompt
 
-1. Read the raw prompt and identify the real job to be done.
-2. Infer the task type with the script's deterministic whole-word keyword rules; `--task` overrides inference.
-3. Rebuild the prompt with the framework blocks in `references/framework.md`.
-4. Keep the result proportional: do not over-specify a simple task.
-5. Return both the improved prompt and a short explanation of what changed when useful.
+1. Identify the task, the result the user wants, and the constraints that must survive.
+2. Use [the framework](references/framework.md) to fill gaps. Add context or tool
+   requirements only where they affect correctness. For a non-trivial task, name
+   the observable check that decides when the work is done.
+3. Return the requested form: the prompt alone, the prompt with a short rationale,
+   a reusable fill-in template, or a hook specification.
 
-## Transformation Rules
+For a local first pass, [augment_prompt.py](scripts/augment_prompt.py) wraps the
+original prompt, including its internal whitespace and code fences, in an
+English scaffold. It uses a general profile in every language unless the caller
+selects one: `--task coding`, for example, adds instructions to inspect and
+validate code. Choose the profile from the user's intent; do not translate or
+classify the text by keywords. Use `--help` for the supported profiles. The
+helper needs no network or credentials.
 
-- Preserve the user's objective, constraints, and tone unless they conflict.
-- Prefer adding missing structure over rewriting everything stylistically.
-- Add context requirements only when they improve correctness.
-- Add tool rules only when tool use materially affects correctness.
-- Add completion criteria for non-trivial tasks, naming the objective checks that decide them.
-- Keep prompts compact enough to be practical in repeated use.
+## When the user asks for a hook
 
-## Output Modes
-
-Choose one mode based on the user request.
-
-- `Inline upgrade`: provide the upgraded prompt only.
-- `Upgrade + rationale`: provide the prompt plus a brief list of improvements.
-- `Template extraction`: convert the prompt into a reusable fill-in-the-blank template.
-- `Hook spec`: explain how to apply the framework automatically before execution.
-
-## Hook Pattern
-
-When the user asks for a hook, model it as a pre-processing layer:
-
-1. Accept the current prompt.
-2. Classify the task and risk level.
-3. Expand the prompt using the framework blocks.
-4. Return the upgraded prompt for execution.
-5. Optionally keep a diff or summary of injected structure.
-
-Use `scripts/augment_prompt.py` for a first-pass rewrite. It classifies locally, without network access or credentials. Task order and keywords live in its `TASKS` table, the fallback task in `detect_task`; matching is case-insensitive and whole-word. Pass `--task` to override classification and `--intensity` to set the effort level (levels and default are in the script). The rewritten result preserves the prompt text's internal whitespace, including code fences and newlines.
-
-## Quality Bar
-
-An upgraded prompt still matches the original intent, adds no unnecessary
-ceremony, names the objective checks the task has, and gives the agent a clear
-definition of done.
-
-If the prompt is already strong, say so and make only minimal edits.
+Specify a preprocessing step: accept the raw prompt, use the task profile
+supplied by the caller (general if omitted), add the missing framework blocks,
+and return the prompt for execution. If the caller needs to see what was
+injected, also return a diff or short summary.

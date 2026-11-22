@@ -20,8 +20,9 @@ a removal at a provider cannot be taken back.
 
 ## Four facts before the first removal
 
-A removal in a tenancy rests on four facts, each on record with its evidence
-before the first removal. A removal is made only inside what the fourth covers.
+Record the intended tenancy, the identity established by the provider, the
+inventory, and the consent. Only the advance inventory has an exception (Who
+decides). A removal is made only inside what the consent covers.
 
 1. **The tenancy.** Record the identifier the provider itself uses for it, given
    or confirmed by the user. When the user names it another way (an alias, a
@@ -49,39 +50,32 @@ before the first removal. A removal is made only inside what the fourth covers.
    owner named; what would make a removal fail or keep a copy after it. What is
    unread is no listed thing: it stays coverage, goes to the report, and nothing
    in it is removed. Held when whoever gives the consent has the inventory.
-4. **The consent.** An answer, given with the inventory in hand, that names the
-   tenancy's identifier and the set to remove, as items or as a class the
-   inventory can be checked against; with several tenancies, each has its
-   identifier and its set. An earlier instruction counts for what the inventory,
-   taken afterwards, shows it to name, and the identifier is in it or it is not
-   this fact. The whole of a tenancy is one such class, checked the same way.
-   Whatever the class, a listed thing with one of the three marks is covered
-   only when the consent names it; no consent covers what is unread. An act on
-   the tenancy itself (removing it, closing what bills for it, turning off a
-   whole service in it) is covered only when the consent names the act and the
-   identifier; consent to the contents does not imply it, and one instruction
-   naming both needs no second message. Held when the consent's words are on
-   record beside its inventory.
+4. **The consent.** Present the proposed action, verified tenancy identifier and
+   targets (items or a bounded class), with the inventory or the limits of the
+   explicit inventory exception below. Proceed only when the approver explicitly
+   confirms that proposal. A request to investigate or clean up is not that
+   confirmation. With several tenancies, each has its identifier and approved
+   set. A whole tenancy's contents can be a class. A resource with any of the
+   three marks above needs consent naming it; an unread target is not covered.
+   Removing the tenancy itself, closing its billing, or turning off a whole
+   service needs consent naming that act and identifier. One confirmation may
+   cover both the contents and such an act if it names both. Record its words.
 
 ## Who decides
 
-Judge a consent by what it names, never by its form of words. When the user
-tells you to go on without one of the facts, say which fact is missing and what
-you then cannot vouch for; the user's instruction decides, and the fact goes on
-record as waived, with the user's words.
+Consent answers *may we remove these targets?* The provider's identity response
+answers *where will this credential act?* Require both for the same tenancy.
+If either is missing, stale or mismatched, stop before removal and name the
+missing proof. An instruction to proceed cannot establish identity; access to
+a resource cannot establish consent.
 
-Whoever gives the consent (the user, or under a workflow its approver) gives a
-waiver, and that person's words take the waived fact's place wherever this
-skill refers to the fact or to what it holds. With the consent or the inventory
-waived, the consent is what those words name, as targets or as a class, in the
-tenancy of fact 1; the reads the removal needs find a class's members. With
-that tenancy waived, it is the one those words name. With no inventory there is
-nothing earlier to compare a target with, so you act on the read just before the
-removal; the closing inventory is still taken, over what the words reach. A
-waiver does not lift acting on what you see: when that read shows the target
-owned by a deployment tool or another party, protected, or used from another
-tenancy, tell that person before removing it; the answer is the consent for it.
-That read is a read of the target, not an inventory.
+Only the approver can explicitly waive the advance inventory. Record their
+words, the verified tenancy and approved set, and what was not inspected. Read
+each candidate in that tenancy immediately before removal to establish that it
+matches the consent; do not remove an unread or uncertain target. If the read
+reveals outside ownership or use, deployment-tool ownership, or protection,
+tell the approver and obtain consent naming that resource before removing it.
+The closing inventory still covers the full approved scope.
 
 Under a workflow that gates any act this skill covers (a removal, an act under
 an outside account, the reads of facts 2 and 3 where it gates those), that gate
@@ -105,8 +99,8 @@ workflow's channel, and the consent is the request together with its answer.
   cannot drive the owner, say so and say what direct removal risks (the owner
   may bring the resources back, or lose track of them); direct removal then
   needs a consent that names it.
-- A resource the inventory did not hold is not in the consent: report it and
-  leave it.
+- With an advance inventory, leave and report any target it did not list. Without
+  one, the immediate read must establish that the target belongs to the approved set.
 
 ## End
 
@@ -118,10 +112,9 @@ Take the inventory again over the same reach and build the report from it:
 - what is unread or unverified;
 - what only a person can do, handed over as steps (human-step-wizard).
 
-Done when the four facts are on record, each with its evidence or as waived in
-the user's words with what you could not vouch for; every removal was inside the
-consent and passed its check; the closing inventory is in the report with the
-unread parts named.
+Done when the record contains the tenancy, matching provider identity, named
+consent, and the inventory or its explicit exception; every removal passed its
+check within that consent; and the closing inventory names what remains unread.
 
 ## Borders
 

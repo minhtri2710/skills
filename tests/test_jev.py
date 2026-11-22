@@ -176,7 +176,7 @@ class JevTest(unittest.TestCase):
         self.keychain.assert_not_called()
         payload = {"answers": finding_answers()}
         with mock.patch.object(
-            jev, "_open_url", return_value=Response(payload)
+            jev._OPENER, "open", return_value=Response(payload)
         ) as opened:
             result = jev.triage_finding(FINDING)
 
@@ -232,7 +232,7 @@ class JevTest(unittest.TestCase):
             self.keychain.reset_mock(return_value=True, side_effect=True)
             self.keychain.configure_mock(**behavior)
             with self.subTest(failure=name), mock.patch.object(
-                jev, "_open_url"
+                jev._OPENER, "open"
             ) as opened:
                 stdout, stderr = io.StringIO(), io.StringIO()
                 with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
@@ -257,7 +257,7 @@ class JevTest(unittest.TestCase):
         )
         for failure, reason in failures:
             with self.subTest(reason=reason):
-                with mock.patch.object(jev, "_open_url", side_effect=failure) as opened:
+                with mock.patch.object(jev._OPENER, "open", side_effect=failure) as opened:
                     result = jev.triage_finding(FINDING)
                 self.assert_unavailable(result, reason)
                 self.assertEqual(json.loads(opened.call_args.args[0].data)["state"], FINDING)
@@ -269,7 +269,7 @@ class JevTest(unittest.TestCase):
         response.__enter__ = mock.Mock(return_value=response)
         response.__exit__ = mock.Mock(return_value=None)
         response.read.return_value = b"{not-json"
-        with mock.patch.object(jev, "_open_url", return_value=response) as opened:
+        with mock.patch.object(jev._OPENER, "open", return_value=response) as opened:
             result = jev.triage_finding(FINDING)
         self.assert_unavailable(result, "malformed_json")
         self.assertEqual(json.loads(opened.call_args.args[0].data)["state"], FINDING)
@@ -291,7 +291,7 @@ class JevTest(unittest.TestCase):
         for payload in responses:
             with self.subTest(payload=payload):
                 with mock.patch.object(
-                    jev, "_open_url", return_value=Response(payload)
+                    jev._OPENER, "open", return_value=Response(payload)
                 ) as opened:
                     result = jev.triage_finding(FINDING)
                 self.assert_unavailable(result, "invalid_answers")
@@ -300,7 +300,7 @@ class JevTest(unittest.TestCase):
     def test_finding_asks_three_one_dimension_questions_in_one_request(self) -> None:
         payload = {"answers": {**finding_answers(), "ignored": {"free_form": "kept raw"}}}
         with mock.patch.object(
-            jev, "_open_url", return_value=Response(payload)
+            jev._OPENER, "open", return_value=Response(payload)
         ) as opened:
             result = jev.triage_finding(FINDING)
 
@@ -337,7 +337,7 @@ class JevTest(unittest.TestCase):
         ):
             payload = {"answers": finding_answers(actionable=probability, cites=probability)}
             with self.subTest(probability=probability), mock.patch.object(
-                jev, "_open_url", return_value=Response(payload)
+                jev._OPENER, "open", return_value=Response(payload)
             ):
                 result = jev.triage_finding(FINDING)
             self.assertIsInstance(result, jev.AdvisoryResult)
@@ -358,7 +358,7 @@ class JevTest(unittest.TestCase):
         ):
             payload = {"answers": finding_answers(severity=probabilities)}
             with self.subTest(probabilities=probabilities), mock.patch.object(
-                jev, "_open_url", return_value=Response(payload)
+                jev._OPENER, "open", return_value=Response(payload)
             ):
                 result = jev.triage_finding(FINDING)
             self.assertIsInstance(result, jev.AdvisoryResult)
@@ -370,7 +370,7 @@ class JevTest(unittest.TestCase):
             )
 
     def test_fork_deterministic_human_gate_without_api_key(self):
-        with mock.patch.object(jev, "_open_url") as opened:
+        with mock.patch.object(jev._OPENER, "open") as opened:
             for fork, delegation in (
                 ({**FORK, "hard_gate": True}, DELEGATION),
                 (FORK, None),
@@ -406,7 +406,7 @@ class JevTest(unittest.TestCase):
             }
         }
         with mock.patch.object(
-            jev, "_open_url", return_value=Response(payload)
+            jev._OPENER, "open", return_value=Response(payload)
         ) as opened:
             result = jev.route_fork(FORK, DELEGATION)
 
@@ -443,7 +443,7 @@ class JevTest(unittest.TestCase):
             ("human_gate", 0.1, "human_gate"),
         ):
             with self.subTest(choice=choice, confidence=confidence), mock.patch.object(
-                jev, "_open_url", return_value=Response(fork_answer(choice, confidence))
+                jev._OPENER, "open", return_value=Response(fork_answer(choice, confidence))
             ):
                 result = jev.route_fork(FORK, DELEGATION)
             self.assertIsInstance(result, jev.ForkAdvisoryResult)
@@ -460,7 +460,7 @@ class JevTest(unittest.TestCase):
             (FORK, {"in_force": "yes"}, "invalid_delegation"),
             (FORK, {"in_force": True, "bad": float("nan")}, "invalid_delegation"),
         )
-        with mock.patch.object(jev, "_open_url") as opened:
+        with mock.patch.object(jev._OPENER, "open") as opened:
             for fork, delegation, reason in cases:
                 with self.subTest(fork=fork, delegation=delegation):
                     result = jev.route_fork(fork, delegation)
@@ -472,7 +472,7 @@ class JevTest(unittest.TestCase):
         nested: dict[str, object] = {}
         for _ in range(100_000):
             nested = {"k": nested}
-        with mock.patch.object(jev, "_open_url") as opened:
+        with mock.patch.object(jev._OPENER, "open") as opened:
             result = jev.route_fork({**FORK, "nested": nested}, DELEGATION)
         self.assertIsInstance(result, jev.UnavailableResult)
         self.assertEqual(result.reason, "invalid_fork")
@@ -530,7 +530,7 @@ class JevTest(unittest.TestCase):
         )
         for payload in answers:
             with self.subTest(payload=payload), mock.patch.object(
-                jev, "_open_url", return_value=Response(payload)
+                jev._OPENER, "open", return_value=Response(payload)
             ):
                 result = jev.route_fork(FORK, DELEGATION)
             self.assertIsInstance(result, jev.UnavailableResult)
@@ -592,7 +592,7 @@ class JevCliTest(unittest.TestCase):
             ):
                 self.keychain.return_value = keychain_reply("", 44)
                 with self.subTest(input=path.name), mock.patch.object(
-                    jev, "_open_url"
+                    jev._OPENER, "open"
                 ) as opened:
                     code, out, err = support.run_main(jev.main, ["fork", "--file", str(path)])
 
@@ -614,7 +614,7 @@ class JevCliTest(unittest.TestCase):
             self.keychain.reset_mock(return_value=True, side_effect=True)
             self.keychain.configure_mock(**behavior)
             with self.subTest(failure=name), mock.patch.object(
-                jev, "_open_url"
+                jev._OPENER, "open"
             ) as opened:
                 code, out, err = support.run_main(jev.main, ["finding", "--stdin"], json.dumps(FINDING))
 
@@ -669,7 +669,7 @@ class JevCliTest(unittest.TestCase):
                 else:
                     patch_kwargs = {"side_effect": failure}
                 with self.subTest(mode=mode, scenario=scenario), mock.patch.object(
-                    jev, "_open_url", **patch_kwargs
+                    jev._OPENER, "open", **patch_kwargs
                 ) as opened:
                     code, out, err = support.run_main(jev.main, argv, stdin_text)
 

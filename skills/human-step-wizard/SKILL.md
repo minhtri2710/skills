@@ -5,33 +5,23 @@ description: Generate a resumable bash wizard that walks a human through the ste
 
 # Human Step Wizard
 
-Some steps only a human can take: revealing an API key in a dashboard, approving
-an OAuth app, provisioning an account. Prose instructions for them get re-explained
-every time and skipped halfway. A wizard is a bash script that walks the human
-through the procedure stage by stage, opens each URL, captures the values, writes
-them where they belong, and shows how many stages remain. It is resumable: a
-re-run offers the values already saved.
-
-The UX is already solved by [scripts/wizard-template.sh](scripts/wizard-template.sh):
-stage progress, screen clearing, cross-platform URL opening, hidden secret entry,
-idempotent `.env` upserts, `gh secret` and `gh variable` writes with a recorded
-skip when `gh` is not ready, and a closing summary. The `ask` and `ask_secret`
-helpers re-ask when a required answer is empty and no saved value exists; end
-of input without a saved value exits non-zero and names the required key. The
-library above the `STAGES` marker is identical in every wizard; author only what
-sits below it.
+Use the [wizard template](scripts/wizard-template.sh) for steps only a person
+can perform, such as approving an OAuth app or retrieving a key. Keep the
+library above `STAGES` intact; it handles progress, hidden input, reuse of
+values saved locally, and reporting skipped GitHub writes. Author the stages
+below the marker.
 
 ## 1. Scope the procedure
 
-Read the repository before asking: `.env*`, the README, compose and framework
-config, and every `secrets.*` or `vars.*` reference in the CI workflows, since
-each is a value the wizard must produce. For a cutover, read the current state,
-the target state, and the irreversible actions between them. Show the user the
-ordered stages and the values each produces, and let them add, drop, or reorder.
+Inventory the **names** the task needs from example configuration, the README,
+application config, and CI references to `secrets.*` and `vars.*`. Do not read
+live `.env` values or collect a credential the platform already supplies. For
+a cutover, also identify the current state, target state, and irreversible acts.
+Show the user the proposed stages in order so they can add, drop, or reorder them.
 
-Done when every stage is named in order and, for each captured value, you know
-where the human gets it, where it is written (`.env`, a CI secret, both, or
-nowhere for a pure action), and whether it is secret.
+Done when each value has a human source, a sensitivity, and its intended
+destinations: local `.env`, a repository secret or variable, or a combination.
+A stage that only performs an action need not capture a value.
 
 ## 2. Map each stage's path
 
@@ -45,19 +35,18 @@ question.
 
 Copy the template to a scratch path or `scripts/`, replace the example stage with
 one `stage` per step in dependency order, each at column 0 so `banner` counts it.
-Use the helpers: `stage`, `say`, `step`, `note`, `warn`, `open_url`, `ask`, `ask_secret`,
-`write_env`, `set_secret`, `set_var`, `pause`, `confirm`. Open the URL before
-asking for its value, hide anything secret, `write_env` every persisted value,
-`set_secret` only what CI actually reads, and gate anything irreversible on
-`confirm` inside an `if`, never as a bare statement: the script runs under
-`set -e`, so an unguarded "n" exits the wizard instead of skipping the step.
-One focused task per stage, because each stage clears the screen.
+Open the URL before asking for its value. Use `ask_secret` for a secret and
+`ask` for a non-secret. Use `write_env` only for a local destination,
+`set_secret` for a CI secret, and `set_var` only for a non-secret CI variable.
+A CI-only secret is not also written to `.env`. Gate irreversible actions with
+`if confirm ...; then ...; fi`: under `set -e`, a bare `confirm` would exit on
+"no" instead of skipping the action. Keep one task per stage.
 
 ## 4. Verify statically and hand off
 
 `bash -n`, `shellcheck` when available, `chmod +x`. Never run it end to end: it
 opens browsers and blocks on input. Trace it instead: every value from step 1 is
-captured and lands where step 1 said, and every `set_secret` name matches a
-`secrets.*` reference in CI exactly. Tell the user the command to run. The wizard
+captured and lands where step 1 said, and every CI write matches the corresponding
+`secrets.*` or `vars.*` reference. Tell the user the command to run. The wizard
 is deleted when the job is done unless the user wants a repeatable setup path
 kept in the repository.

@@ -13,41 +13,24 @@ def setUpModule() -> None:
     support.never_run()
 
 
-class TaskDetectionTest(unittest.TestCase):
-    def test_keyword_precedence(self):
-        self.assertEqual(augment_prompt.detect_task("research the code and review it", None), "review")
-        self.assertEqual(augment_prompt.detect_task("write code", None), "coding")
-
-    def test_keyword_boundaries_and_fallback(self):
-        self.assertEqual(augment_prompt.detect_task("preview the output", None), "analysis")
-        self.assertEqual(augment_prompt.detect_task("fixing the output", None), "analysis")
-        self.assertEqual(augment_prompt.detect_task("find sources", None), "research")
-
-
 class UpgradeTest(unittest.TestCase):
-    def test_template_preserves_prompt_and_uses_default_intensity(self):
-        prompt = "  fix   the\n```python\nvalue = 1\n```\n"
-        out = augment_prompt.upgrade_prompt(prompt)
-        self.assertIn("Complete this task:   fix   the\n```python\nvalue = 1\n```", out)
-        self.assertIn("Task type: coding", out)
-        self.assertIn("Effort level: Standard", out)
-        self.assertIn("Inspect the relevant files", out)
+    def test_default_scaffold_is_independent_of_language_and_preserves_input(self):
+        prompts = ("  S\u1eeda l\u1ed7i \u0111\u0103ng nh\u1eadp", "  fix   the login bug")
+        scaffolds = []
+        for text in prompts:
+            prompt = text + "\n```python\n  value = 1\n```"
+            _, out, _ = support.run_main(augment_prompt.main, [prompt])
+            self.assertIn(prompt, out)
+            self.assertIn("Task profile: general", out)
+            scaffolds.append(out.replace(prompt, "<input>", 1))
+        self.assertEqual(scaffolds[0], scaffolds[1])
 
-    def test_explicit_task_and_intensity_override_inference_and_default(self):
-        out = augment_prompt.upgrade_prompt("review this code", "writing", "Deep")
-        self.assertIn("Task type: writing", out)
-        self.assertIn("Effort level: Deep", out)
-        self.assertIn("Return polished final copy", out)
-
-    def test_cli_infers_task_and_defaults_the_intensity(self):
-        _, out, _ = support.run_main(augment_prompt.main, ["review this code"])
-        self.assertIn("Task type: review", out)
-        self.assertIn("Effort level: Standard", out)
-
-    def test_cli_explicit_task_and_intensity_override_the_defaults(self):
-        _, out, _ = support.run_main(augment_prompt.main, ["review this code", "--task", "writing", "--intensity", "Light"])
-        self.assertIn("Task type: writing", out)
-        self.assertIn("Effort level: Light", out)
+    def test_explicit_profile_changes_guidance_not_just_the_label(self):
+        prompt = "review the code"
+        _, coding, _ = support.run_main(augment_prompt.main, [prompt, "--task", "coding"])
+        _, review, _ = support.run_main(augment_prompt.main, [prompt, "--task", "review"])
+        advice = "\nTool Rules:\n"
+        self.assertNotEqual(coding.split(advice, 1)[1], review.split(advice, 1)[1])
 
 
 if __name__ == "__main__":

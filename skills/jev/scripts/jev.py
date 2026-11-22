@@ -235,8 +235,7 @@ class _NoRedirect(urllib.request.HTTPRedirectHandler):
         return None
 
 
-# Bound to a plain name: test_script_encoding reads any `x.open(` as a text-mode file open.
-_open_url = urllib.request.build_opener(_NoRedirect).open
+_OPENER = urllib.request.build_opener(_NoRedirect)
 
 
 def _request_answers(
@@ -260,7 +259,7 @@ def _request_answers(
             },
             method="POST",
         )
-        with _open_url(request, timeout=API_TIMEOUT_SECONDS) as response:
+        with _OPENER.open(request, timeout=API_TIMEOUT_SECONDS) as response:
             return json.load(response), None
     except urllib.error.HTTPError as exc:
         exc.close()

@@ -21,6 +21,7 @@ class SkillFrontmatterTest(unittest.TestCase):
             if path.is_file():
                 skill_paths.append(path)
 
+        expected_catalog = []
         for path in skill_paths:
             with self.subTest(path=path):
                 text = path.read_text(encoding="utf-8")
@@ -42,14 +43,17 @@ class SkillFrontmatterTest(unittest.TestCase):
                 self.assertIsInstance(description, str, path)
                 self.assertTrue(description.strip(), path)
                 self.assertLessEqual(len(description), 1024, path)
+                manual = frontmatter.get("disable-model-invocation", False)
+                self.assertIsInstance(manual, bool, path)
+                label = f"/{name}" if manual else name
+                target = path.relative_to(support.ROOT).as_posix()
+                expected_catalog.append(f"[`{label}`]({target})")
 
         readme = (support.ROOT / "README.md").read_text(encoding="utf-8")
-        inventory = {
-            line.split("`", 2)[1]
-            for line in readme.splitlines()
-            if line.startswith("| `") and " |" in line
-        }
-        self.assertEqual(inventory, skill_dirs)
+        section = readme.partition("\n## Standalone skills\n")[2].partition("\n## ")[0]
+        cells = (row.split("|", 2)[1].strip() for row in section.splitlines() if row.startswith("|"))
+        catalog = [cell for cell in cells if cell != "Skill" and cell.strip(":-")]
+        self.assertCountEqual(catalog, expected_catalog)
 
 
 if __name__ == "__main__":

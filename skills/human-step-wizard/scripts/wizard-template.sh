@@ -233,10 +233,10 @@ ask_secret STRIPE_SECRET_KEY "Paste the secret key:"
 write_env STRIPE_PUBLISHABLE_KEY "$STRIPE_PUBLISHABLE_KEY"
 write_env STRIPE_SECRET_KEY "$STRIPE_SECRET_KEY"
 set_secret STRIPE_SECRET_KEY "$STRIPE_SECRET_KEY"   # CI needs this one
-if confirm "Also overwrite the key stored in the deploy environment?"; then
+if confirm "Also set the repository variable STRIPE_PUBLISHABLE_KEY for GitHub Actions?"; then
   set_var STRIPE_PUBLISHABLE_KEY "$STRIPE_PUBLISHABLE_KEY"
 else
-  note "Deploy environment left unchanged."
+  note "Repository variable left unchanged."
 fi
 # ──────────────────────────────────────────────────────────────────────────
 

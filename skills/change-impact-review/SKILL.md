@@ -14,7 +14,7 @@ Review one concrete change, not the repository in general. The goal is to find t
 2. **Choose one or two facts.** Name the safety-critical assumptions whose failure would change the outcome. Trace each through the relevant source: pinned dependency/version and local patches; scheduling or lifecycle ordering; API or wire representation; persisted storage and readers; and multi-hop or other-language consumers. Follow only applicable paths, cite source locations, and distinguish a consumer you found from one you did not find.
 3. **Write the falsifier before the check.** For each fact, describe the concrete input, state, ordering, or boundary that would make the claim false. A generic concern such as “bad input” is not a falsifier.
 4. **Execute the real seam.** Run the smallest check that calls the production function/library at its installed version or drives the actual application route. Capture the exact command and result. Disposable state is acceptable when contained and isolated, but it proves only the code actually executed. A fixture, mock, static scan, or helper-only call is not proof of application integration. If the application route cannot be run, mark that claim unproven rather than substituting a synthetic equivalent.
-5. **Report the boundary.** Separate confirmed risks, checked-and-cleared cases, and unproven remainder. For each proof, say which function/version or route ran, what the check observed, and what it cannot establish. Include the cheapest relevant pre-merge check.
+5. **Report the boundary.** State the change and scope. For each selected fact, give its source, falsifier, exact command, function/version or route exercised, observed result, and what remains unproven. Separate confirmed risks from checked-and-cleared cases and unchecked paths. Name the cheapest relevant pre-merge check.
 
 Keep scheduling, wire, storage, and dependency tracing proportional to the change: explain why an area applies, or why it does not. A search with no result is not proof that no consumer exists. Do not add a generic runner or invoke an automatic multi-model panel.
 
@@ -24,7 +24,3 @@ Keep scheduling, wire, storage, and dependency tracing proportional to the chang
 - `source-grounded-implementation` owns official documentation and exact installed-version guidance for framework/library APIs. Use it for API-specific implementation choices; this skill checks version/source only when that dependency matters to the change's impact.
 - `api-contract-design` designs HTTP/RPC request, response, validation, error, pagination, and retry contracts. `deep-module-design` designs in-process interfaces and seams. This skill traces a change across those contracts without taking over their design.
 - Use `bug-diagnosis` when the reported behavior is a hard-to-explain failure; use `test-first-seams` when the user asks for test-first implementation. This review does not replace either workflow.
-
-## Report
-
-State the change and scope; each selected fact and source path; its falsifier; the command actually executed and observed result; confirmed risks, cleared cases, and unproven limits; and the cheapest relevant pre-merge check. Never call a helper-only or synthetic-fixture result production integration proof.

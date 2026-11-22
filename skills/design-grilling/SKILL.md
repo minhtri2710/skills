@@ -29,8 +29,9 @@ Recommended: <your answer and why>
 
 When a frontier question needs a fact from the code, docs, or environment, look it
 up or dispatch a subagent instead of asking the user; only the questions downstream
-of that lookup wait for it. Put every decision to the user and wait for their
-answer. Recompute the frontier after each round.
+of that lookup wait for it. Put material decisions to the user; when they
+explicitly delegate one, record your choice and reason in the restatement.
+Recompute the frontier after each round.
 
 When an answer echoes convention or best-practice vocabulary ("scalable", "the
 standard way", "I should probably") instead of a concrete outcome, ask what they
@@ -39,9 +40,9 @@ direction you expect them to reject, so agreement stays informative.
 
 ## Stop test
 
-The frontier is empty and you can predict the user's reaction to the next three
-questions you would ask. If several rounds pass without confidence rising, say so
-and ask whether something foundational is missing.
+Restate the design when no open decision would change the outcome, scope,
+success criteria, or constraints. If progress stalls, name the concrete fork
+that still needs an answer rather than opening another general round.
 
 ## Restate and confirm
 
@@ -55,9 +56,10 @@ Out of scope: <what is explicitly not being built>
 Decisions:    <one line per settled decision>
 ```
 
-The gate is an explicit yes to this restate. "Whatever you think" is delegation:
-re-ask as a choice between two concrete options. "Sounds good" or "sure, let's go"
-gets one follow-up asking what they would refine. Fold corrections in and restate
-until the yes is explicit. Act on the understanding only after that yes; save the
-restated understanding to a file only when the user asks. Glossary terms and
-decisions the interview settles follow decision-record-discipline.
+Clear assent to this restatement closes the interview. "Sounds good" or
+"sure, let's go" is enough when no material decision is open; proceed without
+asking for confirmation again. If the reply changes a condition or leaves a
+material choice unclear, resolve just that point and confirm the revised
+understanding. Silence is not assent. Confirmation covers the agreed design,
+not actions outside the request. Save the restatement only when asked; use
+decision-record-discipline for terms and decisions the interview settles.

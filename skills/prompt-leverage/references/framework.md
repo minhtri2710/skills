@@ -33,14 +33,6 @@ Define exact structure, tone, formatting, depth, and any required sections or sc
 
 Define what must be true before the agent stops. Name the objective checks that decide done: tests to run, a command's output, sources to cite. Do not ask the agent to re-review its own work.
 
-## Intensity Levels
-
-Select the level with `--intensity` (the script lists the levels and the default). Match it to the stakes: the lightest for simple edits, formatting, and quick rewrites; the middle for typical coding, research, and drafting; the deepest for debugging, architecture, complex research, or high-stakes outputs.
-
-## Task Classification
-
-The script classifies locally by case-insensitive whole-word keyword matches; categories and their order are its `TASKS` table, the fallback is in `detect_task`. `--task` explicitly overrides the inferred category.
-
 ## Task-Type Adjustments
 
 ### Coding
@@ -58,21 +50,3 @@ The script classifies locally by case-insensitive whole-word keyword matches; ca
 ### Review
 
 - Emphasize fresh-eyes critique, failure modes, alternatives, and explicit severity.
-
-## Prompt Upgrade Heuristics
-
-- Add missing blocks only when they materially improve execution.
-- Do not turn a one-line request into a giant spec unless the task is genuinely complex.
-- Preserve user language where possible so the upgraded prompt still feels native.
-- Prefer concrete completion criteria over vague quality adjectives.
-
-## Upgrade Rubric
-
-An upgraded prompt is good when it:
-
-1. preserves original intent
-2. reduces ambiguity
-3. sets the right depth and care level
-4. defines the expected output clearly
-5. names the objective checks that decide done, when the task has them
-6. tells the agent when to stop

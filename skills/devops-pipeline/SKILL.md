@@ -5,15 +5,8 @@ description: Route repository quality checks across local pre-commit, pre-push, 
 
 # DevOps Pipeline
 
-This skill designs a check-routing plan. It does not silently install tools,
-change hooks, write CI, use credentials, commit, push, deploy, or make another
-outward change.
-
-The axis is **where an already evidenced repository check should run**:
-fast changed-file checks at `pre-commit`, repository-wide local checks at
-`pre-push`, and only genuinely environment-, version-, secret-, or
-deployment-dependent work in CI. The three lanes are a routing policy, not a
-request to generate configuration automatically.
+Assign each existing repository check to a primary lane. The deliverable is a
+routing plan, not an installation or a change to a hook or workflow.
 
 ## Human approval boundary
 
@@ -56,9 +49,7 @@ contract:
   `references/lead.md`, "Light and heavy checks"; the lanes below stay the
   project's standing routing.
 
-If the proposed pipeline cannot be reduced to this routing axis without copying
-one of those owners, stop and report `REOPEN_REQUEST` rather than creating a
-redundant skill.
+If the request belongs entirely to one of these owners, name that owner and stop.
 
 ## Evidence-first inspection
 
@@ -82,12 +73,6 @@ Record each relevant fact with its source and status:
 `Not-Assessed` means the claim was not proven. It is not a pass, a failure
 converted to green, or permission to guess. Name the operator prerequisite in
 the plan and final report.
-
-Also identify whether a check is already owned by `quality-floor` or
-`security-setup`, whether a package/install step belongs to dependency intake,
-and whether a delivery step belongs to the delivery owner. Preserve existing
-hooks and workflows in the proposal; never treat their presence as permission to
-overwrite or merge them.
 
 ## The routing table
 

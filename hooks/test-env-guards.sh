@@ -1,6 +1,6 @@
 #!/bin/sh
 # Runnable check for strip-secrets.sh. Uses fake values only.
-H=/Users/beowulf/.claude/hooks
+H="${HOME:?HOME must be set}/.claude/hooks"
 fail=0
 
 # strip-secrets.sh: string form (how Claude Code calls it) and argv form; fake values only.

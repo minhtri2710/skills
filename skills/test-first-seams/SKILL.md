@@ -50,7 +50,8 @@ turns it green, then the next test informed by what that cycle taught you.
    Inside an `agent-delivery-workflow` delivery, its `references/lead.md`, "Light
    and heavy checks" governs which of these runs a seat makes; inside a
    `paseo-delivery-workflow` delivery, the plan's Engineer fast lane and the
-   Lead's acceptance lanes do (its steps 2, 3 and 5).
+   Lead's acceptance lanes do (steps 2, 3 and 5 in its
+   [delivery sequence](../paseo-delivery-workflow/references/delivery-sequence.md)).
 
 Writing all tests first and all implementation after tests imagined behavior and
 locks in test structure before the design is understood.
