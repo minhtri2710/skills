@@ -2,7 +2,7 @@ scripts/gate_row.py --ledger ~/.agent-delivery/projects/<project-slug>/gates.md 
 
 push (the Lead's feature-branch push; refused when the range touches a path outside --boundary, repeated once per path, or the head is not the checked-out branch's HEAD commit):
 scripts/gate_row.py --ledger ~/.agent-delivery/projects/<project-slug>/gates.md --kind push --status recorded:push --record timely --push [--push-seconds <N>] --push-base <remote tip the stack lands on> --boundary <declared path of the delivery> --words seat --note "<why this push>" --quote "<the push command>"
-# --push-seconds <N> (an integer, 1 to 1800; default 120) bounds the push, its pre-push hook included (lead.md, "Review and push coverage").
+# --push-seconds <N> (an integer, 1 to 1800; default 120) bounds the push, its pre-push hook included (gate-ledger.md, "Review and push coverage").
 
 local-ops:
 scripts/gate_row.py --ledger ~/.agent-delivery/projects/<project-slug>/gates.md --kind local-ops --status recorded:local-ops --record timely --op "<one named command>" --after <branch>@<exact head the merge landed> --words seat --note "<why this local op ran>" --quote "<the named command>"
@@ -26,4 +26,4 @@ scripts/gate_row.py --ledger ~/.agent-delivery/projects/<project-slug>/gates.md 
 Seat-permission constraint (lead.md, "Attribution"):
 scripts/gate_row.py --ledger ~/.agent-delivery/projects/<project-slug>/gates.md --kind push-gate --status open --words none --note "blocked:seat-permission <classifier finding>" --quote ""
 
-Dialog attribution (channel, words and status encoding): lead.md, "Gate ledger".
+Dialog attribution (channel, words and status encoding): gate-ledger.md, "Gate ledger".

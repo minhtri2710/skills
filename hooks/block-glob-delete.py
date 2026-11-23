@@ -32,7 +32,7 @@ MAX_DEPTH = 8
 
 WAY_OUT = ("Name the literal path you created (for a scratch directory, the exact path mktemp printed). For "
            "many files, list them with find -print or git ls-files and remove each literal path; a computed "
-           "path goes through destructive-path-guard first. If this command is legitimate, report it "
+           "path goes through destructive-guard first. If this command is legitimate, report it "
            "verbatim to your Lead; do not work around the block.")
 MESSAGES = {
     "glob": "an unquoted *, ? or [..] in an rm/mv target expands to whatever matches.",

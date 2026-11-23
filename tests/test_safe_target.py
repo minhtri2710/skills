@@ -10,7 +10,7 @@ from pathlib import Path
 
 import support
 
-safe_target = import_module("skills.destructive-path-guard.scripts.safe_target")
+safe_target = import_module("skills.destructive-guard.scripts.safe_target")
 
 
 def setUpModule() -> None:

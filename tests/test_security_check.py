@@ -14,7 +14,7 @@ from unittest.mock import patch
 
 import support
 
-security_check = import_module("skills.security-setup.scripts.security_check")
+security_check = import_module("skills.security.scripts.security_check")
 
 
 def setUpModule() -> None:

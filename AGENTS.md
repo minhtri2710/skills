@@ -4,7 +4,7 @@ This repository contains standalone Agent Skills. The canonical inventory is in 
 
 ## Repository structure
 
-- `skills/*/SKILL.md` — standalone skill contracts.
+- `skills/*/SKILL.md` — standalone skill contracts. A skill with branches routes from `SKILL.md` to one contract per branch, `references/<branch>.md`.
 - `skills/*/references/`, `templates/`, and `scripts/` — skill-owned supporting material where present.
 - `hooks/` — Claude Code hook scripts, installed by hand into `~/.claude/hooks`; `hooks/README.md` says which.
 - `tests/` — repository checks.
@@ -12,7 +12,7 @@ This repository contains standalone Agent Skills. The canonical inventory is in 
 ## Working rules
 
 - Keep changes within the owning skill or explicitly requested repository scope.
-- Treat each skill's `SKILL.md` as the contract for that skill.
+- Treat each skill's `SKILL.md`, and each branch file it routes to, as the contract for that skill.
 - Use the repository's current checks before reporting a change complete.
 
 ## Checks

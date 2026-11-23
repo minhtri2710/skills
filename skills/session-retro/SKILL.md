@@ -96,7 +96,7 @@ whatever the invocation accepted, and before anything is written.
 ## Neighbours
 
 - Where an instruction goes and how it is worded, from the proposal onward, and
-  the pruning of instruction files as such: `agent-doc-writing`. This skill
+  the pruning of instruction files as such: `agent-doc-writing` (`docs` skill). This skill
   removes an instruction only on the evidence step 3 names.
 - A check the project does not yet run automatically, or any change to the
   project's written quality bar: `quality-floor`; propose it here and stop. A

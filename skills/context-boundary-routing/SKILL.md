@@ -1,6 +1,6 @@
 ---
 name: context-boundary-routing
-description: At a phase boundary, choose between continuing in this context, clearing it, handing off, delegating to subagents, or compacting, and pick the delegation shape when subagents are the answer. Use when a phase of work has just ended (a design settled, an implementation landed, a review returned), when the context is filling, or before spawning agents for a task. Do not use mid-phase; there the only options are continue or split the remaining work.
+description: "At a phase boundary, choose between continuing, clearing context, handing off, delegating to subagents, or compacting. Use when a phase of work has just ended (a design settled, an implementation landed, a review returned), when the context is filling, or before spawning agents for a task. Do not use mid-phase."
 ---
 
 # Context Boundary Routing

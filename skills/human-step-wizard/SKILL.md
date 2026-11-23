@@ -1,6 +1,6 @@
 ---
 name: human-step-wizard
-description: Generate a resumable bash wizard that walks a human through the steps only they can do, opening each URL, saying what to click and copy, and writing the captured values to .env and CI secrets. Use when a task hits credentials, third-party dashboards, account provisioning, or a one-off manual cutover that the agent cannot perform, instead of writing prose instructions. Do not use for steps the agent can run itself.
+description: "Generate a resumable bash wizard for the steps only a human can do, capturing values into .env and CI secrets. Use when a task hits credentials, third-party dashboards, account provisioning, or a one-off manual cutover the agent cannot perform, instead of writing prose instructions. Do not use for steps the agent can run itself."
 ---
 
 # Human Step Wizard

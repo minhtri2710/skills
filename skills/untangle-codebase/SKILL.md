@@ -12,7 +12,7 @@ fixes alike, the change question: when a requirement changes, does the code
 that has to change sit in one place, and is nothing else forced to change with
 it? One log file holds baseline, findings, decisions and behaviour differences,
 and carries the work across a context reset. When the survey will not fit one
-context, chart the effort with effort-charting and run this skill per area.
+context, chart the effort with effort-charting (`planning` skill) and run this skill per area.
 
 ## 1. Baseline
 
@@ -31,7 +31,7 @@ the edit sites, the places edited for one requirement change. Take them in
 this order, since what the first removes need not be read for the others.
 
 1. Idle code: no change to a requirement would ever lead anyone to edit it.
-   The deletion test of deep-module-design confirms it.
+   The deletion test of deep-module-design (`design` skill) confirms it.
 2. Unlinked edit sites: for one requirement change, starting at one site and
    following what the code references does not arrive at the rest, as when one
    module writes a format that another reads and no definition is shared.
@@ -97,9 +97,9 @@ or open a pull request unless asked.
 
 ## Neighbours
 
-- Tests to judge for proof value or redundancy: test-proof-debt-audit. Here
+- Tests to judge for proof value or redundancy: test-proof-debt-audit (`verification` skill). Here
   they are the baseline; change one only where a cut changes its interface.
 - Stale docs, plans, scripts, or debris: repo-refresh, which removes what is no
   longer true around production code; this restructures that code.
-- One named module or seam to design: deep-module-design.
-- A doubt the system is the right kind of system: architecture-premise-audit.
+- One named module or seam to design: deep-module-design (`design` skill).
+- A doubt the system is the right kind of system: architecture-premise-audit (`design` skill).

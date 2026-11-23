@@ -1,44 +1,36 @@
 # Agent Skills
 
-Each skill is a set of instructions a coding agent can load for a particular task. Use the catalog to choose one; its linked `SKILL.md` gives the steps, prerequisites, and limits.
+Each skill is a set of instructions a coding agent can load for one task or for a few related ones. Use the catalog to choose one. A skill with one task gives its steps, prerequisites, and limits in its linked `SKILL.md`; a skill with branches uses `SKILL.md` to choose the branch, and the branch file gives them.
 
 ## Use a skill
 
-The installation unit is the **whole skill directory**, not just `SKILL.md`. For example, `bug-diagnosis` includes a [script for reproductions that need a human](skills/bug-diagnosis/scripts/hitl-loop.sh). A skill may also carry references, templates, or agent metadata.
+The installation unit is the **whole skill directory**, not just `SKILL.md`. For example, `diagnosis` includes a [script for reproductions that need a human](skills/diagnosis/scripts/hitl-loop.sh). A skill may also carry references, templates, or agent metadata.
 
-In Claude Code, a personal copy of that skill lives at `~/.claude/skills/bug-diagnosis/`; a project copy lives at `.claude/skills/bug-diagnosis/`. Either directory can be a symlink to `skills/bug-diagnosis/` in this checkout. See the [Claude Code skills guide](https://code.claude.com/docs/en/skills) for installation and invocation.
+In Claude Code, a personal copy of that skill lives at `~/.claude/skills/diagnosis/`; a project copy lives at `.claude/skills/diagnosis/`. Either directory can be a symlink to `skills/diagnosis/` in this checkout. See the [Claude Code skills guide](https://code.claude.com/docs/en/skills) for installation and invocation.
 
-Try `/bug-diagnosis Export sometimes returns an empty CSV`. Claude can also select most skills from the request. A leading `/` in the catalog marks a skill **you must invoke by name** (`disable-model-invocation: true`).
+Try `/diagnosis Export sometimes returns an empty CSV`. Claude can also select most skills from the request. A leading `/` in the catalog marks a skill **you must invoke by name** (`disable-model-invocation: true`).
 
-[`repo-refresh` defaults to a read-only audit](skills/repo-refresh/SKILL.md#invocation-and-mode). Use `/repo-refresh apply <repo> <scope>` to request cleanup; the scope can be in any language. A [Paseo delivery or review](skills/paseo-delivery-workflow/SKILL.md#delivery-and-review-preflight) requires a connected daemon; a status request does not start a Watcher.
+[`repo-refresh` defaults to a read-only audit](skills/repo-refresh/SKILL.md#invocation-and-mode). Use `/repo-refresh apply <repo> <scope>` to request cleanup; the scope can be in any language. A [Paseo delivery or review](skills/paseo-delivery-workflow/references/supervisor-and-lead.md#delivery-and-review-preflight) requires a connected daemon; a status request does not start a Watcher.
 
 ## Standalone skills
+
+A skill with branches covers a few related tasks; [Branches](#branches) lists them.
 
 ### Plan and design
 
 | Skill | Use it to |
 | --- | --- |
-| [`api-contract-design`](skills/api-contract-design/SKILL.md) | Define an HTTP or RPC contract, including validation, errors, pagination, and safe retries. |
-| [`architecture-premise-audit`](skills/architecture-premise-audit/SKILL.md) | Check whether a whole project is built around the right kind of system. |
-| [`capability-map`](skills/capability-map/SKILL.md) | Split one requirement into independently testable modules and order their dependencies. |
-| [`decision-record-discipline`](skills/decision-record-discipline/SKILL.md) | Record project terms, consequential decisions, and durable reasons for rejecting a proposal. |
-| [`deep-module-design`](skills/deep-module-design/SKILL.md) | Design an in-process interface that hides complexity from its callers. |
-| [`design-grilling`](skills/design-grilling/SKILL.md) | Resolve open design questions with the user before writing a spec or code. |
-| [`effort-charting`](skills/effort-charting/SKILL.md) | Map open decisions in a large effort, then split the agreed spec into deliverable slices. |
+| [`design`](skills/design/SKILL.md) | Settle a design before building: an API contract, a module interface, a whole-project premise audit, or a disposable prototype. |
+| [`planning`](skills/planning/SKILL.md) | Plan work before it starts: resolve open questions with the user, split a requirement into modules, chart a large effort, and record terms and decisions. |
 
 ### Implement and diagnose
 
 | Skill | Use it to |
 | --- | --- |
-| [`behavior-preserving-port`](skills/behavior-preserving-port/SKILL.md) | Move code to another language, runtime, or framework while preserving what callers can observe. |
-| [`bug-diagnosis`](skills/bug-diagnosis/SKILL.md) | Reproduce a hard bug with a repeatable pass/fail signal before testing causes. |
-| [`frontend-design`](skills/frontend-design/SKILL.md) | Build a UI change and verify its layout, states, and interactions in the rendered result. |
+| [`diagnosis`](skills/diagnosis/SKILL.md) | Find what a running system does wrong: reproduce a hard bug, fix a measured bottleneck, or add telemetry that answers on-call questions. |
+| [`frontend`](skills/frontend/SKILL.md) | Build a UI change and verify it in the rendered result, or review an existing UI with extreme but admissible data. |
 | [`human-step-wizard`](skills/human-step-wizard/SKILL.md) | Generate a resumable Bash wizard for steps only a person can perform. |
-| [`performance-verification`](skills/performance-verification/SKILL.md) | Measure a bottleneck and keep a fix only if its improvement exceeds the noise. |
-| [`source-grounded-implementation`](skills/source-grounded-implementation/SKILL.md) | Check a framework or library API against official sources for the installed version. |
-| [`telemetry-questions-first`](skills/telemetry-questions-first/SKILL.md) | Add logs, metrics, and traces that answer specific on-call questions. |
-| [`test-first-seams`](skills/test-first-seams/SKILL.md) | Build behavior in red-green slices through agreed public interfaces. |
-| [`throwaway-prototype`](skills/throwaway-prototype/SKILL.md) | Answer one design question with a disposable logic demo or alternative UI layouts. |
+| [`migration`](skills/migration/SKILL.md) | Port code to another language, runtime, or framework while preserving what callers can observe, or check a framework or library API against official sources for the installed version. |
 | [`/untangle-codebase`](skills/untangle-codebase/SKILL.md) | Restructure code so a requirement change lands in one place without changing behavior. |
 
 ### Review and verify
@@ -46,37 +38,64 @@ Try `/bug-diagnosis Export sometimes returns an empty CSV`. Claude can also sele
 | Skill | Use it to |
 | --- | --- |
 | [`/change-impact-review`](skills/change-impact-review/SKILL.md) | Trace a concrete change past direct callers and check its critical assumptions on the real code path. |
-| [`spec-conformance-review`](skills/spec-conformance-review/SKILL.md) | Compare a change with its named spec and cite the requirement behind each finding. |
-| [`test-proof-debt-audit`](skills/test-proof-debt-audit/SKILL.md) | Check what a named test or gate actually proves, or identify redundant tests in a named set. |
-| [`verification-skill-lifecycle`](skills/verification-skill-lifecycle/SKILL.md) | Create or maintain a project-local verification skill that maps features to real user routes and evidence. |
-| [`worst-case-data-review`](skills/worst-case-data-review/SKILL.md) | Review an existing UI with extreme but admissible data and report what breaks. |
+| [`verification`](skills/verification/SKILL.md) | Prove a change: build test-first, check what a test or gate proves, maintain a project verification skill, or compare a change with its spec. |
 
 ### Safety and quality checks
 
 | Skill | Use it to |
 | --- | --- |
-| [`dependency-intake-audit`](skills/dependency-intake-audit/SKILL.md) | Evaluate a package, control install scripts, and triage advisories by reachability. |
-| [`destructive-path-guard`](skills/destructive-path-guard/SKILL.md) | Prove containment and ownership before deleting, moving, or overwriting a computed path. |
-| [`destructive-scope-guard`](skills/destructive-scope-guard/SKILL.md) | Verify tenancy, identity, inventory, and consent before removing provider-held resources. |
-| [`devops-pipeline`](skills/devops-pipeline/SKILL.md) | Decide which existing checks belong in pre-commit, pre-push, or CI. |
-| [`llm-trust-boundary`](skills/llm-trust-boundary/SKILL.md) | Constrain what retrieved text, model output, and model-accessible tools can do. |
-| [`quality-floor`](skills/quality-floor/SKILL.md) | Record enforceable quality constraints and flag diffs that weaken them. |
-| [`security-setup`](skills/security-setup/SKILL.md) | Design an offline-capable local security baseline; gate implementation and any CI mirror separately. |
+| [`destructive-guard`](skills/destructive-guard/SKILL.md) | Prove what a delete, move, overwrite, or provider-side removal will hit before it runs. |
+| [`quality-floor`](skills/quality-floor/SKILL.md) | Record enforceable quality constraints, flag diffs that weaken them, and decide which checks belong in pre-commit, pre-push, or CI. |
+| [`security`](skills/security/SKILL.md) | Harden a project: a local security baseline, dependency intake and advisory triage, and limits on what model output and model-accessible tools can do. |
 
 ### Agent work and documentation
 
 | Skill | Use it to |
 | --- | --- |
 | [`agent-delivery-workflow`](skills/agent-delivery-workflow/SKILL.md) | Coordinate a bounded delivery or review in Herdr, Rex, or herdr core (`hc`). |
-| [`agent-doc-writing`](skills/agent-doc-writing/SKILL.md) | Write or prune instructions an agent reads: skills, agent rules, and their references. |
 | [`context-boundary-routing`](skills/context-boundary-routing/SKILL.md) | Decide at a phase boundary whether to continue, clear context, hand off, delegate, or compact. |
-| [`doc-manager`](skills/doc-manager/SKILL.md) | Reconcile human-facing Markdown with its sources and validate operational steps without performing them. |
+| [`docs`](skills/docs/SKILL.md) | Write what a project keeps: agent instructions, human-facing Markdown reconciled with its sources, pull request descriptions, and prompts. |
 | [`jev`](skills/jev/SKILL.md) | Get an optional advisory judgment on a finding or decision; it never grants approval. |
 | [`paseo-delivery-workflow`](skills/paseo-delivery-workflow/SKILL.md) | Coordinate a delivery or an exact-commit review by agents running in Paseo. |
-| [`pr-body`](skills/pr-body/SKILL.md) | Write a pull request description covering the change, merge risk, and observed evidence. |
-| [`prompt-leverage`](skills/prompt-leverage/SKILL.md) | Turn a raw prompt into instructions with an explicit output and stopping condition. |
 | [`/repo-refresh`](skills/repo-refresh/SKILL.md) | Audit stale repository material, apply explicitly requested cleanup, or verify an earlier pass. |
 | [`/session-retro`](skills/session-retro/SKILL.md) | Trace problems in named sessions to lasting causes and propose one change per cause. |
+
+## Branches
+
+Each branch has its own file; its skill's `SKILL.md` chooses among them.
+
+| Skill | Branch | Use it to |
+| --- | --- | --- |
+| `design` | [`api-contract-design`](skills/design/references/api-contract-design.md) | Define an HTTP or RPC contract, including validation, errors, pagination, and safe retries. |
+| `design` | [`deep-module-design`](skills/design/references/deep-module-design.md) | Design an in-process interface that hides complexity from its callers. |
+| `design` | [`architecture-premise-audit`](skills/design/references/architecture-premise-audit.md) | Check whether a whole project is built around the right kind of system. |
+| `design` | [`throwaway-prototype`](skills/design/references/throwaway-prototype.md) | Answer one design question with a disposable logic demo or alternative UI layouts. |
+| `planning` | [`design-grilling`](skills/planning/references/design-grilling.md) | Resolve open design questions with the user before writing a spec or code. |
+| `planning` | [`capability-map`](skills/planning/references/capability-map.md) | Split one requirement into independently testable modules and order their dependencies. |
+| `planning` | [`effort-charting`](skills/planning/references/effort-charting.md) | Map open decisions in a large effort, then split the agreed spec into deliverable slices. |
+| `planning` | [`decision-record-discipline`](skills/planning/references/decision-record-discipline.md) | Record project terms, consequential decisions, and durable reasons for rejecting a proposal. |
+| `diagnosis` | [`bug-diagnosis`](skills/diagnosis/references/bug-diagnosis.md) | Reproduce a hard bug with a repeatable pass/fail signal before testing causes. |
+| `diagnosis` | [`performance-verification`](skills/diagnosis/references/performance-verification.md) | Measure a bottleneck and keep a fix only if its improvement exceeds the noise. |
+| `diagnosis` | [`telemetry-questions-first`](skills/diagnosis/references/telemetry-questions-first.md) | Add logs, metrics, and traces that answer specific on-call questions. |
+| `frontend` | [`frontend-design`](skills/frontend/references/frontend-design.md) | Build a UI change and verify its layout, states, and interactions in the rendered result. |
+| `frontend` | [`worst-case-data-review`](skills/frontend/references/worst-case-data-review.md) | Review an existing UI with extreme but admissible data and report what breaks. |
+| `migration` | [`behavior-preserving-port`](skills/migration/references/behavior-preserving-port.md) | Move code to another language, runtime, or framework while preserving what callers can observe. |
+| `migration` | [`source-grounded-implementation`](skills/migration/references/source-grounded-implementation.md) | Check a framework or library API against official sources for the installed version. |
+| `verification` | [`test-first-seams`](skills/verification/references/test-first-seams.md) | Build behavior in red-green slices through agreed public interfaces. |
+| `verification` | [`test-proof-debt-audit`](skills/verification/references/test-proof-debt-audit.md) | Check what a named test or gate actually proves, or identify redundant tests in a named set. |
+| `verification` | [`verification-skill-lifecycle`](skills/verification/references/verification-skill-lifecycle.md) | Create or maintain a project-local verification skill that maps features to real user routes and evidence. |
+| `verification` | [`spec-conformance-review`](skills/verification/references/spec-conformance-review.md) | Compare a change with its named spec and cite the requirement behind each finding. |
+| `destructive-guard` | [`destructive-path-guard`](skills/destructive-guard/references/destructive-path-guard.md) | Prove containment and ownership before deleting, moving, or overwriting a computed path. |
+| `destructive-guard` | [`destructive-scope-guard`](skills/destructive-guard/references/destructive-scope-guard.md) | Verify tenancy, identity, inventory, and consent before removing provider-held resources. |
+| `quality-floor` | [`quality-floor`](skills/quality-floor/references/quality-floor.md) | Record enforceable quality constraints and flag diffs that weaken them. |
+| `quality-floor` | [`devops-pipeline`](skills/quality-floor/references/devops-pipeline.md) | Decide which existing checks belong in pre-commit, pre-push, or CI. |
+| `security` | [`security-setup`](skills/security/references/security-setup.md) | Design an offline-capable local security baseline; gate implementation and any CI mirror separately. |
+| `security` | [`dependency-intake-audit`](skills/security/references/dependency-intake-audit.md) | Evaluate a package, control install scripts, and triage advisories by reachability. |
+| `security` | [`llm-trust-boundary`](skills/security/references/llm-trust-boundary.md) | Constrain what retrieved text, model output, and model-accessible tools can do. |
+| `docs` | [`agent-doc-writing`](skills/docs/references/agent-doc-writing.md) | Write or prune instructions an agent reads: skills, agent rules, and their references. |
+| `docs` | [`doc-manager`](skills/docs/references/doc-manager.md) | Reconcile human-facing Markdown with its sources and validate operational steps without performing them. |
+| `docs` | [`pr-body`](skills/docs/references/pr-body.md) | Write a pull request description covering the change, merge risk, and observed evidence. |
+| `docs` | [`prompt-leverage`](skills/docs/references/prompt-leverage.md) | Turn a raw prompt into instructions with an explicit output and stopping condition. |
 
 ## Repository checks and hooks
 

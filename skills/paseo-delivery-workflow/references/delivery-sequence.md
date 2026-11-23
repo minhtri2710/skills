@@ -1,7 +1,8 @@
 # Delivery sequence
 
-The [workflow contract](../SKILL.md) defines the tiers, shared rules, upward
-events, Advisor consults, and dangerous acts used in these steps.
+The [workflow contract](../SKILL.md) defines the tiers, shared rules, and dangerous acts
+used in these steps; [Supervisor and Lead](supervisor-and-lead.md) defines the upward
+events and Advisor consults.
 
 ## 1. Place it
 
@@ -286,7 +287,7 @@ once no such work is queued. A Lead whose every queued delivery is held by a pen
 answer keeps none, since the answer arrives as a prompt.
 
 After each trial or usage pass
-(step 5), the Lead runs the `test-proof-debt-audit` skill on the fastest-growing suites
+(step 5), the Lead runs the `test-proof-debt-audit` branch of the `verification` skill on the fastest-growing suites
 and deletes redundant tests in a delivery of its own, through the normal review. Done
 when `paseo ls`, `paseo workspace ls`, `paseo project ls`, and `git worktree list` show
 nothing a delivery of this project created that no delivery in flight owns or the

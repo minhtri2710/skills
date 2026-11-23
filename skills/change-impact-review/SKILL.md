@@ -20,7 +20,7 @@ Keep scheduling, wire, storage, and dependency tracing proportional to the chang
 
 ## Keep neighboring owners distinct
 
-- `test-proof-debt-audit` evaluates a named claim's existing proof, including what a test observes and whether it should remain. This skill starts from a concrete change and follows its impact to consumers; it does not audit a test suite for proof debt.
-- `source-grounded-implementation` owns official documentation and exact installed-version guidance for framework/library APIs. Use it for API-specific implementation choices; this skill checks version/source only when that dependency matters to the change's impact.
-- `api-contract-design` designs HTTP/RPC request, response, validation, error, pagination, and retry contracts. `deep-module-design` designs in-process interfaces and seams. This skill traces a change across those contracts without taking over their design.
-- Use `bug-diagnosis` when the reported behavior is a hard-to-explain failure; use `test-first-seams` when the user asks for test-first implementation. This review does not replace either workflow.
+- `test-proof-debt-audit` (`verification` skill) evaluates a named claim's existing proof, including what a test observes and whether it should remain. This skill starts from a concrete change and follows its impact to consumers; it does not audit a test suite for proof debt.
+- `source-grounded-implementation` (`migration` skill) owns official documentation and exact installed-version guidance for framework/library APIs. Use it for API-specific implementation choices; this skill checks version/source only when that dependency matters to the change's impact.
+- `api-contract-design` (`design` skill) designs HTTP/RPC request, response, validation, error, pagination, and retry contracts. `deep-module-design` (`design` skill) designs in-process interfaces and seams. This skill traces a change across those contracts without taking over their design.
+- Use `bug-diagnosis` (`diagnosis` skill) when the reported behavior is a hard-to-explain failure; use `test-first-seams` (`verification` skill) when the user asks for test-first implementation. This review does not replace either workflow.

@@ -1,6 +1,6 @@
 ---
 name: agent-delivery-workflow
-description: "Delegate bounded work to a Lead, Peers, and a Reviewer, or supervise such a delivery, in the terminal tool the agent runs in: Herdr, Rex, or herdr core (`hc`). Use when the user asks for Lead/Peer/Supervisor delivery, an implementation-to-review pipeline with independent exact-head review, to monitor or supervise a bounded delivery, or to inspect or control a delivery's seats. Do not use merely because a task could benefit from a background terminal, delegation, or parallel work, or for a bare request to control a terminal or start a sub-agent; Paseo agents use paseo-delivery-workflow. The tool is detected from the environment; outside all three, answer from this skill's doctrine only."
+description: "Bounded delivery by a Lead, Peers, and a Reviewer in the terminal tool the agent runs in: Herdr, Rex, or herdr core (`hc`). Use when the user asks for Lead/Peer/Supervisor delivery, an implementation-to-review pipeline with independent exact-head review, or to supervise or inspect such a delivery's seats. Do not use merely for a background terminal, delegation, or parallel work, or for a bare request to control a terminal or start a sub-agent; Paseo agents use paseo-delivery-workflow."
 ---
 
 # Agent Delivery Workflow
@@ -38,7 +38,7 @@ On a relaunch or compaction, consult `references/relaunch.md` with `references/s
 
 | Seat | Who staffs it | Decides | Never |
 |------|---------------|---------|-------|
-| Human | — | owns the gates: a push to the product line, PR mutation, merge, deploy, irreversible or security-sensitive change, any approval dialog; execution is delegable only under an in-force `words=human` standing-delegation row or performed on the Human's own words for that occasion; a feature-branch push is a Lead act after exact-head review (`references/lead.md`, "Review and push coverage") | — |
+| Human | — | owns the gates: a push to the product line, PR mutation, merge, deploy, irreversible or security-sensitive change, any approval dialog; execution is delegable only under an in-force `words=human` standing-delegation row or performed on the Human's own words for that occasion; a feature-branch push is a Lead act after exact-head review (`references/gate-ledger.md`, "Review and push coverage") | — |
 | Supervisor | Human, in its own seat | nothing in the delivery, except what an in-force standing-delegation row gives it (`references/delegation.md`, "Durable delegation"); observes, questions the Lead, relays Human decisions, keeps the notebook | instruct a Peer, edit, commit, answer a gate, accept |
 | Lead | the caller's own seat | intake lane, mode, partition, every commit on the tree, routing of every message and finding, acceptance | write source content in a partitioned run, run a second Lead, poll |
 | Peer — Engineer | Lead, one per scope | local implementation inside its owned paths | edit outside owned paths, run a writing git command, commit, orchestrate |

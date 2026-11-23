@@ -1,5 +1,7 @@
 # Third-party notices
 
+Where an entry names a skill of this repository that is now a branch of a larger skill, the name is that of its branch file, `skills/<skill>/references/<name>.md`; the Branches table in `README.md` maps each branch to its skill.
+
 ## Addy Osmani — `addyosmani/agent-skills`
 
 The repository history records that the standalone skills introduced in commit `d3af21d` were adapted from Addy Osmani's `agent-skills` and Matt Pocock's `skills` repositories. That commit credits both sources collectively; it does not map individual skills to either source. Preserve this notice without implying a per-skill provenance mapping.

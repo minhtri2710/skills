@@ -9,7 +9,7 @@ import unittest
 
 import support
 
-SCRIPT = support.ROOT / "skills" / "bug-diagnosis" / "scripts" / "hitl-loop.sh"
+SCRIPT = support.ROOT / "skills" / "diagnosis" / "scripts" / "hitl-loop.sh"
 
 
 def setUpModule() -> None:

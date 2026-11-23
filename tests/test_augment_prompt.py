@@ -6,7 +6,7 @@ from importlib import import_module
 
 import support
 
-augment_prompt = import_module("skills.prompt-leverage.scripts.augment_prompt")
+augment_prompt = import_module("skills.docs.scripts.augment_prompt")
 
 
 def setUpModule() -> None:

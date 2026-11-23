@@ -120,18 +120,11 @@ In `apply` mode:
 1. Merge unique current truth into its canonical owner.
 2. Update live references and instruction routing.
 3. Delete superseded sources in the same change.
-4. Compact terminal tracker records to identity, dependency fields, disposition,
-   and concise durable closeout evidence.
-5. Keep only active plans; delete completed execution diaries and review
-   packets.
-6. Remove or demote proof that has no current risk, independent oracle,
-   production consumer, or deletion sensitivity.
-7. Remove tests that pin retired implementation detail or repository history
-   without a current public, security, compatibility, or machine contract.
-8. Remove dead scripts, unowned fixtures, stale tracked reports, and reproducible
+4. Apply the "Current Truth", "Plans And Trackers", "Tests And Proof", and
+   "Strong Cleanup Rules" sections of `references/refresh-standard.md` to the
+   documents, trackers, plans, and proof the cut reaches.
+5. Remove dead scripts, unowned fixtures, stale tracked reports, and reproducible
    generated output unless distribution requires tracking it.
-9. Prefer fewer canonical folders and one documentation index. Do not preserve
-   empty taxonomy.
 
 Do not delete or rewrite a path the worktree baseline recorded. If the coherent cut
 requires touching one, that path is `BLOCKED` and stays as it is; the cut is reported
@@ -142,15 +135,10 @@ second source of truth.
 
 ### 5. Verify The Result
 
-Run validation proportionate to the changed surfaces:
+Run the "Evidence For The Refresh" checks of `references/refresh-standard.md`,
+proportionate to the changed surfaces, and two it does not list:
 
-- missing Markdown links and stale path/reference scan;
-- tracker schema and generated roadmap checks when a tracker exists;
-- plan and instruction references;
-- generator/source parity for retained generated assets;
-- targeted tests for changed tooling;
 - repository formatting or whitespace checks;
-- the smallest official acceptance command whose contract changed;
 - the worktree baseline: every path it recorded is still present and still holds the
   uncommitted work it held, or is named `BLOCKED` in the report.
 
